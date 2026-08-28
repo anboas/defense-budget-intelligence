@@ -578,7 +578,9 @@ button {
 .source-register,
 .source-roadmap,
 .pipeline-source-grid,
-.join-path-map {
+.join-path-map,
+.source-health-grid,
+.source-health-summary {
   display: grid;
   gap: 8px;
 }
@@ -593,6 +595,122 @@ button {
 
 .source-roadmap {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.source-health-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+
+.source-health-summary article {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid #dce6f1;
+  border-radius: 4px;
+  background: #f8fbfe;
+}
+
+.source-health-summary strong {
+  display: block;
+  color: #1b1b1b;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.source-health-summary span {
+  display: block;
+  margin-top: 3px;
+  color: #565c65;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.source-health-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.source-health-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #c7d4e3;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: inset 4px 0 0 #71767a;
+}
+
+.source-health-card--online {
+  box-shadow: inset 4px 0 0 #216e1f;
+}
+
+.source-health-card--redirected {
+  box-shadow: inset 4px 0 0 #b65c00;
+}
+
+.source-health-card--unavailable {
+  box-shadow: inset 4px 0 0 #9d2b22;
+}
+
+.source-health-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.source-health-card header span {
+  display: block;
+  margin-bottom: 3px;
+  color: #565c65;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.source-health-card header strong {
+  display: block;
+  color: #1b1b1b;
+  font-size: 12.5px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.source-health-card header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 3px 6px;
+  border: 1px solid #216e1f;
+  border-radius: 4px;
+  background: #f3faf2;
+  color: #216e1f;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.source-health-card--redirected header b {
+  border-color: #b65c00;
+  background: #fff8ec;
+  color: #b65c00;
+}
+
+.source-health-card--unavailable header b {
+  border-color: #9d2b22;
+  background: #fff5f3;
+  color: #9d2b22;
+}
+
+.source-health-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
 }
 
 .source-roadmap__item,
@@ -894,6 +1012,7 @@ button {
 
 .source-card dl div,
 .pipeline-source-card dl div,
+.source-health-card dl div,
 .coverage-bars span,
 .lineage-list article {
   min-width: 0;
@@ -905,6 +1024,7 @@ button {
 
 .source-card dt,
 .pipeline-source-card dt,
+.source-health-card dt,
 .lineage-list span {
   color: #565c65;
   font-size: 10px;
@@ -913,7 +1033,8 @@ button {
 }
 
 .source-card dd,
-.pipeline-source-card dd {
+.pipeline-source-card dd,
+.source-health-card dd {
   margin: 3px 0 0;
   color: #1b1b1b;
   font-size: 11px;
@@ -1068,7 +1189,9 @@ td .dot {
   .source-register,
   .source-roadmap,
   .pipeline-source-grid,
-  .join-path-card div {
+  .join-path-card div,
+  .source-health-grid,
+  .source-health-summary {
     grid-template-columns: 1fr;
   }
 

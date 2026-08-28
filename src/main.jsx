@@ -16,6 +16,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import data from "./data/budget-intelligence.json";
+import sourceHealth from "./data/source-health.json";
 import "./styles.css";
 
 const TABS = [
@@ -503,6 +504,8 @@ function Sources() {
   const sourceLayers = DATA_INVENTORY.sourceLayers || [];
   const pipelineSources = DATA_INVENTORY.pipelineSources || [];
   const sourceJoinPaths = DATA_INVENTORY.sourceJoinPaths || [];
+  const healthSources = sourceHealth.sources || [];
+  const healthTotals = sourceHealth.totals || {};
 
   return (
     <div className="grid">
@@ -538,6 +541,58 @@ function Sources() {
         <Metric label="Value coverage" value={yearList(DATA_INVENTORY.availableFiscalYears)} helper="Actual, enacted or plan, and request columns where present" tone="green" />
         <Metric label="Latest cache refresh" value={latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown"} helper="Newest cached workbook timestamp" tone="orange" />
       </div>
+
+      <Section title="Source Health Monitor" meta={`checked ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
+        <div className="source-health-summary">
+          <article>
+            <strong>{healthTotals.targets}</strong>
+            <span>tracked URLs</span>
+          </article>
+          <article>
+            <strong>{healthTotals.online}</strong>
+            <span>online</span>
+          </article>
+          <article>
+            <strong>{healthTotals.redirected}</strong>
+            <span>redirected</span>
+          </article>
+          <article>
+            <strong>{healthTotals.unavailable}</strong>
+            <span>unavailable</span>
+          </article>
+        </div>
+        <div className="source-health-grid" data-source-health-monitor>
+          {healthSources.map((source) => (
+            <article key={source.id} className={`source-health-card source-health-card--${source.health.toLowerCase()}`}>
+              <header>
+                <div>
+                  <span>{source.group} · {source.layer}</span>
+                  <strong>{source.name}</strong>
+                </div>
+                <b>{source.health}</b>
+              </header>
+              <dl>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{source.status} {source.statusText}</dd>
+                </div>
+                <div>
+                  <dt>Probe</dt>
+                  <dd>{source.method} · {source.responseMs}ms</dd>
+                </div>
+                <div>
+                  <dt>Publisher</dt>
+                  <dd>{source.publisher}</dd>
+                </div>
+                <div>
+                  <dt>Priority</dt>
+                  <dd>{source.priority ? `P${source.priority}` : "Live source"}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </Section>
 
       <Section title="Source Coverage Ladder" meta="request to execution model" icon={GitBranch}>
         <div className="source-roadmap" data-source-layer-roadmap>

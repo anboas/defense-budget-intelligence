@@ -10,6 +10,7 @@
     "build": "npm run data:build && vite build",
     "build:cloudflare": "VITE_BASE_PATH=/ npm run build",
     "data:build": "node scripts/build-budget-data.mjs",
+    "source:health": "node scripts/check-source-health.mjs",
     "lint": "eslint .",
     "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",

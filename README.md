@@ -53,12 +53,14 @@ Current version depth:
 - Next ingest queue: prior-year Comptroller display books, RDT&E justification books, USAspending award search, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
 - Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
 - Data Sources visualizes the ingestion ladder, source join paths, and an impact-versus-readiness matrix for deciding what to integrate next.
+- Source health checks track current workbook URLs and pipeline-source URLs with status, probe method, response time, and checked timestamp. Refresh with `npm run source:health`.
 
 ## Commands
 
 ```bash
 npm install
 npm run data:build
+npm run source:health
 npm run dev
 npm run verify
 npm run pages:deploy

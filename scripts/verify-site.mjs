@@ -60,12 +60,14 @@ try {
   assert.match(sourcesText, /Source Governance/i);
   assert.match(sourcesText, /Our versions/i);
   assert.match(sourcesText, /Refresh Model/i);
+  assert.match(sourcesText, /Source Health Monitor/i);
   assert.match(sourcesText, /Source Coverage Ladder/i);
   assert.match(sourcesText, /Execution Source Pipeline/i);
   assert.match(sourcesText, /Join Path Map/i);
   assert.match(sourcesText, /Ingest Priority Matrix/i);
   assert.match(sourcesText, /USAspending Award Search/i);
   assert.match(sourcesText, /SAM.gov Contract Opportunities/i);
+  assert.equal(await page.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Data Sources should expose eleven source health checks");
   assert.equal(await page.locator("[data-source-join-map] .join-path-card").count(), 4, "Data Sources should expose four source join paths");
   assert.equal(await page.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Data Sources should expose five priority points");
   await page.getByRole("button", { name: /Drilldown/ }).click();
@@ -89,6 +91,7 @@ try {
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
+  assert.equal(await mobile.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Mobile should show source health checks");
   assert.equal(await mobile.locator("[data-source-join-map] .join-path-card").count(), 4, "Mobile should show source join paths");
   assert.equal(await mobile.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Mobile should show priority matrix items");
   const mobileOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);

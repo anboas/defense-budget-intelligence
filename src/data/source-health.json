@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "title": "Defense Budget Source Health",
+    "checkedAt": "2026-08-28T15:17:00.787Z",
+    "timeoutMs": 12000,
+    "methodology": "HEAD probe with GET fallback and byte-range request when needed. Results are a point-in-time availability check, not a data quality guarantee."
+  },
+  "totals": {
+    "targets": 11,
+    "online": 11,
+    "redirected": 0,
+    "unavailable": 0
+  },
+  "sources": [
+    {
+      "id": "M-1",
+      "name": "M-1 · MILPERS",
+      "group": "Current workbook",
+      "layer": "Military Personnel",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
+      "priority": 0,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
+      "responseMs": 105,
+      "checkedAt": "2026-08-28T15:17:00.894Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
+          "responseMs": 105
+        }
+      ]
+    },
+    {
+      "id": "O-1",
+      "name": "O-1 · O&M",
+      "group": "Current workbook",
+      "layer": "Operations and Maintenance",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
+      "priority": 0,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
+      "responseMs": 466,
+      "checkedAt": "2026-08-28T15:17:01.289Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
+          "responseMs": 466
+        }
+      ]
+    },
+    {
+      "id": "P-1",
+      "name": "P-1 · PROC",
+      "group": "Current workbook",
+      "layer": "Procurement",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
+      "priority": 0,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
+      "responseMs": 102,
+      "checkedAt": "2026-08-28T15:17:00.926Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
+          "responseMs": 102
+        }
+      ]
+    },
+    {
+      "id": "R-1",
+      "name": "R-1 · RDT&E",
+      "group": "Current workbook",
+      "layer": "Research, Development, Test, and Evaluation",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
+      "priority": 0,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
+      "responseMs": 83,
+      "checkedAt": "2026-08-28T15:17:00.908Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
+          "responseMs": 83
+        }
+      ]
+    },
+    {
+      "id": "RF-1",
+      "name": "RF-1 · RF",
+      "group": "Current workbook",
+      "layer": "Revolving and Management Funds",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
+      "priority": 0,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
+      "responseMs": 449,
+      "checkedAt": "2026-08-28T15:17:01.276Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
+          "responseMs": 449
+        }
+      ]
+    },
+    {
+      "id": "C-1",
+      "name": "C-1 · MILCON",
+      "group": "Current workbook",
+      "layer": "MILCON / Family Housing / BRAC",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+      "priority": 0,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+      "responseMs": 80,
+      "checkedAt": "2026-08-28T15:17:00.907Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+          "responseMs": 80
+        }
+      ]
+    },
+    {
+      "id": "prior-year-comptroller-books",
+      "name": "Prior-Year Comptroller Display Books",
+      "group": "Pipeline source",
+      "layer": "Budget request history",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Budget-Materials/",
+      "priority": 1,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Budget-Materials/",
+      "responseMs": 86,
+      "checkedAt": "2026-08-28T15:17:00.914Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Budget-Materials/",
+          "responseMs": 86
+        }
+      ]
+    },
+    {
+      "id": "rdte-justification-books",
+      "name": "RDT&E Justification Books",
+      "group": "Pipeline source",
+      "layer": "Program narrative",
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "url": "https://comptroller.war.gov/Budget-Materials/Budget2027/",
+      "priority": 2,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://comptroller.war.gov/Budget-Materials/Budget2027/",
+      "responseMs": 156,
+      "checkedAt": "2026-08-28T15:17:00.985Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://comptroller.war.gov/Budget-Materials/Budget2027/",
+          "responseMs": 156
+        }
+      ]
+    },
+    {
+      "id": "usaspending-awards",
+      "name": "USAspending Award Search",
+      "group": "Pipeline source",
+      "layer": "Obligations and outlays",
+      "publisher": "U.S. Department of the Treasury",
+      "url": "https://api.usaspending.gov/docs/",
+      "priority": 3,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://api.usaspending.gov/docs/",
+      "responseMs": 516,
+      "checkedAt": "2026-08-28T15:17:01.345Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://api.usaspending.gov/docs/",
+          "responseMs": 516
+        }
+      ]
+    },
+    {
+      "id": "fpds-contract-data",
+      "name": "FPDS / SAM.gov Contract Data",
+      "group": "Pipeline source",
+      "layer": "Contract actions",
+      "publisher": "General Services Administration",
+      "url": "https://sam.gov/contracting",
+      "priority": 4,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://sam.gov/contracting",
+      "responseMs": 163,
+      "checkedAt": "2026-08-28T15:17:00.993Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://sam.gov/contracting",
+          "responseMs": 163
+        }
+      ]
+    },
+    {
+      "id": "sam-opportunities",
+      "name": "SAM.gov Contract Opportunities",
+      "group": "Pipeline source",
+      "layer": "Market timing",
+      "publisher": "General Services Administration",
+      "url": "https://open.gsa.gov/api/get-opportunities-public-api/",
+      "priority": 5,
+      "health": "Online",
+      "ok": true,
+      "status": 200,
+      "statusText": "OK",
+      "method": "HEAD",
+      "finalUrl": "https://open.gsa.gov/api/get-opportunities-public-api/",
+      "responseMs": 411,
+      "checkedAt": "2026-08-28T15:17:01.242Z",
+      "attempts": [
+        {
+          "method": "HEAD",
+          "ok": true,
+          "status": 200,
+          "statusText": "OK",
+          "finalUrl": "https://open.gsa.gov/api/get-opportunities-public-api/",
+          "responseMs": 411
+        }
+      ]
+    }
+  ]
+}
