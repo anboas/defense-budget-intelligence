@@ -51,7 +51,8 @@ Current version depth:
 - Fiscal-year values extracted from the FY2027 package: FY2025, FY2026, and FY2027.
 - Source coverage ladder: budget request line items are live; program narrative, obligations/outlays, and market timing feeds are staged next.
 - Next ingest queue: prior-year Comptroller display books, RDT&E justification books, USAspending award search, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
-- Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, join keys, first ingest task, and analytic value.
+- Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
+- Data Sources visualizes the ingestion ladder, source join paths, and an impact-versus-readiness matrix for deciding what to integrate next.
 
 ## Commands
 

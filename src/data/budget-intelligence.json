@@ -7,7 +7,7 @@
       2026,
       2027
     ],
-    "generatedAt": "2026-08-28T14:55:49.441Z",
+    "generatedAt": "2026-08-28T15:08:22.652Z",
     "sourceCache": "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     "sources": [
       {
@@ -279,6 +279,7 @@
       ],
       "sourceCount": 6,
       "sourceLayerCount": 4,
+      "pipelineSourceCount": 5,
       "recordCount": 3888,
       "largestExtractedLineSet": 500,
       "sourceLayers": [
@@ -322,6 +323,9 @@
           "layer": "Budget request history",
           "cadence": "Annual President's Budget releases",
           "access": "Public XLSX/PDF downloads",
+          "readiness": 92,
+          "impact": 88,
+          "effort": "Medium",
           "joinKeys": [
             "budget activity",
             "program element / line item",
@@ -341,6 +345,9 @@
           "layer": "Program narrative",
           "cadence": "Annual President's Budget releases",
           "access": "Public PDF downloads",
+          "readiness": 78,
+          "impact": 92,
+          "effort": "High",
           "joinKeys": [
             "program element",
             "project number",
@@ -360,6 +367,9 @@
           "layer": "Obligations and outlays",
           "cadence": "Regular federal award updates",
           "access": "Public API",
+          "readiness": 72,
+          "impact": 96,
+          "effort": "High",
           "joinKeys": [
             "awarding agency",
             "funding agency",
@@ -381,6 +391,9 @@
           "layer": "Contract actions",
           "cadence": "Regular procurement action updates",
           "access": "Public search and data services",
+          "readiness": 64,
+          "impact": 86,
+          "effort": "High",
           "joinKeys": [
             "contracting office",
             "recipient",
@@ -402,6 +415,9 @@
           "layer": "Market timing",
           "cadence": "Daily opportunity updates",
           "access": "Public API with key",
+          "readiness": 68,
+          "impact": 82,
+          "effort": "Medium",
           "joinKeys": [
             "agency",
             "office",
@@ -412,6 +428,40 @@
           ],
           "firstTask": "Pull active DoD opportunities matching high-growth budget signals and agency filters.",
           "value": "Connects spending posture to live solicitations, sources sought, and recompete timing."
+        }
+      ],
+      "sourceJoinPaths": [
+        {
+          "id": "request-to-narrative",
+          "from": "Budget line item",
+          "to": "Program narrative",
+          "confidence": "High",
+          "bridge": "Program element, budget activity, project number, account, service",
+          "unlocks": "Technical rationale, named initiatives, performer clues, and hidden AI/autonomy signals."
+        },
+        {
+          "id": "request-to-obligations",
+          "from": "Budget request",
+          "to": "Obligated spend",
+          "confidence": "Medium",
+          "bridge": "Agency, organization, program activity, PSC/NAICS, fiscal year, keyword match",
+          "unlocks": "Execution burn, vendor concentration, award vehicle analysis, and request-to-spend comparison."
+        },
+        {
+          "id": "obligations-to-contracts",
+          "from": "Award totals",
+          "to": "Contract actions",
+          "confidence": "Medium",
+          "bridge": "PIID, recipient, contracting office, PSC/NAICS, award description",
+          "unlocks": "Buyer offices, action history, contract vehicles, performers, and recompete patterns."
+        },
+        {
+          "id": "request-to-opportunities",
+          "from": "Budget signal",
+          "to": "Market timing",
+          "confidence": "Directional",
+          "bridge": "Agency, office, NAICS/PSC, description keywords, mission signal",
+          "unlocks": "Active notices, sources sought, solicitation timing, and capture-entry points."
         }
       ],
       "limitations": [

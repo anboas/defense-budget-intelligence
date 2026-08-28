@@ -488,6 +488,12 @@ function Drilldown({ records }) {
   );
 }
 
+function scoreTone(score) {
+  if (score >= 85) return "high";
+  if (score >= 70) return "medium";
+  return "low";
+}
+
 function Sources() {
   const latestSourceRefresh = BOOKS
     .map((source) => new Date(source.cacheModifiedAt).getTime())
@@ -496,6 +502,7 @@ function Sources() {
   const workbookRecords = BOOKS.reduce((total, source) => total + source.records, 0);
   const sourceLayers = DATA_INVENTORY.sourceLayers || [];
   const pipelineSources = DATA_INVENTORY.pipelineSources || [];
+  const sourceJoinPaths = DATA_INVENTORY.sourceJoinPaths || [];
 
   return (
     <div className="grid">
@@ -544,6 +551,42 @@ function Sources() {
           ))}
         </div>
       </Section>
+
+      <div className="grid grid--sources">
+        <Section title="Join Path Map" meta="how sources attach to the budget model" icon={Layers}>
+          <div className="join-path-map" data-source-join-map>
+            {sourceJoinPaths.map((path) => (
+              <article key={path.id} className="join-path-card">
+                <div>
+                  <strong>{path.from}</strong>
+                  <span>{path.confidence}</span>
+                  <strong>{path.to}</strong>
+                </div>
+                <p>{path.bridge}</p>
+                <em>{path.unlocks}</em>
+              </article>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Ingest Priority Matrix" meta="impact vs readiness" icon={TrendingUp}>
+          <div className="pipeline-matrix" data-ingest-priority-matrix>
+            <div className="pipeline-matrix__axis pipeline-matrix__axis--impact">impact</div>
+            <div className="pipeline-matrix__axis pipeline-matrix__axis--readiness">readiness</div>
+            {pipelineSources.map((source) => (
+              <article
+                key={source.id}
+                className="pipeline-matrix__point"
+                data-readiness={scoreTone(source.readiness)}
+              >
+                <span>P{source.priority}</span>
+                <strong>{source.name}</strong>
+                <em>{source.readiness}% ready · {source.impact}% impact</em>
+              </article>
+            ))}
+          </div>
+        </Section>
+      </div>
 
       <Section title="Source Register" meta="official workbook inventory" icon={FileSpreadsheet}>
         <div className="source-register">
@@ -630,6 +673,10 @@ function Sources() {
                 <div>
                   <dt>Access</dt>
                   <dd>{source.access}</dd>
+                </div>
+                <div>
+                  <dt>Readiness</dt>
+                  <dd>{source.readiness}% · impact {source.impact}% · {source.effort} effort</dd>
                 </div>
                 <div>
                   <dt>Join keys</dt>
