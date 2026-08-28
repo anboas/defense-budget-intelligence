@@ -1,0 +1,31 @@
+{
+  "name": "defense-budget-intelligence",
+  "version": "0.1.0",
+  "private": false,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "Defense budget analytics platform for service, Fourth Estate, and color-of-money spending intelligence.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "npm run data:build && vite build",
+    "data:build": "node scripts/build-budget-data.mjs",
+    "lint": "eslint .",
+    "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.16",
+    "typescript": "^5.9.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.542.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "playwright-core": "^1.61.0"
+  }
+}
