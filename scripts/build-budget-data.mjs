@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || "/home/anboas/clawd/artifacts/sabre-research/budget";
+const DEFAULT_SOURCE_DIR = process.env.HOME ? resolve(process.env.HOME, "clawd/artifacts/sabre-research/budget") : resolve(ROOT, "../artifacts/sabre-research/budget");
+const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
 const OUT_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 
 const BOOKS = [
@@ -23,6 +24,15 @@ const SOURCE_URLS = {
   "R-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
   "RF-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
   "C-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+};
+
+const SOURCE_NOTES = {
+  "M-1": "End strength and military personnel appropriations by account, activity, and organization.",
+  "O-1": "Operation and maintenance appropriations covering readiness, sustainment, administration, and activity lines.",
+  "P-1": "Procurement appropriations by budget line item, account, and service or defense-wide organization.",
+  "R-1": "Research, Development, Test, and Evaluation program elements and budget activities.",
+  "RF-1": "Revolving and management fund accounts, including working capital and other fund activity.",
+  "C-1": "Military construction, family housing, and BRAC project-level entries by fiscal year.",
 };
 
 const missingSource = BOOKS.find((book) => !existsSync(resolve(SOURCE_DIR, book.file)));
@@ -271,6 +281,10 @@ function aggregate(records, keyFn) {
   return [...groups.values()].sort((a, b) => b.fy2027 - a.fy2027);
 }
 
+function sum(records, key) {
+  return records.reduce((total, record) => total + Number(record[key] || 0), 0);
+}
+
 const records = BOOKS.flatMap(parseBook);
 const total = aggregate(records, () => ({ id: "portfolio", label: "DoD captured portfolio" }))[0];
 const byBook = aggregate(records, (record) => ({ id: record.bookId, label: record.color, short: record.colorShort }));
@@ -295,14 +309,71 @@ const topRecords = records
   .sort((a, b) => b.fy2027 - a.fy2027)
   .slice(0, 500);
 
+const sourceFiscalYears = [2025, 2026, 2027];
+const sourceInventory = BOOKS.map((book) => {
+  const bookRecords = records.filter((record) => record.bookId === book.id);
+  const filePath = resolve(SOURCE_DIR, book.file);
+  const stats = statSync(filePath);
+  const fiscalYearCoverage = sourceFiscalYears.map((year) => {
+    const key = `fy${year}`;
+    const yearRecords = bookRecords.filter((record) => record[key] !== 0);
+    return {
+      year,
+      records: yearRecords.length,
+      value: sum(yearRecords, key),
+    };
+  });
+
+  return {
+    ...book,
+    sourceUrl: SOURCE_URLS[book.id],
+    sourceOffice: "Office of the Under Secretary of Defense (Comptroller)",
+    sourcePackage: "FY2027 Defense Budget Materials",
+    sourceRelease: "FY2027 President's Budget display workbook",
+    sourceRefreshCadence: "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+    localFile: book.file,
+    cacheModifiedAt: stats.mtime.toISOString(),
+    cacheSizeBytes: stats.size,
+    availableBudgetRequestYears: [2027],
+    availableFiscalYears: fiscalYearCoverage.filter((year) => year.records > 0).map((year) => year.year),
+    fiscalYearCoverage,
+    records: bookRecords.length,
+    fy2027Request: sum(bookRecords, "fy2027"),
+    notes: SOURCE_NOTES[book.id],
+  };
+});
+
 const out = {
   metadata: {
     title: "Defense Budget Intelligence",
-    description: "FY2027 DoD budget analytics across services, Fourth Estate, colors of money, line items, and AI/autonomy signals.",
+    description: "FY2027 DoD budget analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
     fiscalYears: [2025, 2026, 2027],
     generatedAt: new Date().toISOString(),
-    sourceDirectory: SOURCE_DIR,
-    sources: BOOKS.map((book) => ({ ...book, sourceUrl: SOURCE_URLS[book.id] })),
+    sourceCache: "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
+    sources: sourceInventory,
+    dataInventory: {
+      publisher: "Office of the Under Secretary of Defense (Comptroller)",
+      sourcePackage: "FY2027 Defense Budget Materials",
+      sourcePackageUrl: "https://comptroller.war.gov/Budget-Materials/",
+      refreshModel: "Manual source refresh. Replace cached workbooks and run npm run data:build; CI uses committed generated JSON when raw workbooks are not present.",
+      automationStatus: "No scheduled upstream polling yet.",
+      availableBudgetRequestYears: [2027],
+      availableFiscalYears: sourceFiscalYears,
+      sourceCount: sourceInventory.length,
+      recordCount: records.length,
+      largestExtractedLineSet: topRecords.length,
+      limitations: [
+        "Budget display books are request and enacted-plan views, not executed outlay or contract-obligation feeds.",
+        "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
+        "Only the FY2027 budget request package is currently versioned in this repository; historical package ingestion is the next data expansion.",
+      ],
+      nextSources: [
+        "Prior-year Comptroller display books for true multi-request trend history.",
+        "RDT&E budget justification PDFs for program narrative and hidden AI/autonomy signals.",
+        "USAspending and FPDS obligations for execution-side spend and vendor drilldown.",
+        "DoD contracts, solicitations, and POM-relevant public releases for market timing context.",
+      ],
+    },
     methodology: "Parsed official FY2027 Comptroller display workbooks. Dollar values are billions. FY2025/FY2026/FY2027 are derived from workbook total columns where present; C-1 uses the workbook fiscal-year field with total obligation authority.",
   },
   signals: SIGNALS,

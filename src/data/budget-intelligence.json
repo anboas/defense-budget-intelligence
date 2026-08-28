@@ -1,58 +1,297 @@
 {
   "metadata": {
     "title": "Defense Budget Intelligence",
-    "description": "FY2027 DoD budget analytics across services, Fourth Estate, colors of money, line items, and AI/autonomy signals.",
+    "description": "FY2027 DoD budget analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
     "fiscalYears": [
       2025,
       2026,
       2027
     ],
-    "generatedAt": "2026-08-28T13:56:04.597Z",
-    "sourceDirectory": "/home/anboas/clawd/artifacts/sabre-research/budget",
+    "generatedAt": "2026-08-28T14:10:17.608Z",
+    "sourceCache": "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     "sources": [
       {
         "id": "M-1",
         "file": "m1_display.xlsx",
         "color": "Military Personnel",
         "short": "MILPERS",
-        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx"
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
+        "sourceOffice": "Office of the Under Secretary of Defense (Comptroller)",
+        "sourcePackage": "FY2027 Defense Budget Materials",
+        "sourceRelease": "FY2027 President's Budget display workbook",
+        "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+        "localFile": "m1_display.xlsx",
+        "cacheModifiedAt": "2026-08-22T19:43:12.165Z",
+        "cacheSizeBytes": 245701,
+        "availableBudgetRequestYears": [
+          2027
+        ],
+        "availableFiscalYears": [
+          2025,
+          2026,
+          2027
+        ],
+        "fiscalYearCoverage": [
+          {
+            "year": 2025,
+            "records": 271,
+            "value": 187.1840920000001
+          },
+          {
+            "year": 2026,
+            "records": 274,
+            "value": 198.21358100000003
+          },
+          {
+            "year": 2027,
+            "records": 273,
+            "value": 206.51029700000012
+          }
+        ],
+        "records": 285,
+        "fy2027Request": 206.51029700000012,
+        "notes": "End strength and military personnel appropriations by account, activity, and organization."
       },
       {
         "id": "O-1",
         "file": "o1_display.xlsx",
         "color": "Operations and Maintenance",
         "short": "O&M",
-        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx"
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
+        "sourceOffice": "Office of the Under Secretary of Defense (Comptroller)",
+        "sourcePackage": "FY2027 Defense Budget Materials",
+        "sourceRelease": "FY2027 President's Budget display workbook",
+        "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+        "localFile": "o1_display.xlsx",
+        "cacheModifiedAt": "2026-08-22T19:43:11.773Z",
+        "cacheSizeBytes": 334518,
+        "availableBudgetRequestYears": [
+          2027
+        ],
+        "availableFiscalYears": [
+          2025,
+          2026,
+          2027
+        ],
+        "fiscalYearCoverage": [
+          {
+            "year": 2025,
+            "records": 373,
+            "value": 350.04836600000004
+          },
+          {
+            "year": 2026,
+            "records": 336,
+            "value": 355.069459
+          },
+          {
+            "year": 2027,
+            "records": 335,
+            "value": 430.7317670000004
+          }
+        ],
+        "records": 389,
+        "fy2027Request": 430.7317670000004,
+        "notes": "Operation and maintenance appropriations covering readiness, sustainment, administration, and activity lines."
       },
       {
         "id": "P-1",
         "file": "p1_display.xlsx",
         "color": "Procurement",
         "short": "PROC",
-        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx"
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
+        "sourceOffice": "Office of the Under Secretary of Defense (Comptroller)",
+        "sourcePackage": "FY2027 Defense Budget Materials",
+        "sourceRelease": "FY2027 President's Budget display workbook",
+        "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+        "localFile": "p1_display.xlsx",
+        "cacheModifiedAt": "2026-08-22T19:43:11.913Z",
+        "cacheSizeBytes": 926568,
+        "availableBudgetRequestYears": [
+          2027
+        ],
+        "availableFiscalYears": [
+          2025,
+          2026,
+          2027
+        ],
+        "fiscalYearCoverage": [
+          {
+            "year": 2025,
+            "records": 924,
+            "value": 199.21604799999992
+          },
+          {
+            "year": 2026,
+            "records": 888,
+            "value": 238.91067499999969
+          },
+          {
+            "year": 2027,
+            "records": 829,
+            "value": 434.1578220000002
+          }
+        ],
+        "records": 1137,
+        "fy2027Request": 434.1578220000002,
+        "notes": "Procurement appropriations by budget line item, account, and service or defense-wide organization."
       },
       {
         "id": "R-1",
         "file": "r1_display.xlsx",
         "color": "Research, Development, Test, and Evaluation",
         "short": "RDT&E",
-        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx"
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
+        "sourceOffice": "Office of the Under Secretary of Defense (Comptroller)",
+        "sourcePackage": "FY2027 Defense Budget Materials",
+        "sourceRelease": "FY2027 President's Budget display workbook",
+        "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+        "localFile": "r1_display.xlsx",
+        "cacheModifiedAt": "2026-08-22T19:43:12.080Z",
+        "cacheSizeBytes": 691426,
+        "availableBudgetRequestYears": [
+          2027
+        ],
+        "availableFiscalYears": [
+          2025,
+          2026,
+          2027
+        ],
+        "fiscalYearCoverage": [
+          {
+            "year": 2025,
+            "records": 1006,
+            "value": 143.34599600000004
+          },
+          {
+            "year": 2026,
+            "records": 978,
+            "value": 210.3850299999999
+          },
+          {
+            "year": 2027,
+            "records": 943,
+            "value": 343.6889209999999
+          }
+        ],
+        "records": 1148,
+        "fy2027Request": 343.6889209999999,
+        "notes": "Research, Development, Test, and Evaluation program elements and budget activities."
       },
       {
         "id": "RF-1",
         "file": "rf1_display.xlsx",
         "color": "Revolving and Management Funds",
         "short": "RF",
-        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx"
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
+        "sourceOffice": "Office of the Under Secretary of Defense (Comptroller)",
+        "sourcePackage": "FY2027 Defense Budget Materials",
+        "sourceRelease": "FY2027 President's Budget display workbook",
+        "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+        "localFile": "rf1_display.xlsx",
+        "cacheModifiedAt": "2026-08-22T19:43:12.276Z",
+        "cacheSizeBytes": 36300,
+        "availableBudgetRequestYears": [
+          2027
+        ],
+        "availableFiscalYears": [
+          2025,
+          2026,
+          2027
+        ],
+        "fiscalYearCoverage": [
+          {
+            "year": 2025,
+            "records": 8,
+            "value": 2.007216
+          },
+          {
+            "year": 2026,
+            "records": 7,
+            "value": 4.18464
+          },
+          {
+            "year": 2027,
+            "records": 9,
+            "value": 26.255993
+          }
+        ],
+        "records": 12,
+        "fy2027Request": 26.255993,
+        "notes": "Revolving and management fund accounts, including working capital and other fund activity."
       },
       {
         "id": "C-1",
         "file": "c1_display.xlsx",
         "color": "MILCON / Family Housing / BRAC",
         "short": "MILCON",
-        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx"
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+        "sourceOffice": "Office of the Under Secretary of Defense (Comptroller)",
+        "sourcePackage": "FY2027 Defense Budget Materials",
+        "sourceRelease": "FY2027 President's Budget display workbook",
+        "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+        "localFile": "c1_display.xlsx",
+        "cacheModifiedAt": "2026-08-22T19:43:12.357Z",
+        "cacheSizeBytes": 117109,
+        "availableBudgetRequestYears": [
+          2027
+        ],
+        "availableFiscalYears": [
+          2025,
+          2026,
+          2027
+        ],
+        "fiscalYearCoverage": [
+          {
+            "year": 2025,
+            "records": 271,
+            "value": 19.679008999999997
+          },
+          {
+            "year": 2026,
+            "records": 328,
+            "value": 24.632903000000002
+          },
+          {
+            "year": 2027,
+            "records": 318,
+            "value": 31.250315000000022
+          }
+        ],
+        "records": 917,
+        "fy2027Request": 31.250315000000022,
+        "notes": "Military construction, family housing, and BRAC project-level entries by fiscal year."
       }
     ],
+    "dataInventory": {
+      "publisher": "Office of the Under Secretary of Defense (Comptroller)",
+      "sourcePackage": "FY2027 Defense Budget Materials",
+      "sourcePackageUrl": "https://comptroller.war.gov/Budget-Materials/",
+      "refreshModel": "Manual source refresh. Replace cached workbooks and run npm run data:build; CI uses committed generated JSON when raw workbooks are not present.",
+      "automationStatus": "No scheduled upstream polling yet.",
+      "availableBudgetRequestYears": [
+        2027
+      ],
+      "availableFiscalYears": [
+        2025,
+        2026,
+        2027
+      ],
+      "sourceCount": 6,
+      "recordCount": 3888,
+      "largestExtractedLineSet": 500,
+      "limitations": [
+        "Budget display books are request and enacted-plan views, not executed outlay or contract-obligation feeds.",
+        "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
+        "Only the FY2027 budget request package is currently versioned in this repository; historical package ingestion is the next data expansion."
+      ],
+      "nextSources": [
+        "Prior-year Comptroller display books for true multi-request trend history.",
+        "RDT&E budget justification PDFs for program narrative and hidden AI/autonomy signals.",
+        "USAspending and FPDS obligations for execution-side spend and vendor drilldown.",
+        "DoD contracts, solicitations, and POM-relevant public releases for market timing context."
+      ]
+    },
     "methodology": "Parsed official FY2027 Comptroller display workbooks. Dollar values are billions. FY2025/FY2026/FY2027 are derived from workbook total columns where present; C-1 uses the workbook fiscal-year field with total obligation authority."
   },
   "signals": [

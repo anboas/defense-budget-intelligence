@@ -40,6 +40,11 @@ try {
   assert.match(text, /Fourth Estate/);
   await page.getByRole("button", { name: /AI \/ Autonomy/ }).click();
   assert.match(await page.locator("[data-defense-budget-app]").innerText(), /spending/i);
+  await page.getByRole("button", { name: /Data Sources/ }).click();
+  const sourcesText = await page.locator("[data-defense-budget-app]").innerText();
+  assert.match(sourcesText, /Source Governance/i);
+  assert.match(sourcesText, /Our versions/i);
+  assert.match(sourcesText, /Refresh Model/i);
   await page.getByRole("button", { name: /Drilldown/ }).click();
   await page.getByPlaceholder("Search line items").fill("artificial intelligence");
   assert.match(await page.locator("[data-budget-record-table]").innerText(), /Artificial Intelligence|Autonomous|Machine/i);
@@ -51,6 +56,8 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-defense-budget-app]");
+  await mobile.getByRole("button", { name: /Data Sources/ }).click();
+  assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
   const mobileOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileOverflow <= 2, `mobile overflow ${mobileOverflow}`);
   await mobile.screenshot({ path: `${OUT_DIR}/mobile.png`, fullPage: true });

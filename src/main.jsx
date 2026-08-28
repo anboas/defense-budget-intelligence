@@ -4,11 +4,14 @@ import {
   BarChart3,
   BrainCircuit,
   Building2,
+  CalendarClock,
   Database,
   ExternalLink,
+  FileSpreadsheet,
   Filter,
   GitBranch,
   Layers,
+  RefreshCcw,
   Search,
   TrendingUp,
 } from "lucide-react";
@@ -21,7 +24,7 @@ const TABS = [
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
   { id: "drilldown", label: "Drilldown", icon: Search },
-  { id: "sources", label: "Sources", icon: Database },
+  { id: "sources", label: "Data Sources", icon: Database },
 ];
 
 const BOOK_COLORS = {
@@ -41,11 +44,32 @@ const GROUP_LABELS = {
 
 const BOOKS = data.metadata.sources;
 const SIGNALS = data.signals;
+const DATA_INVENTORY = data.metadata.dataInventory;
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
   if (number > 0 && Math.abs(number) < 0.1) return `$${(number * 1000).toFixed(0)}M`;
   return `$${number.toFixed(digits)}B`;
+}
+
+function fileSize(bytes) {
+  const size = Number(bytes || 0);
+  if (size > 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.max(size / 1024, 1).toFixed(0)} KB`;
+}
+
+function dateTime(value) {
+  return new Date(value).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function yearList(years = []) {
+  return years.map((year) => `FY${year}`).join(", ");
 }
 
 function pct(value, digits = 1) {
@@ -418,22 +442,147 @@ function Drilldown({ records }) {
 }
 
 function Sources() {
+  const latestSourceRefresh = BOOKS
+    .map((source) => new Date(source.cacheModifiedAt).getTime())
+    .filter(Boolean)
+    .sort((a, b) => b - a)[0];
+  const workbookRecords = BOOKS.reduce((total, source) => total + source.records, 0);
+
   return (
-    <Section title="Metadata And Source Trail" meta="official display workbooks" icon={Database}>
-      <div className="source-copy">
-        <p>{data.metadata.methodology}</p>
-        <p>Generated: {new Date(data.metadata.generatedAt).toLocaleString()}</p>
+    <div className="grid">
+      <section className="source-hero">
+        <div>
+          <span>Source Governance</span>
+          <h2>Data Sources</h2>
+          <p>Official Comptroller display books feed the current line-level budget model. This page tracks provenance, local versions, refresh state, extracted coverage, and the gaps that matter for Sabre market intelligence.</p>
+        </div>
+        <div className="source-hero__facts" aria-label="Data source summary">
+          <article>
+            <strong>{DATA_INVENTORY.sourceCount}</strong>
+            <span>source workbooks</span>
+          </article>
+          <article>
+            <strong>{workbookRecords.toLocaleString()}</strong>
+            <span>parsed records</span>
+          </article>
+          <article>
+            <strong>{DATA_INVENTORY.availableBudgetRequestYears.length}</strong>
+            <span>request vintage</span>
+          </article>
+          <article>
+            <strong>{DATA_INVENTORY.availableFiscalYears.length}</strong>
+            <span>fiscal years</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="source-metrics">
+        <Metric label="Official publisher" value="OUSD(C)" helper={DATA_INVENTORY.sourcePackage} />
+        <Metric label="Current package" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper="Only one budget-request vintage is versioned today" tone="purple" />
+        <Metric label="Value coverage" value={yearList(DATA_INVENTORY.availableFiscalYears)} helper="Actual, enacted or plan, and request columns where present" tone="green" />
+        <Metric label="Latest cache refresh" value={latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown"} helper="Newest cached workbook timestamp" tone="orange" />
       </div>
-      <div className="source-grid">
-        {BOOKS.map((source) => (
-          <a key={source.id} href={source.sourceUrl} target="_blank" rel="noreferrer">
-            <strong>{source.short}</strong>
-            <span>{source.color}</span>
-            <ExternalLink size={14} aria-hidden="true" />
-          </a>
-        ))}
+
+      <Section title="Source Register" meta="official workbook inventory" icon={FileSpreadsheet}>
+        <div className="source-register">
+          {BOOKS.map((source) => (
+            <article key={source.id} className="source-card">
+              <header>
+                <i className="dot" style={{ background: BOOK_COLORS[source.id] }} />
+                <div>
+                  <strong>{source.id} · {source.short}</strong>
+                  <span>{source.color}</span>
+                </div>
+                <a href={source.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${source.short} official workbook`}>
+                  <ExternalLink size={15} aria-hidden="true" />
+                </a>
+              </header>
+              <p>{source.notes}</p>
+              <dl>
+                <div>
+                  <dt>Publisher</dt>
+                  <dd>{source.sourceOffice}</dd>
+                </div>
+                <div>
+                  <dt>Release</dt>
+                  <dd>{source.sourceRelease}</dd>
+                </div>
+                <div>
+                  <dt>Our versions</dt>
+                  <dd>{source.availableBudgetRequestYears.length} request package · {yearList(source.availableBudgetRequestYears)}</dd>
+                </div>
+                <div>
+                  <dt>Values present</dt>
+                  <dd>{source.availableFiscalYears.length} years · {yearList(source.availableFiscalYears)}</dd>
+                </div>
+                <div>
+                  <dt>Records</dt>
+                  <dd>{source.records.toLocaleString()} parsed lines · {money(source.fy2027Request)} FY2027</dd>
+                </div>
+                <div>
+                  <dt>Cache</dt>
+                  <dd>{dateTime(source.cacheModifiedAt)} · {fileSize(source.cacheSizeBytes)}</dd>
+                </div>
+              </dl>
+              <div className="coverage-bars" aria-label={`${source.short} fiscal year coverage`}>
+                {source.fiscalYearCoverage.map((year) => (
+                  <span key={year.year}>
+                    <b>FY{year.year}</b>
+                    <em>{year.records.toLocaleString()} lines</em>
+                    <strong>{money(year.value)}</strong>
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <div className="grid grid--sources">
+        <Section title="Refresh Model" meta="current operational state" icon={RefreshCcw}>
+          <div className="source-copy">
+            <p>{DATA_INVENTORY.refreshModel}</p>
+            <p>{DATA_INVENTORY.automationStatus} The public Pages build does not need the private workbook cache because the generated JSON is committed with the site.</p>
+            <p>{BOOKS[0]?.sourceRefreshCadence}</p>
+          </div>
+        </Section>
+
+        <Section title="Build Lineage" meta="generated site artifact" icon={CalendarClock}>
+          <div className="lineage-list">
+            <article>
+              <span>Generated</span>
+              <strong>{dateTime(data.metadata.generatedAt)}</strong>
+            </article>
+            <article>
+              <span>Source package</span>
+              <strong>{DATA_INVENTORY.sourcePackage}</strong>
+            </article>
+            <article>
+              <span>Extraction method</span>
+              <strong>{data.metadata.methodology}</strong>
+            </article>
+            <article>
+              <span>Publisher landing page</span>
+              <a href={DATA_INVENTORY.sourcePackageUrl} target="_blank" rel="noreferrer">Budget Materials <ExternalLink size={13} aria-hidden="true" /></a>
+            </article>
+          </div>
+        </Section>
       </div>
-    </Section>
+
+      <div className="grid grid--sources">
+        <Section title="Known Limits" meta="important caveats" icon={Filter}>
+          <ul className="source-list">
+            {DATA_INVENTORY.limitations.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
+
+        <Section title="Next Data Sources" meta="needed for deeper spend intelligence" icon={GitBranch}>
+          <ul className="source-list source-list--next">
+            {DATA_INVENTORY.nextSources.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Section>
+      </div>
+    </div>
   );
 }
 

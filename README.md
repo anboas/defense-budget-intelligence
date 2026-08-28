@@ -10,15 +10,26 @@ Purpose-built analytics platform for understanding Department of Defense budget 
 - Drilldown levels: portfolio, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, and source workbook link.
 - Signal views: AI / autonomy, cyber, space, software / digital, missiles, shipbuilding, aircraft, medical, logistics, and infrastructure.
 
-## Data Source
+## Data Sources
 
-The initial build uses FY2027 Comptroller display workbooks cached under:
+The site currently uses six official FY2027 Office of the Under Secretary of Defense (Comptroller) display workbooks:
 
-```text
-/home/anboas/clawd/artifacts/sabre-research/budget/
-```
+- M-1: Military Personnel
+- O-1: Operations and Maintenance
+- P-1: Procurement
+- R-1: Research, Development, Test, and Evaluation
+- RF-1: Revolving and Management Funds
+- C-1: Military Construction / Family Housing / BRAC
 
 The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. CI builds use the committed generated JSON when the local workbook cache is not present.
+
+Local source refresh uses cached workbooks from `BUDGET_SOURCE_DIR`, defaulting to `$HOME/clawd/artifacts/sabre-research/budget`. Replace the cached workbooks, run `npm run data:build`, review the Data Sources page, then commit the generated JSON.
+
+Current version depth:
+
+- Budget request packages versioned in this repo: FY2027 only.
+- Fiscal-year values extracted from the FY2027 package: FY2025, FY2026, and FY2027.
+- Next expansion targets: prior-year Comptroller workbooks, RDT&E justification PDFs, USAspending / FPDS obligations, and public contract or solicitation feeds.
 
 ## Commands
 
