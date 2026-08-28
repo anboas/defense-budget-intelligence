@@ -58,6 +58,9 @@ try {
   assert.match(await page.locator("[data-defense-budget-app]").innerText(), /spending/i);
   await page.getByRole("button", { name: /Data Sources/ }).click();
   assert.equal(new URL(page.url()).hash, "#/budget-spend/sources", "Data Sources should deep-link through hash route");
+  assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Data Sources should not render budget analysis filters");
+  const sourceHeroBox = await page.locator(".source-hero").boundingBox();
+  assert.ok(sourceHeroBox && sourceHeroBox.y < 130, `Data Sources hero should start near the top, got ${sourceHeroBox?.y}px`);
   const sourcesText = await page.locator("[data-defense-budget-app]").innerText();
   assert.match(sourcesText, /Source Governance/i);
   assert.match(sourcesText, /Our versions/i);
@@ -79,6 +82,8 @@ try {
   assert.equal(new URL(page.url()).hash, "#/budget-spend/drilldown", "Drilldown should deep-link through hash route");
   await page.getByPlaceholder("Search line items").fill("artificial intelligence");
   assert.match(await page.locator("[data-budget-record-table]").innerText(), /Artificial Intelligence|Autonomous|Machine/i);
+  const tableShellBox = await page.locator(".table-shell").boundingBox();
+  assert.ok(tableShellBox && tableShellBox.height <= 770, `Drilldown table should stay inside a scrollable work area, got ${tableShellBox?.height}px`);
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `desktop overflow ${overflow}`);
   await page.screenshot({ path: `${OUT_DIR}/desktop.png`, fullPage: true });
@@ -95,7 +100,12 @@ try {
   const mobileNavBox = await mobile.locator(".ci-header-nav").boundingBox();
   assert.ok(mobileNavBox && mobileNavBox.y < 80 && mobileNavBox.height >= 30, "Mobile should show the section nav bar below the title");
   assert.equal(await mobile.locator(".masthead__brand p").count(), 0, "Mobile top bar should not render desktop masthead copy");
+  const mobileFilterBox = await mobile.locator("[data-budget-filter-bar]").boundingBox();
+  assert.ok(mobileFilterBox && mobileFilterBox.height <= 190, `Mobile filters should be compact two-column controls, got ${mobileFilterBox?.height}px`);
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
+  assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Data Sources should not render unrelated budget filters");
+  const mobileSourceHeroBox = await mobile.locator(".source-hero").boundingBox();
+  assert.ok(mobileSourceHeroBox && mobileSourceHeroBox.y < 130, `Mobile Data Sources hero should start near the top, got ${mobileSourceHeroBox?.y}px`);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
   assert.equal(await mobile.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Mobile should show source health checks");

@@ -864,6 +864,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
+  const showBudgetControls = activeTab !== "sources";
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -906,7 +907,7 @@ function App() {
         </div>
       </header>
 
-      <div className="if-content if-page if-operations-workspace if-operations-workspace--compact app__content" data-if-operations-workspace data-visual-density="compact">
+      <div className={`if-content if-page if-operations-workspace if-operations-workspace--compact app__content app__content--${activeTab}`} data-if-operations-workspace data-visual-density="compact">
         <div className="suite-links" aria-label="Complementary intelligence platforms" data-peer-intelligence-nav>
           {INTELLIGENCE_SUITE.map((site) => (
             <a
@@ -922,14 +923,18 @@ function App() {
           ))}
         </div>
 
-        <FilterShell filters={filters} setFilters={setFilters} />
+        {showBudgetControls ? (
+          <>
+            <FilterShell filters={filters} setFilters={setFilters} />
 
-        <section className="if-metric-grid metrics" aria-label="Filtered budget metrics">
-          <Metric label="Filtered FY2027 request" value={money(total.fy2027)} helper={`${total.records} line records · ${pct(growth(total))} since FY2025`} />
-          <Metric label="AI / autonomy signal" value={money(ai.fy2027)} helper={`${ai.records} matched source lines`} tone="purple" />
-          <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
-          <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
-        </section>
+            <section className="if-metric-grid metrics" aria-label="Filtered budget metrics">
+              <Metric label="Filtered FY2027 request" value={money(total.fy2027)} helper={`${total.records} line records · ${pct(growth(total))} since FY2025`} />
+              <Metric label="AI / autonomy signal" value={money(ai.fy2027)} helper={`${ai.records} matched source lines`} tone="purple" />
+              <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
+              <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
+            </section>
+          </>
+        ) : null}
 
         {activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
