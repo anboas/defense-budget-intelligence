@@ -21,6 +21,7 @@ import "./styles.css";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
@@ -36,6 +37,7 @@ const INTELLIGENCE_SUITE = [
 
 const HASH_ROUTES = {
   overview: "#/budget-spend",
+  trends: "#/budget-spend/trends",
   services: "#/budget-spend/services",
   fourth: "#/budget-spend/fourth-estate",
   ai: "#/budget-spend/ai-autonomy",
@@ -93,6 +95,8 @@ const GROUP_LABELS = {
 const BOOKS = data.metadata.sources;
 const SIGNALS = data.signals;
 const DATA_INVENTORY = data.metadata.dataInventory;
+const REQUEST_HISTORY = DATA_INVENTORY.requestHistory || [];
+const TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -132,6 +136,11 @@ function percent(value, digits = 0) {
 function growth(row) {
   if (!row?.fy2025) return row?.fy2027 ? 100 : 0;
   return ((row.fy2027 - row.fy2025) / row.fy2025) * 100;
+}
+
+function requestGrowth(current, prior) {
+  if (!prior) return current ? 100 : 0;
+  return ((current - prior) / prior) * 100;
 }
 
 function sum(rows, key) {
@@ -313,6 +322,153 @@ function Overview({ records }) {
               <strong>{row.label}</strong>
               <Bar value={row.fy2027} max={maxSignal} color="#005ea2" label={row.label} />
               <span>{money(row.fy2027)} · {pct(growth(row))}</span>
+            </article>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function RequestTrends() {
+  const rows = REQUEST_HISTORY;
+  const firstComparable = rows.find((row) => row.comparableRequestValue > 0);
+  const latest = rows.at(-1);
+  const maxRequest = Math.max(...rows.map((row) => row.requestValue), 1);
+  const maxComparable = Math.max(...rows.map((row) => row.comparableRequestValue), 1);
+  const aiSeries = rows.map((row) => row.bySignal?.find((signal) => signal.id === "ai-autonomy") || { requestValue: 0, records: 0 });
+  const colorTrendRows = BOOKS.map((book) => ({
+    ...book,
+    series: rows.map((row) => row.byBook?.find((item) => item.id === book.id)?.requestValue || 0),
+  }));
+  const signalTrendRows = (latest?.bySignal || [])
+    .filter((signal) => signal.requestValue > 0)
+    .slice(0, 8)
+    .map((signal) => ({
+      ...signal,
+      series: rows.map((row) => row.bySignal?.find((item) => item.id === signal.id)?.requestValue || 0),
+    }));
+
+  return (
+    <div className="grid">
+      <section className="source-metrics trend-metrics" aria-label="Request trend summary">
+        <Metric label="Request vintages" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper={`${TREND_SUMMARY.sourceVersionCount || 0} workbook versions parsed`} />
+        <Metric label="Historical records" value={(TREND_SUMMARY.historicalRecordCount || 0).toLocaleString()} helper="Aggregate model records across request packages" tone="purple" />
+        <Metric label="Comparable set" value={`${TREND_SUMMARY.comparableBookCount || 0} books`} helper={(TREND_SUMMARY.comparableBooks || []).join(", ")} tone="green" />
+        <Metric label="Comparable trend" value={pct(TREND_SUMMARY.comparableGrowth || 0)} helper={`${money(TREND_SUMMARY.comparableEarliestRequestValue)} FY${TREND_SUMMARY.comparableEarliestRequestYear} to ${money(TREND_SUMMARY.comparableCurrentRequestValue)} FY${latest?.requestYear}`} tone="orange" />
+      </section>
+
+      <Section title="Request Vintage Timeline" meta="annual President's Budget packages" icon={CalendarClock}>
+        <div className="trend-year-list" data-request-history-timeline>
+          {rows.map((row) => (
+            <article key={row.requestYear} className="trend-year-card">
+              <header>
+                <div>
+                  <span>{row.sourcePackage}</span>
+                  <strong>{row.label}</strong>
+                </div>
+                <b>{money(row.requestValue)}</b>
+              </header>
+              <Bar value={row.requestValue} max={maxRequest} color="#005ea2" label={`${row.label} request value`} />
+              <dl>
+                <div>
+                  <dt>Source versions</dt>
+                  <dd>{row.sourceVersions}</dd>
+                </div>
+                <div>
+                  <dt>Records</dt>
+                  <dd>{row.records.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt>Values present</dt>
+                  <dd>{yearList(row.fiscalYears)}</dd>
+                </div>
+                <div>
+                  <dt>Comparable books</dt>
+                  <dd>{money(row.comparableRequestValue)}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <div className="grid grid--sources">
+        <Section title="Comparable Request Trend" meta={`${(TREND_SUMMARY.comparableBooks || []).join(", ")} only`} icon={TrendingUp}>
+          <div className="trend-comparable-list" data-comparable-request-trend>
+            {rows.map((row) => (
+              <article key={row.requestYear}>
+                <div>
+                  <strong>{row.label}</strong>
+                  <span>{firstComparable ? pct(requestGrowth(row.comparableRequestValue, firstComparable.comparableRequestValue)) : "+0.0%"}</span>
+                </div>
+                <Bar value={row.comparableRequestValue} max={maxComparable} color="#216e1f" label={`${row.label} comparable request value`} />
+                <b>{money(row.comparableRequestValue)}</b>
+              </article>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="AI / Autonomy Signal History" meta="keyword-derived request vintages" icon={BrainCircuit}>
+          <div className="trend-comparable-list" data-ai-signal-history>
+            {rows.map((row, index) => (
+              <article key={row.requestYear}>
+                <div>
+                  <strong>{row.label}</strong>
+                  <span>{aiSeries[index].records.toLocaleString()} records</span>
+                </div>
+                <Bar value={aiSeries[index].requestValue} max={Math.max(...aiSeries.map((item) => item.requestValue), 1)} color="#5c4b8a" label={`${row.label} AI/autonomy request value`} />
+                <b>{money(aiSeries[index].requestValue)}</b>
+              </article>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Color Of Money History" meta="request value by workbook vintage" icon={Layers}>
+        <div className="trend-series-grid" data-color-money-history>
+          {colorTrendRows.map((row) => (
+            <article key={row.id} className="trend-series-card">
+              <header>
+                <i className="dot" style={{ background: BOOK_COLORS[row.id] }} />
+                <div>
+                  <strong>{row.short}</strong>
+                  <span>{row.color}</span>
+                </div>
+                <b>{money(row.series.at(-1))}</b>
+              </header>
+              <div className="mini-bars" aria-label={`${row.short} request value history`}>
+                {row.series.map((value, index) => (
+                  <span key={`${row.id}-${rows[index].requestYear}`}>
+                    <i style={{ height: `${Math.max((value / Math.max(...row.series, 1)) * 100, value ? 6 : 2)}%`, background: BOOK_COLORS[row.id] }} />
+                    <em>FY{rows[index].requestYear}</em>
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Mission Signal Movement" meta="latest-vintage leading signals" icon={Filter}>
+        <div className="trend-series-grid" data-mission-signal-history>
+          {signalTrendRows.map((row) => (
+            <article key={row.id} className="trend-series-card trend-series-card--signal">
+              <header>
+                <div>
+                  <strong>{row.label}</strong>
+                  <span>{row.records.toLocaleString()} latest records</span>
+                </div>
+                <b>{money(row.requestValue)}</b>
+              </header>
+              <div className="mini-bars" aria-label={`${row.label} request value history`}>
+                {row.series.map((value, index) => (
+                  <span key={`${row.id}-${rows[index].requestYear}`}>
+                    <i style={{ height: `${Math.max((value / Math.max(...row.series, 1)) * 100, value ? 6 : 2)}%`, background: "#005ea2" }} />
+                    <em>FY{rows[index].requestYear}</em>
+                  </span>
+                ))}
+              </div>
             </article>
           ))}
         </div>
@@ -532,7 +688,7 @@ function Sources() {
           </article>
           <article>
             <strong>{DATA_INVENTORY.availableBudgetRequestYears.length}</strong>
-            <span>request vintage</span>
+            <span>request vintages</span>
           </article>
           <article>
             <strong>{DATA_INVENTORY.availableFiscalYears.length}</strong>
@@ -543,7 +699,7 @@ function Sources() {
 
       <div className="source-metrics">
         <Metric label="Official publisher" value="OUSD(C)" helper={DATA_INVENTORY.sourcePackage} />
-        <Metric label="Current package" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper="Only one budget-request vintage is versioned today" tone="purple" />
+        <Metric label="Current package" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper={`${DATA_INVENTORY.sourceVersionCount} workbook versions in the trend model`} tone="purple" />
         <Metric label="Value coverage" value={yearList(DATA_INVENTORY.availableFiscalYears)} helper="Actual, enacted or plan, and request columns where present" tone="green" />
         <Metric label="Latest cache refresh" value={latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown"} helper="Newest cached workbook timestamp" tone="orange" />
       </div>
@@ -864,7 +1020,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = activeTab !== "sources";
+  const showBudgetControls = !["sources", "trends"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -937,6 +1093,7 @@ function App() {
         ) : null}
 
         {activeTab === "overview" ? <Overview records={records} /> : null}
+        {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}

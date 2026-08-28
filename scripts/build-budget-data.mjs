@@ -7,6 +7,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DEFAULT_SOURCE_DIR = process.env.HOME ? resolve(process.env.HOME, "clawd/artifacts/defense-budget-intelligence/budget") : resolve(ROOT, "../artifacts/defense-budget-intelligence/budget");
 const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
 const OUT_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
+const CURRENT_REQUEST_YEAR = 2027;
 
 const BOOKS = [
   { id: "M-1", file: "m1_display.xlsx", color: "Military Personnel", short: "MILPERS" },
@@ -17,14 +18,23 @@ const BOOKS = [
   { id: "C-1", file: "c1_display.xlsx", color: "MILCON / Family Housing / BRAC", short: "MILCON" },
 ];
 
-const SOURCE_URLS = {
-  "M-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
-  "O-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
-  "P-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-  "R-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-  "RF-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
-  "C-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-};
+function sourceUrl(book, requestYear) {
+  return `https://comptroller.war.gov/Portals/45/Documents/defbudget/FY${requestYear}/${book.file}`;
+}
+
+function fiscalYearsForRequest(requestYear) {
+  return [requestYear - 2, requestYear - 1, requestYear];
+}
+
+const REQUEST_PACKAGES = [
+  { requestYear: 2024, sourceDir: resolve(SOURCE_DIR, "FY2024"), sourcePackage: "FY2024 Defense Budget Materials" },
+  { requestYear: 2025, sourceDir: resolve(SOURCE_DIR, "FY2025"), sourcePackage: "FY2025 Defense Budget Materials" },
+  { requestYear: 2026, sourceDir: resolve(SOURCE_DIR, "FY2026"), sourcePackage: "FY2026 Defense Budget Materials" },
+  { requestYear: CURRENT_REQUEST_YEAR, sourceDir: SOURCE_DIR, sourcePackage: "FY2027 Defense Budget Materials" },
+].map((requestPackage) => ({
+  ...requestPackage,
+  fiscalYears: fiscalYearsForRequest(requestPackage.requestYear),
+}));
 
 const SOURCE_NOTES = {
   "M-1": "End strength and military personnel appropriations by account, activity, and organization.",
@@ -40,8 +50,8 @@ const SOURCE_LAYERS = [
     id: "request-display-books",
     label: "Budget request line items",
     status: "Live",
-    coverage: "FY2027 President's Budget display workbooks with FY2025-FY2027 values where present.",
-    role: "Baseline portfolio, color-of-money, organization, program, and mission-signal analysis.",
+    coverage: "FY2024-FY2027 President's Budget display workbooks, with current FY2027 all-color coverage and historical coverage for M-1, O-1, P-1, R-1, and RF-1.",
+    role: "Baseline portfolio, color-of-money, organization, program, mission-signal, and request-vintage trend analysis.",
   },
   {
     id: "justification-documents",
@@ -73,7 +83,7 @@ const PIPELINE_SOURCES = [
     publisher: "Office of the Under Secretary of Defense (Comptroller)",
     url: "https://comptroller.war.gov/Budget-Materials/",
     priority: 1,
-    status: "Ready for ingest",
+    status: "Partially ingested",
     layer: "Budget request history",
     cadence: "Annual President's Budget releases",
     access: "Public XLSX/PDF downloads",
@@ -81,8 +91,8 @@ const PIPELINE_SOURCES = [
     impact: 88,
     effort: "Medium",
     joinKeys: ["budget activity", "program element / line item", "appropriation account", "organization"],
-    firstTask: "Mirror FY2026/FY2025 workbook packages and add request-vintage dimensions.",
-    value: "Creates true request-over-request trend history instead of relying only on values embedded in the FY2027 package.",
+    firstTask: "Discover historical C-1 workbook naming and backfill MILCON request package history.",
+    value: "Creates request-over-request trend history instead of relying only on values embedded in the FY2027 package.",
   },
   {
     id: "rdte-justification-books",
@@ -293,19 +303,51 @@ function pick(row, headers, candidates) {
 }
 
 function amountHeader(headers, year) {
-  const normalized = Object.fromEntries(Object.entries(headers).map(([header, index]) => [header.replace(/\s+/g, " ").trim(), index]));
+  const normalized = Object.fromEntries(Object.entries(headers).map(([header, index]) => [
+    header.replace(/\*/g, "").replace(/\s+/g, " ").trim(),
+    index,
+  ]));
   const candidates = [
     `FY ${year} Total Amount`,
     `FY ${year} Total`,
+    `FY ${year} Request Amount`,
+    `FY ${year} Request`,
+    `FY ${year} Discretionary Request Amount`,
+    `FY ${year} Discretionary Request`,
+    `FY ${year} Disc Request Amount`,
+    `FY ${year} Disc Request`,
     `FY${year} Total Obligation Authority`,
+    `FY ${year} Total Obligation Authority`,
     `FY ${year} Discretionary Request Amount`,
     `FY ${year} Discretionary Request`,
     `FY${year} Appropriation Amount`,
+    `FY ${year} Appropriation Amount`,
+    `FY ${year} Total Enacted Amount`,
+    `FY ${year} Total Enacted`,
+    `FY ${year} Enacted Amount`,
+    `FY ${year} Enacted`,
+    `FY ${year} Actuals Amount`,
+    `FY ${year} Actuals`,
+    `FY ${year} PB Request with CR Adjustments Amount`,
+    `FY ${year} PB Request with CR Adjustments`,
+    `FY ${year} PB Request with CR Amounts`,
+    `FY ${year} Less Supplementals Enacted Amount`,
+    `FY ${year} Less Supplementals Enacted`,
   ];
   for (const candidate of candidates) {
     if (normalized[candidate] !== undefined) return normalized[candidate];
   }
-  return Object.entries(normalized).find(([header]) => header.includes(`FY ${year}`) && header.includes("Total") && !header.includes("Quantity"))?.[1];
+  return Object.entries(normalized).find(([header]) => (
+    header.includes(`FY ${year}`)
+    && !header.includes("Quantity")
+    && (
+      header.includes("Total")
+      || header.includes("Request")
+      || header.includes("Actual")
+      || header.includes("Enacted")
+      || header.includes("Obligation Authority")
+    )
+  ))?.[1];
 }
 
 function classifyOrg(code) {
@@ -354,8 +396,8 @@ function detectSignals(record) {
   return SIGNALS.filter((signal) => signal.terms.some((term) => haystack.includes(term))).map((signal) => signal.id);
 }
 
-function parseBook(book) {
-  const file = resolve(SOURCE_DIR, book.file);
+function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR)) {
+  const file = resolve(requestPackage.sourceDir, book.file);
   if (!existsSync(file)) throw new Error(`Missing source workbook: ${file}`);
   const rowsBySheet = book.id === "C-1"
     ? worksheetNames(file).slice(0, 3).map((sheet) => parseRows(file, sheet))
@@ -365,11 +407,9 @@ function parseBook(book) {
   if (!headerRow) throw new Error(`No header row found in ${book.file}`);
   const headers = Object.fromEntries(headerRow.map((header, index) => [normalizeText(header), index]).filter(([header]) => header));
 
-  const fy25Total = amountHeader(headers, 2025);
-  const fy26Total = amountHeader(headers, 2026);
-  const fy27Total = amountHeader(headers, 2027);
+  const amountHeaders = Object.fromEntries(requestPackage.fiscalYears.map((year) => [year, amountHeader(headers, year)]));
   const c1FiscalYear = headers["Fiscal Year"];
-  const c1Amount = headers["FY2025 Total Obligation Authority"];
+  const c1Amount = Object.entries(headers).find(([header]) => header.includes("Total Obligation Authority"))?.[1];
 
   return rows.slice(rows.indexOf(headerRow) + 1).map((row, index) => {
     const include = pick(row, headers, ["Include In TOA"]);
@@ -388,19 +428,21 @@ function parseBook(book) {
     const org = pick(row, headers, ["Organization"]) || "Unspecified";
     if (!accountTitle && !lineTitle && !org) return null;
 
-    const values = { fy2025: 0, fy2026: 0, fy2027: 0 };
+    const values = Object.fromEntries(requestPackage.fiscalYears.map((year) => [`fy${year}`, 0]));
     if (book.id === "C-1") {
       const fy = numberValue(row[c1FiscalYear]);
-      if ([2025, 2026, 2027].includes(fy)) values[`fy${fy}`] = numberValue(row[c1Amount]) / 1000000;
+      if (requestPackage.fiscalYears.includes(fy)) values[`fy${fy}`] = numberValue(row[c1Amount]) / 1000000;
     } else {
-      values.fy2025 = numberValue(row[fy25Total]) / 1000000;
-      values.fy2026 = numberValue(row[fy26Total]) / 1000000;
-      values.fy2027 = numberValue(row[fy27Total]) / 1000000;
+      for (const year of requestPackage.fiscalYears) {
+        values[`fy${year}`] = numberValue(row[amountHeaders[year]]) / 1000000;
+      }
     }
-    if (!values.fy2025 && !values.fy2026 && !values.fy2027) return null;
+    if (!Object.values(values).some(Boolean)) return null;
 
     const record = {
-      id: `${book.id}-${index}`,
+      id: `${requestPackage.requestYear}-${book.id}-${index}`,
+      requestYear: requestPackage.requestYear,
+      sourcePackage: requestPackage.sourcePackage,
       bookId: book.id,
       color: book.color,
       colorShort: book.short,
@@ -418,9 +460,11 @@ function parseBook(book) {
       lineTitle,
       classification: pick(row, headers, ["Classification"]) || "U",
       addNonAdd: addNonAdd || "Add",
-      fy2025: values.fy2025,
-      fy2026: values.fy2026,
-      fy2027: values.fy2027,
+      fiscalValues: values,
+      requestValue: values[`fy${requestPackage.requestYear}`] || 0,
+      fy2025: values.fy2025 || 0,
+      fy2026: values.fy2026 || 0,
+      fy2027: values.fy2027 || 0,
     };
     record.signals = detectSignals(record);
     return record;
@@ -449,7 +493,32 @@ function round(value, digits = 1) {
   return Number(Number(value || 0).toFixed(digits));
 }
 
-const records = BOOKS.flatMap(parseBook);
+function availableBooks(requestPackage) {
+  return BOOKS.filter((book) => existsSync(resolve(requestPackage.sourceDir, book.file)));
+}
+
+function valueForRequest(record) {
+  return Number(record.requestValue || record.fiscalValues?.[`fy${record.requestYear}`] || 0);
+}
+
+function aggregateRequestValues(records, keyFn) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = keyFn(record);
+    const existing = groups.get(key.id) || { ...key, requestValue: 0, records: 0 };
+    existing.requestValue += valueForRequest(record);
+    existing.records += 1;
+    groups.set(key.id, existing);
+  }
+  return [...groups.values()]
+    .map((row) => ({ ...row, requestValue: round(row.requestValue) }))
+    .sort((a, b) => b.requestValue - a.requestValue);
+}
+
+const currentPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR);
+const requestPackages = REQUEST_PACKAGES.filter((requestPackage) => availableBooks(requestPackage).length > 0);
+const records = BOOKS.flatMap((book) => parseBook(book, currentPackage));
+const historicalRecords = requestPackages.flatMap((requestPackage) => availableBooks(requestPackage).flatMap((book) => parseBook(book, requestPackage)));
 const total = aggregate(records, () => ({ id: "portfolio", label: "DoD captured portfolio" }))[0];
 const byBook = aggregate(records, (record) => ({ id: record.bookId, label: record.color, short: record.colorShort }));
 const byOrg = aggregate(records, (record) => ({ id: record.org, label: record.orgName, group: record.orgGroup }));
@@ -473,39 +542,91 @@ const topRecords = records
   .sort((a, b) => b.fy2027 - a.fy2027)
   .slice(0, 500);
 
-const sourceFiscalYears = [2025, 2026, 2027];
-const sourceInventory = BOOKS.map((book) => {
-  const bookRecords = records.filter((record) => record.bookId === book.id);
-  const filePath = resolve(SOURCE_DIR, book.file);
-  const stats = statSync(filePath);
-  const fiscalYearCoverage = sourceFiscalYears.map((year) => {
-    const key = `fy${year}`;
-    const yearRecords = bookRecords.filter((record) => record[key] !== 0);
+const sourceFiscalYears = currentPackage.fiscalYears;
+const allFiscalYears = [...new Set(requestPackages.flatMap((requestPackage) => requestPackage.fiscalYears))].sort();
+
+function buildSourceInventory(requestPackage, packageRecords) {
+  return availableBooks(requestPackage).map((book) => {
+    const bookRecords = packageRecords.filter((record) => record.bookId === book.id && record.requestYear === requestPackage.requestYear);
+    const filePath = resolve(requestPackage.sourceDir, book.file);
+    const stats = statSync(filePath);
+    const fiscalYearCoverage = requestPackage.fiscalYears.map((year) => {
+      const key = `fy${year}`;
+      const yearRecords = bookRecords.filter((record) => record.fiscalValues?.[key] !== 0);
+      return {
+        year,
+        records: yearRecords.length,
+        value: round(yearRecords.reduce((value, record) => value + Number(record.fiscalValues?.[key] || 0), 0)),
+      };
+    });
+
     return {
-      year,
-      records: yearRecords.length,
-      value: sum(yearRecords, key),
+      ...book,
+      sourceUrl: sourceUrl(book, requestPackage.requestYear),
+      sourceOffice: "Office of the Under Secretary of Defense (Comptroller)",
+      sourcePackage: requestPackage.sourcePackage,
+      sourceRelease: `FY${requestPackage.requestYear} President's Budget display workbook`,
+      sourceRefreshCadence: "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
+      requestYear: requestPackage.requestYear,
+      localFile: requestPackage.requestYear === CURRENT_REQUEST_YEAR ? book.file : `FY${requestPackage.requestYear}/${book.file}`,
+      cacheModifiedAt: stats.mtime.toISOString(),
+      cacheSizeBytes: stats.size,
+      availableBudgetRequestYears: [requestPackage.requestYear],
+      availableFiscalYears: fiscalYearCoverage.filter((year) => year.records > 0).map((year) => year.year),
+      fiscalYearCoverage,
+      records: bookRecords.length,
+      requestValue: round(bookRecords.reduce((value, record) => value + valueForRequest(record), 0)),
+      fy2027Request: requestPackage.requestYear === CURRENT_REQUEST_YEAR ? sum(bookRecords, "fy2027") : 0,
+      notes: SOURCE_NOTES[book.id],
     };
   });
+}
 
+const sourceInventory = buildSourceInventory(currentPackage, records);
+const historicalSourceVersions = requestPackages.flatMap((requestPackage) => buildSourceInventory(requestPackage, historicalRecords));
+const comparableBookIds = BOOKS.filter((book) => requestPackages.every((requestPackage) => existsSync(resolve(requestPackage.sourceDir, book.file)))).map((book) => book.id);
+const requestHistory = requestPackages.map((requestPackage) => {
+  const packageRecords = historicalRecords.filter((record) => record.requestYear === requestPackage.requestYear);
+  const comparableRecords = packageRecords.filter((record) => comparableBookIds.includes(record.bookId));
   return {
-    ...book,
-    sourceUrl: SOURCE_URLS[book.id],
-    sourceOffice: "Office of the Under Secretary of Defense (Comptroller)",
-    sourcePackage: "FY2027 Defense Budget Materials",
-    sourceRelease: "FY2027 President's Budget display workbook",
-    sourceRefreshCadence: "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
-    localFile: book.file,
-    cacheModifiedAt: stats.mtime.toISOString(),
-    cacheSizeBytes: stats.size,
-    availableBudgetRequestYears: [2027],
-    availableFiscalYears: fiscalYearCoverage.filter((year) => year.records > 0).map((year) => year.year),
-    fiscalYearCoverage,
-    records: bookRecords.length,
-    fy2027Request: sum(bookRecords, "fy2027"),
-    notes: SOURCE_NOTES[book.id],
+    requestYear: requestPackage.requestYear,
+    label: `FY${requestPackage.requestYear}`,
+    sourcePackage: requestPackage.sourcePackage,
+    fiscalYears: requestPackage.fiscalYears,
+    sourceVersions: availableBooks(requestPackage).length,
+    records: packageRecords.length,
+    requestValue: round(packageRecords.reduce((value, record) => value + valueForRequest(record), 0)),
+    comparableRequestValue: round(comparableRecords.reduce((value, record) => value + valueForRequest(record), 0)),
+    byBook: aggregateRequestValues(packageRecords, (record) => ({ id: record.bookId, label: record.color, short: record.colorShort })),
+    byOrgGroup: aggregateRequestValues(packageRecords, (record) => ({ id: record.orgGroup, label: GROUP_LABELS[record.orgGroup] })),
+    bySignal: SIGNALS.map((signal) => ({
+      id: signal.id,
+      label: signal.label,
+      terms: signal.terms,
+      ...aggregateRequestValues(packageRecords.filter((record) => record.signals.includes(signal.id)), () => ({ id: signal.id, label: signal.label }))[0],
+    })).map((signal) => ({
+      ...signal,
+      requestValue: signal.requestValue || 0,
+      records: signal.records || 0,
+    })).sort((a, b) => b.requestValue - a.requestValue),
   };
 });
+const latestHistory = requestHistory.at(-1);
+const earliestComparableHistory = requestHistory.find((year) => year.comparableRequestValue > 0);
+const trendSummary = {
+  requestYears: requestHistory.map((year) => year.requestYear),
+  comparableBookIds,
+  comparableBookCount: comparableBookIds.length,
+  comparableBooks: comparableBookIds.map((id) => BOOKS.find((book) => book.id === id)?.short || id),
+  historicalRecordCount: historicalRecords.length,
+  sourceVersionCount: historicalSourceVersions.length,
+  currentRequestValue: latestHistory?.requestValue || 0,
+  comparableCurrentRequestValue: latestHistory?.comparableRequestValue || 0,
+  comparableEarliestRequestValue: earliestComparableHistory?.comparableRequestValue || 0,
+  comparableEarliestRequestYear: earliestComparableHistory?.requestYear,
+};
+trendSummary.comparableChange = round(trendSummary.comparableCurrentRequestValue - trendSummary.comparableEarliestRequestValue);
+trendSummary.comparableGrowth = round((trendSummary.comparableChange / Math.max(trendSummary.comparableEarliestRequestValue, 1)) * 100);
 
 const generatedAt = sourceInventory
   .map((source) => new Date(source.cacheModifiedAt).getTime())
@@ -563,11 +684,23 @@ const sourceDiagnostics = sourceInventory.map((source) => {
   };
 });
 
+function publicRecord(record) {
+  const lineRecord = { ...record };
+  delete lineRecord.fiscalValues;
+  delete lineRecord.requestValue;
+  delete lineRecord.requestYear;
+  delete lineRecord.sourcePackage;
+  return lineRecord;
+}
+
+const publicRecords = records.map(publicRecord);
+const publicTopRecords = topRecords.map(publicRecord);
+
 const out = {
   metadata: {
     title: "Defense Budget & Spend Intelligence",
-    description: "FY2027 DoD budget and spend analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
-    fiscalYears: [2025, 2026, 2027],
+    description: "FY2024-FY2027 DoD budget and spend analytics across services, Fourth Estate, colors of money, line items, source provenance, request vintages, and AI/autonomy signals.",
+    fiscalYears: allFiscalYears,
     generatedAt: new Date(generatedAt).toISOString(),
     sourceCache: "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     sources: sourceInventory,
@@ -577,16 +710,23 @@ const out = {
       sourcePackageUrl: "https://comptroller.war.gov/Budget-Materials/",
       refreshModel: "Manual source refresh. Replace cached workbooks and run npm run data:build; CI uses committed generated JSON when raw workbooks are not present.",
       automationStatus: "No scheduled upstream polling yet.",
-      availableBudgetRequestYears: [2027],
-      availableFiscalYears: sourceFiscalYears,
+      availableBudgetRequestYears: requestHistory.map((year) => year.requestYear),
+      availableFiscalYears: allFiscalYears,
       sourceCount: sourceInventory.length,
+      sourceVersionCount: historicalSourceVersions.length,
+      currentRequestYear: CURRENT_REQUEST_YEAR,
+      currentSourceFiscalYears: sourceFiscalYears,
       sourceLayerCount: SOURCE_LAYERS.length,
       pipelineSourceCount: PIPELINE_SOURCES.length,
       recordCount: records.length,
+      historicalRecordCount: historicalRecords.length,
       largestExtractedLineSet: topRecords.length,
       sourceLayers: SOURCE_LAYERS,
       pipelineSources: PIPELINE_SOURCES,
       sourceJoinPaths: SOURCE_JOIN_PATHS,
+      historicalSourceVersions,
+      trendSummary,
+      requestHistory,
       coverageDiagnostics: {
         signalTaggedRecords: taggedRecords.length,
         signalTaggedRecordShare: round((taggedRecords.length / Math.max(records.length, 1)) * 100),
@@ -598,16 +738,17 @@ const out = {
       limitations: [
         "Budget display books are request and enacted-plan views, not executed outlay or contract-obligation feeds.",
         "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
-        "Only the FY2027 budget request package is currently versioned in this repository; historical package ingestion is the next data expansion.",
+        "Historical request coverage currently includes M-1, O-1, P-1, R-1, and RF-1 for FY2024-FY2026; C-1 historical workbooks use a different public path and are not backfilled yet.",
+        "Request-vintage trends compare workbook request totals and should not be read as execution/outlay trends.",
       ],
       nextSources: [
-        "Prior-year Comptroller display books for true multi-request trend history.",
+        "Historical C-1 workbook discovery and MILCON request package backfill.",
         "RDT&E budget justification PDFs for program narrative and hidden AI/autonomy signals.",
         "USAspending and FPDS obligations for execution-side spend and vendor drilldown.",
         "DoD contracts, solicitations, and POM-relevant public releases for market timing context.",
       ],
     },
-    methodology: "Parsed official FY2027 Comptroller display workbooks. Dollar values are billions. FY2025/FY2026/FY2027 are derived from workbook total columns where present; C-1 uses the workbook fiscal-year field with total obligation authority.",
+    methodology: "Parsed official Comptroller display workbooks. Dollar values are billions. Current FY2027 analytics use M-1/O-1/P-1/R-1/RF-1/C-1. Historical request-vintage analytics use reachable FY2024-FY2026 M-1/O-1/P-1/R-1/RF-1 workbooks plus FY2027 comparable books.",
   },
   signals: SIGNALS,
   rollups: {
@@ -618,8 +759,8 @@ const out = {
     byFourthEstate,
     bySignal,
   },
-  records,
-  topRecords,
+  records: publicRecords,
+  topRecords: publicTopRecords,
 };
 
 mkdirSync(dirname(OUT_FILE), { recursive: true });

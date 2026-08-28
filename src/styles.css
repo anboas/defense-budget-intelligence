@@ -1388,6 +1388,191 @@ button {
   box-shadow: inset 3px 0 0 var(--green);
 }
 
+.trend-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.trend-year-list,
+.trend-comparable-list,
+.trend-series-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.trend-year-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.trend-year-card,
+.trend-comparable-list article,
+.trend-series-card {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.trend-year-card {
+  display: grid;
+  gap: 9px;
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+
+.trend-year-card header,
+.trend-series-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.trend-year-card header span,
+.trend-series-card header span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.trend-year-card header strong,
+.trend-series-card header strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.trend-year-card header b,
+.trend-series-card header b,
+.trend-comparable-list article b {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.trend-year-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.trend-year-card dl div {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.trend-year-card dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.trend-year-card dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.trend-comparable-list article {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.5fr) minmax(0, 1fr) 84px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.trend-comparable-list article:last-child {
+  margin-bottom: 0;
+}
+
+.trend-comparable-list article strong,
+.trend-comparable-list article span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trend-comparable-list article strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.trend-comparable-list article span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 750;
+}
+
+.trend-series-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.trend-series-card {
+  display: grid;
+  gap: 9px;
+}
+
+.trend-series-card header {
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.trend-series-card--signal header {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mini-bars {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+  height: 92px;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.mini-bars span {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: end;
+  height: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.mini-bars i {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+}
+
+.mini-bars em {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .table-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1469,7 +1654,9 @@ td .dot {
   .join-path-card div,
   .source-health-grid,
   .coverage-diagnostic-grid,
-  .coverage-diagnostic-summary {
+  .coverage-diagnostic-summary,
+  .trend-year-list,
+  .trend-series-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1483,7 +1670,8 @@ td .dot {
 
   .metrics,
   .source-metrics,
-  .source-health-summary {
+  .source-health-summary,
+  .trend-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1603,6 +1791,7 @@ td .dot {
   .metrics,
   .source-metrics,
   .source-health-summary,
+  .trend-metrics,
   .source-hero__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1666,8 +1855,13 @@ td .dot {
   }
 
   .source-health-card dl,
-  .coverage-diagnostic-card dl {
+  .coverage-diagnostic-card dl,
+  .trend-year-card dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-comparable-list article {
+    grid-template-columns: minmax(70px, 0.5fr) minmax(0, 1fr) 76px;
   }
 
   .rank-list article,
