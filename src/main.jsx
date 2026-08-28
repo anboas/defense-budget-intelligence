@@ -27,6 +27,12 @@ const TABS = [
   { id: "sources", label: "Data Sources", icon: Database },
 ];
 
+const INTELLIGENCE_SUITE = [
+  { label: "Defense Budget", href: "https://defense-budget-intelligence.pages.dev/", active: true },
+  { label: "Opportunity", href: "https://opportunity-intelligence-full.pages.dev/" },
+  { label: "Policy", href: "https://policy-intelligence-full.pages.dev/" },
+];
+
 const BOOK_COLORS = {
   "M-1": "#005ea2",
   "O-1": "#216e1f",
@@ -601,6 +607,20 @@ function App() {
           <span>Sabre Growth Intelligence</span>
           <h1>Defense Budget Intelligence</h1>
           <p>Drill from DoD portfolio totals into services, Fourth Estate agencies, colors of money, mission signals, and source line items.</p>
+          <div className="suite-links" aria-label="Complementary intelligence platforms">
+            {INTELLIGENCE_SUITE.map((site) => (
+              <a
+                key={site.label}
+                href={site.href}
+                target={site.active ? undefined : "_blank"}
+                rel={site.active ? undefined : "noreferrer"}
+                className={site.active ? "active" : ""}
+                aria-current={site.active ? "page" : undefined}
+              >
+                {site.label}
+              </a>
+            ))}
+          </div>
         </div>
         <nav aria-label="Budget analytics views">
           {TABS.map((tab) => {

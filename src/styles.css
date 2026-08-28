@@ -67,6 +67,35 @@ button {
   line-height: 1.42;
 }
 
+.suite-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.suite-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid #c7d4e3;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1a4480;
+  font-size: 11px;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.suite-links a:hover,
+.suite-links a.active {
+  border-color: #005ea2;
+  background: #005ea2;
+  color: #ffffff;
+}
+
 .masthead nav {
   display: flex;
   flex-wrap: wrap;

@@ -2,6 +2,15 @@
 
 Purpose-built analytics platform for understanding Department of Defense budget request data in detail, with a Sabre growth role lens.
 
+Live Cloudflare Pages site: <https://defense-budget-intelligence.pages.dev/>
+
+GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
+
+Sibling intelligence platforms:
+
+- Opportunity Intelligence: <https://opportunity-intelligence-full.pages.dev/>
+- Policy Intelligence: <https://policy-intelligence-full.pages.dev/>
+
 ## Scope
 
 - Services: Army, Navy / Marine Corps, Air Force / Space Force.
@@ -38,8 +47,10 @@ npm install
 npm run data:build
 npm run dev
 npm run verify
+npm run pages:deploy
+npm run verify:prod-smoke
 ```
 
 ## Publishing
 
-The site is built as static Vite output and published through GitHub Pages from the `gh-pages` branch.
+The primary public surface is Cloudflare Pages at `defense-budget-intelligence.pages.dev`, matching the Opportunity Intelligence and Policy Intelligence app pattern. The repository also publishes to GitHub Pages from the `gh-pages` branch as a fallback.

@@ -38,6 +38,10 @@ try {
   assert.match(text, /Defense Budget Intelligence/);
   assert.match(text, /AI \/ Autonomy/);
   assert.match(text, /Fourth Estate/);
+  assert.match(text, /Opportunity/);
+  assert.match(text, /Policy/);
+  assert.equal(await page.locator('a[href="https://opportunity-intelligence-full.pages.dev/"]').count(), 1, "Opportunity peer link should exist");
+  assert.equal(await page.locator('a[href="https://policy-intelligence-full.pages.dev/"]').count(), 1, "Policy peer link should exist");
   await page.getByRole("button", { name: /AI \/ Autonomy/ }).click();
   assert.match(await page.locator("[data-defense-budget-app]").innerText(), /spending/i);
   await page.getByRole("button", { name: /Data Sources/ }).click();
