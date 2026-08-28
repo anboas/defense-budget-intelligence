@@ -988,6 +988,116 @@ button {
   font-weight: 750;
 }
 
+.analytics-readout,
+.momentum-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.analytics-readout {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analytic-card,
+.momentum-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.analytic-card {
+  padding: 11px 12px;
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+
+.analytic-card--green {
+  box-shadow: inset 4px 0 0 var(--green);
+}
+
+.analytic-card--purple {
+  box-shadow: inset 4px 0 0 var(--purple);
+}
+
+.analytic-card--orange {
+  box-shadow: inset 4px 0 0 var(--orange);
+}
+
+.analytic-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.analytic-card strong {
+  display: block;
+  margin: 5px 0 4px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.analytic-card p,
+.momentum-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.momentum-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.momentum-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.momentum-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.momentum-card header span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.momentum-card header strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.momentum-card header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 4px 7px;
+  border: 1px solid var(--brand);
+  border-radius: 4px;
+  background: #eef7ff;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
 .source-roadmap__item,
 .pipeline-source-card {
   display: grid;
@@ -1656,7 +1766,9 @@ td .dot {
   .coverage-diagnostic-grid,
   .coverage-diagnostic-summary,
   .trend-year-list,
-  .trend-series-grid {
+  .trend-series-grid,
+  .analytics-readout,
+  .momentum-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1671,7 +1783,9 @@ td .dot {
   .metrics,
   .source-metrics,
   .source-health-summary,
-  .trend-metrics {
+  .trend-metrics,
+  .analytics-readout,
+  .momentum-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1792,6 +1906,8 @@ td .dot {
   .source-metrics,
   .source-health-summary,
   .trend-metrics,
+  .analytics-readout,
+  .momentum-grid,
   .source-hero__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

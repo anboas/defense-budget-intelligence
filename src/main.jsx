@@ -97,6 +97,7 @@ const SIGNALS = data.signals;
 const DATA_INVENTORY = data.metadata.dataInventory;
 const REQUEST_HISTORY = DATA_INVENTORY.requestHistory || [];
 const TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
+const ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -131,6 +132,12 @@ function pct(value, digits = 1) {
 
 function percent(value, digits = 0) {
   return `${Number(value || 0).toFixed(digits)}%`;
+}
+
+function displayValue(item) {
+  if (item.display === "money") return money(item.value);
+  if (item.display === "percent") return pct(item.value);
+  return item.value;
 }
 
 function growth(row) {
@@ -203,6 +210,23 @@ function Section({ title, meta, children, icon: Icon }) {
       </header>
       {children}
     </section>
+  );
+}
+
+function AnalyticsReadout({ title = "Analytic Readout", meta = "generated from source data", items = [], icon = TrendingUp }) {
+  if (!items.length) return null;
+  return (
+    <Section title={title} meta={meta} icon={icon}>
+      <div className="analytics-readout" data-analytics-readout>
+        {items.map((item) => (
+          <article key={item.id} className={`analytic-card analytic-card--${item.tone || "blue"}`}>
+            <span>{item.label}</span>
+            <strong>{displayValue(item)}</strong>
+            <p>{item.helper}</p>
+          </article>
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -284,48 +308,51 @@ function Overview({ records }) {
   const maxSignal = Math.max(...bySignal.map((row) => row.fy2027), 1);
 
   return (
-    <div className="grid grid--wide">
-      <Section title="Color of Money" meta="FY2027 request" icon={Layers}>
-        <div className="rank-list">
-          {byBook.map((row) => (
-            <article key={row.id}>
-              <i className="dot" style={{ background: BOOK_COLORS[row.id] }} />
-              <div>
-                <strong>{row.short}</strong>
-                <span>{row.label}</span>
-              </div>
-              <Bar value={row.fy2027} max={maxBook} color={BOOK_COLORS[row.id]} label={row.label} />
-              <b>{money(row.fy2027)}</b>
-            </article>
-          ))}
-        </div>
-      </Section>
-      <Section title="Service / Fourth Estate" meta="FY2025-FY2027" icon={Building2}>
-        <div className="group-list">
-          {byOrgGroup.map((row) => (
-            <article key={row.id}>
-              <div>
+    <div className="grid">
+      <AnalyticsReadout items={ANALYTICS.headlineCards || []} meta="portfolio posture" />
+      <div className="grid grid--wide">
+        <Section title="Color of Money" meta="FY2027 request" icon={Layers}>
+          <div className="rank-list">
+            {byBook.map((row) => (
+              <article key={row.id}>
+                <i className="dot" style={{ background: BOOK_COLORS[row.id] }} />
+                <div>
+                  <strong>{row.short}</strong>
+                  <span>{row.label}</span>
+                </div>
+                <Bar value={row.fy2027} max={maxBook} color={BOOK_COLORS[row.id]} label={row.label} />
+                <b>{money(row.fy2027)}</b>
+              </article>
+            ))}
+          </div>
+        </Section>
+        <Section title="Service / Fourth Estate" meta="FY2025-FY2027" icon={Building2}>
+          <div className="group-list">
+            {byOrgGroup.map((row) => (
+              <article key={row.id}>
+                <div>
+                  <strong>{row.label}</strong>
+                  <span>{row.records} line records</span>
+                </div>
+                <Spark row={row} />
+                <b>{money(row.fy2027)}</b>
+                <em>{pct(growth(row))}</em>
+              </article>
+            ))}
+          </div>
+        </Section>
+        <Section title="Mission Signals" meta="keyword-derived from line titles" icon={Filter}>
+          <div className="signal-grid">
+            {bySignal.map((row) => (
+              <article key={row.id}>
                 <strong>{row.label}</strong>
-                <span>{row.records} line records</span>
-              </div>
-              <Spark row={row} />
-              <b>{money(row.fy2027)}</b>
-              <em>{pct(growth(row))}</em>
-            </article>
-          ))}
-        </div>
-      </Section>
-      <Section title="Mission Signals" meta="keyword-derived from line titles" icon={Filter}>
-        <div className="signal-grid">
-          {bySignal.map((row) => (
-            <article key={row.id}>
-              <strong>{row.label}</strong>
-              <Bar value={row.fy2027} max={maxSignal} color="#005ea2" label={row.label} />
-              <span>{money(row.fy2027)} · {pct(growth(row))}</span>
-            </article>
-          ))}
-        </div>
-      </Section>
+                <Bar value={row.fy2027} max={maxSignal} color="#005ea2" label={row.label} />
+                <span>{money(row.fy2027)} · {pct(growth(row))}</span>
+              </article>
+            ))}
+          </div>
+        </Section>
+      </div>
     </div>
   );
 }
@@ -357,6 +384,8 @@ function RequestTrends() {
         <Metric label="Comparable set" value={`${TREND_SUMMARY.comparableBookCount || 0} books`} helper={(TREND_SUMMARY.comparableBooks || []).join(", ")} tone="green" />
         <Metric label="Comparable trend" value={pct(TREND_SUMMARY.comparableGrowth || 0)} helper={`${money(TREND_SUMMARY.comparableEarliestRequestValue)} FY${TREND_SUMMARY.comparableEarliestRequestYear} to ${money(TREND_SUMMARY.comparableCurrentRequestValue)} FY${latest?.requestYear}`} tone="orange" />
       </section>
+
+      <AnalyticsReadout title="Trend Readout" meta="request-vintage interpretation" items={ANALYTICS.observations || []} icon={TrendingUp} />
 
       <Section title="Request Vintage Timeline" meta="annual President's Budget packages" icon={CalendarClock}>
         <div className="trend-year-list" data-request-history-timeline>
@@ -424,6 +453,24 @@ function RequestTrends() {
           </div>
         </Section>
       </div>
+
+      <Section title="Momentum Leaders" meta="largest FY2026-FY2027 request moves" icon={TrendingUp}>
+        <div className="momentum-grid" data-momentum-leaders>
+          {(ANALYTICS.signalMomentum || []).slice(0, 6).map((row) => (
+            <article key={row.id} className="momentum-card">
+              <header>
+                <div>
+                  <span>Mission signal</span>
+                  <strong>{row.label}</strong>
+                </div>
+                <b>{pct(row.lastChangePct)}</b>
+              </header>
+              <p>{money(row.priorValue)} FY{row.priorYear} to {money(row.latestValue)} FY{row.latestYear}</p>
+              <Bar value={row.latestValue} max={Math.max(...(ANALYTICS.signalMomentum || []).map((item) => item.latestValue), 1)} color="#005ea2" label={`${row.label} latest value`} />
+            </article>
+          ))}
+        </div>
+      </Section>
 
       <Section title="Color Of Money History" meta="request value by workbook vintage" icon={Layers}>
         <div className="trend-series-grid" data-color-money-history>
@@ -543,6 +590,12 @@ function AiAutonomy({ records }) {
 
   return (
     <div className="grid">
+      <AnalyticsReadout
+        title="AI / Autonomy Readout"
+        meta="directional keyword signal"
+        items={(ANALYTICS.observations || []).filter((item) => item.id === "ai-autonomy-spike")}
+        icon={BrainCircuit}
+      />
       <Section title="AI / Autonomy By Service" meta="FY2027 and two-year direction" icon={Building2}>
         <div className="agency-list compact">
           {byService.map((row, index) => (

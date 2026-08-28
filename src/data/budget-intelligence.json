@@ -2427,6 +2427,786 @@
           ]
         }
       ],
+      "analyticsReadouts": {
+        "headlineCards": [
+          {
+            "id": "current-request",
+            "label": "Current request posture",
+            "value": 1472.6,
+            "display": "money",
+            "helper": "FY2027 captured request across all current workbooks.",
+            "tone": "blue"
+          },
+          {
+            "id": "comparable-growth",
+            "label": "Comparable book growth",
+            "value": 71.4,
+            "display": "percent",
+            "helper": "5 comparable books from FY2024 to FY2027.",
+            "tone": "green"
+          },
+          {
+            "id": "largest-color",
+            "label": "Largest color of money",
+            "value": 434.2,
+            "display": "money",
+            "helper": "PROC leads the current request model.",
+            "tone": "orange"
+          },
+          {
+            "id": "fastest-signal",
+            "label": "Fastest mission signal",
+            "value": 1065.5,
+            "display": "percent",
+            "helper": "AI / Autonomy from FY2026 to FY2027.",
+            "tone": "purple"
+          }
+        ],
+        "observations": [
+          {
+            "id": "proc-rdte-step-up",
+            "label": "FY2027 shifts hard into modernization accounts",
+            "value": "PROC +96.2%",
+            "helper": "PROC adds 212.9B from FY2026 to FY2027; RDT&E and procurement both show major step-ups.",
+            "tone": "orange"
+          },
+          {
+            "id": "fourth-estate-surge",
+            "label": "Fourth Estate becomes a bigger analytic center",
+            "value": "+194.5%",
+            "helper": "Fourth Estate grows from 132.8B to 391.1B in the current request vintage.",
+            "tone": "green"
+          },
+          {
+            "id": "ai-autonomy-spike",
+            "label": "AI/autonomy needs narrative validation",
+            "value": "+1065.5%",
+            "helper": "AI / Autonomy has the sharpest keyword-derived move; justification books are the next source needed to separate real AI spend from title artifacts.",
+            "tone": "purple"
+          }
+        ],
+        "bookMomentum": [
+          {
+            "completeHistory": true,
+            "id": "M-1",
+            "label": "Military Personnel",
+            "short": "MILPERS",
+            "records": 285,
+            "latestValue": 206.5,
+            "priorValue": 196.7,
+            "earliestValue": 180.2,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 9.8,
+            "lastChangePct": 5,
+            "cumulativeChange": 26.3,
+            "cumulativeChangePct": 14.6,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 180.2,
+                "records": 275
+              },
+              {
+                "requestYear": 2025,
+                "value": 183.5,
+                "records": 286
+              },
+              {
+                "requestYear": 2026,
+                "value": 196.7,
+                "records": 285
+              },
+              {
+                "requestYear": 2027,
+                "value": 206.5,
+                "records": 285
+              }
+            ]
+          },
+          {
+            "completeHistory": true,
+            "id": "O-1",
+            "label": "Operations and Maintenance",
+            "short": "O&M",
+            "records": 389,
+            "latestValue": 430.7,
+            "priorValue": 360.3,
+            "earliestValue": 329.9,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 70.4,
+            "lastChangePct": 19.5,
+            "cumulativeChange": 100.8,
+            "cumulativeChangePct": 30.6,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 329.9,
+                "records": 383
+              },
+              {
+                "requestYear": 2025,
+                "value": 338.1,
+                "records": 427
+              },
+              {
+                "requestYear": 2026,
+                "value": 360.3,
+                "records": 400
+              },
+              {
+                "requestYear": 2027,
+                "value": 430.7,
+                "records": 389
+              }
+            ]
+          },
+          {
+            "completeHistory": true,
+            "id": "P-1",
+            "label": "Procurement",
+            "short": "PROC",
+            "records": 1137,
+            "latestValue": 434.2,
+            "priorValue": 221.3,
+            "earliestValue": 184,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 212.9,
+            "lastChangePct": 96.2,
+            "cumulativeChange": 250.2,
+            "cumulativeChangePct": 136,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 184,
+                "records": 1137
+              },
+              {
+                "requestYear": 2025,
+                "value": 182.1,
+                "records": 1190
+              },
+              {
+                "requestYear": 2026,
+                "value": 221.3,
+                "records": 1168
+              },
+              {
+                "requestYear": 2027,
+                "value": 434.2,
+                "records": 1137
+              }
+            ]
+          },
+          {
+            "completeHistory": true,
+            "id": "R-1",
+            "label": "Research, Development, Test, and Evaluation",
+            "short": "RDT&E",
+            "records": 1148,
+            "latestValue": 343.7,
+            "priorValue": 179.1,
+            "earliestValue": 145,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 164.6,
+            "lastChangePct": 91.9,
+            "cumulativeChange": 198.7,
+            "cumulativeChangePct": 137,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 145,
+                "records": 1066
+              },
+              {
+                "requestYear": 2025,
+                "value": 143.2,
+                "records": 1104
+              },
+              {
+                "requestYear": 2026,
+                "value": 179.1,
+                "records": 1124
+              },
+              {
+                "requestYear": 2027,
+                "value": 343.7,
+                "records": 1148
+              }
+            ]
+          },
+          {
+            "completeHistory": true,
+            "id": "RF-1",
+            "label": "Revolving and Management Funds",
+            "short": "RF",
+            "records": 12,
+            "latestValue": 26.3,
+            "priorValue": 2,
+            "earliestValue": 1.7,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 24.3,
+            "lastChangePct": 1215,
+            "cumulativeChange": 24.6,
+            "cumulativeChangePct": 1447.1,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 1.7,
+                "records": 25
+              },
+              {
+                "requestYear": 2025,
+                "value": 1.7,
+                "records": 26
+              },
+              {
+                "requestYear": 2026,
+                "value": 2,
+                "records": 17
+              },
+              {
+                "requestYear": 2027,
+                "value": 26.3,
+                "records": 12
+              }
+            ]
+          },
+          {
+            "completeHistory": false,
+            "id": "C-1",
+            "label": "MILCON / Family Housing / BRAC",
+            "short": "MILCON",
+            "records": 917,
+            "latestValue": 31.3,
+            "priorValue": 0,
+            "earliestValue": 31.3,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2027,
+            "lastChange": 31.3,
+            "lastChangePct": 100,
+            "cumulativeChange": 0,
+            "cumulativeChangePct": 0,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 0,
+                "records": 0
+              },
+              {
+                "requestYear": 2025,
+                "value": 0,
+                "records": 0
+              },
+              {
+                "requestYear": 2026,
+                "value": 0,
+                "records": 0
+              },
+              {
+                "requestYear": 2027,
+                "value": 31.3,
+                "records": 917
+              }
+            ]
+          }
+        ],
+        "signalMomentum": [
+          {
+            "id": "logistics",
+            "label": "Logistics / Sustainment",
+            "records": 602,
+            "latestValue": 512.1,
+            "priorValue": 368.1,
+            "earliestValue": 360.4,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 144,
+            "lastChangePct": 39.1,
+            "cumulativeChange": 151.7,
+            "cumulativeChangePct": 42.1,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 360.4,
+                "records": 415
+              },
+              {
+                "requestYear": 2025,
+                "value": 343,
+                "records": 442
+              },
+              {
+                "requestYear": 2026,
+                "value": 368.1,
+                "records": 419
+              },
+              {
+                "requestYear": 2027,
+                "value": 512.1,
+                "records": 602
+              }
+            ]
+          },
+          {
+            "id": "ai-autonomy",
+            "label": "AI / Autonomy",
+            "records": 58,
+            "latestValue": 67.6,
+            "priorValue": 5.8,
+            "earliestValue": 3.3,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 61.8,
+            "lastChangePct": 1065.5,
+            "cumulativeChange": 64.3,
+            "cumulativeChangePct": 1948.5,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 3.3,
+                "records": 47
+              },
+              {
+                "requestYear": 2025,
+                "value": 3.5,
+                "records": 49
+              },
+              {
+                "requestYear": 2026,
+                "value": 5.8,
+                "records": 59
+              },
+              {
+                "requestYear": 2027,
+                "value": 67.6,
+                "records": 58
+              }
+            ]
+          },
+          {
+            "id": "missiles",
+            "label": "Missiles / Fires",
+            "records": 358,
+            "latestValue": 129,
+            "priorValue": 71.6,
+            "earliestValue": 53.2,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 57.4,
+            "lastChangePct": 80.2,
+            "cumulativeChange": 75.8,
+            "cumulativeChangePct": 142.5,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 53.2,
+                "records": 341
+              },
+              {
+                "requestYear": 2025,
+                "value": 56.8,
+                "records": 360
+              },
+              {
+                "requestYear": 2026,
+                "value": 71.6,
+                "records": 367
+              },
+              {
+                "requestYear": 2027,
+                "value": 129,
+                "records": 358
+              }
+            ]
+          },
+          {
+            "id": "infrastructure",
+            "label": "Infrastructure",
+            "records": 949,
+            "latestValue": 68.2,
+            "priorValue": 30.1,
+            "earliestValue": 27.3,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 38.1,
+            "lastChangePct": 126.6,
+            "cumulativeChange": 40.9,
+            "cumulativeChangePct": 149.8,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 27.3,
+                "records": 35
+              },
+              {
+                "requestYear": 2025,
+                "value": 28,
+                "records": 35
+              },
+              {
+                "requestYear": 2026,
+                "value": 30.1,
+                "records": 37
+              },
+              {
+                "requestYear": 2027,
+                "value": 68.2,
+                "records": 949
+              }
+            ]
+          },
+          {
+            "id": "space",
+            "label": "Space",
+            "records": 240,
+            "latestValue": 88.3,
+            "priorValue": 51,
+            "earliestValue": 38.1,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 37.3,
+            "lastChangePct": 73.1,
+            "cumulativeChange": 50.2,
+            "cumulativeChangePct": 131.8,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 38.1,
+                "records": 230
+              },
+              {
+                "requestYear": 2025,
+                "value": 37.7,
+                "records": 231
+              },
+              {
+                "requestYear": 2026,
+                "value": 51,
+                "records": 236
+              },
+              {
+                "requestYear": 2027,
+                "value": 88.3,
+                "records": 240
+              }
+            ]
+          },
+          {
+            "id": "aircraft",
+            "label": "Aircraft",
+            "records": 382,
+            "latestValue": 96.3,
+            "priorValue": 65.3,
+            "earliestValue": 56.9,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 31,
+            "lastChangePct": 47.5,
+            "cumulativeChange": 39.4,
+            "cumulativeChangePct": 69.2,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 56.9,
+                "records": 309
+              },
+              {
+                "requestYear": 2025,
+                "value": 55.9,
+                "records": 318
+              },
+              {
+                "requestYear": 2026,
+                "value": 65.3,
+                "records": 313
+              },
+              {
+                "requestYear": 2027,
+                "value": 96.3,
+                "records": 382
+              }
+            ]
+          },
+          {
+            "id": "shipbuilding",
+            "label": "Shipbuilding",
+            "records": 279,
+            "latestValue": 127.3,
+            "priorValue": 101.6,
+            "earliestValue": 76.1,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 25.7,
+            "lastChangePct": 25.3,
+            "cumulativeChange": 51.2,
+            "cumulativeChangePct": 67.3,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 76.1,
+                "records": 246
+              },
+              {
+                "requestYear": 2025,
+                "value": 81.7,
+                "records": 260
+              },
+              {
+                "requestYear": 2026,
+                "value": 101.6,
+                "records": 262
+              },
+              {
+                "requestYear": 2027,
+                "value": 127.3,
+                "records": 279
+              }
+            ]
+          },
+          {
+            "id": "medical",
+            "label": "Medical / Health",
+            "records": 61,
+            "latestValue": 62.9,
+            "priorValue": 57.9,
+            "earliestValue": 51.5,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 5,
+            "lastChangePct": 8.6,
+            "cumulativeChange": 11.4,
+            "cumulativeChangePct": 22.1,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 51.5,
+                "records": 58
+              },
+              {
+                "requestYear": 2025,
+                "value": 54,
+                "records": 55
+              },
+              {
+                "requestYear": 2026,
+                "value": 57.9,
+                "records": 55
+              },
+              {
+                "requestYear": 2027,
+                "value": 62.9,
+                "records": 61
+              }
+            ]
+          },
+          {
+            "id": "cyber",
+            "label": "Cyber",
+            "records": 66,
+            "latestValue": 10.2,
+            "priorValue": 8.5,
+            "earliestValue": 7.8,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 1.7,
+            "lastChangePct": 20,
+            "cumulativeChange": 2.4,
+            "cumulativeChangePct": 30.8,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 7.8,
+                "records": 77
+              },
+              {
+                "requestYear": 2025,
+                "value": 8,
+                "records": 79
+              },
+              {
+                "requestYear": 2026,
+                "value": 8.5,
+                "records": 66
+              },
+              {
+                "requestYear": 2027,
+                "value": 10.2,
+                "records": 66
+              }
+            ]
+          },
+          {
+            "id": "software-digital",
+            "label": "Software / Digital",
+            "records": 39,
+            "latestValue": 3.9,
+            "priorValue": 2.9,
+            "earliestValue": 2.3,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 1,
+            "lastChangePct": 34.5,
+            "cumulativeChange": 1.6,
+            "cumulativeChangePct": 69.6,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 2.3,
+                "records": 33
+              },
+              {
+                "requestYear": 2025,
+                "value": 1.8,
+                "records": 33
+              },
+              {
+                "requestYear": 2026,
+                "value": 2.9,
+                "records": 34
+              },
+              {
+                "requestYear": 2027,
+                "value": 3.9,
+                "records": 39
+              }
+            ]
+          }
+        ],
+        "orgGroupMomentum": [
+          {
+            "id": "fourth-estate",
+            "label": "Fourth Estate",
+            "records": 660,
+            "latestValue": 391.1,
+            "priorValue": 132.8,
+            "earliestValue": 108.9,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 258.3,
+            "lastChangePct": 194.5,
+            "cumulativeChange": 282.2,
+            "cumulativeChangePct": 259.1,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 108.9,
+                "records": 412
+              },
+              {
+                "requestYear": 2025,
+                "value": 109.4,
+                "records": 435
+              },
+              {
+                "requestYear": 2026,
+                "value": 132.8,
+                "records": 438
+              },
+              {
+                "requestYear": 2027,
+                "value": 391.1,
+                "records": 660
+              }
+            ]
+          },
+          {
+            "id": "service",
+            "label": "Services",
+            "records": 3204,
+            "latestValue": 960.6,
+            "priorValue": 722.1,
+            "earliestValue": 645.2,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 238.5,
+            "lastChangePct": 33,
+            "cumulativeChange": 315.4,
+            "cumulativeChangePct": 48.9,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 645.2,
+                "records": 2452
+              },
+              {
+                "requestYear": 2025,
+                "value": 649.3,
+                "records": 2572
+              },
+              {
+                "requestYear": 2026,
+                "value": 722.1,
+                "records": 2531
+              },
+              {
+                "requestYear": 2027,
+                "value": 960.6,
+                "records": 3204
+              }
+            ]
+          },
+          {
+            "id": "other",
+            "label": "Other / Reconciliation",
+            "records": 24,
+            "latestValue": 120.9,
+            "priorValue": 104.4,
+            "earliestValue": 86.6,
+            "latestYear": 2027,
+            "priorYear": 2026,
+            "earliestYear": 2024,
+            "lastChange": 16.5,
+            "lastChangePct": 15.8,
+            "cumulativeChange": 34.3,
+            "cumulativeChangePct": 39.6,
+            "series": [
+              {
+                "requestYear": 2024,
+                "value": 86.6,
+                "records": 22
+              },
+              {
+                "requestYear": 2025,
+                "value": 89.9,
+                "records": 26
+              },
+              {
+                "requestYear": 2026,
+                "value": 104.4,
+                "records": 25
+              },
+              {
+                "requestYear": 2027,
+                "value": 120.9,
+                "records": 24
+              }
+            ]
+          }
+        ]
+      },
       "coverageDiagnostics": {
         "signalTaggedRecords": 2506,
         "signalTaggedRecordShare": 64.5,

@@ -515,6 +515,11 @@ function aggregateRequestValues(records, keyFn) {
     .sort((a, b) => b.requestValue - a.requestValue);
 }
 
+function changePct(current, prior) {
+  if (!prior) return current ? 100 : 0;
+  return round(((current - prior) / prior) * 100);
+}
+
 const currentPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR);
 const requestPackages = REQUEST_PACKAGES.filter((requestPackage) => availableBooks(requestPackage).length > 0);
 const records = BOOKS.flatMap((book) => parseBook(book, currentPackage));
@@ -628,6 +633,121 @@ const trendSummary = {
 trendSummary.comparableChange = round(trendSummary.comparableCurrentRequestValue - trendSummary.comparableEarliestRequestValue);
 trendSummary.comparableGrowth = round((trendSummary.comparableChange / Math.max(trendSummary.comparableEarliestRequestValue, 1)) * 100);
 
+function historySeriesFor(collectionKey, itemId) {
+  return requestHistory.map((history) => ({
+    requestYear: history.requestYear,
+    value: history[collectionKey]?.find((item) => item.id === itemId)?.requestValue || 0,
+    records: history[collectionKey]?.find((item) => item.id === itemId)?.records || 0,
+  }));
+}
+
+function momentumRow(item, collectionKey, extra = {}) {
+  const series = historySeriesFor(collectionKey, item.id);
+  const first = series.find((point) => point.value > 0);
+  const prior = series.at(-2);
+  const latest = series.at(-1);
+  return {
+    ...extra,
+    id: item.id,
+    label: item.label,
+    short: item.short,
+    records: latest?.records || item.records || 0,
+    latestValue: round(latest?.value || 0),
+    priorValue: round(prior?.value || 0),
+    earliestValue: round(first?.value || 0),
+    latestYear: latest?.requestYear,
+    priorYear: prior?.requestYear,
+    earliestYear: first?.requestYear,
+    lastChange: round((latest?.value || 0) - (prior?.value || 0)),
+    lastChangePct: changePct(latest?.value || 0, prior?.value || 0),
+    cumulativeChange: round((latest?.value || 0) - (first?.value || 0)),
+    cumulativeChangePct: changePct(latest?.value || 0, first?.value || 0),
+    series,
+  };
+}
+
+const bookMomentum = BOOKS.map((book) => momentumRow(
+  { id: book.id, label: book.color, short: book.short },
+  "byBook",
+  { completeHistory: comparableBookIds.includes(book.id) },
+));
+const signalMomentum = SIGNALS
+  .map((signal) => momentumRow(signal, "bySignal"))
+  .filter((signal) => signal.latestValue > 0)
+  .sort((a, b) => b.lastChange - a.lastChange);
+const orgGroupMomentum = Object.entries(GROUP_LABELS)
+  .map(([id, label]) => momentumRow({ id, label }, "byOrgGroup"))
+  .filter((group) => group.latestValue > 0)
+  .sort((a, b) => b.lastChange - a.lastChange);
+const topCurrentBook = [...bookMomentum].sort((a, b) => b.latestValue - a.latestValue)[0];
+const fastestComparableBook = bookMomentum
+  .filter((book) => book.completeHistory)
+  .sort((a, b) => b.lastChange - a.lastChange)[0];
+const fastestSignal = [...signalMomentum].sort((a, b) => b.lastChangePct - a.lastChangePct)[0];
+const fourthEstateMomentum = orgGroupMomentum.find((group) => group.id === "fourth-estate");
+const analyticsReadouts = {
+  headlineCards: [
+    {
+      id: "current-request",
+      label: "Current request posture",
+      value: latestHistory?.requestValue || 0,
+      display: "money",
+      helper: `FY${CURRENT_REQUEST_YEAR} captured request across all current workbooks.`,
+      tone: "blue",
+    },
+    {
+      id: "comparable-growth",
+      label: "Comparable book growth",
+      value: trendSummary.comparableGrowth,
+      display: "percent",
+      helper: `${trendSummary.comparableBookCount} comparable books from FY${trendSummary.comparableEarliestRequestYear} to FY${CURRENT_REQUEST_YEAR}.`,
+      tone: "green",
+    },
+    {
+      id: "largest-color",
+      label: "Largest color of money",
+      value: topCurrentBook?.latestValue || 0,
+      display: "money",
+      helper: `${topCurrentBook?.short || "N/A"} leads the current request model.`,
+      tone: "orange",
+    },
+    {
+      id: "fastest-signal",
+      label: "Fastest mission signal",
+      value: fastestSignal?.lastChangePct || 0,
+      display: "percent",
+      helper: `${fastestSignal?.label || "N/A"} from FY${fastestSignal?.priorYear} to FY${fastestSignal?.latestYear}.`,
+      tone: "purple",
+    },
+  ],
+  observations: [
+    {
+      id: "proc-rdte-step-up",
+      label: "FY2027 shifts hard into modernization accounts",
+      value: `${fastestComparableBook?.short || "PROC"} +${fastestComparableBook?.lastChangePct || 0}%`,
+      helper: `${fastestComparableBook?.short || "PROC"} adds ${round(fastestComparableBook?.lastChange || 0)}B from FY${fastestComparableBook?.priorYear} to FY${fastestComparableBook?.latestYear}; RDT&E and procurement both show major step-ups.`,
+      tone: "orange",
+    },
+    {
+      id: "fourth-estate-surge",
+      label: "Fourth Estate becomes a bigger analytic center",
+      value: `+${fourthEstateMomentum?.lastChangePct || 0}%`,
+      helper: `${fourthEstateMomentum?.label || "Fourth Estate"} grows from ${round(fourthEstateMomentum?.priorValue || 0)}B to ${round(fourthEstateMomentum?.latestValue || 0)}B in the current request vintage.`,
+      tone: "green",
+    },
+    {
+      id: "ai-autonomy-spike",
+      label: "AI/autonomy needs narrative validation",
+      value: `+${fastestSignal?.lastChangePct || 0}%`,
+      helper: `${fastestSignal?.label || "AI / Autonomy"} has the sharpest keyword-derived move; justification books are the next source needed to separate real AI spend from title artifacts.`,
+      tone: "purple",
+    },
+  ],
+  bookMomentum,
+  signalMomentum,
+  orgGroupMomentum,
+};
+
 const generatedAt = sourceInventory
   .map((source) => new Date(source.cacheModifiedAt).getTime())
   .filter(Boolean)
@@ -727,6 +847,7 @@ const out = {
       historicalSourceVersions,
       trendSummary,
       requestHistory,
+      analyticsReadouts,
       coverageDiagnostics: {
         signalTaggedRecords: taggedRecords.length,
         signalTaggedRecordShare: round((taggedRecords.length / Math.max(records.length, 1)) * 100),
