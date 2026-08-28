@@ -73,6 +73,11 @@ try {
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-defense-budget-app]");
   assert.equal(await mobile.locator(".if-product-header[data-budget-spend-header]").count(), 1, "Mobile should keep product header shell");
+  const mobileTitleBox = await mobile.locator("[data-active-page-title]").boundingBox();
+  assert.ok(mobileTitleBox && mobileTitleBox.y < 40 && mobileTitleBox.height >= 16, "Mobile should show the active page title in the top bar");
+  const mobileNavBox = await mobile.locator(".ci-header-nav").boundingBox();
+  assert.ok(mobileNavBox && mobileNavBox.y < 80 && mobileNavBox.height >= 30, "Mobile should show the section nav bar below the title");
+  assert.equal(await mobile.locator(".masthead__brand p").isVisible(), false, "Mobile top bar should suppress desktop masthead copy");
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
   const mobileOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
