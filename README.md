@@ -1,13 +1,14 @@
-# Defense Budget Intelligence
+# Defense Budget & Spend Intelligence
 
-Purpose-built analytics platform for understanding Department of Defense budget request data in detail, with a Sabre growth role lens.
+Purpose-built analytics platform for understanding Department of Defense budget and spend data in detail.
 
 Live Cloudflare Pages site: <https://defense-budget-intelligence.pages.dev/>
 
 GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
 
-Sibling intelligence platforms:
+Complementary intelligence platforms:
 
+- Defense Budget & Spend Intelligence: <https://defense-budget-intelligence.pages.dev/>
 - Opportunity Intelligence: <https://opportunity-intelligence-full.pages.dev/>
 - Policy Intelligence: <https://policy-intelligence-full.pages.dev/>
 
@@ -32,7 +33,7 @@ The site currently uses six official FY2027 Office of the Under Secretary of Def
 
 The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. CI builds use the committed generated JSON when the local workbook cache is not present.
 
-Local source refresh uses cached workbooks from `BUDGET_SOURCE_DIR`, defaulting to `$HOME/clawd/artifacts/sabre-research/budget`. Replace the cached workbooks, run `npm run data:build`, review the Data Sources page, then commit the generated JSON.
+Local source refresh uses cached workbooks from `BUDGET_SOURCE_DIR`, defaulting to `$HOME/clawd/artifacts/defense-budget-intelligence/budget`. Replace the cached workbooks, run `npm run data:build`, review the Data Sources page, then commit the generated JSON.
 
 Current version depth:
 

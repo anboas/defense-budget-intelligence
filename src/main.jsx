@@ -28,7 +28,7 @@ const TABS = [
 ];
 
 const INTELLIGENCE_SUITE = [
-  { label: "Defense Budget", href: "https://defense-budget-intelligence.pages.dev/", active: true },
+  { label: "Budget & Spend", href: "https://defense-budget-intelligence.pages.dev/", active: true },
   { label: "Opportunity", href: "https://opportunity-intelligence-full.pages.dev/" },
   { label: "Policy", href: "https://policy-intelligence-full.pages.dev/" },
 ];
@@ -440,7 +440,7 @@ function Drilldown({ records }) {
     <Section title="Line Item Drilldown" meta={`${records.length} matched records`} icon={Search}>
       <div className="table-actions">
         <button type="button" className={sort === "fy2027" ? "active" : ""} onClick={() => setSort("fy2027")}><BarChart3 size={14} /> FY2027</button>
-        <button type="button" className={sort === "growth" ? "active" : ""} onClick={() => setSort("growth")}><TrendingUp size={14} /> Growth</button>
+        <button type="button" className={sort === "growth" ? "active" : ""} onClick={() => setSort("growth")}><TrendingUp size={14} /> Trend</button>
       </div>
       <RecordTable records={rows} />
     </Section>
@@ -460,7 +460,7 @@ function Sources() {
         <div>
           <span>Source Governance</span>
           <h2>Data Sources</h2>
-          <p>Official Comptroller display books feed the current line-level budget model. This page tracks provenance, local versions, refresh state, extracted coverage, and the gaps that matter for Sabre market intelligence.</p>
+          <p>Official Comptroller display books feed the current line-level budget model. This page tracks provenance, local versions, refresh state, extracted coverage, and the gaps that matter for budget and spend intelligence.</p>
         </div>
         <div className="source-hero__facts" aria-label="Data source summary">
           <article>
@@ -604,8 +604,8 @@ function App() {
     <main className="app" data-defense-budget-app>
       <header className="masthead">
         <div>
-          <span>Sabre Growth Intelligence</span>
-          <h1>Defense Budget Intelligence</h1>
+          <span>Defense Budget & Spend Intelligence</span>
+          <h1>Budget & Spend Intelligence</h1>
           <p>Drill from DoD portfolio totals into services, Fourth Estate agencies, colors of money, mission signals, and source line items.</p>
           <div className="suite-links" aria-label="Complementary intelligence platforms">
             {INTELLIGENCE_SUITE.map((site) => (

@@ -4,7 +4,7 @@
   "private": false,
   "license": "UNLICENSED",
   "type": "module",
-  "description": "Defense budget analytics platform for service, Fourth Estate, and color-of-money spending intelligence.",
+  "description": "Defense budget and spend intelligence platform for service, Fourth Estate, and color-of-money analytics.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "npm run data:build && vite build",

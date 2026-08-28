@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "title": "Defense Budget Intelligence",
-    "description": "FY2027 DoD budget analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
+    "title": "Defense Budget & Spend Intelligence",
+    "description": "FY2027 DoD budget and spend analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
     "fiscalYears": [
       2025,
       2026,
       2027
     ],
-    "generatedAt": "2026-08-28T14:20:21.774Z",
+    "generatedAt": "2026-08-28T14:28:49.640Z",
     "sourceCache": "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     "sources": [
       {

@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const DEFAULT_SOURCE_DIR = process.env.HOME ? resolve(process.env.HOME, "clawd/artifacts/sabre-research/budget") : resolve(ROOT, "../artifacts/sabre-research/budget");
+const DEFAULT_SOURCE_DIR = process.env.HOME ? resolve(process.env.HOME, "clawd/artifacts/defense-budget-intelligence/budget") : resolve(ROOT, "../artifacts/defense-budget-intelligence/budget");
 const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
 const OUT_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 
@@ -345,8 +345,8 @@ const sourceInventory = BOOKS.map((book) => {
 
 const out = {
   metadata: {
-    title: "Defense Budget Intelligence",
-    description: "FY2027 DoD budget analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
+    title: "Defense Budget & Spend Intelligence",
+    description: "FY2027 DoD budget and spend analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
     fiscalYears: [2025, 2026, 2027],
     generatedAt: new Date().toISOString(),
     sourceCache: "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",

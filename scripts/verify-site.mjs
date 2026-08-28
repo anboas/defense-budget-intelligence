@@ -35,7 +35,7 @@ try {
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
   const text = await page.locator("[data-defense-budget-app]").innerText();
-  assert.match(text, /Defense Budget Intelligence/);
+  assert.match(text, /Budget & Spend Intelligence/);
   assert.match(text, /AI \/ Autonomy/);
   assert.match(text, /Fourth Estate/);
   assert.match(text, /Opportunity/);
@@ -66,7 +66,7 @@ try {
   assert.ok(mobileOverflow <= 2, `mobile overflow ${mobileOverflow}`);
   await mobile.screenshot({ path: `${OUT_DIR}/mobile.png`, fullPage: true });
   await mobile.close();
-  console.log("Verified Defense Budget Intelligence desktop/mobile.");
+  console.log("Verified Defense Budget & Spend Intelligence desktop/mobile.");
 } finally {
   await browser.close();
   server.kill("SIGTERM");

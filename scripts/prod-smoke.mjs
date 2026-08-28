@@ -62,7 +62,7 @@ const homeResponse = await fetchWithCheck(baseUrl);
 assert.equal(homeResponse.status, 200, `Homepage should return 200, got ${statusText(homeResponse)}`);
 
 const html = await homeResponse.text();
-assert.match(html, /Defense Budget Intelligence/, "Homepage should identify the app");
+assert.match(html, /Defense Budget & Spend Intelligence/, "Homepage should identify the app");
 
 const assets = extractAssets(html, homeResponse.url || baseUrl);
 assert.ok(assets.scripts.length > 0, "Homepage should reference at least one JavaScript asset");
