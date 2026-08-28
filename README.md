@@ -49,7 +49,9 @@ Current version depth:
 
 - Budget request packages versioned in this repo: FY2027 only.
 - Fiscal-year values extracted from the FY2027 package: FY2025, FY2026, and FY2027.
-- Next expansion targets: prior-year Comptroller workbooks, RDT&E justification PDFs, USAspending / FPDS obligations, and public contract or solicitation feeds.
+- Source coverage ladder: budget request line items are live; program narrative, obligations/outlays, and market timing feeds are staged next.
+- Next ingest queue: prior-year Comptroller display books, RDT&E justification books, USAspending award search, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
+- Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, join keys, first ingest task, and analytic value.
 
 ## Commands
 

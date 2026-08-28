@@ -60,6 +60,10 @@ try {
   assert.match(sourcesText, /Source Governance/i);
   assert.match(sourcesText, /Our versions/i);
   assert.match(sourcesText, /Refresh Model/i);
+  assert.match(sourcesText, /Source Coverage Ladder/i);
+  assert.match(sourcesText, /Execution Source Pipeline/i);
+  assert.match(sourcesText, /USAspending Award Search/i);
+  assert.match(sourcesText, /SAM.gov Contract Opportunities/i);
   await page.getByRole("button", { name: /Drilldown/ }).click();
   assert.equal(new URL(page.url()).hash, "#/budget-spend/drilldown", "Drilldown should deep-link through hash route");
   await page.getByPlaceholder("Search line items").fill("artificial intelligence");
@@ -80,6 +84,7 @@ try {
   assert.equal(await mobile.locator(".masthead__brand p").isVisible(), false, "Mobile top bar should suppress desktop masthead copy");
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
+  assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
   const mobileOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileOverflow <= 2, `mobile overflow ${mobileOverflow}`);
   await mobile.screenshot({ path: `${OUT_DIR}/mobile.png`, fullPage: true });

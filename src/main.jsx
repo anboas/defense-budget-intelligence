@@ -494,6 +494,8 @@ function Sources() {
     .filter(Boolean)
     .sort((a, b) => b - a)[0];
   const workbookRecords = BOOKS.reduce((total, source) => total + source.records, 0);
+  const sourceLayers = DATA_INVENTORY.sourceLayers || [];
+  const pipelineSources = DATA_INVENTORY.pipelineSources || [];
 
   return (
     <div className="grid">
@@ -529,6 +531,19 @@ function Sources() {
         <Metric label="Value coverage" value={yearList(DATA_INVENTORY.availableFiscalYears)} helper="Actual, enacted or plan, and request columns where present" tone="green" />
         <Metric label="Latest cache refresh" value={latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown"} helper="Newest cached workbook timestamp" tone="orange" />
       </div>
+
+      <Section title="Source Coverage Ladder" meta="request to execution model" icon={GitBranch}>
+        <div className="source-roadmap" data-source-layer-roadmap>
+          {sourceLayers.map((layer) => (
+            <article key={layer.id} className={`source-roadmap__item source-roadmap__item--${layer.status.toLowerCase()}`}>
+              <span>{layer.status}</span>
+              <strong>{layer.label}</strong>
+              <p>{layer.coverage}</p>
+              <em>{layer.role}</em>
+            </article>
+          ))}
+        </div>
+      </Section>
 
       <Section title="Source Register" meta="official workbook inventory" icon={FileSpreadsheet}>
         <div className="source-register">
@@ -580,6 +595,51 @@ function Sources() {
                   </span>
                 ))}
               </div>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Execution Source Pipeline" meta="next ingest queue" icon={Database}>
+        <div className="pipeline-source-grid" data-execution-source-pipeline>
+          {pipelineSources.map((source) => (
+            <article key={source.id} className="pipeline-source-card">
+              <header>
+                <div>
+                  <span>Priority {source.priority} · {source.layer}</span>
+                  <strong>{source.name}</strong>
+                </div>
+                <a href={source.url} target="_blank" rel="noreferrer" aria-label={`${source.name} source`}>
+                  <ExternalLink size={15} aria-hidden="true" />
+                </a>
+              </header>
+              <p>{source.value}</p>
+              <dl>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{source.status}</dd>
+                </div>
+                <div>
+                  <dt>Publisher</dt>
+                  <dd>{source.publisher}</dd>
+                </div>
+                <div>
+                  <dt>Cadence</dt>
+                  <dd>{source.cadence}</dd>
+                </div>
+                <div>
+                  <dt>Access</dt>
+                  <dd>{source.access}</dd>
+                </div>
+                <div>
+                  <dt>Join keys</dt>
+                  <dd>{source.joinKeys.join(" · ")}</dd>
+                </div>
+                <div>
+                  <dt>First ingest</dt>
+                  <dd>{source.firstTask}</dd>
+                </div>
+              </dl>
             </article>
           ))}
         </div>
