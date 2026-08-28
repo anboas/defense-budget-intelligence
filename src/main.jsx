@@ -868,46 +868,60 @@ function App() {
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
       <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
-        <div className="masthead__brand if-product-header__brand">
-          <span className="if-product-header__eyebrow">Defense Budget & Spend Intelligence</span>
-          <h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1>
-          <p>Drill from DoD portfolio totals into services, Fourth Estate agencies, colors of money, mission signals, and source line items.</p>
-          <div className="suite-links" aria-label="Complementary intelligence platforms" data-peer-intelligence-nav>
-            {INTELLIGENCE_SUITE.map((site) => (
-              <a
-                key={site.label}
-                href={site.href}
-                target={site.active ? undefined : "_blank"}
-                rel={site.active ? undefined : "noreferrer"}
-                className={site.active ? "active" : ""}
-                aria-current={site.active ? "page" : undefined}
-              >
-                {site.label}
-              </a>
-            ))}
-          </div>
+        <div className="if-product-header__inner masthead__inner">
+          <button
+            type="button"
+            className="if-brand masthead__brand if-product-header__brand"
+            data-home-link
+            aria-label="Go to Budget & Spend overview"
+            title="Go to Budget & Spend overview"
+            onClick={() => setActiveTab("overview")}
+          >
+            <span className="if-brand__mark masthead__mark" aria-hidden="true">
+              <BarChart3 size={18} strokeWidth={2.4} />
+            </span>
+            <span className="masthead__copy">
+              <span className="if-product-header__eyebrow">Defense Budget & Spend Intelligence</span>
+              <span className="if-product-header__title" data-active-page-title>{activeTitle}</span>
+            </span>
+          </button>
+          <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend intelligence sections">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
+                  data-budget-nav={HASH_ROUTES[tab.id]}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
-        <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend intelligence sections">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
-                aria-current={activeTab === tab.id ? "page" : undefined}
-                data-budget-nav={HASH_ROUTES[tab.id]}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <Icon size={15} aria-hidden="true" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
       </header>
 
       <div className="if-content if-page if-operations-workspace if-operations-workspace--compact app__content" data-if-operations-workspace data-visual-density="compact">
+        <div className="suite-links" aria-label="Complementary intelligence platforms" data-peer-intelligence-nav>
+          {INTELLIGENCE_SUITE.map((site) => (
+            <a
+              key={site.label}
+              href={site.href}
+              target={site.active ? undefined : "_blank"}
+              rel={site.active ? undefined : "noreferrer"}
+              className={site.active ? "active" : ""}
+              aria-current={site.active ? "page" : undefined}
+            >
+              {site.label}
+            </a>
+          ))}
+        </div>
+
         <FilterShell filters={filters} setFilters={setFilters} />
 
         <section className="if-metric-grid metrics" aria-label="Filtered budget metrics">

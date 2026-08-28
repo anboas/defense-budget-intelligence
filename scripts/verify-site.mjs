@@ -43,6 +43,8 @@ try {
   assert.equal(await page.locator(".if-operations-app[data-budget-spend-app]").count(), 1, "Budget app should use operations app shell");
   assert.equal(await page.locator(".if-product-header[data-budget-spend-header]").count(), 1, "Budget app should use product header shell");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Budget & Spend Intelligence", "Header should expose active page title");
+  const headerBox = await page.locator("[data-budget-spend-header]").boundingBox();
+  assert.ok(headerBox && headerBox.height <= 96, `Desktop header should stay compact, got ${headerBox?.height}px`);
   assert.equal(await page.locator("[data-if-operations-workspace][data-visual-density='compact']").count(), 1, "Budget app should use compact operations workspace");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Budget filters should expose a control bar hook");
   assert.equal(await page.locator("[data-budget-metric]").count(), 4, "Budget metrics should use stable metric hooks");
@@ -86,11 +88,13 @@ try {
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-defense-budget-app]");
   assert.equal(await mobile.locator(".if-product-header[data-budget-spend-header]").count(), 1, "Mobile should keep product header shell");
+  const mobileHeaderBox = await mobile.locator("[data-budget-spend-header]").boundingBox();
+  assert.ok(mobileHeaderBox && mobileHeaderBox.height <= 82, `Mobile header should stay compact, got ${mobileHeaderBox?.height}px`);
   const mobileTitleBox = await mobile.locator("[data-active-page-title]").boundingBox();
   assert.ok(mobileTitleBox && mobileTitleBox.y < 40 && mobileTitleBox.height >= 16, "Mobile should show the active page title in the top bar");
   const mobileNavBox = await mobile.locator(".ci-header-nav").boundingBox();
   assert.ok(mobileNavBox && mobileNavBox.y < 80 && mobileNavBox.height >= 30, "Mobile should show the section nav bar below the title");
-  assert.equal(await mobile.locator(".masthead__brand p").isVisible(), false, "Mobile top bar should suppress desktop masthead copy");
+  assert.equal(await mobile.locator(".masthead__brand p").count(), 0, "Mobile top bar should not render desktop masthead copy");
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
