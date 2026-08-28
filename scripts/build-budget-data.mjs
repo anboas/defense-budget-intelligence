@@ -204,6 +204,12 @@ const SERVICES = new Map([
   ["F", "Air Force / Space Force"],
 ]);
 
+const GROUP_LABELS = {
+  service: "Services",
+  "fourth-estate": "Fourth Estate",
+  other: "Other / Reconciliation",
+};
+
 const SIGNALS = [
   { id: "ai-autonomy", label: "AI / Autonomy", terms: ["artificial intelligence", "machine learning", "autonom", "algorithm", "joint all domain command", "jadc2", "decision advantage", "advanced battle management", "robotic", "unmanned", "counter small unmanned", "c-suas"] },
   { id: "software-digital", label: "Software / Digital", terms: ["software", "digital", "data fabric", "data platform", "cloud", "enterprise services", "zero trust", "platform", "analytics", "modeling and simulation"] },
@@ -439,6 +445,10 @@ function sum(records, key) {
   return records.reduce((total, record) => total + Number(record[key] || 0), 0);
 }
 
+function round(value, digits = 1) {
+  return Number(Number(value || 0).toFixed(digits));
+}
+
 const records = BOOKS.flatMap(parseBook);
 const total = aggregate(records, () => ({ id: "portfolio", label: "DoD captured portfolio" }))[0];
 const byBook = aggregate(records, (record) => ({ id: record.bookId, label: record.color, short: record.colorShort }));
@@ -497,6 +507,58 @@ const sourceInventory = BOOKS.map((book) => {
   };
 });
 
+const taggedRecords = records.filter((record) => record.signals.length > 0);
+const taggedValue = sum(taggedRecords, "fy2027");
+const sourceDiagnostics = sourceInventory.map((source) => {
+  const sourceRecords = records.filter((record) => record.bookId === source.id);
+  const fy2027 = sum(sourceRecords, "fy2027");
+  const signalTagged = sourceRecords.filter((record) => record.signals.length > 0);
+  const orgMix = ["service", "fourth-estate", "other"].map((group) => {
+    const groupRecords = sourceRecords.filter((record) => record.orgGroup === group);
+    const value = sum(groupRecords, "fy2027");
+    return {
+      id: group,
+      label: GROUP_LABELS[group],
+      records: groupRecords.length,
+      fy2027: round(value),
+      share: round((value / Math.max(fy2027, 1)) * 100),
+    };
+  });
+  const topSignals = SIGNALS.map((signal) => {
+    const signalRecords = sourceRecords.filter((record) => record.signals.includes(signal.id));
+    const value = sum(signalRecords, "fy2027");
+    return {
+      id: signal.id,
+      label: signal.label,
+      records: signalRecords.length,
+      fy2027: round(value),
+      share: round((value / Math.max(fy2027, 1)) * 100),
+    };
+  }).filter((signal) => signal.records > 0).sort((a, b) => b.fy2027 - a.fy2027).slice(0, 5);
+  const topOrganizations = aggregate(sourceRecords, (record) => ({ id: record.org, label: record.orgName })).slice(0, 3).map((org) => ({
+    id: org.id,
+    label: org.label,
+    records: org.records,
+    fy2027: round(org.fy2027),
+    share: round((org.fy2027 / Math.max(fy2027, 1)) * 100),
+  }));
+
+  return {
+    id: source.id,
+    label: `${source.id} · ${source.short}`,
+    color: source.color,
+    fy2027: round(fy2027),
+    records: sourceRecords.length,
+    signalTaggedRecords: signalTagged.length,
+    signalTaggedFy2027: round(sum(signalTagged, "fy2027")),
+    signalTaggedRecordShare: round((signalTagged.length / Math.max(sourceRecords.length, 1)) * 100),
+    signalTaggedValueShare: round((sum(signalTagged, "fy2027") / Math.max(fy2027, 1)) * 100),
+    orgMix,
+    topSignals,
+    topOrganizations,
+  };
+});
+
 const out = {
   metadata: {
     title: "Defense Budget & Spend Intelligence",
@@ -521,6 +583,14 @@ const out = {
       sourceLayers: SOURCE_LAYERS,
       pipelineSources: PIPELINE_SOURCES,
       sourceJoinPaths: SOURCE_JOIN_PATHS,
+      coverageDiagnostics: {
+        signalTaggedRecords: taggedRecords.length,
+        signalTaggedRecordShare: round((taggedRecords.length / Math.max(records.length, 1)) * 100),
+        signalTaggedFy2027: round(taggedValue),
+        signalTaggedValueShare: round((taggedValue / Math.max(total.fy2027, 1)) * 100),
+        sourceDiagnosticsCount: sourceDiagnostics.length,
+      },
+      sourceDiagnostics,
       limitations: [
         "Budget display books are request and enacted-plan views, not executed outlay or contract-obligation feeds.",
         "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",

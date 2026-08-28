@@ -125,6 +125,10 @@ function pct(value, digits = 1) {
   return `${number > 0 ? "+" : ""}${number.toFixed(digits)}%`;
 }
 
+function percent(value, digits = 0) {
+  return `${Number(value || 0).toFixed(digits)}%`;
+}
+
 function growth(row) {
   if (!row?.fy2025) return row?.fy2027 ? 100 : 0;
   return ((row.fy2027 - row.fy2025) / row.fy2025) * 100;
@@ -504,6 +508,8 @@ function Sources() {
   const sourceLayers = DATA_INVENTORY.sourceLayers || [];
   const pipelineSources = DATA_INVENTORY.pipelineSources || [];
   const sourceJoinPaths = DATA_INVENTORY.sourceJoinPaths || [];
+  const coverageDiagnostics = DATA_INVENTORY.coverageDiagnostics || {};
+  const sourceDiagnostics = DATA_INVENTORY.sourceDiagnostics || [];
   const healthSources = sourceHealth.sources || [];
   const healthTotals = sourceHealth.totals || {};
 
@@ -589,6 +595,61 @@ function Sources() {
                   <dd>{source.priority ? `P${source.priority}` : "Live source"}</dd>
                 </div>
               </dl>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Coverage Diagnostics" meta="parsed-record signal and org coverage" icon={BarChart3}>
+        <div className="coverage-diagnostic-summary">
+          <article>
+            <strong>{coverageDiagnostics.signalTaggedRecords?.toLocaleString()}</strong>
+            <span>tagged records</span>
+            <p>{percent(coverageDiagnostics.signalTaggedRecordShare, 1)} of parsed lines carry at least one mission signal.</p>
+          </article>
+          <article>
+            <strong>{money(coverageDiagnostics.signalTaggedFy2027)}</strong>
+            <span>tagged FY2027 value</span>
+            <p>{percent(coverageDiagnostics.signalTaggedValueShare, 1)} of FY2027 request value is mission-coded today.</p>
+          </article>
+        </div>
+        <div className="coverage-diagnostic-grid" data-source-coverage-diagnostics>
+          {sourceDiagnostics.map((source) => (
+            <article key={source.id} className="coverage-diagnostic-card">
+              <header>
+                <div>
+                  <span>{source.color}</span>
+                  <strong>{source.label}</strong>
+                </div>
+                <b>{percent(source.signalTaggedValueShare)} coded</b>
+              </header>
+              <div className="coverage-meter" aria-label={`${source.label} tagged value coverage`}>
+                <i style={{ width: `${Math.min(Math.max(source.signalTaggedValueShare, 0), 100)}%`, background: BOOK_COLORS[source.id] }} />
+              </div>
+              <dl>
+                <div>
+                  <dt>Records</dt>
+                  <dd>{source.records.toLocaleString()} lines · {money(source.fy2027)} FY2027</dd>
+                </div>
+                <div>
+                  <dt>Signal tagged</dt>
+                  <dd>{source.signalTaggedRecords.toLocaleString()} lines · {money(source.signalTaggedFy2027)}</dd>
+                </div>
+              </dl>
+              <div className="coverage-split" aria-label={`${source.label} organization mix`}>
+                {source.orgMix.map((group) => (
+                  <span key={group.id}>
+                    <b>{group.label}</b>
+                    <i><em style={{ width: `${Math.min(Math.max(group.share, 0), 100)}%` }} /></i>
+                    <strong>{percent(group.share)}</strong>
+                  </span>
+                ))}
+              </div>
+              <div className="signal-chip-list" aria-label={`${source.label} top mission signals`}>
+                {source.topSignals.map((signal) => (
+                  <span key={signal.id}>{signal.label} · {money(signal.fy2027)}</span>
+                ))}
+              </div>
             </article>
           ))}
         </div>

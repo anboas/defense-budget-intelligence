@@ -580,7 +580,9 @@ button {
 .pipeline-source-grid,
 .join-path-map,
 .source-health-grid,
-.source-health-summary {
+.source-health-summary,
+.coverage-diagnostic-grid,
+.coverage-diagnostic-summary {
   display: grid;
   gap: 8px;
 }
@@ -711,6 +713,196 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin: 0;
+}
+
+.coverage-diagnostic-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+
+.coverage-diagnostic-summary article {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #dce6f1;
+  border-radius: 4px;
+  background: #f8fbfe;
+}
+
+.coverage-diagnostic-summary strong {
+  display: block;
+  color: #1b1b1b;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.coverage-diagnostic-summary span {
+  display: block;
+  margin-top: 3px;
+  color: #565c65;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.coverage-diagnostic-summary p {
+  margin: 5px 0 0;
+  color: #3d4551;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.coverage-diagnostic-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.coverage-diagnostic-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #c7d4e3;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.coverage-diagnostic-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.coverage-diagnostic-card header span {
+  display: block;
+  margin-bottom: 3px;
+  color: #565c65;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.coverage-diagnostic-card header strong {
+  display: block;
+  color: #1b1b1b;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.coverage-diagnostic-card header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 3px 6px;
+  border: 1px solid #005ea2;
+  border-radius: 4px;
+  background: #eef7ff;
+  color: #005ea2;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.coverage-meter {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf5;
+}
+
+.coverage-meter i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+
+.coverage-diagnostic-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.coverage-diagnostic-card dl div {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #dce6f1;
+  border-radius: 4px;
+  background: #f8fbfe;
+}
+
+.coverage-diagnostic-card dt {
+  color: #565c65;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.coverage-diagnostic-card dd {
+  margin: 3px 0 0;
+  color: #1b1b1b;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.coverage-split {
+  display: grid;
+  gap: 5px;
+}
+
+.coverage-split span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(64px, 0.8fr) 38px;
+  gap: 6px;
+  align-items: center;
+}
+
+.coverage-split b,
+.coverage-split strong {
+  color: #1b1b1b;
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.coverage-split i {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf5;
+}
+
+.coverage-split em {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  background: #005ea2;
+}
+
+.signal-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.signal-chip-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 6px;
+  border: 1px solid #dce6f1;
+  border-radius: 4px;
+  background: #f8fbfe;
+  color: #1b1b1b;
+  font-size: 10.5px;
+  font-weight: 850;
 }
 
 .source-roadmap__item,
@@ -1191,7 +1383,9 @@ td .dot {
   .pipeline-source-grid,
   .join-path-card div,
   .source-health-grid,
-  .source-health-summary {
+  .source-health-summary,
+  .coverage-diagnostic-grid,
+  .coverage-diagnostic-summary {
     grid-template-columns: 1fr;
   }
 

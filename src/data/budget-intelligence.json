@@ -7,7 +7,7 @@
       2026,
       2027
     ],
-    "generatedAt": "2026-08-28T15:18:45.029Z",
+    "generatedAt": "2026-08-28T15:31:26.002Z",
     "sourceCache": "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     "sources": [
       {
@@ -462,6 +462,544 @@
           "confidence": "Directional",
           "bridge": "Agency, office, NAICS/PSC, description keywords, mission signal",
           "unlocks": "Active notices, sources sought, solicitation timing, and capture-entry points."
+        }
+      ],
+      "coverageDiagnostics": {
+        "signalTaggedRecords": 2506,
+        "signalTaggedRecordShare": 64.5,
+        "signalTaggedFy2027": 1011.5,
+        "signalTaggedValueShare": 68.7,
+        "sourceDiagnosticsCount": 6
+      },
+      "sourceDiagnostics": [
+        {
+          "id": "M-1",
+          "label": "M-1 · MILPERS",
+          "color": "Military Personnel",
+          "fy2027": 206.5,
+          "records": 285,
+          "signalTaggedRecords": 63,
+          "signalTaggedFy2027": 46.1,
+          "signalTaggedRecordShare": 22.1,
+          "signalTaggedValueShare": 22.3,
+          "orgMix": [
+            {
+              "id": "service",
+              "label": "Services",
+              "records": 285,
+              "fy2027": 206.5,
+              "share": 100
+            },
+            {
+              "id": "fourth-estate",
+              "label": "Fourth Estate",
+              "records": 0,
+              "fy2027": 0,
+              "share": 0
+            },
+            {
+              "id": "other",
+              "label": "Other / Reconciliation",
+              "records": 0,
+              "fy2027": 0,
+              "share": 0
+            }
+          ],
+          "topSignals": [
+            {
+              "id": "infrastructure",
+              "label": "Infrastructure",
+              "records": 10,
+              "fy2027": 30,
+              "share": 14.5
+            },
+            {
+              "id": "medical",
+              "label": "Medical / Health",
+              "records": 19,
+              "fy2027": 14.6,
+              "share": 7.1
+            },
+            {
+              "id": "space",
+              "label": "Space",
+              "records": 37,
+              "fy2027": 1.9,
+              "share": 0.9
+            },
+            {
+              "id": "shipbuilding",
+              "label": "Shipbuilding",
+              "records": 4,
+              "fy2027": 0.3,
+              "share": 0.2
+            }
+          ],
+          "topOrganizations": [
+            {
+              "id": "A",
+              "label": "Army",
+              "records": 67,
+              "fy2027": 80.3,
+              "share": 38.9
+            },
+            {
+              "id": "N",
+              "label": "Navy / Marine Corps",
+              "records": 114,
+              "fy2027": 70.5,
+              "share": 34.2
+            },
+            {
+              "id": "F",
+              "label": "Air Force / Space Force",
+              "records": 104,
+              "fy2027": 55.6,
+              "share": 26.9
+            }
+          ]
+        },
+        {
+          "id": "O-1",
+          "label": "O-1 · O&M",
+          "color": "Operations and Maintenance",
+          "fy2027": 430.7,
+          "records": 389,
+          "signalTaggedRecords": 369,
+          "signalTaggedFy2027": 428,
+          "signalTaggedRecordShare": 94.9,
+          "signalTaggedValueShare": 99.4,
+          "orgMix": [
+            {
+              "id": "service",
+              "label": "Services",
+              "records": 303,
+              "fy2027": 296.7,
+              "share": 68.9
+            },
+            {
+              "id": "fourth-estate",
+              "label": "Fourth Estate",
+              "records": 79,
+              "fy2027": 103.3,
+              "share": 24
+            },
+            {
+              "id": "other",
+              "label": "Other / Reconciliation",
+              "records": 7,
+              "fy2027": 30.7,
+              "share": 7.1
+            }
+          ],
+          "topSignals": [
+            {
+              "id": "logistics",
+              "label": "Logistics / Sustainment",
+              "records": 357,
+              "fy2027": 426.6,
+              "share": 99
+            },
+            {
+              "id": "medical",
+              "label": "Medical / Health",
+              "records": 25,
+              "fy2027": 47.7,
+              "share": 11.1
+            },
+            {
+              "id": "shipbuilding",
+              "label": "Shipbuilding",
+              "records": 6,
+              "fy2027": 27.2,
+              "share": 6.3
+            },
+            {
+              "id": "space",
+              "label": "Space",
+              "records": 32,
+              "fy2027": 16.4,
+              "share": 3.8
+            },
+            {
+              "id": "cyber",
+              "label": "Cyber",
+              "records": 28,
+              "fy2027": 7,
+              "share": 1.6
+            }
+          ],
+          "topOrganizations": [
+            {
+              "id": "N",
+              "label": "Navy / Marine Corps",
+              "records": 122,
+              "fy2027": 110.2,
+              "share": 25.6
+            },
+            {
+              "id": "F",
+              "label": "Air Force / Space Force",
+              "records": 79,
+              "fy2027": 101.1,
+              "share": 23.5
+            },
+            {
+              "id": "A",
+              "label": "Army",
+              "records": 102,
+              "fy2027": 85.4,
+              "share": 19.8
+            }
+          ]
+        },
+        {
+          "id": "P-1",
+          "label": "P-1 · PROC",
+          "color": "Procurement",
+          "fy2027": 434.2,
+          "records": 1137,
+          "signalTaggedRecords": 797,
+          "signalTaggedFy2027": 287.9,
+          "signalTaggedRecordShare": 70.1,
+          "signalTaggedValueShare": 66.3,
+          "orgMix": [
+            {
+              "id": "service",
+              "label": "Services",
+              "records": 1064,
+              "fy2027": 305.8,
+              "share": 70.4
+            },
+            {
+              "id": "fourth-estate",
+              "label": "Fourth Estate",
+              "records": 66,
+              "fy2027": 96.8,
+              "share": 22.3
+            },
+            {
+              "id": "other",
+              "label": "Other / Reconciliation",
+              "records": 7,
+              "fy2027": 31.5,
+              "share": 7.3
+            }
+          ],
+          "topSignals": [
+            {
+              "id": "missiles",
+              "label": "Missiles / Fires",
+              "records": 257,
+              "fy2027": 107.2,
+              "share": 24.7
+            },
+            {
+              "id": "shipbuilding",
+              "label": "Shipbuilding",
+              "records": 231,
+              "fy2027": 94.3,
+              "share": 21.7
+            },
+            {
+              "id": "aircraft",
+              "label": "Aircraft",
+              "records": 249,
+              "fy2027": 73.3,
+              "share": 16.9
+            },
+            {
+              "id": "space",
+              "label": "Space",
+              "records": 58,
+              "fy2027": 20.8,
+              "share": 4.8
+            },
+            {
+              "id": "logistics",
+              "label": "Logistics / Sustainment",
+              "records": 26,
+              "fy2027": 9.8,
+              "share": 2.3
+            }
+          ],
+          "topOrganizations": [
+            {
+              "id": "N",
+              "label": "Navy / Marine Corps",
+              "records": 537,
+              "fy2027": 168.4,
+              "share": 38.8
+            },
+            {
+              "id": "OSD",
+              "label": "OSD / Defense-Wide",
+              "records": 4,
+              "fy2027": 81.4,
+              "share": 18.7
+            },
+            {
+              "id": "F",
+              "label": "Air Force / Space Force",
+              "records": 260,
+              "fy2027": 76.4,
+              "share": 17.6
+            }
+          ]
+        },
+        {
+          "id": "R-1",
+          "label": "R-1 · RDT&E",
+          "color": "Research, Development, Test, and Evaluation",
+          "fy2027": 343.7,
+          "records": 1148,
+          "signalTaggedRecords": 351,
+          "signalTaggedFy2027": 191.9,
+          "signalTaggedRecordShare": 30.6,
+          "signalTaggedValueShare": 55.8,
+          "orgMix": [
+            {
+              "id": "service",
+              "label": "Services",
+              "records": 829,
+              "fy2027": 120.1,
+              "share": 34.9
+            },
+            {
+              "id": "fourth-estate",
+              "label": "Fourth Estate",
+              "records": 309,
+              "fy2027": 164.9,
+              "share": 48
+            },
+            {
+              "id": "other",
+              "label": "Other / Reconciliation",
+              "records": 10,
+              "fy2027": 58.7,
+              "share": 17.1
+            }
+          ],
+          "topSignals": [
+            {
+              "id": "ai-autonomy",
+              "label": "AI / Autonomy",
+              "records": 43,
+              "fy2027": 60.5,
+              "share": 17.6
+            },
+            {
+              "id": "space",
+              "label": "Space",
+              "records": 102,
+              "fy2027": 47.6,
+              "share": 13.8
+            },
+            {
+              "id": "logistics",
+              "label": "Logistics / Sustainment",
+              "records": 23,
+              "fy2027": 45.4,
+              "share": 13.2
+            },
+            {
+              "id": "missiles",
+              "label": "Missiles / Fires",
+              "records": 82,
+              "fy2027": 20.4,
+              "share": 5.9
+            },
+            {
+              "id": "aircraft",
+              "label": "Aircraft",
+              "records": 54,
+              "fy2027": 16.2,
+              "share": 4.7
+            }
+          ],
+          "topOrganizations": [
+            {
+              "id": "OSD",
+              "label": "OSD / Defense-Wide",
+              "records": 164,
+              "fy2027": 140.2,
+              "share": 40.8
+            },
+            {
+              "id": "F",
+              "label": "Air Force / Space Force",
+              "records": 347,
+              "fy2027": 68.4,
+              "share": 19.9
+            },
+            {
+              "id": "Unspecified",
+              "label": "Unspecified / Reconciliation",
+              "records": 10,
+              "fy2027": 58.7,
+              "share": 17.1
+            }
+          ]
+        },
+        {
+          "id": "RF-1",
+          "label": "RF-1 · RF",
+          "color": "Revolving and Management Funds",
+          "fy2027": 26.3,
+          "records": 12,
+          "signalTaggedRecords": 12,
+          "signalTaggedFy2027": 26.3,
+          "signalTaggedRecordShare": 100,
+          "signalTaggedValueShare": 100,
+          "orgMix": [
+            {
+              "id": "service",
+              "label": "Services",
+              "records": 5,
+              "fy2027": 4.7,
+              "share": 18
+            },
+            {
+              "id": "fourth-estate",
+              "label": "Fourth Estate",
+              "records": 7,
+              "fy2027": 21.5,
+              "share": 82
+            },
+            {
+              "id": "other",
+              "label": "Other / Reconciliation",
+              "records": 0,
+              "fy2027": 0,
+              "share": 0
+            }
+          ],
+          "topSignals": [
+            {
+              "id": "logistics",
+              "label": "Logistics / Sustainment",
+              "records": 12,
+              "fy2027": 26.3,
+              "share": 100
+            }
+          ],
+          "topOrganizations": [
+            {
+              "id": "DLA",
+              "label": "Defense Logistics Agency",
+              "records": 4,
+              "fy2027": 19.8,
+              "share": 75.2
+            },
+            {
+              "id": "F",
+              "label": "Air Force / Space Force",
+              "records": 2,
+              "fy2027": 4.4,
+              "share": 16.9
+            },
+            {
+              "id": "DECA",
+              "label": "Defense Commissary Agency",
+              "records": 1,
+              "fy2027": 1.5,
+              "share": 5.7
+            }
+          ]
+        },
+        {
+          "id": "C-1",
+          "label": "C-1 · MILCON",
+          "color": "MILCON / Family Housing / BRAC",
+          "fy2027": 31.3,
+          "records": 917,
+          "signalTaggedRecords": 914,
+          "signalTaggedFy2027": 31.3,
+          "signalTaggedRecordShare": 99.7,
+          "signalTaggedValueShare": 100,
+          "orgMix": [
+            {
+              "id": "service",
+              "label": "Services",
+              "records": 718,
+              "fy2027": 26.8,
+              "share": 85.6
+            },
+            {
+              "id": "fourth-estate",
+              "label": "Fourth Estate",
+              "records": 199,
+              "fy2027": 4.5,
+              "share": 14.4
+            },
+            {
+              "id": "other",
+              "label": "Other / Reconciliation",
+              "records": 0,
+              "fy2027": 0,
+              "share": 0
+            }
+          ],
+          "topSignals": [
+            {
+              "id": "infrastructure",
+              "label": "Infrastructure",
+              "records": 914,
+              "fy2027": 31.3,
+              "share": 100
+            },
+            {
+              "id": "logistics",
+              "label": "Logistics / Sustainment",
+              "records": 184,
+              "fy2027": 4,
+              "share": 12.8
+            },
+            {
+              "id": "aircraft",
+              "label": "Aircraft",
+              "records": 74,
+              "fy2027": 1.7,
+              "share": 5.3
+            },
+            {
+              "id": "space",
+              "label": "Space",
+              "records": 11,
+              "fy2027": 1.6,
+              "share": 5
+            },
+            {
+              "id": "shipbuilding",
+              "label": "Shipbuilding",
+              "records": 13,
+              "fy2027": 0.9,
+              "share": 3
+            }
+          ],
+          "topOrganizations": [
+            {
+              "id": "F",
+              "label": "Air Force / Space Force",
+              "records": 288,
+              "fy2027": 12.6,
+              "share": 40.2
+            },
+            {
+              "id": "N",
+              "label": "Navy / Marine Corps",
+              "records": 231,
+              "fy2027": 10,
+              "share": 31.9
+            },
+            {
+              "id": "A",
+              "label": "Army",
+              "records": 199,
+              "fy2027": 4.2,
+              "share": 13.5
+            }
+          ]
         }
       ],
       "limitations": [
