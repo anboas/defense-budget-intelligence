@@ -233,6 +233,75 @@ const SIGNALS = [
   { id: "infrastructure", label: "Infrastructure", terms: ["construction", "facility", "housing", "infrastructure", "installation", "utilities", "brac"] },
 ];
 
+const TECHNOLOGY_AREAS = [
+  {
+    id: "autonomous-systems",
+    label: "Autonomous Systems",
+    terms: ["autonom", "unmanned", "uav", "uas", "robotic", "counter small unmanned", "c-suas"],
+    conversations: ["Army robotics and C-UAS modernization", "Air and naval unmanned platform demand", "Fourth Estate autonomy-enabling programs"],
+  },
+  {
+    id: "ai-decision-advantage",
+    label: "AI / Decision Advantage",
+    terms: ["artificial intelligence", "machine learning", "algorithm", "decision advantage", "joint all domain command", "jadc2", "advanced battle management"],
+    conversations: ["AI adoption budget visibility", "JADC2 and ABMS adjacency", "analytics and decision-support modernization"],
+  },
+  {
+    id: "cloud-data-platforms",
+    label: "Cloud / Data Platforms",
+    terms: ["cloud", "data fabric", "data platform", "enterprise services", "platform", "analytics", "digital"],
+    conversations: ["Enterprise data modernization", "cloud migration and platform services", "analytics infrastructure for mission owners"],
+  },
+  {
+    id: "software-digital-engineering",
+    label: "Software / Digital Engineering",
+    terms: ["software", "digital", "modeling and simulation", "simulation", "enterprise services", "zero trust"],
+    conversations: ["software factory and sustainment strategy", "digital engineering demand", "modeling and simulation investments"],
+  },
+  {
+    id: "cyber-operations",
+    label: "Cyber Operations",
+    terms: ["cyber", "cryptologic", "crypto", "information assurance", "network defense", "cyberspace", "zero trust"],
+    conversations: ["cyber mission force support", "defensive cyber modernization", "identity, network, and assurance investments"],
+  },
+  {
+    id: "space-systems",
+    label: "Space Systems",
+    terms: ["space", "satellite", "launch", "missile warning", "gps", "nssl", "orbital"],
+    conversations: ["Space Force budget posture", "satellite and missile-warning modernization", "launch and orbital infrastructure"],
+  },
+  {
+    id: "missiles-fires",
+    label: "Missiles / Fires",
+    terms: ["missile", "hypersonic", "munition", "rocket", "fires", "interceptor", "tomahawk", "standard missile", "amraam", "jassm", "lrpf"],
+    conversations: ["munitions demand and industrial base pressure", "hypersonic and interceptor modernization", "service-specific fires priorities"],
+  },
+  {
+    id: "readiness-sustainment",
+    label: "Readiness / Sustainment",
+    terms: ["readiness", "sustainment", "maintenance", "supply", "depot", "working capital", "stockpile", "logistics"],
+    conversations: ["readiness account pressure", "depot and supply-chain modernization", "working capital fund demand"],
+  },
+  {
+    id: "shipbuilding-maritime",
+    label: "Shipbuilding / Maritime",
+    terms: ["ship", "submarine", "destroyer", "frigate", "carrier", "amphibious", "sealift", "vessel"],
+    conversations: ["Navy shipbuilding posture", "submarine and surface combatant pipeline", "maritime industrial base demand"],
+  },
+  {
+    id: "aircraft-aviation",
+    label: "Aircraft / Aviation",
+    terms: ["aircraft", "fighter", "bomber", "helicopter", "f-35", "f-22", "f-15", "f/a-18", "b-21", "kc-46", "v-22"],
+    conversations: ["air platform modernization", "fighter, bomber, and mobility recapitalization", "aviation sustainment demand"],
+  },
+  {
+    id: "installations-infrastructure",
+    label: "Installations / Infrastructure",
+    terms: ["construction", "facility", "housing", "infrastructure", "installation", "utilities", "brac"],
+    conversations: ["installation modernization", "MILCON and facilities backlog", "resilient infrastructure priorities"],
+  },
+];
+
 function unzipText(file, path) {
   return execFileSync("unzip", ["-p", file, path], { encoding: "utf8", maxBuffer: 120 * 1024 * 1024 });
 }
@@ -396,6 +465,17 @@ function detectSignals(record) {
   return SIGNALS.filter((signal) => signal.terms.some((term) => haystack.includes(term))).map((signal) => signal.id);
 }
 
+function detectTechnologyAreas(record) {
+  const haystack = [
+    record.accountTitle,
+    record.budgetActivityTitle,
+    record.subActivityTitle,
+    record.lineTitle,
+    record.lineCode,
+  ].join(" ").toLowerCase();
+  return TECHNOLOGY_AREAS.filter((area) => area.terms.some((term) => haystack.includes(term))).map((area) => area.id);
+}
+
 function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR)) {
   const file = resolve(requestPackage.sourceDir, book.file);
   if (!existsSync(file)) throw new Error(`Missing source workbook: ${file}`);
@@ -467,6 +547,7 @@ function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.r
       fy2027: values.fy2027 || 0,
     };
     record.signals = detectSignals(record);
+    record.technologyAreas = detectTechnologyAreas(record);
     return record;
   }).filter(Boolean);
 }
@@ -748,6 +829,173 @@ const analyticsReadouts = {
   orgGroupMomentum,
 };
 
+function aggregateFy2027(records, keyFn) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = keyFn(record);
+    const existing = groups.get(key.id) || { ...key, fy2027: 0, fy2026: 0, fy2025: 0, records: 0 };
+    existing.fy2027 += record.fy2027;
+    existing.fy2026 += record.fy2026;
+    existing.fy2025 += record.fy2025;
+    existing.records += 1;
+    groups.set(key.id, existing);
+  }
+  return [...groups.values()]
+    .map((row) => ({
+      ...row,
+      fy2027: round(row.fy2027),
+      fy2026: round(row.fy2026),
+      fy2025: round(row.fy2025),
+      change: round(row.fy2027 - row.fy2025),
+      growth: changePct(row.fy2027, row.fy2025),
+    }))
+    .sort((a, b) => b.fy2027 - a.fy2027);
+}
+
+function strategyScore(row) {
+  const valueScore = Math.min((row.fy2027 / 120) * 45, 45);
+  const growthScore = Math.min(Math.max(row.growth, 0) / 20, 25);
+  const recordsScore = Math.min(row.records / 8, 15);
+  const modernizationScore = ["ai-decision-advantage", "autonomous-systems", "cloud-data-platforms", "software-digital-engineering", "cyber-operations"].includes(row.areaId) ? 15 : 8;
+  return Math.round(valueScore + growthScore + recordsScore + modernizationScore);
+}
+
+function compactLine(record) {
+  return {
+    id: record.id,
+    title: record.lineTitle || record.budgetActivityTitle || record.accountTitle,
+    org: record.org,
+    orgName: record.orgName,
+    orgGroup: record.orgGroup,
+    colorShort: record.colorShort,
+    bookId: record.bookId,
+    fy2027: round(record.fy2027),
+    growth: changePct(record.fy2027, record.fy2025),
+  };
+}
+
+const technologyTaggedRecords = records.filter((record) => record.technologyAreas.length > 0);
+const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
+  const areaRecords = records.filter((record) => record.technologyAreas.includes(area.id));
+  const byService = aggregateFy2027(areaRecords.filter((record) => record.orgGroup === "service"), (record) => ({ id: record.org, label: record.orgName }));
+  const byClient = aggregateFy2027(areaRecords.filter((record) => record.orgGroup !== "other"), (record) => ({
+    id: record.org,
+    label: record.orgName,
+    group: record.orgGroup,
+  })).slice(0, 8);
+  const byBookArea = aggregateFy2027(areaRecords, (record) => ({ id: record.bookId, label: record.color, short: record.colorShort }));
+  const areaTotal = aggregateFy2027(areaRecords, () => ({ id: area.id, label: area.label }))[0] || {
+    fy2027: 0,
+    fy2026: 0,
+    fy2025: 0,
+    change: 0,
+    growth: 0,
+    records: 0,
+  };
+  return {
+    ...area,
+    fy2027: areaTotal.fy2027,
+    fy2026: areaTotal.fy2026,
+    fy2025: areaTotal.fy2025,
+    change: areaTotal.change,
+    growth: areaTotal.growth,
+    records: areaTotal.records,
+    byService,
+    byClient,
+    byBook: byBookArea,
+    topLines: areaRecords
+      .filter((record) => record.fy2027 > 0)
+      .sort((a, b) => b.fy2027 - a.fy2027)
+      .slice(0, 8)
+      .map(compactLine),
+  };
+}).filter((area) => area.records > 0).sort((a, b) => b.fy2027 - a.fy2027);
+
+const strategyIntersections = technologyAreaRows.flatMap((area) => (
+  area.byClient.slice(0, 6).map((client) => ({
+    id: `${area.id}-${client.id}`,
+    areaId: area.id,
+    area: area.label,
+    clientId: client.id,
+    client: client.label,
+    group: client.group,
+    fy2027: client.fy2027,
+    records: client.records,
+    growth: client.growth,
+    score: strategyScore({ ...client, areaId: area.id }),
+    talkTrack: `${client.label} has ${round(client.fy2027)}B in ${area.label} tagged request lines, with ${client.records} visible line records.`,
+  }))
+)).sort((a, b) => b.score - a.score || b.fy2027 - a.fy2027).slice(0, 18);
+
+const serviceStrategy = ["A", "N", "F"].map((serviceId) => {
+  const serviceRecords = records.filter((record) => record.org === serviceId);
+  const serviceTech = technologyAreaRows.map((area) => {
+    const areaRecords = serviceRecords.filter((record) => record.technologyAreas.includes(area.id));
+    return {
+      id: area.id,
+      label: area.label,
+      ...((aggregateFy2027(areaRecords, () => ({ id: area.id, label: area.label }))[0]) || { fy2027: 0, fy2026: 0, fy2025: 0, change: 0, growth: 0, records: 0 }),
+    };
+  }).filter((area) => area.records > 0).sort((a, b) => b.fy2027 - a.fy2027).slice(0, 6);
+  const total = aggregateFy2027(serviceRecords, () => ({ id: serviceId, label: orgName(serviceId) }))[0];
+  return {
+    id: serviceId,
+    label: orgName(serviceId),
+    fy2027: total?.fy2027 || 0,
+    records: total?.records || 0,
+    topTechnologyAreas: serviceTech,
+  };
+});
+
+const strategyAnalytics = {
+  summary: {
+    technologyAreaCount: technologyAreaRows.length,
+    taggedRecords: technologyTaggedRecords.length,
+    taggedFy2027: round(sum(technologyTaggedRecords, "fy2027")),
+    taggedRecordShare: round((technologyTaggedRecords.length / Math.max(records.length, 1)) * 100),
+    taggedValueShare: round((sum(technologyTaggedRecords, "fy2027") / Math.max(total.fy2027, 1)) * 100),
+    topTechnologyArea: technologyAreaRows[0]?.label,
+    topTechnologyValue: technologyAreaRows[0]?.fy2027 || 0,
+    topClientIntersection: strategyIntersections[0]?.client,
+    topClientArea: strategyIntersections[0]?.area,
+  },
+  readouts: [
+    {
+      id: "vp-conversation",
+      label: "VP conversation frame",
+      value: `${technologyAreaRows.length} areas`,
+      helper: "Use this page to connect budget posture to technology lanes, service priorities, and named client/org targets.",
+      tone: "blue",
+    },
+    {
+      id: "tagged-portfolio",
+      label: "Technology-tagged portfolio",
+      value: round(sum(technologyTaggedRecords, "fy2027")),
+      display: "money",
+      helper: `${round((sum(technologyTaggedRecords, "fy2027") / Math.max(total.fy2027, 1)) * 100)}% of current FY2027 request value carries at least one technology tag.`,
+      tone: "green",
+    },
+    {
+      id: "top-tech-area",
+      label: "Largest technology area",
+      value: technologyAreaRows[0]?.fy2027 || 0,
+      display: "money",
+      helper: `${technologyAreaRows[0]?.label || "N/A"} leads the tagged model.`,
+      tone: "orange",
+    },
+    {
+      id: "top-client-lane",
+      label: "Highest strategy lane",
+      value: strategyIntersections[0]?.score || 0,
+      helper: `${strategyIntersections[0]?.client || "N/A"} · ${strategyIntersections[0]?.area || "N/A"}.`,
+      tone: "purple",
+    },
+  ],
+  technologyAreas: technologyAreaRows,
+  serviceStrategy,
+  strategyIntersections,
+};
+
 const generatedAt = sourceInventory
   .map((source) => new Date(source.cacheModifiedAt).getTime())
   .filter(Boolean)
@@ -848,6 +1096,7 @@ const out = {
       trendSummary,
       requestHistory,
       analyticsReadouts,
+      strategyAnalytics,
       coverageDiagnostics: {
         signalTaggedRecords: taggedRecords.length,
         signalTaggedRecordShare: round((taggedRecords.length / Math.max(records.length, 1)) * 100),

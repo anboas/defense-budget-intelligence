@@ -22,6 +22,7 @@ import "./styles.css";
 const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "trends", label: "Trends", icon: TrendingUp },
+  { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
@@ -38,6 +39,7 @@ const INTELLIGENCE_SUITE = [
 const HASH_ROUTES = {
   overview: "#/budget-spend",
   trends: "#/budget-spend/trends",
+  strategy: "#/budget-spend/strategy",
   services: "#/budget-spend/services",
   fourth: "#/budget-spend/fourth-estate",
   ai: "#/budget-spend/ai-autonomy",
@@ -98,6 +100,7 @@ const DATA_INVENTORY = data.metadata.dataInventory;
 const REQUEST_HISTORY = DATA_INVENTORY.requestHistory || [];
 const TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
 const ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
+const STRATEGY = DATA_INVENTORY.strategyAnalytics || {};
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -520,6 +523,177 @@ function RequestTrends() {
           ))}
         </div>
       </Section>
+    </div>
+  );
+}
+
+function Strategy() {
+  const areas = STRATEGY.technologyAreas || [];
+  const summary = STRATEGY.summary || {};
+  const serviceRows = STRATEGY.serviceStrategy || [];
+  const intersections = STRATEGY.strategyIntersections || [];
+  const [selectedAreaId, setSelectedAreaId] = useState(() => areas[0]?.id || "all");
+  const selectedArea = areas.find((area) => area.id === selectedAreaId) || areas[0];
+  const maxArea = Math.max(...areas.map((area) => area.fy2027), 1);
+  const maxClient = Math.max(...intersections.map((lane) => lane.fy2027), 1);
+
+  return (
+    <div className="grid strategy-page" data-strategy-page>
+      <AnalyticsReadout title="Strategy Readout" meta="technology, service, and client posture" items={STRATEGY.readouts || []} icon={GitBranch} />
+
+      <section className="strategy-hero">
+        <div>
+          <span>Growth conversation surface</span>
+          <h2>Technology Area Drilldown</h2>
+          <p>Use this view to move from budget posture into technology lanes, service priorities, and client/org targets. Tags are derived from official line titles, so they are directional until justification books and obligations are joined.</p>
+        </div>
+        <div className="strategy-hero__facts" aria-label="Strategy summary">
+          <article>
+            <strong>{summary.technologyAreaCount || areas.length}</strong>
+            <span>technology areas</span>
+          </article>
+          <article>
+            <strong>{(summary.taggedRecords || 0).toLocaleString()}</strong>
+            <span>tagged lines</span>
+          </article>
+          <article>
+            <strong>{money(summary.taggedFy2027 || 0)}</strong>
+            <span>tagged FY2027</span>
+          </article>
+          <article>
+            <strong>{percent(summary.taggedValueShare || 0, 1)}</strong>
+            <span>value coverage</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="grid grid--sources">
+        <Section title="Technology Areas" meta="FY2027 tagged request value" icon={BrainCircuit}>
+          <div className="technology-area-list" data-technology-area-list>
+            {areas.map((area) => (
+              <button
+                key={area.id}
+                type="button"
+                className={selectedArea?.id === area.id ? "active" : ""}
+                onClick={() => setSelectedAreaId(area.id)}
+              >
+                <div>
+                  <strong>{area.label}</strong>
+                  <span>{area.records.toLocaleString()} lines · {pct(area.growth)}</span>
+                </div>
+                <Bar value={area.fy2027} max={maxArea} color="#005ea2" label={`${area.label} FY2027 value`} />
+                <b>{money(area.fy2027)}</b>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Service Strategy" meta="top technology lanes by service" icon={Building2}>
+          <div className="service-strategy-grid" data-service-strategy-grid>
+            {serviceRows.map((service) => (
+              <article key={service.id} className="service-strategy-card">
+                <header>
+                  <div>
+                    <span>{service.records.toLocaleString()} current lines</span>
+                    <strong>{service.label}</strong>
+                  </div>
+                  <b>{money(service.fy2027)}</b>
+                </header>
+                <div>
+                  {service.topTechnologyAreas.map((area) => (
+                    <span key={`${service.id}-${area.id}`}>
+                      <strong>{area.label}</strong>
+                      <em>{money(area.fy2027)}</em>
+                    </span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Client / Technology Strategy Lanes" meta="ranked for growth conversations" icon={TrendingUp}>
+        <div className="strategy-lane-grid" data-strategy-lane-grid>
+          {intersections.slice(0, 12).map((lane) => (
+            <article key={lane.id} className="strategy-lane-card">
+              <header>
+                <div>
+                  <span>{GROUP_LABELS[lane.group] || "Client"}</span>
+                  <strong>{lane.client}</strong>
+                </div>
+                <b>{lane.score}</b>
+              </header>
+              <p>{lane.area}</p>
+              <Bar value={lane.fy2027} max={maxClient} color={lane.group === "service" ? "#005ea2" : "#216e1f"} label={`${lane.client} ${lane.area}`} />
+              <footer>
+                <span>{money(lane.fy2027)}</span>
+                <span>{lane.records} lines</span>
+                <span>{pct(lane.growth)}</span>
+              </footer>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      {selectedArea ? (
+        <div className="grid grid--sources">
+          <Section title={`${selectedArea.label} Client Targets`} meta="top orgs and services" icon={Building2}>
+            <div className="selected-area-list" data-selected-tech-clients>
+              {selectedArea.byClient.map((client) => (
+                <article key={`${selectedArea.id}-${client.id}`}>
+                  <div>
+                    <strong>{client.label}</strong>
+                    <span>{GROUP_LABELS[client.group] || "Client"} · {client.records} lines</span>
+                  </div>
+                  <Bar value={client.fy2027} max={Math.max(...selectedArea.byClient.map((item) => item.fy2027), 1)} color={client.group === "service" ? "#005ea2" : "#216e1f"} label={client.label} />
+                  <b>{money(client.fy2027)}</b>
+                </article>
+              ))}
+            </div>
+          </Section>
+
+          <Section title={`${selectedArea.label} Talking Points`} meta="strategy prompts" icon={GitBranch}>
+            <div className="talking-point-list" data-talking-points>
+              {selectedArea.conversations.map((item) => (
+                <article key={item}>
+                  <strong>{item}</strong>
+                  <span>{money(selectedArea.fy2027)} tagged FY2027 · {selectedArea.records.toLocaleString()} source lines</span>
+                </article>
+              ))}
+            </div>
+          </Section>
+        </div>
+      ) : null}
+
+      {selectedArea ? (
+        <Section title={`${selectedArea.label} Source Lines`} meta="largest current lines" icon={Search}>
+          <div className="strategy-line-table" data-strategy-line-table>
+            <table>
+              <thead>
+                <tr>
+                  <th>Line item</th>
+                  <th>Client / org</th>
+                  <th>Color</th>
+                  <th>FY2027</th>
+                  <th>Trend</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedArea.topLines.map((line) => (
+                  <tr key={line.id}>
+                    <td><strong>{line.title}</strong></td>
+                    <td>{line.orgName}</td>
+                    <td><i className="dot" style={{ background: BOOK_COLORS[line.bookId] }} />{line.colorShort}</td>
+                    <td>{money(line.fy2027)}</td>
+                    <td>{pct(line.growth)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      ) : null}
     </div>
   );
 }
@@ -1073,7 +1247,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -1147,6 +1321,7 @@ function App() {
 
         {activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
+        {activeTab === "strategy" ? <Strategy /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
