@@ -20,6 +20,16 @@ Complementary intelligence platforms:
 - Drilldown levels: portfolio, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, and source workbook link.
 - Signal views: AI / autonomy, cyber, space, software / digital, missiles, shipbuilding, aircraft, medical, logistics, and infrastructure.
 
+## Platform Paradigms
+
+Defense Budget & Spend Intelligence follows the same product-family conventions as Opportunity Intelligence, Policy Intelligence, and Control Surface UI:
+
+- Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
+- Product header shell with active page title, flat top navigation, and stable `if-*` / `data-*` hooks for future framework alignment.
+- Hash-route deep links for each major surface: Overview, Services, Fourth Estate, AI / Autonomy, Drilldown, and Data Sources.
+- Peer navigation to Budget & Spend, Opportunity, and Policy as complementary intelligence platforms with separate product boundaries.
+- Cloudflare Pages as the primary public surface, with GitHub Pages retained as a fallback.
+
 ## Data Sources
 
 The site currently uses six official FY2027 Office of the Under Secretary of Defense (Comptroller) display workbooks:

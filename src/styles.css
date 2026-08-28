@@ -13,6 +13,7 @@
 body {
   min-width: 320px;
   margin: 0;
+  background: #f4f7fa;
 }
 
 button,
@@ -27,41 +28,65 @@ button {
 
 .app {
   display: grid;
+  gap: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.app__content {
+  display: grid;
   gap: 10px;
   width: min(1580px, 100%);
   margin: 0 auto;
   padding: 12px;
+  min-width: 0;
+}
+
+.ci-budget-app {
+  min-height: 100vh;
+}
+
+.ci-intelligence-platform .if-product-header {
+  z-index: 80;
 }
 
 .masthead {
+  position: sticky;
+  top: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
-  align-items: end;
-  padding: 18px 0 8px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
   border-bottom: 3px solid #005ea2;
+  background: #102a43;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(8, 24, 44, 0.18);
 }
 
-.masthead span {
+.masthead__brand > span {
   display: block;
   margin-bottom: 4px;
-  color: #005ea2;
+  color: #8bd3ff;
   font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.masthead h1 {
+.masthead__brand h1 {
   margin: 0;
+  color: #ffffff;
   font-size: 30px;
   line-height: 1.08;
   letter-spacing: 0;
 }
 
-.masthead p {
+.masthead__brand p {
   max-width: 780px;
   margin: 6px 0 0;
-  color: #3d4551;
+  color: #dce6f1;
   font-size: 14px;
   font-weight: 700;
   line-height: 1.42;
@@ -80,10 +105,10 @@ button {
   justify-content: center;
   min-height: 28px;
   padding: 5px 8px;
-  border: 1px solid #c7d4e3;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 4px;
-  background: #ffffff;
-  color: #1a4480;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   font-size: 11px;
   font-weight: 950;
   text-decoration: none;
@@ -91,7 +116,7 @@ button {
 
 .suite-links a:hover,
 .suite-links a.active {
-  border-color: #005ea2;
+  border-color: #8bd3ff;
   background: #005ea2;
   color: #ffffff;
 }
@@ -119,11 +144,18 @@ button {
   font-weight: 900;
 }
 
+.masthead button {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
 .masthead button:hover,
 .masthead button.active,
+.masthead button.is-active,
 .table-actions button:hover,
 .table-actions button.active {
-  border-color: #005ea2;
+  border-color: #8bd3ff;
   background: #005ea2;
   color: #ffffff;
 }
@@ -813,11 +845,15 @@ td .dot {
 }
 
 @media (max-width: 720px) {
-  .app {
+  .app__content {
     padding: 8px;
   }
 
-  .masthead h1 {
+  .masthead {
+    padding: 8px;
+  }
+
+  .masthead__brand h1 {
     font-size: 24px;
   }
 

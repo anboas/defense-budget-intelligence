@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BarChart3,
@@ -32,6 +32,47 @@ const INTELLIGENCE_SUITE = [
   { label: "Opportunity", href: "https://opportunity-intelligence-full.pages.dev/" },
   { label: "Policy", href: "https://policy-intelligence-full.pages.dev/" },
 ];
+
+const HASH_ROUTES = {
+  overview: "#/budget-spend",
+  services: "#/budget-spend/services",
+  fourth: "#/budget-spend/fourth-estate",
+  ai: "#/budget-spend/ai-autonomy",
+  drilldown: "#/budget-spend/drilldown",
+  sources: "#/budget-spend/sources",
+};
+
+function tabFromHash(hash = "") {
+  const normalized = hash || HASH_ROUTES.overview;
+  return Object.entries(HASH_ROUTES).find(([, route]) => route === normalized)?.[0] || "overview";
+}
+
+function useBudgetRoute() {
+  const [activeTab, setActiveTab] = useState(() => tabFromHash(typeof window === "undefined" ? "" : window.location.hash));
+
+  useEffect(() => {
+    function handleRouteChange() {
+      setActiveTab(tabFromHash(window.location.hash));
+    }
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("popstate", handleRouteChange);
+    return () => {
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("popstate", handleRouteChange);
+    };
+  }, []);
+
+  function openTab(tabId) {
+    const route = HASH_ROUTES[tabId] || HASH_ROUTES.overview;
+    if (window.location.hash === route) {
+      setActiveTab(tabId);
+      return;
+    }
+    window.location.hash = route;
+  }
+
+  return [activeTab, openTab];
+}
 
 const BOOK_COLORS = {
   "M-1": "#005ea2",
@@ -128,7 +169,7 @@ function Spark({ row }) {
 
 function Metric({ label, value, helper, tone = "blue" }) {
   return (
-    <article className={`metric metric--${tone}`}>
+    <article className={`if-card if-metric if-operations-signal metric metric--${tone}`} data-budget-metric={label}>
       <span>{label}</span>
       <strong>{value}</strong>
       <p>{helper}</p>
@@ -138,11 +179,11 @@ function Metric({ label, value, helper, tone = "blue" }) {
 
 function Section({ title, meta, children, icon: Icon }) {
   return (
-    <section className="panel">
-      <header className="panel__header">
-        <div>
-          {Icon ? <Icon size={16} aria-hidden="true" /> : null}
-          <h2>{title}</h2>
+    <section className="if-panel panel">
+      <header className="if-panel__header panel__header">
+        <div className="if-section-heading">
+          {Icon ? <Icon className="if-section-heading__icon" size={16} aria-hidden="true" /> : null}
+          <h2 className="if-panel__title">{title}</h2>
         </div>
         {meta ? <span>{meta}</span> : null}
       </header>
@@ -155,7 +196,7 @@ function FilterShell({ filters, setFilters }) {
   const orgs = useMemo(() => aggregate(data.records, (record) => ({ id: record.org, label: record.orgName })).slice(0, 40), []);
 
   return (
-    <div className="filters" aria-label="Budget filters">
+    <div className="if-control-bar filters" aria-label="Budget filters" data-budget-filter-bar>
       <label className="searchbox">
         <Search size={15} aria-hidden="true" />
         <input
@@ -593,21 +634,22 @@ function Sources() {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useBudgetRoute();
   const [filters, setFilters] = useState({ query: "", book: "all", group: "all", signal: "all", org: "all" });
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
+  const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
 
   return (
-    <main className="app" data-defense-budget-app>
-      <header className="masthead">
-        <div>
-          <span>Defense Budget & Spend Intelligence</span>
-          <h1>Budget & Spend Intelligence</h1>
+    <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
+      <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
+        <div className="masthead__brand if-product-header__brand">
+          <span className="if-product-header__eyebrow">Defense Budget & Spend Intelligence</span>
+          <h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1>
           <p>Drill from DoD portfolio totals into services, Fourth Estate agencies, colors of money, mission signals, and source line items.</p>
-          <div className="suite-links" aria-label="Complementary intelligence platforms">
+          <div className="suite-links" aria-label="Complementary intelligence platforms" data-peer-intelligence-nav>
             {INTELLIGENCE_SUITE.map((site) => (
               <a
                 key={site.label}
@@ -622,11 +664,18 @@ function App() {
             ))}
           </div>
         </div>
-        <nav aria-label="Budget analytics views">
+        <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend intelligence sections">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             return (
-              <button key={tab.id} type="button" className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}>
+              <button
+                key={tab.id}
+                type="button"
+                className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
+                aria-current={activeTab === tab.id ? "page" : undefined}
+                data-budget-nav={HASH_ROUTES[tab.id]}
+                onClick={() => setActiveTab(tab.id)}
+              >
                 <Icon size={15} aria-hidden="true" />
                 {tab.label}
               </button>
@@ -635,21 +684,23 @@ function App() {
         </nav>
       </header>
 
-      <FilterShell filters={filters} setFilters={setFilters} />
+      <div className="if-content if-page if-operations-workspace if-operations-workspace--compact app__content" data-if-operations-workspace data-visual-density="compact">
+        <FilterShell filters={filters} setFilters={setFilters} />
 
-      <section className="metrics" aria-label="Filtered budget metrics">
-        <Metric label="Filtered FY2027 request" value={money(total.fy2027)} helper={`${total.records} line records · ${pct(growth(total))} since FY2025`} />
-        <Metric label="AI / autonomy signal" value={money(ai.fy2027)} helper={`${ai.records} matched source lines`} tone="purple" />
-        <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
-        <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
-      </section>
+        <section className="if-metric-grid metrics" aria-label="Filtered budget metrics">
+          <Metric label="Filtered FY2027 request" value={money(total.fy2027)} helper={`${total.records} line records · ${pct(growth(total))} since FY2025`} />
+          <Metric label="AI / autonomy signal" value={money(ai.fy2027)} helper={`${ai.records} matched source lines`} tone="purple" />
+          <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
+          <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
+        </section>
 
-      {activeTab === "overview" ? <Overview records={records} /> : null}
-      {activeTab === "services" ? <Services records={records} /> : null}
-      {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
-      {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
-      {activeTab === "drilldown" ? <Drilldown records={records} /> : null}
-      {activeTab === "sources" ? <Sources /> : null}
+        {activeTab === "overview" ? <Overview records={records} /> : null}
+        {activeTab === "services" ? <Services records={records} /> : null}
+        {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
+        {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
+        {activeTab === "drilldown" ? <Drilldown records={records} /> : null}
+        {activeTab === "sources" ? <Sources /> : null}
+      </div>
     </main>
   );
 }
