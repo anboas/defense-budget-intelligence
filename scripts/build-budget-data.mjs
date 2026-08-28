@@ -25,6 +25,15 @@ const SOURCE_URLS = {
   "C-1": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
 };
 
+const missingSource = BOOKS.find((book) => !existsSync(resolve(SOURCE_DIR, book.file)));
+if (missingSource) {
+  if (existsSync(OUT_FILE)) {
+    console.warn(`Source workbook ${missingSource.file} not found in ${SOURCE_DIR}; using committed ${OUT_FILE}.`);
+    process.exit(0);
+  }
+  throw new Error(`Missing source workbook: ${resolve(SOURCE_DIR, missingSource.file)}`);
+}
+
 const SERVICES = new Map([
   ["A", "Army"],
   ["N", "Navy / Marine Corps"],

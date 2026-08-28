@@ -18,7 +18,7 @@ The initial build uses FY2027 Comptroller display workbooks cached under:
 /home/anboas/clawd/artifacts/sabre-research/budget/
 ```
 
-The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field.
+The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. CI builds use the committed generated JSON when the local workbook cache is not present.
 
 ## Commands
 
