@@ -507,6 +507,10 @@ const sourceInventory = BOOKS.map((book) => {
   };
 });
 
+const generatedAt = sourceInventory
+  .map((source) => new Date(source.cacheModifiedAt).getTime())
+  .filter(Boolean)
+  .sort((a, b) => b - a)[0];
 const taggedRecords = records.filter((record) => record.signals.length > 0);
 const taggedValue = sum(taggedRecords, "fy2027");
 const sourceDiagnostics = sourceInventory.map((source) => {
@@ -564,7 +568,7 @@ const out = {
     title: "Defense Budget & Spend Intelligence",
     description: "FY2027 DoD budget and spend analytics across services, Fourth Estate, colors of money, line items, source provenance, and AI/autonomy signals.",
     fiscalYears: [2025, 2026, 2027],
-    generatedAt: new Date().toISOString(),
+    generatedAt: new Date(generatedAt).toISOString(),
     sourceCache: "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     sources: sourceInventory,
     dataInventory: {
