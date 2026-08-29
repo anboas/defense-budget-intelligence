@@ -72,9 +72,9 @@ const SOURCE_LAYERS = [
   {
     id: "market-timing",
     label: "Opportunity timing",
-    status: "Next",
-    coverage: "SAM.gov opportunities, acquisition forecasts, and public DoD contract notices.",
-    role: "Connects budget lines to near-term capture timing, recompetes, and contract vehicles.",
+    status: "Partial",
+    coverage: "USAspending award end dates and contract-type fields from the cached technology-award snapshot; SAM.gov opportunities and acquisition forecasts remain next-source joins.",
+    role: "Starts turning execution-side awards into near-term recompete and pursuit-timing signals.",
   },
 ];
 
@@ -785,7 +785,9 @@ function aggregateAwards(awards, keyFn) {
     existing.awardAmount += award.awardAmount;
     existing.awardAmountDollars += award.awardAmountDollars;
     existing.awards += 1;
-    existing.areas.add(award.area);
+    for (const area of award.areas || [award.area]) {
+      if (area) existing.areas.add(area);
+    }
     groups.set(key.id, existing);
   }
   return [...groups.values()].map((row) => ({
@@ -976,6 +978,74 @@ function spendingPeriodTotals(seriesList = [], periods = []) {
     }
   }
   return [...totals.values()].map((period) => ({ ...period, awardAmount: round(period.awardAmount, 3) }));
+}
+
+function dateTimeValue(value = "") {
+  const time = new Date(`${String(value).slice(0, 10)}T00:00:00Z`).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function daysBetween(startDate, endDate) {
+  const start = typeof startDate === "number" ? startDate : dateTimeValue(startDate);
+  const end = typeof endDate === "number" ? endDate : dateTimeValue(endDate);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.round((end - start) / 86400000);
+}
+
+function fiscalYearForDate(value = "") {
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getUTCMonth() >= 9 ? date.getUTCFullYear() + 1 : date.getUTCFullYear();
+}
+
+function workTypeForAward(award = {}) {
+  if (award.pscCode) {
+    return {
+      id: `psc:${award.pscCode}`,
+      code: award.pscCode,
+      type: "PSC",
+      label: `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}`,
+    };
+  }
+  if (award.naicsCode) {
+    return {
+      id: `naics:${award.naicsCode}`,
+      code: award.naicsCode,
+      type: "NAICS",
+      label: `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}`,
+    };
+  }
+  return {
+    id: "uncoded",
+    code: "n/a",
+    type: "Uncoded",
+    label: "Uncoded work type",
+  };
+}
+
+function technologyAreaLabel(areaId) {
+  return TECHNOLOGY_AREAS.find((area) => area.id === areaId)?.label || areaId || "Unspecified area";
+}
+
+function compactAwardTiming(award, asOfDate) {
+  const daysUntilEnd = daysBetween(asOfDate, award.endDate);
+  return {
+    id: award.id,
+    awardId: award.awardId,
+    recipient: award.recipient,
+    buyerSubAgency: award.buyerSubAgency,
+    buyerGroup: buyerGroup(award.buyerSubAgency),
+    awardAmount: award.awardAmount,
+    startDate: award.startDate,
+    endDate: award.endDate,
+    daysUntilEnd,
+    fiscalYearEnd: fiscalYearForDate(award.endDate),
+    contractType: award.contractType || "Contract award",
+    workType: workTypeForAward(award),
+    areas: award.areas || [award.area].filter(Boolean),
+    areaIds: award.areaIds || [award.areaId].filter(Boolean),
+    description: award.description,
+  };
 }
 
 function trimTrailingEmptyPeriods(periods = [], totals = []) {
@@ -1756,6 +1826,130 @@ const buyerPursuitLanes = rawBuyerPursuitLanes.map((lane) => {
   };
 }).sort((a, b) => b.score - a.score || b.awardAmount - a.awardAmount).slice(0, 12);
 
+const pursuitAsOf = usaspendingSnapshot.metadata?.endDate || new Date().toISOString().slice(0, 10);
+const pursuitAsOfTime = dateTimeValue(pursuitAsOf) || Date.now();
+const activeTimingAwards = drilldownAwards
+  .filter((award) => {
+    const endTime = dateTimeValue(award.endDate);
+    return endTime && endTime >= pursuitAsOfTime;
+  })
+  .map((award) => compactAwardTiming(award, pursuitAsOfTime));
+const nearTermTimingAwards = activeTimingAwards.filter((award) => (
+  Number.isFinite(award.daysUntilEnd) && award.daysUntilEnd >= 0 && award.daysUntilEnd <= 730
+));
+const officeBearingAwardCount = drilldownAwards.filter((award) => award.awardingOffice || award.fundingOffice).length;
+const contractTypeRows = aggregateAwards(drilldownAwards, (award) => ({
+  id: award.contractType || "Unspecified contract type",
+  label: award.contractType || "Unspecified contract type",
+})).slice(0, 8);
+
+const rawPursuitTimingGroups = new Map();
+for (const award of activeTimingAwards) {
+  const areaIds = award.areaIds.length ? award.areaIds : ["uncategorized"];
+  for (const areaId of areaIds) {
+    const workType = award.workType;
+    const key = `${areaId}:${award.buyerSubAgency}:${workType.id}`;
+    const existing = rawPursuitTimingGroups.get(key) || {
+      id: key,
+      areaId,
+      area: technologyAreaLabel(areaId),
+      buyer: award.buyerSubAgency,
+      buyerGroup: award.buyerGroup,
+      workType,
+      awardsById: new Map(),
+    };
+    existing.awardsById.set(award.id, award);
+    rawPursuitTimingGroups.set(key, existing);
+  }
+}
+
+const rawPursuitTimingLanes = [...rawPursuitTimingGroups.values()].map((group) => {
+  const laneAwards = [...group.awardsById.values()];
+  const nearTermAwards = laneAwards.filter((award) => award.daysUntilEnd >= 0 && award.daysUntilEnd <= 730);
+  const topVendors = aggregateAwards(laneAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 4);
+  const contractTypes = aggregateAwards(laneAwards, (award) => ({
+    id: award.contractType || "Unspecified contract type",
+    label: award.contractType || "Unspecified contract type",
+  })).slice(0, 3);
+  const nextEnd = laneAwards
+    .filter((award) => Number.isFinite(award.daysUntilEnd))
+    .sort((a, b) => a.daysUntilEnd - b.daysUntilEnd)[0];
+  const totalAwardAmount = round(laneAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+  const nearTermAwardAmount = round(nearTermAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+  const incumbentShare = topVendors[0] ? round((topVendors[0].awardAmount / Math.max(totalAwardAmount, 1)) * 100) : 0;
+  return {
+    id: group.id,
+    areaId: group.areaId,
+    area: group.area,
+    buyer: group.buyer,
+    buyerGroup: group.buyerGroup,
+    workType: group.workType,
+    awards: laneAwards.length,
+    awardAmount: totalAwardAmount,
+    nearTermAwards: nearTermAwards.length,
+    nearTermAwardAmount,
+    nextEndDate: nextEnd?.endDate || "",
+    nextEndFiscalYear: nextEnd?.fiscalYearEnd || null,
+    daysUntilNextEnd: nextEnd?.daysUntilEnd ?? null,
+    topVendor: topVendors[0]?.label || "n/a",
+    incumbentShare,
+    topVendors,
+    contractTypes,
+    sampleAwards: laneAwards
+      .sort((a, b) => (a.daysUntilEnd ?? 99999) - (b.daysUntilEnd ?? 99999) || b.awardAmount - a.awardAmount)
+      .slice(0, 4),
+  };
+}).filter((lane) => lane.awardAmount > 0);
+
+const maxPursuitLaneValue = Math.max(...rawPursuitTimingLanes.map((lane) => lane.awardAmount), 1);
+const maxPursuitNearTermValue = Math.max(...rawPursuitTimingLanes.map((lane) => lane.nearTermAwardAmount), 1);
+const pursuitTimingLanes = rawPursuitTimingLanes.map((lane) => {
+  const valueScore = Math.min((lane.awardAmount / maxPursuitLaneValue) * 30, 30);
+  const timingScore = Math.min((lane.nearTermAwardAmount / maxPursuitNearTermValue) * 28, 28);
+  const urgencyScore = Number.isFinite(lane.daysUntilNextEnd) ? Math.max(18 - (lane.daysUntilNextEnd / 60), 4) : 0;
+  const alignmentScore = Math.min((alignmentScoreByAreaId.get(lane.areaId) || 0) * 0.22, 18);
+  const workTypeScore = lane.workType.id === "uncoded" ? 3 : 8;
+  const score = Math.round(valueScore + timingScore + urgencyScore + alignmentScore + workTypeScore);
+  return {
+    ...lane,
+    score,
+    rationale: `${lane.buyer} has ${lane.awards} active sampled ${lane.area} awards in ${lane.workType.label}; ${lane.nearTermAwards} end within 24 months, led by ${lane.topVendor}.`,
+  };
+}).sort((a, b) => b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount).slice(0, 16);
+
+const recompeteCandidates = nearTermTimingAwards
+  .map((award) => {
+    const urgencyScore = Math.max(100 - ((award.daysUntilEnd || 0) / 7), 0);
+    const valueScore = Math.min((award.awardAmount / Math.max(maxPursuitNearTermValue, 1)) * 100, 100);
+    return {
+      ...award,
+      score: Math.round((urgencyScore * 0.45) + (valueScore * 0.45) + (award.workType.id === "uncoded" ? 0 : 10)),
+    };
+  })
+  .sort((a, b) => b.score - a.score || a.daysUntilEnd - b.daysUntilEnd || b.awardAmount - a.awardAmount)
+  .slice(0, 80);
+
+const pursuitTiming = {
+  summary: {
+    asOf: pursuitAsOf,
+    activeAwards: activeTimingAwards.length,
+    activeAwardValue: round(activeTimingAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+    nearTermAwards: nearTermTimingAwards.length,
+    nearTermAwardValue: round(nearTermTimingAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+    laneCount: pursuitTimingLanes.length,
+    candidateCount: recompeteCandidates.length,
+    officeBearingAwards: officeBearingAwardCount,
+    officeCoverageShare: round((officeBearingAwardCount / Math.max(drilldownAwards.length, 1)) * 100),
+    contractTypeCount: contractTypeRows.length,
+    topLane: pursuitTimingLanes[0] ? `${pursuitTimingLanes[0].buyer} · ${pursuitTimingLanes[0].area}` : "n/a",
+  },
+  lanes: pursuitTimingLanes,
+  recompeteCandidates,
+  byContractType: contractTypeRows,
+  byBuyer: aggregateAwards(activeTimingAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: award.buyerGroup })).slice(0, 12),
+  byVendor: aggregateAwards(activeTimingAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 12),
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -1829,6 +2023,10 @@ const strategyAnalytics = {
     topExecutionAlignmentScore: budgetExecutionAlignment[0]?.score || 0,
     buyerPursuitLaneCount: buyerPursuitLanes.length,
     topBuyerPursuitLane: buyerPursuitLanes[0] ? `${buyerPursuitLanes[0].buyer} · ${buyerPursuitLanes[0].area}` : "n/a",
+    pursuitTimingLaneCount: pursuitTiming.summary.laneCount,
+    activePursuitAwards: pursuitTiming.summary.activeAwards,
+    nearTermRecompeteCandidates: pursuitTiming.summary.candidateCount,
+    topPursuitTimingLane: pursuitTiming.summary.topLane,
   },
   readouts: [
     {
@@ -1884,6 +2082,13 @@ const strategyAnalytics = {
       tone: "purple",
     },
     {
+      id: "pursuit-timing",
+      label: "Pursuit timing lanes",
+      value: pursuitTiming.summary.laneCount,
+      helper: `${pursuitTiming.summary.nearTermAwards} active awards end within 24 months in the sampled contract model.`,
+      tone: "green",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -1904,6 +2109,7 @@ const strategyAnalytics = {
     topBuyers: topExecutionBuyers,
     trends: executionTrendModel,
     awardDrilldown,
+    pursuitTiming,
   },
 };
 

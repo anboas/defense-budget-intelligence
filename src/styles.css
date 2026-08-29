@@ -1144,6 +1144,7 @@ button {
 
 .strategy-hero__facts,
 .award-hero__facts,
+.pursuit-hero__facts,
 .technology-area-list,
 .service-strategy-grid,
 .strategy-lane-grid,
@@ -1157,6 +1158,7 @@ button {
 .execution-trend-list,
 .budget-execution-alignment,
 .buyer-pursuit-grid,
+.pursuit-timing-grid,
 .pursuit-source-summary,
 .area-execution-grid {
   display: grid;
@@ -1168,7 +1170,8 @@ button {
   padding: 10px;
 }
 
-.award-hero {
+.award-hero,
+.pursuit-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
   gap: 14px;
@@ -1184,7 +1187,14 @@ button {
   box-shadow: inset 4px 0 0 var(--green);
 }
 
-.award-hero span {
+.pursuit-hero > div:first-child {
+  min-width: 0;
+  padding: 18px;
+  box-shadow: inset 4px 0 0 var(--orange);
+}
+
+.award-hero span,
+.pursuit-hero span {
   display: block;
   color: var(--green);
   font-size: 11px;
@@ -1192,14 +1202,20 @@ button {
   text-transform: uppercase;
 }
 
-.award-hero h2 {
+.pursuit-hero span {
+  color: var(--orange);
+}
+
+.award-hero h2,
+.pursuit-hero h2 {
   margin: 4px 0 6px;
   font-size: 24px;
   font-weight: 850;
   line-height: 1.08;
 }
 
-.award-hero p {
+.award-hero p,
+.pursuit-hero p {
   max-width: 960px;
   margin: 0;
   color: var(--muted);
@@ -1208,12 +1224,14 @@ button {
   line-height: 1.45;
 }
 
-.award-hero__facts {
+.award-hero__facts,
+.pursuit-hero__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 10px;
 }
 
-.award-hero__facts article {
+.award-hero__facts article,
+.pursuit-hero__facts article {
   display: grid;
   align-content: center;
   min-height: 70px;
@@ -1223,19 +1241,22 @@ button {
   background: var(--surface-muted);
 }
 
-.award-hero__facts strong {
+.award-hero__facts strong,
+.pursuit-hero__facts strong {
   color: var(--text);
   font-size: 22px;
   font-weight: 850;
   line-height: 1;
 }
 
-.award-hero__facts span {
+.award-hero__facts span,
+.pursuit-hero__facts span {
   margin-top: 5px;
   color: var(--muted);
 }
 
-.award-filter-bar {
+.award-filter-bar,
+.pursuit-filter-bar {
   display: grid;
   grid-template-columns: minmax(280px, 1.6fr) repeat(5, minmax(130px, 1fr));
   gap: 10px;
@@ -1245,13 +1266,19 @@ button {
   background: var(--surface);
 }
 
-.award-filter-bar label {
+.pursuit-filter-bar {
+  grid-template-columns: minmax(280px, 1.6fr) repeat(4, minmax(140px, 1fr));
+}
+
+.award-filter-bar label,
+.pursuit-filter-bar label {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.award-filter-bar label > span {
+.award-filter-bar label > span,
+.pursuit-filter-bar label > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 850;
@@ -1259,7 +1286,9 @@ button {
 }
 
 .award-filter-bar input,
-.award-filter-bar select {
+.award-filter-bar select,
+.pursuit-filter-bar input,
+.pursuit-filter-bar select {
   width: 100%;
   min-width: 0;
   min-height: 36px;
@@ -1410,6 +1439,7 @@ button {
 .execution-trend-card,
 .alignment-card,
 .buyer-pursuit-card,
+.pursuit-timing-card,
 .pursuit-source-summary article,
 .area-execution-fit,
 .area-execution-award {
@@ -1952,14 +1982,24 @@ button {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.buyer-pursuit-card {
+.pursuit-timing-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.buyer-pursuit-card,
+.pursuit-timing-card {
   display: grid;
   gap: 9px;
   align-content: start;
   box-shadow: inset 3px 0 0 var(--green);
 }
 
-.buyer-pursuit-card header {
+.pursuit-timing-card {
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.buyer-pursuit-card header,
+.pursuit-timing-card header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -1967,6 +2007,7 @@ button {
 }
 
 .buyer-pursuit-card header span,
+.pursuit-timing-card header span,
 .pursuit-source-summary span {
   display: block;
   color: var(--muted);
@@ -1975,7 +2016,8 @@ button {
   text-transform: uppercase;
 }
 
-.buyer-pursuit-card header strong {
+.buyer-pursuit-card header strong,
+.pursuit-timing-card header strong {
   display: block;
   margin-top: 3px;
   color: var(--text);
@@ -1984,7 +2026,8 @@ button {
   line-height: 1.2;
 }
 
-.buyer-pursuit-card header b {
+.buyer-pursuit-card header b,
+.pursuit-timing-card header b {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1998,7 +2041,14 @@ button {
   font-weight: 850;
 }
 
+.pursuit-timing-card header b {
+  border-color: var(--orange);
+  background: #fff4e8;
+  color: var(--orange);
+}
+
 .buyer-pursuit-card p,
+.pursuit-timing-card p,
 .pursuit-source-summary p {
   margin: 0;
   color: var(--muted);
@@ -2007,13 +2057,19 @@ button {
   line-height: 1.4;
 }
 
-.buyer-pursuit-card dl {
+.buyer-pursuit-card dl,
+.pursuit-timing-card dl {
   display: grid;
   gap: 6px;
   margin: 0;
 }
 
-.buyer-pursuit-card dl div {
+.pursuit-timing-card dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.buyer-pursuit-card dl div,
+.pursuit-timing-card dl div {
   min-width: 0;
   padding: 7px;
   border: 1px solid var(--border-soft);
@@ -2022,21 +2078,25 @@ button {
 }
 
 .buyer-pursuit-card dt,
-.buyer-pursuit-card dd {
+.buyer-pursuit-card dd,
+.pursuit-timing-card dt,
+.pursuit-timing-card dd {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.buyer-pursuit-card dt {
+.buyer-pursuit-card dt,
+.pursuit-timing-card dt {
   color: var(--muted);
   font-size: 9.5px;
   font-weight: 850;
   text-transform: uppercase;
 }
 
-.buyer-pursuit-card dd {
+.buyer-pursuit-card dd,
+.pursuit-timing-card dd {
   margin: 3px 0 0;
   color: var(--text);
   font-size: 11px;
@@ -2045,6 +2105,10 @@ button {
 
 .pursuit-source-summary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pursuit-source-summary[data-pursuit-timing-evidence] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .pursuit-source-summary article {
@@ -2822,6 +2886,7 @@ td .dot {
   .grid--sources,
   .source-hero,
   .award-hero,
+  .pursuit-hero,
   .strategy-hero,
   .source-register,
   .source-roadmap,
@@ -2842,6 +2907,7 @@ td .dot {
   .execution-trend-overview,
   .budget-execution-alignment,
   .buyer-pursuit-grid,
+  .pursuit-timing-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: 1fr;
@@ -2851,7 +2917,8 @@ td .dot {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .award-filter-bar {
+  .award-filter-bar,
+  .pursuit-filter-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2859,7 +2926,8 @@ td .dot {
     grid-column: 1 / -1;
   }
 
-  .award-filter-bar .searchbox {
+  .award-filter-bar .searchbox,
+  .pursuit-filter-bar .searchbox {
     grid-column: 1 / -1;
   }
 
@@ -2877,6 +2945,7 @@ td .dot {
   .execution-trend-overview,
   .budget-execution-alignment,
   .buyer-pursuit-grid,
+  .pursuit-timing-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2981,7 +3050,8 @@ td .dot {
     padding: 10px;
   }
 
-  .award-filter-bar {
+  .award-filter-bar,
+  .pursuit-filter-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding: 10px;
@@ -2991,7 +3061,8 @@ td .dot {
     grid-column: 1 / -1;
   }
 
-  .award-filter-bar .searchbox {
+  .award-filter-bar .searchbox,
+  .pursuit-filter-bar .searchbox {
     grid-column: 1 / -1;
   }
 
@@ -2999,7 +3070,8 @@ td .dot {
     font-size: 9.5px;
   }
 
-  .award-filter-bar label > span {
+  .award-filter-bar label > span,
+  .pursuit-filter-bar label > span {
     font-size: 9.5px;
   }
 
@@ -3010,7 +3082,9 @@ td .dot {
   }
 
   .award-filter-bar input,
-  .award-filter-bar select {
+  .award-filter-bar select,
+  .pursuit-filter-bar input,
+  .pursuit-filter-bar select {
     min-height: 34px;
     font-size: 11.5px;
   }
@@ -3024,6 +3098,7 @@ td .dot {
   .strategy-hero__facts,
   .source-hero__facts,
   .award-hero__facts,
+  .pursuit-hero__facts,
   .justification-evidence-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3041,6 +3116,7 @@ td .dot {
   }
 
   .buyer-pursuit-grid,
+  .pursuit-timing-grid,
   .pursuit-source-summary {
     grid-template-columns: 1fr;
   }
@@ -3068,6 +3144,10 @@ td .dot {
     gap: 0;
   }
 
+  .pursuit-hero {
+    gap: 0;
+  }
+
   .strategy-hero {
     gap: 0;
   }
@@ -3077,6 +3157,10 @@ td .dot {
   }
 
   .award-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .pursuit-hero > div:first-child {
     padding: 14px;
   }
 
@@ -3092,6 +3176,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .pursuit-hero h2 {
+    font-size: 22px;
+  }
+
   .strategy-hero h2 {
     font-size: 22px;
   }
@@ -3101,6 +3189,10 @@ td .dot {
   }
 
   .award-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .pursuit-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -3116,6 +3208,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .pursuit-hero__facts article {
+    min-height: 64px;
+  }
+
   .strategy-hero__facts article {
     min-height: 64px;
   }
@@ -3125,6 +3221,10 @@ td .dot {
   }
 
   .award-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .pursuit-hero__facts strong {
     font-size: 20px;
   }
 
@@ -3186,6 +3286,7 @@ td .dot {
   .execution-trend-overview,
   .budget-execution-alignment,
   .buyer-pursuit-grid,
+  .pursuit-timing-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: 1fr;

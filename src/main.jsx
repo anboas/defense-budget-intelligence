@@ -25,6 +25,7 @@ const TABS = [
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
+  { id: "pursuits", label: "Pursuits", icon: CalendarClock },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
@@ -43,6 +44,7 @@ const HASH_ROUTES = {
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
   awards: "#/budget-spend/awards",
+  pursuits: "#/budget-spend/pursuits",
   services: "#/budget-spend/services",
   fourth: "#/budget-spend/fourth-estate",
   ai: "#/budget-spend/ai-autonomy",
@@ -108,6 +110,8 @@ const JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
 const EXECUTION = STRATEGY.executionAnalytics || {};
 const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
 const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
+const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
+const EMPTY_ROWS = Object.freeze([]);
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -1246,6 +1250,191 @@ function Awards() {
   );
 }
 
+function Pursuits() {
+  const lanes = PURSUIT_TIMING.lanes || EMPTY_ROWS;
+  const candidates = PURSUIT_TIMING.recompeteCandidates || EMPTY_ROWS;
+  const summary = PURSUIT_TIMING.summary || {};
+  const [filters, setFilters] = useState({ query: "", area: "all", buyer: "all", workType: "all", sort: "score" });
+  const areaOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.areaId, label: lane.area })), [lanes]);
+  const buyerOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.buyer, label: lane.buyer })), [lanes]);
+  const workTypeOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.workType?.id, label: lane.workType?.label })), [lanes]);
+
+  const laneMatches = (lane) => {
+    const query = filters.query.trim().toLowerCase();
+    return (!query || [
+      lane.area,
+      lane.buyer,
+      lane.buyerGroup,
+      lane.workType?.label,
+      lane.topVendor,
+      lane.rationale,
+      ...(lane.topVendors || []).map((vendor) => vendor.label),
+    ].join(" ").toLowerCase().includes(query))
+      && (filters.area === "all" || lane.areaId === filters.area)
+      && (filters.buyer === "all" || lane.buyer === filters.buyer)
+      && (filters.workType === "all" || lane.workType?.id === filters.workType);
+  };
+
+  const candidateMatches = (award) => {
+    const query = filters.query.trim().toLowerCase();
+    return (!query || [
+      award.awardId,
+      award.recipient,
+      award.buyerSubAgency,
+      award.workType?.label,
+      award.contractType,
+      award.description,
+      ...(award.areas || []),
+    ].join(" ").toLowerCase().includes(query))
+      && (filters.area === "all" || (award.areaIds || []).includes(filters.area))
+      && (filters.buyer === "all" || award.buyerSubAgency === filters.buyer)
+      && (filters.workType === "all" || award.workType?.id === filters.workType);
+  };
+
+  const filteredLanes = lanes.filter(laneMatches).sort((a, b) => {
+    if (filters.sort === "end") return (a.daysUntilNextEnd ?? 99999) - (b.daysUntilNextEnd ?? 99999);
+    if (filters.sort === "value") return b.awardAmount - a.awardAmount;
+    if (filters.sort === "near") return b.nearTermAwardAmount - a.nearTermAwardAmount;
+    return b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount;
+  });
+  const filteredCandidates = candidates.filter(candidateMatches).sort((a, b) => {
+    if (filters.sort === "end") return (a.daysUntilEnd ?? 99999) - (b.daysUntilEnd ?? 99999);
+    if (filters.sort === "value") return b.awardAmount - a.awardAmount;
+    return b.score - a.score || (a.daysUntilEnd ?? 99999) - (b.daysUntilEnd ?? 99999);
+  });
+  const visibleCandidates = filteredCandidates.slice(0, 150);
+  const nearTermValue = sum(filteredCandidates, "awardAmount");
+  const topBuyer = aggregateAwardsForUi(filteredCandidates, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 1)[0];
+  const topVendor = aggregateAwardsForUi(filteredCandidates, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 1)[0];
+
+  return (
+    <div className="grid pursuits-page" data-pursuits-page>
+      <section className="pursuit-hero">
+        <div>
+          <span>Execution pursuit timing</span>
+          <h2>Contract Timing Signals</h2>
+          <p>Active USAspending award records grouped by buyer, technology area, PSC or NAICS work type, incumbent, and end date. This is a pursuit-prioritization layer from sampled award data, not a named-contact or full FPDS action-history feed.</p>
+        </div>
+        <div className="pursuit-hero__facts" aria-label="Pursuit timing summary">
+          <article>
+            <strong>{(summary.activeAwards || 0).toLocaleString()}</strong>
+            <span>active sampled awards</span>
+          </article>
+          <article>
+            <strong>{(summary.nearTermAwards || 0).toLocaleString()}</strong>
+            <span>end within 24 months</span>
+          </article>
+          <article>
+            <strong>{summary.laneCount || lanes.length}</strong>
+            <span>timing lanes</span>
+          </article>
+          <article>
+            <strong>{percent(summary.officeCoverageShare, 0)}</strong>
+            <span>office-field coverage</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="pursuit-filter-bar" data-pursuit-filter-bar>
+        <label className="searchbox">
+          <Search size={15} aria-hidden="true" />
+          <input placeholder="Search buyers, incumbents, work types, awards" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} />
+        </label>
+        <label>
+          <span>Area</span>
+          <select value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })}>
+            <option value="all">All areas</option>
+            {areaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Buyer</span>
+          <select value={filters.buyer} onChange={(event) => setFilters({ ...filters, buyer: event.target.value })}>
+            <option value="all">All buyers</option>
+            {buyerOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Work type</span>
+          <select value={filters.workType} onChange={(event) => setFilters({ ...filters, workType: event.target.value })}>
+            <option value="all">All PSC / NAICS</option>
+            {workTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Sort</span>
+          <select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>
+            <option value="score">Pursuit score</option>
+            <option value="end">Next end date</option>
+            <option value="near">Near-term value</option>
+            <option value="value">Active value</option>
+          </select>
+        </label>
+      </div>
+
+      <section className="if-metric-grid source-metrics" aria-label="Pursuit filter metrics">
+        <Metric label="Matched lanes" value={filteredLanes.length.toLocaleString()} helper={`${filteredCandidates.length.toLocaleString()} near-term awards under current filters`} />
+        <Metric label="Near-term value" value={money(nearTermValue)} helper="Awards ending within 24 months in current filters" tone="green" />
+        <Metric label="Largest buyer" value={topBuyer?.label || "n/a"} helper={topBuyer ? `${money(topBuyer.awardAmount)} · ${topBuyer.awards} awards` : "No matching candidates"} tone="purple" />
+        <Metric label="Largest incumbent" value={topVendor?.label || "n/a"} helper={topVendor ? `${money(topVendor.awardAmount)} · ${topVendor.awards} awards` : "No matching candidates"} tone="orange" />
+      </section>
+
+      <Section title="Pursuit Timing Lanes" meta={`${filteredLanes.length.toLocaleString()} matched active buyer-area-work type lanes`} icon={GitBranch}>
+        <div className="pursuit-timing-grid" data-pursuit-timing-lanes>
+          {filteredLanes.map((lane) => (
+            <article key={lane.id} className="pursuit-timing-card">
+              <header>
+                <div>
+                  <span>{lane.buyerGroup} · {lane.area}</span>
+                  <strong>{lane.buyer}</strong>
+                </div>
+                <b>{lane.score}</b>
+              </header>
+              <p>{lane.rationale}</p>
+              <dl>
+                <div>
+                  <dt>Active awards</dt>
+                  <dd>{money(lane.awardAmount)} · {lane.awards} awards</dd>
+                </div>
+                <div>
+                  <dt>Near-term timing</dt>
+                  <dd>{money(lane.nearTermAwardAmount)} · {lane.nearTermAwards} awards</dd>
+                </div>
+                <div>
+                  <dt>Next end</dt>
+                  <dd>{lane.nextEndDate || "n/a"}{lane.nextEndFiscalYear ? ` · FY${lane.nextEndFiscalYear}` : ""}</dd>
+                </div>
+                <div>
+                  <dt>Work type</dt>
+                  <dd>{lane.workType?.label || "Uncoded work type"}</dd>
+                </div>
+                <div>
+                  <dt>Top incumbent</dt>
+                  <dd>{lane.topVendor} · {percent(lane.incumbentShare, 0)}</dd>
+                </div>
+                <div>
+                  <dt>Contract form</dt>
+                  <dd>{(lane.contractTypes || []).map((type) => type.label).slice(0, 2).join(" · ") || "n/a"}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <div className="grid grid--sources">
+        <AwardRollup title="Active Buyers" rows={PURSUIT_TIMING.byBuyer || []} />
+        <AwardRollup title="Active Incumbents" rows={PURSUIT_TIMING.byVendor || []} />
+        <AwardRollup title="Contract Types" rows={PURSUIT_TIMING.byContractType || []} />
+      </div>
+
+      <Section title="Near-Term Award Ends" meta={`${filteredCandidates.length.toLocaleString()} matched · showing ${visibleCandidates.length.toLocaleString()}`} icon={CalendarClock}>
+        <PursuitCandidateTable awards={visibleCandidates} />
+      </Section>
+    </div>
+  );
+}
+
 function aggregateAwardsForUi(awards, keyFn) {
   const groups = new Map();
   for (const award of awards) {
@@ -1257,6 +1446,51 @@ function aggregateAwardsForUi(awards, keyFn) {
     groups.set(key.id, existing);
   }
   return [...groups.values()].map((row) => ({ ...row, awardAmount: Number(row.awardAmount.toFixed(3)) })).sort((a, b) => b.awardAmount - a.awardAmount);
+}
+
+function PursuitCandidateTable({ awards }) {
+  return (
+    <div className="table-shell pursuit-table-shell" data-pursuit-candidate-table>
+      <table>
+        <thead>
+          <tr>
+            <th>Score</th>
+            <th>End</th>
+            <th>Award</th>
+            <th>Incumbent</th>
+            <th>Buyer</th>
+            <th>Work type</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {awards.map((award) => (
+            <tr key={award.id}>
+              <td>{award.score}</td>
+              <td>
+                <strong>{award.endDate || "n/a"}</strong>
+                <span>{Number.isFinite(award.daysUntilEnd) ? `${award.daysUntilEnd} days` : "timing unknown"}</span>
+              </td>
+              <td>
+                <strong>{award.awardId || award.id}</strong>
+                <span>{award.contractType || "Contract award"} · {award.description || "No description"}</span>
+              </td>
+              <td>{award.recipient}</td>
+              <td>
+                <strong>{award.buyerSubAgency}</strong>
+                <span>{award.buyerGroup}</span>
+              </td>
+              <td>
+                <strong>{award.workType?.code || "n/a"}</strong>
+                <span>{award.workType?.label || "Uncoded work type"}</span>
+              </td>
+              <td>{money(award.awardAmount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function AwardRollup({ title, rows }) {
@@ -1473,6 +1707,31 @@ function Sources() {
             <strong>{(STRATEGY.buyerPursuitLanes || [])[0]?.topWorkType || "n/a"}</strong>
             <span>top coded work type</span>
             <p>PSC is used first when available, with NAICS as backup for work-type interpretation.</p>
+          </article>
+        </div>
+      </Section>
+
+      <Section title="Pursuit Timing Coverage" meta="active award end dates, contract forms, and incumbent signals" icon={CalendarClock}>
+        <div className="pursuit-source-summary" data-pursuit-timing-evidence>
+          <article>
+            <strong>{PURSUIT_TIMING.summary?.activeAwards || 0}</strong>
+            <span>active awards</span>
+            <p>{money(PURSUIT_TIMING.summary?.activeAwardValue || 0)} in active sampled award value as of {PURSUIT_TIMING.summary?.asOf || "n/a"}.</p>
+          </article>
+          <article>
+            <strong>{PURSUIT_TIMING.summary?.nearTermAwards || 0}</strong>
+            <span>near-term ends</span>
+            <p>{money(PURSUIT_TIMING.summary?.nearTermAwardValue || 0)} ends within 24 months in the sampled award set.</p>
+          </article>
+          <article>
+            <strong>{PURSUIT_TIMING.summary?.topLane || "n/a"}</strong>
+            <span>top timing lane</span>
+            <p>Lane score combines active value, near-term ending value, timing urgency, area alignment, and work-type coding.</p>
+          </article>
+          <article>
+            <strong>{percent(PURSUIT_TIMING.summary?.officeCoverageShare, 0)}</strong>
+            <span>office-field coverage</span>
+            <p>Current USAspending snapshot does not expose named human contacts; FPDS/SAM joins remain required for office and vehicle detail.</p>
           </article>
         </div>
       </Section>
@@ -1793,7 +2052,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "awards"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "awards", "pursuits"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -1869,6 +2128,7 @@ function App() {
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
         {activeTab === "awards" ? <Awards /> : null}
+        {activeTab === "pursuits" ? <Pursuits /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
