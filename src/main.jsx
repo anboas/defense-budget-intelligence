@@ -572,6 +572,7 @@ function Strategy() {
   const serviceRows = STRATEGY.serviceStrategy || [];
   const intersections = STRATEGY.strategyIntersections || [];
   const alignmentRows = STRATEGY.budgetExecutionAlignment || [];
+  const buyerPursuitLanes = STRATEGY.buyerPursuitLanes || [];
   const execution = EXECUTION || {};
   const trends = execution.trends || {};
   const trendPeriods = trends.periods || [];
@@ -776,6 +777,41 @@ function Strategy() {
                 <div>
                   <dt>Evidence</dt>
                   <dd>{lane.narrativeConfirmedRecords} confirmed lines</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Buyer Pursuit Lanes" meta="technology area, buyer, work type, and incumbent signal" icon={Building2}>
+        <div className="buyer-pursuit-grid" data-buyer-pursuit-lanes>
+          {buyerPursuitLanes.map((lane) => (
+            <article key={lane.id} className="buyer-pursuit-card">
+              <header>
+                <div>
+                  <span>{lane.buyerGroup} · {lane.area}</span>
+                  <strong>{lane.buyer}</strong>
+                </div>
+                <b>{lane.score}</b>
+              </header>
+              <p>{lane.rationale}</p>
+              <dl>
+                <div>
+                  <dt>Sampled awards</dt>
+                  <dd>{money(lane.awardAmount)} · {lane.awards} awards</dd>
+                </div>
+                <div>
+                  <dt>Budget context</dt>
+                  <dd>{lane.budgetFy2027 ? `${money(lane.budgetFy2027)} · ${pct(lane.budgetGrowth)}` : `${money(lane.areaFy2027)} area`}</dd>
+                </div>
+                <div>
+                  <dt>Top work type</dt>
+                  <dd>{lane.topWorkType}</dd>
+                </div>
+                <div>
+                  <dt>Top vendor</dt>
+                  <dd>{lane.topVendor}</dd>
                 </div>
               </dl>
             </article>
@@ -1191,6 +1227,26 @@ function Sources() {
             <strong>{EXECUTION_COVERAGE.topTrendPsc || "n/a"}</strong>
             <span>top PSC trend lane</span>
             <p>PSC and NAICS trend rows expose where sampled awards cluster by work type.</p>
+          </article>
+        </div>
+      </Section>
+
+      <Section title="Buyer Pursuit Lane Coverage" meta="generated from sampled award buyer, technology, PSC, NAICS, and vendor fields" icon={Building2}>
+        <div className="pursuit-source-summary" data-pursuit-lane-evidence>
+          <article>
+            <strong>{STRATEGY.summary?.buyerPursuitLaneCount || 0}</strong>
+            <span>ranked lanes</span>
+            <p>Buyer-area lanes combine sampled USAspending awards with technology-area request context.</p>
+          </article>
+          <article>
+            <strong>{STRATEGY.summary?.topBuyerPursuitLane || "n/a"}</strong>
+            <span>top lane</span>
+            <p>Ranked by sampled award value, technology alignment score, buyer budget context, and evidence coverage.</p>
+          </article>
+          <article>
+            <strong>{(STRATEGY.buyerPursuitLanes || [])[0]?.topWorkType || "n/a"}</strong>
+            <span>top coded work type</span>
+            <p>PSC is used first when available, with NAICS as backup for work-type interpretation.</p>
           </article>
         </div>
       </Section>

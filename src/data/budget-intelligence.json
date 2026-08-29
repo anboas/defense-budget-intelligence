@@ -3229,7 +3229,9 @@
           "topClientIntersection": "Navy / Marine Corps",
           "topClientArea": "Shipbuilding / Maritime",
           "topExecutionAlignment": "Readiness / Sustainment",
-          "topExecutionAlignmentScore": 53
+          "topExecutionAlignmentScore": 53,
+          "buyerPursuitLaneCount": 12,
+          "topBuyerPursuitLane": "Department of the Navy · Aircraft / Aviation"
         },
         "readouts": [
           {
@@ -3276,6 +3278,13 @@
             "value": 53,
             "helper": "Readiness / Sustainment has the strongest combined request, obligation, and evidence signal.",
             "tone": "orange"
+          },
+          {
+            "id": "buyer-pursuit-lanes",
+            "label": "Buyer pursuit lanes",
+            "value": 12,
+            "helper": "Department of the Navy · Aircraft / Aviation is the strongest buyer-area lane in the sampled award model.",
+            "tone": "purple"
           },
           {
             "id": "top-client-lane",
@@ -12901,6 +12910,1330 @@
             "topVendor": "DELL MARKETING L P",
             "confidence": "Narrative confirmed",
             "interpretation": "Software / Digital Engineering shows 3.8B in FY2027 tagged request value and 28.9B in sampled FY2025-FY2026 contract obligations."
+          }
+        ],
+        "buyerPursuitLanes": [
+          {
+            "id": "aircraft-aviation:Department of the Navy",
+            "areaId": "aircraft-aviation",
+            "area": "Aircraft / Aviation",
+            "buyer": "Department of the Navy",
+            "buyerGroup": "Navy / Marine Corps",
+            "budgetFy2027": 43.7,
+            "budgetRecords": 139,
+            "budgetGrowth": 97.3,
+            "areaFy2027": 94.7,
+            "areaAlignmentScore": 46,
+            "narrativeConfirmedRecords": 3,
+            "awardAmount": 373.695,
+            "awards": 47,
+            "topVendors": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 206.373,
+                "awardAmountDollars": 206373929758.86,
+                "awards": 17,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "BOEING",
+                "label": "BOEING",
+                "awardAmount": 53.851,
+                "awardAmountDollars": 53850326139.77,
+                "awards": 8,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "RTX",
+                "label": "RTX",
+                "awardAmount": 26.57,
+                "awardAmountDollars": 26568915104.06,
+                "awards": 5,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1510",
+                "label": "1510 · AIRCRAFT, FIXED WING",
+                "awardAmount": 251.932,
+                "awardAmountDollars": 251933041991.82004,
+                "awards": 27,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "AC15",
+                "label": "AC15 · NATIONAL DEFENSE R&D SVCS; DEPARTMENT OF DEFENSE - MILITARY; R&D FACILITIES & MAJ EQUIP",
+                "awardAmount": 45.162,
+                "awardAmountDollars": 45162456807.46,
+                "awards": 3,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "2840",
+                "label": "2840 · GAS TURBINES AND JET ENGINES, AIRCRAFT, PRIME MOVING; AND COMPONENTS",
+                "awardAmount": 26.57,
+                "awardAmountDollars": 26568915104.06,
+                "awards": 5,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 325.814,
+                "awardAmountDollars": 325815965298.6001,
+                "awards": 37,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "336412",
+                "label": "336412 · AIRCRAFT ENGINE AND ENGINE PARTS MANUFACTURING",
+                "awardAmount": 26.57,
+                "awardAmountDollars": 26568915104.06,
+                "awards": 5,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "336611",
+                "label": "336611 · SHIP BUILDING AND REPAIRING",
+                "awardAmount": 21.311,
+                "awardAmountDollars": 21310693461.230003,
+                "awards": 5,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topWorkType": "1510 · AIRCRAFT, FIXED WING",
+            "topVendor": "LOCKHEED MARTIN",
+            "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+            "score": 71,
+            "rationale": "Department of the Navy has 47 sampled Aircraft / Aviation awards, led by LOCKHEED MARTIN, with 1510 · AIRCRAFT, FIXED WING as the clearest coded work type."
+          },
+          {
+            "id": "shipbuilding-maritime:Department of the Navy",
+            "areaId": "shipbuilding-maritime",
+            "area": "Shipbuilding / Maritime",
+            "buyer": "Department of the Navy",
+            "buyerGroup": "Navy / Marine Corps",
+            "budgetFy2027": 126.5,
+            "budgetRecords": 271,
+            "budgetGrowth": 45,
+            "areaFy2027": 127.3,
+            "areaAlignmentScore": 34,
+            "narrativeConfirmedRecords": 2,
+            "awardAmount": 306.52,
+            "awards": 73,
+            "topVendors": [
+              {
+                "id": "ELECTRIC BOAT",
+                "label": "ELECTRIC BOAT",
+                "awardAmount": 134.172,
+                "awardAmountDollars": 134172643194.72,
+                "awards": 15,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              },
+              {
+                "id": "HUNTINGTON INGALLS",
+                "label": "HUNTINGTON INGALLS",
+                "awardAmount": 93.256,
+                "awardAmountDollars": 93255973462.06,
+                "awards": 27,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              },
+              {
+                "id": "BATH IRON WORKS",
+                "label": "BATH IRON WORKS",
+                "awardAmount": 23.742,
+                "awardAmountDollars": 23741948251.050003,
+                "awards": 6,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1905",
+                "label": "1905 · COMBAT SHIPS AND LANDING VESSELS",
+                "awardAmount": 225.13,
+                "awardAmountDollars": 225127828864.39005,
+                "awards": 47,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              },
+              {
+                "id": "1904",
+                "label": "1904 · SUBMARINES",
+                "awardAmount": 27.238,
+                "awardAmountDollars": 27238917118.22,
+                "awards": 4,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              },
+              {
+                "id": "1901",
+                "label": "1901 · AIRCRAFT CARRIERS",
+                "awardAmount": 20.264,
+                "awardAmountDollars": 20264372617.23,
+                "awards": 5,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336611",
+                "label": "336611 · SHIP BUILDING AND REPAIRING",
+                "awardAmount": 255.683,
+                "awardAmountDollars": 255681501191.86002,
+                "awards": 60,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              },
+              {
+                "id": "541330",
+                "label": "541330 · ENGINEERING SERVICES",
+                "awardAmount": 36.332,
+                "awardAmountDollars": 36332083528,
+                "awards": 4,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              },
+              {
+                "id": "332410",
+                "label": "332410 · POWER BOILER AND HEAT EXCHANGER MANUFACTURING",
+                "awardAmount": 5.519,
+                "awardAmountDollars": 5518268873,
+                "awards": 2,
+                "areas": [
+                  "Shipbuilding / Maritime"
+                ]
+              }
+            ],
+            "topWorkType": "1905 · COMBAT SHIPS AND LANDING VESSELS",
+            "topVendor": "ELECTRIC BOAT",
+            "serviceFit": "digital shipyard, lifecycle engineering, supply-chain analytics, integration support",
+            "score": 69,
+            "rationale": "Department of the Navy has 73 sampled Shipbuilding / Maritime awards, led by ELECTRIC BOAT, with 1905 · COMBAT SHIPS AND LANDING VESSELS as the clearest coded work type."
+          },
+          {
+            "id": "aircraft-aviation:Department of the Air Force",
+            "areaId": "aircraft-aviation",
+            "area": "Aircraft / Aviation",
+            "buyer": "Department of the Air Force",
+            "buyerGroup": "Air Force / Space Force",
+            "budgetFy2027": 45.1,
+            "budgetRecords": 165,
+            "budgetGrowth": 51.4,
+            "areaFy2027": 94.7,
+            "areaAlignmentScore": 46,
+            "narrativeConfirmedRecords": 3,
+            "awardAmount": 129.291,
+            "awards": 19,
+            "topVendors": [
+              {
+                "id": "BOEING",
+                "label": "BOEING",
+                "awardAmount": 74.719,
+                "awardAmountDollars": 74718851519.36,
+                "awards": 8,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 45.145,
+                "awardAmountDollars": 45144663746.89,
+                "awards": 9,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "SIKORSKY AIRCRAFT",
+                "label": "SIKORSKY AIRCRAFT",
+                "awardAmount": 6.008,
+                "awardAmountDollars": 6007874389.84,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1510",
+                "label": "1510 · AIRCRAFT, FIXED WING",
+                "awardAmount": 102.111,
+                "awardAmountDollars": 102110370217.05998,
+                "awards": 13,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "J016",
+                "label": "J016 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT COMPONENTS AND ACCESSORIES",
+                "awardAmount": 18.439,
+                "awardAmountDollars": 18438941986.95,
+                "awards": 4,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "1520",
+                "label": "1520 · AIRCRAFT, ROTARY WING",
+                "awardAmount": 6.008,
+                "awardAmountDollars": 6007874389.84,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 117.663,
+                "awardAmountDollars": 117662709427.22,
+                "awards": 17,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "488190",
+                "label": "488190 · OTHER SUPPORT ACTIVITIES FOR AIR TRANSPORTATION",
+                "awardAmount": 8.821,
+                "awardAmountDollars": 8821412144.17,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "336413",
+                "label": "336413 · OTHER AIRCRAFT PARTS AND AUXILIARY EQUIPMENT MANUFACTURING",
+                "awardAmount": 2.807,
+                "awardAmountDollars": 2806532949.46,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topWorkType": "1510 · AIRCRAFT, FIXED WING",
+            "topVendor": "BOEING",
+            "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+            "score": 49,
+            "rationale": "Department of the Air Force has 19 sampled Aircraft / Aviation awards, led by BOEING, with 1510 · AIRCRAFT, FIXED WING as the clearest coded work type."
+          },
+          {
+            "id": "space-systems:Department of the Air Force",
+            "areaId": "space-systems",
+            "area": "Space Systems",
+            "buyer": "Department of the Air Force",
+            "buyerGroup": "Air Force / Space Force",
+            "budgetFy2027": 59.6,
+            "budgetRecords": 189,
+            "budgetGrowth": 128.9,
+            "areaFy2027": 88.3,
+            "areaAlignmentScore": 29,
+            "narrativeConfirmedRecords": 3,
+            "awardAmount": 104.961,
+            "awards": 26,
+            "topVendors": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 44.646,
+                "awardAmountDollars": 44647250702.49999,
+                "awards": 12,
+                "areas": [
+                  "Space Systems"
+                ]
+              },
+              {
+                "id": "NORTHROP GRUMMAN SYSTEMS",
+                "label": "NORTHROP GRUMMAN SYSTEMS",
+                "awardAmount": 27.195,
+                "awardAmountDollars": 27195063538.33,
+                "awards": 3,
+                "areas": [
+                  "Space Systems"
+                ]
+              },
+              {
+                "id": "UNITED LAUNCH SERVICES",
+                "label": "UNITED LAUNCH SERVICES",
+                "awardAmount": 16.15,
+                "awardAmountDollars": 16150679184.910002,
+                "awards": 4,
+                "areas": [
+                  "Space Systems"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "AC24",
+                "label": "AC24 · NATIONAL DEFENSE R&D SERVICES; ATOMIC ENERGY DEFENSE ACTIVITIES; R&D ADMINISTRATIVE EXPENSES",
+                "awardAmount": 21.19,
+                "awardAmountDollars": 21189902017.91,
+                "awards": 2,
+                "areas": [
+                  "Space Systems"
+                ]
+              },
+              {
+                "id": "1410",
+                "label": "1410 · GUIDED MISSILES",
+                "awardAmount": 12.985,
+                "awardAmountDollars": 12984462944.81,
+                "awards": 6,
+                "areas": [
+                  "Space Systems"
+                ]
+              },
+              {
+                "id": "V126",
+                "label": "V126 · TRANSPORTATION/TRAVEL/RELOCATION- TRANSPORTATION: SPACE TRANSPORTATION/LAUNCH",
+                "awardAmount": 11.228,
+                "awardAmountDollars": 11228048271.800001,
+                "awards": 2,
+                "areas": [
+                  "Space Systems"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336414",
+                "label": "336414 · GUIDED MISSILE AND SPACE VEHICLE MANUFACTURING",
+                "awardAmount": 57.928,
+                "awardAmountDollars": 57930917642.399994,
+                "awards": 18,
+                "areas": [
+                  "Space Systems"
+                ]
+              },
+              {
+                "id": "541330",
+                "label": "541330 · ENGINEERING SERVICES",
+                "awardAmount": 11.341,
+                "awardAmountDollars": 11340659673.75,
+                "awards": 2,
+                "areas": [
+                  "Space Systems"
+                ]
+              },
+              {
+                "id": "481212",
+                "label": "481212 · NONSCHEDULED CHARTERED FREIGHT AIR TRANSPORTATION",
+                "awardAmount": 11.228,
+                "awardAmountDollars": 11228048271.800001,
+                "awards": 2,
+                "areas": [
+                  "Space Systems"
+                ]
+              }
+            ],
+            "topWorkType": "AC24 · NATIONAL DEFENSE R&D SERVICES; ATOMIC ENERGY DEFENSE ACTIVITIES; R&D ADMINISTRATIVE EXPENSES",
+            "topVendor": "LOCKHEED MARTIN",
+            "serviceFit": "space systems engineering, ground systems, data integration, mission assurance",
+            "score": 43,
+            "rationale": "Department of the Air Force has 26 sampled Space Systems awards, led by LOCKHEED MARTIN, with AC24 · NATIONAL DEFENSE R&D SERVICES; ATOMIC ENERGY DEFENSE ACTIVITIES; R&D ADMINISTRATIVE EXPENSES as the clearest coded work type."
+          },
+          {
+            "id": "readiness-sustainment:Department of the Air Force",
+            "areaId": "readiness-sustainment",
+            "area": "Readiness / Sustainment",
+            "buyer": "Department of the Air Force",
+            "buyerGroup": "Air Force / Space Force",
+            "budgetFy2027": 113.5,
+            "budgetRecords": 153,
+            "budgetGrowth": 35,
+            "areaFy2027": 512.1,
+            "areaAlignmentScore": 53,
+            "narrativeConfirmedRecords": 9,
+            "awardAmount": 43.548,
+            "awards": 33,
+            "topVendors": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 18.483,
+                "awardAmountDollars": 18483542429.96,
+                "awards": 5,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "RTX",
+                "label": "RTX",
+                "awardAmount": 9.643,
+                "awardAmountDollars": 9642133163.31,
+                "awards": 7,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "BOEING",
+                "label": "BOEING",
+                "awardAmount": 4.861,
+                "awardAmountDollars": 4860680315.99,
+                "awards": 8,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "J016",
+                "label": "J016 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT COMPONENTS AND ACCESSORIES",
+                "awardAmount": 15.632,
+                "awardAmountDollars": 15632409037.49,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "J028",
+                "label": "J028 · MAINT/REPAIR/REBUILD OF EQUIPMENT- ENGINES, TURBINES, AND COMPONENTS",
+                "awardAmount": 9.643,
+                "awardAmountDollars": 9642133163.31,
+                "awards": 7,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "R499",
+                "label": "R499 · SUPPORT- PROFESSIONAL: OTHER",
+                "awardAmount": 4.861,
+                "awardAmountDollars": 4860680315.99,
+                "awards": 8,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "488190",
+                "label": "488190 · OTHER SUPPORT ACTIVITIES FOR AIR TRANSPORTATION",
+                "awardAmount": 18.384,
+                "awardAmountDollars": 18383118145.480003,
+                "awards": 9,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 12.13,
+                "awardAmountDollars": 12129868448.109999,
+                "awards": 11,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "541330",
+                "label": "541330 · ENGINEERING SERVICES",
+                "awardAmount": 6.58,
+                "awardAmountDollars": 6580794952.1,
+                "awards": 5,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topWorkType": "J016 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT COMPONENTS AND ACCESSORIES",
+            "topVendor": "LOCKHEED MARTIN",
+            "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+            "score": 40,
+            "rationale": "Department of the Air Force has 33 sampled Readiness / Sustainment awards, led by LOCKHEED MARTIN, with J016 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT COMPONENTS AND ACCESSORIES as the clearest coded work type."
+          },
+          {
+            "id": "readiness-sustainment:Department of the Navy",
+            "areaId": "readiness-sustainment",
+            "area": "Readiness / Sustainment",
+            "buyer": "Department of the Navy",
+            "buyerGroup": "Navy / Marine Corps",
+            "budgetFy2027": 114.6,
+            "budgetRecords": 175,
+            "budgetGrowth": 21.7,
+            "areaFy2027": 512.1,
+            "areaAlignmentScore": 53,
+            "narrativeConfirmedRecords": 9,
+            "awardAmount": 21.507,
+            "awards": 17,
+            "topVendors": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 12.251,
+                "awardAmountDollars": 12250871215.46,
+                "awards": 4,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "V2X AEROSPACE",
+                "label": "V2X AEROSPACE",
+                "awardAmount": 2.18,
+                "awardAmountDollars": 2180264338.19,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "RAYTHEON",
+                "label": "RAYTHEON",
+                "awardAmount": 1.672,
+                "awardAmountDollars": 1671186348.6,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1510",
+                "label": "1510 · AIRCRAFT, FIXED WING",
+                "awardAmount": 10.439,
+                "awardAmountDollars": 10438626617.56,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "J015",
+                "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS",
+                "awardAmount": 3.816,
+                "awardAmountDollars": 3815336730.04,
+                "awards": 4,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "V124",
+                "label": "V124 · TRANSPORTATION/TRAVEL/RELOCATION- TRANSPORTATION: MARINE CHARTER",
+                "awardAmount": 2.524,
+                "awardAmountDollars": 2523736370.82,
+                "awards": 4,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 11.236,
+                "awardAmountDollars": 11235862407.56,
+                "awards": 4,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "488190",
+                "label": "488190 · OTHER SUPPORT ACTIVITIES FOR AIR TRANSPORTATION",
+                "awardAmount": 3.816,
+                "awardAmountDollars": 3815336730.04,
+                "awards": 4,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "334511",
+                "label": "334511 · SEARCH, DETECTION, NAVIGATION, GUIDANCE, AERONAUTICAL, AND NAUTICAL SYSTEM AND INSTRUMENT MANUFACTURING",
+                "awardAmount": 2.434,
+                "awardAmountDollars": 2433977645.9,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topWorkType": "1510 · AIRCRAFT, FIXED WING",
+            "topVendor": "LOCKHEED MARTIN",
+            "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+            "score": 38,
+            "rationale": "Department of the Navy has 17 sampled Readiness / Sustainment awards, led by LOCKHEED MARTIN, with 1510 · AIRCRAFT, FIXED WING as the clearest coded work type."
+          },
+          {
+            "id": "readiness-sustainment:Department of the Army",
+            "areaId": "readiness-sustainment",
+            "area": "Readiness / Sustainment",
+            "buyer": "Department of the Army",
+            "buyerGroup": "Army",
+            "budgetFy2027": 86.4,
+            "budgetRecords": 169,
+            "budgetGrowth": 18.1,
+            "areaFy2027": 512.1,
+            "areaAlignmentScore": 53,
+            "narrativeConfirmedRecords": 9,
+            "awardAmount": 18.317,
+            "awards": 16,
+            "topVendors": [
+              {
+                "id": "OSHKOSH DEFENSE",
+                "label": "OSHKOSH DEFENSE",
+                "awardAmount": 6.104,
+                "awardAmountDollars": 6104208870.9,
+                "awards": 1,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "AMENTUM SERVICES",
+                "label": "AMENTUM SERVICES",
+                "awardAmount": 3.008,
+                "awardAmountDollars": 3008499616.21,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "GENERAL DYNAMICS LAND SYSTEMS",
+                "label": "GENERAL DYNAMICS LAND SYSTEMS",
+                "awardAmount": 1.713,
+                "awardAmountDollars": 1713534693.52,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "2355",
+                "label": "2355 · COMBAT, ASSAULT, AND TACTICAL VEHICLES, WHEELED",
+                "awardAmount": 6.628,
+                "awardAmountDollars": 6628474613.19,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "J015",
+                "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS",
+                "awardAmount": 2.938,
+                "awardAmountDollars": 2937915279.1,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "R706",
+                "label": "R706 · SUPPORT- MANAGEMENT: LOGISTICS SUPPORT",
+                "awardAmount": 2.225,
+                "awardAmountDollars": 2225527775.35,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336992",
+                "label": "336992 · MILITARY ARMORED VEHICLE, TANK, AND TANK COMPONENT MANUFACTURING",
+                "awardAmount": 8.26,
+                "awardAmountDollars": 8261062009.989999,
+                "awards": 4,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "488190",
+                "label": "488190 · OTHER SUPPORT ACTIVITIES FOR AIR TRANSPORTATION",
+                "awardAmount": 2.938,
+                "awardAmountDollars": 2937915279.1,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "811213",
+                "label": "811213 · COMMUNICATION EQUIPMENT REPAIR AND MAINTENANCE",
+                "awardAmount": 1.912,
+                "awardAmountDollars": 1912243885.81,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topWorkType": "2355 · COMBAT, ASSAULT, AND TACTICAL VEHICLES, WHEELED",
+            "topVendor": "OSHKOSH DEFENSE",
+            "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+            "score": 37,
+            "rationale": "Department of the Army has 16 sampled Readiness / Sustainment awards, led by OSHKOSH DEFENSE, with 2355 · COMBAT, ASSAULT, AND TACTICAL VEHICLES, WHEELED as the clearest coded work type."
+          },
+          {
+            "id": "missiles-fires:Department of the Army",
+            "areaId": "missiles-fires",
+            "area": "Missiles / Fires",
+            "buyer": "Department of the Army",
+            "buyerGroup": "Army",
+            "budgetFy2027": 45.5,
+            "budgetRecords": 103,
+            "budgetGrowth": 190.6,
+            "areaFy2027": 129,
+            "areaAlignmentScore": 32,
+            "narrativeConfirmedRecords": 19,
+            "awardAmount": 77.483,
+            "awards": 24,
+            "topVendors": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 55.179,
+                "awardAmountDollars": 55176927243.73001,
+                "awards": 14,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "RAYTHEON",
+                "label": "RAYTHEON",
+                "awardAmount": 15.835,
+                "awardAmountDollars": 15834148123.59,
+                "awards": 7,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "SIKORSKY AIRCRAFT",
+                "label": "SIKORSKY AIRCRAFT",
+                "awardAmount": 3.519,
+                "awardAmountDollars": 3518890935.97,
+                "awards": 1,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1410",
+                "label": "1410 · GUIDED MISSILES",
+                "awardAmount": 53.662,
+                "awardAmountDollars": 53659623484.890015,
+                "awards": 15,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "1425",
+                "label": "1425 · GUIDED MISSILE SYSTEMS, COMPLETE",
+                "awardAmount": 6.835,
+                "awardAmountDollars": 6834216655.5,
+                "awards": 2,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "1420",
+                "label": "1420 · GUIDED MISSILE COMPONENTS",
+                "awardAmount": 6.291,
+                "awardAmountDollars": 6291169874.99,
+                "awards": 2,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336414",
+                "label": "336414 · GUIDED MISSILE AND SPACE VEHICLE MANUFACTURING",
+                "awardAmount": 55.828,
+                "awardAmountDollars": 55824853815.86001,
+                "awards": 17,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "336419",
+                "label": "336419 · OTHER GUIDED MISSILE AND SPACE VEHICLE PARTS AND AUXILIARY EQUIPMENT MANUFACTURING",
+                "awardAmount": 13.043,
+                "awardAmountDollars": 13042252118.08,
+                "awards": 4,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 3.519,
+                "awardAmountDollars": 3518890935.97,
+                "awards": 1,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              }
+            ],
+            "topWorkType": "1410 · GUIDED MISSILES",
+            "topVendor": "LOCKHEED MARTIN",
+            "serviceFit": "mission engineering, test/evaluation, modeling, systems integration",
+            "score": 36,
+            "rationale": "Department of the Army has 24 sampled Missiles / Fires awards, led by LOCKHEED MARTIN, with 1410 · GUIDED MISSILES as the clearest coded work type."
+          },
+          {
+            "id": "aircraft-aviation:Department of the Army",
+            "areaId": "aircraft-aviation",
+            "area": "Aircraft / Aviation",
+            "buyer": "Department of the Army",
+            "buyerGroup": "Army",
+            "budgetFy2027": 4.5,
+            "budgetRecords": 55,
+            "budgetGrowth": -13.4,
+            "areaFy2027": 94.7,
+            "areaAlignmentScore": 46,
+            "narrativeConfirmedRecords": 3,
+            "awardAmount": 48.15,
+            "awards": 9,
+            "topVendors": [
+              {
+                "id": "SIKORSKY AIRCRAFT",
+                "label": "SIKORSKY AIRCRAFT",
+                "awardAmount": 23.771,
+                "awardAmountDollars": 23770265009.170002,
+                "awards": 4,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "BOEING",
+                "label": "BOEING",
+                "awardAmount": 15.816,
+                "awardAmountDollars": 15816441118.25,
+                "awards": 3,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "M1 SUPPORT SERVICES L P",
+                "label": "M1 SUPPORT SERVICES L P",
+                "awardAmount": 4.549,
+                "awardAmountDollars": 4548517546.59,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1520",
+                "label": "1520 · AIRCRAFT, ROTARY WING",
+                "awardAmount": 28.635,
+                "awardAmountDollars": 28634503455.06,
+                "awards": 5,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "5342",
+                "label": "5342 · HARDWARE, WEAPON SYSTEM",
+                "awardAmount": 10.952,
+                "awardAmountDollars": 10952202672.36,
+                "awards": 2,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "J015",
+                "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS",
+                "awardAmount": 4.549,
+                "awardAmountDollars": 4548517546.59,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 43.601,
+                "awardAmountDollars": 43600636984.060005,
+                "awards": 8,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              },
+              {
+                "id": "488190",
+                "label": "488190 · OTHER SUPPORT ACTIVITIES FOR AIR TRANSPORTATION",
+                "awardAmount": 4.549,
+                "awardAmountDollars": 4548517546.59,
+                "awards": 1,
+                "areas": [
+                  "Aircraft / Aviation"
+                ]
+              }
+            ],
+            "topWorkType": "1520 · AIRCRAFT, ROTARY WING",
+            "topVendor": "SIKORSKY AIRCRAFT",
+            "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+            "score": 34,
+            "rationale": "Department of the Army has 9 sampled Aircraft / Aviation awards, led by SIKORSKY AIRCRAFT, with 1520 · AIRCRAFT, ROTARY WING as the clearest coded work type."
+          },
+          {
+            "id": "readiness-sustainment:Missile Defense Agency",
+            "areaId": "readiness-sustainment",
+            "area": "Readiness / Sustainment",
+            "buyer": "Missile Defense Agency",
+            "buyerGroup": "Fourth Estate",
+            "budgetFy2027": 48.3,
+            "budgetRecords": 11,
+            "budgetGrowth": 1048.3,
+            "areaFy2027": 512.1,
+            "areaAlignmentScore": 53,
+            "narrativeConfirmedRecords": 9,
+            "awardAmount": 10.372,
+            "awards": 7,
+            "topVendors": [
+              {
+                "id": "BOEING",
+                "label": "BOEING",
+                "awardAmount": 6.467,
+                "awardAmountDollars": 6466627868.26,
+                "awards": 1,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 2.374,
+                "awardAmountDollars": 2373524286.87,
+                "awards": 3,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "RAYTHEON",
+                "label": "RAYTHEON",
+                "awardAmount": 1.007,
+                "awardAmountDollars": 1007097539.28,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "1420",
+                "label": "1420 · GUIDED MISSILE COMPONENTS",
+                "awardAmount": 6.467,
+                "awardAmountDollars": 6466627868.26,
+                "awards": 1,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "H914",
+                "label": "H914 · OTHER QC/TEST/INSPECT- GUIDED MISSILES",
+                "awardAmount": 1.075,
+                "awardAmountDollars": 1075010332.8,
+                "awards": 1,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "J014",
+                "label": "J014 · MAINT/REPAIR/REBUILD OF EQUIPMENT- GUIDED MISSILES",
+                "awardAmount": 0.793,
+                "awardAmountDollars": 792858018.54,
+                "awards": 1,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "541712",
+                "label": "541712 · RESEARCH AND DEVELOPMENT IN THE PHYSICAL, ENGINEERING, AND LIFE SCIENCES (EXCEPT BIOTECHNOLOGY)",
+                "awardAmount": 6.991,
+                "awardAmountDollars": 6990683006.440001,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "336414",
+                "label": "336414 · GUIDED MISSILE AND SPACE VEHICLE MANUFACTURING",
+                "awardAmount": 1.868,
+                "awardAmountDollars": 1867868351.34,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              },
+              {
+                "id": "811219",
+                "label": "811219 · OTHER ELECTRONIC AND PRECISION EQUIPMENT REPAIR AND MAINTENANCE",
+                "awardAmount": 1.007,
+                "awardAmountDollars": 1007097539.28,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topWorkType": "1420 · GUIDED MISSILE COMPONENTS",
+            "topVendor": "BOEING",
+            "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+            "score": 34,
+            "rationale": "Missile Defense Agency has 7 sampled Readiness / Sustainment awards, led by BOEING, with 1420 · GUIDED MISSILE COMPONENTS as the clearest coded work type."
+          },
+          {
+            "id": "readiness-sustainment:Defense Information Systems Agency",
+            "areaId": "readiness-sustainment",
+            "area": "Readiness / Sustainment",
+            "buyer": "Defense Information Systems Agency",
+            "buyerGroup": "Fourth Estate",
+            "budgetFy2027": 48.3,
+            "budgetRecords": 11,
+            "budgetGrowth": 1048.3,
+            "areaFy2027": 512.1,
+            "areaAlignmentScore": 53,
+            "narrativeConfirmedRecords": 9,
+            "awardAmount": 1.334,
+            "awards": 2,
+            "topVendors": [
+              {
+                "id": "LEIDOS",
+                "label": "LEIDOS",
+                "awardAmount": 1.334,
+                "awardAmountDollars": 1334533253.38,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "D316",
+                "label": "D316 · IT AND TELECOM- TELECOMMUNICATIONS NETWORK MANAGEMENT",
+                "awardAmount": 1.334,
+                "awardAmountDollars": 1334533253.38,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "541513",
+                "label": "541513 · COMPUTER FACILITIES MANAGEMENT SERVICES",
+                "awardAmount": 1.334,
+                "awardAmountDollars": 1334533253.38,
+                "awards": 2,
+                "areas": [
+                  "Readiness / Sustainment"
+                ]
+              }
+            ],
+            "topWorkType": "D316 · IT AND TELECOM- TELECOMMUNICATIONS NETWORK MANAGEMENT",
+            "topVendor": "LEIDOS",
+            "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+            "score": 34,
+            "rationale": "Defense Information Systems Agency has 2 sampled Readiness / Sustainment awards, led by LEIDOS, with D316 · IT AND TELECOM- TELECOMMUNICATIONS NETWORK MANAGEMENT as the clearest coded work type."
+          },
+          {
+            "id": "missiles-fires:Department of the Air Force",
+            "areaId": "missiles-fires",
+            "area": "Missiles / Fires",
+            "buyer": "Department of the Air Force",
+            "buyerGroup": "Air Force / Space Force",
+            "budgetFy2027": 20.7,
+            "budgetRecords": 81,
+            "budgetGrowth": 115.8,
+            "areaFy2027": 129,
+            "areaAlignmentScore": 32,
+            "narrativeConfirmedRecords": 19,
+            "awardAmount": 81.458,
+            "awards": 20,
+            "topVendors": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 34.898,
+                "awardAmountDollars": 34898874608.649994,
+                "awards": 9,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "NORTHROP GRUMMAN SYSTEMS",
+                "label": "NORTHROP GRUMMAN SYSTEMS",
+                "awardAmount": 23.729,
+                "awardAmountDollars": 23728861362.2,
+                "awards": 2,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "RAYTHEON",
+                "label": "RAYTHEON",
+                "awardAmount": 15.638,
+                "awardAmountDollars": 15638366608.140001,
+                "awards": 6,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              }
+            ],
+            "topPsc": [
+              {
+                "id": "AC24",
+                "label": "AC24 · NATIONAL DEFENSE R&D SERVICES; ATOMIC ENERGY DEFENSE ACTIVITIES; R&D ADMINISTRATIVE EXPENSES",
+                "awardAmount": 13.72,
+                "awardAmountDollars": 13720293923.19,
+                "awards": 1,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "1410",
+                "label": "1410 · GUIDED MISSILES",
+                "awardAmount": 12.985,
+                "awardAmountDollars": 12984462944.81,
+                "awards": 6,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "L014",
+                "label": "L014 · TECHNICAL REPRESENTATIVE- GUIDED MISSILES",
+                "awardAmount": 12.28,
+                "awardAmountDollars": 12279191454.060001,
+                "awards": 2,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              }
+            ],
+            "topNaics": [
+              {
+                "id": "336414",
+                "label": "336414 · GUIDED MISSILE AND SPACE VEHICLE MANUFACTURING",
+                "awardAmount": 55.65,
+                "awardAmountDollars": 55652149643.27,
+                "awards": 16,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "541330",
+                "label": "541330 · ENGINEERING SERVICES",
+                "awardAmount": 12.28,
+                "awardAmountDollars": 12279191454.060001,
+                "awards": 2,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              },
+              {
+                "id": "541710",
+                "label": "541710 · RESEARCH AND DEVELOPMENT IN THE PHYSICAL, ENGINEERING, AND LIFE SCIENCES",
+                "awardAmount": 9.033,
+                "awardAmountDollars": 9032605785.68,
+                "awards": 1,
+                "areas": [
+                  "Missiles / Fires"
+                ]
+              }
+            ],
+            "topWorkType": "AC24 · NATIONAL DEFENSE R&D SERVICES; ATOMIC ENERGY DEFENSE ACTIVITIES; R&D ADMINISTRATIVE EXPENSES",
+            "topVendor": "LOCKHEED MARTIN",
+            "serviceFit": "mission engineering, test/evaluation, modeling, systems integration",
+            "score": 33,
+            "rationale": "Department of the Air Force has 20 sampled Missiles / Fires awards, led by LOCKHEED MARTIN, with AC24 · NATIONAL DEFENSE R&D SERVICES; ATOMIC ENERGY DEFENSE ACTIVITIES; R&D ADMINISTRATIVE EXPENSES as the clearest coded work type."
           }
         ],
         "justificationCoverage": {

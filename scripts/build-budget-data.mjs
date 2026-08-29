@@ -1645,6 +1645,73 @@ const budgetExecutionAlignment = technologyAreaRows.map((area) => {
   };
 }).sort((a, b) => b.score - a.score || b.executionObligationAmount - a.executionObligationAmount).slice(0, 8);
 
+const alignmentScoreByAreaId = new Map(budgetExecutionAlignment.map((area) => [area.id, area.score]));
+const buyerLaneGroups = new Map();
+for (const award of awardEntries) {
+  if (!award.areaId || !award.buyerSubAgency) continue;
+  const key = `${award.areaId}:${award.buyerSubAgency}`;
+  const existing = buyerLaneGroups.get(key) || {
+    id: key,
+    areaId: award.areaId,
+    buyer: award.buyerSubAgency,
+    buyerGroup: buyerGroup(award.buyerSubAgency),
+    awardsById: new Map(),
+  };
+  existing.awardsById.set(award.id, award);
+  buyerLaneGroups.set(key, existing);
+}
+const rawBuyerPursuitLanes = [...buyerLaneGroups.values()].map((group) => {
+  const area = technologyAreaRows.find((item) => item.id === group.areaId);
+  const laneAwards = [...group.awardsById.values()];
+  const awardAmount = round(laneAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+  const topVendors = aggregateAwards(laneAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 3);
+  const topPsc = aggregateAwards(laneAwards.filter((award) => award.pscCode), (award) => ({
+    id: award.pscCode,
+    label: `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}`,
+  })).slice(0, 3);
+  const topNaics = aggregateAwards(laneAwards.filter((award) => award.naicsCode), (award) => ({
+    id: award.naicsCode,
+    label: `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}`,
+  })).slice(0, 3);
+  const budgetClient = area?.byClient.find((client) => (
+    client.label === group.buyer || client.label === group.buyerGroup || (group.buyerGroup === "Fourth Estate" && client.group === "fourth-estate")
+  ));
+  return {
+    id: group.id,
+    areaId: group.areaId,
+    area: area?.label || group.areaId,
+    buyer: group.buyer,
+    buyerGroup: group.buyerGroup,
+    budgetFy2027: budgetClient?.fy2027 || 0,
+    budgetRecords: budgetClient?.records || 0,
+    budgetGrowth: budgetClient?.growth || 0,
+    areaFy2027: area?.fy2027 || 0,
+    areaAlignmentScore: alignmentScoreByAreaId.get(group.areaId) || 0,
+    narrativeConfirmedRecords: area?.narrativeConfirmedRecords || 0,
+    awardAmount,
+    awards: laneAwards.length,
+    topVendors,
+    topPsc,
+    topNaics,
+    topWorkType: topPsc[0]?.label || topNaics[0]?.label || "Uncoded work type",
+    topVendor: topVendors[0]?.label || "n/a",
+    serviceFit: area?.serviceFit || serviceFitForArea(group.areaId),
+  };
+}).filter((lane) => lane.awardAmount > 0);
+const maxBuyerLaneAwardAmount = Math.max(...rawBuyerPursuitLanes.map((lane) => lane.awardAmount), 1);
+const buyerPursuitLanes = rawBuyerPursuitLanes.map((lane) => {
+  const executionScore = Math.min((lane.awardAmount / maxBuyerLaneAwardAmount) * 34, 34);
+  const alignmentScore = Math.min(lane.areaAlignmentScore * 0.45, 28);
+  const budgetScore = Math.min((lane.budgetFy2027 / Math.max(lane.areaFy2027, 1)) * 18, 18);
+  const evidenceScore = lane.narrativeConfirmedRecords ? 8 : 3;
+  const score = Math.round(executionScore + alignmentScore + budgetScore + evidenceScore);
+  return {
+    ...lane,
+    score,
+    rationale: `${lane.buyer} has ${lane.awards} sampled ${lane.area} awards, led by ${lane.topVendor}, with ${lane.topWorkType} as the clearest coded work type.`,
+  };
+}).sort((a, b) => b.score - a.score || b.awardAmount - a.awardAmount).slice(0, 12);
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -1716,6 +1783,8 @@ const strategyAnalytics = {
     topClientArea: strategyIntersections[0]?.area,
     topExecutionAlignment: budgetExecutionAlignment[0]?.label,
     topExecutionAlignmentScore: budgetExecutionAlignment[0]?.score || 0,
+    buyerPursuitLaneCount: buyerPursuitLanes.length,
+    topBuyerPursuitLane: buyerPursuitLanes[0] ? `${buyerPursuitLanes[0].buyer} · ${buyerPursuitLanes[0].area}` : "n/a",
   },
   readouts: [
     {
@@ -1764,6 +1833,13 @@ const strategyAnalytics = {
       tone: "orange",
     },
     {
+      id: "buyer-pursuit-lanes",
+      label: "Buyer pursuit lanes",
+      value: buyerPursuitLanes.length,
+      helper: `${buyerPursuitLanes[0]?.buyer || "N/A"} · ${buyerPursuitLanes[0]?.area || "N/A"} is the strongest buyer-area lane in the sampled award model.`,
+      tone: "purple",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -1775,6 +1851,7 @@ const strategyAnalytics = {
   serviceStrategy,
   strategyIntersections,
   budgetExecutionAlignment,
+  buyerPursuitLanes,
   justificationCoverage,
   executionAnalytics: {
     coverage: executionCoverage,
