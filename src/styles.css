@@ -2862,6 +2862,12 @@ td .dot {
     white-space: normal;
   }
 
+  .panel__header span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
   .table-shell,
   .strategy-line-table {
     max-height: 62vh;
