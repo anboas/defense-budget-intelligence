@@ -195,10 +195,16 @@ button {
 
 .masthead nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 5px;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.masthead nav::-webkit-scrollbar {
+  display: none;
 }
 
 .masthead button,
@@ -208,7 +214,7 @@ button {
   justify-content: center;
   gap: 6px;
   min-height: 32px;
-  padding: 6px 9px;
+  padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: #ffffff;
@@ -1102,7 +1108,8 @@ button {
   align-content: start;
 }
 
-.strategy-hero {
+.strategy-hero,
+.relationship-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
   gap: 14px;
@@ -1112,13 +1119,15 @@ button {
   background: var(--surface);
 }
 
-.strategy-hero > div:first-child {
+.strategy-hero > div:first-child,
+.relationship-hero > div:first-child {
   min-width: 0;
   padding: 18px;
   box-shadow: inset 4px 0 0 var(--brand);
 }
 
-.strategy-hero span {
+.strategy-hero span,
+.relationship-hero span {
   display: block;
   color: var(--brand);
   font-size: 11px;
@@ -1126,14 +1135,16 @@ button {
   text-transform: uppercase;
 }
 
-.strategy-hero h2 {
+.strategy-hero h2,
+.relationship-hero h2 {
   margin: 4px 0 6px;
   font-size: 24px;
   font-weight: 850;
   line-height: 1.08;
 }
 
-.strategy-hero p {
+.strategy-hero p,
+.relationship-hero p {
   max-width: 960px;
   margin: 0;
   color: var(--muted);
@@ -1143,6 +1154,7 @@ button {
 }
 
 .strategy-hero__facts,
+.relationship-hero__facts,
 .award-hero__facts,
 .pursuit-hero__facts,
 .capture-hero__facts,
@@ -1163,12 +1175,23 @@ button {
 .capture-stage-grid,
 .capture-queue-grid,
 .pursuit-source-summary,
-.area-execution-grid {
+.area-execution-grid,
+.relationship-shell,
+.relationship-picker,
+.relationship-workspace,
+.relationship-brief,
+.relationship-node-grid,
+.relationship-node-list,
+.relationship-line-list,
+.relationship-award-list,
+.lane-brief,
+.lane-brief__evidence {
   display: grid;
   gap: 10px;
 }
 
-.strategy-hero__facts {
+.strategy-hero__facts,
+.relationship-hero__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 10px;
 }
@@ -1276,6 +1299,223 @@ button {
   color: var(--muted);
 }
 
+.relationship-hero__facts article {
+  display: grid;
+  align-content: center;
+  min-height: 70px;
+  padding: 11px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.relationship-hero__facts strong {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.relationship-hero__facts span {
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.relationship-shell {
+  grid-template-columns: minmax(250px, 0.28fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.relationship-picker {
+  position: sticky;
+  top: 74px;
+  max-height: calc(100vh - 94px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.relationship-picker h3 {
+  margin: 8px 0 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.relationship-picker button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 5px;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: inherit;
+  text-align: left;
+}
+
+.relationship-picker button.active,
+.relationship-picker button:hover {
+  border-color: var(--brand);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.relationship-picker strong,
+.relationship-picker span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relationship-picker strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.relationship-picker span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: none;
+}
+
+.relationship-brief {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.relationship-brief article,
+.relationship-node-list,
+.relationship-line-list article,
+.relationship-award-list article,
+.lane-brief article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.relationship-brief article {
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.relationship-brief span,
+.relationship-node-list header span,
+.lane-brief span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.relationship-brief strong {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.relationship-brief p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.relationship-node-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.relationship-node-list {
+  align-content: start;
+}
+
+.relationship-node-list header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.relationship-node-list header b {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.relationship-node-list > div {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.relationship-node-list > div span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.relationship-node-list strong,
+.relationship-node-list em,
+.relationship-line-list strong,
+.relationship-line-list span,
+.relationship-award-list strong,
+.relationship-award-list span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relationship-node-list strong,
+.relationship-line-list strong,
+.relationship-award-list strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.relationship-node-list em,
+.relationship-line-list span,
+.relationship-award-list span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.relationship-line-list article,
+.relationship-award-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.relationship-line-list b,
+.relationship-award-list b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .award-filter-bar,
 .pursuit-filter-bar,
 .capture-filter-bar {
@@ -1372,6 +1612,51 @@ button {
 
 .award-table-shell table {
   min-width: 1220px;
+}
+
+.capture-table-shell table {
+  min-width: 1320px;
+  table-layout: fixed;
+}
+
+.capture-table-shell th,
+.capture-table-shell td {
+  text-align: left;
+}
+
+.capture-table-shell th:nth-child(1),
+.capture-table-shell td:nth-child(1) {
+  width: 58px;
+}
+
+.capture-table-shell th:nth-child(2),
+.capture-table-shell td:nth-child(2) {
+  width: 92px;
+}
+
+.capture-table-shell th:nth-child(3),
+.capture-table-shell td:nth-child(3) {
+  width: 330px;
+}
+
+.capture-table-shell th:nth-child(4),
+.capture-table-shell td:nth-child(4) {
+  width: 140px;
+}
+
+.capture-table-shell th:nth-child(5),
+.capture-table-shell td:nth-child(5) {
+  width: 210px;
+}
+
+.capture-table-shell th:nth-child(6),
+.capture-table-shell td:nth-child(6) {
+  width: 180px;
+}
+
+.capture-table-shell th:nth-child(7),
+.capture-table-shell td:nth-child(7) {
+  width: 310px;
 }
 
 .strategy-hero__facts article {
@@ -2067,6 +2352,14 @@ button {
 .capture-queue-card {
   box-shadow: inset 3px 0 0 var(--purple);
   overflow: hidden;
+  color: inherit;
+  text-align: left;
+}
+
+.capture-queue-card.active,
+.capture-queue-card:hover {
+  border-color: var(--purple);
+  background: #fbf9ff;
 }
 
 .buyer-pursuit-card header,
@@ -2227,6 +2520,125 @@ button {
 .capture-queue-card footer a {
   border-color: var(--purple);
   color: var(--purple);
+}
+
+.lane-brief {
+  grid-template-columns: minmax(360px, 1.25fr) repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.lane-brief article {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.lane-brief__main header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.lane-brief__main header strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.lane-brief__main header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 32px;
+  border: 1px solid var(--purple);
+  border-radius: 4px;
+  background: #f4f0ff;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.lane-brief p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.lane-brief dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.lane-brief dl div {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.lane-brief dt,
+.lane-brief dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane-brief dt {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.lane-brief dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.lane-brief ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lane-brief li,
+.lane-brief__evidence p {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.lane-brief__evidence strong {
+  display: block;
+  margin-bottom: 3px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pursuit-source-summary {
@@ -3015,6 +3427,8 @@ td .dot {
   .pursuit-hero,
   .capture-hero,
   .strategy-hero,
+  .relationship-hero,
+  .relationship-shell,
   .source-register,
   .source-roadmap,
   .pipeline-source-grid,
@@ -3038,8 +3452,16 @@ td .dot {
   .capture-stage-grid,
   .capture-queue-grid,
   .pursuit-source-summary,
-  .area-execution-grid {
+  .area-execution-grid,
+  .relationship-brief,
+  .relationship-node-grid,
+  .lane-brief {
     grid-template-columns: 1fr;
+  }
+
+  .relationship-picker {
+    position: static;
+    max-height: 360px;
   }
 
   .filters {
@@ -3238,6 +3660,7 @@ td .dot {
   .award-hero__facts,
   .pursuit-hero__facts,
   .capture-hero__facts,
+  .relationship-hero__facts,
   .justification-evidence-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3292,6 +3715,10 @@ td .dot {
     gap: 0;
   }
 
+  .relationship-hero {
+    gap: 0;
+  }
+
   .strategy-hero {
     gap: 0;
   }
@@ -3309,6 +3736,10 @@ td .dot {
   }
 
   .capture-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .relationship-hero > div:first-child {
     padding: 14px;
   }
 
@@ -3332,6 +3763,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .relationship-hero h2 {
+    font-size: 22px;
+  }
+
   .strategy-hero h2 {
     font-size: 22px;
   }
@@ -3349,6 +3784,10 @@ td .dot {
   }
 
   .capture-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .relationship-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -3372,6 +3811,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .relationship-hero__facts article {
+    min-height: 64px;
+  }
+
   .strategy-hero__facts article {
     min-height: 64px;
   }
@@ -3389,6 +3832,10 @@ td .dot {
   }
 
   .capture-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .relationship-hero__facts strong {
     font-size: 20px;
   }
 
@@ -3454,7 +3901,18 @@ td .dot {
   .capture-stage-grid,
   .capture-queue-grid,
   .pursuit-source-summary,
-  .area-execution-grid {
+  .area-execution-grid,
+  .relationship-brief,
+  .relationship-node-grid,
+  .lane-brief {
+    grid-template-columns: 1fr;
+  }
+
+  .relationship-picker {
+    max-height: 310px;
+  }
+
+  .lane-brief dl {
     grid-template-columns: 1fr;
   }
 

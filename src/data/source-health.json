@@ -1,7 +1,7 @@
 {
   "metadata": {
     "title": "Defense Budget Source Health",
-    "checkedAt": "2026-08-29T15:34:28.567Z",
+    "checkedAt": "2026-08-29T18:36:31.744Z",
     "timeoutMs": 12000,
     "methodology": "HEAD probe with GET fallback and byte-range request when needed. Results are a point-in-time availability check, not a data quality guarantee."
   },
@@ -26,8 +26,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
-      "responseMs": 127,
-      "checkedAt": "2026-08-29T15:34:28.695Z",
+      "responseMs": 123,
+      "checkedAt": "2026-08-29T18:36:31.867Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -35,7 +35,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/m1_display.xlsx",
-          "responseMs": 127
+          "responseMs": 123
         }
       ]
     },
@@ -53,8 +53,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
-      "responseMs": 93,
-      "checkedAt": "2026-08-29T15:34:28.693Z",
+      "responseMs": 79,
+      "checkedAt": "2026-08-29T18:36:31.856Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -62,7 +62,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/o1_display.xlsx",
-          "responseMs": 93
+          "responseMs": 79
         }
       ]
     },
@@ -80,8 +80,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-      "responseMs": 92,
-      "checkedAt": "2026-08-29T15:34:28.692Z",
+      "responseMs": 87,
+      "checkedAt": "2026-08-29T18:36:31.866Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -89,7 +89,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-          "responseMs": 92
+          "responseMs": 87
         }
       ]
     },
@@ -107,8 +107,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "responseMs": 73,
-      "checkedAt": "2026-08-29T15:34:28.674Z",
+      "responseMs": 78,
+      "checkedAt": "2026-08-29T18:36:31.857Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -116,7 +116,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-          "responseMs": 73
+          "responseMs": 78
         }
       ]
     },
@@ -134,8 +134,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
-      "responseMs": 70,
-      "checkedAt": "2026-08-29T15:34:28.672Z",
+      "responseMs": 92,
+      "checkedAt": "2026-08-29T18:36:31.872Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -143,7 +143,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/rf1_display.xlsx",
-          "responseMs": 70
+          "responseMs": 92
         }
       ]
     },
@@ -161,8 +161,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "responseMs": 93,
-      "checkedAt": "2026-08-29T15:34:28.696Z",
+      "responseMs": 90,
+      "checkedAt": "2026-08-29T18:36:31.871Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -170,7 +170,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-          "responseMs": 93
+          "responseMs": 90
         }
       ]
     },
@@ -188,8 +188,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Budget-Materials/",
-      "responseMs": 84,
-      "checkedAt": "2026-08-29T15:34:28.688Z",
+      "responseMs": 169,
+      "checkedAt": "2026-08-29T18:36:31.951Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -197,7 +197,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Budget-Materials/",
-          "responseMs": 84
+          "responseMs": 169
         }
       ]
     },
@@ -215,8 +215,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://comptroller.war.gov/Budget-Materials/Budget2027/",
-      "responseMs": 381,
-      "checkedAt": "2026-08-29T15:34:28.984Z",
+      "responseMs": 262,
+      "checkedAt": "2026-08-29T18:36:32.044Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -224,7 +224,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://comptroller.war.gov/Budget-Materials/Budget2027/",
-          "responseMs": 381
+          "responseMs": 262
         }
       ]
     },
@@ -242,8 +242,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://api.usaspending.gov/docs/",
-      "responseMs": 487,
-      "checkedAt": "2026-08-29T15:34:29.091Z",
+      "responseMs": 593,
+      "checkedAt": "2026-08-29T18:36:32.376Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -251,7 +251,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://api.usaspending.gov/docs/",
-          "responseMs": 487
+          "responseMs": 593
         }
       ]
     },
@@ -269,8 +269,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://sam.gov/contracting",
-      "responseMs": 89,
-      "checkedAt": "2026-08-29T15:34:28.695Z",
+      "responseMs": 95,
+      "checkedAt": "2026-08-29T18:36:31.880Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -278,7 +278,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://sam.gov/contracting",
-          "responseMs": 89
+          "responseMs": 95
         }
       ]
     },
@@ -296,8 +296,8 @@
       "statusText": "OK",
       "method": "HEAD",
       "finalUrl": "https://open.gsa.gov/api/get-opportunities-public-api/",
-      "responseMs": 397,
-      "checkedAt": "2026-08-29T15:34:29.003Z",
+      "responseMs": 159,
+      "checkedAt": "2026-08-29T18:36:31.945Z",
       "attempts": [
         {
           "method": "HEAD",
@@ -305,7 +305,7 @@
           "status": 200,
           "statusText": "OK",
           "finalUrl": "https://open.gsa.gov/api/get-opportunities-public-api/",
-          "responseMs": 397
+          "responseMs": 159
         }
       ]
     }

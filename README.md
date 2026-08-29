@@ -26,7 +26,7 @@ Defense Budget & Spend Intelligence follows the same product-family conventions 
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
 - Product header shell with active page title, flat top navigation, and stable `if-*` / `data-*` hooks for future framework alignment.
-- Hash-route deep links for each major surface: Overview, Trends, Strategy, Services, Fourth Estate, AI / Autonomy, Drilldown, and Data Sources.
+- Hash-route deep links for each major surface: Overview, Trends, Strategy, Relationships, Awards, Pursuits, Cockpit, Services, Fourth Estate, AI / Autonomy, Drilldown, and Data Sources.
 - Peer navigation to Budget & Spend, Opportunity, and Policy as complementary intelligence platforms with separate product boundaries.
 - Cloudflare Pages as the primary public surface, with GitHub Pages retained as a fallback.
 
@@ -56,6 +56,8 @@ Current version depth:
 - Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; USAspending execution-side award snapshots are partially ingested; FPDS/SAM and market timing feeds are staged next.
 - Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, USAspending obligation trend pulls, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
 - Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
+- Relationships connects lanes, technology areas, buyers, vendors, work types, budget lines, award evidence, and pursuit actions into a single decision surface.
+- Cockpit turns the generated capture queue into selected lane briefs with budget posture, execution posture, timing, incumbent, evidence, gaps, and next actions.
 - Data Sources visualizes the ingestion ladder, source join paths, and an impact-versus-readiness matrix for deciding what to integrate next.
 - Coverage diagnostics show signal-tagged record/value coverage, workbook-level organization mix, and top mission signals by source.
 - Justification evidence diagnostics show official XML count, extracted program items, matched budget lines, and narrative-confirmed technology lines.

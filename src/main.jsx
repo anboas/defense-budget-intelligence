@@ -13,6 +13,7 @@ import {
   GitBranch,
   Layers,
   ListChecks,
+  Network,
   RefreshCcw,
   Search,
   TrendingUp,
@@ -25,9 +26,10 @@ const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
+  { id: "relationships", label: "Relationships", icon: Network },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "pursuits", label: "Pursuits", icon: CalendarClock },
-  { id: "queue", label: "Queue", icon: ListChecks },
+  { id: "queue", label: "Cockpit", icon: ListChecks },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
@@ -45,6 +47,7 @@ const HASH_ROUTES = {
   overview: "#/budget-spend",
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
+  relationships: "#/budget-spend/relationships",
   awards: "#/budget-spend/awards",
   pursuits: "#/budget-spend/pursuits",
   queue: "#/budget-spend/queue",
@@ -277,6 +280,263 @@ function ExecutionTrendList({ title, rows = [], periods = [], limit = 5 }) {
             </div>
             <b>{money(row.awardAmount)}</b>
           </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function relationshipOptionRows() {
+  const laneOptions = (CAPTURE_QUEUE.items || []).slice(0, 16).map((item) => ({
+    id: `lane:${item.id}`,
+    type: "lane",
+    label: `${item.buyer} / ${item.area}`,
+    meta: `${item.stageLabel} · ${item.workType?.label || "Uncoded work type"}`,
+    item,
+  }));
+  const areaOptions = (STRATEGY.technologyAreas || []).map((area) => ({
+    id: `area:${area.id}`,
+    type: "area",
+    label: area.label,
+    meta: `${money(area.fy2027)} request · ${area.executionAwards || 0} awards`,
+    area,
+  }));
+  const buyerOptions = (AWARD_DRILLDOWN.byBuyer || []).slice(0, 16).map((buyer) => ({
+    id: `buyer:${buyer.id}`,
+    type: "buyer",
+    label: buyer.label,
+    meta: `${money(buyer.awardAmount)} · ${buyer.awards} awards`,
+    buyer,
+  }));
+  const vendorOptions = (AWARD_DRILLDOWN.byVendor || []).slice(0, 16).map((vendor) => ({
+    id: `vendor:${vendor.id}`,
+    type: "vendor",
+    label: vendor.label,
+    meta: `${money(vendor.awardAmount)} · ${vendor.awards} awards`,
+    vendor,
+  }));
+  const workOptions = [...(AWARD_DRILLDOWN.byPsc || []).slice(0, 10), ...(AWARD_DRILLDOWN.byNaics || []).slice(0, 10)].map((work) => ({
+    id: `work:${work.id}`,
+    type: "work",
+    label: work.label,
+    meta: `${money(work.awardAmount)} · ${work.awards} awards`,
+    work,
+  }));
+  return [...laneOptions, ...areaOptions, ...buyerOptions, ...vendorOptions, ...workOptions];
+}
+
+function matchesWorkType(award, workId = "") {
+  if (!workId) return false;
+  return award.pscCode === workId || award.naicsCode === workId || award.workType?.id === workId;
+}
+
+function relationshipAwards(option) {
+  const awards = AWARD_DRILLDOWN.awards || EMPTY_ROWS;
+  if (!option) return EMPTY_ROWS;
+  if (option.type === "lane") {
+    const item = option.item;
+    return awards.filter((award) => (
+      award.buyerSubAgency === item.buyer
+      && (award.areaIds || [award.areaId]).includes(item.areaId)
+      && (!item.workType?.code || matchesWorkType(award, item.workType.code))
+    ));
+  }
+  if (option.type === "area") return awards.filter((award) => (award.areaIds || [award.areaId]).includes(option.area.id));
+  if (option.type === "buyer") return awards.filter((award) => award.buyerSubAgency === option.buyer.label);
+  if (option.type === "vendor") return awards.filter((award) => award.recipient === option.vendor.label);
+  if (option.type === "work") return awards.filter((award) => matchesWorkType(award, option.work.id));
+  return EMPTY_ROWS;
+}
+
+function budgetLinesForRelationship(option, awards) {
+  const areas = STRATEGY.technologyAreas || [];
+  if (option?.type === "area") return option.area.topLines || EMPTY_ROWS;
+  if (option?.type === "lane") return areas.find((area) => area.id === option.item.areaId)?.topLines || EMPTY_ROWS;
+  const awardAreaIds = [...new Set(awards.flatMap((award) => award.areaIds || [award.areaId]).filter(Boolean))];
+  return awardAreaIds
+    .flatMap((areaId) => areas.find((area) => area.id === areaId)?.topLines || [])
+    .sort((a, b) => b.fy2027 - a.fy2027)
+    .slice(0, 8);
+}
+
+function relatedQueueItemsForRelationship(option, awards) {
+  const queueItems = CAPTURE_QUEUE.items || EMPTY_ROWS;
+  if (option?.type === "lane") {
+    return [
+      option.item,
+      ...queueItems.filter((item) => item.id !== option.item.id && (item.buyer === option.item.buyer || item.areaId === option.item.areaId)),
+    ].slice(0, 6);
+  }
+  const areaIds = new Set(awards.flatMap((award) => award.areaIds || [award.areaId]).filter(Boolean));
+  const buyers = new Set(awards.map((award) => award.buyerSubAgency).filter(Boolean));
+  const vendors = new Set(awards.map((award) => award.recipient).filter(Boolean));
+  return queueItems.filter((item) => (
+    areaIds.has(item.areaId)
+    || buyers.has(item.buyer)
+    || vendors.has(item.topIncumbent)
+    || (option?.type === "work" && item.workType?.code === option.work.id)
+  )).slice(0, 6);
+}
+
+function RelationshipMap() {
+  const options = useMemo(() => relationshipOptionRows(), []);
+  const [selectedId, setSelectedId] = useState(() => options[0]?.id || "");
+  const selected = options.find((option) => option.id === selectedId) || options[0];
+  const awards = useMemo(() => relationshipAwards(selected).sort((a, b) => b.awardAmount - a.awardAmount).slice(0, 80), [selected]);
+  const budgetLines = useMemo(() => budgetLinesForRelationship(selected, awards), [selected, awards]);
+  const queueItems = useMemo(() => relatedQueueItemsForRelationship(selected, awards), [selected, awards]);
+  const buyers = useMemo(() => aggregateAwardsForUi(awards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 5), [awards]);
+  const vendors = useMemo(() => aggregateAwardsForUi(awards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 5), [awards]);
+  const workTypes = useMemo(() => aggregateAwardsForUi(awards.filter((award) => award.pscCode || award.naicsCode), (award) => ({
+    id: award.pscCode || award.naicsCode,
+    label: award.pscCode ? `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` : `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}`,
+  })).slice(0, 5), [awards]);
+  const areas = useMemo(() => aggregateAwardsForUi(awards, (award) => ({ id: award.areaId, label: award.area })).slice(0, 5), [awards]);
+  const selectedArea = selected?.type === "area"
+    ? selected.area
+    : STRATEGY.technologyAreas?.find((area) => area.id === selected?.item?.areaId || area.id === awards[0]?.areaId);
+  const selectedQueue = selected?.type === "lane" ? selected.item : queueItems[0];
+  const optionGroups = [
+    ["lane", "Lanes"],
+    ["area", "Technology Areas"],
+    ["buyer", "Buyers"],
+    ["vendor", "Vendors"],
+    ["work", "Work Types"],
+  ];
+
+  return (
+    <div className="grid relationship-page" data-relationship-page>
+      <section className="relationship-hero">
+        <div>
+          <span>Relationship surface</span>
+          <h2>Entity Relationship Map</h2>
+          <p>Pick a lane, technology area, buyer, vendor, or work type and see the connected budget lines, execution awards, incumbents, timing actions, and evidence in one place.</p>
+        </div>
+        <div className="relationship-hero__facts" aria-label="Relationship summary">
+          <article>
+            <strong>{options.length}</strong>
+            <span>selectable entities</span>
+          </article>
+          <article>
+            <strong>{awards.length.toLocaleString()}</strong>
+            <span>connected awards</span>
+          </article>
+          <article>
+            <strong>{money(sum(awards, "awardAmount"))}</strong>
+            <span>connected award value</span>
+          </article>
+          <article>
+            <strong>{queueItems.length}</strong>
+            <span>linked pursuit actions</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="relationship-shell">
+        <aside className="relationship-picker" data-relationship-picker>
+          {optionGroups.map(([type, label]) => (
+            <div key={type}>
+              <h3>{label}</h3>
+              {options.filter((option) => option.type === type).slice(0, type === "lane" ? 16 : 10).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={selected?.id === option.id ? "active" : ""}
+                  onClick={() => setSelectedId(option.id)}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.meta}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </aside>
+
+        <div className="relationship-workspace">
+          <Section title={selected?.label || "Selected Entity"} meta={selected?.meta} icon={Network}>
+            <div className="relationship-brief" data-relationship-brief>
+              <article>
+                <span>Budget posture</span>
+                <strong>{selectedArea ? money(selectedArea.fy2027) : budgetLines.length ? money(sum(budgetLines, "fy2027")) : "n/a"}</strong>
+                <p>{selectedArea ? `${selectedArea.records.toLocaleString()} source lines · ${selectedArea.narrativeConfirmedRecords || 0} narrative-confirmed` : `${budgetLines.length} linked source lines`}</p>
+              </article>
+              <article>
+                <span>Execution posture</span>
+                <strong>{money(sum(awards, "awardAmount"))}</strong>
+                <p>{awards.length.toLocaleString()} award records · {vendors[0]?.label || "no incumbent"} leads the connected execution view.</p>
+              </article>
+              <article>
+                <span>Capture posture</span>
+                <strong>{selectedQueue?.stageLabel || "Watch"}</strong>
+                <p>{selectedQueue?.recommendedAction || "Validate buyer, office, vehicle, timing, and incumbent scope."}</p>
+              </article>
+            </div>
+          </Section>
+
+          <Section title="Connected Nodes" meta="budget, execution, and capture relationships" icon={GitBranch}>
+            <div className="relationship-node-grid" data-relationship-nodes>
+              <RelationshipNodeList title="Technology Areas" rows={areas} />
+              <RelationshipNodeList title="Buyers" rows={buyers} />
+              <RelationshipNodeList title="Incumbents" rows={vendors} />
+              <RelationshipNodeList title="Work Types" rows={workTypes} />
+              <RelationshipNodeList title="Pursuit Actions" rows={queueItems.map((item) => ({
+                id: item.id,
+                label: `${item.stageLabel} · ${item.buyer}`,
+                awardAmount: item.nearTermAwardAmount,
+                awards: item.nearTermAwards,
+                helper: item.recommendedAction,
+              }))} />
+            </div>
+          </Section>
+
+          <div className="grid grid--sources">
+            <Section title="Budget Lines" meta={`${budgetLines.length} linked source lines`} icon={FileText}>
+              <div className="relationship-line-list" data-relationship-budget-lines>
+                {budgetLines.slice(0, 8).map((line) => (
+                  <article key={line.id}>
+                    <div>
+                      <strong>{line.title}</strong>
+                      <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
+                    </div>
+                    <b>{money(line.fy2027)}</b>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Award Evidence" meta={`${awards.length.toLocaleString()} connected records`} icon={FileSpreadsheet}>
+              <div className="relationship-award-list" data-relationship-awards>
+                {awards.slice(0, 8).map((award) => (
+                  <article key={award.id}>
+                    <div>
+                      <strong>{award.awardId || award.id}</strong>
+                      <span>{award.recipient} · {award.buyerSubAgency} · {award.endDate ? `ends ${award.endDate}` : "end unknown"}</span>
+                    </div>
+                    <b>{money(award.awardAmount)}</b>
+                  </article>
+                ))}
+              </div>
+            </Section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RelationshipNodeList({ title, rows }) {
+  return (
+    <article className="relationship-node-list">
+      <header>
+        <span>{title}</span>
+        <b>{rows.length}</b>
+      </header>
+      <div>
+        {rows.slice(0, 5).map((row) => (
+          <span key={row.id}>
+            <strong>{row.label}</strong>
+            <em>{row.helper || `${money(row.awardAmount || 0)} · ${row.awards || 0} awards`}</em>
+          </span>
         ))}
       </div>
     </article>
@@ -1439,11 +1699,95 @@ function Pursuits() {
   );
 }
 
+function LaneBrief({ item }) {
+  if (!item) return null;
+  const area = STRATEGY.technologyAreas?.find((technologyArea) => technologyArea.id === item.areaId);
+  const alignment = STRATEGY.budgetExecutionAlignment?.find((lane) => lane.id === item.areaId);
+  const sampleAwards = item.sampleAwards || EMPTY_ROWS;
+  const sourceLines = area?.topLines || EMPTY_ROWS;
+  const nextActions = [
+    item.recommendedAction,
+    "Confirm buyer office, vehicle, and end-date meaning",
+    "Check active SAM.gov notices and amendment history",
+    "Map incumbent role against Sabre-relevant service wedges",
+  ];
+
+  return (
+    <Section title="Lane Brief" meta={`${item.buyer} / ${item.area}`} icon={FileText}>
+      <div className="lane-brief" data-lane-brief>
+        <article className="lane-brief__main">
+          <header>
+            <div>
+              <span>{item.stageLabel} · {item.urgency}</span>
+              <strong>{item.buyer}</strong>
+            </div>
+            <b>{item.score}</b>
+          </header>
+          <p>{item.rationale}</p>
+          <dl>
+            <div>
+              <dt>Budget signal</dt>
+              <dd>{area ? `${money(area.fy2027)} FY2027 · ${pct(area.growth)}` : "n/a"}</dd>
+            </div>
+            <div>
+              <dt>Execution signal</dt>
+              <dd>{money(item.activeAwardAmount)} active · {money(item.nearTermAwardAmount)} near-term</dd>
+            </div>
+            <div>
+              <dt>Timing</dt>
+              <dd>{item.nextEndDate || "n/a"} · {Number.isFinite(item.daysUntilNextEnd) ? `${item.daysUntilNextEnd} days` : "unknown"}</dd>
+            </div>
+            <div>
+              <dt>Incumbent</dt>
+              <dd>{item.topIncumbent} · {percent(item.incumbentShare, 0)}</dd>
+            </div>
+            <div>
+              <dt>Alignment</dt>
+              <dd>{alignment ? `${alignment.score} · ${alignment.confidence}` : `${item.areaAlignmentScore} score`}</dd>
+            </div>
+            <div>
+              <dt>Fit</dt>
+              <dd>{item.serviceFit}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article>
+          <span>Next actions</span>
+          <ul>
+            {nextActions.map((action) => <li key={action}>{action}</li>)}
+          </ul>
+        </article>
+
+        <article>
+          <span>Open gaps</span>
+          <ul>
+            {(item.dataGaps || []).map((gap) => <li key={gap}>{gap}</li>)}
+          </ul>
+        </article>
+
+        <article>
+          <span>Evidence trail</span>
+          <div className="lane-brief__evidence">
+            {sourceLines.slice(0, 3).map((line) => (
+              <p key={line.id}><strong>{line.title}</strong>{line.orgName} · {money(line.fy2027)}</p>
+            ))}
+            {sampleAwards.slice(0, 3).map((award) => (
+              <p key={award.id}><strong>{award.awardId || award.id}</strong>{award.recipient} · {money(award.awardAmount)} · ends {award.endDate || "n/a"}</p>
+            ))}
+          </div>
+        </article>
+      </div>
+    </Section>
+  );
+}
+
 function CaptureQueue() {
   const items = CAPTURE_QUEUE.items || EMPTY_ROWS;
   const summary = CAPTURE_QUEUE.summary || {};
   const stageCounts = CAPTURE_QUEUE.stageCounts || EMPTY_ROWS;
   const [filters, setFilters] = useState({ query: "", stage: "all", area: "all", buyer: "all", sort: "score" });
+  const [selectedItemId, setSelectedItemId] = useState(() => items[0]?.id || "");
   const stageOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.stage, label: item.stageLabel })), [items]);
   const areaOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.areaId, label: item.area })), [items]);
   const buyerOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.buyer, label: item.buyer })), [items]);
@@ -1471,14 +1815,15 @@ function CaptureQueue() {
     if (filters.sort === "alignment") return b.areaAlignmentScore - a.areaAlignmentScore || b.score - a.score;
     return b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount;
   });
+  const selectedItem = filteredItems.find((item) => item.id === selectedItemId) || filteredItems[0];
 
   return (
     <div className="grid capture-page" data-capture-queue-page>
       <section className="capture-hero">
         <div>
-          <span>Capture action queue</span>
+          <span>Pursuit cockpit</span>
           <h2>What To Validate Next</h2>
-          <p>Generated pursuit actions ranked from budget/execution alignment, active award value, near-term end dates, coded work type, and incumbent concentration. Each item stays marked as validation work until live SAM.gov and FPDS/SAM details are attached.</p>
+          <p>Generated pursuit actions ranked from budget/execution alignment, active award value, near-term end dates, coded work type, and incumbent concentration. Select a lane to see its brief, evidence trail, open gaps, and next capture actions.</p>
         </div>
         <div className="capture-hero__facts" aria-label="Capture queue summary">
           <article>
@@ -1495,7 +1840,7 @@ function CaptureQueue() {
           </article>
           <article>
             <strong>{summary.topItem || "n/a"}</strong>
-            <span>top queue item</span>
+            <span>top cockpit lane</span>
           </article>
         </div>
       </section>
@@ -1547,10 +1892,17 @@ function CaptureQueue() {
         ))}
       </div>
 
-      <Section title="Capture Queue" meta={`${filteredItems.length.toLocaleString()} matched generated actions`} icon={ListChecks}>
+      <LaneBrief item={selectedItem} />
+
+      <Section title="Pursuit Cockpit" meta={`${filteredItems.length.toLocaleString()} matched generated actions`} icon={ListChecks}>
         <div className="capture-queue-grid" data-capture-queue-items>
           {filteredItems.map((item) => (
-            <article key={item.id} className="capture-queue-card">
+            <button
+              key={item.id}
+              type="button"
+              className={`capture-queue-card${selectedItem?.id === item.id ? " active" : ""}`}
+              onClick={() => setSelectedItemId(item.id)}
+            >
               <header>
                 <div>
                   <span>{item.stageLabel} · {item.urgency}</span>
@@ -1584,7 +1936,7 @@ function CaptureQueue() {
                   SAM search <ExternalLink size={12} aria-hidden="true" />
                 </a>
               </footer>
-            </article>
+            </button>
           ))}
         </div>
       </Section>
@@ -2278,7 +2630,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -2353,6 +2705,7 @@ function App() {
         {activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
+        {activeTab === "relationships" ? <RelationshipMap /> : null}
         {activeTab === "awards" ? <Awards /> : null}
         {activeTab === "pursuits" ? <Pursuits /> : null}
         {activeTab === "queue" ? <CaptureQueue /> : null}
