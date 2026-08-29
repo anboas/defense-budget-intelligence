@@ -1109,6 +1109,7 @@ button {
 }
 
 .strategy-hero,
+.hypotheses-hero,
 .relationship-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
@@ -1120,13 +1121,19 @@ button {
 }
 
 .strategy-hero > div:first-child,
+.hypotheses-hero > div:first-child,
 .relationship-hero > div:first-child {
   min-width: 0;
   padding: 18px;
   box-shadow: inset 4px 0 0 var(--brand);
 }
 
+.hypotheses-hero > div:first-child {
+  box-shadow: inset 4px 0 0 var(--orange);
+}
+
 .strategy-hero span,
+.hypotheses-hero span,
 .relationship-hero span {
   display: block;
   color: var(--brand);
@@ -1135,7 +1142,12 @@ button {
   text-transform: uppercase;
 }
 
+.hypotheses-hero span {
+  color: var(--orange);
+}
+
 .strategy-hero h2,
+.hypotheses-hero h2,
 .relationship-hero h2 {
   margin: 4px 0 6px;
   font-size: 24px;
@@ -1144,6 +1156,7 @@ button {
 }
 
 .strategy-hero p,
+.hypotheses-hero p,
 .relationship-hero p {
   max-width: 960px;
   margin: 0;
@@ -1154,6 +1167,7 @@ button {
 }
 
 .strategy-hero__facts,
+.hypotheses-hero__facts,
 .relationship-hero__facts,
 .award-hero__facts,
 .pursuit-hero__facts,
@@ -1185,12 +1199,20 @@ button {
 .relationship-line-list,
 .relationship-award-list,
 .lane-brief,
-.lane-brief__evidence {
+.lane-brief__evidence,
+.hypothesis-shell,
+.hypothesis-picker,
+.hypothesis-workspace,
+.hypothesis-thesis,
+.hypothesis-metrics,
+.hypothesis-list,
+.hypothesis-validation-grid {
   display: grid;
   gap: 10px;
 }
 
 .strategy-hero__facts,
+.hypotheses-hero__facts,
 .relationship-hero__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 10px;
@@ -1299,7 +1321,8 @@ button {
   color: var(--muted);
 }
 
-.relationship-hero__facts article {
+.relationship-hero__facts article,
+.hypotheses-hero__facts article {
   display: grid;
   align-content: center;
   min-height: 70px;
@@ -1309,16 +1332,187 @@ button {
   background: var(--surface-muted);
 }
 
-.relationship-hero__facts strong {
+.relationship-hero__facts strong,
+.hypotheses-hero__facts strong {
   color: var(--text);
   font-size: 22px;
   font-weight: 850;
   line-height: 1;
 }
 
-.relationship-hero__facts span {
+.relationship-hero__facts span,
+.hypotheses-hero__facts span {
   margin-top: 5px;
   color: var(--muted);
+}
+
+.hypothesis-shell {
+  grid-template-columns: minmax(285px, 0.3fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.hypothesis-picker {
+  position: sticky;
+  top: 74px;
+  max-height: calc(100vh - 94px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.hypothesis-picker button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 6px;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: inherit;
+  text-align: left;
+}
+
+.hypothesis-picker button.active,
+.hypothesis-picker button:hover {
+  border-color: var(--orange);
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.hypothesis-picker span,
+.hypothesis-picker strong,
+.hypothesis-picker em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hypothesis-picker span {
+  color: var(--orange);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.hypothesis-picker strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.hypothesis-picker em {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.hypothesis-thesis {
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.6fr);
+}
+
+.hypothesis-thesis article,
+.hypothesis-metrics article,
+.hypothesis-list article,
+.hypothesis-validation-grid article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.hypothesis-thesis article,
+.hypothesis-metrics article {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.hypothesis-thesis span,
+.hypothesis-metrics span,
+.hypothesis-validation-grid span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.hypothesis-thesis p,
+.hypothesis-metrics p,
+.hypothesis-list article {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.hypothesis-thesis a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  min-height: 26px;
+  padding: 4px 7px;
+  border: 1px solid var(--orange);
+  border-radius: 4px;
+  color: var(--orange);
+  font-size: 10.5px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.hypothesis-metrics {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.hypothesis-metrics strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hypothesis-list article {
+  color: var(--text);
+}
+
+.hypothesis-list--counterpoints article {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.hypothesis-list--evidence article {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.hypothesis-validation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.hypothesis-validation-grid article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.hypothesis-validation-grid strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .relationship-shell {
@@ -2649,6 +2843,10 @@ button {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.pursuit-source-summary[data-hypothesis-evidence] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .pursuit-source-summary article {
   display: grid;
   gap: 5px;
@@ -3427,7 +3625,9 @@ td .dot {
   .pursuit-hero,
   .capture-hero,
   .strategy-hero,
+  .hypotheses-hero,
   .relationship-hero,
+  .hypothesis-shell,
   .relationship-shell,
   .source-register,
   .source-roadmap,
@@ -3453,6 +3653,9 @@ td .dot {
   .capture-queue-grid,
   .pursuit-source-summary,
   .area-execution-grid,
+  .hypothesis-thesis,
+  .hypothesis-metrics,
+  .hypothesis-validation-grid,
   .relationship-brief,
   .relationship-node-grid,
   .lane-brief {
@@ -3460,6 +3663,11 @@ td .dot {
   }
 
   .relationship-picker {
+    position: static;
+    max-height: 360px;
+  }
+
+  .hypothesis-picker {
     position: static;
     max-height: 360px;
   }
@@ -3660,6 +3868,7 @@ td .dot {
   .award-hero__facts,
   .pursuit-hero__facts,
   .capture-hero__facts,
+  .hypotheses-hero__facts,
   .relationship-hero__facts,
   .justification-evidence-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3715,6 +3924,10 @@ td .dot {
     gap: 0;
   }
 
+  .hypotheses-hero {
+    gap: 0;
+  }
+
   .relationship-hero {
     gap: 0;
   }
@@ -3736,6 +3949,10 @@ td .dot {
   }
 
   .capture-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .hypotheses-hero > div:first-child {
     padding: 14px;
   }
 
@@ -3763,6 +3980,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .hypotheses-hero h2 {
+    font-size: 22px;
+  }
+
   .relationship-hero h2 {
     font-size: 22px;
   }
@@ -3784,6 +4005,10 @@ td .dot {
   }
 
   .capture-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .hypotheses-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -3811,6 +4036,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .hypotheses-hero__facts article {
+    min-height: 64px;
+  }
+
   .relationship-hero__facts article {
     min-height: 64px;
   }
@@ -3832,6 +4061,10 @@ td .dot {
   }
 
   .capture-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .hypotheses-hero__facts strong {
     font-size: 20px;
   }
 
@@ -3902,6 +4135,9 @@ td .dot {
   .capture-queue-grid,
   .pursuit-source-summary,
   .area-execution-grid,
+  .hypothesis-thesis,
+  .hypothesis-metrics,
+  .hypothesis-validation-grid,
   .relationship-brief,
   .relationship-node-grid,
   .lane-brief {
@@ -3909,6 +4145,10 @@ td .dot {
   }
 
   .relationship-picker {
+    max-height: 310px;
+  }
+
+  .hypothesis-picker {
     max-height: 310px;
   }
 

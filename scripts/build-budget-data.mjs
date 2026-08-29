@@ -2042,6 +2042,87 @@ const captureQueue = {
   items: captureQueueItems,
 };
 
+function hypothesisConfidence(item, area) {
+  const evidenceScore = area?.narrativeConfirmedRecords ? 14 : area?.evidenceBackedRecords ? 8 : 3;
+  const timingScore = item.stage === "act-now" ? 14 : item.stage === "validate" ? 9 : 5;
+  const executionScore = Math.min(item.activeAwardAmount / Math.max(maxPursuitLaneValue, 1) * 28, 28);
+  const alignmentScore = Math.min((item.areaAlignmentScore || 0) * 0.45, 24);
+  const workTypeScore = item.workType?.id === "uncoded" ? 2 : 8;
+  return Math.round(evidenceScore + timingScore + executionScore + alignmentScore + workTypeScore);
+}
+
+const pursuitHypothesisItems = captureQueueItems.slice(0, 10).map((item, index) => {
+  const area = technologyAreaRows.find((technologyArea) => technologyArea.id === item.areaId);
+  const areaAlignment = budgetExecutionAlignment.find((alignment) => alignment.id === item.areaId);
+  const confidence = hypothesisConfidence(item, area);
+  const leadingAward = item.sampleAwards?.[0];
+  const title = `${item.buyer} ${item.area} is a ${item.stage === "act-now" ? "near-term" : "validation"} pursuit lane`;
+  return {
+    id: `hypothesis:${item.id}`,
+    rank: index + 1,
+    status: item.stageLabel,
+    urgency: item.urgency,
+    confidence,
+    confidenceLabel: confidence >= 70 ? "Strong thesis" : confidence >= 50 ? "Needs validation" : "Watch thesis",
+    title,
+    thesis: `${item.buyer} / ${item.area} should be treated as a pursuit hypothesis because budget scale, sampled execution spend, contract timing, and incumbent concentration all point to a concrete validation path.`,
+    buyer: item.buyer,
+    buyerGroup: item.buyerGroup,
+    areaId: item.areaId,
+    area: item.area,
+    workType: item.workType,
+    topIncumbent: item.topIncumbent,
+    score: item.score,
+    samSearchUrl: item.samSearchUrl,
+    relationshipEntityId: `lane:${item.id}`,
+    metrics: {
+      budgetFy2027: area?.fy2027 || 0,
+      budgetGrowth: area?.growth || 0,
+      budgetRecords: area?.records || 0,
+      narrativeConfirmedRecords: area?.narrativeConfirmedRecords || 0,
+      alignmentScore: areaAlignment?.score || item.areaAlignmentScore || 0,
+      activeAwardAmount: item.activeAwardAmount,
+      activeAwards: item.activeAwards,
+      nearTermAwardAmount: item.nearTermAwardAmount,
+      nearTermAwards: item.nearTermAwards,
+      nextEndDate: item.nextEndDate,
+      daysUntilNextEnd: item.daysUntilNextEnd,
+      incumbentShare: item.incumbentShare,
+    },
+    evidence: [
+      `${area ? `${round(area.fy2027)}B FY2027 tagged request value` : "Budget-tagged technology area"} across ${area?.records || 0} visible source lines.`,
+      `${round(item.activeAwardAmount)}B sampled active award value, with ${round(item.nearTermAwardAmount)}B tied to awards ending within 24 months.`,
+      `${item.topIncumbent} leads the sampled lane at ${item.incumbentShare}% incumbent share.`,
+      `${item.workType?.label || "Uncoded work type"} is the clearest coded execution lane.`,
+      leadingAward ? `${leadingAward.awardId || leadingAward.id} is an example award ending ${leadingAward.endDate || "on an unknown date"} with ${leadingAward.recipient}.` : "Sample award evidence remains thin.",
+    ],
+    counterpoints: [
+      "USAspending award matches are keyword-sampled and not yet a clean budget-line-to-contract join.",
+      "SAM.gov live opportunity notices are not yet attached to the lane.",
+      "Contracting office and vehicle fields still need FPDS/SAM enrichment before capture action is final.",
+    ],
+    validationTasks: [
+      item.recommendedAction,
+      "Validate live SAM.gov notices and recent amendments.",
+      "Join FPDS/SAM for contracting office, vehicle, and action history.",
+      "Confirm whether the end date represents the final period of performance or one action on a larger vehicle.",
+    ],
+    linkedBudgetLines: (area?.topLines || []).slice(0, 4),
+    linkedAwards: item.sampleAwards || [],
+  };
+});
+
+const pursuitHypotheses = {
+  summary: {
+    hypotheses: pursuitHypothesisItems.length,
+    strongHypotheses: pursuitHypothesisItems.filter((item) => item.confidence >= 70).length,
+    validationHypotheses: pursuitHypothesisItems.filter((item) => item.confidence >= 50 && item.confidence < 70).length,
+    actNowHypotheses: pursuitHypothesisItems.filter((item) => item.status === "Act Now").length,
+    topHypothesis: pursuitHypothesisItems[0]?.title || "n/a",
+  },
+  items: pursuitHypothesisItems,
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -2122,6 +2203,9 @@ const strategyAnalytics = {
     captureQueueItems: captureQueue.summary.items,
     captureQueueActNowItems: captureQueue.summary.actNowItems,
     topCaptureQueueItem: captureQueue.summary.topItem,
+    pursuitHypothesisCount: pursuitHypotheses.summary.hypotheses,
+    strongPursuitHypotheses: pursuitHypotheses.summary.strongHypotheses,
+    topPursuitHypothesis: pursuitHypotheses.summary.topHypothesis,
   },
   readouts: [
     {
@@ -2191,6 +2275,13 @@ const strategyAnalytics = {
       tone: "orange",
     },
     {
+      id: "pursuit-hypotheses",
+      label: "Pursuit hypotheses",
+      value: pursuitHypotheses.summary.hypotheses,
+      helper: `${pursuitHypotheses.summary.strongHypotheses} strong theses connect budget, execution, timing, evidence, and validation tasks.`,
+      tone: "blue",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -2203,6 +2294,7 @@ const strategyAnalytics = {
   strategyIntersections,
   budgetExecutionAlignment,
   buyerPursuitLanes,
+  pursuitHypotheses,
   justificationCoverage,
   executionAnalytics: {
     coverage: executionCoverage,

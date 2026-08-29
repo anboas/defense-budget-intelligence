@@ -12,6 +12,7 @@ import {
   Filter,
   GitBranch,
   Layers,
+  Lightbulb,
   ListChecks,
   Network,
   RefreshCcw,
@@ -26,6 +27,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
+  { id: "hypotheses", label: "Hypotheses", icon: Lightbulb },
   { id: "relationships", label: "Relationships", icon: Network },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "pursuits", label: "Pursuits", icon: CalendarClock },
@@ -47,6 +49,7 @@ const HASH_ROUTES = {
   overview: "#/budget-spend",
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
+  hypotheses: "#/budget-spend/hypotheses",
   relationships: "#/budget-spend/relationships",
   awards: "#/budget-spend/awards",
   pursuits: "#/budget-spend/pursuits",
@@ -118,6 +121,7 @@ const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverag
 const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
 const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
 const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], items: [] };
+const HYPOTHESES = STRATEGY.pursuitHypotheses || { summary: {}, items: [] };
 const EMPTY_ROWS = Object.freeze([]);
 
 function money(value, digits = 1) {
@@ -540,6 +544,155 @@ function RelationshipNodeList({ title, rows }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function Hypotheses() {
+  const items = HYPOTHESES.items || EMPTY_ROWS;
+  const summary = HYPOTHESES.summary || {};
+  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const selected = items.find((item) => item.id === selectedId) || items[0];
+  const selectedMetricRows = selected ? [
+    { label: "Budget signal", value: money(selected.metrics?.budgetFy2027), helper: `${selected.metrics?.budgetRecords || 0} lines · ${pct(selected.metrics?.budgetGrowth || 0)}` },
+    { label: "Execution signal", value: money(selected.metrics?.activeAwardAmount), helper: `${selected.metrics?.activeAwards || 0} active awards` },
+    { label: "Near-term value", value: money(selected.metrics?.nearTermAwardAmount), helper: `${selected.metrics?.nearTermAwards || 0} awards ending within 24 months` },
+    { label: "Incumbent share", value: percent(selected.metrics?.incumbentShare, 0), helper: selected.topIncumbent },
+    { label: "Alignment", value: selected.metrics?.alignmentScore || 0, helper: `${selected.metrics?.narrativeConfirmedRecords || 0} narrative-confirmed lines` },
+    { label: "Timing", value: selected.metrics?.nextEndDate || "n/a", helper: Number.isFinite(selected.metrics?.daysUntilNextEnd) ? `${selected.metrics.daysUntilNextEnd} days` : "unknown" },
+  ] : [];
+
+  return (
+    <div className="grid hypotheses-page" data-hypotheses-page>
+      <section className="hypotheses-hero">
+        <div>
+          <span>Hypothesis model</span>
+          <h2>Pursuit Hypotheses</h2>
+          <p>Generated theses that connect budget posture, execution spend, contract timing, incumbent concentration, source evidence, counterpoints, and validation work into a decision record.</p>
+        </div>
+        <div className="hypotheses-hero__facts" aria-label="Hypothesis summary">
+          <article>
+            <strong>{summary.hypotheses || items.length}</strong>
+            <span>hypotheses</span>
+          </article>
+          <article>
+            <strong>{summary.strongHypotheses || 0}</strong>
+            <span>strong theses</span>
+          </article>
+          <article>
+            <strong>{summary.actNowHypotheses || 0}</strong>
+            <span>act-now theses</span>
+          </article>
+          <article>
+            <strong>{summary.topHypothesis || "n/a"}</strong>
+            <span>top thesis</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="hypothesis-shell">
+        <aside className="hypothesis-picker" data-hypothesis-picker>
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={selected?.id === item.id ? "active" : ""}
+              onClick={() => setSelectedId(item.id)}
+            >
+              <span>#{item.rank} · {item.status} · {item.confidenceLabel}</span>
+              <strong>{item.title}</strong>
+              <em>{item.buyer} · {item.workType?.label || "Uncoded"}</em>
+            </button>
+          ))}
+        </aside>
+
+        {selected ? (
+          <div className="hypothesis-workspace">
+            <Section title={selected.title} meta={`${selected.confidenceLabel} · confidence ${selected.confidence}`} icon={Lightbulb}>
+              <div className="hypothesis-thesis" data-hypothesis-thesis>
+                <article>
+                  <span>Thesis</span>
+                  <p>{selected.thesis}</p>
+                </article>
+                <article>
+                  <span>Capture action</span>
+                  <p>{selected.validationTasks?.[0]}</p>
+                  <a href={selected.samSearchUrl} target="_blank" rel="noreferrer">
+                    SAM search <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                </article>
+              </div>
+            </Section>
+
+            <Section title="Evidence Board" meta="budget, execution, timing, and incumbent signals" icon={BarChart3}>
+              <div className="hypothesis-metrics" data-hypothesis-metrics>
+                {selectedMetricRows.map((row) => (
+                  <article key={row.label}>
+                    <span>{row.label}</span>
+                    <strong>{row.value}</strong>
+                    <p>{row.helper}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Evidence" meta={`${selected.evidence?.length || 0} supporting points`} icon={FileText}>
+                <div className="hypothesis-list hypothesis-list--evidence" data-hypothesis-evidence>
+                  {(selected.evidence || []).map((item) => <article key={item}>{item}</article>)}
+                </div>
+              </Section>
+
+              <Section title="Counterpoints" meta="what can break the thesis" icon={Filter}>
+                <div className="hypothesis-list hypothesis-list--counterpoints" data-hypothesis-counterpoints>
+                  {(selected.counterpoints || []).map((item) => <article key={item}>{item}</article>)}
+                </div>
+              </Section>
+            </div>
+
+            <Section title="Validation Plan" meta="turn the thesis into a capture decision" icon={ListChecks}>
+              <div className="hypothesis-validation-grid" data-hypothesis-validation>
+                {(selected.validationTasks || []).map((task, index) => (
+                  <article key={task}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{task}</strong>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
+                <div className="relationship-line-list" data-hypothesis-budget-lines>
+                  {(selected.linkedBudgetLines || []).map((line) => (
+                    <article key={line.id}>
+                      <div>
+                        <strong>{line.title}</strong>
+                        <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
+                      </div>
+                      <b>{money(line.fy2027)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Linked Awards" meta={`${selected.linkedAwards?.length || 0} award examples`} icon={FileSpreadsheet}>
+                <div className="relationship-award-list" data-hypothesis-awards>
+                  {(selected.linkedAwards || []).map((award) => (
+                    <article key={award.id}>
+                      <div>
+                        <strong>{award.awardId || award.id}</strong>
+                        <span>{award.recipient} · {award.endDate ? `ends ${award.endDate}` : "end unknown"}</span>
+                      </div>
+                      <b>{money(award.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -2314,6 +2467,31 @@ function Sources() {
         </div>
       </Section>
 
+      <Section title="Hypothesis Coverage" meta="generated pursuit theses from queue, timing, execution, and evidence signals" icon={Lightbulb}>
+        <div className="pursuit-source-summary" data-hypothesis-evidence>
+          <article>
+            <strong>{HYPOTHESES.summary?.hypotheses || 0}</strong>
+            <span>generated theses</span>
+            <p>Each thesis connects one top pursuit lane to budget evidence, execution evidence, timing, and validation work.</p>
+          </article>
+          <article>
+            <strong>{HYPOTHESES.summary?.strongHypotheses || 0}</strong>
+            <span>strong theses</span>
+            <p>Confidence rises when narrative evidence, timing urgency, execution value, alignment score, and work-type coding reinforce one another.</p>
+          </article>
+          <article>
+            <strong>{HYPOTHESES.summary?.actNowHypotheses || 0}</strong>
+            <span>act-now theses</span>
+            <p>Act-now status is inherited from active awards with near-term end dates in the sampled execution model.</p>
+          </article>
+          <article>
+            <strong>{HYPOTHESES.summary?.topHypothesis || "n/a"}</strong>
+            <span>top thesis</span>
+            <p>Hypotheses remain generated decision records until SAM.gov and FPDS/SAM validation are attached.</p>
+          </article>
+        </div>
+      </Section>
+
       <Section title="Source Health Monitor" meta={`checked ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className="source-health-summary">
           <article>
@@ -2630,7 +2808,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "hypotheses", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -2705,6 +2883,7 @@ function App() {
         {activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
+        {activeTab === "hypotheses" ? <Hypotheses /> : null}
         {activeTab === "relationships" ? <RelationshipMap /> : null}
         {activeTab === "awards" ? <Awards /> : null}
         {activeTab === "pursuits" ? <Pursuits /> : null}

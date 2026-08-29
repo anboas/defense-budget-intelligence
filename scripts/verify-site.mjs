@@ -89,6 +89,7 @@ try {
   assert.match(strategyText, /Budget \/ Execution Alignment/i);
   assert.match(strategyText, /FY2025-FY2026 contract obligations/i);
   assert.match(strategyText, /Buyer Pursuit Lanes/i);
+  assert.match(strategyText, /Pursuit hypotheses/i);
   assert.match(strategyText, /technology area, buyer, work type, and incumbent signal/i);
   assert.match(strategyText, /Execution Signals/i);
   assert.match(strategyText, /Strategy Questions/i);
@@ -110,6 +111,23 @@ try {
   assert.equal(await page.locator("[data-talking-points] article").count(), 3, "Strategy should show talking points");
   assert.ok(await page.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Strategy should show narrative evidence cards");
   assert.ok(await page.locator("[data-strategy-line-table] tbody tr").count() >= 4, "Strategy should show source-line examples");
+  await page.getByRole("button", { name: /Hypotheses/ }).click();
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/hypotheses", "Hypotheses should deep-link through hash route");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Hypotheses", "Header should track Hypotheses route title");
+  assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Hypotheses should not render budget line filters");
+  const hypothesesText = await page.locator("[data-defense-budget-app]").innerText();
+  assert.match(hypothesesText, /Pursuit Hypotheses/i);
+  assert.match(hypothesesText, /Hypothesis model/i);
+  assert.match(hypothesesText, /Evidence Board/i);
+  assert.match(hypothesesText, /Counterpoints/i);
+  assert.match(hypothesesText, /Validation Plan/i);
+  assert.match(hypothesesText, /Linked Budget Lines/i);
+  assert.match(hypothesesText, /Linked Awards/i);
+  assert.equal(await page.locator("[data-hypothesis-picker] button").count(), 10, "Hypotheses should expose ten generated theses");
+  assert.equal(await page.locator("[data-hypothesis-metrics] article").count(), 6, "Hypotheses should show six evidence metrics");
+  assert.equal(await page.locator("[data-hypothesis-validation] article").count(), 4, "Hypotheses should show four validation tasks");
+  assert.ok(await page.locator("[data-hypothesis-budget-lines] article").count() >= 1, "Hypotheses should show linked budget lines");
+  assert.ok(await page.locator("[data-hypothesis-awards] article").count() >= 1, "Hypotheses should show linked awards");
   await page.getByRole("button", { name: /Relationships/ }).click();
   assert.equal(new URL(page.url()).hash, "#/budget-spend/relationships", "Relationships should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Relationships", "Header should track Relationships route title");
@@ -201,6 +219,7 @@ try {
   assert.match(sourcesText, /Buyer Pursuit Lane Coverage/i);
   assert.match(sourcesText, /Pursuit Timing Coverage/i);
   assert.match(sourcesText, /Capture Queue Coverage/i);
+  assert.match(sourcesText, /Hypothesis Coverage/i);
   assert.match(sourcesText, /sampled award value/i);
   assert.match(sourcesText, /confirmed tech lines/i);
   assert.match(sourcesText, /tagged records/i);
@@ -216,6 +235,7 @@ try {
   assert.equal(await page.locator("[data-pursuit-lane-evidence] article").count(), 3, "Data Sources should expose pursuit lane evidence summary");
   assert.equal(await page.locator("[data-pursuit-timing-evidence] article").count(), 4, "Data Sources should expose pursuit timing evidence summary");
   assert.equal(await page.locator("[data-capture-queue-evidence] article").count(), 3, "Data Sources should expose capture queue evidence summary");
+  assert.equal(await page.locator("[data-hypothesis-evidence] article").count(), 4, "Data Sources should expose hypothesis evidence summary");
   assert.equal(await page.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Data Sources should expose six source coverage diagnostics");
   assert.equal(await page.locator("[data-source-join-map] .join-path-card").count(), 4, "Data Sources should expose four source join paths");
   assert.equal(await page.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Data Sources should expose five priority points");
@@ -260,6 +280,14 @@ try {
   assert.equal(await mobile.locator("[data-buyer-pursuit-lanes] .buyer-pursuit-card").count(), 12, "Mobile Strategy should show buyer pursuit lanes");
   assert.ok(await mobile.locator("[data-area-execution] article").count() >= 2, "Mobile Strategy should show execution signals");
   assert.ok(await mobile.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Mobile Strategy should show narrative evidence cards");
+  await mobile.getByRole("button", { name: /Hypotheses/ }).click();
+  assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Hypotheses should not render budget line filters");
+  assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Pursuit Hypotheses/i);
+  assert.equal(await mobile.locator("[data-hypothesis-picker] button").count(), 10, "Mobile Hypotheses should expose ten generated theses");
+  assert.equal(await mobile.locator("[data-hypothesis-metrics] article").count(), 6, "Mobile Hypotheses should show evidence metrics");
+  assert.equal(await mobile.locator("[data-hypothesis-validation] article").count(), 4, "Mobile Hypotheses should show validation tasks");
+  assert.ok(await mobile.locator("[data-hypothesis-budget-lines] article").count() >= 1, "Mobile Hypotheses should show budget lines");
+  assert.ok(await mobile.locator("[data-hypothesis-awards] article").count() >= 1, "Mobile Hypotheses should show awards");
   await mobile.getByRole("button", { name: /Relationships/ }).click();
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Relationships should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Entity Relationship Map/i);
@@ -299,6 +327,7 @@ try {
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Buyer Pursuit Lane Coverage/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Pursuit Timing Coverage/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Capture Queue Coverage/i);
+  assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Hypothesis Coverage/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
   assert.equal(await mobile.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Mobile should show source health checks");
   assert.equal(await mobile.locator("[data-justification-evidence] article").count(), 4, "Mobile should show justification evidence summary");
@@ -306,6 +335,7 @@ try {
   assert.equal(await mobile.locator("[data-pursuit-lane-evidence] article").count(), 3, "Mobile should show pursuit lane evidence summary");
   assert.equal(await mobile.locator("[data-pursuit-timing-evidence] article").count(), 4, "Mobile should show pursuit timing evidence summary");
   assert.equal(await mobile.locator("[data-capture-queue-evidence] article").count(), 3, "Mobile should show capture queue evidence summary");
+  assert.equal(await mobile.locator("[data-hypothesis-evidence] article").count(), 4, "Mobile should show hypothesis evidence summary");
   assert.equal(await mobile.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Mobile should show source coverage diagnostics");
   assert.equal(await mobile.locator("[data-source-join-map] .join-path-card").count(), 4, "Mobile should show source join paths");
   assert.equal(await mobile.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Mobile should show priority matrix items");
