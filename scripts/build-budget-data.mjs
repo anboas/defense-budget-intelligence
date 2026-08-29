@@ -304,6 +304,45 @@ const TECHNOLOGY_AREAS = [
   },
 ];
 
+const CAPABILITY_WEDGES = [
+  {
+    id: "data-ai-delivery",
+    label: "Data / AI Delivery",
+    fit: "AI/ML delivery, analytics engineering, data pipelines, model operations, and decision-support modernization",
+    areaIds: ["ai-decision-advantage", "cloud-data-platforms", "software-digital-engineering"],
+  },
+  {
+    id: "software-devsecops",
+    label: "Software / DevSecOps",
+    fit: "software factory support, agile delivery, DevSecOps, platform engineering, digital engineering, and sustainment software refresh",
+    areaIds: ["software-digital-engineering", "cloud-data-platforms", "cyber-operations"],
+  },
+  {
+    id: "cyber-zero-trust",
+    label: "Cyber / Zero Trust",
+    fit: "cyber mission engineering, zero trust, security operations, cloud security, identity, and assurance modernization",
+    areaIds: ["cyber-operations", "cloud-data-platforms", "software-digital-engineering"],
+  },
+  {
+    id: "systems-mission-engineering",
+    label: "Systems / Mission Engineering",
+    fit: "systems engineering, mission integration, test support, modeling, simulation, range support, and technical program execution",
+    areaIds: ["space-systems", "missiles-fires", "autonomous-systems", "aircraft-aviation"],
+  },
+  {
+    id: "sustainment-readiness",
+    label: "Sustainment / Readiness Analytics",
+    fit: "sustainment analytics, maintenance modernization, logistics systems, readiness reporting, and lifecycle engineering support",
+    areaIds: ["readiness-sustainment", "aircraft-aviation", "shipbuilding-maritime"],
+  },
+  {
+    id: "infrastructure-program-support",
+    label: "Infrastructure / Program Support",
+    fit: "program management, acquisition support, facilities data, resilient infrastructure planning, and installation modernization",
+    areaIds: ["installations-infrastructure", "cloud-data-platforms", "readiness-sustainment"],
+  },
+];
+
 function unzipText(file, path) {
   return execFileSync("unzip", ["-p", file, path], { encoding: "utf8", maxBuffer: 120 * 1024 * 1024 });
 }
@@ -2232,6 +2271,126 @@ const accountPlans = {
   items: accountPlanItems,
 };
 
+function capabilityScore({ budgetFy2027, obligationAmount, nearTermAwardAmount, accountCount, actionCount, hypothesisCount, evidenceLines }) {
+  return Math.min(100, Math.round(
+    Math.min((budgetFy2027 / Math.max(sum(technologyTaggedRecords, "fy2027"), 1)) * 35, 35)
+    + Math.min((obligationAmount / Math.max(executionCoverage.uniqueAwardValue || 1, 1)) * 25, 25)
+    + Math.min((nearTermAwardAmount / Math.max(pursuitTiming.summary.nearTermAwardValue || 1, 1)) * 22, 22)
+    + Math.min(accountCount * 2, 8)
+    + Math.min((actionCount + hypothesisCount) * 1.5, 7)
+    + (evidenceLines ? 3 : 0),
+  ));
+}
+
+const capabilityFitItems = CAPABILITY_WEDGES.map((capability) => {
+  const areas = capability.areaIds
+    .map((areaId) => technologyAreaRows.find((area) => area.id === areaId))
+    .filter(Boolean);
+  const areaIdSet = new Set(areas.map((area) => area.id));
+  const actions = captureQueueItems.filter((item) => areaIdSet.has(item.areaId));
+  const hypotheses = pursuitHypothesisItems.filter((item) => areaIdSet.has(item.areaId));
+  const accounts = accountPlanItems
+    .map((account) => {
+      const priorities = (account.areaPriorities || []).filter((priority) => areaIdSet.has(priority.areaId));
+      if (!priorities.length) return null;
+      return {
+        id: account.id,
+        buyer: account.buyer,
+        buyerGroup: account.buyerGroup,
+        score: account.score,
+        posture: account.posture,
+        nearTermAwardAmount: round(priorities.reduce((totalValue, priority) => totalValue + priority.nearTermAwardAmount, 0), 3),
+        activeAwardAmount: round(priorities.reduce((totalValue, priority) => totalValue + priority.activeAwardAmount, 0), 3),
+        priorityAreas: priorities.map((priority) => priority.area).slice(0, 3),
+        topIncumbent: priorities.sort((a, b) => b.activeAwardAmount - a.activeAwardAmount)[0]?.topIncumbent || account.topIncumbent,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.nearTermAwardAmount - a.nearTermAwardAmount || b.score - a.score)
+    .slice(0, 5);
+  const capabilityAwards = drilldownAwards.filter((award) => (
+    (award.areaIds || [award.areaId]).some((areaId) => areaIdSet.has(areaId))
+  ));
+  const activeCapabilityAwards = activeTimingAwards.filter((award) => (
+    (award.areaIds || []).some((areaId) => areaIdSet.has(areaId))
+  ));
+  const nearTermCapabilityAwards = activeCapabilityAwards.filter((award) => award.daysUntilEnd >= 0 && award.daysUntilEnd <= 730);
+  const budgetFy2027 = round(areas.reduce((totalValue, area) => totalValue + area.fy2027, 0));
+  const obligationAmount = round(areas.reduce((totalValue, area) => totalValue + (area.executionObligationAmount || 0), 0), 3);
+  const nearTermAwardAmount = round(nearTermCapabilityAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+  const linkedBudgetLines = areas
+    .flatMap((area) => area.topLines || [])
+    .sort((a, b) => b.fy2027 - a.fy2027)
+    .slice(0, 6);
+  const topIncumbents = aggregateAwards(capabilityAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 5);
+  const topBuyers = aggregateAwards(capabilityAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 5);
+  const topWorkTypes = aggregateAwards(capabilityAwards.filter((award) => award.pscCode || award.naicsCode), (award) => {
+    const workType = workTypeForAward(award);
+    return { id: workType.id, label: workType.label };
+  }).slice(0, 5);
+  const score = capabilityScore({
+    budgetFy2027,
+    obligationAmount,
+    nearTermAwardAmount,
+    accountCount: accounts.length,
+    actionCount: actions.length,
+    hypothesisCount: hypotheses.length,
+    evidenceLines: linkedBudgetLines.filter((line) => line.justificationEvidence).length,
+  });
+  return {
+    ...capability,
+    score,
+    posture: score >= 65 ? "Primary wedge" : score >= 45 ? "Strong fit" : "Validation fit",
+    budgetFy2027,
+    budgetRecords: areas.reduce((totalRecords, area) => totalRecords + area.records, 0),
+    narrativeConfirmedRecords: areas.reduce((totalRecords, area) => totalRecords + (area.narrativeConfirmedRecords || 0), 0),
+    obligationAmount,
+    awardAmount: round(capabilityAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+    awards: capabilityAwards.length,
+    nearTermAwardAmount,
+    nearTermAwards: nearTermCapabilityAwards.length,
+    areaMap: areas.map((area) => ({
+      id: area.id,
+      label: area.label,
+      fy2027: area.fy2027,
+      records: area.records,
+      executionObligationAmount: area.executionObligationAmount,
+      nearTermAwardAmount: round(nearTermCapabilityAwards
+        .filter((award) => (award.areaIds || []).includes(area.id))
+        .reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+      topBuyer: area.topExecutionBuyers?.[0]?.label || "n/a",
+      topVendor: area.topExecutionVendors?.[0]?.label || "n/a",
+    })).sort((a, b) => b.nearTermAwardAmount - a.nearTermAwardAmount || b.fy2027 - a.fy2027),
+    accountMatches: accounts,
+    captureActions: actions.slice(0, 5),
+    hypotheses: hypotheses.slice(0, 4),
+    topBuyers,
+    topIncumbents,
+    topWorkTypes,
+    linkedBudgetLines,
+    nearTermAwardsList: nearTermCapabilityAwards
+      .sort((a, b) => (a.daysUntilEnd ?? 99999) - (b.daysUntilEnd ?? 99999) || b.awardAmount - a.awardAmount)
+      .slice(0, 6),
+    validationPlan: [
+      "Pick the top buyer account and confirm the capability owner, office, and vehicle path.",
+      "Separate prime-contested work from subcontractable service wedges.",
+      "Validate whether the coded PSC/NAICS work type matches the actual delivery scope.",
+      "Attach live SAM.gov notices or forecast entries before treating this as a pursuit.",
+    ],
+  };
+}).sort((a, b) => b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount);
+
+const capabilityFit = {
+  summary: {
+    capabilities: capabilityFitItems.length,
+    primaryWedges: capabilityFitItems.filter((item) => item.posture === "Primary wedge").length,
+    nearTermAwardValue: round(capabilityFitItems.reduce((totalValue, item) => totalValue + item.nearTermAwardAmount, 0), 3),
+    topCapability: capabilityFitItems[0]?.label || "n/a",
+    topCapabilityFit: capabilityFitItems[0]?.fit || "n/a",
+  },
+  items: capabilityFitItems,
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -2318,6 +2477,9 @@ const strategyAnalytics = {
     accountPlanCount: accountPlans.summary.accounts,
     buildNowAccountPlans: accountPlans.summary.buildNowAccounts,
     topAccountPlan: accountPlans.summary.topAccount,
+    capabilityFitCount: capabilityFit.summary.capabilities,
+    primaryCapabilityWedges: capabilityFit.summary.primaryWedges,
+    topCapabilityFit: capabilityFit.summary.topCapability,
   },
   readouts: [
     {
@@ -2401,6 +2563,13 @@ const strategyAnalytics = {
       tone: "purple",
     },
     {
+      id: "capability-fit",
+      label: "Capability fit",
+      value: capabilityFit.summary.capabilities,
+      helper: `${capabilityFit.summary.topCapability} is the strongest generated capability wedge from budget, execution, timing, account, and hypothesis signals.`,
+      tone: "green",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -2425,6 +2594,7 @@ const strategyAnalytics = {
     pursuitTiming,
     captureQueue,
     accountPlans,
+    capabilityFit,
   },
 };
 

@@ -1111,6 +1111,7 @@ button {
 .strategy-hero,
 .hypotheses-hero,
 .account-hero,
+.fit-hero,
 .relationship-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
@@ -1124,6 +1125,7 @@ button {
 .strategy-hero > div:first-child,
 .hypotheses-hero > div:first-child,
 .account-hero > div:first-child,
+.fit-hero > div:first-child,
 .relationship-hero > div:first-child {
   min-width: 0;
   padding: 18px;
@@ -1138,9 +1140,14 @@ button {
   box-shadow: inset 4px 0 0 var(--green);
 }
 
+.fit-hero > div:first-child {
+  box-shadow: inset 4px 0 0 var(--purple);
+}
+
 .strategy-hero span,
 .hypotheses-hero span,
 .account-hero span,
+.fit-hero span,
 .relationship-hero span {
   display: block;
   color: var(--brand);
@@ -1157,9 +1164,14 @@ button {
   color: var(--green);
 }
 
+.fit-hero span {
+  color: var(--purple);
+}
+
 .strategy-hero h2,
 .hypotheses-hero h2,
 .account-hero h2,
+.fit-hero h2,
 .relationship-hero h2 {
   margin: 4px 0 6px;
   font-size: 24px;
@@ -1170,6 +1182,7 @@ button {
 .strategy-hero p,
 .hypotheses-hero p,
 .account-hero p,
+.fit-hero p,
 .relationship-hero p {
   max-width: 960px;
   margin: 0;
@@ -1182,6 +1195,7 @@ button {
 .strategy-hero__facts,
 .hypotheses-hero__facts,
 .account-hero__facts,
+.fit-hero__facts,
 .relationship-hero__facts,
 .award-hero__facts,
 .pursuit-hero__facts,
@@ -1221,6 +1235,16 @@ button {
 .account-action-list,
 .account-hypothesis-list,
 .account-validation-grid,
+.fit-shell,
+.fit-picker,
+.fit-workspace,
+.fit-brief,
+.fit-area-grid,
+.fit-account-grid,
+.fit-rank-list,
+.fit-action-list,
+.fit-hypothesis-list,
+.fit-validation-grid,
 .lane-brief,
 .lane-brief__evidence,
 .hypothesis-shell,
@@ -1237,6 +1261,7 @@ button {
 .strategy-hero__facts,
 .hypotheses-hero__facts,
 .account-hero__facts,
+.fit-hero__facts,
 .relationship-hero__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 10px;
@@ -1347,6 +1372,7 @@ button {
 
 .relationship-hero__facts article,
 .account-hero__facts article,
+.fit-hero__facts article,
 .hypotheses-hero__facts article {
   display: grid;
   align-content: center;
@@ -1359,6 +1385,7 @@ button {
 
 .relationship-hero__facts strong,
 .account-hero__facts strong,
+.fit-hero__facts strong,
 .hypotheses-hero__facts strong {
   color: var(--text);
   font-size: 22px;
@@ -1368,6 +1395,7 @@ button {
 
 .relationship-hero__facts span,
 .account-hero__facts span,
+.fit-hero__facts span,
 .hypotheses-hero__facts span {
   margin-top: 5px;
   color: var(--muted);
@@ -1817,6 +1845,323 @@ button {
 }
 
 .account-validation-grid strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.fit-shell {
+  grid-template-columns: minmax(285px, 0.3fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.fit-picker {
+  position: sticky;
+  top: 74px;
+  max-height: calc(100vh - 94px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.fit-picker button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 6px;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: inherit;
+  text-align: left;
+}
+
+.fit-picker button.active,
+.fit-picker button:hover {
+  border-color: var(--purple);
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.fit-picker span,
+.fit-picker strong,
+.fit-picker em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-picker span {
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.fit-picker strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.fit-picker em {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.fit-brief {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fit-brief article,
+.fit-area-card,
+.fit-account-card,
+.fit-rank-list article,
+.fit-action-list article,
+.fit-hypothesis-list article,
+.fit-validation-grid article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.fit-brief article {
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.fit-brief span,
+.fit-area-card header span,
+.fit-account-card header span,
+.fit-validation-grid span,
+.fit-hypothesis-list span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.fit-brief strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-brief p,
+.fit-account-card p,
+.fit-hypothesis-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.fit-area-grid,
+.fit-account-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fit-area-card,
+.fit-account-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.fit-area-card {
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.fit-account-card {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.fit-area-card header,
+.fit-account-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.fit-area-card header strong,
+.fit-account-card header strong,
+.fit-hypothesis-list strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+.fit-area-card header b,
+.fit-account-card header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 28px;
+  border: 1px solid var(--purple);
+  border-radius: 4px;
+  background: #f4f0ff;
+  color: var(--purple);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.fit-area-card dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.fit-area-card dl div {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.fit-area-card dt,
+.fit-area-card dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-area-card dt {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.fit-area-card dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.fit-account-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.fit-account-card footer span {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-rank-list article,
+.fit-action-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.fit-rank-list strong,
+.fit-rank-list span,
+.fit-action-list strong,
+.fit-action-list span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fit-rank-list strong,
+.fit-action-list strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.fit-rank-list span,
+.fit-action-list span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.fit-rank-list b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fit-action-list a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 4px 7px;
+  border: 1px solid var(--purple);
+  border-radius: 4px;
+  color: var(--purple);
+  font-size: 10.5px;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.fit-hypothesis-list article {
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.fit-validation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fit-validation-grid article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.fit-validation-grid strong {
   color: var(--text);
   font-size: 12px;
   font-weight: 800;
@@ -3933,11 +4278,13 @@ td .dot {
   .pursuit-hero,
   .capture-hero,
   .account-hero,
+  .fit-hero,
   .strategy-hero,
   .hypotheses-hero,
   .relationship-hero,
   .hypothesis-shell,
   .account-shell,
+  .fit-shell,
   .relationship-shell,
   .source-register,
   .source-roadmap,
@@ -3964,6 +4311,10 @@ td .dot {
   .account-brief,
   .account-priority-grid,
   .account-validation-grid,
+  .fit-brief,
+  .fit-area-grid,
+  .fit-account-grid,
+  .fit-validation-grid,
   .pursuit-source-summary,
   .area-execution-grid,
   .hypothesis-thesis,
@@ -3986,6 +4337,11 @@ td .dot {
   }
 
   .account-picker {
+    position: static;
+    max-height: 360px;
+  }
+
+  .fit-picker {
     position: static;
     max-height: 360px;
   }
@@ -4030,6 +4386,10 @@ td .dot {
   .account-brief,
   .account-priority-grid,
   .account-validation-grid,
+  .fit-brief,
+  .fit-area-grid,
+  .fit-account-grid,
+  .fit-validation-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4190,6 +4550,7 @@ td .dot {
   .pursuit-hero__facts,
     .capture-hero__facts,
     .account-hero__facts,
+    .fit-hero__facts,
     .hypotheses-hero__facts,
   .relationship-hero__facts,
   .justification-evidence-summary {
@@ -4212,6 +4573,8 @@ td .dot {
   .pursuit-timing-grid,
   .capture-queue-grid,
   .account-priority-grid,
+  .fit-area-grid,
+  .fit-account-grid,
   .pursuit-source-summary {
     grid-template-columns: 1fr;
   }
@@ -4251,6 +4614,10 @@ td .dot {
     gap: 0;
   }
 
+  .fit-hero {
+    gap: 0;
+  }
+
   .hypotheses-hero {
     gap: 0;
   }
@@ -4280,6 +4647,10 @@ td .dot {
   }
 
   .account-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .fit-hero > div:first-child {
     padding: 14px;
   }
 
@@ -4315,6 +4686,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .fit-hero h2 {
+    font-size: 22px;
+  }
+
   .hypotheses-hero h2 {
     font-size: 22px;
   }
@@ -4344,6 +4719,10 @@ td .dot {
   }
 
   .account-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .fit-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -4379,6 +4758,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .fit-hero__facts article {
+    min-height: 64px;
+  }
+
   .hypotheses-hero__facts article {
     min-height: 64px;
   }
@@ -4408,6 +4791,10 @@ td .dot {
   }
 
   .account-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .fit-hero__facts strong {
     font-size: 20px;
   }
 
@@ -4483,6 +4870,10 @@ td .dot {
   .account-brief,
   .account-priority-grid,
   .account-validation-grid,
+  .fit-brief,
+  .fit-area-grid,
+  .fit-account-grid,
+  .fit-validation-grid,
   .pursuit-source-summary,
   .area-execution-grid,
   .hypothesis-thesis,
@@ -4503,6 +4894,10 @@ td .dot {
   }
 
   .account-picker {
+    max-height: 310px;
+  }
+
+  .fit-picker {
     max-height: 310px;
   }
 

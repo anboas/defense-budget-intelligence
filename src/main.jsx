@@ -29,6 +29,7 @@ const TABS = [
   { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "hypotheses", label: "Hypotheses", icon: Lightbulb },
   { id: "accounts", label: "Accounts", icon: Building2 },
+  { id: "fit", label: "Fit", icon: BrainCircuit },
   { id: "relationships", label: "Relationships", icon: Network },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "pursuits", label: "Pursuits", icon: CalendarClock },
@@ -52,6 +53,7 @@ const HASH_ROUTES = {
   strategy: "#/budget-spend/strategy",
   hypotheses: "#/budget-spend/hypotheses",
   accounts: "#/budget-spend/accounts",
+  fit: "#/budget-spend/fit",
   relationships: "#/budget-spend/relationships",
   awards: "#/budget-spend/awards",
   pursuits: "#/budget-spend/pursuits",
@@ -124,6 +126,7 @@ const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], b
 const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
 const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], items: [] };
 const ACCOUNT_PLANS = EXECUTION.accountPlans || { summary: {}, items: [] };
+const CAPABILITY_FIT = EXECUTION.capabilityFit || { summary: {}, items: [] };
 const HYPOTHESES = STRATEGY.pursuitHypotheses || { summary: {}, items: [] };
 const EMPTY_ROWS = Object.freeze([]);
 
@@ -743,6 +746,234 @@ function AccountPlans() {
 
               <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
                 <div className="relationship-line-list" data-account-budget-lines>
+                  {(selected.linkedBudgetLines || []).map((line) => (
+                    <article key={line.id}>
+                      <div>
+                        <strong>{line.title}</strong>
+                        <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
+                      </div>
+                      <b>{money(line.fy2027)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function CapabilityFit() {
+  const items = CAPABILITY_FIT.items || EMPTY_ROWS;
+  const summary = CAPABILITY_FIT.summary || {};
+  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const selected = items.find((item) => item.id === selectedId) || items[0];
+  const selectedMetrics = selected ? [
+    { label: "Fit score", value: selected.score, helper: selected.posture },
+    { label: "Budget signal", value: money(selected.budgetFy2027), helper: `${selected.budgetRecords} source lines · ${selected.narrativeConfirmedRecords} confirmed` },
+    { label: "Execution signal", value: money(selected.awardAmount), helper: `${selected.awards} sampled awards` },
+    { label: "Near-term timing", value: money(selected.nearTermAwardAmount), helper: `${selected.nearTermAwards} active awards ending within 24 months` },
+  ] : [];
+
+  return (
+    <div className="grid fit-page" data-capability-fit-page>
+      <section className="fit-hero">
+        <div>
+          <span>Capability fit surface</span>
+          <h2>Capability Fit</h2>
+          <p>Capability wedges ranked by budget posture, execution spend, near-term timing, buyer account matches, hypotheses, incumbents, work types, and source-line evidence.</p>
+        </div>
+        <div className="fit-hero__facts" aria-label="Capability fit summary">
+          <article>
+            <strong>{summary.capabilities || items.length}</strong>
+            <span>capability wedges</span>
+          </article>
+          <article>
+            <strong>{summary.primaryWedges || 0}</strong>
+            <span>primary wedges</span>
+          </article>
+          <article>
+            <strong>{money(summary.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+          </article>
+          <article>
+            <strong>{summary.topCapability || "n/a"}</strong>
+            <span>top capability</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="fit-shell">
+        <aside className="fit-picker" data-capability-picker>
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={selected?.id === item.id ? "active" : ""}
+              onClick={() => setSelectedId(item.id)}
+            >
+              <span>{item.posture} · score {item.score}</span>
+              <strong>{item.label}</strong>
+              <em>{money(item.nearTermAwardAmount)} near-term · {item.accountMatches?.length || 0} accounts</em>
+            </button>
+          ))}
+        </aside>
+
+        {selected ? (
+          <div className="fit-workspace">
+            <Section title={selected.label} meta={selected.fit} icon={BrainCircuit}>
+              <div className="fit-brief" data-capability-brief>
+                {selectedMetrics.map((metric) => (
+                  <article key={metric.label}>
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
+                    <p>{metric.helper}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Capability Areas" meta="technology areas attached to this wedge" icon={GitBranch}>
+              <div className="fit-area-grid" data-capability-areas>
+                {(selected.areaMap || []).map((area) => (
+                  <article key={area.id} className="fit-area-card">
+                    <header>
+                      <div>
+                        <span>{area.records} lines · {money(area.executionObligationAmount)} obligations</span>
+                        <strong>{area.label}</strong>
+                      </div>
+                      <b>{money(area.nearTermAwardAmount)}</b>
+                    </header>
+                    <dl>
+                      <div>
+                        <dt>Budget</dt>
+                        <dd>{money(area.fy2027)}</dd>
+                      </div>
+                      <div>
+                        <dt>Top buyer</dt>
+                        <dd>{area.topBuyer}</dd>
+                      </div>
+                      <div>
+                        <dt>Top incumbent</dt>
+                        <dd>{area.topVendor}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Best Account Matches" meta="buyer plans where this capability has timing and evidence" icon={Building2}>
+              <div className="fit-account-grid" data-capability-accounts>
+                {(selected.accountMatches || []).map((account) => (
+                  <article key={account.id} className="fit-account-card">
+                    <header>
+                      <div>
+                        <span>{account.posture} · score {account.score}</span>
+                        <strong>{account.buyer}</strong>
+                      </div>
+                      <b>{money(account.nearTermAwardAmount)}</b>
+                    </header>
+                    <p>{account.priorityAreas.join(" · ")}</p>
+                    <footer>
+                      <span>{money(account.activeAwardAmount)} active</span>
+                      <span>{account.topIncumbent}</span>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Buyer / Incumbent Map" meta="execution concentration" icon={Database}>
+                <div className="fit-rank-list" data-capability-incumbents>
+                  {(selected.topIncumbents || []).map((incumbent) => (
+                    <article key={incumbent.id}>
+                      <div>
+                        <strong>{incumbent.label}</strong>
+                        <span>{incumbent.awards} awards · {(incumbent.areas || []).slice(0, 2).join(", ")}</span>
+                      </div>
+                      <b>{money(incumbent.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Work Type Map" meta="PSC and NAICS concentration" icon={FileSpreadsheet}>
+                <div className="fit-rank-list" data-capability-worktypes>
+                  {(selected.topWorkTypes || []).map((workType) => (
+                    <article key={workType.id}>
+                      <div>
+                        <strong>{workType.label}</strong>
+                        <span>{workType.awards} awards</span>
+                      </div>
+                      <b>{money(workType.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+
+            <div className="grid grid--sources">
+              <Section title="Capture Actions" meta={`${selected.captureActions?.length || 0} related cockpit items`} icon={ListChecks}>
+                <div className="fit-action-list" data-capability-actions>
+                  {(selected.captureActions || []).map((action) => (
+                    <article key={action.id}>
+                      <div>
+                        <strong>{action.recommendedAction}</strong>
+                        <span>{action.buyer} · {action.area} · {action.stageLabel}</span>
+                      </div>
+                      <a href={action.samSearchUrl} target="_blank" rel="noreferrer">
+                        SAM search <ExternalLink size={12} aria-hidden="true" />
+                      </a>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Related Hypotheses" meta={`${selected.hypotheses?.length || 0} theses`} icon={Lightbulb}>
+                <div className="fit-hypothesis-list" data-capability-hypotheses>
+                  {(selected.hypotheses || []).map((hypothesis) => (
+                    <article key={hypothesis.id}>
+                      <span>{hypothesis.confidenceLabel} · {hypothesis.status}</span>
+                      <strong>{hypothesis.title}</strong>
+                      <p>{hypothesis.thesis}</p>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+
+            <Section title="Validation Plan" meta="turn capability fit into account-specific pursuit work" icon={Filter}>
+              <div className="fit-validation-grid" data-capability-validation>
+                {(selected.validationPlan || []).map((task, index) => (
+                  <article key={task}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{task}</strong>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Near-Term Awards" meta={`${selected.nearTermAwardsList?.length || 0} examples`} icon={CalendarClock}>
+                <div className="relationship-award-list" data-capability-near-term-awards>
+                  {(selected.nearTermAwardsList || []).map((award) => (
+                    <article key={award.id}>
+                      <div>
+                        <strong>{award.awardId || award.id}</strong>
+                        <span>{award.recipient} · {award.buyerSubAgency} · {award.endDate ? `ends ${award.endDate}` : "end unknown"}</span>
+                      </div>
+                      <b>{money(award.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
+                <div className="relationship-line-list" data-capability-budget-lines>
                   {(selected.linkedBudgetLines || []).map((line) => (
                     <article key={line.id}>
                       <div>
@@ -2732,6 +2963,31 @@ function Sources() {
         </div>
       </Section>
 
+      <Section title="Capability Fit Coverage" meta="generated capability wedges from account, timing, execution, and evidence signals" icon={BrainCircuit}>
+        <div className="pursuit-source-summary" data-capability-fit-evidence>
+          <article>
+            <strong>{CAPABILITY_FIT.summary?.capabilities || 0}</strong>
+            <span>capability wedges</span>
+            <p>Generated from the current technology-area model and mapped onto buyer account plans.</p>
+          </article>
+          <article>
+            <strong>{CAPABILITY_FIT.summary?.primaryWedges || 0}</strong>
+            <span>primary wedges</span>
+            <p>Primary status is earned from budget scale, execution value, near-term timing, account matches, and hypothesis support.</p>
+          </article>
+          <article>
+            <strong>{money(CAPABILITY_FIT.summary?.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+            <p>Active sampled award value ending within 24 months across generated capability wedges.</p>
+          </article>
+          <article>
+            <strong>{CAPABILITY_FIT.summary?.topCapability || "n/a"}</strong>
+            <span>top capability</span>
+            <p>{CAPABILITY_FIT.summary?.topCapabilityFit || "Capability fit remains generated until opportunity and office validation are attached."}</p>
+          </article>
+        </div>
+      </Section>
+
       <Section title="Source Health Monitor" meta={`checked ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className="source-health-summary">
           <article>
@@ -3048,7 +3304,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "hypotheses", "accounts", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -3125,6 +3381,7 @@ function App() {
         {activeTab === "strategy" ? <Strategy /> : null}
         {activeTab === "hypotheses" ? <Hypotheses /> : null}
         {activeTab === "accounts" ? <AccountPlans /> : null}
+        {activeTab === "fit" ? <CapabilityFit /> : null}
         {activeTab === "relationships" ? <RelationshipMap /> : null}
         {activeTab === "awards" ? <Awards /> : null}
         {activeTab === "pursuits" ? <Pursuits /> : null}
