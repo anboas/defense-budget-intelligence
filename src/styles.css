@@ -2066,6 +2066,7 @@ button {
 
 .capture-queue-card {
   box-shadow: inset 3px 0 0 var(--purple);
+  overflow: hidden;
 }
 
 .buyer-pursuit-card header,
@@ -2195,6 +2196,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  min-width: 0;
 }
 
 .capture-queue-card footer span,
@@ -2204,6 +2206,7 @@ button {
   gap: 4px;
   min-height: 23px;
   max-width: 100%;
+  min-width: 0;
   padding: 3px 6px;
   border: 1px solid var(--border-soft);
   border-radius: 4px;
@@ -2215,6 +2218,10 @@ button {
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.capture-queue-card footer span {
+  flex: 1 1 150px;
 }
 
 .capture-queue-card footer a {

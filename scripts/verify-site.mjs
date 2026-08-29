@@ -154,6 +154,8 @@ try {
   assert.equal(await page.locator("[data-capture-stage-counts] article").count(), 2, "Queue should show stage counts");
   assert.equal(await page.locator("[data-capture-queue-items] .capture-queue-card").count(), 16, "Queue should show sixteen capture actions");
   assert.equal(await page.locator("[data-capture-queue-table] tbody tr").count(), 16, "Queue should show capture validation rows");
+  const queueOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(queueOverflow <= 2, `Queue desktop overflow ${queueOverflow}`);
   await page.getByPlaceholder("Search actions").fill("LOCKHEED");
   assert.match(await page.locator("[data-capture-queue-table]").innerText(), /LOCKHEED/i);
   await page.getByRole("button", { name: /Services/ }).click();
@@ -260,6 +262,8 @@ try {
   assert.equal(await mobile.locator("[data-capture-stage-counts] article").count(), 2, "Mobile Queue should show stage counts");
   assert.equal(await mobile.locator("[data-capture-queue-items] .capture-queue-card").count(), 16, "Mobile Queue should show capture actions");
   assert.equal(await mobile.locator("[data-capture-queue-table] tbody tr").count(), 16, "Mobile Queue should show capture validation rows");
+  const mobileQueueOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(mobileQueueOverflow <= 2, `Queue mobile overflow ${mobileQueueOverflow}`);
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Data Sources should not render unrelated budget filters");
   const mobileSourceHeroBox = await mobile.locator(".source-hero").boundingBox();
