@@ -2391,6 +2391,136 @@ const capabilityFit = {
   items: capabilityFitItems,
 };
 
+function bestCapabilityForHypothesis(hypothesis) {
+  return capabilityFitItems
+    .filter((capability) => capability.areaIds.includes(hypothesis.areaId))
+    .sort((a, b) => b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount)[0];
+}
+
+function accountForHypothesis(hypothesis) {
+  return accountPlanItems.find((account) => account.buyer === hypothesis.buyer);
+}
+
+function evidenceChainForBrief(hypothesis, account, capability) {
+  const lines = [
+    {
+      id: "budget",
+      label: "Budget signal",
+      value: `${round(hypothesis.metrics.budgetFy2027)}B FY2027 tagged request`,
+      helper: `${hypothesis.metrics.budgetRecords} visible budget lines; ${hypothesis.metrics.narrativeConfirmedRecords} narrative-confirmed technology lines.`,
+    },
+    {
+      id: "execution",
+      label: "Execution signal",
+      value: `${round(hypothesis.metrics.activeAwardAmount)}B active sampled awards`,
+      helper: `${hypothesis.metrics.nearTermAwards} awards and ${round(hypothesis.metrics.nearTermAwardAmount)}B end within 24 months.`,
+    },
+    {
+      id: "incumbent",
+      label: "Incumbent signal",
+      value: `${hypothesis.topIncumbent} at ${hypothesis.metrics.incumbentShare}%`,
+      helper: `${hypothesis.workType?.label || "Uncoded work"} is the strongest coded work lane in this thesis.`,
+    },
+  ];
+  if (account) {
+    lines.push({
+      id: "account",
+      label: "Account signal",
+      value: `${account.posture} · score ${account.score}`,
+      helper: `${account.buyer} has ${round(account.nearTermAwardAmount)}B near-term sampled award value across ${account.nearTermAwards} awards.`,
+    });
+  }
+  if (capability) {
+    lines.push({
+      id: "capability",
+      label: "Capability fit",
+      value: `${capability.label} · score ${capability.score}`,
+      helper: capability.fit,
+    });
+  }
+  return lines;
+}
+
+const decisionBriefItems = pursuitHypothesisItems.slice(0, 8).map((hypothesis, index) => {
+  const account = accountForHypothesis(hypothesis);
+  const capability = bestCapabilityForHypothesis(hypothesis);
+  const days = hypothesis.metrics.daysUntilNextEnd;
+  const timingPhrase = Number.isFinite(days)
+    ? `${days} days until the next sampled award end`
+    : "unknown timing in the sampled award set";
+  const action = hypothesis.validationTasks?.[0] || "Validate buyer, office, vehicle, incumbent scope, and timing.";
+  const strongestAward = hypothesis.linkedAwards?.[0];
+  return {
+    id: `brief:${hypothesis.id}`,
+    rank: index + 1,
+    title: `${hypothesis.buyer} / ${hypothesis.area}`,
+    subtitle: `${hypothesis.workType?.label || "Uncoded work type"} · ${hypothesis.status}`,
+    verdict: `${hypothesis.buyer} ${hypothesis.area} is worth immediate validation, not passive monitoring.`,
+    decision: hypothesis.confidence >= 70 ? "Prioritize validation" : "Validate before pursuit",
+    confidence: hypothesis.confidence,
+    confidenceLabel: hypothesis.confidenceLabel,
+    buyer: hypothesis.buyer,
+    buyerGroup: hypothesis.buyerGroup,
+    area: hypothesis.area,
+    areaId: hypothesis.areaId,
+    accountId: account?.id || "",
+    capabilityId: capability?.id || "",
+    capability: capability?.label || "Capability fit pending",
+    score: Math.min(100, Math.round((hypothesis.confidence * 0.48) + ((account?.score || 0) * 0.24) + ((capability?.score || 0) * 0.2) + (hypothesis.status === "Act Now" ? 8 : 3))),
+    soWhat: `${hypothesis.buyer} combines ${round(hypothesis.metrics.budgetFy2027)}B in FY2027 tagged request value with ${round(hypothesis.metrics.activeAwardAmount)}B in active sampled award value, which means this is an account-and-program lane rather than a generic market theme.`,
+    whyNow: `${timingPhrase}; ${round(hypothesis.metrics.nearTermAwardAmount)}B in sampled active awards sits inside the 24-month timing window, so the right action is to validate vehicle, office, and incumbent posture now.`,
+    credibleWedge: capability
+      ? `${capability.label} is the clearest service wedge: ${capability.fit}.`
+      : `${hypothesis.area} maps to ${serviceFitForArea(hypothesis.areaId)}.`,
+    buyerPath: account
+      ? `${account.buyer} should be treated as the account container. Its top focus is ${account.focus}, with ${account.areaPriorities.length} priority areas already tied to timing and award evidence.`
+      : `${hypothesis.buyer} should be validated as the account container before assigning pursuit priority.`,
+    incumbentRead: `${hypothesis.topIncumbent} leads the sampled lane at ${hypothesis.metrics.incumbentShare}% share. That can mean either a prime-protected lane or a subcontract/service wedge, so incumbent scope has to be mapped before pursuit.`,
+    bestNextMove: action,
+    whatCouldBeWrong: [
+      "The award match is keyword-sampled, so the apparent lane may blend adjacent programs.",
+      "The end date may be an action-level period of performance rather than the final vehicle recompete.",
+      "The buyer office and contract vehicle are not yet attached, which limits capture precision.",
+      "A strong incumbent may leave only a narrow partner/subcontractor path.",
+    ],
+    disqualifiers: [
+      "No active SAM.gov notice, forecast signal, or vehicle path can be found.",
+      "The coded PSC/NAICS work type does not match the actual delivery scope.",
+      "The buyer office is controlled by a closed incumbent team with no accessible teaming path.",
+    ],
+    validationPlan: [
+      action,
+      "Validate live SAM.gov notices, amendments, and forecast entries.",
+      "Join FPDS/SAM for contracting office, vehicle, and action history.",
+      "Classify the path as prime pursuit, subcontract wedge, partner wedge, or no-bid.",
+    ],
+    evidenceChain: evidenceChainForBrief(hypothesis, account, capability),
+    keyMetrics: {
+      budgetFy2027: hypothesis.metrics.budgetFy2027,
+      activeAwardAmount: hypothesis.metrics.activeAwardAmount,
+      nearTermAwardAmount: hypothesis.metrics.nearTermAwardAmount,
+      nearTermAwards: hypothesis.metrics.nearTermAwards,
+      incumbentShare: hypothesis.metrics.incumbentShare,
+      nextEndDate: hypothesis.metrics.nextEndDate,
+    },
+    linkedBudgetLines: hypothesis.linkedBudgetLines || [],
+    linkedAwards: hypothesis.linkedAwards || [],
+    sampleAwardCallout: strongestAward
+      ? `${strongestAward.awardId || strongestAward.id} with ${strongestAward.recipient}, ending ${strongestAward.endDate || "unknown"}, is the cleanest timing example in the brief.`
+      : "No sample award callout is available for this brief.",
+  };
+});
+
+const decisionBriefs = {
+  summary: {
+    briefs: decisionBriefItems.length,
+    prioritizeNow: decisionBriefItems.filter((brief) => brief.decision === "Prioritize validation").length,
+    topBrief: decisionBriefItems[0]?.title || "n/a",
+    topDecision: decisionBriefItems[0]?.decision || "n/a",
+  },
+  items: decisionBriefItems,
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -2480,6 +2610,9 @@ const strategyAnalytics = {
     capabilityFitCount: capabilityFit.summary.capabilities,
     primaryCapabilityWedges: capabilityFit.summary.primaryWedges,
     topCapabilityFit: capabilityFit.summary.topCapability,
+    decisionBriefCount: decisionBriefs.summary.briefs,
+    priorityDecisionBriefs: decisionBriefs.summary.prioritizeNow,
+    topDecisionBrief: decisionBriefs.summary.topBrief,
   },
   readouts: [
     {
@@ -2570,6 +2703,13 @@ const strategyAnalytics = {
       tone: "green",
     },
     {
+      id: "decision-briefs",
+      label: "Decision briefs",
+      value: decisionBriefs.summary.briefs,
+      helper: `${decisionBriefs.summary.prioritizeNow} briefs are ready for priority validation; ${decisionBriefs.summary.topBrief} is the leading judgment record.`,
+      tone: "orange",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -2595,6 +2735,7 @@ const strategyAnalytics = {
     captureQueue,
     accountPlans,
     capabilityFit,
+    decisionBriefs,
   },
 };
 

@@ -27,6 +27,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
+  { id: "briefs", label: "Briefs", icon: FileText },
   { id: "hypotheses", label: "Hypotheses", icon: Lightbulb },
   { id: "accounts", label: "Accounts", icon: Building2 },
   { id: "fit", label: "Fit", icon: BrainCircuit },
@@ -51,6 +52,7 @@ const HASH_ROUTES = {
   overview: "#/budget-spend",
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
+  briefs: "#/budget-spend/briefs",
   hypotheses: "#/budget-spend/hypotheses",
   accounts: "#/budget-spend/accounts",
   fit: "#/budget-spend/fit",
@@ -127,6 +129,7 @@ const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], reco
 const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], items: [] };
 const ACCOUNT_PLANS = EXECUTION.accountPlans || { summary: {}, items: [] };
 const CAPABILITY_FIT = EXECUTION.capabilityFit || { summary: {}, items: [] };
+const DECISION_BRIEFS = EXECUTION.decisionBriefs || { summary: {}, items: [] };
 const HYPOTHESES = STRATEGY.pursuitHypotheses || { summary: {}, items: [] };
 const EMPTY_ROWS = Object.freeze([]);
 
@@ -550,6 +553,183 @@ function RelationshipNodeList({ title, rows }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function DecisionBriefs() {
+  const items = DECISION_BRIEFS.items || EMPTY_ROWS;
+  const summary = DECISION_BRIEFS.summary || {};
+  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const selected = items.find((item) => item.id === selectedId) || items[0];
+  const metrics = selected ? [
+    { label: "Brief score", value: selected.score, helper: `${selected.decision} · ${selected.confidenceLabel}` },
+    { label: "Budget signal", value: money(selected.keyMetrics?.budgetFy2027), helper: `${selected.area} FY2027 request posture` },
+    { label: "Near-term value", value: money(selected.keyMetrics?.nearTermAwardAmount), helper: `${selected.keyMetrics?.nearTermAwards || 0} active awards inside 24 months` },
+    { label: "Incumbent share", value: percent(selected.keyMetrics?.incumbentShare, 0), helper: selected.linkedAwards?.[0]?.recipient || "sampled incumbent field" },
+  ] : [];
+
+  return (
+    <div className="grid briefs-page" data-decision-briefs-page>
+      <section className="briefs-hero">
+        <div>
+          <span>Judgment surface</span>
+          <h2>Decision Briefs</h2>
+          <p>Plain-language pursuit briefs that compress budget, spend, timing, buyer, incumbent, capability fit, objections, and next validation into one judgment record.</p>
+        </div>
+        <div className="briefs-hero__facts" aria-label="Decision brief summary">
+          <article>
+            <strong>{summary.briefs || items.length}</strong>
+            <span>briefs</span>
+          </article>
+          <article>
+            <strong>{summary.prioritizeNow || 0}</strong>
+            <span>priority validations</span>
+          </article>
+          <article>
+            <strong>{summary.topDecision || "n/a"}</strong>
+            <span>top decision</span>
+          </article>
+          <article>
+            <strong>{summary.topBrief || "n/a"}</strong>
+            <span>top brief</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="briefs-shell">
+        <aside className="briefs-picker" data-brief-picker>
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={selected?.id === item.id ? "active" : ""}
+              onClick={() => setSelectedId(item.id)}
+            >
+              <span>#{item.rank} · {item.decision} · score {item.score}</span>
+              <strong>{item.title}</strong>
+              <em>{item.subtitle}</em>
+            </button>
+          ))}
+        </aside>
+
+        {selected ? (
+          <div className="briefs-workspace">
+            <Section title={selected.title} meta={`${selected.capability} · ${selected.subtitle}`} icon={FileText}>
+              <div className="brief-verdict" data-brief-verdict>
+                <article className="brief-verdict__main">
+                  <span>Verdict</span>
+                  <strong>{selected.verdict}</strong>
+                  <p>{selected.bestNextMove}</p>
+                </article>
+                {metrics.map((metric) => (
+                  <article key={metric.label}>
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
+                    <p>{metric.helper}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Interpretation" meta="the actual read" icon={Lightbulb}>
+              <div className="brief-interpretation-grid" data-brief-interpretation>
+                <article>
+                  <span>So what</span>
+                  <p>{selected.soWhat}</p>
+                </article>
+                <article>
+                  <span>Why now</span>
+                  <p>{selected.whyNow}</p>
+                </article>
+                <article>
+                  <span>Credible wedge</span>
+                  <p>{selected.credibleWedge}</p>
+                </article>
+                <article>
+                  <span>Buyer path</span>
+                  <p>{selected.buyerPath}</p>
+                </article>
+                <article>
+                  <span>Incumbent read</span>
+                  <p>{selected.incumbentRead}</p>
+                </article>
+                <article>
+                  <span>Timing example</span>
+                  <p>{selected.sampleAwardCallout}</p>
+                </article>
+              </div>
+            </Section>
+
+            <Section title="Evidence Chain" meta="why the brief exists" icon={GitBranch}>
+              <div className="brief-evidence-chain" data-brief-evidence-chain>
+                {(selected.evidenceChain || []).map((item) => (
+                  <article key={item.id}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                    <p>{item.helper}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="What Could Be Wrong" meta="failure modes to test" icon={Filter}>
+                <div className="brief-risk-list" data-brief-risks>
+                  {(selected.whatCouldBeWrong || []).map((risk) => <article key={risk}>{risk}</article>)}
+                </div>
+              </Section>
+
+              <Section title="Disqualifiers" meta="conditions that would kill the pursuit" icon={Search}>
+                <div className="brief-risk-list brief-risk-list--red" data-brief-disqualifiers>
+                  {(selected.disqualifiers || []).map((risk) => <article key={risk}>{risk}</article>)}
+                </div>
+              </Section>
+            </div>
+
+            <Section title="Validation Plan" meta="make the next decision concrete" icon={ListChecks}>
+              <div className="brief-validation-grid" data-brief-validation>
+                {(selected.validationPlan || []).map((task, index) => (
+                  <article key={task}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{task}</strong>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
+                <div className="relationship-line-list" data-brief-budget-lines>
+                  {(selected.linkedBudgetLines || []).map((line) => (
+                    <article key={line.id}>
+                      <div>
+                        <strong>{line.title}</strong>
+                        <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
+                      </div>
+                      <b>{money(line.fy2027)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Linked Awards" meta={`${selected.linkedAwards?.length || 0} sampled award examples`} icon={FileSpreadsheet}>
+                <div className="relationship-award-list" data-brief-awards>
+                  {(selected.linkedAwards || []).map((award) => (
+                    <article key={award.id}>
+                      <div>
+                        <strong>{award.awardId || award.id}</strong>
+                        <span>{award.recipient} · {award.endDate ? `ends ${award.endDate}` : "end unknown"} · {award.workType?.label || "Uncoded"}</span>
+                      </div>
+                      <b>{money(award.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -2938,6 +3118,31 @@ function Sources() {
         </div>
       </Section>
 
+      <Section title="Decision Brief Coverage" meta="generated judgment records from hypotheses, accounts, capability fit, and evidence chains" icon={FileText}>
+        <div className="pursuit-source-summary" data-decision-brief-evidence>
+          <article>
+            <strong>{DECISION_BRIEFS.summary?.briefs || 0}</strong>
+            <span>decision briefs</span>
+            <p>Each brief starts from a top pursuit hypothesis and attaches account, capability, award, timing, and budget evidence.</p>
+          </article>
+          <article>
+            <strong>{DECISION_BRIEFS.summary?.prioritizeNow || 0}</strong>
+            <span>priority validations</span>
+            <p>Priority briefs have enough evidence to justify immediate validation work, not a pursuit commitment.</p>
+          </article>
+          <article>
+            <strong>{DECISION_BRIEFS.summary?.topDecision || "n/a"}</strong>
+            <span>top decision</span>
+            <p>Decision labels separate validation priority from validated opportunity status.</p>
+          </article>
+          <article>
+            <strong>{DECISION_BRIEFS.summary?.topBrief || "n/a"}</strong>
+            <span>top brief</span>
+            <p>Briefs remain generated judgment records until SAM.gov, FPDS/SAM, vehicle, and office validation are attached.</p>
+          </article>
+        </div>
+      </Section>
+
       <Section title="Account Plan Coverage" meta="generated buyer account surfaces from awards, timing, queue, and hypotheses" icon={Building2}>
         <div className="pursuit-source-summary" data-account-plan-evidence>
           <article>
@@ -3304,7 +3509,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "briefs", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -3379,6 +3584,7 @@ function App() {
         {activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
+        {activeTab === "briefs" ? <DecisionBriefs /> : null}
         {activeTab === "hypotheses" ? <Hypotheses /> : null}
         {activeTab === "accounts" ? <AccountPlans /> : null}
         {activeTab === "fit" ? <CapabilityFit /> : null}

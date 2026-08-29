@@ -1109,6 +1109,7 @@ button {
 }
 
 .strategy-hero,
+.briefs-hero,
 .hypotheses-hero,
 .account-hero,
 .fit-hero,
@@ -1123,6 +1124,7 @@ button {
 }
 
 .strategy-hero > div:first-child,
+.briefs-hero > div:first-child,
 .hypotheses-hero > div:first-child,
 .account-hero > div:first-child,
 .fit-hero > div:first-child,
@@ -1136,6 +1138,10 @@ button {
   box-shadow: inset 4px 0 0 var(--orange);
 }
 
+.briefs-hero > div:first-child {
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+
 .account-hero > div:first-child {
   box-shadow: inset 4px 0 0 var(--green);
 }
@@ -1145,6 +1151,7 @@ button {
 }
 
 .strategy-hero span,
+.briefs-hero span,
 .hypotheses-hero span,
 .account-hero span,
 .fit-hero span,
@@ -1169,6 +1176,7 @@ button {
 }
 
 .strategy-hero h2,
+.briefs-hero h2,
 .hypotheses-hero h2,
 .account-hero h2,
 .fit-hero h2,
@@ -1180,6 +1188,7 @@ button {
 }
 
 .strategy-hero p,
+.briefs-hero p,
 .hypotheses-hero p,
 .account-hero p,
 .fit-hero p,
@@ -1193,6 +1202,7 @@ button {
 }
 
 .strategy-hero__facts,
+.briefs-hero__facts,
 .hypotheses-hero__facts,
 .account-hero__facts,
 .fit-hero__facts,
@@ -1226,6 +1236,14 @@ button {
 .relationship-node-list,
 .relationship-line-list,
 .relationship-award-list,
+.briefs-shell,
+.briefs-picker,
+.briefs-workspace,
+.brief-verdict,
+.brief-interpretation-grid,
+.brief-evidence-chain,
+.brief-risk-list,
+.brief-validation-grid,
 .account-shell,
 .account-picker,
 .account-workspace,
@@ -1259,6 +1277,7 @@ button {
 }
 
 .strategy-hero__facts,
+.briefs-hero__facts,
 .hypotheses-hero__facts,
 .account-hero__facts,
 .fit-hero__facts,
@@ -1371,6 +1390,7 @@ button {
 }
 
 .relationship-hero__facts article,
+.briefs-hero__facts article,
 .account-hero__facts article,
 .fit-hero__facts article,
 .hypotheses-hero__facts article {
@@ -1384,6 +1404,7 @@ button {
 }
 
 .relationship-hero__facts strong,
+.briefs-hero__facts strong,
 .account-hero__facts strong,
 .fit-hero__facts strong,
 .hypotheses-hero__facts strong {
@@ -1394,6 +1415,7 @@ button {
 }
 
 .relationship-hero__facts span,
+.briefs-hero__facts span,
 .account-hero__facts span,
 .fit-hero__facts span,
 .hypotheses-hero__facts span {
@@ -1564,6 +1586,193 @@ button {
 }
 
 .hypothesis-validation-grid strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.briefs-shell {
+  grid-template-columns: minmax(300px, 0.32fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.briefs-picker {
+  position: sticky;
+  top: 74px;
+  max-height: calc(100vh - 94px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.briefs-picker button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 6px;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: inherit;
+  text-align: left;
+}
+
+.briefs-picker button.active,
+.briefs-picker button:hover {
+  border-color: var(--brand);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.briefs-picker span,
+.briefs-picker strong,
+.briefs-picker em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.briefs-picker span {
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.briefs-picker strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.briefs-picker em {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.brief-verdict {
+  grid-template-columns: minmax(360px, 1.35fr) repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.brief-verdict article,
+.brief-interpretation-grid article,
+.brief-evidence-chain article,
+.brief-risk-list article,
+.brief-validation-grid article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.brief-verdict article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.brief-verdict__main {
+  background: #f8fbff;
+}
+
+.brief-verdict span,
+.brief-interpretation-grid span,
+.brief-evidence-chain span,
+.brief-validation-grid span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.brief-verdict strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+}
+
+.brief-verdict__main strong {
+  white-space: normal;
+}
+
+.brief-verdict p,
+.brief-interpretation-grid p,
+.brief-evidence-chain p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.brief-interpretation-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.brief-interpretation-grid article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.brief-evidence-chain {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.brief-evidence-chain article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.brief-evidence-chain strong {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.brief-risk-list article {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.brief-risk-list--red article {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.brief-validation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.brief-validation-grid article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.brief-validation-grid strong {
   color: var(--text);
   font-size: 12px;
   font-weight: 800;
@@ -4279,10 +4488,12 @@ td .dot {
   .capture-hero,
   .account-hero,
   .fit-hero,
+  .briefs-hero,
   .strategy-hero,
   .hypotheses-hero,
   .relationship-hero,
   .hypothesis-shell,
+  .briefs-shell,
   .account-shell,
   .fit-shell,
   .relationship-shell,
@@ -4320,6 +4531,10 @@ td .dot {
   .hypothesis-thesis,
   .hypothesis-metrics,
   .hypothesis-validation-grid,
+  .brief-verdict,
+  .brief-interpretation-grid,
+  .brief-evidence-chain,
+  .brief-validation-grid,
   .relationship-brief,
   .relationship-node-grid,
   .lane-brief {
@@ -4332,6 +4547,11 @@ td .dot {
   }
 
   .hypothesis-picker {
+    position: static;
+    max-height: 360px;
+  }
+
+  .briefs-picker {
     position: static;
     max-height: 360px;
   }
@@ -4545,8 +4765,9 @@ td .dot {
   .analytics-readout,
   .momentum-grid,
   .strategy-hero__facts,
-  .source-hero__facts,
-  .award-hero__facts,
+    .source-hero__facts,
+    .briefs-hero__facts,
+    .award-hero__facts,
   .pursuit-hero__facts,
     .capture-hero__facts,
     .account-hero__facts,
@@ -4598,6 +4819,10 @@ td .dot {
     gap: 0;
   }
 
+  .briefs-hero {
+    gap: 0;
+  }
+
   .award-hero {
     gap: 0;
   }
@@ -4631,6 +4856,10 @@ td .dot {
   }
 
   .source-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .briefs-hero > div:first-child {
     padding: 14px;
   }
 
@@ -4670,6 +4899,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .briefs-hero h2 {
+    font-size: 22px;
+  }
+
   .award-hero h2 {
     font-size: 22px;
   }
@@ -4703,6 +4936,10 @@ td .dot {
   }
 
   .source-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .briefs-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -4742,6 +4979,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .briefs-hero__facts article {
+    min-height: 64px;
+  }
+
   .award-hero__facts article {
     min-height: 64px;
   }
@@ -4775,6 +5016,10 @@ td .dot {
   }
 
   .source-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .briefs-hero__facts strong {
     font-size: 20px;
   }
 
@@ -4879,6 +5124,10 @@ td .dot {
   .hypothesis-thesis,
   .hypothesis-metrics,
   .hypothesis-validation-grid,
+  .brief-verdict,
+  .brief-interpretation-grid,
+  .brief-evidence-chain,
+  .brief-validation-grid,
   .relationship-brief,
   .relationship-node-grid,
   .lane-brief {
@@ -4890,6 +5139,10 @@ td .dot {
   }
 
   .hypothesis-picker {
+    max-height: 310px;
+  }
+
+  .briefs-picker {
     max-height: 310px;
   }
 
