@@ -571,6 +571,7 @@ function Strategy() {
   const summary = STRATEGY.summary || {};
   const serviceRows = STRATEGY.serviceStrategy || [];
   const intersections = STRATEGY.strategyIntersections || [];
+  const alignmentRows = STRATEGY.budgetExecutionAlignment || [];
   const execution = EXECUTION || {};
   const trends = execution.trends || {};
   const trendPeriods = trends.periods || [];
@@ -736,6 +737,49 @@ function Strategy() {
           <ExecutionTrendList title="Vendor movement" rows={trends.byVendor || []} periods={trendPeriods} />
           <ExecutionTrendList title="PSC movement" rows={trends.byPsc || []} periods={trendPeriods} />
           <ExecutionTrendList title="NAICS movement" rows={trends.byNaics || []} periods={trendPeriods} />
+        </div>
+      </Section>
+
+      <Section title="Budget / Execution Alignment" meta="FY2027 request posture against FY2025-FY2026 contract obligations" icon={GitBranch}>
+        <div className="budget-execution-alignment" data-budget-execution-alignment>
+          {alignmentRows.map((lane) => (
+            <article key={lane.id} className="alignment-card">
+              <header>
+                <div>
+                  <span>{lane.confidence}</span>
+                  <strong>{lane.label}</strong>
+                </div>
+                <b>{lane.score}</b>
+              </header>
+              <p>{lane.interpretation}</p>
+              <dl>
+                <div>
+                  <dt>FY2027 request</dt>
+                  <dd>{money(lane.fy2027)}</dd>
+                </div>
+                <div>
+                  <dt>FY2025-FY2026 obligations</dt>
+                  <dd>{money(lane.executionObligationAmount)}</dd>
+                </div>
+                <div>
+                  <dt>Latest two quarters</dt>
+                  <dd>{money(lane.latestExecutionObligationAmount)} · {pct(lane.executionObligationMomentum)}</dd>
+                </div>
+                <div>
+                  <dt>Top buyer</dt>
+                  <dd>{lane.topBuyer}</dd>
+                </div>
+                <div>
+                  <dt>Top vendor</dt>
+                  <dd>{lane.topVendor}</dd>
+                </div>
+                <div>
+                  <dt>Evidence</dt>
+                  <dd>{lane.narrativeConfirmedRecords} confirmed lines</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
         </div>
       </Section>
 

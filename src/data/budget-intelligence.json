@@ -3227,7 +3227,9 @@
           "topTechnologyArea": "Readiness / Sustainment",
           "topTechnologyValue": 512.1,
           "topClientIntersection": "Navy / Marine Corps",
-          "topClientArea": "Shipbuilding / Maritime"
+          "topClientArea": "Shipbuilding / Maritime",
+          "topExecutionAlignment": "Readiness / Sustainment",
+          "topExecutionAlignmentScore": 53
         },
         "readouts": [
           {
@@ -3269,6 +3271,13 @@
             "tone": "green"
           },
           {
+            "id": "execution-alignment",
+            "label": "Budget/execution alignment",
+            "value": 53,
+            "helper": "Readiness / Sustainment has the strongest combined request, obligation, and evidence signal.",
+            "tone": "orange"
+          },
+          {
             "id": "top-client-lane",
             "label": "Priority lane",
             "value": 75,
@@ -3308,6 +3317,59 @@
             "evidenceShare": 1.5,
             "executionAwards": 75,
             "executionAwardAmount": 95.078,
+            "executionObligationAmount": 55.466,
+            "latestExecutionObligationAmount": 5.505,
+            "executionObligationMomentum": -66.3,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 6.097,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 7.511,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 7.961,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 12.045,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 6.619,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 9.728,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 5.505,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "LOCKHEED MARTIN",
@@ -4137,6 +4199,59 @@
             "evidenceShare": 5.3,
             "executionAwards": 75,
             "executionAwardAmount": 232.811,
+            "executionObligationAmount": 71.582,
+            "latestExecutionObligationAmount": 12.642,
+            "executionObligationMomentum": -38.3,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 6.085,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 7.183,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 6.463,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 18.72,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 6.624,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 13.865,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 12.642,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "LOCKHEED MARTIN",
@@ -4919,6 +5034,59 @@
             "evidenceShare": 0.7,
             "executionAwards": 75,
             "executionAwardAmount": 314.886,
+            "executionObligationAmount": 93.572,
+            "latestExecutionObligationAmount": 11.138,
+            "executionObligationMomentum": -53.8,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 12.436,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 10.274,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 22.652,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 12.967,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 6.573,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 17.532,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 11.134,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0.004,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "ELECTRIC BOAT",
@@ -5485,6 +5653,59 @@
             "evidenceShare": 0.8,
             "executionAwards": 75,
             "executionAwardAmount": 551.136,
+            "executionObligationAmount": 181.336,
+            "latestExecutionObligationAmount": 20.839,
+            "executionObligationMomentum": -61.1,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 28.064,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 19.12,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 16.491,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 43.229,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 27.692,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 25.901,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 20.839,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "LOCKHEED MARTIN",
@@ -6136,6 +6357,59 @@
             "evidenceShare": 1.3,
             "executionAwards": 75,
             "executionAwardAmount": 235.091,
+            "executionObligationAmount": 71.554,
+            "latestExecutionObligationAmount": 12.357,
+            "executionObligationMomentum": -39.5,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 6.154,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 6.87,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 7.532,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 18.224,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 6.63,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 13.787,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 12.336,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0.021,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "LOCKHEED MARTIN",
@@ -6841,6 +7115,59 @@
             "evidenceShare": 0.4,
             "executionAwards": 75,
             "executionAwardAmount": 48.364,
+            "executionObligationAmount": 33.155,
+            "latestExecutionObligationAmount": 6.967,
+            "executionObligationMomentum": -18.5,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 2.325,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 2.35,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 3.145,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 9.82,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 2.458,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 6.09,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 6.967,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "LOCKHEED MARTIN",
@@ -7576,6 +7903,59 @@
             "evidenceShare": 12.5,
             "executionAwards": 75,
             "executionAwardAmount": 22.239,
+            "executionObligationAmount": 6.205,
+            "latestExecutionObligationAmount": 0.881,
+            "executionObligationMomentum": -47.7,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 0.529,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 1.059,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 0.801,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 1.25,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 0.524,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 1.161,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 0.881,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "GENERAL ATOMICS AERONAUTICAL SYSTEMS",
@@ -8410,6 +8790,59 @@
             "evidenceShare": 13.6,
             "executionAwards": 75,
             "executionAwardAmount": 9.62,
+            "executionObligationAmount": 6.252,
+            "latestExecutionObligationAmount": 0.688,
+            "executionObligationMomentum": -63.9,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 0.576,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 0.849,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 0.928,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 1.305,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 0.572,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 1.334,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 0.688,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "LOCKHEED MARTIN",
@@ -9222,6 +9655,59 @@
             "evidenceShare": 45.5,
             "executionAwards": 75,
             "executionAwardAmount": 1.452,
+            "executionObligationAmount": 1.237,
+            "latestExecutionObligationAmount": 0.227,
+            "executionObligationMomentum": -61.5,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 0.069,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 0.088,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 0.078,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 0.186,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 0.272,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 0.317,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 0.227,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "PALANTIR USG",
@@ -9970,6 +10456,59 @@
             "evidenceShare": 32.4,
             "executionAwards": 75,
             "executionAwardAmount": 24.344,
+            "executionObligationAmount": 28.874,
+            "latestExecutionObligationAmount": 3.702,
+            "executionObligationMomentum": -54,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 2.905,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 3.548,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 4.232,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 6.431,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 3.343,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 4.713,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 3.702,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "DELL MARKETING L P",
@@ -10794,6 +11333,59 @@
             "evidenceShare": 40,
             "executionAwards": 75,
             "executionAwardAmount": 4.17,
+            "executionObligationAmount": 2.706,
+            "latestExecutionObligationAmount": 0.366,
+            "executionObligationMomentum": -47.8,
+            "executionObligationPeriods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "awardAmount": 0.171,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "awardAmount": 0.328,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "awardAmount": 0.469,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "awardAmount": 0.671,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "awardAmount": 0.233,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "awardAmount": 0.468,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "awardAmount": 0.366,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "awardAmount": 0,
+                "awards": 0
+              }
+            ],
             "topExecutionVendors": [
               {
                 "id": "ADVANTAGED SOLUTIONS",
@@ -12163,6 +12755,152 @@
             "confidence": "Narrative confirmed",
             "score": 36,
             "talkTrack": "Defense Information Systems Agency has 0.1B in Cloud / Data Platforms tagged request lines, with 1 visible line records."
+          }
+        ],
+        "budgetExecutionAlignment": [
+          {
+            "id": "readiness-sustainment",
+            "label": "Readiness / Sustainment",
+            "score": 53,
+            "fy2027": 512.1,
+            "records": 602,
+            "growth": 42.2,
+            "executionAwardAmount": 95.078,
+            "executionAwards": 75,
+            "executionObligationAmount": 55.466,
+            "latestExecutionObligationAmount": 5.505,
+            "executionObligationMomentum": -66.3,
+            "narrativeConfirmedRecords": 9,
+            "topBuyer": "Department of the Air Force",
+            "topVendor": "LOCKHEED MARTIN",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Readiness / Sustainment shows 512.1B in FY2027 tagged request value and 55.5B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "aircraft-aviation",
+            "label": "Aircraft / Aviation",
+            "score": 46,
+            "fy2027": 94.7,
+            "records": 364,
+            "growth": 65.6,
+            "executionAwardAmount": 551.136,
+            "executionAwards": 75,
+            "executionObligationAmount": 181.336,
+            "latestExecutionObligationAmount": 20.839,
+            "executionObligationMomentum": -61.1,
+            "narrativeConfirmedRecords": 3,
+            "topBuyer": "Department of the Navy",
+            "topVendor": "LOCKHEED MARTIN",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Aircraft / Aviation shows 94.7B in FY2027 tagged request value and 181.3B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "shipbuilding-maritime",
+            "label": "Shipbuilding / Maritime",
+            "score": 34,
+            "fy2027": 127.3,
+            "records": 279,
+            "growth": 45.2,
+            "executionAwardAmount": 314.886,
+            "executionAwards": 75,
+            "executionObligationAmount": 93.572,
+            "latestExecutionObligationAmount": 11.138,
+            "executionObligationMomentum": -53.8,
+            "narrativeConfirmedRecords": 2,
+            "topBuyer": "Department of the Navy",
+            "topVendor": "ELECTRIC BOAT",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Shipbuilding / Maritime shows 127.3B in FY2027 tagged request value and 93.6B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "missiles-fires",
+            "label": "Missiles / Fires",
+            "score": 32,
+            "fy2027": 129,
+            "records": 358,
+            "growth": 112.1,
+            "executionAwardAmount": 232.811,
+            "executionAwards": 75,
+            "executionObligationAmount": 71.582,
+            "latestExecutionObligationAmount": 12.642,
+            "executionObligationMomentum": -38.3,
+            "narrativeConfirmedRecords": 19,
+            "topBuyer": "Department of the Air Force",
+            "topVendor": "LOCKHEED MARTIN",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Missiles / Fires shows 129B in FY2027 tagged request value and 71.6B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "space-systems",
+            "label": "Space Systems",
+            "score": 29,
+            "fy2027": 88.3,
+            "records": 240,
+            "growth": 136.9,
+            "executionAwardAmount": 235.091,
+            "executionAwards": 75,
+            "executionObligationAmount": 71.554,
+            "latestExecutionObligationAmount": 12.357,
+            "executionObligationMomentum": -39.5,
+            "narrativeConfirmedRecords": 3,
+            "topBuyer": "Department of the Air Force",
+            "topVendor": "LOCKHEED MARTIN",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Space Systems shows 88.3B in FY2027 tagged request value and 71.6B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "installations-infrastructure",
+            "label": "Installations / Infrastructure",
+            "score": 23,
+            "fy2027": 68.2,
+            "records": 949,
+            "growth": 43.9,
+            "executionAwardAmount": 48.364,
+            "executionAwards": 75,
+            "executionObligationAmount": 33.155,
+            "latestExecutionObligationAmount": 6.967,
+            "executionObligationMomentum": -18.5,
+            "narrativeConfirmedRecords": 4,
+            "topBuyer": "Department of the Army",
+            "topVendor": "LOCKHEED MARTIN",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Installations / Infrastructure shows 68.2B in FY2027 tagged request value and 33.2B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "autonomous-systems",
+            "label": "Autonomous Systems",
+            "score": 16,
+            "fy2027": 60.6,
+            "records": 64,
+            "growth": 1650.5,
+            "executionAwardAmount": 22.239,
+            "executionAwards": 75,
+            "executionObligationAmount": 6.205,
+            "latestExecutionObligationAmount": 0.881,
+            "executionObligationMomentum": -47.7,
+            "narrativeConfirmedRecords": 8,
+            "topBuyer": "Department of the Army",
+            "topVendor": "GENERAL ATOMICS AERONAUTICAL SYSTEMS",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Autonomous Systems shows 60.6B in FY2027 tagged request value and 6.2B in sampled FY2025-FY2026 contract obligations."
+          },
+          {
+            "id": "software-digital-engineering",
+            "label": "Software / Digital Engineering",
+            "score": 15,
+            "fy2027": 3.8,
+            "records": 37,
+            "growth": 93.5,
+            "executionAwardAmount": 24.344,
+            "executionAwards": 75,
+            "executionObligationAmount": 28.874,
+            "latestExecutionObligationAmount": 3.702,
+            "executionObligationMomentum": -54,
+            "narrativeConfirmedRecords": 11,
+            "topBuyer": "Department of the Army",
+            "topVendor": "DELL MARKETING L P",
+            "confidence": "Narrative confirmed",
+            "interpretation": "Software / Digital Engineering shows 3.8B in FY2027 tagged request value and 28.9B in sampled FY2025-FY2026 contract obligations."
           }
         ],
         "justificationCoverage": {

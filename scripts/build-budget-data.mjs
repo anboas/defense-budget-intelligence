@@ -952,6 +952,15 @@ function spendingPeriodTotals(seriesList = [], periods = []) {
   return [...totals.values()].map((period) => ({ ...period, awardAmount: round(period.awardAmount, 3) }));
 }
 
+function trimTrailingEmptyPeriods(periods = [], totals = []) {
+  const totalById = new Map(totals.map((period) => [period.id, period.awardAmount || 0]));
+  let lastActiveIndex = periods.length - 1;
+  while (lastActiveIndex >= 0 && !totalById.get(periods[lastActiveIndex].id)) {
+    lastActiveIndex -= 1;
+  }
+  return lastActiveIndex >= 0 ? periods.slice(0, lastActiveIndex + 1) : periods;
+}
+
 function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR)) {
   const file = resolve(requestPackage.sourceDir, book.file);
   if (!existsSync(file)) throw new Error(`Missing source workbook: ${file}`);
@@ -1458,7 +1467,8 @@ const spendingSeries = [
   ...(spendingOverTime.naics || []),
 ];
 const spendingPeriods = spendingSeriesPeriods(spendingSeries);
-const trendPeriods = spendingPeriods.length ? spendingPeriods : executionPeriods;
+const spendingTotals = spendingPeriodTotals(spendingOverTime.technologyAreas || [], spendingPeriods);
+const trendPeriods = spendingPeriods.length ? trimTrailingEmptyPeriods(spendingPeriods, spendingTotals) : executionPeriods;
 const executionTrendModel = spendingPeriods.length ? {
   source: "USAspending spending_over_time quarterly contract obligations",
   periods: trendPeriods,
@@ -1544,11 +1554,13 @@ const justificationCoverage = {
   narrativeConfirmedTechnologyShare: round((narrativeConfirmedTechnologyRecords.length / Math.max(technologyTaggedRecords.length, 1)) * 100),
 };
 const awardAreaById = new Map(awardAreaRows.map((area) => [area.id, area]));
+const obligationTrendByAreaId = new Map((executionTrendModel.byTechnologyArea || []).map((area) => [area.id, area]));
 const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
   const areaRecords = records.filter((record) => record.technologyAreas.includes(area.id));
   const areaEvidenceRecords = areaRecords.filter((record) => record.justificationEvidence);
   const confirmedAreaRecords = areaRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.includes(area.id));
   const executionArea = awardAreaById.get(area.id);
+  const obligationTrend = obligationTrendByAreaId.get(area.id);
   const byService = aggregateFy2027(areaRecords.filter((record) => record.orgGroup === "service"), (record) => ({ id: record.org, label: record.orgName }));
   const byClient = aggregateFy2027(areaRecords.filter((record) => record.orgGroup !== "other"), (record) => ({
     id: record.org,
@@ -1579,6 +1591,10 @@ const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
     evidenceShare: round((areaEvidenceRecords.length / Math.max(areaTotal.records, 1)) * 100),
     executionAwards: executionArea?.uniqueAwards || 0,
     executionAwardAmount: executionArea?.awardAmount || 0,
+    executionObligationAmount: obligationTrend?.awardAmount || 0,
+    latestExecutionObligationAmount: obligationTrend?.latestAmount || 0,
+    executionObligationMomentum: obligationTrend?.latestChange || 0,
+    executionObligationPeriods: obligationTrend?.periods || [],
     topExecutionVendors: executionArea?.topVendors || [],
     topExecutionBuyers: executionArea?.topBuyers || [],
     topExecutionAwards: executionArea?.topAwards || [],
@@ -1599,6 +1615,35 @@ const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
       .map(compactLine),
   };
 }).filter((area) => area.records > 0).sort((a, b) => b.fy2027 - a.fy2027);
+
+const maxTechnologyBudget = Math.max(...technologyAreaRows.map((area) => area.fy2027), 1);
+const maxTechnologyObligations = Math.max(...technologyAreaRows.map((area) => area.executionObligationAmount), 1);
+const budgetExecutionAlignment = technologyAreaRows.map((area) => {
+  const budgetScore = Math.min((area.fy2027 / maxTechnologyBudget) * 34, 34);
+  const obligationScore = Math.min((area.executionObligationAmount / maxTechnologyObligations) * 30, 30);
+  const latestScore = Math.min((area.latestExecutionObligationAmount / Math.max(area.executionObligationAmount, 1)) * 18, 18);
+  const evidenceScore = area.narrativeConfirmedRecords ? 12 : area.evidenceBackedRecords ? 7 : 3;
+  const momentumScore = Math.max(Math.min(area.executionObligationMomentum / 8, 6), -4);
+  const score = Math.round(budgetScore + obligationScore + latestScore + evidenceScore + momentumScore);
+  return {
+    id: area.id,
+    label: area.label,
+    score,
+    fy2027: area.fy2027,
+    records: area.records,
+    growth: area.growth,
+    executionAwardAmount: area.executionAwardAmount,
+    executionAwards: area.executionAwards,
+    executionObligationAmount: area.executionObligationAmount,
+    latestExecutionObligationAmount: area.latestExecutionObligationAmount,
+    executionObligationMomentum: area.executionObligationMomentum,
+    narrativeConfirmedRecords: area.narrativeConfirmedRecords,
+    topBuyer: area.topExecutionBuyers[0]?.label || "n/a",
+    topVendor: area.topExecutionVendors[0]?.label || "n/a",
+    confidence: area.narrativeConfidence,
+    interpretation: `${area.label} shows ${round(area.fy2027)}B in FY2027 tagged request value and ${round(area.executionObligationAmount)}B in sampled FY2025-FY2026 contract obligations.`,
+  };
+}).sort((a, b) => b.score - a.score || b.executionObligationAmount - a.executionObligationAmount).slice(0, 8);
 
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
@@ -1669,6 +1714,8 @@ const strategyAnalytics = {
     topTechnologyValue: technologyAreaRows[0]?.fy2027 || 0,
     topClientIntersection: strategyIntersections[0]?.client,
     topClientArea: strategyIntersections[0]?.area,
+    topExecutionAlignment: budgetExecutionAlignment[0]?.label,
+    topExecutionAlignmentScore: budgetExecutionAlignment[0]?.score || 0,
   },
   readouts: [
     {
@@ -1710,6 +1757,13 @@ const strategyAnalytics = {
       tone: "green",
     },
     {
+      id: "execution-alignment",
+      label: "Budget/execution alignment",
+      value: budgetExecutionAlignment[0]?.score || 0,
+      helper: `${budgetExecutionAlignment[0]?.label || "N/A"} has the strongest combined request, obligation, and evidence signal.`,
+      tone: "orange",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -1720,6 +1774,7 @@ const strategyAnalytics = {
   technologyAreas: technologyAreaRows,
   serviceStrategy,
   strategyIntersections,
+  budgetExecutionAlignment,
   justificationCoverage,
   executionAnalytics: {
     coverage: executionCoverage,

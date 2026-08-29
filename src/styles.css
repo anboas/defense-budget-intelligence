@@ -1154,6 +1154,7 @@ button {
 .execution-rank-list,
 .execution-trend-overview,
 .execution-trend-list,
+.budget-execution-alignment,
 .area-execution-grid {
   display: grid;
   gap: 10px;
@@ -1254,6 +1255,7 @@ button {
 .execution-evidence-summary article,
 .execution-trend-total,
 .execution-trend-card,
+.alignment-card,
 .area-execution-fit,
 .area-execution-award {
   min-width: 0;
@@ -1695,6 +1697,100 @@ button {
   min-height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--brand);
+}
+
+.budget-execution-alignment {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.alignment-card {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.alignment-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.alignment-card header span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.alignment-card header strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.alignment-card header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 28px;
+  border: 1px solid var(--orange);
+  border-radius: 4px;
+  background: #fff4e8;
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.alignment-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.alignment-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.alignment-card dl div {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.alignment-card dt,
+.alignment-card dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alignment-card dt {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.alignment-card dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .area-execution-grid {
@@ -2470,6 +2566,7 @@ td .dot {
   .justification-evidence-summary,
   .execution-evidence-summary,
   .execution-trend-overview,
+  .budget-execution-alignment,
   .area-execution-grid {
     grid-template-columns: 1fr;
   }
@@ -2494,6 +2591,7 @@ td .dot {
   .justification-evidence-summary,
   .execution-evidence-summary,
   .execution-trend-overview,
+  .budget-execution-alignment,
   .area-execution-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2631,6 +2729,10 @@ td .dot {
     grid-template-columns: 1fr;
   }
 
+  .budget-execution-alignment {
+    grid-template-columns: 1fr;
+  }
+
   .metric {
     min-height: 78px;
     padding: 10px;
@@ -2746,6 +2848,7 @@ td .dot {
   .strategy-lane-grid,
   .narrative-evidence-grid,
   .execution-trend-overview,
+  .budget-execution-alignment,
   .area-execution-grid {
     grid-template-columns: 1fr;
   }

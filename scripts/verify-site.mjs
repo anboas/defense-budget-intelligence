@@ -86,6 +86,8 @@ try {
   assert.match(strategyText, /Technology area movement/i);
   assert.match(strategyText, /PSC movement/i);
   assert.match(strategyText, /NAICS movement/i);
+  assert.match(strategyText, /Budget \/ Execution Alignment/i);
+  assert.match(strategyText, /FY2025-FY2026 contract obligations/i);
   assert.match(strategyText, /Execution Signals/i);
   assert.match(strategyText, /Strategy Questions/i);
   assert.match(strategyText, /Narrative Evidence/i);
@@ -99,6 +101,7 @@ try {
   assert.equal(await page.locator("[data-execution-buyers] article").count(), 8, "Strategy should show execution buyer rows");
   assert.equal(await page.locator("[data-execution-vendors] article").count(), 8, "Strategy should show execution vendor rows");
   assert.equal(await page.locator("[data-execution-trends] .execution-trend-card").count(), 5, "Strategy should show five execution trend category cards");
+  assert.equal(await page.locator("[data-budget-execution-alignment] .alignment-card").count(), 8, "Strategy should show eight budget/execution alignment cards");
   assert.ok(await page.locator("[data-area-execution] article").count() >= 2, "Strategy should show selected-area execution signals");
   assert.equal(await page.locator("[data-selected-tech-clients] article").count(), 8, "Strategy should show selected technology clients");
   assert.equal(await page.locator("[data-talking-points] article").count(), 3, "Strategy should show talking points");
@@ -180,6 +183,7 @@ try {
   assert.equal(await mobile.locator("[data-execution-buyers] article").count(), 8, "Mobile Strategy should show execution buyer rows");
   assert.equal(await mobile.locator("[data-execution-vendors] article").count(), 8, "Mobile Strategy should show execution vendor rows");
   assert.equal(await mobile.locator("[data-execution-trends] .execution-trend-card").count(), 5, "Mobile Strategy should show execution trend category cards");
+  assert.equal(await mobile.locator("[data-budget-execution-alignment] .alignment-card").count(), 8, "Mobile Strategy should show budget/execution alignment cards");
   assert.ok(await mobile.locator("[data-area-execution] article").count() >= 2, "Mobile Strategy should show execution signals");
   assert.ok(await mobile.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Mobile Strategy should show narrative evidence cards");
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
