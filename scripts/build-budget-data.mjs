@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DEFAULT_SOURCE_DIR = process.env.HOME ? resolve(process.env.HOME, "clawd/artifacts/defense-budget-intelligence/budget") : resolve(ROOT, "../artifacts/defense-budget-intelligence/budget");
 const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
+const JUSTIFICATION_SOURCE_DIR = process.env.JUSTIFICATION_SOURCE_DIR || resolve(SOURCE_DIR, "justifications/FY2027");
 const OUT_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const CURRENT_REQUEST_YEAR = 2027;
 
@@ -56,9 +57,9 @@ const SOURCE_LAYERS = [
   {
     id: "justification-documents",
     label: "Program narrative",
-    status: "Next",
-    coverage: "RDT&E and procurement justification books, especially program-element PDFs with narrative detail.",
-    role: "Explains why a line is growing, which performers or technical areas are named, and where AI/autonomy signals are hidden outside titles.",
+    status: "Partial",
+    coverage: "FY2027 official RDT&E and procurement justification XML/PDF sources where line-level program narratives are published by OUSD(C).",
+    role: "Explains why a line is growing, which technical areas are named, and where AI/autonomy/software/cyber signals are hidden outside workbook titles.",
   },
   {
     id: "obligations-outlays",
@@ -100,7 +101,7 @@ const PIPELINE_SOURCES = [
     publisher: "Office of the Under Secretary of Defense (Comptroller)",
     url: "https://comptroller.war.gov/Budget-Materials/Budget2027/",
     priority: 2,
-    status: "Ready for triage",
+    status: "First slice ingested",
     layer: "Program narrative",
     cadence: "Annual President's Budget releases",
     access: "Public PDF downloads",
@@ -108,7 +109,7 @@ const PIPELINE_SOURCES = [
     impact: 92,
     effort: "High",
     joinKeys: ["program element", "project number", "service", "budget activity"],
-    firstTask: "Extract R-1 program-element narratives for AI/autonomy and software-heavy lines.",
+    firstTask: "Extend coverage beyond OUSD(C) XMLs into service-hosted RDT&E justification books.",
     value: "Adds technical rationale, named initiatives, and mission context that display workbooks compress into short titles.",
   },
   {
@@ -476,6 +477,209 @@ function detectTechnologyAreas(record) {
   return TECHNOLOGY_AREAS.filter((area) => area.terms.some((term) => haystack.includes(term))).map((area) => area.id);
 }
 
+function stripXmlTags(value = "") {
+  return normalizeText(String(value).replace(/<[^>]+>/g, " "));
+}
+
+function xmlTag(block, tag) {
+  const match = String(block || "").match(new RegExp(`<[a-z0-9]+:${tag}\\b[^>]*>([\\s\\S]*?)<\\/[a-z0-9]+:${tag}>`, "i"));
+  return match ? stripXmlTags(match[1]) : "";
+}
+
+function xmlTags(block, tag) {
+  return [...String(block || "").matchAll(new RegExp(`<[a-z0-9]+:${tag}\\b[^>]*>([\\s\\S]*?)<\\/[a-z0-9]+:${tag}>`, "gi"))]
+    .map((match) => stripXmlTags(match[1]))
+    .filter(Boolean);
+}
+
+function xmlBlocks(xml, tag) {
+  return [...String(xml || "").matchAll(new RegExp(`<[a-z0-9]+:${tag}\\b[^>]*>[\\s\\S]*?<\\/[a-z0-9]+:${tag}>`, "gi"))]
+    .map((match) => match[0]);
+}
+
+function sentenceSnippets(text, terms, limit = 3) {
+  const normalized = normalizeText(text);
+  if (!normalized) return [];
+  const sentences = normalized
+    .replace(/\s*•\s*/g, ". ")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((sentence) => normalizeText(sentence))
+    .filter((sentence) => sentence.length >= 40);
+  const lowerTerms = terms.map((term) => term.toLowerCase());
+  const matches = sentences.filter((sentence) => {
+    const lower = sentence.toLowerCase();
+    return lowerTerms.some((term) => lower.includes(term));
+  });
+  return [...new Set(matches)].slice(0, limit).map((sentence) => (
+    sentence.length > 260 ? `${sentence.slice(0, 257).trim()}...` : sentence
+  ));
+}
+
+function serviceAgencyOrgCode(serviceAgencyName = "") {
+  const lower = serviceAgencyName.toLowerCase();
+  if (lower.includes("army")) return "A";
+  if (lower.includes("navy") || lower.includes("marine corps")) return "N";
+  if (lower.includes("air force") || lower.includes("space force")) return "F";
+  if (lower.includes("cyber command")) return "CYBER";
+  if (lower.includes("chemical and biological defense program")) return "CBDP";
+  if (lower.includes("defense pow")) return "DPAA";
+  if (lower.includes("defense media activity")) return "DMACT";
+  if (lower.includes("defense information systems agency")) return "DISA";
+  if (lower.includes("defense logistics agency")) return "DLA";
+  if (lower.includes("missile defense agency")) return "MDA";
+  if (lower.includes("special operations command")) return "SOCOM";
+  if (lower.includes("advanced research projects agency") || lower.includes("darpa")) return "DARPA";
+  if (lower.includes("defense security cooperation agency")) return "DSCA";
+  if (lower.includes("defense technical information center")) return "DTIC";
+  if (lower.includes("defense threat reduction agency")) return "DTRA";
+  if (lower.includes("defense counterintelligence and security agency")) return "DCSA";
+  if (lower.includes("defense contract management agency")) return "DCMA";
+  if (lower.includes("defense human resources activity") || lower.includes("dod human resources activity")) return "DHRA";
+  if (lower.includes("education activity")) return "DODEA";
+  if (lower.includes("operational test and evaluation")) return "OTE";
+  if (lower.includes("washington headquarters services")) return "WHS";
+  if (lower.includes("joint staff")) return "TJS";
+  if (lower.includes("office of the secretary")) return "OSD";
+  if (lower === "defense-wide") return "DEFW";
+  return "";
+}
+
+function readJustificationManifest() {
+  const manifestPath = resolve(JUSTIFICATION_SOURCE_DIR, "manifest.json");
+  if (existsSync(manifestPath)) {
+    return JSON.parse(readFileSync(manifestPath, "utf8"));
+  }
+
+  if (!existsSync(JUSTIFICATION_SOURCE_DIR)) {
+    return {
+      generatedAt: null,
+      sourcePage: "https://comptroller.war.gov/BudgetMaterials/FY2027budgetjustification.aspx",
+      budgetYear: CURRENT_REQUEST_YEAR,
+      sourceCount: 0,
+      sources: [],
+    };
+  }
+
+  const sources = readdirSync(JUSTIFICATION_SOURCE_DIR)
+    .filter((file) => file.endsWith(".xml"))
+    .sort()
+    .map((file) => {
+      const bookId = file.includes("RDTE") || file.includes("RDT") ? "R-1" : "P-1";
+      const kind = bookId === "R-1" ? "RDT&E justification" : "Procurement justification";
+      const pathPart = bookId === "R-1" ? "03_RDT_and_E" : "02_Procurement";
+      const url = `https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/budget_justification/pdfs/${pathPart}/${file}`;
+      return {
+        id: file.replace(/\.xml$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        name: file.replace(/\.xml$/i, "").replace(/_/g, " "),
+        kind,
+        bookId,
+        url,
+        pdfUrl: url.replace(/\.xml$/i, ".pdf"),
+        localFile: file,
+      };
+    });
+
+  return {
+    generatedAt: null,
+    sourcePage: "https://comptroller.war.gov/BudgetMaterials/FY2027budgetjustification.aspx",
+    budgetYear: CURRENT_REQUEST_YEAR,
+    sourceCount: sources.length,
+    sources,
+  };
+}
+
+function narrativeForTechnologyAreas(text) {
+  const lower = text.toLowerCase();
+  return TECHNOLOGY_AREAS.filter((area) => area.terms.some((term) => lower.includes(term))).map((area) => area.id);
+}
+
+function buildEvidenceSnippets(narrative, technologyAreas) {
+  const terms = technologyAreas.flatMap((areaId) => TECHNOLOGY_AREAS.find((area) => area.id === areaId)?.terms || []);
+  return sentenceSnippets(narrative, terms.length ? terms : TECHNOLOGY_AREAS.flatMap((area) => area.terms));
+}
+
+function parseRdteJustification(source, xml) {
+  return xmlBlocks(xml, "ProgramElement").map((block) => {
+    const narrative = [
+      xmlTag(block, "ProgramElementMissionDescription"),
+      ...xmlTags(block, "ProjectMissionDescription"),
+      ...xmlTags(block, "Description").slice(0, 12),
+    ].filter(Boolean).join(" ");
+    const title = xmlTag(block, "ProgramElementTitle");
+    const joinKey = xmlTag(block, "ProgramElementNumber");
+    const technologyAreas = narrativeForTechnologyAreas(`${title} ${narrative}`);
+    return {
+      id: `${source.id}-${joinKey}`,
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceUrl: source.url,
+      sourcePdfUrl: source.pdfUrl,
+      kind: source.kind,
+      bookId: "R-1",
+      joinKey,
+      lineNumber: xmlTag(block, "R1LineNumber"),
+      title,
+      serviceAgencyName: xmlTag(block, "ServiceAgencyName"),
+      org: serviceAgencyOrgCode(xmlTag(block, "ServiceAgencyName")),
+      appropriationName: xmlTag(block, "AppropriationName"),
+      budgetActivityTitle: xmlTag(block, "BudgetActivityTitle"),
+      fy2027: numberValue(xmlTag(block, "BudgetYearOne")),
+      narrative,
+      technologyAreas,
+      evidenceSnippets: buildEvidenceSnippets(narrative, technologyAreas),
+    };
+  }).filter((item) => item.joinKey && item.title);
+}
+
+function parseProcurementJustification(source, xml) {
+  return xmlBlocks(xml, "LineItem").map((block) => {
+    const narrative = [
+      xmlTag(block, "Description"),
+      ...xmlTags(block, "MissionDescription"),
+      ...xmlTags(block, "Justification"),
+      ...xmlTags(block, "Title").slice(0, 12),
+    ].filter(Boolean).join(" ");
+    const title = xmlTag(block, "LineItemTitle");
+    const joinKey = xmlTag(block, "LineItemNumber");
+    const technologyAreas = narrativeForTechnologyAreas(`${title} ${narrative}`);
+    return {
+      id: `${source.id}-${joinKey}`,
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceUrl: source.url,
+      sourcePdfUrl: source.pdfUrl,
+      kind: source.kind,
+      bookId: "P-1",
+      joinKey,
+      lineNumber: xmlTag(block, "P1LineNumber"),
+      title,
+      serviceAgencyName: xmlTag(block, "ServiceAgencyName"),
+      org: serviceAgencyOrgCode(xmlTag(block, "ServiceAgencyName")),
+      appropriationName: xmlTag(block, "AppropriationTitle"),
+      budgetActivityTitle: xmlTag(block, "BudgetActivityTitle"),
+      fy2027: numberValue(xmlTag(block, "BudgetYearOne") || xmlTag(block, "CurrentYear")),
+      narrative,
+      technologyAreas,
+      evidenceSnippets: buildEvidenceSnippets(narrative, technologyAreas),
+    };
+  }).filter((item) => item.joinKey && item.title);
+}
+
+function loadJustificationEvidence() {
+  const manifest = readJustificationManifest();
+  const evidence = [];
+  for (const source of manifest.sources || []) {
+    const file = resolve(JUSTIFICATION_SOURCE_DIR, source.localFile);
+    if (!existsSync(file)) continue;
+    const xml = readFileSync(file, "utf8");
+    const parsed = source.bookId === "R-1"
+      ? parseRdteJustification(source, xml)
+      : parseProcurementJustification(source, xml);
+    evidence.push(...parsed);
+  }
+  return { manifest, evidence };
+}
+
 function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR)) {
   const file = resolve(requestPackage.sourceDir, book.file);
   if (!existsSync(file)) throw new Error(`Missing source workbook: ${file}`);
@@ -605,6 +809,71 @@ const currentPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURR
 const requestPackages = REQUEST_PACKAGES.filter((requestPackage) => availableBooks(requestPackage).length > 0);
 const records = BOOKS.flatMap((book) => parseBook(book, currentPackage));
 const historicalRecords = requestPackages.flatMap((requestPackage) => availableBooks(requestPackage).flatMap((book) => parseBook(book, requestPackage)));
+const { manifest: justificationManifest, evidence: justificationEvidenceItems } = loadJustificationEvidence();
+
+const justificationByJoinKey = justificationEvidenceItems.reduce((groups, item) => {
+  const key = `${item.bookId}:${item.joinKey}`;
+  const existing = groups.get(key) || [];
+  existing.push(item);
+  groups.set(key, existing);
+  return groups;
+}, new Map());
+
+function areaIntersection(left = [], right = []) {
+  const rightSet = new Set(right);
+  return left.filter((item) => rightSet.has(item));
+}
+
+function bestJustificationEvidence(record) {
+  const candidates = justificationByJoinKey.get(`${record.bookId}:${record.lineCode}`) || [];
+  if (!candidates.length) return null;
+  const orgMatches = candidates.filter((candidate) => candidate.org && candidate.org === record.org);
+  const eligible = orgMatches.length ? orgMatches : candidates.filter((candidate) => (
+    normalizeText(candidate.title).toLowerCase() === normalizeText(record.lineTitle).toLowerCase()
+  ));
+  if (!eligible.length && record.bookId === "P-1") return null;
+  const scored = candidates.map((candidate) => {
+    const orgScore = candidate.org && candidate.org === record.org ? 4 : candidate.org ? -4 : 0;
+    const titleScore = candidate.title && record.lineTitle && normalizeText(candidate.title).toLowerCase() === normalizeText(record.lineTitle).toLowerCase() ? 2 : 0;
+    const areaScore = areaIntersection(record.technologyAreas, candidate.technologyAreas).length;
+    return { candidate, score: orgScore + titleScore + areaScore };
+  });
+  return scored
+    .filter((row) => !eligible.length || eligible.includes(row.candidate))
+    .sort((a, b) => b.score - a.score)[0]?.candidate || eligible[0] || candidates[0];
+}
+
+function evidenceConfidence(record, evidence) {
+  if (!evidence) return { score: 0, label: "No narrative match" };
+  const confirmedAreas = areaIntersection(record.technologyAreas, evidence.technologyAreas);
+  if (evidence.org && evidence.org === record.org && confirmedAreas.length) return { score: 92, label: "High" };
+  if (confirmedAreas.length) return { score: 84, label: "High" };
+  if (evidence.org && evidence.org === record.org) return { score: 72, label: "Medium" };
+  return { score: 62, label: "Directional" };
+}
+
+for (const record of records) {
+  const evidence = bestJustificationEvidence(record);
+  if (!evidence) continue;
+  const confidence = evidenceConfidence(record, evidence);
+  const confirmedTechnologyAreas = areaIntersection(record.technologyAreas, evidence.technologyAreas);
+  record.justificationEvidence = {
+    sourceName: evidence.sourceName,
+    sourceUrl: evidence.sourceUrl,
+    sourcePdfUrl: evidence.sourcePdfUrl,
+    kind: evidence.kind,
+    title: evidence.title,
+    serviceAgencyName: evidence.serviceAgencyName,
+    lineNumber: evidence.lineNumber,
+    fy2027: round(evidence.fy2027),
+    technologyAreas: evidence.technologyAreas,
+    confirmedTechnologyAreas,
+    confidence: confidence.score,
+    confidenceLabel: confidence.label,
+    snippets: evidence.evidenceSnippets.slice(0, 3),
+  };
+}
+
 const total = aggregate(records, () => ({ id: "portfolio", label: "DoD captured portfolio" }))[0];
 const byBook = aggregate(records, (record) => ({ id: record.bookId, label: record.color, short: record.colorShort }));
 const byOrg = aggregate(records, (record) => ({ id: record.org, label: record.orgName, group: record.orgGroup }));
@@ -871,12 +1140,34 @@ function compactLine(record) {
     bookId: record.bookId,
     fy2027: round(record.fy2027),
     growth: changePct(record.fy2027, record.fy2025),
+    justificationEvidence: record.justificationEvidence,
   };
 }
 
 const technologyTaggedRecords = records.filter((record) => record.technologyAreas.length > 0);
+const evidenceBackedRecords = records.filter((record) => record.justificationEvidence);
+const evidenceBackedTechnologyRecords = technologyTaggedRecords.filter((record) => record.justificationEvidence);
+const narrativeConfirmedTechnologyRecords = technologyTaggedRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length > 0);
+const justificationCoverage = {
+  sourcePage: justificationManifest.sourcePage,
+  sourceCache: JUSTIFICATION_SOURCE_DIR,
+  cachedAt: justificationManifest.generatedAt,
+  sourceCount: justificationManifest.sourceCount || (justificationManifest.sources || []).length,
+  evidenceItems: justificationEvidenceItems.length,
+  books: [...new Set(justificationEvidenceItems.map((item) => item.bookId))],
+  matchedBudgetRecords: evidenceBackedRecords.length,
+  matchedBudgetRecordShare: round((evidenceBackedRecords.length / Math.max(records.length, 1)) * 100),
+  evidenceBackedTechnologyRecords: evidenceBackedTechnologyRecords.length,
+  evidenceBackedTechnologyValue: round(sum(evidenceBackedTechnologyRecords, "fy2027")),
+  evidenceBackedTechnologyShare: round((evidenceBackedTechnologyRecords.length / Math.max(technologyTaggedRecords.length, 1)) * 100),
+  narrativeConfirmedTechnologyRecords: narrativeConfirmedTechnologyRecords.length,
+  narrativeConfirmedTechnologyValue: round(sum(narrativeConfirmedTechnologyRecords, "fy2027")),
+  narrativeConfirmedTechnologyShare: round((narrativeConfirmedTechnologyRecords.length / Math.max(technologyTaggedRecords.length, 1)) * 100),
+};
 const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
   const areaRecords = records.filter((record) => record.technologyAreas.includes(area.id));
+  const areaEvidenceRecords = areaRecords.filter((record) => record.justificationEvidence);
+  const confirmedAreaRecords = areaRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.includes(area.id));
   const byService = aggregateFy2027(areaRecords.filter((record) => record.orgGroup === "service"), (record) => ({ id: record.org, label: record.orgName }));
   const byClient = aggregateFy2027(areaRecords.filter((record) => record.orgGroup !== "other"), (record) => ({
     id: record.org,
@@ -900,9 +1191,20 @@ const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
     change: areaTotal.change,
     growth: areaTotal.growth,
     records: areaTotal.records,
+    evidenceBackedRecords: areaEvidenceRecords.length,
+    evidenceBackedFy2027: round(sum(areaEvidenceRecords, "fy2027")),
+    narrativeConfirmedRecords: confirmedAreaRecords.length,
+    narrativeConfirmedFy2027: round(sum(confirmedAreaRecords, "fy2027")),
+    evidenceShare: round((areaEvidenceRecords.length / Math.max(areaTotal.records, 1)) * 100),
+    narrativeConfidence: confirmedAreaRecords.length ? "Narrative confirmed" : areaEvidenceRecords.length ? "Source matched" : "Title-tagged only",
     byService,
     byClient,
     byBook: byBookArea,
+    evidenceExamples: areaRecords
+      .filter((record) => record.justificationEvidence?.snippets?.length)
+      .sort((a, b) => (b.justificationEvidence?.confidence || 0) - (a.justificationEvidence?.confidence || 0) || b.fy2027 - a.fy2027)
+      .slice(0, 5)
+      .map(compactLine),
     topLines: areaRecords
       .filter((record) => record.fy2027 > 0)
       .sort((a, b) => b.fy2027 - a.fy2027)
@@ -912,19 +1214,28 @@ const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
 }).filter((area) => area.records > 0).sort((a, b) => b.fy2027 - a.fy2027);
 
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
-  area.byClient.slice(0, 6).map((client) => ({
-    id: `${area.id}-${client.id}`,
-    areaId: area.id,
-    area: area.label,
-    clientId: client.id,
-    client: client.label,
-    group: client.group,
-    fy2027: client.fy2027,
-    records: client.records,
-    growth: client.growth,
-    score: strategyScore({ ...client, areaId: area.id }),
-    talkTrack: `${client.label} has ${round(client.fy2027)}B in ${area.label} tagged request lines, with ${client.records} visible line records.`,
-  }))
+  area.byClient.slice(0, 6).map((client) => {
+    const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
+    const evidenceRecords = laneRecords.filter((record) => record.justificationEvidence);
+    const confirmedRecords = laneRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.includes(area.id));
+    const score = strategyScore({ ...client, areaId: area.id }) + Math.min(confirmedRecords.length * 2, 8);
+    return {
+      id: `${area.id}-${client.id}`,
+      areaId: area.id,
+      area: area.label,
+      clientId: client.id,
+      client: client.label,
+      group: client.group,
+      fy2027: client.fy2027,
+      records: client.records,
+      growth: client.growth,
+      evidenceBackedRecords: evidenceRecords.length,
+      narrativeConfirmedRecords: confirmedRecords.length,
+      confidence: confirmedRecords.length ? "Narrative confirmed" : evidenceRecords.length ? "Source matched" : "Title-tagged only",
+      score,
+      talkTrack: `${client.label} has ${round(client.fy2027)}B in ${area.label} tagged request lines, with ${client.records} visible line records.`,
+    };
+  })
 )).sort((a, b) => b.score - a.score || b.fy2027 - a.fy2027).slice(0, 18);
 
 const serviceStrategy = ["A", "N", "F"].map((serviceId) => {
@@ -954,6 +1265,12 @@ const strategyAnalytics = {
     taggedFy2027: round(sum(technologyTaggedRecords, "fy2027")),
     taggedRecordShare: round((technologyTaggedRecords.length / Math.max(records.length, 1)) * 100),
     taggedValueShare: round((sum(technologyTaggedRecords, "fy2027") / Math.max(total.fy2027, 1)) * 100),
+    narrativeSourceCount: justificationCoverage.sourceCount,
+    narrativeEvidenceItems: justificationCoverage.evidenceItems,
+    evidenceBackedTechnologyRecords: justificationCoverage.evidenceBackedTechnologyRecords,
+    evidenceBackedTechnologyValue: justificationCoverage.evidenceBackedTechnologyValue,
+    narrativeConfirmedTechnologyRecords: justificationCoverage.narrativeConfirmedTechnologyRecords,
+    narrativeConfirmedTechnologyValue: justificationCoverage.narrativeConfirmedTechnologyValue,
     topTechnologyArea: technologyAreaRows[0]?.label,
     topTechnologyValue: technologyAreaRows[0]?.fy2027 || 0,
     topClientIntersection: strategyIntersections[0]?.client,
@@ -984,16 +1301,24 @@ const strategyAnalytics = {
       tone: "orange",
     },
     {
+      id: "narrative-evidence",
+      label: "Narrative evidence",
+      value: justificationCoverage.narrativeConfirmedTechnologyRecords,
+      helper: `${justificationCoverage.sourceCount} official RDT&E/procurement justification XMLs cached; ${justificationCoverage.evidenceBackedTechnologyRecords} tagged lines have source matches.`,
+      tone: "purple",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
-      helper: `${strategyIntersections[0]?.client || "N/A"} · ${strategyIntersections[0]?.area || "N/A"}.`,
-      tone: "purple",
+      helper: `${strategyIntersections[0]?.client || "N/A"} · ${strategyIntersections[0]?.area || "N/A"} · ${strategyIntersections[0]?.confidence || "Title-tagged only"}.`,
+      tone: "blue",
     },
   ],
   technologyAreas: technologyAreaRows,
   serviceStrategy,
   strategyIntersections,
+  justificationCoverage,
 };
 
 const generatedAt = sourceInventory
@@ -1097,6 +1422,7 @@ const out = {
       requestHistory,
       analyticsReadouts,
       strategyAnalytics,
+      justificationCoverage,
       coverageDiagnostics: {
         signalTaggedRecords: taggedRecords.length,
         signalTaggedRecordShare: round((taggedRecords.length / Math.max(records.length, 1)) * 100),
@@ -1108,12 +1434,13 @@ const out = {
       limitations: [
         "Budget display books are request and enacted-plan views, not executed outlay or contract-obligation feeds.",
         "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
+        "Justification evidence currently covers FY2027 OUSD(C)-published RDT&E and procurement XML sources; some service-hosted justification books require separate discovery.",
         "Historical request coverage currently includes M-1, O-1, P-1, R-1, and RF-1 for FY2024-FY2026; C-1 historical workbooks use a different public path and are not backfilled yet.",
         "Request-vintage trends compare workbook request totals and should not be read as execution/outlay trends.",
       ],
       nextSources: [
         "Historical C-1 workbook discovery and MILCON request package backfill.",
-        "RDT&E budget justification PDFs for program narrative and hidden AI/autonomy signals.",
+        "Service-hosted RDT&E and procurement justification books for Army, Navy / Marine Corps, Air Force, and Space Force narrative coverage.",
         "USAspending and FPDS obligations for execution-side spend and vendor drilldown.",
         "DoD contracts, solicitations, and POM-relevant public releases for market timing context.",
       ],

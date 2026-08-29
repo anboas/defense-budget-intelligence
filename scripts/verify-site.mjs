@@ -81,6 +81,8 @@ try {
   assert.match(strategyText, /Client \/ Technology Strategy Lanes/i);
   assert.match(strategyText, /Service Strategy/i);
   assert.match(strategyText, /Strategy Questions/i);
+  assert.match(strategyText, /Narrative Evidence/i);
+  assert.match(strategyText, /narrative-confirmed lines/i);
   assert.match(strategyText, /Source Lines/i);
   assert.doesNotMatch(strategyText, /VP conversation frame/i);
   assert.doesNotMatch(strategyText, /Growth conversation surface/i);
@@ -89,6 +91,7 @@ try {
   assert.equal(await page.locator("[data-strategy-lane-grid] .strategy-lane-card").count(), 12, "Strategy should show twelve ranked strategy lanes");
   assert.equal(await page.locator("[data-selected-tech-clients] article").count(), 8, "Strategy should show selected technology clients");
   assert.equal(await page.locator("[data-talking-points] article").count(), 3, "Strategy should show talking points");
+  assert.ok(await page.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Strategy should show narrative evidence cards");
   assert.ok(await page.locator("[data-strategy-line-table] tbody tr").count() >= 4, "Strategy should show source-line examples");
   await page.getByRole("button", { name: /Services/ }).click();
   assert.equal(new URL(page.url()).hash, "#/budget-spend/services", "Services should deep-link through hash route");
@@ -110,6 +113,8 @@ try {
   assert.match(sourcesText, /Refresh Model/i);
   assert.match(sourcesText, /Source Health Monitor/i);
   assert.match(sourcesText, /Coverage Diagnostics/i);
+  assert.match(sourcesText, /Justification Evidence/i);
+  assert.match(sourcesText, /confirmed tech lines/i);
   assert.match(sourcesText, /tagged records/i);
   assert.match(sourcesText, /Source Coverage Ladder/i);
   assert.match(sourcesText, /Execution Source Pipeline/i);
@@ -118,6 +123,7 @@ try {
   assert.match(sourcesText, /USAspending Award Search/i);
   assert.match(sourcesText, /SAM.gov Contract Opportunities/i);
   assert.equal(await page.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Data Sources should expose eleven source health checks");
+  assert.equal(await page.locator("[data-justification-evidence] article").count(), 4, "Data Sources should expose justification evidence summary");
   assert.equal(await page.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Data Sources should expose six source coverage diagnostics");
   assert.equal(await page.locator("[data-source-join-map] .join-path-card").count(), 4, "Data Sources should expose four source join paths");
   assert.equal(await page.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Data Sources should expose five priority points");
@@ -155,13 +161,16 @@ try {
   assert.equal(await mobile.locator("[data-technology-area-list] button").count(), 11, "Mobile Strategy should expose technology areas");
   assert.equal(await mobile.locator("[data-service-strategy-grid] .service-strategy-card").count(), 3, "Mobile Strategy should show service strategy cards");
   assert.equal(await mobile.locator("[data-strategy-lane-grid] .strategy-lane-card").count(), 12, "Mobile Strategy should show strategy lanes");
+  assert.ok(await mobile.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Mobile Strategy should show narrative evidence cards");
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Data Sources should not render unrelated budget filters");
   const mobileSourceHeroBox = await mobile.locator(".source-hero").boundingBox();
   assert.ok(mobileSourceHeroBox && mobileSourceHeroBox.y < 130, `Mobile Data Sources hero should start near the top, got ${mobileSourceHeroBox?.y}px`);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Source Register/i);
+  assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Justification Evidence/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
   assert.equal(await mobile.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Mobile should show source health checks");
+  assert.equal(await mobile.locator("[data-justification-evidence] article").count(), 4, "Mobile should show justification evidence summary");
   assert.equal(await mobile.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Mobile should show source coverage diagnostics");
   assert.equal(await mobile.locator("[data-source-join-map] .join-path-card").count(), 4, "Mobile should show source join paths");
   assert.equal(await mobile.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Mobile should show priority matrix items");

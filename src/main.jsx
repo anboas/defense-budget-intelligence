@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Database,
   ExternalLink,
+  FileText,
   FileSpreadsheet,
   Filter,
   GitBranch,
@@ -101,6 +102,7 @@ const REQUEST_HISTORY = DATA_INVENTORY.requestHistory || [];
 const TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
 const ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
 const STRATEGY = DATA_INVENTORY.strategyAnalytics || {};
+const JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -545,7 +547,7 @@ function Strategy() {
         <div>
           <span>Strategy model</span>
           <h2>Technology Area Drilldown</h2>
-          <p>Start with tagged budget posture, compare concentration by technology area, then inspect service and organization lanes with source-line evidence. Tags are derived from official line titles, so they are directional until justification books and obligations are joined.</p>
+          <p>Start with budget posture, compare technology concentration, then inspect service and organization lanes with source-line evidence. First-pass justification narratives now confirm part of the model; remaining gaps show where the next ingest should go.</p>
         </div>
         <div className="strategy-hero__facts" aria-label="Strategy summary">
           <article>
@@ -561,8 +563,8 @@ function Strategy() {
             <span>tagged FY2027</span>
           </article>
           <article>
-            <strong>{percent(summary.taggedValueShare || 0, 1)}</strong>
-            <span>value coverage</span>
+            <strong>{summary.narrativeConfirmedTechnologyRecords || 0}</strong>
+            <span>narrative-confirmed lines</span>
           </article>
         </div>
       </section>
@@ -579,7 +581,7 @@ function Strategy() {
               >
                 <div>
                   <strong>{area.label}</strong>
-                  <span>{area.records.toLocaleString()} lines · {pct(area.growth)}</span>
+                  <span>{area.records.toLocaleString()} lines · {area.narrativeConfirmedRecords || 0} confirmed · {pct(area.growth)}</span>
                 </div>
                 <Bar value={area.fy2027} max={maxArea} color="#005ea2" label={`${area.label} FY2027 value`} />
                 <b>{money(area.fy2027)}</b>
@@ -629,6 +631,7 @@ function Strategy() {
               <footer>
                 <span>{money(lane.fy2027)}</span>
                 <span>{lane.records} lines</span>
+                <span>{lane.confidence}</span>
                 <span>{pct(lane.growth)}</span>
               </footer>
             </article>
@@ -667,6 +670,32 @@ function Strategy() {
       ) : null}
 
       {selectedArea ? (
+        <Section title={`${selectedArea.label} Narrative Evidence`} meta={`${selectedArea.narrativeConfirmedRecords || 0} narrative-confirmed source lines`} icon={FileText}>
+          <div className="narrative-evidence-grid" data-narrative-evidence>
+            {(selectedArea.evidenceExamples || []).map((line) => (
+              <article key={`${selectedArea.id}-${line.id}`} className="narrative-evidence-card">
+                <header>
+                  <div>
+                    <span>{line.justificationEvidence.kind} · {line.justificationEvidence.confidenceLabel}</span>
+                    <strong>{line.title}</strong>
+                  </div>
+                  <a href={line.justificationEvidence.sourcePdfUrl || line.justificationEvidence.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${line.title} justification source`}>
+                    <ExternalLink size={15} aria-hidden="true" />
+                  </a>
+                </header>
+                <p>{line.justificationEvidence.snippets[0]}</p>
+                <footer>
+                  <span>{line.orgName}</span>
+                  <span>{line.colorShort}</span>
+                  <span>{money(line.fy2027)}</span>
+                </footer>
+              </article>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
+      {selectedArea ? (
         <Section title={`${selectedArea.label} Source Lines`} meta="largest current lines" icon={Search}>
           <div className="strategy-line-table" data-strategy-line-table>
             <table>
@@ -677,6 +706,7 @@ function Strategy() {
                   <th>Color</th>
                   <th>FY2027</th>
                   <th>Trend</th>
+                  <th>Evidence</th>
                 </tr>
               </thead>
               <tbody>
@@ -687,6 +717,7 @@ function Strategy() {
                     <td><i className="dot" style={{ background: BOOK_COLORS[line.bookId] }} />{line.colorShort}</td>
                     <td>{money(line.fy2027)}</td>
                     <td>{pct(line.growth)}</td>
+                    <td>{line.justificationEvidence?.confidenceLabel || "Title only"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -930,6 +961,31 @@ function Sources() {
         <Metric label="Value coverage" value={yearList(DATA_INVENTORY.availableFiscalYears)} helper="Actual, enacted or plan, and request columns where present" tone="green" />
         <Metric label="Latest cache refresh" value={latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown"} helper="Newest cached workbook timestamp" tone="orange" />
       </div>
+
+      <Section title="Justification Evidence" meta="program narrative coverage" icon={FileText}>
+        <div className="justification-evidence-summary" data-justification-evidence>
+          <article>
+            <strong>{JUSTIFICATION_COVERAGE.sourceCount || 0}</strong>
+            <span>official XML links</span>
+            <p>{JUSTIFICATION_COVERAGE.books?.join(", ") || "R-1, P-1"} program narrative sources from the FY2027 justification page.</p>
+          </article>
+          <article>
+            <strong>{(JUSTIFICATION_COVERAGE.evidenceItems || 0).toLocaleString()}</strong>
+            <span>extracted items</span>
+            <p>Program elements and procurement line items parsed from cached official XML.</p>
+          </article>
+          <article>
+            <strong>{(JUSTIFICATION_COVERAGE.matchedBudgetRecords || 0).toLocaleString()}</strong>
+            <span>matched budget lines</span>
+            <p>{percent(JUSTIFICATION_COVERAGE.matchedBudgetRecordShare, 1)} of current workbook records have a first-pass narrative join.</p>
+          </article>
+          <article>
+            <strong>{(JUSTIFICATION_COVERAGE.narrativeConfirmedTechnologyRecords || 0).toLocaleString()}</strong>
+            <span>confirmed tech lines</span>
+            <p>{money(JUSTIFICATION_COVERAGE.narrativeConfirmedTechnologyValue || 0)} in technology-tagged FY2027 value is confirmed by narrative terms.</p>
+          </article>
+        </div>
+      </Section>
 
       <Section title="Source Health Monitor" meta={`checked ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className="source-health-summary">
