@@ -1152,6 +1152,8 @@ button {
 .justification-evidence-summary,
 .execution-evidence-summary,
 .execution-rank-list,
+.execution-trend-overview,
+.execution-trend-list,
 .area-execution-grid {
   display: grid;
   gap: 10px;
@@ -1250,6 +1252,8 @@ button {
 .narrative-evidence-card,
 .justification-evidence-summary article,
 .execution-evidence-summary article,
+.execution-trend-total,
+.execution-trend-card,
 .area-execution-fit,
 .area-execution-award {
   min-width: 0;
@@ -1467,7 +1471,7 @@ button {
 }
 
 .execution-evidence-summary {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .justification-evidence-summary article,
@@ -1536,6 +1540,161 @@ button {
   font-weight: 850;
   text-align: right;
   white-space: nowrap;
+}
+
+.execution-trend-overview {
+  grid-template-columns: minmax(320px, 0.9fr) repeat(2, minmax(0, 1fr));
+}
+
+.execution-trend-total,
+.execution-trend-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.execution-trend-total {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.execution-trend-card {
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.execution-trend-total header,
+.execution-trend-card header,
+.execution-trend-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.execution-trend-total header span,
+.execution-trend-card header span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.execution-trend-total header strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.execution-trend-total header b,
+.execution-trend-card header b {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.execution-total-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+  align-items: end;
+  min-height: 138px;
+}
+
+.execution-total-bars span {
+  display: grid;
+  grid-template-rows: 92px auto auto;
+  gap: 4px;
+  min-width: 0;
+  align-items: end;
+}
+
+.execution-total-bars i {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: var(--green);
+}
+
+.execution-total-bars em,
+.execution-total-bars strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.execution-total-bars strong {
+  color: var(--text);
+  font-size: 10px;
+}
+
+.execution-trend-row {
+  grid-template-columns: minmax(145px, 1fr) minmax(86px, 0.45fr) 66px;
+  align-items: center;
+  padding: 7px 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.execution-trend-row:first-child {
+  border-top: 0;
+}
+
+.execution-trend-row strong,
+.execution-trend-row span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.execution-trend-row strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.execution-trend-row span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.execution-trend-row > b {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.execution-period-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  align-items: end;
+  height: 38px;
+}
+
+.execution-period-bars i {
+  display: block;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--brand);
 }
 
 .area-execution-grid {
@@ -2310,6 +2469,7 @@ td .dot {
   .narrative-evidence-grid,
   .justification-evidence-summary,
   .execution-evidence-summary,
+  .execution-trend-overview,
   .area-execution-grid {
     grid-template-columns: 1fr;
   }
@@ -2333,6 +2493,7 @@ td .dot {
   .narrative-evidence-grid,
   .justification-evidence-summary,
   .execution-evidence-summary,
+  .execution-trend-overview,
   .area-execution-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2466,6 +2627,10 @@ td .dot {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .execution-trend-overview {
+    grid-template-columns: 1fr;
+  }
+
   .metric {
     min-height: 78px;
     padding: 10px;
@@ -2580,6 +2745,7 @@ td .dot {
   .service-strategy-grid,
   .strategy-lane-grid,
   .narrative-evidence-grid,
+  .execution-trend-overview,
   .area-execution-grid {
     grid-template-columns: 1fr;
   }

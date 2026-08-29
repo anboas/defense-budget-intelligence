@@ -82,6 +82,10 @@ try {
   assert.match(strategyText, /Service Strategy/i);
   assert.match(strategyText, /Execution Buyers/i);
   assert.match(strategyText, /Execution Vendors/i);
+  assert.match(strategyText, /Execution Trend Model/i);
+  assert.match(strategyText, /Technology area movement/i);
+  assert.match(strategyText, /PSC movement/i);
+  assert.match(strategyText, /NAICS movement/i);
   assert.match(strategyText, /Execution Signals/i);
   assert.match(strategyText, /Strategy Questions/i);
   assert.match(strategyText, /Narrative Evidence/i);
@@ -94,6 +98,7 @@ try {
   assert.equal(await page.locator("[data-strategy-lane-grid] .strategy-lane-card").count(), 12, "Strategy should show twelve ranked strategy lanes");
   assert.equal(await page.locator("[data-execution-buyers] article").count(), 8, "Strategy should show execution buyer rows");
   assert.equal(await page.locator("[data-execution-vendors] article").count(), 8, "Strategy should show execution vendor rows");
+  assert.equal(await page.locator("[data-execution-trends] .execution-trend-card").count(), 5, "Strategy should show five execution trend category cards");
   assert.ok(await page.locator("[data-area-execution] article").count() >= 2, "Strategy should show selected-area execution signals");
   assert.equal(await page.locator("[data-selected-tech-clients] article").count(), 8, "Strategy should show selected technology clients");
   assert.equal(await page.locator("[data-talking-points] article").count(), 3, "Strategy should show talking points");
@@ -121,6 +126,8 @@ try {
   assert.match(sourcesText, /Coverage Diagnostics/i);
   assert.match(sourcesText, /Justification Evidence/i);
   assert.match(sourcesText, /USAspending Award Snapshot/i);
+  assert.match(sourcesText, /trend quarters/i);
+  assert.match(sourcesText, /top PSC trend lane/i);
   assert.match(sourcesText, /sampled award value/i);
   assert.match(sourcesText, /confirmed tech lines/i);
   assert.match(sourcesText, /tagged records/i);
@@ -132,7 +139,7 @@ try {
   assert.match(sourcesText, /SAM.gov Contract Opportunities/i);
   assert.equal(await page.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Data Sources should expose eleven source health checks");
   assert.equal(await page.locator("[data-justification-evidence] article").count(), 4, "Data Sources should expose justification evidence summary");
-  assert.equal(await page.locator("[data-execution-evidence] article").count(), 4, "Data Sources should expose execution evidence summary");
+  assert.equal(await page.locator("[data-execution-evidence] article").count(), 6, "Data Sources should expose execution evidence summary");
   assert.equal(await page.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Data Sources should expose six source coverage diagnostics");
   assert.equal(await page.locator("[data-source-join-map] .join-path-card").count(), 4, "Data Sources should expose four source join paths");
   assert.equal(await page.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Data Sources should expose five priority points");
@@ -172,6 +179,7 @@ try {
   assert.equal(await mobile.locator("[data-strategy-lane-grid] .strategy-lane-card").count(), 12, "Mobile Strategy should show strategy lanes");
   assert.equal(await mobile.locator("[data-execution-buyers] article").count(), 8, "Mobile Strategy should show execution buyer rows");
   assert.equal(await mobile.locator("[data-execution-vendors] article").count(), 8, "Mobile Strategy should show execution vendor rows");
+  assert.equal(await mobile.locator("[data-execution-trends] .execution-trend-card").count(), 5, "Mobile Strategy should show execution trend category cards");
   assert.ok(await mobile.locator("[data-area-execution] article").count() >= 2, "Mobile Strategy should show execution signals");
   assert.ok(await mobile.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Mobile Strategy should show narrative evidence cards");
   await mobile.getByRole("button", { name: /Data Sources/ }).click();
@@ -184,7 +192,7 @@ try {
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Execution Source Pipeline/i);
   assert.equal(await mobile.locator("[data-source-health-monitor] .source-health-card").count(), 11, "Mobile should show source health checks");
   assert.equal(await mobile.locator("[data-justification-evidence] article").count(), 4, "Mobile should show justification evidence summary");
-  assert.equal(await mobile.locator("[data-execution-evidence] article").count(), 4, "Mobile should show execution evidence summary");
+  assert.equal(await mobile.locator("[data-execution-evidence] article").count(), 6, "Mobile should show execution evidence summary");
   assert.equal(await mobile.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Mobile should show source coverage diagnostics");
   assert.equal(await mobile.locator("[data-source-join-map] .join-path-card").count(), 4, "Mobile should show source join paths");
   assert.equal(await mobile.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Mobile should show priority matrix items");

@@ -795,6 +795,163 @@ function aggregateAwards(awards, keyFn) {
   })).sort((a, b) => b.awardAmount - a.awardAmount);
 }
 
+function fiscalQuarter(dateString = "") {
+  const date = new Date(`${dateString.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = date.getUTCMonth();
+  const fiscalYear = month >= 9 ? date.getUTCFullYear() + 1 : date.getUTCFullYear();
+  const quarter = Math.floor(((month + 3) % 12) / 3) + 1;
+  return {
+    id: `FY${fiscalYear}-Q${quarter}`,
+    label: `FY${fiscalYear} Q${quarter}`,
+    fiscalYear,
+    quarter,
+    sort: fiscalYear * 10 + quarter,
+  };
+}
+
+function awardPeriods(awards) {
+  return [...new Map(awards
+    .map((award) => fiscalQuarter(award.startDate))
+    .filter(Boolean)
+    .map((period) => [period.id, period])).values()]
+    .sort((a, b) => a.sort - b.sort);
+}
+
+function sumPeriodValues(periodValues, periods) {
+  const periodIds = new Set(periods.map((period) => period.id));
+  return Object.entries(periodValues)
+    .filter(([periodId]) => periodIds.has(periodId))
+    .reduce((totalValue, [, value]) => totalValue + value, 0);
+}
+
+function executionTrendRows(awards, periods, keyFn, limit = 8) {
+  const groups = new Map();
+  const latestPeriods = periods.slice(-2);
+  const previousPeriods = periods.slice(Math.max(periods.length - 4, 0), Math.max(periods.length - 2, 0));
+  for (const award of awards) {
+    const key = keyFn(award);
+    if (!key?.id) continue;
+    const period = fiscalQuarter(award.startDate);
+    const existing = groups.get(key.id) || {
+      ...key,
+      awardAmount: 0,
+      awardAmountDollars: 0,
+      awards: 0,
+      periodValues: {},
+      periodAwards: {},
+      areas: new Set(),
+    };
+    existing.awardAmount += award.awardAmount;
+    existing.awardAmountDollars += award.awardAmountDollars;
+    existing.awards += 1;
+    existing.areas.add(award.area);
+    if (period) {
+      existing.periodValues[period.id] = (existing.periodValues[period.id] || 0) + award.awardAmount;
+      existing.periodAwards[period.id] = (existing.periodAwards[period.id] || 0) + 1;
+    }
+    groups.set(key.id, existing);
+  }
+  return [...groups.values()].map((row) => {
+    const latestAmount = sumPeriodValues(row.periodValues, latestPeriods);
+    const previousAmount = sumPeriodValues(row.periodValues, previousPeriods);
+    return {
+      ...row,
+      awardAmount: round(row.awardAmount, 3),
+      latestAmount: round(latestAmount, 3),
+      previousAmount: round(previousAmount, 3),
+      latestChange: changePct(latestAmount, previousAmount),
+      periods: periods.map((period) => ({
+        id: period.id,
+        label: period.label,
+        awardAmount: round(row.periodValues[period.id] || 0, 3),
+        awards: row.periodAwards[period.id] || 0,
+      })),
+      areas: [...row.areas].sort(),
+    };
+  }).sort((a, b) => b.latestAmount - a.latestAmount || b.awardAmount - a.awardAmount).slice(0, limit);
+}
+
+function executionPeriodTotals(awards, periods) {
+  const totals = new Map(periods.map((period) => [period.id, { ...period, awardAmount: 0, awards: 0 }]));
+  for (const award of awards) {
+    const period = fiscalQuarter(award.startDate);
+    if (!period || !totals.has(period.id)) continue;
+    const total = totals.get(period.id);
+    total.awardAmount += award.awardAmount;
+    total.awards += 1;
+  }
+  return [...totals.values()].map((period) => ({ ...period, awardAmount: round(period.awardAmount, 3) }));
+}
+
+function spendingPeriod(raw = {}) {
+  const fiscalYear = Number(raw.fiscal_year || raw.fiscalYear);
+  const quarter = Number(raw.quarter);
+  if (!fiscalYear || !quarter) return null;
+  return {
+    id: `FY${fiscalYear}-Q${quarter}`,
+    label: `FY${fiscalYear} Q${quarter}`,
+    fiscalYear,
+    quarter,
+    sort: fiscalYear * 10 + quarter,
+  };
+}
+
+function spendingSeriesPeriods(seriesGroups = []) {
+  return [...new Map(seriesGroups
+    .flatMap((series) => series.results || [])
+    .map((point) => spendingPeriod(point.time_period))
+    .filter(Boolean)
+    .map((period) => [period.id, period])).values()]
+    .sort((a, b) => a.sort - b.sort);
+}
+
+function spendingTrendRows(seriesList = [], periods = [], limit = 8) {
+  const latestPeriods = periods.slice(-2);
+  const previousPeriods = periods.slice(Math.max(periods.length - 4, 0), Math.max(periods.length - 2, 0));
+  return seriesList.map((series) => {
+    const periodValues = {};
+    for (const point of series.results || []) {
+      const period = spendingPeriod(point.time_period);
+      if (!period) continue;
+      periodValues[period.id] = (periodValues[period.id] || 0) + dollarsToBillions(point.aggregated_amount || point.Contract_Obligations);
+    }
+    const awardAmount = Object.values(periodValues).reduce((totalValue, value) => totalValue + value, 0);
+    const latestAmount = sumPeriodValues(periodValues, latestPeriods);
+    const previousAmount = sumPeriodValues(periodValues, previousPeriods);
+    return {
+      id: series.id,
+      label: series.label,
+      group: series.group,
+      awardAmount: round(awardAmount, 3),
+      sourceAwardAmount: series.sourceAwardAmount || 0,
+      awards: series.sourceAwardCount || 0,
+      latestAmount: round(latestAmount, 3),
+      previousAmount: round(previousAmount, 3),
+      latestChange: changePct(latestAmount, previousAmount),
+      periods: periods.map((period) => ({
+        id: period.id,
+        label: period.label,
+        awardAmount: round(periodValues[period.id] || 0, 3),
+        awards: 0,
+      })),
+    };
+  }).sort((a, b) => b.latestAmount - a.latestAmount || b.awardAmount - a.awardAmount).slice(0, limit);
+}
+
+function spendingPeriodTotals(seriesList = [], periods = []) {
+  const totals = new Map(periods.map((period) => [period.id, { ...period, awardAmount: 0, awards: 0 }]));
+  for (const series of seriesList) {
+    for (const point of series.results || []) {
+      const period = spendingPeriod(point.time_period);
+      if (!period || !totals.has(period.id)) continue;
+      const total = totals.get(period.id);
+      total.awardAmount += dollarsToBillions(point.aggregated_amount || point.Contract_Obligations);
+    }
+  }
+  return [...totals.values()].map((period) => ({ ...period, awardAmount: round(period.awardAmount, 3) }));
+}
+
 function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR)) {
   const file = resolve(requestPackage.sourceDir, book.file);
   if (!existsSync(file)) throw new Error(`Missing source workbook: ${file}`);
@@ -1269,6 +1426,7 @@ const awardEntries = (usaspendingSnapshot.areas || []).flatMap((areaResult) => (
 ));
 const uniqueAwards = [...new Map(awardEntries.map((award) => [award.id, award])).values()];
 const uniqueAwardValue = round(uniqueAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+const executionPeriods = awardPeriods(uniqueAwards);
 const awardAreaRows = (usaspendingSnapshot.areas || []).map((areaResult) => {
   const areaAwards = (areaResult.results || []).map((award) => normalizeAward(award, areaResult.area));
   const areaUniqueAwards = [...new Map(areaAwards.map((award) => [award.id, award])).values()];
@@ -1291,19 +1449,81 @@ const awardAreaRows = (usaspendingSnapshot.areas || []).map((areaResult) => {
 }).sort((a, b) => b.awardAmount - a.awardAmount);
 const topExecutionVendors = aggregateAwards(uniqueAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 12);
 const topExecutionBuyers = aggregateAwards(uniqueAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 12);
+const spendingOverTime = usaspendingSnapshot.spendingOverTime || {};
+const spendingSeries = [
+  ...(spendingOverTime.technologyAreas || []),
+  ...(spendingOverTime.buyerAgencies || []),
+  ...(spendingOverTime.vendors || []),
+  ...(spendingOverTime.psc || []),
+  ...(spendingOverTime.naics || []),
+];
+const spendingPeriods = spendingSeriesPeriods(spendingSeries);
+const trendPeriods = spendingPeriods.length ? spendingPeriods : executionPeriods;
+const executionTrendModel = spendingPeriods.length ? {
+  source: "USAspending spending_over_time quarterly contract obligations",
+  periods: trendPeriods,
+  totalByPeriod: spendingPeriodTotals(spendingOverTime.technologyAreas || [], trendPeriods),
+  byBuyerGroup: executionTrendRows(uniqueAwards, trendPeriods, (award) => ({
+    id: buyerGroup(award.buyerSubAgency),
+    label: buyerGroup(award.buyerSubAgency),
+  }), 6),
+  byBuyerAgency: spendingTrendRows(spendingOverTime.buyerAgencies || [], trendPeriods, 8),
+  byVendor: spendingTrendRows(spendingOverTime.vendors || [], trendPeriods, 8),
+  byPsc: spendingTrendRows(spendingOverTime.psc || [], trendPeriods, 8),
+  byNaics: spendingTrendRows(spendingOverTime.naics || [], trendPeriods, 8),
+  byTechnologyArea: spendingTrendRows(spendingOverTime.technologyAreas || [], trendPeriods, 11),
+} : {
+  source: "USAspending award search start dates",
+  periods: trendPeriods,
+  totalByPeriod: executionPeriodTotals(uniqueAwards, trendPeriods),
+  byBuyerGroup: executionTrendRows(uniqueAwards, trendPeriods, (award) => ({
+    id: buyerGroup(award.buyerSubAgency),
+    label: buyerGroup(award.buyerSubAgency),
+  }), 6),
+  byBuyerAgency: executionTrendRows(uniqueAwards, trendPeriods, (award) => ({
+    id: award.buyerSubAgency,
+    label: award.buyerSubAgency,
+    group: buyerGroup(award.buyerSubAgency),
+  }), 8),
+  byVendor: executionTrendRows(uniqueAwards, trendPeriods, (award) => ({
+    id: award.recipient,
+    label: award.recipient,
+  }), 8),
+  byPsc: executionTrendRows(uniqueAwards, trendPeriods, (award) => ({
+    id: award.pscCode || "unspecified-psc",
+    label: award.pscCode ? `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` : "Unspecified PSC",
+  }), 8),
+  byNaics: executionTrendRows(uniqueAwards, trendPeriods, (award) => ({
+    id: award.naicsCode || "unspecified-naics",
+    label: award.naicsCode ? `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}` : "Unspecified NAICS",
+  }), 8),
+  byTechnologyArea: executionTrendRows(awardEntries, awardPeriods(awardEntries), (award) => ({
+    id: award.areaId,
+    label: award.area,
+  }), 11),
+};
 const executionCoverage = {
   sourceUrl: usaspendingSnapshot.metadata?.sourceUrl,
+  spendingOverTimeUrl: usaspendingSnapshot.metadata?.spendingOverTimeUrl,
   cachedAt: usaspendingSnapshot.metadata?.generatedAt,
   startDate: usaspendingSnapshot.metadata?.startDate,
   endDate: usaspendingSnapshot.metadata?.endDate,
   methodology: usaspendingSnapshot.metadata?.methodology,
   areaCount: usaspendingSnapshot.metadata?.cachedAreaCount || awardAreaRows.length,
   failedAreaCount: usaspendingSnapshot.metadata?.failedAreaCount || 0,
+  trendSeriesCount: usaspendingSnapshot.metadata?.trendSeriesCount || 0,
+  failedTrendSeriesCount: usaspendingSnapshot.metadata?.failedTrendSeriesCount || 0,
   awardEntries: awardEntries.length,
   uniqueAwards: uniqueAwards.length,
   uniqueAwardValue,
   vendorCount: topExecutionVendors.length,
   buyerCount: topExecutionBuyers.length,
+  trendSource: executionTrendModel.source,
+  trendPeriodCount: trendPeriods.length,
+  latestTrendPeriod: trendPeriods.at(-1)?.label || "n/a",
+  topTrendBuyer: executionTrendModel.byBuyerAgency[0]?.label || "n/a",
+  topTrendPsc: executionTrendModel.byPsc[0]?.label || "n/a",
+  topTrendNaics: executionTrendModel.byNaics[0]?.label || "n/a",
 };
 const justificationCoverage = {
   sourcePage: justificationManifest.sourcePage,
@@ -1506,6 +1726,7 @@ const strategyAnalytics = {
     technologyAreas: awardAreaRows,
     topVendors: topExecutionVendors,
     topBuyers: topExecutionBuyers,
+    trends: executionTrendModel,
   },
 };
 

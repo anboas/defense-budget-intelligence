@@ -12189,17 +12189,26 @@
         "executionAnalytics": {
           "coverage": {
             "sourceUrl": "https://api.usaspending.gov/api/v2/search/spending_by_award/",
-            "cachedAt": "2026-08-29T03:06:10.265Z",
+            "spendingOverTimeUrl": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+            "cachedAt": "2026-08-29T04:40:42.915Z",
             "startDate": "2024-10-01",
             "endDate": "2026-08-29",
-            "methodology": "Top Department of Defense contract awards by technology-area keyword search using USAspending award search. Values are award amounts returned by USAspending, not audited budget-line obligations.",
+            "methodology": "Top Department of Defense contract awards by technology-area keyword search using USAspending award search, plus quarterly contract-obligation time series from USAspending spending_over_time for selected technology, buyer, vendor, PSC, and NAICS filters.",
             "areaCount": 11,
             "failedAreaCount": 0,
+            "trendSeriesCount": 43,
+            "failedTrendSeriesCount": 0,
             "awardEntries": 825,
             "uniqueAwards": 723,
             "uniqueAwardValue": 1238.57,
             "vendorCount": 12,
-            "buyerCount": 12
+            "buyerCount": 12,
+            "trendSource": "USAspending spending_over_time quarterly contract obligations",
+            "trendPeriodCount": 8,
+            "latestTrendPeriod": "FY2026 Q4",
+            "topTrendBuyer": "Department of the Navy",
+            "topTrendPsc": "1410 · GUIDED MISSILES",
+            "topTrendNaics": "336411 · AIRCRAFT MANUFACTURING"
           },
           "technologyAreas": [
             {
@@ -15770,7 +15779,3676 @@
                 "Installations / Infrastructure"
               ]
             }
-          ]
+          ],
+          "trends": {
+            "source": "USAspending spending_over_time quarterly contract obligations",
+            "periods": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "fiscalYear": 2025,
+                "quarter": 1,
+                "sort": 20251
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "fiscalYear": 2025,
+                "quarter": 2,
+                "sort": 20252
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "fiscalYear": 2025,
+                "quarter": 3,
+                "sort": 20253
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "fiscalYear": 2025,
+                "quarter": 4,
+                "sort": 20254
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "fiscalYear": 2026,
+                "quarter": 1,
+                "sort": 20261
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "fiscalYear": 2026,
+                "quarter": 2,
+                "sort": 20262
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "fiscalYear": 2026,
+                "quarter": 3,
+                "sort": 20263
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "fiscalYear": 2026,
+                "quarter": 4,
+                "sort": 20264
+              }
+            ],
+            "totalByPeriod": [
+              {
+                "id": "FY2025-Q1",
+                "label": "FY2025 Q1",
+                "fiscalYear": 2025,
+                "quarter": 1,
+                "sort": 20251,
+                "awardAmount": 65.411,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q2",
+                "label": "FY2025 Q2",
+                "fiscalYear": 2025,
+                "quarter": 2,
+                "sort": 20252,
+                "awardAmount": 59.18,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q3",
+                "label": "FY2025 Q3",
+                "fiscalYear": 2025,
+                "quarter": 3,
+                "sort": 20253,
+                "awardAmount": 70.752,
+                "awards": 0
+              },
+              {
+                "id": "FY2025-Q4",
+                "label": "FY2025 Q4",
+                "fiscalYear": 2025,
+                "quarter": 4,
+                "sort": 20254,
+                "awardAmount": 124.848,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q1",
+                "label": "FY2026 Q1",
+                "fiscalYear": 2026,
+                "quarter": 1,
+                "sort": 20261,
+                "awardAmount": 61.54,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q2",
+                "label": "FY2026 Q2",
+                "fiscalYear": 2026,
+                "quarter": 2,
+                "sort": 20262,
+                "awardAmount": 94.896,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q3",
+                "label": "FY2026 Q3",
+                "fiscalYear": 2026,
+                "quarter": 3,
+                "sort": 20263,
+                "awardAmount": 75.287,
+                "awards": 0
+              },
+              {
+                "id": "FY2026-Q4",
+                "label": "FY2026 Q4",
+                "fiscalYear": 2026,
+                "quarter": 4,
+                "sort": 20264,
+                "awardAmount": 0.025,
+                "awards": 0
+              }
+            ],
+            "byBuyerGroup": [
+              {
+                "id": "Army",
+                "label": "Army",
+                "awardAmount": 177.559,
+                "awardAmountDollars": 177559448400.25998,
+                "awards": 184,
+                "periodValues": {
+                  "FY2026-Q1": 1.862,
+                  "FY2020-Q3": 11.385,
+                  "FY2025-Q2": 0.138,
+                  "FY2022-Q4": 2.7700000000000005,
+                  "FY2026-Q2": 1.131,
+                  "FY2024-Q3": 10.984,
+                  "FY2025-Q4": 0.8480000000000001,
+                  "FY2024-Q1": 0.472,
+                  "FY2026-Q3": 4.9030000000000005,
+                  "FY2020-Q4": 0.34199999999999997,
+                  "FY2024-Q4": 6.336,
+                  "FY2019-Q3": 5.2780000000000005,
+                  "FY2008-Q1": 11.523,
+                  "FY2016-Q1": 0.57,
+                  "FY2019-Q4": 2.723,
+                  "FY2021-Q1": 0.937,
+                  "FY2011-Q3": 0.326,
+                  "FY2023-Q1": 8.657,
+                  "FY2023-Q3": 3.4539999999999997,
+                  "FY2006-Q3": 0.238,
+                  "FY2019-Q1": 4.97,
+                  "FY2021-Q4": 0.839,
+                  "FY2017-Q1": 3.199,
+                  "FY2009-Q2": 1.538,
+                  "FY2022-Q1": 1.085,
+                  "FY2018-Q4": 3.6929999999999996,
+                  "FY2020-Q2": 0.115,
+                  "FY2017-Q3": 6.483,
+                  "FY2024-Q2": 1.03,
+                  "FY2022-Q3": 5.427,
+                  "FY2019-Q2": 0.924,
+                  "FY2023-Q4": 2.11,
+                  "FY2021-Q3": 4.106,
+                  "FY2025-Q1": 1.223,
+                  "FY2018-Q1": 6.014,
+                  "FY2018-Q3": 3.869,
+                  "FY2021-Q2": 1.759,
+                  "FY2015-Q3": 0.246,
+                  "FY2016-Q4": 1.5,
+                  "FY2018-Q2": 0.221,
+                  "FY2022-Q2": 1.539,
+                  "FY2015-Q1": 5.608,
+                  "FY2014-Q1": 4.242,
+                  "FY2023-Q2": 6.242999999999999,
+                  "FY2025-Q3": 1.438,
+                  "FY2006-Q4": 1.364,
+                  "FY2017-Q4": 1.361,
+                  "FY2017-Q2": 1.111,
+                  "FY2002-Q4": 3.519,
+                  "FY2015-Q4": 6.738,
+                  "FY2013-Q3": 6.165,
+                  "FY2012-Q3": 0.965,
+                  "FY2013-Q4": 0.871,
+                  "FY2016-Q3": 0.443,
+                  "FY2016-Q2": 7.473,
+                  "FY2000-Q1": 2.318,
+                  "FY2012-Q2": 0.399,
+                  "FY2012-Q1": 0.293,
+                  "FY2003-Q3": 0.241
+                },
+                "periodAwards": {
+                  "FY2026-Q1": 5,
+                  "FY2020-Q3": 6,
+                  "FY2025-Q2": 4,
+                  "FY2022-Q4": 7,
+                  "FY2026-Q2": 6,
+                  "FY2024-Q3": 4,
+                  "FY2025-Q4": 4,
+                  "FY2024-Q1": 5,
+                  "FY2026-Q3": 4,
+                  "FY2020-Q4": 3,
+                  "FY2024-Q4": 8,
+                  "FY2019-Q3": 8,
+                  "FY2008-Q1": 2,
+                  "FY2016-Q1": 1,
+                  "FY2019-Q4": 5,
+                  "FY2021-Q1": 2,
+                  "FY2011-Q3": 1,
+                  "FY2023-Q1": 5,
+                  "FY2023-Q3": 8,
+                  "FY2006-Q3": 1,
+                  "FY2019-Q1": 3,
+                  "FY2021-Q4": 6,
+                  "FY2017-Q1": 3,
+                  "FY2009-Q2": 2,
+                  "FY2022-Q1": 4,
+                  "FY2018-Q4": 5,
+                  "FY2020-Q2": 1,
+                  "FY2017-Q3": 3,
+                  "FY2024-Q2": 5,
+                  "FY2022-Q3": 4,
+                  "FY2019-Q2": 4,
+                  "FY2023-Q4": 2,
+                  "FY2021-Q3": 2,
+                  "FY2025-Q1": 6,
+                  "FY2018-Q1": 6,
+                  "FY2018-Q3": 4,
+                  "FY2021-Q2": 3,
+                  "FY2015-Q3": 1,
+                  "FY2016-Q4": 2,
+                  "FY2018-Q2": 2,
+                  "FY2022-Q2": 3,
+                  "FY2015-Q1": 1,
+                  "FY2014-Q1": 1,
+                  "FY2023-Q2": 5,
+                  "FY2025-Q3": 1,
+                  "FY2006-Q4": 1,
+                  "FY2017-Q4": 1,
+                  "FY2017-Q2": 1,
+                  "FY2002-Q4": 1,
+                  "FY2015-Q4": 2,
+                  "FY2013-Q3": 2,
+                  "FY2012-Q3": 1,
+                  "FY2013-Q4": 1,
+                  "FY2016-Q3": 1,
+                  "FY2016-Q2": 1,
+                  "FY2000-Q1": 1,
+                  "FY2012-Q2": 1,
+                  "FY2012-Q1": 1,
+                  "FY2003-Q3": 1
+                },
+                "areas": [
+                  "AI / Decision Advantage",
+                  "Aircraft / Aviation",
+                  "Autonomous Systems",
+                  "Cloud / Data Platforms",
+                  "Cyber Operations",
+                  "Installations / Infrastructure",
+                  "Missiles / Fires",
+                  "Readiness / Sustainment",
+                  "Software / Digital Engineering",
+                  "Space Systems"
+                ],
+                "latestAmount": 4.903,
+                "previousAmount": 2.993,
+                "latestChange": 63.8,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.223,
+                    "awards": 6
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.138,
+                    "awards": 4
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 1.438,
+                    "awards": 1
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0.848,
+                    "awards": 4
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.862,
+                    "awards": 5
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.131,
+                    "awards": 6
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 4.903,
+                    "awards": 4
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Air Force / Space Force",
+                "label": "Air Force / Space Force",
+                "awardAmount": 276.932,
+                "awardAmountDollars": 276930218078.86993,
+                "awards": 179,
+                "periodValues": {
+                  "FY2023-Q4": 4.093,
+                  "FY2025-Q4": 3.6119999999999997,
+                  "FY2026-Q3": 0.15500000000000003,
+                  "FY2021-Q3": 1.399,
+                  "FY2024-Q4": 7.78,
+                  "FY2020-Q4": 19.951999999999998,
+                  "FY2026-Q2": 0.09100000000000001,
+                  "FY2022-Q3": 0.224,
+                  "FY2024-Q3": 4.901000000000001,
+                  "FY2015-Q1": 2.4050000000000002,
+                  "FY2023-Q3": 4.21,
+                  "FY2010-Q2": 4.825,
+                  "FY2023-Q2": 6.788,
+                  "FY2018-Q2": 6.452999999999999,
+                  "FY2025-Q1": 1.749,
+                  "FY2018-Q4": 15.974000000000002,
+                  "FY2018-Q3": 3.91,
+                  "FY2019-Q2": 0.187,
+                  "FY2024-Q2": 0.664,
+                  "FY2022-Q4": 0.16899999999999998,
+                  "FY2021-Q4": 2.132,
+                  "FY2016-Q4": 0.744,
+                  "FY2016-Q3": 2.108,
+                  "FY2020-Q3": 0.217,
+                  "FY2024-Q1": 0.55,
+                  "FY2025-Q3": 1.053,
+                  "FY2022-Q1": 0.495,
+                  "FY2022-Q2": 0.9710000000000001,
+                  "FY2023-Q1": 1.46,
+                  "FY2019-Q4": 0.847,
+                  "FY2025-Q2": 1.509,
+                  "FY2020-Q2": 3.3129999999999997,
+                  "FY2026-Q1": 1.7570000000000001,
+                  "FY2021-Q1": 0.809,
+                  "FY1998-Q4": 10.009,
+                  "FY2013-Q3": 9.499,
+                  "FY2002-Q1": 9.033,
+                  "FY2008-Q3": 4.545,
+                  "FY2006-Q2": 10.844999999999999,
+                  "FY2013-Q2": 4.686,
+                  "FY2021-Q2": 4.3709999999999996,
+                  "FY2012-Q3": 4.814,
+                  "FY2015-Q4": 1.842,
+                  "FY2019-Q1": 2.3200000000000003,
+                  "FY2006-Q3": 1.339,
+                  "FY2018-Q1": 8.823,
+                  "FY2013-Q4": 2.782,
+                  "FY2008-Q2": 12.469999999999999,
+                  "FY2015-Q3": 2.392,
+                  "FY2020-Q1": 0.514,
+                  "FY2017-Q3": 0.51,
+                  "FY2016-Q2": 4.501,
+                  "FY2016-Q1": 0.436,
+                  "FY2011-Q2": 36.384,
+                  "FY2012-Q2": 11.204,
+                  "FY2004-Q1": 11.087,
+                  "FY2014-Q3": 6.008,
+                  "FY2014-Q1": 5.934,
+                  "FY2012-Q4": 2.881,
+                  "FY2019-Q3": 0.197
+                },
+                "periodAwards": {
+                  "FY2023-Q4": 7,
+                  "FY2025-Q4": 4,
+                  "FY2026-Q3": 4,
+                  "FY2021-Q3": 6,
+                  "FY2024-Q4": 8,
+                  "FY2020-Q4": 8,
+                  "FY2026-Q2": 3,
+                  "FY2022-Q3": 2,
+                  "FY2024-Q3": 9,
+                  "FY2015-Q1": 2,
+                  "FY2023-Q3": 4,
+                  "FY2010-Q2": 2,
+                  "FY2023-Q2": 5,
+                  "FY2018-Q2": 6,
+                  "FY2025-Q1": 3,
+                  "FY2018-Q4": 9,
+                  "FY2018-Q3": 4,
+                  "FY2019-Q2": 2,
+                  "FY2024-Q2": 4,
+                  "FY2022-Q4": 2,
+                  "FY2021-Q4": 6,
+                  "FY2016-Q4": 2,
+                  "FY2016-Q3": 3,
+                  "FY2020-Q3": 2,
+                  "FY2024-Q1": 3,
+                  "FY2025-Q3": 5,
+                  "FY2022-Q1": 2,
+                  "FY2022-Q2": 4,
+                  "FY2023-Q1": 2,
+                  "FY2019-Q4": 3,
+                  "FY2025-Q2": 3,
+                  "FY2020-Q2": 3,
+                  "FY2026-Q1": 5,
+                  "FY2021-Q1": 2,
+                  "FY1998-Q4": 1,
+                  "FY2013-Q3": 1,
+                  "FY2002-Q1": 1,
+                  "FY2008-Q3": 1,
+                  "FY2006-Q2": 2,
+                  "FY2013-Q2": 2,
+                  "FY2021-Q2": 4,
+                  "FY2012-Q3": 2,
+                  "FY2015-Q4": 1,
+                  "FY2019-Q1": 3,
+                  "FY2006-Q3": 1,
+                  "FY2018-Q1": 3,
+                  "FY2013-Q4": 2,
+                  "FY2008-Q2": 2,
+                  "FY2015-Q3": 1,
+                  "FY2020-Q1": 1,
+                  "FY2017-Q3": 1,
+                  "FY2016-Q2": 2,
+                  "FY2016-Q1": 1,
+                  "FY2011-Q2": 2,
+                  "FY2012-Q2": 1,
+                  "FY2004-Q1": 1,
+                  "FY2014-Q3": 1,
+                  "FY2014-Q1": 1,
+                  "FY2012-Q4": 1,
+                  "FY2019-Q3": 1
+                },
+                "areas": [
+                  "AI / Decision Advantage",
+                  "Aircraft / Aviation",
+                  "Autonomous Systems",
+                  "Cloud / Data Platforms",
+                  "Cyber Operations",
+                  "Installations / Infrastructure",
+                  "Missiles / Fires",
+                  "Readiness / Sustainment",
+                  "Shipbuilding / Maritime",
+                  "Software / Digital Engineering",
+                  "Space Systems"
+                ],
+                "latestAmount": 0.155,
+                "previousAmount": 1.848,
+                "latestChange": -91.6,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.749,
+                    "awards": 3
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.509,
+                    "awards": 3
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 1.053,
+                    "awards": 5
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 3.612,
+                    "awards": 4
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.757,
+                    "awards": 5
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.091,
+                    "awards": 3
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.155,
+                    "awards": 4
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Navy / Marine Corps",
+                "label": "Navy / Marine Corps",
+                "awardAmount": 723.966,
+                "awardAmountDollars": 723966629999.2502,
+                "awards": 239,
+                "periodValues": {
+                  "FY2021-Q4": 5.362,
+                  "FY2024-Q4": 12.522999999999998,
+                  "FY2026-Q3": 0.111,
+                  "FY2021-Q1": 13.012,
+                  "FY2026-Q2": 0.041,
+                  "FY2020-Q2": 10.815,
+                  "FY2020-Q3": 8.393,
+                  "FY2023-Q3": 0.774,
+                  "FY2019-Q3": 4.118,
+                  "FY2015-Q2": 1.1949999999999998,
+                  "FY2017-Q3": 5.135,
+                  "FY2018-Q3": 5.8759999999999994,
+                  "FY2014-Q4": 20.165999999999997,
+                  "FY2023-Q2": 3.312,
+                  "FY2023-Q4": 22.099,
+                  "FY2024-Q1": 19.013,
+                  "FY2011-Q4": 9.879999999999999,
+                  "FY2022-Q3": 4.107,
+                  "FY2021-Q3": 3.1439999999999997,
+                  "FY2021-Q2": 4.385000000000001,
+                  "FY2022-Q1": 5.518,
+                  "FY2025-Q2": 0.449,
+                  "FY2016-Q2": 0.30500000000000005,
+                  "FY2019-Q4": 2.817,
+                  "FY2017-Q1": 10.471,
+                  "FY2017-Q4": 37.275,
+                  "FY2019-Q2": 1.221,
+                  "FY2022-Q4": 0.11099999999999999,
+                  "FY2024-Q3": 8.023,
+                  "FY2018-Q4": 19.466,
+                  "FY2010-Q3": 0.899,
+                  "FY2025-Q4": 1.661,
+                  "FY2025-Q3": 0.272,
+                  "FY2020-Q4": 2.83,
+                  "FY2004-Q4": 6.902,
+                  "FY2025-Q1": 6.788,
+                  "FY2023-Q1": 26.46,
+                  "FY2020-Q1": 36.139,
+                  "FY2007-Q3": 12.945,
+                  "FY2022-Q2": 1.554,
+                  "FY2013-Q2": 10.524000000000001,
+                  "FY2017-Q2": 38.812000000000005,
+                  "FY2016-Q4": 1.249,
+                  "FY2026-Q1": 0.9630000000000001,
+                  "FY2015-Q1": 0.631,
+                  "FY2010-Q4": 1.984,
+                  "FY2012-Q3": 25.801000000000002,
+                  "FY2009-Q1": 16.928,
+                  "FY2016-Q3": 24.713999999999995,
+                  "FY2003-Q4": 9.397,
+                  "FY2008-Q4": 6.651,
+                  "FY2013-Q3": 14.698,
+                  "FY2011-Q1": 10.356000000000002,
+                  "FY2000-Q1": 4.564,
+                  "FY2015-Q3": 15.086,
+                  "FY2009-Q2": 4.518,
+                  "FY2018-Q2": 20.541,
+                  "FY2006-Q4": 3.31,
+                  "FY2013-Q1": 3.146,
+                  "FY1998-Q2": 3.004,
+                  "FY2016-Q1": 15.266,
+                  "FY2009-Q4": 3.267,
+                  "FY2006-Q1": 1.957,
+                  "FY2019-Q1": 10.605,
+                  "FY2008-Q2": 1.65,
+                  "FY2018-Q1": 37.992000000000004,
+                  "FY2015-Q4": 1.56,
+                  "FY2007-Q1": 1.179,
+                  "FY2008-Q3": 4.5,
+                  "FY2002-Q1": 34.174,
+                  "FY2004-Q3": 7.634,
+                  "FY2012-Q1": 7.337,
+                  "FY2014-Q2": 6.998,
+                  "FY2006-Q2": 6.103,
+                  "FY2024-Q2": 5.766,
+                  "FY2009-Q3": 5.699,
+                  "FY2012-Q4": 5.544,
+                  "FY1993-Q1": 4.885,
+                  "FY2014-Q3": 6.535,
+                  "FY2007-Q4": 2.871
+                },
+                "periodAwards": {
+                  "FY2021-Q4": 9,
+                  "FY2024-Q4": 11,
+                  "FY2026-Q3": 2,
+                  "FY2021-Q1": 4,
+                  "FY2026-Q2": 2,
+                  "FY2020-Q2": 4,
+                  "FY2020-Q3": 5,
+                  "FY2023-Q3": 4,
+                  "FY2019-Q3": 5,
+                  "FY2015-Q2": 2,
+                  "FY2017-Q3": 5,
+                  "FY2018-Q3": 2,
+                  "FY2014-Q4": 4,
+                  "FY2023-Q2": 2,
+                  "FY2023-Q4": 13,
+                  "FY2024-Q1": 8,
+                  "FY2011-Q4": 3,
+                  "FY2022-Q3": 8,
+                  "FY2021-Q3": 6,
+                  "FY2021-Q2": 5,
+                  "FY2022-Q1": 6,
+                  "FY2025-Q2": 4,
+                  "FY2016-Q2": 2,
+                  "FY2019-Q4": 4,
+                  "FY2017-Q1": 4,
+                  "FY2017-Q4": 7,
+                  "FY2019-Q2": 3,
+                  "FY2022-Q4": 2,
+                  "FY2024-Q3": 3,
+                  "FY2018-Q4": 7,
+                  "FY2010-Q3": 1,
+                  "FY2025-Q4": 2,
+                  "FY2025-Q3": 1,
+                  "FY2020-Q4": 4,
+                  "FY2004-Q4": 2,
+                  "FY2025-Q1": 3,
+                  "FY2023-Q1": 3,
+                  "FY2020-Q1": 3,
+                  "FY2007-Q3": 2,
+                  "FY2022-Q2": 1,
+                  "FY2013-Q2": 3,
+                  "FY2017-Q2": 3,
+                  "FY2016-Q4": 2,
+                  "FY2026-Q1": 2,
+                  "FY2015-Q1": 1,
+                  "FY2010-Q4": 2,
+                  "FY2012-Q3": 2,
+                  "FY2009-Q1": 2,
+                  "FY2016-Q3": 4,
+                  "FY2003-Q4": 1,
+                  "FY2008-Q4": 1,
+                  "FY2013-Q3": 4,
+                  "FY2011-Q1": 3,
+                  "FY2000-Q1": 1,
+                  "FY2015-Q3": 2,
+                  "FY2009-Q2": 1,
+                  "FY2018-Q2": 3,
+                  "FY2006-Q4": 1,
+                  "FY2013-Q1": 1,
+                  "FY1998-Q2": 1,
+                  "FY2016-Q1": 2,
+                  "FY2009-Q4": 2,
+                  "FY2006-Q1": 1,
+                  "FY2019-Q1": 5,
+                  "FY2008-Q2": 1,
+                  "FY2018-Q1": 3,
+                  "FY2015-Q4": 1,
+                  "FY2007-Q1": 1,
+                  "FY2008-Q3": 2,
+                  "FY2002-Q1": 1,
+                  "FY2004-Q3": 1,
+                  "FY2012-Q1": 1,
+                  "FY2014-Q2": 1,
+                  "FY2006-Q2": 1,
+                  "FY2024-Q2": 1,
+                  "FY2009-Q3": 1,
+                  "FY2012-Q4": 1,
+                  "FY1993-Q1": 1,
+                  "FY2014-Q3": 3,
+                  "FY2007-Q4": 1
+                },
+                "areas": [
+                  "AI / Decision Advantage",
+                  "Aircraft / Aviation",
+                  "Autonomous Systems",
+                  "Cloud / Data Platforms",
+                  "Cyber Operations",
+                  "Installations / Infrastructure",
+                  "Missiles / Fires",
+                  "Readiness / Sustainment",
+                  "Shipbuilding / Maritime",
+                  "Software / Digital Engineering",
+                  "Space Systems"
+                ],
+                "latestAmount": 0.111,
+                "previousAmount": 1.004,
+                "latestChange": -88.9,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.788,
+                    "awards": 3
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.449,
+                    "awards": 4
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.272,
+                    "awards": 1
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.661,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.963,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.041,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.111,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Fourth Estate",
+                "label": "Fourth Estate",
+                "awardAmount": 59.014,
+                "awardAmountDollars": 59014834916.67001,
+                "awards": 107,
+                "periodValues": {
+                  "FY2025-Q4": 1.032,
+                  "FY2020-Q4": 0.5960000000000001,
+                  "FY2024-Q2": 0.118,
+                  "FY2026-Q2": 0.022,
+                  "FY2023-Q3": 0.372,
+                  "FY2020-Q3": 0.056999999999999995,
+                  "FY2025-Q2": 0.012,
+                  "FY2024-Q4": 3.444,
+                  "FY2024-Q3": 0.073,
+                  "FY2018-Q3": 0.007,
+                  "FY2020-Q1": 0.661,
+                  "FY2022-Q1": 0.088,
+                  "FY2023-Q4": 0.109,
+                  "FY2012-Q2": 1.391,
+                  "FY2019-Q1": 1.319,
+                  "FY2022-Q2": 0.28400000000000003,
+                  "FY2020-Q2": 2.8259999999999996,
+                  "FY2017-Q3": 0.098,
+                  "FY2022-Q4": 2.588,
+                  "FY2021-Q3": 0.613,
+                  "FY2019-Q4": 0.158,
+                  "FY2022-Q3": 0.062,
+                  "FY2021-Q4": 1.224,
+                  "FY2021-Q2": 1.491,
+                  "FY2015-Q4": 2.969,
+                  "FY2026-Q1": 0.198,
+                  "FY2023-Q2": 0.154,
+                  "FY2023-Q1": 0.087,
+                  "FY2017-Q4": 0.058,
+                  "FY2025-Q3": 0.053,
+                  "FY2026-Q3": 0.028,
+                  "FY2017-Q2": 9.294,
+                  "FY2007-Q1": 5.818,
+                  "FY2015-Q3": 1.861,
+                  "FY2011-Q2": 1.521,
+                  "FY2014-Q1": 1.145,
+                  "FY2012-Q1": 7.794,
+                  "FY2019-Q2": 5.518,
+                  "FY2010-Q4": 2.141,
+                  "FY2021-Q1": 1.322,
+                  "FY2015-Q2": 0.225,
+                  "FY2016-Q2": 0.183
+                },
+                "periodAwards": {
+                  "FY2025-Q4": 9,
+                  "FY2020-Q4": 4,
+                  "FY2024-Q2": 4,
+                  "FY2026-Q2": 2,
+                  "FY2023-Q3": 3,
+                  "FY2020-Q3": 2,
+                  "FY2025-Q2": 1,
+                  "FY2024-Q4": 6,
+                  "FY2024-Q3": 4,
+                  "FY2018-Q3": 1,
+                  "FY2020-Q1": 6,
+                  "FY2022-Q1": 5,
+                  "FY2023-Q4": 3,
+                  "FY2012-Q2": 2,
+                  "FY2019-Q1": 3,
+                  "FY2022-Q2": 3,
+                  "FY2020-Q2": 3,
+                  "FY2017-Q3": 1,
+                  "FY2022-Q4": 7,
+                  "FY2021-Q3": 3,
+                  "FY2019-Q4": 2,
+                  "FY2022-Q3": 1,
+                  "FY2021-Q4": 3,
+                  "FY2021-Q2": 3,
+                  "FY2015-Q4": 2,
+                  "FY2026-Q1": 1,
+                  "FY2023-Q2": 1,
+                  "FY2023-Q1": 2,
+                  "FY2017-Q4": 2,
+                  "FY2025-Q3": 2,
+                  "FY2026-Q3": 1,
+                  "FY2017-Q2": 2,
+                  "FY2007-Q1": 1,
+                  "FY2015-Q3": 1,
+                  "FY2011-Q2": 1,
+                  "FY2014-Q1": 1,
+                  "FY2012-Q1": 2,
+                  "FY2019-Q2": 2,
+                  "FY2010-Q4": 1,
+                  "FY2021-Q1": 2,
+                  "FY2015-Q2": 1,
+                  "FY2016-Q2": 1
+                },
+                "areas": [
+                  "AI / Decision Advantage",
+                  "Autonomous Systems",
+                  "Cloud / Data Platforms",
+                  "Cyber Operations",
+                  "Installations / Infrastructure",
+                  "Missiles / Fires",
+                  "Readiness / Sustainment",
+                  "Software / Digital Engineering",
+                  "Space Systems"
+                ],
+                "latestAmount": 0.028,
+                "previousAmount": 0.22,
+                "latestChange": -87.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.012,
+                    "awards": 1
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.053,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.032,
+                    "awards": 9
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.198,
+                    "awards": 1
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.022,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.028,
+                    "awards": 1
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Washington Headquarters Services",
+                "label": "Washington Headquarters Services",
+                "awardAmount": 0.36,
+                "awardAmountDollars": 359548417.93000007,
+                "awards": 9,
+                "periodValues": {
+                  "FY2025-Q3": 0.035,
+                  "FY2024-Q3": 0.031,
+                  "FY2025-Q2": 0.113,
+                  "FY2024-Q4": 0.012,
+                  "FY2021-Q1": 0.093,
+                  "FY2020-Q3": 0.045,
+                  "FY2023-Q3": 0.031
+                },
+                "periodAwards": {
+                  "FY2025-Q3": 1,
+                  "FY2024-Q3": 2,
+                  "FY2025-Q2": 2,
+                  "FY2024-Q4": 1,
+                  "FY2021-Q1": 1,
+                  "FY2020-Q3": 1,
+                  "FY2023-Q3": 1
+                },
+                "areas": [
+                  "AI / Decision Advantage",
+                  "Autonomous Systems",
+                  "Cloud / Data Platforms"
+                ],
+                "latestAmount": 0,
+                "previousAmount": 0,
+                "latestChange": 0,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.113,
+                    "awards": 2
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.035,
+                    "awards": 1
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "U.S. Special Operations Command",
+                "label": "U.S. Special Operations Command",
+                "awardAmount": 0.354,
+                "awardAmountDollars": 354271716.84,
+                "awards": 2,
+                "periodValues": {
+                  "FY2018-Q4": 0.127,
+                  "FY2024-Q2": 0.227
+                },
+                "periodAwards": {
+                  "FY2018-Q4": 1,
+                  "FY2024-Q2": 1
+                },
+                "areas": [
+                  "Autonomous Systems",
+                  "Software / Digital Engineering"
+                ],
+                "latestAmount": 0,
+                "previousAmount": 0,
+                "latestChange": 0,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              }
+            ],
+            "byBuyerAgency": [
+              {
+                "id": "Department of the Navy",
+                "label": "Department of the Navy",
+                "awardAmount": 291.527,
+                "sourceAwardAmount": 723.966,
+                "awards": 239,
+                "latestAmount": 35.772,
+                "previousAmount": 70.9,
+                "latestChange": -49.5,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 41.801,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 30.203,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 46.776,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 66.075,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 28.208,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 42.692,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 35.287,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.485,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Department of the Air Force",
+                "label": "Department of the Air Force",
+                "awardAmount": 186.679,
+                "sourceAwardAmount": 276.932,
+                "awards": 179,
+                "latestAmount": 21.85,
+                "previousAmount": 57.24,
+                "latestChange": -61.8,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 22.63,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 25.163,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 21.936,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 37.86,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 23.709,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 33.531,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 21.068,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.782,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Department of the Army",
+                "label": "Department of the Army",
+                "awardAmount": 131.729,
+                "sourceAwardAmount": 177.559,
+                "awards": 184,
+                "latestAmount": 19.864,
+                "previousAmount": 35.896,
+                "latestChange": -44.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 12.139,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 15.403,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 14.012,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 34.415,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 14.018,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 21.878,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 19.173,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.691,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Defense Logistics Agency",
+                "label": "Defense Logistics Agency",
+                "awardAmount": 82.124,
+                "sourceAwardAmount": 1.077,
+                "awards": 7,
+                "latestAmount": 10.455,
+                "previousAmount": 23.235,
+                "latestChange": -55,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 10.585,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 11.024,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 11.283,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 15.542,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 10.424,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 12.811,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 10.455,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Immediate Office of the Secretary of Defense",
+                "label": "Immediate Office of the Secretary of Defense",
+                "awardAmount": 9.615,
+                "sourceAwardAmount": 1.085,
+                "awards": 18,
+                "latestAmount": 2.129,
+                "previousAmount": 1.966,
+                "latestChange": 8.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.65,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.261,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.985,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 2.624,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.697,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.269,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 1.803,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.326,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Missile Defense Agency",
+                "label": "Missile Defense Agency",
+                "awardAmount": 16.495,
+                "sourceAwardAmount": 51.789,
+                "awards": 33,
+                "latestAmount": 2.068,
+                "previousAmount": 5.331,
+                "latestChange": -61.2,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.9,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 2.302,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 1.917,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 2.977,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.951,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 3.38,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 2.066,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.002,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Defense Health Agency",
+                "label": "Defense Health Agency",
+                "awardAmount": 36.689,
+                "sourceAwardAmount": 1.549,
+                "awards": 9,
+                "latestAmount": 2.005,
+                "previousAmount": 14.645,
+                "latestChange": -86.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.229,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 3.975,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 6.574,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 3.261,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 6.152,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 8.493,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 1.999,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.006,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "Defense Information Systems Agency",
+                "label": "Defense Information Systems Agency",
+                "awardAmount": 6.846,
+                "sourceAwardAmount": 2.494,
+                "awards": 16,
+                "latestAmount": 0.81,
+                "previousAmount": 1.702,
+                "latestChange": -52.4,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.938,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.882,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.79,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.724,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.591,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.111,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.718,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.092,
+                    "awards": 0
+                  }
+                ]
+              }
+            ],
+            "byVendor": [
+              {
+                "id": "LOCKHEED MARTIN",
+                "label": "LOCKHEED MARTIN",
+                "awardAmount": 105.739,
+                "sourceAwardAmount": 409.846,
+                "awards": 90,
+                "latestAmount": 12.643,
+                "previousAmount": 25.659,
+                "latestChange": -50.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 15.384,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 9.537,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 8.917,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 33.599,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 11.073,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 14.586,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 12.643,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "RTX",
+                "label": "RTX",
+                "awardAmount": 25.113,
+                "sourceAwardAmount": 37.457,
+                "awards": 14,
+                "latestAmount": 7.439,
+                "previousAmount": 10.282,
+                "latestChange": -27.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.02,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.734,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 1.096,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 3.542,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 3.58,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 6.702,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 7.439,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "BOEING",
+                "label": "BOEING",
+                "awardAmount": 48.53,
+                "sourceAwardAmount": 165.59,
+                "awards": 37,
+                "latestAmount": 7.238,
+                "previousAmount": 18.879,
+                "latestChange": -61.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.871,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 5.281,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 2.947,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 7.314,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 11.412,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 7.467,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 7.238,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "RAYTHEON",
+                "label": "RAYTHEON",
+                "awardAmount": 31.723,
+                "sourceAwardAmount": 66.131,
+                "awards": 49,
+                "latestAmount": 5.838,
+                "previousAmount": 6.558,
+                "latestChange": -11,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 4.518,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 2.596,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 4.503,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 7.71,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 2.124,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 4.434,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 5.838,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "ELECTRIC BOAT",
+                "label": "ELECTRIC BOAT",
+                "awardAmount": 32.175,
+                "sourceAwardAmount": 134.172,
+                "awards": 15,
+                "latestAmount": 3.04,
+                "previousAmount": 7.768,
+                "latestChange": -60.9,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 4.588,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 3.564,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 11.887,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.328,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.665,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 7.103,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 3.04,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "HUNTINGTON INGALLS",
+                "label": "HUNTINGTON INGALLS",
+                "awardAmount": 17.589,
+                "sourceAwardAmount": 93.256,
+                "awards": 27,
+                "latestAmount": 2.403,
+                "previousAmount": 4.886,
+                "latestChange": -50.8,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.541,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.782,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 5.231,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.746,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.499,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 3.387,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 2.403,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "NORTHROP GRUMMAN SYSTEMS",
+                "label": "NORTHROP GRUMMAN SYSTEMS",
+                "awardAmount": 21.232,
+                "sourceAwardAmount": 50.796,
+                "awards": 27,
+                "latestAmount": 1.783,
+                "previousAmount": 7.623,
+                "latestChange": -76.6,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 2.265,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 3.195,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 2.71,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 3.656,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 2.967,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 4.656,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 1.783,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "SIKORSKY AIRCRAFT",
+                "label": "SIKORSKY AIRCRAFT",
+                "awardAmount": 5.583,
+                "sourceAwardAmount": 51.204,
+                "awards": 11,
+                "latestAmount": 0.466,
+                "previousAmount": 1.968,
+                "latestChange": -76.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.231,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.631,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.415,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.872,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.744,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.224,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.466,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              }
+            ],
+            "byPsc": [
+              {
+                "id": "1410",
+                "label": "1410 · GUIDED MISSILES",
+                "awardAmount": 32.81,
+                "sourceAwardAmount": 115.624,
+                "awards": 43,
+                "latestAmount": 8.032,
+                "previousAmount": 7.261,
+                "latestChange": 10.6,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 2.819,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.417,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 2.03,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 11.251,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.978,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 5.283,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 8.032,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "1905",
+                "label": "1905 · COMBAT SHIPS AND LANDING VESSELS",
+                "awardAmount": 57.963,
+                "sourceAwardAmount": 225.13,
+                "awards": 47,
+                "latestAmount": 7.237,
+                "previousAmount": 13.647,
+                "latestChange": -47,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 9.144,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 5.296,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 18.024,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 4.615,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 2.016,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 11.631,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 7.237,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "1510",
+                "label": "1510 · AIRCRAFT, FIXED WING",
+                "awardAmount": 64.469,
+                "sourceAwardAmount": 356.529,
+                "awards": 42,
+                "latestAmount": 6.794,
+                "previousAmount": 15.729,
+                "latestChange": -56.8,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 14.178,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 4.386,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 3.55,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 19.832,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 8.943,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 6.786,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 6.794,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "1520",
+                "label": "1520 · AIRCRAFT, ROTARY WING",
+                "awardAmount": 8.761,
+                "sourceAwardAmount": 60.353,
+                "awards": 12,
+                "latestAmount": 1.116,
+                "previousAmount": 3.68,
+                "latestChange": -69.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.318,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.662,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.397,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 2.588,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 2.989,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.691,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 1.116,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "2840",
+                "label": "2840 · GAS TURBINES AND JET ENGINES, AIRCRAFT, PRIME MOVING; AND COMPONENTS",
+                "awardAmount": 10.959,
+                "sourceAwardAmount": 27.258,
+                "awards": 7,
+                "latestAmount": 0.784,
+                "previousAmount": 2.568,
+                "latestChange": -69.5,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.181,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.903,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.775,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 3.748,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.638,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.93,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.784,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "AC15",
+                "label": "AC15 · NATIONAL DEFENSE R&D SVCS; DEPARTMENT OF DEFENSE - MILITARY; R&D FACILITIES & MAJ EQUIP",
+                "awardAmount": 2.139,
+                "sourceAwardAmount": 47.11,
+                "awards": 5,
+                "latestAmount": 0.192,
+                "previousAmount": 0.6,
+                "latestChange": -68,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.328,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.46,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.382,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0.177,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.284,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.316,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.192,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "1420",
+                "label": "1420 · GUIDED MISSILE COMPONENTS",
+                "awardAmount": 5.643,
+                "sourceAwardAmount": 27.522,
+                "awards": 11,
+                "latestAmount": 0.136,
+                "previousAmount": 2.362,
+                "latestChange": -94.2,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.702,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.649,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.951,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0.843,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.45,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.912,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.136,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "1904",
+                "label": "1904 · SUBMARINES",
+                "awardAmount": 0,
+                "sourceAwardAmount": 27.238,
+                "awards": 4,
+                "latestAmount": 0,
+                "previousAmount": 0,
+                "latestChange": 0,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              }
+            ],
+            "byNaics": [
+              {
+                "id": "336411",
+                "label": "336411 · AIRCRAFT MANUFACTURING",
+                "awardAmount": 100.399,
+                "sourceAwardAmount": 510.591,
+                "awards": 113,
+                "latestAmount": 11.688,
+                "previousAmount": 29.994,
+                "latestChange": -61,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 18.075,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 8.337,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 6.586,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 25.719,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 18.614,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 11.38,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 11.688,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "336414",
+                "label": "336414 · GUIDED MISSILE AND SPACE VEHICLE MANUFACTURING",
+                "awardAmount": 49.315,
+                "sourceAwardAmount": 166.876,
+                "awards": 63,
+                "latestAmount": 9.491,
+                "previousAmount": 14.526,
+                "latestChange": -34.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 3.509,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 4.58,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 4.406,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 12.803,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 4.071,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 10.455,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 9.491,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "336611",
+                "label": "336611 · SHIP BUILDING AND REPAIRING",
+                "awardAmount": 55.219,
+                "sourceAwardAmount": 255.683,
+                "awards": 60,
+                "latestAmount": 9.471,
+                "previousAmount": 9.651,
+                "latestChange": -1.9,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 5.602,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 4.741,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 18.959,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 6.795,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 3.758,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 5.893,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 9.467,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.004,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "541715",
+                "label": "541715 · RESEARCH AND DEVELOPMENT IN THE PHYSICAL, ENGINEERING, AND LIFE SCIENCES (EXCEPT NANOTECHNOLOGY AND BIOTECHNOLOGY)",
+                "awardAmount": 53.621,
+                "sourceAwardAmount": 18.605,
+                "awards": 84,
+                "latestAmount": 7.186,
+                "previousAmount": 14.442,
+                "latestChange": -50.2,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.534,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 7.37,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 7.542,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 10.547,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 4.371,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 10.071,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 7.185,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.001,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "541330",
+                "label": "541330 · ENGINEERING SERVICES",
+                "awardAmount": 65.572,
+                "sourceAwardAmount": 62.355,
+                "awards": 56,
+                "latestAmount": 6.462,
+                "previousAmount": 20.479,
+                "latestChange": -68.4,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 8.743,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 9.944,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 8.632,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 11.312,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 5.543,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 14.936,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 6.459,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.003,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "541712",
+                "label": "541712 · RESEARCH AND DEVELOPMENT IN THE PHYSICAL, ENGINEERING, AND LIFE SCIENCES (EXCEPT BIOTECHNOLOGY)",
+                "awardAmount": 9.22,
+                "sourceAwardAmount": 20.551,
+                "awards": 31,
+                "latestAmount": 1.126,
+                "previousAmount": 2.172,
+                "latestChange": -48.2,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.282,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.496,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 1.357,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.787,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.794,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.378,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 1.126,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "336412",
+                "label": "336412 · AIRCRAFT ENGINE AND ENGINE PARTS MANUFACTURING",
+                "awardAmount": 16.317,
+                "sourceAwardAmount": 28.812,
+                "awards": 8,
+                "latestAmount": 1.066,
+                "previousAmount": 4.155,
+                "latestChange": -74.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.769,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 2.682,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 1.298,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 5.347,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.189,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 2.966,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 1.066,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "488190",
+                "label": "488190 · OTHER SUPPORT ACTIVITIES FOR AIR TRANSPORTATION",
+                "awardAmount": 11.065,
+                "sourceAwardAmount": 32.009,
+                "awards": 21,
+                "latestAmount": 0.883,
+                "previousAmount": 3.826,
+                "latestChange": -76.9,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 1.337,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.468,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 2.125,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.426,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 1.326,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 2.5,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.883,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              }
+            ],
+            "byTechnologyArea": [
+              {
+                "id": "aircraft-aviation",
+                "label": "Aircraft / Aviation",
+                "awardAmount": 181.336,
+                "sourceAwardAmount": 551.136,
+                "awards": 75,
+                "latestAmount": 20.839,
+                "previousAmount": 53.593,
+                "latestChange": -61.1,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 28.064,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 19.12,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 16.491,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 43.229,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 27.692,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 25.901,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 20.839,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "missiles-fires",
+                "label": "Missiles / Fires",
+                "awardAmount": 71.582,
+                "sourceAwardAmount": 232.811,
+                "awards": 75,
+                "latestAmount": 12.642,
+                "previousAmount": 20.489,
+                "latestChange": -38.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.085,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 7.183,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 6.463,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 18.72,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 6.624,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 13.865,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 12.642,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "space-systems",
+                "label": "Space Systems",
+                "awardAmount": 71.554,
+                "sourceAwardAmount": 235.091,
+                "awards": 75,
+                "latestAmount": 12.357,
+                "previousAmount": 20.417,
+                "latestChange": -39.5,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.154,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 6.87,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 7.532,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 18.224,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 6.63,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 13.787,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 12.336,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.021,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "shipbuilding-maritime",
+                "label": "Shipbuilding / Maritime",
+                "awardAmount": 93.572,
+                "sourceAwardAmount": 314.886,
+                "awards": 75,
+                "latestAmount": 11.138,
+                "previousAmount": 24.105,
+                "latestChange": -53.8,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 12.436,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 10.274,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 22.652,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 12.967,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 6.573,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 17.532,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 11.134,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0.004,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "installations-infrastructure",
+                "label": "Installations / Infrastructure",
+                "awardAmount": 33.155,
+                "sourceAwardAmount": 48.364,
+                "awards": 75,
+                "latestAmount": 6.967,
+                "previousAmount": 8.548,
+                "latestChange": -18.5,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 2.325,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 2.35,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 3.145,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 9.82,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 2.458,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 6.09,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 6.967,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "readiness-sustainment",
+                "label": "Readiness / Sustainment",
+                "awardAmount": 55.466,
+                "sourceAwardAmount": 95.078,
+                "awards": 75,
+                "latestAmount": 5.505,
+                "previousAmount": 16.347,
+                "latestChange": -66.3,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 6.097,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 7.511,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 7.961,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 12.045,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 6.619,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 9.728,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 5.505,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "software-digital-engineering",
+                "label": "Software / Digital Engineering",
+                "awardAmount": 28.874,
+                "sourceAwardAmount": 24.344,
+                "awards": 75,
+                "latestAmount": 3.702,
+                "previousAmount": 8.056,
+                "latestChange": -54,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 2.905,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 3.548,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 4.232,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 6.431,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 3.343,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 4.713,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 3.702,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "autonomous-systems",
+                "label": "Autonomous Systems",
+                "awardAmount": 6.205,
+                "sourceAwardAmount": 22.239,
+                "awards": 75,
+                "latestAmount": 0.881,
+                "previousAmount": 1.685,
+                "latestChange": -47.7,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.529,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 1.059,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.801,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.25,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.524,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.161,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.881,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "cyber-operations",
+                "label": "Cyber Operations",
+                "awardAmount": 6.252,
+                "sourceAwardAmount": 9.62,
+                "awards": 75,
+                "latestAmount": 0.688,
+                "previousAmount": 1.906,
+                "latestChange": -63.9,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.576,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.849,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.928,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 1.305,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.572,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 1.334,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.688,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "cloud-data-platforms",
+                "label": "Cloud / Data Platforms",
+                "awardAmount": 2.706,
+                "sourceAwardAmount": 4.17,
+                "awards": 75,
+                "latestAmount": 0.366,
+                "previousAmount": 0.701,
+                "latestChange": -47.8,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.171,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.328,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.469,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0.671,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.233,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.468,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.366,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              },
+              {
+                "id": "ai-decision-advantage",
+                "label": "AI / Decision Advantage",
+                "awardAmount": 1.237,
+                "sourceAwardAmount": 1.452,
+                "awards": 75,
+                "latestAmount": 0.227,
+                "previousAmount": 0.589,
+                "latestChange": -61.5,
+                "periods": [
+                  {
+                    "id": "FY2025-Q1",
+                    "label": "FY2025 Q1",
+                    "awardAmount": 0.069,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q2",
+                    "label": "FY2025 Q2",
+                    "awardAmount": 0.088,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q3",
+                    "label": "FY2025 Q3",
+                    "awardAmount": 0.078,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2025-Q4",
+                    "label": "FY2025 Q4",
+                    "awardAmount": 0.186,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q1",
+                    "label": "FY2026 Q1",
+                    "awardAmount": 0.272,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q2",
+                    "label": "FY2026 Q2",
+                    "awardAmount": 0.317,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q3",
+                    "label": "FY2026 Q3",
+                    "awardAmount": 0.227,
+                    "awards": 0
+                  },
+                  {
+                    "id": "FY2026-Q4",
+                    "label": "FY2026 Q4",
+                    "awardAmount": 0,
+                    "awards": 0
+                  }
+                ]
+              }
+            ]
+          }
         }
       },
       "justificationCoverage": {
@@ -15796,17 +19474,26 @@
       },
       "executionCoverage": {
         "sourceUrl": "https://api.usaspending.gov/api/v2/search/spending_by_award/",
-        "cachedAt": "2026-08-29T03:06:10.265Z",
+        "spendingOverTimeUrl": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+        "cachedAt": "2026-08-29T04:40:42.915Z",
         "startDate": "2024-10-01",
         "endDate": "2026-08-29",
-        "methodology": "Top Department of Defense contract awards by technology-area keyword search using USAspending award search. Values are award amounts returned by USAspending, not audited budget-line obligations.",
+        "methodology": "Top Department of Defense contract awards by technology-area keyword search using USAspending award search, plus quarterly contract-obligation time series from USAspending spending_over_time for selected technology, buyer, vendor, PSC, and NAICS filters.",
         "areaCount": 11,
         "failedAreaCount": 0,
+        "trendSeriesCount": 43,
+        "failedTrendSeriesCount": 0,
         "awardEntries": 825,
         "uniqueAwards": 723,
         "uniqueAwardValue": 1238.57,
         "vendorCount": 12,
-        "buyerCount": 12
+        "buyerCount": 12,
+        "trendSource": "USAspending spending_over_time quarterly contract obligations",
+        "trendPeriodCount": 8,
+        "latestTrendPeriod": "FY2026 Q4",
+        "topTrendBuyer": "Department of the Navy",
+        "topTrendPsc": "1410 · GUIDED MISSILES",
+        "topTrendNaics": "336411 · AIRCRAFT MANUFACTURING"
       },
       "coverageDiagnostics": {
         "signalTaggedRecords": 2506,

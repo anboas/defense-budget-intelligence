@@ -237,6 +237,41 @@ function AnalyticsReadout({ title = "Analytic Readout", meta = "generated from s
   );
 }
 
+function ExecutionTrendList({ title, rows = [], periods = [], limit = 5 }) {
+  const visibleRows = rows.slice(0, limit);
+  if (!visibleRows.length) return null;
+  const maxAmount = Math.max(...visibleRows.flatMap((row) => (row.periods || []).map((period) => period.awardAmount || 0)), 1);
+  const visiblePeriods = periods.slice(-6);
+  return (
+    <article className="execution-trend-card">
+      <header>
+        <span>{title}</span>
+        <b>{visiblePeriods[0]?.label || "n/a"} to {visiblePeriods.at(-1)?.label || "n/a"}</b>
+      </header>
+      <div className="execution-trend-list">
+        {visibleRows.map((row) => (
+          <div key={row.id} className="execution-trend-row">
+            <div>
+              <strong>{row.label}</strong>
+              <span>{row.awards} source awards · {money(row.latestAmount || row.awardAmount)} latest · {pct(row.latestChange || 0)}</span>
+            </div>
+            <div className="execution-period-bars" aria-label={`${row.label} execution trend`}>
+              {visiblePeriods.map((period) => {
+                const point = (row.periods || []).find((item) => item.id === period.id);
+                const value = point?.awardAmount || 0;
+                return (
+                  <i key={`${row.id}-${period.id}`} title={`${period.label}: ${money(value)}`} style={{ height: `${Math.max((value / maxAmount) * 100, value ? 8 : 2)}%` }} />
+                );
+              })}
+            </div>
+            <b>{money(row.awardAmount)}</b>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 function FilterShell({ filters, setFilters }) {
   const orgs = useMemo(() => aggregate(data.records, (record) => ({ id: record.org, label: record.orgName })).slice(0, 40), []);
 
@@ -537,6 +572,10 @@ function Strategy() {
   const serviceRows = STRATEGY.serviceStrategy || [];
   const intersections = STRATEGY.strategyIntersections || [];
   const execution = EXECUTION || {};
+  const trends = execution.trends || {};
+  const trendPeriods = trends.periods || [];
+  const recentTotalPeriods = (trends.totalByPeriod || []).slice(-6);
+  const maxTrendTotal = Math.max(...recentTotalPeriods.map((period) => period.awardAmount || 0), 1);
   const [selectedAreaId, setSelectedAreaId] = useState(() => areas[0]?.id || "all");
   const selectedArea = areas.find((area) => area.id === selectedAreaId) || areas[0];
   const maxArea = Math.max(...areas.map((area) => area.fy2027), 1);
@@ -671,6 +710,34 @@ function Strategy() {
           </div>
         </Section>
       </div>
+
+      <Section title="Execution Trend Model" meta="USAspending quarterly contract obligations" icon={CalendarClock}>
+        <div className="execution-trend-overview" data-execution-trends>
+          <article className="execution-trend-total">
+            <header>
+              <div>
+                <span>Sampled obligation timeline</span>
+                <strong>{EXECUTION_COVERAGE.trendPeriodCount || trendPeriods.length} fiscal quarters</strong>
+              </div>
+              <b>{EXECUTION_COVERAGE.latestTrendPeriod || recentTotalPeriods.at(-1)?.label || "n/a"}</b>
+            </header>
+            <div className="execution-total-bars" aria-label="Total sampled award value by fiscal quarter">
+              {recentTotalPeriods.map((period) => (
+                <span key={period.id}>
+                  <i style={{ height: `${Math.max(((period.awardAmount || 0) / maxTrendTotal) * 100, period.awardAmount ? 8 : 2)}%` }} />
+                  <em>{period.label.replace("FY20", "FY")}</em>
+                  <strong>{money(period.awardAmount)}</strong>
+                </span>
+              ))}
+            </div>
+          </article>
+          <ExecutionTrendList title="Technology area movement" rows={trends.byTechnologyArea || []} periods={trendPeriods} />
+          <ExecutionTrendList title="Buyer agency movement" rows={trends.byBuyerAgency || []} periods={trendPeriods} />
+          <ExecutionTrendList title="Vendor movement" rows={trends.byVendor || []} periods={trendPeriods} />
+          <ExecutionTrendList title="PSC movement" rows={trends.byPsc || []} periods={trendPeriods} />
+          <ExecutionTrendList title="NAICS movement" rows={trends.byNaics || []} periods={trendPeriods} />
+        </div>
+      </Section>
 
       {selectedArea ? (
         <div className="grid grid--sources">
@@ -1070,6 +1137,16 @@ function Sources() {
             <strong>{EXECUTION_COVERAGE.vendorCount || 0}</strong>
             <span>top vendors tracked</span>
             <p>Buyer rollups use funding sub-agency first, then awarding sub-agency when needed.</p>
+          </article>
+          <article>
+            <strong>{EXECUTION_COVERAGE.trendPeriodCount || 0}</strong>
+            <span>trend quarters</span>
+            <p>USAspending spending_over_time returns quarterly contract obligations for selected filters.</p>
+          </article>
+          <article>
+            <strong>{EXECUTION_COVERAGE.topTrendPsc || "n/a"}</strong>
+            <span>top PSC trend lane</span>
+            <p>PSC and NAICS trend rows expose where sampled awards cluster by work type.</p>
           </article>
         </div>
       </Section>
