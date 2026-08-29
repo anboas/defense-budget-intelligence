@@ -24,6 +24,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
+  { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
@@ -41,6 +42,7 @@ const HASH_ROUTES = {
   overview: "#/budget-spend",
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
+  awards: "#/budget-spend/awards",
   services: "#/budget-spend/services",
   fourth: "#/budget-spend/fourth-estate",
   ai: "#/budget-spend/ai-autonomy",
@@ -105,6 +107,7 @@ const STRATEGY = DATA_INVENTORY.strategyAnalytics || {};
 const JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
 const EXECUTION = STRATEGY.executionAnalytics || {};
 const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
+const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -1098,6 +1101,229 @@ function RecordTable({ records, compact = false }) {
   );
 }
 
+function awardOptionRows(awards, keyFn) {
+  return [...new Map(awards.map(keyFn).filter((item) => item?.id).map((item) => [item.id, item])).values()]
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function Awards() {
+  const awards = AWARD_DRILLDOWN.awards;
+  const summary = AWARD_DRILLDOWN.summary || {};
+  const [filters, setFilters] = useState({ query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" });
+  const areaOptions = useMemo(() => awardOptionRows(awards.flatMap((award) => (award.areaIds || []).map((id, index) => ({ id, label: award.areas?.[index] || id }))), (item) => item), [awards]);
+  const buyerOptions = useMemo(() => awardOptionRows(awards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })), [awards]);
+  const vendorOptions = useMemo(() => awardOptionRows(awards, (award) => ({ id: award.recipient, label: award.recipient })), [awards]);
+  const workTypeOptions = useMemo(() => awardOptionRows(awards.flatMap((award) => [
+    award.pscCode ? { id: `psc:${award.pscCode}`, label: `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` } : null,
+    award.naicsCode ? { id: `naics:${award.naicsCode}`, label: `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}` } : null,
+  ]), (item) => item), [awards]);
+
+  const filteredAwards = awards.filter((award) => {
+    const query = filters.query.trim().toLowerCase();
+    const workTypeMatch = filters.workType === "all"
+      || filters.workType === `psc:${award.pscCode}`
+      || filters.workType === `naics:${award.naicsCode}`;
+    return (!query || [
+      award.awardId,
+      award.recipient,
+      award.buyerSubAgency,
+      award.awardingSubAgency,
+      award.awardingOffice,
+      award.fundingOffice,
+      award.description,
+      award.pscDescription,
+      award.naicsDescription,
+      ...(award.areas || []),
+    ].join(" ").toLowerCase().includes(query))
+      && (filters.area === "all" || (award.areaIds || []).includes(filters.area))
+      && (filters.buyer === "all" || award.buyerSubAgency === filters.buyer)
+      && (filters.vendor === "all" || award.recipient === filters.vendor)
+      && workTypeMatch;
+  }).sort((a, b) => {
+    if (filters.sort === "end") return String(b.endDate || "").localeCompare(String(a.endDate || ""));
+    if (filters.sort === "start") return String(b.startDate || "").localeCompare(String(a.startDate || ""));
+    if (filters.sort === "vendor") return a.recipient.localeCompare(b.recipient) || b.awardAmount - a.awardAmount;
+    return b.awardAmount - a.awardAmount;
+  });
+  const visibleAwards = filteredAwards.slice(0, 250);
+  const filteredValue = sum(filteredAwards, "awardAmount");
+  const topBuyer = aggregateAwardsForUi(filteredAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 4);
+  const topVendor = aggregateAwardsForUi(filteredAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 4);
+  const topWork = aggregateAwardsForUi(filteredAwards.filter((award) => award.pscCode || award.naicsCode), (award) => ({
+    id: award.pscCode || award.naicsCode,
+    label: award.pscCode ? `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` : `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}`,
+  })).slice(0, 4);
+
+  return (
+    <div className="grid awards-page" data-awards-page>
+      <section className="award-hero">
+        <div>
+          <span>Contract award drilldown</span>
+          <h2>USAspending Award Records</h2>
+          <p>Deduped contract award records from cached USAspending technology searches, with buyer, vendor, PSC, NAICS, dates, descriptions, and Award IDs. This is sampled award intelligence, not exhaustive FPDS action history.</p>
+        </div>
+        <div className="award-hero__facts" aria-label="Award drilldown summary">
+          <article>
+            <strong>{(summary.awards || awards.length).toLocaleString()}</strong>
+            <span>deduped awards</span>
+          </article>
+          <article>
+            <strong>{money(summary.sampledAwardValue || 0)}</strong>
+            <span>sampled value</span>
+          </article>
+          <article>
+            <strong>{summary.buyerCount || 0}</strong>
+            <span>buyers</span>
+          </article>
+          <article>
+            <strong>{summary.vendorCount || 0}</strong>
+            <span>vendors</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="award-filter-bar" data-award-filter-bar>
+        <label className="searchbox">
+          <Search size={15} aria-hidden="true" />
+          <input placeholder="Search award IDs, vendors, buyers, descriptions" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} />
+        </label>
+        <label>
+          <span>Area</span>
+          <select value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })}>
+            <option value="all">All areas</option>
+            {areaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Buyer</span>
+          <select value={filters.buyer} onChange={(event) => setFilters({ ...filters, buyer: event.target.value })}>
+            <option value="all">All buyers</option>
+            {buyerOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Vendor</span>
+          <select value={filters.vendor} onChange={(event) => setFilters({ ...filters, vendor: event.target.value })}>
+            <option value="all">All vendors</option>
+            {vendorOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Work type</span>
+          <select value={filters.workType} onChange={(event) => setFilters({ ...filters, workType: event.target.value })}>
+            <option value="all">All PSC / NAICS</option>
+            {workTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Sort</span>
+          <select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>
+            <option value="amount">Award value</option>
+            <option value="end">End date</option>
+            <option value="start">Start date</option>
+            <option value="vendor">Vendor</option>
+          </select>
+        </label>
+      </div>
+
+      <section className="if-metric-grid source-metrics" aria-label="Award filter metrics">
+        <Metric label="Filtered awards" value={filteredAwards.length.toLocaleString()} helper={`${visibleAwards.length.toLocaleString()} shown in table`} />
+        <Metric label="Filtered value" value={money(filteredValue)} helper="Deduped award amount from current filters" tone="green" />
+        <Metric label="Largest buyer" value={topBuyer[0]?.label || "n/a"} helper={topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards"} tone="purple" />
+        <Metric label="Largest vendor" value={topVendor[0]?.label || "n/a"} helper={topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards"} tone="orange" />
+      </section>
+
+      <div className="grid grid--sources">
+        <AwardRollup title="Top Buyers" rows={topBuyer} />
+        <AwardRollup title="Top Vendors" rows={topVendor} />
+        <AwardRollup title="Top Work Types" rows={topWork} />
+      </div>
+
+      <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · showing ${visibleAwards.length.toLocaleString()}`} icon={FileSpreadsheet}>
+        <AwardTable awards={visibleAwards} />
+      </Section>
+    </div>
+  );
+}
+
+function aggregateAwardsForUi(awards, keyFn) {
+  const groups = new Map();
+  for (const award of awards) {
+    const key = keyFn(award);
+    if (!key?.id) continue;
+    const existing = groups.get(key.id) || { ...key, awardAmount: 0, awards: 0 };
+    existing.awardAmount += award.awardAmount;
+    existing.awards += 1;
+    groups.set(key.id, existing);
+  }
+  return [...groups.values()].map((row) => ({ ...row, awardAmount: Number(row.awardAmount.toFixed(3)) })).sort((a, b) => b.awardAmount - a.awardAmount);
+}
+
+function AwardRollup({ title, rows }) {
+  const max = Math.max(...rows.map((row) => row.awardAmount || 0), 1);
+  return (
+    <Section title={title} meta="current filters" icon={BarChart3}>
+      <div className="award-rollup-list">
+        {rows.map((row) => (
+          <article key={row.id}>
+            <div>
+              <strong>{row.label}</strong>
+              <Bar value={row.awardAmount} max={max} color="#005ea2" label={row.label} />
+            </div>
+            <b>{money(row.awardAmount)}</b>
+            <span>{row.awards} awards</span>
+          </article>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function AwardTable({ awards }) {
+  return (
+    <div className="table-shell award-table-shell" data-award-record-table>
+      <table>
+        <thead>
+          <tr>
+            <th>Award</th>
+            <th>Vendor</th>
+            <th>Buyer</th>
+            <th>Area</th>
+            <th>Work type</th>
+            <th>Dates</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {awards.map((award) => (
+            <tr key={award.id}>
+              <td>
+                <strong>{award.awardId || award.id}</strong>
+                <span>{award.contractType || "Contract award"} · {award.description || "No description"}</span>
+              </td>
+              <td>{award.recipient}</td>
+              <td>
+                <strong>{award.buyerSubAgency}</strong>
+                <span>{award.fundingOffice || award.awardingOffice || award.awardingSubAgency}</span>
+              </td>
+              <td>{(award.areas || [award.area]).slice(0, 2).join(", ")}</td>
+              <td>
+                <strong>{award.pscCode || award.naicsCode || "n/a"}</strong>
+                <span>{award.pscDescription || award.naicsDescription || "Uncoded"}</span>
+              </td>
+              <td>
+                <strong>{award.startDate || "n/a"}</strong>
+                <span>{award.endDate ? `Ends ${award.endDate}` : "End date unknown"}</span>
+              </td>
+              <td>{money(award.awardAmount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function Drilldown({ records }) {
   const [sort, setSort] = useState("fy2027");
   const rows = [...records]
@@ -1567,7 +1793,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "awards"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -1642,6 +1868,7 @@ function App() {
         {activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
+        {activeTab === "awards" ? <Awards /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}

@@ -795,6 +795,32 @@ function aggregateAwards(awards, keyFn) {
   })).sort((a, b) => b.awardAmount - a.awardAmount);
 }
 
+function mergeAwardEntries(awards) {
+  const groups = new Map();
+  for (const award of awards) {
+    const existing = groups.get(award.id);
+    if (!existing) {
+      groups.set(award.id, {
+        ...award,
+        areaIds: new Set([award.areaId]),
+        areas: new Set([award.area]),
+      });
+      continue;
+    }
+    existing.areaIds.add(award.areaId);
+    existing.areas.add(award.area);
+    if (award.awardAmount > existing.awardAmount) {
+      existing.awardAmount = award.awardAmount;
+      existing.awardAmountDollars = award.awardAmountDollars;
+    }
+  }
+  return [...groups.values()].map((award) => ({
+    ...award,
+    areaIds: [...award.areaIds].sort(),
+    areas: [...award.areas].sort(),
+  })).sort((a, b) => b.awardAmount - a.awardAmount);
+}
+
 function fiscalQuarter(dateString = "") {
   const date = new Date(`${dateString.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return null;
@@ -1434,6 +1460,7 @@ const awardEntries = (usaspendingSnapshot.areas || []).flatMap((areaResult) => (
   (areaResult.results || []).map((award) => normalizeAward(award, areaResult.area))
 ));
 const uniqueAwards = [...new Map(awardEntries.map((award) => [award.id, award])).values()];
+const drilldownAwards = mergeAwardEntries(awardEntries);
 const uniqueAwardValue = round(uniqueAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
 const executionPeriods = awardPeriods(uniqueAwards);
 const awardAreaRows = (usaspendingSnapshot.areas || []).map((areaResult) => {
@@ -1458,6 +1485,23 @@ const awardAreaRows = (usaspendingSnapshot.areas || []).map((areaResult) => {
 }).sort((a, b) => b.awardAmount - a.awardAmount);
 const topExecutionVendors = aggregateAwards(uniqueAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 12);
 const topExecutionBuyers = aggregateAwards(uniqueAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 12);
+const awardDrilldown = {
+  summary: {
+    awards: drilldownAwards.length,
+    awardEntries: awardEntries.length,
+    sampledAwardValue: uniqueAwardValue,
+    buyerCount: new Set(drilldownAwards.map((award) => award.buyerSubAgency)).size,
+    vendorCount: new Set(drilldownAwards.map((award) => award.recipient)).size,
+    pscCount: new Set(drilldownAwards.map((award) => award.pscCode).filter(Boolean)).size,
+    naicsCount: new Set(drilldownAwards.map((award) => award.naicsCode).filter(Boolean)).size,
+  },
+  byTechnologyArea: awardAreaRows,
+  byBuyer: aggregateAwards(drilldownAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 20),
+  byVendor: aggregateAwards(drilldownAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 20),
+  byPsc: aggregateAwards(drilldownAwards.filter((award) => award.pscCode), (award) => ({ id: award.pscCode, label: `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` })).slice(0, 20),
+  byNaics: aggregateAwards(drilldownAwards.filter((award) => award.naicsCode), (award) => ({ id: award.naicsCode, label: `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}` })).slice(0, 20),
+  awards: drilldownAwards,
+};
 const spendingOverTime = usaspendingSnapshot.spendingOverTime || {};
 const spendingSeries = [
   ...(spendingOverTime.technologyAreas || []),
@@ -1859,6 +1903,7 @@ const strategyAnalytics = {
     topVendors: topExecutionVendors,
     topBuyers: topExecutionBuyers,
     trends: executionTrendModel,
+    awardDrilldown,
   },
 };
 
