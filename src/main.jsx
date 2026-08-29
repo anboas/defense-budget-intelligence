@@ -539,13 +539,13 @@ function Strategy() {
 
   return (
     <div className="grid strategy-page" data-strategy-page>
-      <AnalyticsReadout title="Strategy Readout" meta="technology, service, and client posture" items={STRATEGY.readouts || []} icon={GitBranch} />
+      <AnalyticsReadout title="Portfolio Strategy" meta="technology, service, and organization posture" items={STRATEGY.readouts || []} icon={GitBranch} />
 
       <section className="strategy-hero">
         <div>
-          <span>Growth conversation surface</span>
+          <span>Strategy model</span>
           <h2>Technology Area Drilldown</h2>
-          <p>Use this view to move from budget posture into technology lanes, service priorities, and client/org targets. Tags are derived from official line titles, so they are directional until justification books and obligations are joined.</p>
+          <p>Start with tagged budget posture, compare concentration by technology area, then inspect service and organization lanes with source-line evidence. Tags are derived from official line titles, so they are directional until justification books and obligations are joined.</p>
         </div>
         <div className="strategy-hero__facts" aria-label="Strategy summary">
           <article>
@@ -613,7 +613,7 @@ function Strategy() {
         </Section>
       </div>
 
-      <Section title="Client / Technology Strategy Lanes" meta="ranked for growth conversations" icon={TrendingUp}>
+      <Section title="Client / Technology Strategy Lanes" meta="ranked by scale, growth, and line depth" icon={TrendingUp}>
         <div className="strategy-lane-grid" data-strategy-lane-grid>
           {intersections.slice(0, 12).map((lane) => (
             <article key={lane.id} className="strategy-lane-card">
@@ -638,7 +638,7 @@ function Strategy() {
 
       {selectedArea ? (
         <div className="grid grid--sources">
-          <Section title={`${selectedArea.label} Client Targets`} meta="top orgs and services" icon={Building2}>
+          <Section title={`${selectedArea.label} Organization Concentration`} meta="top services and defense organizations" icon={Building2}>
             <div className="selected-area-list" data-selected-tech-clients>
               {selectedArea.byClient.map((client) => (
                 <article key={`${selectedArea.id}-${client.id}`}>
@@ -653,7 +653,7 @@ function Strategy() {
             </div>
           </Section>
 
-          <Section title={`${selectedArea.label} Talking Points`} meta="strategy prompts" icon={GitBranch}>
+          <Section title={`${selectedArea.label} Strategy Questions`} meta="planning prompts" icon={GitBranch}>
             <div className="talking-point-list" data-talking-points>
               {selectedArea.conversations.map((item) => (
                 <article key={item}>

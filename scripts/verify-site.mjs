@@ -76,11 +76,14 @@ try {
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Strategy should not render current-line filters");
   const strategyText = await page.locator("[data-defense-budget-app]").innerText();
   assert.match(strategyText, /Technology Area Drilldown/i);
-  assert.match(strategyText, /Growth conversation surface/i);
+  assert.match(strategyText, /Strategy model/i);
+  assert.match(strategyText, /Portfolio Strategy/i);
   assert.match(strategyText, /Client \/ Technology Strategy Lanes/i);
   assert.match(strategyText, /Service Strategy/i);
-  assert.match(strategyText, /Talking Points/i);
+  assert.match(strategyText, /Strategy Questions/i);
   assert.match(strategyText, /Source Lines/i);
+  assert.doesNotMatch(strategyText, /VP conversation frame/i);
+  assert.doesNotMatch(strategyText, /Growth conversation surface/i);
   assert.equal(await page.locator("[data-technology-area-list] button").count(), 11, "Strategy should expose eleven technology areas");
   assert.equal(await page.locator("[data-service-strategy-grid] .service-strategy-card").count(), 3, "Strategy should show three service strategy cards");
   assert.equal(await page.locator("[data-strategy-lane-grid] .strategy-lane-card").count(), 12, "Strategy should show twelve ranked strategy lanes");

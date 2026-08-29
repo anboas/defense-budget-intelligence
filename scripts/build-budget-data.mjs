@@ -961,10 +961,10 @@ const strategyAnalytics = {
   },
   readouts: [
     {
-      id: "vp-conversation",
-      label: "VP conversation frame",
+      id: "strategy-coverage",
+      label: "Strategy coverage",
       value: `${technologyAreaRows.length} areas`,
-      helper: "Use this page to connect budget posture to technology lanes, service priorities, and named client/org targets.",
+      helper: "Technology tags connect request value to area, service, and organization priorities.",
       tone: "blue",
     },
     {
@@ -985,7 +985,7 @@ const strategyAnalytics = {
     },
     {
       id: "top-client-lane",
-      label: "Highest strategy lane",
+      label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
       helper: `${strategyIntersections[0]?.client || "N/A"} · ${strategyIntersections[0]?.area || "N/A"}.`,
       tone: "purple",

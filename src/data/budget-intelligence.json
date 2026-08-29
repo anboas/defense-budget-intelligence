@@ -3221,10 +3221,10 @@
         },
         "readouts": [
           {
-            "id": "vp-conversation",
-            "label": "VP conversation frame",
+            "id": "strategy-coverage",
+            "label": "Strategy coverage",
             "value": "11 areas",
-            "helper": "Use this page to connect budget posture to technology lanes, service priorities, and named client/org targets.",
+            "helper": "Technology tags connect request value to area, service, and organization priorities.",
             "tone": "blue"
           },
           {
@@ -3245,7 +3245,7 @@
           },
           {
             "id": "top-client-lane",
-            "label": "Highest strategy lane",
+            "label": "Priority lane",
             "value": 70,
             "helper": "Navy / Marine Corps · Shipbuilding / Maritime.",
             "tone": "purple"
