@@ -103,6 +103,8 @@ const TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
 const ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
 const STRATEGY = DATA_INVENTORY.strategyAnalytics || {};
 const JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
+const EXECUTION = STRATEGY.executionAnalytics || {};
+const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
@@ -534,6 +536,7 @@ function Strategy() {
   const summary = STRATEGY.summary || {};
   const serviceRows = STRATEGY.serviceStrategy || [];
   const intersections = STRATEGY.strategyIntersections || [];
+  const execution = EXECUTION || {};
   const [selectedAreaId, setSelectedAreaId] = useState(() => areas[0]?.id || "all");
   const selectedArea = areas.find((area) => area.id === selectedAreaId) || areas[0];
   const maxArea = Math.max(...areas.map((area) => area.fy2027), 1);
@@ -639,6 +642,36 @@ function Strategy() {
         </div>
       </Section>
 
+      <div className="grid grid--sources">
+        <Section title="Execution Buyers" meta="USAspending sampled award value" icon={Building2}>
+          <div className="execution-rank-list" data-execution-buyers>
+            {(execution.topBuyers || []).slice(0, 8).map((buyer) => (
+              <article key={buyer.id}>
+                <div>
+                  <strong>{buyer.label}</strong>
+                  <span>{buyer.group} · {buyer.awards} awards · {(buyer.areas || []).slice(0, 2).join(", ")}</span>
+                </div>
+                <b>{money(buyer.awardAmount)}</b>
+              </article>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Execution Vendors" meta="USAspending sampled award value" icon={Database}>
+          <div className="execution-rank-list" data-execution-vendors>
+            {(execution.topVendors || []).slice(0, 8).map((vendor) => (
+              <article key={vendor.id}>
+                <div>
+                  <strong>{vendor.label}</strong>
+                  <span>{vendor.awards} awards · {(vendor.areas || []).slice(0, 2).join(", ")}</span>
+                </div>
+                <b>{money(vendor.awardAmount)}</b>
+              </article>
+            ))}
+          </div>
+        </Section>
+      </div>
+
       {selectedArea ? (
         <div className="grid grid--sources">
           <Section title={`${selectedArea.label} Organization Concentration`} meta="top services and defense organizations" icon={Building2}>
@@ -667,6 +700,35 @@ function Strategy() {
             </div>
           </Section>
         </div>
+      ) : null}
+
+      {selectedArea ? (
+        <Section title={`${selectedArea.label} Execution Signals`} meta={`${selectedArea.executionAwards || 0} USAspending sampled awards`} icon={Database}>
+          <div className="area-execution-grid" data-area-execution>
+            <article className="area-execution-fit">
+              <span>Services fit</span>
+              <strong>{selectedArea.serviceFit}</strong>
+              <p>{money(selectedArea.executionAwardAmount || 0)} in sampled award value across top matching USAspending results.</p>
+            </article>
+            {(selectedArea.topExecutionAwards || []).slice(0, 5).map((award) => (
+              <article key={`${selectedArea.id}-${award.id}`} className="area-execution-award">
+                <header>
+                  <div>
+                    <span>{award.buyerSubAgency}</span>
+                    <strong>{award.recipient}</strong>
+                  </div>
+                  <b>{money(award.awardAmount)}</b>
+                </header>
+                <p>{award.description}</p>
+                <footer>
+                  <span>{award.contractType}</span>
+                  <span>{award.pscCode || award.naicsCode}</span>
+                  <span>{award.endDate ? `Ends ${award.endDate}` : "End date unknown"}</span>
+                </footer>
+              </article>
+            ))}
+          </div>
+        </Section>
       ) : null}
 
       {selectedArea ? (
@@ -983,6 +1045,31 @@ function Sources() {
             <strong>{(JUSTIFICATION_COVERAGE.narrativeConfirmedTechnologyRecords || 0).toLocaleString()}</strong>
             <span>confirmed tech lines</span>
             <p>{money(JUSTIFICATION_COVERAGE.narrativeConfirmedTechnologyValue || 0)} in technology-tagged FY2027 value is confirmed by narrative terms.</p>
+          </article>
+        </div>
+      </Section>
+
+      <Section title="USAspending Award Snapshot" meta="execution-side vendor and buyer coverage" icon={Database}>
+        <div className="execution-evidence-summary" data-execution-evidence>
+          <article>
+            <strong>{EXECUTION_COVERAGE.areaCount || 0}</strong>
+            <span>technology searches</span>
+            <p>{EXECUTION_COVERAGE.failedAreaCount || 0} failed USAspending API calls in the cached snapshot.</p>
+          </article>
+          <article>
+            <strong>{(EXECUTION_COVERAGE.awardEntries || 0).toLocaleString()}</strong>
+            <span>award hits</span>
+            <p>{(EXECUTION_COVERAGE.uniqueAwards || 0).toLocaleString()} unique contract award records after dedupe.</p>
+          </article>
+          <article>
+            <strong>{money(EXECUTION_COVERAGE.uniqueAwardValue || 0)}</strong>
+            <span>sampled award value</span>
+            <p>{EXECUTION_COVERAGE.startDate || "n/a"} through {EXECUTION_COVERAGE.endDate || "n/a"}.</p>
+          </article>
+          <article>
+            <strong>{EXECUTION_COVERAGE.vendorCount || 0}</strong>
+            <span>top vendors tracked</span>
+            <p>Buyer rollups use funding sub-agency first, then awarding sub-agency when needed.</p>
           </article>
         </div>
       </Section>

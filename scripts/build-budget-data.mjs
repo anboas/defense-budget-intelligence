@@ -7,6 +7,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DEFAULT_SOURCE_DIR = process.env.HOME ? resolve(process.env.HOME, "clawd/artifacts/defense-budget-intelligence/budget") : resolve(ROOT, "../artifacts/defense-budget-intelligence/budget");
 const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
 const JUSTIFICATION_SOURCE_DIR = process.env.JUSTIFICATION_SOURCE_DIR || resolve(SOURCE_DIR, "justifications/FY2027");
+const USASPENDING_SOURCE_FILE = process.env.USASPENDING_SOURCE_FILE || resolve(SOURCE_DIR, "usaspending/FY2025-FY2026/technology-awards.json");
 const OUT_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const CURRENT_REQUEST_YEAR = 2027;
 
@@ -64,9 +65,9 @@ const SOURCE_LAYERS = [
   {
     id: "obligations-outlays",
     label: "Execution spend",
-    status: "Next",
-    coverage: "USAspending and FPDS/SAM obligation records tied to awarding offices, recipients, PSC/NAICS, and award descriptions.",
-    role: "Separates requested budget from actual obligated spend and enables vendor, vehicle, and buyer drilldown.",
+    status: "Partial",
+    coverage: "FY2025-FY2026 USAspending contract award snapshot by DoD technology-area keyword searches.",
+    role: "Starts separating requested budget from execution-side award activity and enables vendor, buyer, PSC/NAICS, and service-fit drilldown.",
   },
   {
     id: "market-timing",
@@ -118,7 +119,7 @@ const PIPELINE_SOURCES = [
     publisher: "U.S. Department of the Treasury",
     url: "https://api.usaspending.gov/docs/",
     priority: 3,
-    status: "API candidate",
+    status: "First slice ingested",
     layer: "Obligations and outlays",
     cadence: "Regular federal award updates",
     access: "Public API",
@@ -126,7 +127,7 @@ const PIPELINE_SOURCES = [
     impact: 96,
     effort: "High",
     joinKeys: ["awarding agency", "funding agency", "program activity", "PSC", "NAICS", "award description"],
-    firstTask: "Prototype DoD obligation pulls by fiscal year, awarding agency, recipient, PSC, and keyword.",
+    firstTask: "Broaden from keyword sampled awards into agency/PSC/NAICS obligation trend pulls and line-level joins.",
     value: "Turns budget request lines into execution-side spend views with vendor and award drilldown.",
   },
   {
@@ -680,6 +681,120 @@ function loadJustificationEvidence() {
   return { manifest, evidence };
 }
 
+function loadUsaspendingSnapshot() {
+  if (!existsSync(USASPENDING_SOURCE_FILE)) {
+    return {
+      metadata: {
+        title: "USAspending DoD Technology Award Snapshot",
+        generatedAt: null,
+        sourceUrl: "https://api.usaspending.gov/api/v2/search/spending_by_award/",
+        startDate: null,
+        endDate: null,
+        methodology: "No cached USAspending snapshot found.",
+        areaCount: 0,
+        cachedAreaCount: 0,
+        failedAreaCount: 0,
+      },
+      areas: [],
+      failed: [],
+    };
+  }
+  return JSON.parse(readFileSync(USASPENDING_SOURCE_FILE, "utf8"));
+}
+
+function dollarsToBillions(value) {
+  return round(Number(value || 0) / 1000000000, 3);
+}
+
+function normalizeAward(raw = {}, area) {
+  const description = normalizeText(raw.Description || "");
+  const awardingSubAgency = normalizeText(raw["Awarding Sub Agency"] || "Unspecified DoD buyer");
+  const fundingSubAgency = normalizeText(raw["Funding Sub Agency"] || "");
+  return {
+    id: raw.generated_internal_id || raw.internal_id || raw["Award ID"],
+    awardId: raw["Award ID"] || "",
+    recipient: normalizeVendorName(raw["Recipient Name"] || "Unspecified recipient"),
+    awardAmount: dollarsToBillions(raw["Award Amount"]),
+    awardAmountDollars: Number(raw["Award Amount"] || 0),
+    startDate: raw["Start Date"] || "",
+    endDate: raw["End Date"] || "",
+    buyerSubAgency: fundingSubAgency || awardingSubAgency,
+    awardingSubAgency,
+    awardingOffice: normalizeText(raw["Awarding Office"] || ""),
+    fundingSubAgency,
+    fundingOffice: normalizeText(raw["Funding Office"] || ""),
+    description: description.length > 240 ? `${description.slice(0, 237).trim()}...` : description,
+    contractType: normalizeText(raw["Contract Award Type"] || ""),
+    naicsCode: normalizeText(raw.naics_code || ""),
+    naicsDescription: normalizeText(raw.naics_description || ""),
+    pscCode: normalizeText(raw.psc_code || ""),
+    pscDescription: normalizeText(raw.psc_description || ""),
+    areaId: area.id,
+    area: area.label,
+  };
+}
+
+function normalizeVendorName(name = "") {
+  const normalized = normalizeText(name).toUpperCase()
+    .replace(/\b(CORPORATION|CORP\.?|INCORPORATED|INC\.?|LLC|L\.L\.C\.|LIMITED|LTD\.?)\b/g, "")
+    .replace(/[.,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const aliases = {
+    "LOCKHEED MARTIN": "LOCKHEED MARTIN",
+    "RAYTHEON COMPANY": "RAYTHEON",
+    "RAYTHEON": "RAYTHEON",
+    "RTX": "RTX",
+    "THE BOEING COMPANY": "BOEING",
+    "BOEING": "BOEING",
+  };
+  return aliases[normalized] || normalized || "UNSPECIFIED RECIPIENT";
+}
+
+function buyerGroup(name = "") {
+  const lower = name.toLowerCase();
+  if (lower.includes("army")) return "Army";
+  if (lower.includes("navy") || lower.includes("marine corps")) return "Navy / Marine Corps";
+  if (lower.includes("air force") || lower.includes("space force")) return "Air Force / Space Force";
+  if (lower.includes("defense")) return "Fourth Estate";
+  return name || "Unspecified";
+}
+
+function serviceFitForArea(areaId) {
+  const fits = {
+    "ai-decision-advantage": "AI/ML delivery, data engineering, model operations, decision-support modernization",
+    "autonomous-systems": "systems engineering, mission software, test support, C-UAS and unmanned integration",
+    "cyber-operations": "cyber mission engineering, zero trust, security operations, cloud security",
+    "software-digital-engineering": "software factory support, agile delivery, DevSecOps, digital engineering",
+    "cloud-data-platforms": "cloud migration, data platforms, analytics engineering, platform operations",
+    "space-systems": "space systems engineering, ground systems, data integration, mission assurance",
+    "missiles-fires": "mission engineering, test/evaluation, modeling, systems integration",
+    "readiness-sustainment": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+    "shipbuilding-maritime": "digital shipyard, lifecycle engineering, supply-chain analytics, integration support",
+    "aircraft-aviation": "aviation sustainment, training systems, software refresh, test and integration",
+    "installations-infrastructure": "program management, infrastructure modernization, resilience planning, facilities data",
+  };
+  return fits[areaId] || "mission services, analytics, engineering, and integration support";
+}
+
+function aggregateAwards(awards, keyFn) {
+  const groups = new Map();
+  for (const award of awards) {
+    const key = keyFn(award);
+    const existing = groups.get(key.id) || { ...key, awardAmount: 0, awardAmountDollars: 0, awards: 0, areas: new Set() };
+    existing.awardAmount += award.awardAmount;
+    existing.awardAmountDollars += award.awardAmountDollars;
+    existing.awards += 1;
+    existing.areas.add(award.area);
+    groups.set(key.id, existing);
+  }
+  return [...groups.values()].map((row) => ({
+    ...row,
+    awardAmount: round(row.awardAmount, 3),
+    areas: [...row.areas].sort(),
+  })).sort((a, b) => b.awardAmount - a.awardAmount);
+}
+
 function parseBook(book, requestPackage = REQUEST_PACKAGES.find((item) => item.requestYear === CURRENT_REQUEST_YEAR)) {
   const file = resolve(requestPackage.sourceDir, book.file);
   if (!existsSync(file)) throw new Error(`Missing source workbook: ${file}`);
@@ -810,6 +925,7 @@ const requestPackages = REQUEST_PACKAGES.filter((requestPackage) => availableBoo
 const records = BOOKS.flatMap((book) => parseBook(book, currentPackage));
 const historicalRecords = requestPackages.flatMap((requestPackage) => availableBooks(requestPackage).flatMap((book) => parseBook(book, requestPackage)));
 const { manifest: justificationManifest, evidence: justificationEvidenceItems } = loadJustificationEvidence();
+const usaspendingSnapshot = loadUsaspendingSnapshot();
 
 const justificationByJoinKey = justificationEvidenceItems.reduce((groups, item) => {
   const key = `${item.bookId}:${item.joinKey}`;
@@ -1148,6 +1264,47 @@ const technologyTaggedRecords = records.filter((record) => record.technologyArea
 const evidenceBackedRecords = records.filter((record) => record.justificationEvidence);
 const evidenceBackedTechnologyRecords = technologyTaggedRecords.filter((record) => record.justificationEvidence);
 const narrativeConfirmedTechnologyRecords = technologyTaggedRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length > 0);
+const awardEntries = (usaspendingSnapshot.areas || []).flatMap((areaResult) => (
+  (areaResult.results || []).map((award) => normalizeAward(award, areaResult.area))
+));
+const uniqueAwards = [...new Map(awardEntries.map((award) => [award.id, award])).values()];
+const uniqueAwardValue = round(uniqueAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+const awardAreaRows = (usaspendingSnapshot.areas || []).map((areaResult) => {
+  const areaAwards = (areaResult.results || []).map((award) => normalizeAward(award, areaResult.area));
+  const areaUniqueAwards = [...new Map(areaAwards.map((award) => [award.id, award])).values()];
+  const topVendors = aggregateAwards(areaUniqueAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 5);
+  const topBuyers = aggregateAwards(areaUniqueAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 5);
+  return {
+    id: areaResult.area.id,
+    label: areaResult.area.label,
+    keywords: areaResult.area.keywords,
+    resultCount: areaAwards.length,
+    uniqueAwards: areaUniqueAwards.length,
+    awardAmount: round(areaUniqueAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+    serviceFit: serviceFitForArea(areaResult.area.id),
+    topVendors,
+    topBuyers,
+    topAwards: areaUniqueAwards
+      .sort((a, b) => b.awardAmount - a.awardAmount)
+      .slice(0, 8),
+  };
+}).sort((a, b) => b.awardAmount - a.awardAmount);
+const topExecutionVendors = aggregateAwards(uniqueAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 12);
+const topExecutionBuyers = aggregateAwards(uniqueAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 12);
+const executionCoverage = {
+  sourceUrl: usaspendingSnapshot.metadata?.sourceUrl,
+  cachedAt: usaspendingSnapshot.metadata?.generatedAt,
+  startDate: usaspendingSnapshot.metadata?.startDate,
+  endDate: usaspendingSnapshot.metadata?.endDate,
+  methodology: usaspendingSnapshot.metadata?.methodology,
+  areaCount: usaspendingSnapshot.metadata?.cachedAreaCount || awardAreaRows.length,
+  failedAreaCount: usaspendingSnapshot.metadata?.failedAreaCount || 0,
+  awardEntries: awardEntries.length,
+  uniqueAwards: uniqueAwards.length,
+  uniqueAwardValue,
+  vendorCount: topExecutionVendors.length,
+  buyerCount: topExecutionBuyers.length,
+};
 const justificationCoverage = {
   sourcePage: justificationManifest.sourcePage,
   sourceCache: JUSTIFICATION_SOURCE_DIR,
@@ -1166,10 +1323,12 @@ const justificationCoverage = {
   narrativeConfirmedTechnologyValue: round(sum(narrativeConfirmedTechnologyRecords, "fy2027")),
   narrativeConfirmedTechnologyShare: round((narrativeConfirmedTechnologyRecords.length / Math.max(technologyTaggedRecords.length, 1)) * 100),
 };
+const awardAreaById = new Map(awardAreaRows.map((area) => [area.id, area]));
 const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
   const areaRecords = records.filter((record) => record.technologyAreas.includes(area.id));
   const areaEvidenceRecords = areaRecords.filter((record) => record.justificationEvidence);
   const confirmedAreaRecords = areaRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.includes(area.id));
+  const executionArea = awardAreaById.get(area.id);
   const byService = aggregateFy2027(areaRecords.filter((record) => record.orgGroup === "service"), (record) => ({ id: record.org, label: record.orgName }));
   const byClient = aggregateFy2027(areaRecords.filter((record) => record.orgGroup !== "other"), (record) => ({
     id: record.org,
@@ -1198,6 +1357,12 @@ const technologyAreaRows = TECHNOLOGY_AREAS.map((area) => {
     narrativeConfirmedRecords: confirmedAreaRecords.length,
     narrativeConfirmedFy2027: round(sum(confirmedAreaRecords, "fy2027")),
     evidenceShare: round((areaEvidenceRecords.length / Math.max(areaTotal.records, 1)) * 100),
+    executionAwards: executionArea?.uniqueAwards || 0,
+    executionAwardAmount: executionArea?.awardAmount || 0,
+    topExecutionVendors: executionArea?.topVendors || [],
+    topExecutionBuyers: executionArea?.topBuyers || [],
+    topExecutionAwards: executionArea?.topAwards || [],
+    serviceFit: executionArea?.serviceFit || serviceFitForArea(area.id),
     narrativeConfidence: confirmedAreaRecords.length ? "Narrative confirmed" : areaEvidenceRecords.length ? "Source matched" : "Title-tagged only",
     byService,
     byClient,
@@ -1220,7 +1385,8 @@ const strategyIntersections = technologyAreaRows.flatMap((area) => (
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
     const evidenceRecords = laneRecords.filter((record) => record.justificationEvidence);
     const confirmedRecords = laneRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.includes(area.id));
-    const score = strategyScore({ ...client, areaId: area.id }) + Math.min(confirmedRecords.length * 2, 8);
+    const buyerAwards = (area.topExecutionBuyers || []).find((buyer) => buyer.group === client.label || buyer.label === client.label);
+    const score = strategyScore({ ...client, areaId: area.id }) + Math.min(confirmedRecords.length * 2, 8) + (buyerAwards ? 5 : 0);
     return {
       id: `${area.id}-${client.id}`,
       areaId: area.id,
@@ -1233,6 +1399,8 @@ const strategyIntersections = technologyAreaRows.flatMap((area) => (
       growth: client.growth,
       evidenceBackedRecords: evidenceRecords.length,
       narrativeConfirmedRecords: confirmedRecords.length,
+      executionAwards: buyerAwards?.awards || 0,
+      executionAwardAmount: buyerAwards?.awardAmount || 0,
       confidence: confirmedRecords.length ? "Narrative confirmed" : evidenceRecords.length ? "Source matched" : "Title-tagged only",
       score,
       talkTrack: `${client.label} has ${round(client.fy2027)}B in ${area.label} tagged request lines, with ${client.records} visible line records.`,
@@ -1273,6 +1441,10 @@ const strategyAnalytics = {
     evidenceBackedTechnologyValue: justificationCoverage.evidenceBackedTechnologyValue,
     narrativeConfirmedTechnologyRecords: justificationCoverage.narrativeConfirmedTechnologyRecords,
     narrativeConfirmedTechnologyValue: justificationCoverage.narrativeConfirmedTechnologyValue,
+    executionAreaCount: executionCoverage.areaCount,
+    executionAwardEntries: executionCoverage.awardEntries,
+    executionUniqueAwards: executionCoverage.uniqueAwards,
+    executionAwardValue: executionCoverage.uniqueAwardValue,
     topTechnologyArea: technologyAreaRows[0]?.label,
     topTechnologyValue: technologyAreaRows[0]?.fy2027 || 0,
     topClientIntersection: strategyIntersections[0]?.client,
@@ -1310,6 +1482,14 @@ const strategyAnalytics = {
       tone: "purple",
     },
     {
+      id: "execution-awards",
+      label: "Execution snapshot",
+      value: executionCoverage.uniqueAwardValue,
+      display: "money",
+      helper: `${executionCoverage.uniqueAwards} unique USAspending award records across ${executionCoverage.areaCount} technology searches.`,
+      tone: "green",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -1321,6 +1501,12 @@ const strategyAnalytics = {
   serviceStrategy,
   strategyIntersections,
   justificationCoverage,
+  executionAnalytics: {
+    coverage: executionCoverage,
+    technologyAreas: awardAreaRows,
+    topVendors: topExecutionVendors,
+    topBuyers: topExecutionBuyers,
+  },
 };
 
 const generatedAt = sourceInventory
@@ -1425,6 +1611,7 @@ const out = {
       analyticsReadouts,
       strategyAnalytics,
       justificationCoverage,
+      executionCoverage,
       coverageDiagnostics: {
         signalTaggedRecords: taggedRecords.length,
         signalTaggedRecordShare: round((taggedRecords.length / Math.max(records.length, 1)) * 100),
@@ -1434,16 +1621,18 @@ const out = {
       },
       sourceDiagnostics,
       limitations: [
-        "Budget display books are request and enacted-plan views, not executed outlay or contract-obligation feeds.",
+        "Budget display books are request and enacted-plan views; USAspending award data is a separate execution-side snapshot and is not yet joined to individual budget lines by accounting code.",
         "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
         "Justification evidence currently covers FY2027 OUSD(C)-published RDT&E and procurement XML sources; some service-hosted justification books require separate discovery.",
+        "USAspending technology-area award searches are keyword-sampled contract award records; values should be read as market signal, not total addressable obligation by budget line.",
         "Historical request coverage currently includes M-1, O-1, P-1, R-1, and RF-1 for FY2024-FY2026; C-1 historical workbooks use a different public path and are not backfilled yet.",
         "Request-vintage trends compare workbook request totals and should not be read as execution/outlay trends.",
       ],
       nextSources: [
         "Historical C-1 workbook discovery and MILCON request package backfill.",
         "Service-hosted RDT&E and procurement justification books for Army, Navy / Marine Corps, Air Force, and Space Force narrative coverage.",
-        "USAspending and FPDS obligations for execution-side spend and vendor drilldown.",
+        "USAspending obligation trend pulls by agency, PSC, NAICS, and recipient for execution-side time series.",
+        "FPDS/SAM contract action joins for office, vehicle, and recompete detail.",
         "DoD contracts, solicitations, and POM-relevant public releases for market timing context.",
       ],
     },

@@ -11,6 +11,7 @@
     "build:cloudflare": "VITE_BASE_PATH=/ npm run build",
     "data:build": "node scripts/build-budget-data.mjs",
     "source:justifications": "node scripts/fetch-justification-sources.mjs",
+    "source:usaspending": "node scripts/fetch-usaspending-awards.mjs",
     "source:health": "node scripts/check-source-health.mjs",
     "lint": "eslint .",
     "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",

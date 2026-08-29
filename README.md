@@ -41,22 +41,25 @@ The site currently uses six official FY2027 Office of the Under Secretary of Def
 - RF-1: Revolving and Management Funds
 - C-1: Military Construction / Family Housing / BRAC
 
-The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. It can also read cached FY2027 Procurement and RDT&E justification XML from OUSD(C) to add compact narrative evidence, confidence, and source links to strategy lanes. CI builds use the committed generated JSON when the local workbook cache is not present.
+The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. It can also read cached FY2027 Procurement and RDT&E justification XML from OUSD(C) to add compact narrative evidence, confidence, and source links to strategy lanes. A separate USAspending snapshot adds execution-side contract award, buyer, vendor, PSC, NAICS, and services-fit signals. CI builds use the committed generated JSON when the local workbook cache is not present.
 
 Local source refresh uses cached workbooks from `BUDGET_SOURCE_DIR`, defaulting to `$HOME/clawd/artifacts/defense-budget-intelligence/budget`. Replace the cached workbooks, run `npm run data:build`, review the Data Sources page, then commit the generated JSON.
 
 Justification source refresh uses `npm run source:justifications`, which caches reachable official FY2027 Procurement and RDT&E XML sources under `BUDGET_SOURCE_DIR/justifications/FY2027` and records unavailable official links in the manifest.
 
+Execution source refresh uses `npm run source:usaspending`, which caches top DoD contract award results by technology-area keyword search under `BUDGET_SOURCE_DIR/usaspending/FY2025-FY2026`.
+
 Current version depth:
 
 - Budget request packages versioned in this repo: FY2024-FY2027 display-book vintages, with FY2027 as the current full-color package.
 - Fiscal-year values extracted from current and historical packages: FY2022-FY2027 where available by request vintage.
-- Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; obligations/outlays and market timing feeds are staged next.
-- Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, USAspending award search, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
+- Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; USAspending execution-side award snapshots are partially ingested; FPDS/SAM and market timing feeds are staged next.
+- Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, USAspending obligation trend pulls, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
 - Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
 - Data Sources visualizes the ingestion ladder, source join paths, and an impact-versus-readiness matrix for deciding what to integrate next.
 - Coverage diagnostics show signal-tagged record/value coverage, workbook-level organization mix, and top mission signals by source.
 - Justification evidence diagnostics show official XML count, extracted program items, matched budget lines, and narrative-confirmed technology lines.
+- USAspending diagnostics show technology searches, award hits, unique awards, sampled award value, top vendors, top buyers, and selected-area execution signals.
 - Source health checks track current workbook URLs and pipeline-source URLs with status, probe method, response time, and checked timestamp. Refresh with `npm run source:health`.
 
 ## Commands
@@ -64,6 +67,7 @@ Current version depth:
 ```bash
 npm install
 npm run source:justifications
+npm run source:usaspending
 npm run data:build
 npm run source:health
 npm run dev
