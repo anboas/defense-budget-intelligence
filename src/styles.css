@@ -1145,6 +1145,7 @@ button {
 .strategy-hero__facts,
 .award-hero__facts,
 .pursuit-hero__facts,
+.capture-hero__facts,
 .technology-area-list,
 .service-strategy-grid,
 .strategy-lane-grid,
@@ -1159,6 +1160,8 @@ button {
 .budget-execution-alignment,
 .buyer-pursuit-grid,
 .pursuit-timing-grid,
+.capture-stage-grid,
+.capture-queue-grid,
 .pursuit-source-summary,
 .area-execution-grid {
   display: grid;
@@ -1171,7 +1174,8 @@ button {
 }
 
 .award-hero,
-.pursuit-hero {
+.pursuit-hero,
+.capture-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
   gap: 14px;
@@ -1193,8 +1197,15 @@ button {
   box-shadow: inset 4px 0 0 var(--orange);
 }
 
+.capture-hero > div:first-child {
+  min-width: 0;
+  padding: 18px;
+  box-shadow: inset 4px 0 0 var(--purple);
+}
+
 .award-hero span,
-.pursuit-hero span {
+.pursuit-hero span,
+.capture-hero span {
   display: block;
   color: var(--green);
   font-size: 11px;
@@ -1206,8 +1217,13 @@ button {
   color: var(--orange);
 }
 
+.capture-hero span {
+  color: var(--purple);
+}
+
 .award-hero h2,
-.pursuit-hero h2 {
+.pursuit-hero h2,
+.capture-hero h2 {
   margin: 4px 0 6px;
   font-size: 24px;
   font-weight: 850;
@@ -1215,7 +1231,8 @@ button {
 }
 
 .award-hero p,
-.pursuit-hero p {
+.pursuit-hero p,
+.capture-hero p {
   max-width: 960px;
   margin: 0;
   color: var(--muted);
@@ -1225,13 +1242,15 @@ button {
 }
 
 .award-hero__facts,
-.pursuit-hero__facts {
+.pursuit-hero__facts,
+.capture-hero__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 10px;
 }
 
 .award-hero__facts article,
-.pursuit-hero__facts article {
+.pursuit-hero__facts article,
+.capture-hero__facts article {
   display: grid;
   align-content: center;
   min-height: 70px;
@@ -1242,7 +1261,8 @@ button {
 }
 
 .award-hero__facts strong,
-.pursuit-hero__facts strong {
+.pursuit-hero__facts strong,
+.capture-hero__facts strong {
   color: var(--text);
   font-size: 22px;
   font-weight: 850;
@@ -1250,13 +1270,15 @@ button {
 }
 
 .award-hero__facts span,
-.pursuit-hero__facts span {
+.pursuit-hero__facts span,
+.capture-hero__facts span {
   margin-top: 5px;
   color: var(--muted);
 }
 
 .award-filter-bar,
-.pursuit-filter-bar {
+.pursuit-filter-bar,
+.capture-filter-bar {
   display: grid;
   grid-template-columns: minmax(280px, 1.6fr) repeat(5, minmax(130px, 1fr));
   gap: 10px;
@@ -1266,19 +1288,22 @@ button {
   background: var(--surface);
 }
 
-.pursuit-filter-bar {
+.pursuit-filter-bar,
+.capture-filter-bar {
   grid-template-columns: minmax(280px, 1.6fr) repeat(4, minmax(140px, 1fr));
 }
 
 .award-filter-bar label,
-.pursuit-filter-bar label {
+.pursuit-filter-bar label,
+.capture-filter-bar label {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
 .award-filter-bar label > span,
-.pursuit-filter-bar label > span {
+.pursuit-filter-bar label > span,
+.capture-filter-bar label > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 850;
@@ -1288,7 +1313,9 @@ button {
 .award-filter-bar input,
 .award-filter-bar select,
 .pursuit-filter-bar input,
-.pursuit-filter-bar select {
+.pursuit-filter-bar select,
+.capture-filter-bar input,
+.capture-filter-bar select {
   width: 100%;
   min-width: 0;
   min-height: 36px;
@@ -1440,6 +1467,8 @@ button {
 .alignment-card,
 .buyer-pursuit-card,
 .pursuit-timing-card,
+.capture-stage-grid article,
+.capture-queue-card,
 .pursuit-source-summary article,
 .area-execution-fit,
 .area-execution-award {
@@ -1986,8 +2015,45 @@ button {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.capture-stage-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.capture-stage-grid article {
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.capture-stage-grid span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.capture-stage-grid strong {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.capture-stage-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.capture-queue-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .buyer-pursuit-card,
-.pursuit-timing-card {
+.pursuit-timing-card,
+.capture-queue-card {
   display: grid;
   gap: 9px;
   align-content: start;
@@ -1998,8 +2064,13 @@ button {
   box-shadow: inset 3px 0 0 var(--orange);
 }
 
+.capture-queue-card {
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
 .buyer-pursuit-card header,
-.pursuit-timing-card header {
+.pursuit-timing-card header,
+.capture-queue-card header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -2008,6 +2079,7 @@ button {
 
 .buyer-pursuit-card header span,
 .pursuit-timing-card header span,
+.capture-queue-card header span,
 .pursuit-source-summary span {
   display: block;
   color: var(--muted);
@@ -2017,7 +2089,8 @@ button {
 }
 
 .buyer-pursuit-card header strong,
-.pursuit-timing-card header strong {
+.pursuit-timing-card header strong,
+.capture-queue-card header strong {
   display: block;
   margin-top: 3px;
   color: var(--text);
@@ -2027,7 +2100,8 @@ button {
 }
 
 .buyer-pursuit-card header b,
-.pursuit-timing-card header b {
+.pursuit-timing-card header b,
+.capture-queue-card header b {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2047,8 +2121,15 @@ button {
   color: var(--orange);
 }
 
+.capture-queue-card header b {
+  border-color: var(--purple);
+  background: #f4f0ff;
+  color: var(--purple);
+}
+
 .buyer-pursuit-card p,
 .pursuit-timing-card p,
+.capture-queue-card p,
 .pursuit-source-summary p {
   margin: 0;
   color: var(--muted);
@@ -2058,18 +2139,21 @@ button {
 }
 
 .buyer-pursuit-card dl,
-.pursuit-timing-card dl {
+.pursuit-timing-card dl,
+.capture-queue-card dl {
   display: grid;
   gap: 6px;
   margin: 0;
 }
 
-.pursuit-timing-card dl {
+.pursuit-timing-card dl,
+.capture-queue-card dl {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .buyer-pursuit-card dl div,
-.pursuit-timing-card dl div {
+.pursuit-timing-card dl div,
+.capture-queue-card dl div {
   min-width: 0;
   padding: 7px;
   border: 1px solid var(--border-soft);
@@ -2080,7 +2164,9 @@ button {
 .buyer-pursuit-card dt,
 .buyer-pursuit-card dd,
 .pursuit-timing-card dt,
-.pursuit-timing-card dd {
+.pursuit-timing-card dd,
+.capture-queue-card dt,
+.capture-queue-card dd {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2088,7 +2174,8 @@ button {
 }
 
 .buyer-pursuit-card dt,
-.pursuit-timing-card dt {
+.pursuit-timing-card dt,
+.capture-queue-card dt {
   color: var(--muted);
   font-size: 9.5px;
   font-weight: 850;
@@ -2096,11 +2183,43 @@ button {
 }
 
 .buyer-pursuit-card dd,
-.pursuit-timing-card dd {
+.pursuit-timing-card dd,
+.capture-queue-card dd {
   margin: 3px 0 0;
   color: var(--text);
   font-size: 11px;
   font-weight: 800;
+}
+
+.capture-queue-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.capture-queue-card footer span,
+.capture-queue-card footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 23px;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 750;
+  overflow: hidden;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capture-queue-card footer a {
+  border-color: var(--purple);
+  color: var(--purple);
 }
 
 .pursuit-source-summary {
@@ -2887,6 +3006,7 @@ td .dot {
   .source-hero,
   .award-hero,
   .pursuit-hero,
+  .capture-hero,
   .strategy-hero,
   .source-register,
   .source-roadmap,
@@ -2908,6 +3028,8 @@ td .dot {
   .budget-execution-alignment,
   .buyer-pursuit-grid,
   .pursuit-timing-grid,
+  .capture-stage-grid,
+  .capture-queue-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: 1fr;
@@ -2918,7 +3040,8 @@ td .dot {
   }
 
   .award-filter-bar,
-  .pursuit-filter-bar {
+  .pursuit-filter-bar,
+  .capture-filter-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2927,7 +3050,8 @@ td .dot {
   }
 
   .award-filter-bar .searchbox,
-  .pursuit-filter-bar .searchbox {
+  .pursuit-filter-bar .searchbox,
+  .capture-filter-bar .searchbox {
     grid-column: 1 / -1;
   }
 
@@ -2946,6 +3070,8 @@ td .dot {
   .budget-execution-alignment,
   .buyer-pursuit-grid,
   .pursuit-timing-grid,
+  .capture-stage-grid,
+  .capture-queue-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3051,7 +3177,8 @@ td .dot {
   }
 
   .award-filter-bar,
-  .pursuit-filter-bar {
+  .pursuit-filter-bar,
+  .capture-filter-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding: 10px;
@@ -3062,7 +3189,8 @@ td .dot {
   }
 
   .award-filter-bar .searchbox,
-  .pursuit-filter-bar .searchbox {
+  .pursuit-filter-bar .searchbox,
+  .capture-filter-bar .searchbox {
     grid-column: 1 / -1;
   }
 
@@ -3071,7 +3199,8 @@ td .dot {
   }
 
   .award-filter-bar label > span,
-  .pursuit-filter-bar label > span {
+  .pursuit-filter-bar label > span,
+  .capture-filter-bar label > span {
     font-size: 9.5px;
   }
 
@@ -3084,7 +3213,9 @@ td .dot {
   .award-filter-bar input,
   .award-filter-bar select,
   .pursuit-filter-bar input,
-  .pursuit-filter-bar select {
+  .pursuit-filter-bar select,
+  .capture-filter-bar input,
+  .capture-filter-bar select {
     min-height: 34px;
     font-size: 11.5px;
   }
@@ -3099,6 +3230,7 @@ td .dot {
   .source-hero__facts,
   .award-hero__facts,
   .pursuit-hero__facts,
+  .capture-hero__facts,
   .justification-evidence-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3117,6 +3249,7 @@ td .dot {
 
   .buyer-pursuit-grid,
   .pursuit-timing-grid,
+  .capture-queue-grid,
   .pursuit-source-summary {
     grid-template-columns: 1fr;
   }
@@ -3148,6 +3281,10 @@ td .dot {
     gap: 0;
   }
 
+  .capture-hero {
+    gap: 0;
+  }
+
   .strategy-hero {
     gap: 0;
   }
@@ -3161,6 +3298,10 @@ td .dot {
   }
 
   .pursuit-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .capture-hero > div:first-child {
     padding: 14px;
   }
 
@@ -3180,6 +3321,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .capture-hero h2 {
+    font-size: 22px;
+  }
+
   .strategy-hero h2 {
     font-size: 22px;
   }
@@ -3193,6 +3338,10 @@ td .dot {
   }
 
   .pursuit-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .capture-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -3212,6 +3361,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .capture-hero__facts article {
+    min-height: 64px;
+  }
+
   .strategy-hero__facts article {
     min-height: 64px;
   }
@@ -3225,6 +3378,10 @@ td .dot {
   }
 
   .pursuit-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .capture-hero__facts strong {
     font-size: 20px;
   }
 
@@ -3287,6 +3444,8 @@ td .dot {
   .budget-execution-alignment,
   .buyer-pursuit-grid,
   .pursuit-timing-grid,
+  .capture-stage-grid,
+  .capture-queue-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: 1fr;

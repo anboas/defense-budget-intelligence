@@ -1950,6 +1950,98 @@ const pursuitTiming = {
   byVendor: aggregateAwards(activeTimingAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 12),
 };
 
+function stageForTiming(daysUntilEnd) {
+  if (!Number.isFinite(daysUntilEnd)) return { id: "watch", label: "Watch", urgency: "Unknown timing" };
+  if (daysUntilEnd <= 120) return { id: "act-now", label: "Act Now", urgency: "0-120 days" };
+  if (daysUntilEnd <= 365) return { id: "validate", label: "Validate", urgency: "4-12 months" };
+  return { id: "shape", label: "Shape", urgency: "12-24 months" };
+}
+
+function actionForQueueItem(lane) {
+  const lowerArea = String(lane.area || "").toLowerCase();
+  const lowerWork = String(lane.workType?.label || "").toLowerCase();
+  if (lowerWork.includes("aircraft") || lowerArea.includes("aircraft")) return "Map platform office, sustainment scope, and incumbent subcontractors";
+  if (lowerWork.includes("ship") || lowerArea.includes("shipbuilding")) return "Map ship program office, production lot timing, and engineering support wedge";
+  if (lowerArea.includes("cloud") || lowerArea.includes("software") || lowerWork.includes("information technology")) return "Search SAM for active notices and validate contract vehicle path";
+  if (lowerArea.includes("cyber")) return "Validate cyber buyer office, contract vehicle, and recompete notice history";
+  if (lowerArea.includes("space") || lowerArea.includes("missile")) return "Map program office, test range demand, and systems engineering support fit";
+  return "Validate buyer office, vehicle, incumbent scope, and near-term notice timing";
+}
+
+function samSearchUrl(lane) {
+  const terms = [
+    lane.buyer,
+    lane.area,
+    lane.workType?.code && lane.workType.code !== "n/a" ? lane.workType.code : "",
+  ].filter(Boolean).join(" ");
+  return `https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=${encodeURIComponent(terms)}`;
+}
+
+const captureQueueItems = pursuitTiming.lanes.map((lane) => {
+  const stage = stageForTiming(lane.daysUntilNextEnd);
+  const areaAlignment = alignmentScoreByAreaId.get(lane.areaId) || 0;
+  const urgencyBoost = stage.id === "act-now" ? 12 : stage.id === "validate" ? 8 : 4;
+  const incumbentRisk = lane.incumbentShare >= 70 ? "High incumbent concentration" : lane.incumbentShare >= 45 ? "Moderate incumbent concentration" : "Distributed vendor field";
+  return {
+    id: `capture:${lane.id}`,
+    stage: stage.id,
+    stageLabel: stage.label,
+    urgency: stage.urgency,
+    buyer: lane.buyer,
+    buyerGroup: lane.buyerGroup,
+    areaId: lane.areaId,
+    area: lane.area,
+    workType: lane.workType,
+    topIncumbent: lane.topVendor,
+    incumbentShare: lane.incumbentShare,
+    activeAwardAmount: lane.awardAmount,
+    nearTermAwardAmount: lane.nearTermAwardAmount,
+    activeAwards: lane.awards,
+    nearTermAwards: lane.nearTermAwards,
+    nextEndDate: lane.nextEndDate,
+    nextEndFiscalYear: lane.nextEndFiscalYear,
+    daysUntilNextEnd: lane.daysUntilNextEnd,
+    pursuitTimingScore: lane.score,
+    areaAlignmentScore: areaAlignment,
+    score: Math.min(100, Math.round((lane.score * 0.62) + (areaAlignment * 0.24) + urgencyBoost)),
+    recommendedAction: actionForQueueItem(lane),
+    rationale: `${lane.buyer} / ${lane.area} has ${lane.nearTermAwards} sampled active awards ending within 24 months, ${lane.workType.label} as the coded work type, and ${lane.topVendor} as the leading incumbent.`,
+    dataGaps: [
+      "Validate live SAM.gov notices",
+      "Join FPDS/SAM for contracting office and vehicle",
+      "Confirm whether the end date is final period of performance or one action within a larger vehicle",
+    ],
+    incumbentRisk,
+    serviceFit: serviceFitForArea(lane.areaId),
+    samSearchUrl: samSearchUrl(lane),
+    sampleAwards: lane.sampleAwards,
+  };
+}).sort((a, b) => b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount);
+
+const captureQueueStageCounts = ["act-now", "validate", "shape", "watch"].map((stageId) => {
+  const rows = captureQueueItems.filter((item) => item.stage === stageId);
+  return {
+    id: stageId,
+    label: rows[0]?.stageLabel || stageId,
+    items: rows.length,
+    nearTermAwardAmount: round(rows.reduce((totalValue, item) => totalValue + item.nearTermAwardAmount, 0), 3),
+  };
+}).filter((stage) => stage.items > 0);
+
+const captureQueue = {
+  summary: {
+    items: captureQueueItems.length,
+    actNowItems: captureQueueItems.filter((item) => item.stage === "act-now").length,
+    validateItems: captureQueueItems.filter((item) => item.stage === "validate").length,
+    shapeItems: captureQueueItems.filter((item) => item.stage === "shape").length,
+    nearTermAwardValue: round(captureQueueItems.reduce((totalValue, item) => totalValue + item.nearTermAwardAmount, 0), 3),
+    topItem: captureQueueItems[0] ? `${captureQueueItems[0].buyer} · ${captureQueueItems[0].area}` : "n/a",
+    topAction: captureQueueItems[0]?.recommendedAction || "n/a",
+  },
+  stageCounts: captureQueueStageCounts,
+  items: captureQueueItems,
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -2027,6 +2119,9 @@ const strategyAnalytics = {
     activePursuitAwards: pursuitTiming.summary.activeAwards,
     nearTermRecompeteCandidates: pursuitTiming.summary.candidateCount,
     topPursuitTimingLane: pursuitTiming.summary.topLane,
+    captureQueueItems: captureQueue.summary.items,
+    captureQueueActNowItems: captureQueue.summary.actNowItems,
+    topCaptureQueueItem: captureQueue.summary.topItem,
   },
   readouts: [
     {
@@ -2089,6 +2184,13 @@ const strategyAnalytics = {
       tone: "green",
     },
     {
+      id: "capture-queue",
+      label: "Capture queue",
+      value: captureQueue.summary.items,
+      helper: `${captureQueue.summary.actNowItems} lanes need immediate validation; ${captureQueue.summary.topItem} is the top generated action.`,
+      tone: "orange",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -2110,6 +2212,7 @@ const strategyAnalytics = {
     trends: executionTrendModel,
     awardDrilldown,
     pursuitTiming,
+    captureQueue,
   },
 };
 
@@ -2229,6 +2332,7 @@ const out = {
         "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
         "Justification evidence currently covers FY2027 OUSD(C)-published RDT&E and procurement XML sources; some service-hosted justification books require separate discovery.",
         "USAspending technology-area award searches are keyword-sampled contract award records; values should be read as market signal, not total addressable obligation by budget line.",
+        "Capture queue items are generated from budget, award, and timing signals; they are not confirmed live solicitations until SAM.gov and FPDS/SAM action details are joined.",
         "Historical request coverage currently includes M-1, O-1, P-1, R-1, and RF-1 for FY2024-FY2026; C-1 historical workbooks use a different public path and are not backfilled yet.",
         "Request-vintage trends compare workbook request totals and should not be read as execution/outlay trends.",
       ],
@@ -2237,7 +2341,8 @@ const out = {
         "Service-hosted RDT&E and procurement justification books for Army, Navy / Marine Corps, Air Force, and Space Force narrative coverage.",
         "USAspending obligation trend pulls by agency, PSC, NAICS, and recipient for execution-side time series.",
         "FPDS/SAM contract action joins for office, vehicle, and recompete detail.",
-        "DoD contracts, solicitations, and POM-relevant public releases for market timing context.",
+        "SAM.gov live opportunity pulls for notice type, response date, set-aside, office, and solicitation links against the generated capture queue.",
+        "DoD contracts, solicitations, and POM-relevant public releases for broader market timing context.",
       ],
     },
     methodology: "Parsed official Comptroller display workbooks. Dollar values are billions. Current FY2027 analytics use M-1/O-1/P-1/R-1/RF-1/C-1. Historical request-vintage analytics use reachable FY2024-FY2026 M-1/O-1/P-1/R-1/RF-1 workbooks plus FY2027 comparable books.",

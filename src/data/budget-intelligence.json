@@ -3235,7 +3235,10 @@
           "pursuitTimingLaneCount": 16,
           "activePursuitAwards": 380,
           "nearTermRecompeteCandidates": 80,
-          "topPursuitTimingLane": "Department of the Navy · Aircraft / Aviation"
+          "topPursuitTimingLane": "Department of the Navy · Aircraft / Aviation",
+          "captureQueueItems": 16,
+          "captureQueueActNowItems": 11,
+          "topCaptureQueueItem": "Department of the Navy · Aircraft / Aviation"
         },
         "readouts": [
           {
@@ -3296,6 +3299,13 @@
             "value": 16,
             "helper": "261 active awards end within 24 months in the sampled contract model.",
             "tone": "green"
+          },
+          {
+            "id": "capture-queue",
+            "label": "Capture queue",
+            "value": 16,
+            "helper": "11 lanes need immediate validation; Department of the Navy · Aircraft / Aviation is the top generated action.",
+            "tone": "orange"
           },
           {
             "id": "top-client-lane",
@@ -50988,6 +50998,1821 @@
                 ]
               }
             ]
+          },
+          "captureQueue": {
+            "summary": {
+              "items": 16,
+              "actNowItems": 11,
+              "validateItems": 5,
+              "shapeItems": 0,
+              "nearTermAwardValue": 218.405,
+              "topItem": "Department of the Navy · Aircraft / Aviation",
+              "topAction": "Map platform office, sustainment scope, and incumbent subcontractors"
+            },
+            "stageCounts": [
+              {
+                "id": "act-now",
+                "label": "Act Now",
+                "items": 11,
+                "nearTermAwardAmount": 155.509
+              },
+              {
+                "id": "validate",
+                "label": "Validate",
+                "items": 5,
+                "nearTermAwardAmount": 62.896
+              }
+            ],
+            "items": [
+              {
+                "id": "capture:aircraft-aviation:Department of the Navy:psc:1510",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "areaId": "aircraft-aviation",
+                "area": "Aircraft / Aviation",
+                "workType": {
+                  "id": "psc:1510",
+                  "code": "1510",
+                  "type": "PSC",
+                  "label": "1510 · AIRCRAFT, FIXED WING"
+                },
+                "topIncumbent": "LOCKHEED MARTIN",
+                "incumbentShare": 76,
+                "activeAwardAmount": 188.704,
+                "nearTermAwardAmount": 55.755,
+                "activeAwards": 17,
+                "nearTermAwards": 5,
+                "nextEndDate": "2026-08-31",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 2,
+                "pursuitTimingScore": 92,
+                "areaAlignmentScore": 46,
+                "score": 80,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Navy / Aircraft / Aviation has 5 sampled active awards ending within 24 months, 1510 · AIRCRAFT, FIXED WING as the coded work type, and LOCKHEED MARTIN as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Navy%20Aircraft%20%2F%20Aviation%201510",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_N0001904C3146_9700_-NONE-_-NONE-",
+                    "awardId": "N0001904C3146",
+                    "recipient": "BOEING",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 7.634,
+                    "startDate": "2004-06-29",
+                    "endDate": "2026-08-31",
+                    "daysUntilEnd": 2,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": ""
+                  },
+                  {
+                    "id": "CONT_AWD_N0001913C9999_9700_-NONE-_-NONE-",
+                    "awardId": "N0001913C9999",
+                    "recipient": "NORTHROP GRUMMAN SYSTEMS",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 5.375,
+                    "startDate": "2013-05-13",
+                    "endDate": "2026-12-31",
+                    "daysUntilEnd": 124,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "E-2D ADVANCED HAWKEYE AIRCRAFT (FRP-2)"
+                  },
+                  {
+                    "id": "CONT_AWD_N0001919C0010_9700_-NONE-_-NONE-",
+                    "awardId": "N0001919C0010",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 4.653,
+                    "startDate": "2018-11-15",
+                    "endDate": "2027-04-01",
+                    "daysUntilEnd": 215,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "DUAL CAPABLE AIRCRAFT UCA AWARD"
+                  },
+                  {
+                    "id": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
+                    "awardId": "N0001921C0020",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 7.953,
+                    "startDate": "2020-12-31",
+                    "endDate": "2027-12-30",
+                    "daysUntilEnd": 488,
+                    "fiscalYearEnd": 2028,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation",
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation",
+                      "readiness-sustainment"
+                    ],
+                    "description": "FY21-23 GLOBAL F-35 AIR SYSTEM SUSTAINMENT"
+                  }
+                ]
+              },
+              {
+                "id": "capture:shipbuilding-maritime:Department of the Navy:psc:1905",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "areaId": "shipbuilding-maritime",
+                "area": "Shipbuilding / Maritime",
+                "workType": {
+                  "id": "psc:1905",
+                  "code": "1905",
+                  "type": "PSC",
+                  "label": "1905 · COMBAT SHIPS AND LANDING VESSELS"
+                },
+                "topIncumbent": "ELECTRIC BOAT",
+                "incumbentShare": 50.9,
+                "activeAwardAmount": 199.41,
+                "nearTermAwardAmount": 53.556,
+                "activeAwards": 36,
+                "nearTermAwards": 13,
+                "nextEndDate": "2026-09-30",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 32,
+                "pursuitTimingScore": 90,
+                "areaAlignmentScore": 34,
+                "score": 76,
+                "recommendedAction": "Map ship program office, production lot timing, and engineering support wedge",
+                "rationale": "Department of the Navy / Shipbuilding / Maritime has 13 sampled active awards ending within 24 months, 1905 · COMBAT SHIPS AND LANDING VESSELS as the coded work type, and ELECTRIC BOAT as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "Moderate incumbent concentration",
+                "serviceFit": "digital shipyard, lifecycle engineering, supply-chain analytics, integration support",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Navy%20Shipbuilding%20%2F%20Maritime%201905",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_N0002418C2106_9700_-NONE-_-NONE-",
+                    "awardId": "N0002418C2106",
+                    "recipient": "HUNTINGTON INGALLS",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 0.854,
+                    "startDate": "2018-07-16",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1905",
+                      "code": "1905",
+                      "type": "PSC",
+                      "label": "1905 · COMBAT SHIPS AND LANDING VESSELS"
+                    },
+                    "areas": [
+                      "Shipbuilding / Maritime"
+                    ],
+                    "areaIds": [
+                      "shipbuilding-maritime"
+                    ],
+                    "description": "PLANNING YEAR 1 OF CVN 74 RCOH ADVANCE PLANNING AND CVN 74 RCOH MATERIAL"
+                  },
+                  {
+                    "id": "CONT_AWD_N0002421C2106_9700_-NONE-_-NONE-",
+                    "awardId": "N0002421C2106",
+                    "recipient": "HUNTINGTON INGALLS",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 3.746,
+                    "startDate": "2021-02-19",
+                    "endDate": "2026-10-06",
+                    "daysUntilEnd": 38,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1905",
+                      "code": "1905",
+                      "type": "PSC",
+                      "label": "1905 · COMBAT SHIPS AND LANDING VESSELS"
+                    },
+                    "areas": [
+                      "Shipbuilding / Maritime"
+                    ],
+                    "areaIds": [
+                      "shipbuilding-maritime"
+                    ],
+                    "description": "FY21 RCOH ACCOMPLISHMENT"
+                  },
+                  {
+                    "id": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
+                    "awardId": "N0002412C2115",
+                    "recipient": "ELECTRIC BOAT",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 20.204,
+                    "startDate": "2012-04-13",
+                    "endDate": "2026-10-20",
+                    "daysUntilEnd": 52,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1905",
+                      "code": "1905",
+                      "type": "PSC",
+                      "label": "1905 · COMBAT SHIPS AND LANDING VESSELS"
+                    },
+                    "areas": [
+                      "Shipbuilding / Maritime"
+                    ],
+                    "areaIds": [
+                      "shipbuilding-maritime"
+                    ],
+                    "description": "SSN 792 LONG LEAD TIME MATERIAL"
+                  },
+                  {
+                    "id": "CONT_AWD_N0002415C4301_9700_-NONE-_-NONE-",
+                    "awardId": "N0002415C4301",
+                    "recipient": "HUNTINGTON INGALLS",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 1.56,
+                    "startDate": "2015-08-14",
+                    "endDate": "2026-12-20",
+                    "daysUntilEnd": 113,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1905",
+                      "code": "1905",
+                      "type": "PSC",
+                      "label": "1905 · COMBAT SHIPS AND LANDING VESSELS"
+                    },
+                    "areas": [
+                      "Shipbuilding / Maritime"
+                    ],
+                    "areaIds": [
+                      "shipbuilding-maritime"
+                    ],
+                    "description": "USS COLUMBUS (SSN 762) EOH PLANNING"
+                  }
+                ]
+              },
+              {
+                "id": "capture:aircraft-aviation:Department of the Air Force:psc:1510",
+                "stage": "validate",
+                "stageLabel": "Validate",
+                "urgency": "4-12 months",
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "areaId": "aircraft-aviation",
+                "area": "Aircraft / Aviation",
+                "workType": {
+                  "id": "psc:1510",
+                  "code": "1510",
+                  "type": "PSC",
+                  "label": "1510 · AIRCRAFT, FIXED WING"
+                },
+                "topIncumbent": "BOEING",
+                "incumbentShare": 80.3,
+                "activeAwardAmount": 58.403,
+                "nearTermAwardAmount": 45.838,
+                "activeAwards": 7,
+                "nearTermAwards": 4,
+                "nextEndDate": "2026-12-31",
+                "nextEndFiscalYear": 2027,
+                "daysUntilNextEnd": 124,
+                "pursuitTimingScore": 66,
+                "areaAlignmentScore": 46,
+                "score": 60,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Air Force / Aircraft / Aviation has 4 sampled active awards ending within 24 months, 1510 · AIRCRAFT, FIXED WING as the coded work type, and BOEING as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Air%20Force%20Aircraft%20%2F%20Aviation%201510",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_FA861512C6016_9700_-NONE-_-NONE-",
+                    "awardId": "FA861512C6016",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 2.881,
+                    "startDate": "2012-09-28",
+                    "endDate": "2026-12-31",
+                    "daysUntilEnd": 124,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "TAIWAN F-16 A/B BLOCK 20 RETROFIT PROGRAM"
+                  },
+                  {
+                    "id": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
+                    "awardId": "FA862511C6600",
+                    "recipient": "BOEING",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 31.973,
+                    "startDate": "2011-02-24",
+                    "endDate": "2027-07-31",
+                    "daysUntilEnd": 336,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "KC-X MODERNIZATION PROGRAM"
+                  },
+                  {
+                    "id": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
+                    "awardId": "FA863418C2701",
+                    "recipient": "BOEING",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 6.986,
+                    "startDate": "2017-12-22",
+                    "endDate": "2027-11-30",
+                    "daysUntilEnd": 458,
+                    "fiscalYearEnd": 2028,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "F-15, FMS, F-15QA AIR VEHICLE DEVELOPMENT"
+                  },
+                  {
+                    "id": "CONT_AWD_FA862516C6599_9700_-NONE-_-NONE-",
+                    "awardId": "FA862516C6599",
+                    "recipient": "BOEING",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 3.998,
+                    "startDate": "2016-01-04",
+                    "endDate": "2028-07-31",
+                    "daysUntilEnd": 702,
+                    "fiscalYearEnd": 2028,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "ACAT I, AFLCMC/WLJK, PRESIDENTIAL AIRCRAFT RECAPITALIZATION"
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Navy:psc:1510",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:1510",
+                  "code": "1510",
+                  "type": "PSC",
+                  "label": "1510 · AIRCRAFT, FIXED WING"
+                },
+                "topIncumbent": "LOCKHEED MARTIN",
+                "incumbentShare": 100,
+                "activeAwardAmount": 8.995,
+                "nearTermAwardAmount": 8.995,
+                "activeAwards": 2,
+                "nearTermAwards": 2,
+                "nextEndDate": "2026-09-30",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 32,
+                "pursuitTimingScore": 43,
+                "areaAlignmentScore": 53,
+                "score": 51,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Navy / Readiness / Sustainment has 2 sampled active awards ending within 24 months, 1510 · AIRCRAFT, FIXED WING as the coded work type, and LOCKHEED MARTIN as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Navy%20Readiness%20%2F%20Sustainment%201510",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_N0001916C0004_9700_-NONE-_-NONE-",
+                    "awardId": "N0001916C0004",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 1.042,
+                    "startDate": "2016-07-07",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "LRIP 10 NA SUSTAINMENT FMS"
+                  },
+                  {
+                    "id": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
+                    "awardId": "N0001921C0020",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 7.953,
+                    "startDate": "2020-12-31",
+                    "endDate": "2027-12-30",
+                    "daysUntilEnd": 488,
+                    "fiscalYearEnd": 2028,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1510",
+                      "code": "1510",
+                      "type": "PSC",
+                      "label": "1510 · AIRCRAFT, FIXED WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation",
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation",
+                      "readiness-sustainment"
+                    ],
+                    "description": "FY21-23 GLOBAL F-35 AIR SYSTEM SUSTAINMENT"
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Navy:psc:J015",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:J015",
+                  "code": "J015",
+                  "type": "PSC",
+                  "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                },
+                "topIncumbent": "V2X AEROSPACE",
+                "incumbentShare": 68.6,
+                "activeAwardAmount": 3.179,
+                "nearTermAwardAmount": 3.179,
+                "activeAwards": 3,
+                "nearTermAwards": 3,
+                "nextEndDate": "2026-09-02",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 4,
+                "pursuitTimingScore": 40,
+                "areaAlignmentScore": 53,
+                "score": 50,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Navy / Readiness / Sustainment has 3 sampled active awards ending within 24 months, J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS as the coded work type, and V2X AEROSPACE as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "Moderate incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Navy%20Readiness%20%2F%20Sustainment%20J015",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_N0042122F0116_9700_N6134019D1010_9700",
+                    "awardId": "N0042122F0116",
+                    "recipient": "V2X AEROSPACE",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 0.551,
+                    "startDate": "2022-05-02",
+                    "endDate": "2026-09-02",
+                    "daysUntilEnd": 4,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DELIVERY ORDER",
+                    "workType": {
+                      "id": "psc:J015",
+                      "code": "J015",
+                      "type": "PSC",
+                      "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "IGF:OT:IGF NAVAL TEST WING ATLANTIC (NTWL) AIRCRAFT MAINTENANCE"
+                  },
+                  {
+                    "id": "CONT_AWD_N6852022F7005_9700_N6134019D1010_9700",
+                    "awardId": "N6852022F7005",
+                    "recipient": "V2X AEROSPACE",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 1.629,
+                    "startDate": "2021-10-15",
+                    "endDate": "2026-12-31",
+                    "daysUntilEnd": 124,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DELIVERY ORDER",
+                    "workType": {
+                      "id": "psc:J015",
+                      "code": "J015",
+                      "type": "PSC",
+                      "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "T45 CLS CMMARS TASK ORDER, MATERIALS - AIRCRAFT MAINTENANCE"
+                  },
+                  {
+                    "id": "CONT_AWD_N6134020F0040_9700_N6134019D1006_9700",
+                    "awardId": "N6134020F0040",
+                    "recipient": "AMENTUM SERVICES",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 0.999,
+                    "startDate": "2020-02-01",
+                    "endDate": "2027-03-31",
+                    "daysUntilEnd": 214,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DELIVERY ORDER",
+                    "workType": {
+                      "id": "psc:J015",
+                      "code": "J015",
+                      "type": "PSC",
+                      "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "T-6 AIRCRAFT MAINTENANCE"
+                  }
+                ]
+              },
+              {
+                "id": "capture:missiles-fires:Department of the Army:psc:1410",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Army",
+                "buyerGroup": "Army",
+                "areaId": "missiles-fires",
+                "area": "Missiles / Fires",
+                "workType": {
+                  "id": "psc:1410",
+                  "code": "1410",
+                  "type": "PSC",
+                  "label": "1410 · GUIDED MISSILES"
+                },
+                "topIncumbent": "LOCKHEED MARTIN",
+                "incumbentShare": 97,
+                "activeAwardAmount": 44.772,
+                "nearTermAwardAmount": 12.887,
+                "activeAwards": 11,
+                "nearTermAwards": 5,
+                "nextEndDate": "2026-08-31",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 2,
+                "pursuitTimingScore": 46,
+                "areaAlignmentScore": 32,
+                "score": 48,
+                "recommendedAction": "Map program office, test range demand, and systems engineering support fit",
+                "rationale": "Department of the Army / Missiles / Fires has 5 sampled active awards ending within 24 months, 1410 · GUIDED MISSILES as the coded work type, and LOCKHEED MARTIN as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "mission engineering, test/evaluation, modeling, systems integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Army%20Missiles%20%2F%20Fires%201410",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_W31P4Q17C0194_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q17C0194",
+                    "recipient": "RAYTHEON",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 1.361,
+                    "startDate": "2017-09-30",
+                    "endDate": "2026-08-31",
+                    "daysUntilEnd": 2,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "CONTRACT IS FOR THE PROCUREMENT OF TUBE-LAUNCHED OPTICALLYTRACKED WIRELESS-GUIDED MISSILES FOR THE UNITED STATES ARMY, UNITED STATES MARINE CORPS AND FOREIGN MILITARY SALES CUSTOMERS."
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q19C0011_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q19C0011",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 4.583,
+                    "startDate": "2018-12-21",
+                    "endDate": "2027-03-31",
+                    "daysUntilEnd": 214,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "W31P4Q-19-C-0011 PAC-3 PRODUCTION CONTRACT FOR THE FY19/20 US/FMS REQUIREMENTS, WHICH INCLUDES: MSE&CRI MISSILES, LMKS AND OTHER GROUND SUPPORT FOR PATRIOT/PAC-3 WEAPON."
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q18C0130_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q18C0130",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 3.158,
+                    "startDate": "2018-09-29",
+                    "endDate": "2027-08-31",
+                    "daysUntilEnd": 367,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "HELLFIRE BUY 17 PRODUCTION."
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q19C0092_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q19C0092",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 1.282,
+                    "startDate": "2019-06-24",
+                    "endDate": "2027-09-30",
+                    "daysUntilEnd": 397,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "ARMY TACTICAL MISSILE SYSTEM (ATACMS) SERVICE LIFE EXTENSION PROGRAM (SLEP) PRODUCTION LOT THREE"
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Air Force:psc:R425",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:R425",
+                  "code": "R425",
+                  "type": "PSC",
+                  "label": "R425 · SUPPORT- PROFESSIONAL: ENGINEERING/TECHNICAL"
+                },
+                "topIncumbent": "BEYOND NEW HORIZONS",
+                "incumbentShare": 66,
+                "activeAwardAmount": 1.348,
+                "nearTermAwardAmount": 1.348,
+                "activeAwards": 2,
+                "nearTermAwards": 2,
+                "nextEndDate": "2026-09-30",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 32,
+                "pursuitTimingScore": 38,
+                "areaAlignmentScore": 53,
+                "score": 48,
+                "recommendedAction": "Validate buyer office, vehicle, incumbent scope, and near-term notice timing",
+                "rationale": "Department of the Air Force / Readiness / Sustainment has 2 sampled active awards ending within 24 months, R425 · SUPPORT- PROFESSIONAL: ENGINEERING/TECHNICAL as the coded work type, and BEYOND NEW HORIZONS as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "Moderate incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Air%20Force%20Readiness%20%2F%20Sustainment%20R425",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_FA910124CB002_9700_-NONE-_-NONE-",
+                    "awardId": "FA910124CB002",
+                    "recipient": "BEYOND NEW HORIZONS",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 0.89,
+                    "startDate": "2024-04-01",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:R425",
+                      "code": "R425",
+                      "type": "PSC",
+                      "label": "R425 · SUPPORT- PROFESSIONAL: ENGINEERING/TECHNICAL"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "TEST OPERATIONS AND SUSTAINMENT (TOS) II"
+                  },
+                  {
+                    "id": "CONT_AWD_FA811022F0001_9700_FA861614D6060_9700",
+                    "awardId": "FA811022F0001",
+                    "recipient": "NORTHROP GRUMMAN SYSTEMS",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 0.458,
+                    "startDate": "2022-01-01",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DELIVERY ORDER",
+                    "workType": {
+                      "id": "psc:R425",
+                      "code": "R425",
+                      "type": "PSC",
+                      "label": "R425 · SUPPORT- PROFESSIONAL: ENGINEERING/TECHNICAL"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "CY22-24 B-2 PROGRAMMED DEPOT MAINTENANCE"
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Air Force:psc:H210",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:H210",
+                  "code": "H210",
+                  "type": "PSC",
+                  "label": "H210 · EQUIPMENT AND MATERIALS TESTING- WEAPONS"
+                },
+                "topIncumbent": "RELIANCE TEST & TECHNOLOGY",
+                "incumbentShare": 100,
+                "activeAwardAmount": 1.31,
+                "nearTermAwardAmount": 1.31,
+                "activeAwards": 1,
+                "nearTermAwards": 1,
+                "nextEndDate": "2026-09-30",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 32,
+                "pursuitTimingScore": 38,
+                "areaAlignmentScore": 53,
+                "score": 48,
+                "recommendedAction": "Validate buyer office, vehicle, incumbent scope, and near-term notice timing",
+                "rationale": "Department of the Air Force / Readiness / Sustainment has 1 sampled active awards ending within 24 months, H210 · EQUIPMENT AND MATERIALS TESTING- WEAPONS as the coded work type, and RELIANCE TEST & TECHNOLOGY as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Air%20Force%20Readiness%20%2F%20Sustainment%20H210",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_FA248616C0002_9700_-NONE-_-NONE-",
+                    "awardId": "FA248616C0002",
+                    "recipient": "RELIANCE TEST & TECHNOLOGY",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 1.31,
+                    "startDate": "2016-04-01",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:H210",
+                      "code": "H210",
+                      "type": "PSC",
+                      "label": "H210 · EQUIPMENT AND MATERIALS TESTING- WEAPONS"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "IGF::OT::IGF EGLIN - OPERATION&MAINTENANCE SERVICES (E-OMS)"
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Navy:psc:V124",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:V124",
+                  "code": "V124",
+                  "type": "PSC",
+                  "label": "V124 · TRANSPORTATION/TRAVEL/RELOCATION- TRANSPORTATION: MARINE CHARTER"
+                },
+                "topIncumbent": "PATRIOT CONTRACT SERVICES",
+                "incumbentShare": 68.8,
+                "activeAwardAmount": 1.409,
+                "nearTermAwardAmount": 0.969,
+                "activeAwards": 2,
+                "nearTermAwards": 1,
+                "nextEndDate": "2026-09-30",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 32,
+                "pursuitTimingScore": 38,
+                "areaAlignmentScore": 53,
+                "score": 48,
+                "recommendedAction": "Validate buyer office, vehicle, incumbent scope, and near-term notice timing",
+                "rationale": "Department of the Navy / Readiness / Sustainment has 1 sampled active awards ending within 24 months, V124 · TRANSPORTATION/TRAVEL/RELOCATION- TRANSPORTATION: MARINE CHARTER as the coded work type, and PATRIOT CONTRACT SERVICES as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "Moderate incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Navy%20Readiness%20%2F%20Sustainment%20V124",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_N3220521C3009_9700_-NONE-_-NONE-",
+                    "awardId": "N3220521C3009",
+                    "recipient": "PATRIOT CONTRACT SERVICES",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 0.969,
+                    "startDate": "2021-04-01",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:V124",
+                      "code": "V124",
+                      "type": "PSC",
+                      "label": "V124 · TRANSPORTATION/TRAVEL/RELOCATION- TRANSPORTATION: MARINE CHARTER"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "N105B/PM3 AND PM5/ CREATED BY PAVELCHAK ON BEHALF OF WOOD, JAMES/ CONTRACT AWARD FOR THE OPERATION AND MAINTENANCE OF EIGHT GOVERNMENT-OWNED LARGE, MEDIUM-SPEED, ROLL-ON, ROLL-OFF (LMSR) VESSELS."
+                  },
+                  {
+                    "id": "CONT_AWD_N3220522C3101_9700_-NONE-_-NONE-",
+                    "awardId": "N3220522C3101",
+                    "recipient": "CROWLEY GOVERNMENT SERVICES",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 0.44,
+                    "startDate": "2022-10-01",
+                    "endDate": "2029-09-30",
+                    "daysUntilEnd": 1128,
+                    "fiscalYearEnd": 2029,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:V124",
+                      "code": "V124",
+                      "type": "PSC",
+                      "label": "V124 · TRANSPORTATION/TRAVEL/RELOCATION- TRANSPORTATION: MARINE CHARTER"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "N105A/PM3 HAYCOX CONTRACT AWARD FOR OPERATION & MAINTENANCE OF 6 GOVERNMENT-OWNED MARITIME PREPOSITIONING FORCE VESSELS."
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Army:psc:J015",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Army",
+                "buyerGroup": "Army",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:J015",
+                  "code": "J015",
+                  "type": "PSC",
+                  "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                },
+                "topIncumbent": "AMENTUM SERVICES",
+                "incumbentShare": 95.6,
+                "activeAwardAmount": 0.956,
+                "nearTermAwardAmount": 0.956,
+                "activeAwards": 1,
+                "nearTermAwards": 1,
+                "nextEndDate": "2026-11-30",
+                "nextEndFiscalYear": 2027,
+                "daysUntilNextEnd": 93,
+                "pursuitTimingScore": 37,
+                "areaAlignmentScore": 53,
+                "score": 48,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Army / Readiness / Sustainment has 1 sampled active awards ending within 24 months, J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS as the coded work type, and AMENTUM SERVICES as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Army%20Readiness%20%2F%20Sustainment%20J015",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_W58RGZ19C0025_9700_-NONE-_-NONE-",
+                    "awardId": "W58RGZ19C0025",
+                    "recipient": "AMENTUM SERVICES",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 0.956,
+                    "startDate": "2019-06-05",
+                    "endDate": "2026-11-30",
+                    "daysUntilEnd": 93,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:J015",
+                      "code": "J015",
+                      "type": "PSC",
+                      "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                    },
+                    "areas": [
+                      "Installations / Infrastructure",
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "installations-infrastructure",
+                      "readiness-sustainment"
+                    ],
+                    "description": "US ARMY CONTRACTING COMMAND-REDSTONE (ACC-REDSTONE) IS AWARDING THIS CONTRACT W58RGZ-19-C-0025 (AFM II-EAST)FOR THE U.S. ARMY AVIATION AND MISSILE COMMAND (AMCOM) AMCOM LOGISTICS CENTER (ALC) AVIATION FIELD MAINTENANCE (AFM) REQUIREMENT..."
+                  }
+                ]
+              },
+              {
+                "id": "capture:space-systems:Department of the Army:psc:1410",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Department of the Army",
+                "buyerGroup": "Army",
+                "areaId": "space-systems",
+                "area": "Space Systems",
+                "workType": {
+                  "id": "psc:1410",
+                  "code": "1410",
+                  "type": "PSC",
+                  "label": "1410 · GUIDED MISSILES"
+                },
+                "topIncumbent": "LOCKHEED MARTIN",
+                "incumbentShare": 97,
+                "activeAwardAmount": 44.772,
+                "nearTermAwardAmount": 12.887,
+                "activeAwards": 11,
+                "nearTermAwards": 5,
+                "nextEndDate": "2026-08-31",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 2,
+                "pursuitTimingScore": 46,
+                "areaAlignmentScore": 29,
+                "score": 47,
+                "recommendedAction": "Map program office, test range demand, and systems engineering support fit",
+                "rationale": "Department of the Army / Space Systems has 5 sampled active awards ending within 24 months, 1410 · GUIDED MISSILES as the coded work type, and LOCKHEED MARTIN as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "space systems engineering, ground systems, data integration, mission assurance",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Army%20Space%20Systems%201410",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_W31P4Q17C0194_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q17C0194",
+                    "recipient": "RAYTHEON",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 1.361,
+                    "startDate": "2017-09-30",
+                    "endDate": "2026-08-31",
+                    "daysUntilEnd": 2,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "CONTRACT IS FOR THE PROCUREMENT OF TUBE-LAUNCHED OPTICALLYTRACKED WIRELESS-GUIDED MISSILES FOR THE UNITED STATES ARMY, UNITED STATES MARINE CORPS AND FOREIGN MILITARY SALES CUSTOMERS."
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q19C0011_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q19C0011",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 4.583,
+                    "startDate": "2018-12-21",
+                    "endDate": "2027-03-31",
+                    "daysUntilEnd": 214,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "W31P4Q-19-C-0011 PAC-3 PRODUCTION CONTRACT FOR THE FY19/20 US/FMS REQUIREMENTS, WHICH INCLUDES: MSE&CRI MISSILES, LMKS AND OTHER GROUND SUPPORT FOR PATRIOT/PAC-3 WEAPON."
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q18C0130_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q18C0130",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 3.158,
+                    "startDate": "2018-09-29",
+                    "endDate": "2027-08-31",
+                    "daysUntilEnd": 367,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "HELLFIRE BUY 17 PRODUCTION."
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q19C0092_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q19C0092",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 1.282,
+                    "startDate": "2019-06-24",
+                    "endDate": "2027-09-30",
+                    "daysUntilEnd": 397,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "ARMY TACTICAL MISSILE SYSTEM (ATACMS) SERVICE LIFE EXTENSION PROGRAM (SLEP) PRODUCTION LOT THREE"
+                  }
+                ]
+              },
+              {
+                "id": "capture:readiness-sustainment:Department of the Air Force:psc:J028",
+                "stage": "validate",
+                "stageLabel": "Validate",
+                "urgency": "4-12 months",
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "areaId": "readiness-sustainment",
+                "area": "Readiness / Sustainment",
+                "workType": {
+                  "id": "psc:J028",
+                  "code": "J028",
+                  "type": "PSC",
+                  "label": "J028 · MAINT/REPAIR/REBUILD OF EQUIPMENT- ENGINES, TURBINES, AND COMPONENTS"
+                },
+                "topIncumbent": "RTX",
+                "incumbentShare": 100,
+                "activeAwardAmount": 1.531,
+                "nearTermAwardAmount": 1.531,
+                "activeAwards": 2,
+                "nearTermAwards": 2,
+                "nextEndDate": "2026-12-31",
+                "nextEndFiscalYear": 2027,
+                "daysUntilNextEnd": 124,
+                "pursuitTimingScore": 37,
+                "areaAlignmentScore": 53,
+                "score": 44,
+                "recommendedAction": "Validate buyer office, vehicle, incumbent scope, and near-term notice timing",
+                "rationale": "Department of the Air Force / Readiness / Sustainment has 2 sampled active awards ending within 24 months, J028 · MAINT/REPAIR/REBUILD OF EQUIPMENT- ENGINES, TURBINES, AND COMPONENTS as the coded work type, and RTX as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "sustainment analytics, maintenance modernization, logistics systems, readiness reporting",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Air%20Force%20Readiness%20%2F%20Sustainment%20J028",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_FA812425F1025_9700_FA861118D2850_9700",
+                    "awardId": "FA812425F1025",
+                    "recipient": "RTX",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 1.037,
+                    "startDate": "2025-01-01",
+                    "endDate": "2026-12-31",
+                    "daysUntilEnd": 124,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DELIVERY ORDER",
+                    "workType": {
+                      "id": "psc:J028",
+                      "code": "J028",
+                      "type": "PSC",
+                      "label": "J028 · MAINT/REPAIR/REBUILD OF EQUIPMENT- ENGINES, TURBINES, AND COMPONENTS"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "F119 CY25-CY27 ENGINE SUSTAINMENT"
+                  },
+                  {
+                    "id": "CONT_AWD_FA812426FB003_9700_FA812418D0001_9700",
+                    "awardId": "FA812426FB003",
+                    "recipient": "RTX",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 0.494,
+                    "startDate": "2025-10-01",
+                    "endDate": "2027-09-30",
+                    "daysUntilEnd": 397,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DELIVERY ORDER",
+                    "workType": {
+                      "id": "psc:J028",
+                      "code": "J028",
+                      "type": "PSC",
+                      "label": "J028 · MAINT/REPAIR/REBUILD OF EQUIPMENT- ENGINES, TURBINES, AND COMPONENTS"
+                    },
+                    "areas": [
+                      "Readiness / Sustainment"
+                    ],
+                    "areaIds": [
+                      "readiness-sustainment"
+                    ],
+                    "description": "TO PROVIDE FUNDING FOR THE FY26 TASK ORDER FOR THE F117 ENGINE SUSTAINMENT SUPPORT CONTRACT"
+                  }
+                ]
+              },
+              {
+                "id": "capture:aircraft-aviation:Department of the Air Force:psc:1520",
+                "stage": "validate",
+                "stageLabel": "Validate",
+                "urgency": "4-12 months",
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "areaId": "aircraft-aviation",
+                "area": "Aircraft / Aviation",
+                "workType": {
+                  "id": "psc:1520",
+                  "code": "1520",
+                  "type": "PSC",
+                  "label": "1520 · AIRCRAFT, ROTARY WING"
+                },
+                "topIncumbent": "SIKORSKY AIRCRAFT",
+                "incumbentShare": 100,
+                "activeAwardAmount": 6.008,
+                "nearTermAwardAmount": 6.008,
+                "activeAwards": 1,
+                "nearTermAwards": 1,
+                "nextEndDate": "2026-12-31",
+                "nextEndFiscalYear": 2027,
+                "daysUntilNextEnd": 124,
+                "pursuitTimingScore": 38,
+                "areaAlignmentScore": 46,
+                "score": 43,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Air Force / Aircraft / Aviation has 1 sampled active awards ending within 24 months, 1520 · AIRCRAFT, ROTARY WING as the coded work type, and SIKORSKY AIRCRAFT as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Air%20Force%20Aircraft%20%2F%20Aviation%201520",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_FA862914C2403_9700_-NONE-_-NONE-",
+                    "awardId": "FA862914C2403",
+                    "recipient": "SIKORSKY AIRCRAFT",
+                    "buyerSubAgency": "Department of the Air Force",
+                    "buyerGroup": "Air Force / Space Force",
+                    "awardAmount": 6.008,
+                    "startDate": "2014-06-26",
+                    "endDate": "2026-12-31",
+                    "daysUntilEnd": 124,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1520",
+                      "code": "1520",
+                      "type": "PSC",
+                      "label": "1520 · AIRCRAFT, ROTARY WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "ACAT 1D - CRH"
+                  }
+                ]
+              },
+              {
+                "id": "capture:aircraft-aviation:Department of the Navy:psc:1520",
+                "stage": "validate",
+                "stageLabel": "Validate",
+                "urgency": "4-12 months",
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "areaId": "aircraft-aviation",
+                "area": "Aircraft / Aviation",
+                "workType": {
+                  "id": "psc:1520",
+                  "code": "1520",
+                  "type": "PSC",
+                  "label": "1520 · AIRCRAFT, ROTARY WING"
+                },
+                "topIncumbent": "SIKORSKY AIRCRAFT",
+                "incumbentShare": 83.9,
+                "activeAwardAmount": 14.669,
+                "nearTermAwardAmount": 4.97,
+                "activeAwards": 5,
+                "nearTermAwards": 2,
+                "nextEndDate": "2027-01-31",
+                "nextEndFiscalYear": 2027,
+                "daysUntilNextEnd": 155,
+                "pursuitTimingScore": 38,
+                "areaAlignmentScore": 46,
+                "score": 43,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Navy / Aircraft / Aviation has 2 sampled active awards ending within 24 months, 1520 · AIRCRAFT, ROTARY WING as the coded work type, and SIKORSKY AIRCRAFT as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Navy%20Aircraft%20%2F%20Aviation%201520",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_N0001916C0048_9700_-NONE-_-NONE-",
+                    "awardId": "N0001916C0048",
+                    "recipient": "SIKORSKY AIRCRAFT",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 2.659,
+                    "startDate": "2016-04-18",
+                    "endDate": "2027-01-31",
+                    "daysUntilEnd": 155,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1520",
+                      "code": "1520",
+                      "type": "PSC",
+                      "label": "1520 · AIRCRAFT, ROTARY WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "CH-53K LRIP LOT 1 LONG LEAD ITEMS"
+                  },
+                  {
+                    "id": "CONT_AWD_N0001920C0047_9700_-NONE-_-NONE-",
+                    "awardId": "N0001920C0047",
+                    "recipient": "SIKORSKY AIRCRAFT",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 2.311,
+                    "startDate": "2020-03-26",
+                    "endDate": "2027-08-31",
+                    "daysUntilEnd": 367,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1520",
+                      "code": "1520",
+                      "type": "PSC",
+                      "label": "1520 · AIRCRAFT, ROTARY WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "CH-53K LRIP LOT 5/6 LONG LEAD ITEMS"
+                  },
+                  {
+                    "id": "CONT_AWD_N0001922C0004_9700_-NONE-_-NONE-",
+                    "awardId": "N0001922C0004",
+                    "recipient": "SIKORSKY AIRCRAFT",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 3.423,
+                    "startDate": "2021-12-06",
+                    "endDate": "2028-12-31",
+                    "daysUntilEnd": 855,
+                    "fiscalYearEnd": 2029,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1520",
+                      "code": "1520",
+                      "type": "PSC",
+                      "label": "1520 · AIRCRAFT, ROTARY WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "CH-53K FRP LOT 7 LONG LEAD ITEMS"
+                  },
+                  {
+                    "id": "CONT_AWD_N0001919C0013_9700_-NONE-_-NONE-",
+                    "awardId": "N0001919C0013",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Department of the Navy",
+                    "buyerGroup": "Navy / Marine Corps",
+                    "awardAmount": 2.357,
+                    "startDate": "2018-11-14",
+                    "endDate": "2029-03-30",
+                    "daysUntilEnd": 944,
+                    "fiscalYearEnd": 2029,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1520",
+                      "code": "1520",
+                      "type": "PSC",
+                      "label": "1520 · AIRCRAFT, ROTARY WING"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "MH-60R AIRCRAFT"
+                  }
+                ]
+              },
+              {
+                "id": "capture:missiles-fires:Missile Defense Agency:psc:1410",
+                "stage": "act-now",
+                "stageLabel": "Act Now",
+                "urgency": "0-120 days",
+                "buyer": "Missile Defense Agency",
+                "buyerGroup": "Fourth Estate",
+                "areaId": "missiles-fires",
+                "area": "Missiles / Fires",
+                "workType": {
+                  "id": "psc:1410",
+                  "code": "1410",
+                  "type": "PSC",
+                  "label": "1410 · GUIDED MISSILES"
+                },
+                "topIncumbent": "LOCKHEED MARTIN",
+                "incumbentShare": 56.6,
+                "activeAwardAmount": 16.069,
+                "nearTermAwardAmount": 3.667,
+                "activeAwards": 4,
+                "nearTermAwards": 2,
+                "nextEndDate": "2026-09-30",
+                "nextEndFiscalYear": 2026,
+                "daysUntilNextEnd": 32,
+                "pursuitTimingScore": 37,
+                "areaAlignmentScore": 32,
+                "score": 43,
+                "recommendedAction": "Map program office, test range demand, and systems engineering support fit",
+                "rationale": "Missile Defense Agency / Missiles / Fires has 2 sampled active awards ending within 24 months, 1410 · GUIDED MISSILES as the coded work type, and LOCKHEED MARTIN as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "Moderate incumbent concentration",
+                "serviceFit": "mission engineering, test/evaluation, modeling, systems integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Missile%20Defense%20Agency%20Missiles%20%2F%20Fires%201410",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_HQ014711C0006_9700_-NONE-_-NONE-",
+                    "awardId": "HQ014711C0006",
+                    "recipient": "NORTHROP GRUMMAN SYSTEMS",
+                    "buyerSubAgency": "Missile Defense Agency",
+                    "buyerGroup": "Fourth Estate",
+                    "awardAmount": 1.521,
+                    "startDate": "2011-03-07",
+                    "endDate": "2026-09-30",
+                    "daysUntilEnd": 32,
+                    "fiscalYearEnd": 2026,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "IRBM TARGETS"
+                  },
+                  {
+                    "id": "CONT_AWD_HQ085120C0002_9700_-NONE-_-NONE-",
+                    "awardId": "HQ085120C0002",
+                    "recipient": "RAYTHEON",
+                    "buyerSubAgency": "Missile Defense Agency",
+                    "buyerGroup": "Fourth Estate",
+                    "awardAmount": 2.146,
+                    "startDate": "2020-03-27",
+                    "endDate": "2027-03-26",
+                    "daysUntilEnd": 209,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "SM-3 BLK IB ALL UP ROUNDS"
+                  },
+                  {
+                    "id": "CONT_AWD_HQ014717C0032_9700_-NONE-_-NONE-",
+                    "awardId": "HQ014717C0032",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyerSubAgency": "Missile Defense Agency",
+                    "buyerGroup": "Fourth Estate",
+                    "awardAmount": 9.095,
+                    "startDate": "2017-03-27",
+                    "endDate": "2028-11-30",
+                    "daysUntilEnd": 824,
+                    "fiscalYearEnd": 2029,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "HQ0147-17-C-0032 UNDEFINITIZED CONTRACT ACTION (UCA) FOR THAAD INTERCEPTOR LOT 9 PRODUCTION - QTY OF 23"
+                  },
+                  {
+                    "id": "CONT_AWD_HQ085124C0001_9700_-NONE-_-NONE-",
+                    "awardId": "HQ085124C0001",
+                    "recipient": "RAYTHEON",
+                    "buyerSubAgency": "Missile Defense Agency",
+                    "buyerGroup": "Fourth Estate",
+                    "awardAmount": 3.307,
+                    "startDate": "2024-07-25",
+                    "endDate": "2031-02-28",
+                    "daysUntilEnd": 1644,
+                    "fiscalYearEnd": 2031,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:1410",
+                      "code": "1410",
+                      "type": "PSC",
+                      "label": "1410 · GUIDED MISSILES"
+                    },
+                    "areas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ],
+                    "areaIds": [
+                      "missiles-fires",
+                      "space-systems"
+                    ],
+                    "description": "FY 23-25 SM-3 BLOCK IIA AURS"
+                  }
+                ]
+              },
+              {
+                "id": "capture:aircraft-aviation:Department of the Army:psc:J015",
+                "stage": "validate",
+                "stageLabel": "Validate",
+                "urgency": "4-12 months",
+                "buyer": "Department of the Army",
+                "buyerGroup": "Army",
+                "areaId": "aircraft-aviation",
+                "area": "Aircraft / Aviation",
+                "workType": {
+                  "id": "psc:J015",
+                  "code": "J015",
+                  "type": "PSC",
+                  "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                },
+                "topIncumbent": "M1 SUPPORT SERVICES L P",
+                "incumbentShare": 100,
+                "activeAwardAmount": 4.549,
+                "nearTermAwardAmount": 4.549,
+                "activeAwards": 1,
+                "nearTermAwards": 1,
+                "nextEndDate": "2027-01-17",
+                "nextEndFiscalYear": 2027,
+                "daysUntilNextEnd": 141,
+                "pursuitTimingScore": 37,
+                "areaAlignmentScore": 46,
+                "score": 42,
+                "recommendedAction": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "rationale": "Department of the Army / Aircraft / Aviation has 1 sampled active awards ending within 24 months, J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS as the coded work type, and M1 SUPPORT SERVICES L P as the leading incumbent.",
+                "dataGaps": [
+                  "Validate live SAM.gov notices",
+                  "Join FPDS/SAM for contracting office and vehicle",
+                  "Confirm whether the end date is final period of performance or one action within a larger vehicle"
+                ],
+                "incumbentRisk": "High incumbent concentration",
+                "serviceFit": "aviation sustainment, training systems, software refresh, test and integration",
+                "samSearchUrl": "https://sam.gov/search/?index=opp&sort=-modifiedDate&sfm%5BsimpleSearch%5D%5BkeywordRadio%5D=ANY&sfm%5BsimpleSearch%5D%5BkeywordEditorTextarea%5D=Department%20of%20the%20Army%20Aircraft%20%2F%20Aviation%20J015",
+                "sampleAwards": [
+                  {
+                    "id": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
+                    "awardId": "W9124G17C0104",
+                    "recipient": "M1 SUPPORT SERVICES L P",
+                    "buyerSubAgency": "Department of the Army",
+                    "buyerGroup": "Army",
+                    "awardAmount": 4.549,
+                    "startDate": "2017-10-01",
+                    "endDate": "2027-01-17",
+                    "daysUntilEnd": 141,
+                    "fiscalYearEnd": 2027,
+                    "contractType": "DEFINITIVE CONTRACT",
+                    "workType": {
+                      "id": "psc:J015",
+                      "code": "J015",
+                      "type": "PSC",
+                      "label": "J015 · MAINT/REPAIR/REBUILD OF EQUIPMENT- AIRCRAFT AND AIRFRAME STRUCTURAL COMPONENTS"
+                    },
+                    "areas": [
+                      "Aircraft / Aviation"
+                    ],
+                    "areaIds": [
+                      "aircraft-aviation"
+                    ],
+                    "description": "IGF::OT::IGF"
+                  }
+                ]
+              }
+            ]
           }
         }
       },
@@ -51578,6 +53403,7 @@
         "Mission signals are keyword-derived from line titles and account fields, not a validated DoD AI taxonomy.",
         "Justification evidence currently covers FY2027 OUSD(C)-published RDT&E and procurement XML sources; some service-hosted justification books require separate discovery.",
         "USAspending technology-area award searches are keyword-sampled contract award records; values should be read as market signal, not total addressable obligation by budget line.",
+        "Capture queue items are generated from budget, award, and timing signals; they are not confirmed live solicitations until SAM.gov and FPDS/SAM action details are joined.",
         "Historical request coverage currently includes M-1, O-1, P-1, R-1, and RF-1 for FY2024-FY2026; C-1 historical workbooks use a different public path and are not backfilled yet.",
         "Request-vintage trends compare workbook request totals and should not be read as execution/outlay trends."
       ],
@@ -51586,7 +53412,8 @@
         "Service-hosted RDT&E and procurement justification books for Army, Navy / Marine Corps, Air Force, and Space Force narrative coverage.",
         "USAspending obligation trend pulls by agency, PSC, NAICS, and recipient for execution-side time series.",
         "FPDS/SAM contract action joins for office, vehicle, and recompete detail.",
-        "DoD contracts, solicitations, and POM-relevant public releases for market timing context."
+        "SAM.gov live opportunity pulls for notice type, response date, set-aside, office, and solicitation links against the generated capture queue.",
+        "DoD contracts, solicitations, and POM-relevant public releases for broader market timing context."
       ]
     },
     "methodology": "Parsed official Comptroller display workbooks. Dollar values are billions. Current FY2027 analytics use M-1/O-1/P-1/R-1/RF-1/C-1. Historical request-vintage analytics use reachable FY2024-FY2026 M-1/O-1/P-1/R-1/RF-1 workbooks plus FY2027 comparable books."

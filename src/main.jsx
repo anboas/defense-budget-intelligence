@@ -12,6 +12,7 @@ import {
   Filter,
   GitBranch,
   Layers,
+  ListChecks,
   RefreshCcw,
   Search,
   TrendingUp,
@@ -26,6 +27,7 @@ const TABS = [
   { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "pursuits", label: "Pursuits", icon: CalendarClock },
+  { id: "queue", label: "Queue", icon: ListChecks },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
@@ -45,6 +47,7 @@ const HASH_ROUTES = {
   strategy: "#/budget-spend/strategy",
   awards: "#/budget-spend/awards",
   pursuits: "#/budget-spend/pursuits",
+  queue: "#/budget-spend/queue",
   services: "#/budget-spend/services",
   fourth: "#/budget-spend/fourth-estate",
   ai: "#/budget-spend/ai-autonomy",
@@ -111,6 +114,7 @@ const EXECUTION = STRATEGY.executionAnalytics || {};
 const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
 const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
 const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
+const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], items: [] };
 const EMPTY_ROWS = Object.freeze([]);
 
 function money(value, digits = 1) {
@@ -1435,6 +1439,163 @@ function Pursuits() {
   );
 }
 
+function CaptureQueue() {
+  const items = CAPTURE_QUEUE.items || EMPTY_ROWS;
+  const summary = CAPTURE_QUEUE.summary || {};
+  const stageCounts = CAPTURE_QUEUE.stageCounts || EMPTY_ROWS;
+  const [filters, setFilters] = useState({ query: "", stage: "all", area: "all", buyer: "all", sort: "score" });
+  const stageOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.stage, label: item.stageLabel })), [items]);
+  const areaOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.areaId, label: item.area })), [items]);
+  const buyerOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.buyer, label: item.buyer })), [items]);
+
+  const filteredItems = items.filter((item) => {
+    const query = filters.query.trim().toLowerCase();
+    return (!query || [
+      item.buyer,
+      item.buyerGroup,
+      item.area,
+      item.workType?.label,
+      item.topIncumbent,
+      item.recommendedAction,
+      item.rationale,
+      item.incumbentRisk,
+      item.serviceFit,
+      ...(item.dataGaps || []),
+    ].join(" ").toLowerCase().includes(query))
+      && (filters.stage === "all" || item.stage === filters.stage)
+      && (filters.area === "all" || item.areaId === filters.area)
+      && (filters.buyer === "all" || item.buyer === filters.buyer);
+  }).sort((a, b) => {
+    if (filters.sort === "end") return (a.daysUntilNextEnd ?? 99999) - (b.daysUntilNextEnd ?? 99999);
+    if (filters.sort === "near") return b.nearTermAwardAmount - a.nearTermAwardAmount;
+    if (filters.sort === "alignment") return b.areaAlignmentScore - a.areaAlignmentScore || b.score - a.score;
+    return b.score - a.score || b.nearTermAwardAmount - a.nearTermAwardAmount;
+  });
+
+  return (
+    <div className="grid capture-page" data-capture-queue-page>
+      <section className="capture-hero">
+        <div>
+          <span>Capture action queue</span>
+          <h2>What To Validate Next</h2>
+          <p>Generated pursuit actions ranked from budget/execution alignment, active award value, near-term end dates, coded work type, and incumbent concentration. Each item stays marked as validation work until live SAM.gov and FPDS/SAM details are attached.</p>
+        </div>
+        <div className="capture-hero__facts" aria-label="Capture queue summary">
+          <article>
+            <strong>{summary.items || items.length}</strong>
+            <span>queue items</span>
+          </article>
+          <article>
+            <strong>{summary.actNowItems || 0}</strong>
+            <span>act-now lanes</span>
+          </article>
+          <article>
+            <strong>{money(summary.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+          </article>
+          <article>
+            <strong>{summary.topItem || "n/a"}</strong>
+            <span>top queue item</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="capture-filter-bar" data-capture-filter-bar>
+        <label className="searchbox">
+          <Search size={15} aria-hidden="true" />
+          <input placeholder="Search actions, buyers, incumbents, work types" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} />
+        </label>
+        <label>
+          <span>Stage</span>
+          <select value={filters.stage} onChange={(event) => setFilters({ ...filters, stage: event.target.value })}>
+            <option value="all">All stages</option>
+            {stageOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Area</span>
+          <select value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })}>
+            <option value="all">All areas</option>
+            {areaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Buyer</span>
+          <select value={filters.buyer} onChange={(event) => setFilters({ ...filters, buyer: event.target.value })}>
+            <option value="all">All buyers</option>
+            {buyerOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Sort</span>
+          <select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>
+            <option value="score">Queue score</option>
+            <option value="end">Next end date</option>
+            <option value="near">Near-term value</option>
+            <option value="alignment">Budget alignment</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="capture-stage-grid" data-capture-stage-counts>
+        {stageCounts.map((stage) => (
+          <article key={stage.id}>
+            <span>{stage.label}</span>
+            <strong>{stage.items}</strong>
+            <p>{money(stage.nearTermAwardAmount)} near-term award value</p>
+          </article>
+        ))}
+      </div>
+
+      <Section title="Capture Queue" meta={`${filteredItems.length.toLocaleString()} matched generated actions`} icon={ListChecks}>
+        <div className="capture-queue-grid" data-capture-queue-items>
+          {filteredItems.map((item) => (
+            <article key={item.id} className="capture-queue-card">
+              <header>
+                <div>
+                  <span>{item.stageLabel} · {item.urgency}</span>
+                  <strong>{item.buyer}</strong>
+                </div>
+                <b>{item.score}</b>
+              </header>
+              <p>{item.recommendedAction}</p>
+              <dl>
+                <div>
+                  <dt>Lane</dt>
+                  <dd>{item.area} · {item.workType?.label || "Uncoded"}</dd>
+                </div>
+                <div>
+                  <dt>Timing</dt>
+                  <dd>{item.nextEndDate || "n/a"} · {Number.isFinite(item.daysUntilNextEnd) ? `${item.daysUntilNextEnd} days` : "unknown"}</dd>
+                </div>
+                <div>
+                  <dt>Near-term value</dt>
+                  <dd>{money(item.nearTermAwardAmount)} · {item.nearTermAwards} awards</dd>
+                </div>
+                <div>
+                  <dt>Incumbent</dt>
+                  <dd>{item.topIncumbent} · {percent(item.incumbentShare, 0)}</dd>
+                </div>
+              </dl>
+              <footer>
+                <span>{item.incumbentRisk}</span>
+                <span>{item.serviceFit}</span>
+                <a href={item.samSearchUrl} target="_blank" rel="noreferrer">
+                  SAM search <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              </footer>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Validation Backlog" meta="source gaps to close before treating queue items as live opportunities" icon={Filter}>
+        <CaptureQueueTable items={filteredItems} />
+      </Section>
+    </div>
+  );
+}
+
 function aggregateAwardsForUi(awards, keyFn) {
   const groups = new Map();
   for (const award of awards) {
@@ -1446,6 +1607,51 @@ function aggregateAwardsForUi(awards, keyFn) {
     groups.set(key.id, existing);
   }
   return [...groups.values()].map((row) => ({ ...row, awardAmount: Number(row.awardAmount.toFixed(3)) })).sort((a, b) => b.awardAmount - a.awardAmount);
+}
+
+function CaptureQueueTable({ items }) {
+  return (
+    <div className="table-shell capture-table-shell" data-capture-queue-table>
+      <table>
+        <thead>
+          <tr>
+            <th>Score</th>
+            <th>Stage</th>
+            <th>Action</th>
+            <th>Buyer</th>
+            <th>Lane</th>
+            <th>Incumbent</th>
+            <th>Validation Gaps</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>{item.score}</td>
+              <td>
+                <strong>{item.stageLabel}</strong>
+                <span>{item.urgency}</span>
+              </td>
+              <td>
+                <strong>{item.recommendedAction}</strong>
+                <span>{item.rationale}</span>
+              </td>
+              <td>{item.buyer}</td>
+              <td>
+                <strong>{item.area}</strong>
+                <span>{item.workType?.label || "Uncoded work type"}</span>
+              </td>
+              <td>
+                <strong>{item.topIncumbent}</strong>
+                <span>{item.incumbentRisk}</span>
+              </td>
+              <td>{(item.dataGaps || []).join(" · ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function PursuitCandidateTable({ awards }) {
@@ -1732,6 +1938,26 @@ function Sources() {
             <strong>{percent(PURSUIT_TIMING.summary?.officeCoverageShare, 0)}</strong>
             <span>office-field coverage</span>
             <p>Current USAspending snapshot does not expose named human contacts; FPDS/SAM joins remain required for office and vehicle detail.</p>
+          </article>
+        </div>
+      </Section>
+
+      <Section title="Capture Queue Coverage" meta="generated validation actions from pursuit timing and budget alignment" icon={ListChecks}>
+        <div className="pursuit-source-summary" data-capture-queue-evidence>
+          <article>
+            <strong>{CAPTURE_QUEUE.summary?.items || 0}</strong>
+            <span>generated actions</span>
+            <p>{CAPTURE_QUEUE.summary?.actNowItems || 0} lanes are in the act-now validation window.</p>
+          </article>
+          <article>
+            <strong>{money(CAPTURE_QUEUE.summary?.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+            <p>Summed across generated queue lanes from active sampled awards ending within 24 months.</p>
+          </article>
+          <article>
+            <strong>{CAPTURE_QUEUE.summary?.topItem || "n/a"}</strong>
+            <span>top action lane</span>
+            <p>{CAPTURE_QUEUE.summary?.topAction || "Validate buyer office, vehicle, incumbent scope, and timing."}</p>
           </article>
         </div>
       </Section>
@@ -2052,7 +2278,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "awards", "pursuits"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -2129,6 +2355,7 @@ function App() {
         {activeTab === "strategy" ? <Strategy /> : null}
         {activeTab === "awards" ? <Awards /> : null}
         {activeTab === "pursuits" ? <Pursuits /> : null}
+        {activeTab === "queue" ? <CaptureQueue /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
