@@ -3214,7 +3214,7 @@
           "taggedFy2027": 995.6,
           "taggedRecordShare": 63.6,
           "taggedValueShare": 67.6,
-          "narrativeSourceCount": 39,
+          "narrativeSourceCount": 35,
           "narrativeEvidenceItems": 448,
           "evidenceBackedTechnologyRecords": 69,
           "evidenceBackedTechnologyValue": 112.4,
@@ -3253,7 +3253,7 @@
             "id": "narrative-evidence",
             "label": "Narrative evidence",
             "value": 68,
-            "helper": "39 official RDT&E/procurement justification XMLs cached; 69 tagged lines have source matches.",
+            "helper": "35 official RDT&E/procurement justification XMLs cached; 69 tagged lines have source matches.",
             "tone": "purple"
           },
           {
@@ -9008,7 +9008,9 @@
           "sourcePage": "https://comptroller.war.gov/BudgetMaterials/FY2027budgetjustification.aspx",
           "sourceCache": "/home/anboas/clawd/artifacts/defense-budget-intelligence/budget/justifications/FY2027",
           "cachedAt": "2026-08-29T02:43:53.244Z",
-          "sourceCount": 39,
+          "sourceCount": 35,
+          "officialLinkCount": 39,
+          "unavailableSourceCount": 4,
           "evidenceItems": 448,
           "books": [
             "P-1",
@@ -9028,7 +9030,9 @@
         "sourcePage": "https://comptroller.war.gov/BudgetMaterials/FY2027budgetjustification.aspx",
         "sourceCache": "/home/anboas/clawd/artifacts/defense-budget-intelligence/budget/justifications/FY2027",
         "cachedAt": "2026-08-29T02:43:53.244Z",
-        "sourceCount": 39,
+        "sourceCount": 35,
+        "officialLinkCount": 39,
+        "unavailableSourceCount": 4,
         "evidenceItems": 448,
         "books": [
           "P-1",

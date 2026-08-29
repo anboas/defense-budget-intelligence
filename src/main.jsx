@@ -966,8 +966,8 @@ function Sources() {
         <div className="justification-evidence-summary" data-justification-evidence>
           <article>
             <strong>{JUSTIFICATION_COVERAGE.sourceCount || 0}</strong>
-            <span>official XML links</span>
-            <p>{JUSTIFICATION_COVERAGE.books?.join(", ") || "R-1, P-1"} program narrative sources from the FY2027 justification page.</p>
+            <span>cached XML sources</span>
+            <p>{JUSTIFICATION_COVERAGE.officialLinkCount || JUSTIFICATION_COVERAGE.sourceCount || 0} official links found; {JUSTIFICATION_COVERAGE.unavailableSourceCount || 0} were unavailable at refresh.</p>
           </article>
           <article>
             <strong>{(JUSTIFICATION_COVERAGE.evidenceItems || 0).toLocaleString()}</strong>
