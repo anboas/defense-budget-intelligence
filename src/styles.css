@@ -86,7 +86,7 @@ button {
 
 .masthead__inner {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
   gap: 7px 14px;
   align-items: center;
   width: min(1580px, 100%);
@@ -196,7 +196,7 @@ button {
 .masthead nav {
   display: flex;
   flex-wrap: nowrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 5px;
   min-width: 0;
   overflow-x: auto;
@@ -1110,6 +1110,7 @@ button {
 
 .strategy-hero,
 .hypotheses-hero,
+.account-hero,
 .relationship-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
@@ -1122,6 +1123,7 @@ button {
 
 .strategy-hero > div:first-child,
 .hypotheses-hero > div:first-child,
+.account-hero > div:first-child,
 .relationship-hero > div:first-child {
   min-width: 0;
   padding: 18px;
@@ -1132,8 +1134,13 @@ button {
   box-shadow: inset 4px 0 0 var(--orange);
 }
 
+.account-hero > div:first-child {
+  box-shadow: inset 4px 0 0 var(--green);
+}
+
 .strategy-hero span,
 .hypotheses-hero span,
+.account-hero span,
 .relationship-hero span {
   display: block;
   color: var(--brand);
@@ -1146,8 +1153,13 @@ button {
   color: var(--orange);
 }
 
+.account-hero span {
+  color: var(--green);
+}
+
 .strategy-hero h2,
 .hypotheses-hero h2,
+.account-hero h2,
 .relationship-hero h2 {
   margin: 4px 0 6px;
   font-size: 24px;
@@ -1157,6 +1169,7 @@ button {
 
 .strategy-hero p,
 .hypotheses-hero p,
+.account-hero p,
 .relationship-hero p {
   max-width: 960px;
   margin: 0;
@@ -1168,6 +1181,7 @@ button {
 
 .strategy-hero__facts,
 .hypotheses-hero__facts,
+.account-hero__facts,
 .relationship-hero__facts,
 .award-hero__facts,
 .pursuit-hero__facts,
@@ -1198,6 +1212,15 @@ button {
 .relationship-node-list,
 .relationship-line-list,
 .relationship-award-list,
+.account-shell,
+.account-picker,
+.account-workspace,
+.account-brief,
+.account-priority-grid,
+.account-rank-list,
+.account-action-list,
+.account-hypothesis-list,
+.account-validation-grid,
 .lane-brief,
 .lane-brief__evidence,
 .hypothesis-shell,
@@ -1213,6 +1236,7 @@ button {
 
 .strategy-hero__facts,
 .hypotheses-hero__facts,
+.account-hero__facts,
 .relationship-hero__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 10px;
@@ -1322,6 +1346,7 @@ button {
 }
 
 .relationship-hero__facts article,
+.account-hero__facts article,
 .hypotheses-hero__facts article {
   display: grid;
   align-content: center;
@@ -1333,6 +1358,7 @@ button {
 }
 
 .relationship-hero__facts strong,
+.account-hero__facts strong,
 .hypotheses-hero__facts strong {
   color: var(--text);
   font-size: 22px;
@@ -1341,6 +1367,7 @@ button {
 }
 
 .relationship-hero__facts span,
+.account-hero__facts span,
 .hypotheses-hero__facts span {
   margin-top: 5px;
   color: var(--muted);
@@ -1509,6 +1536,287 @@ button {
 }
 
 .hypothesis-validation-grid strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.account-shell {
+  grid-template-columns: minmax(285px, 0.3fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.account-picker {
+  position: sticky;
+  top: 74px;
+  max-height: calc(100vh - 94px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.account-picker button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 6px;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: inherit;
+  text-align: left;
+}
+
+.account-picker button.active,
+.account-picker button:hover {
+  border-color: var(--green);
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.account-picker span,
+.account-picker strong,
+.account-picker em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-picker span {
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.account-picker strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.account-picker em {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.account-brief {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.account-brief article,
+.account-priority-card,
+.account-rank-list article,
+.account-action-list article,
+.account-hypothesis-list article,
+.account-validation-grid article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.account-brief article {
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.account-brief span,
+.account-priority-card header span,
+.account-validation-grid span,
+.account-hypothesis-list span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.account-brief strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-brief p,
+.account-priority-card p,
+.account-hypothesis-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.account-priority-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.account-priority-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.account-priority-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.account-priority-card header strong,
+.account-hypothesis-list strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+.account-priority-card header b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 28px;
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  background: #eef8ee;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.account-priority-card dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.account-priority-card dl div {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.account-priority-card dt,
+.account-priority-card dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-priority-card dt {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.account-priority-card dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.account-rank-list article,
+.account-action-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.account-rank-list strong,
+.account-rank-list span,
+.account-action-list strong,
+.account-action-list span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-rank-list strong,
+.account-action-list strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+.account-rank-list span,
+.account-action-list span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.account-rank-list b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.account-action-list a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 4px 7px;
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  color: var(--green);
+  font-size: 10.5px;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.account-hypothesis-list article {
+  display: grid;
+  gap: 5px;
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.account-validation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.account-validation-grid article {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  box-shadow: inset 3px 0 0 var(--purple);
+}
+
+.account-validation-grid strong {
   color: var(--text);
   font-size: 12px;
   font-weight: 800;
@@ -3624,10 +3932,12 @@ td .dot {
   .award-hero,
   .pursuit-hero,
   .capture-hero,
+  .account-hero,
   .strategy-hero,
   .hypotheses-hero,
   .relationship-hero,
   .hypothesis-shell,
+  .account-shell,
   .relationship-shell,
   .source-register,
   .source-roadmap,
@@ -3651,6 +3961,9 @@ td .dot {
   .pursuit-timing-grid,
   .capture-stage-grid,
   .capture-queue-grid,
+  .account-brief,
+  .account-priority-grid,
+  .account-validation-grid,
   .pursuit-source-summary,
   .area-execution-grid,
   .hypothesis-thesis,
@@ -3668,6 +3981,11 @@ td .dot {
   }
 
   .hypothesis-picker {
+    position: static;
+    max-height: 360px;
+  }
+
+  .account-picker {
     position: static;
     max-height: 360px;
   }
@@ -3709,6 +4027,9 @@ td .dot {
   .pursuit-timing-grid,
   .capture-stage-grid,
   .capture-queue-grid,
+  .account-brief,
+  .account-priority-grid,
+  .account-validation-grid,
   .pursuit-source-summary,
   .area-execution-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3867,8 +4188,9 @@ td .dot {
   .source-hero__facts,
   .award-hero__facts,
   .pursuit-hero__facts,
-  .capture-hero__facts,
-  .hypotheses-hero__facts,
+    .capture-hero__facts,
+    .account-hero__facts,
+    .hypotheses-hero__facts,
   .relationship-hero__facts,
   .justification-evidence-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3889,6 +4211,7 @@ td .dot {
   .buyer-pursuit-grid,
   .pursuit-timing-grid,
   .capture-queue-grid,
+  .account-priority-grid,
   .pursuit-source-summary {
     grid-template-columns: 1fr;
   }
@@ -3924,6 +4247,10 @@ td .dot {
     gap: 0;
   }
 
+  .account-hero {
+    gap: 0;
+  }
+
   .hypotheses-hero {
     gap: 0;
   }
@@ -3949,6 +4276,10 @@ td .dot {
   }
 
   .capture-hero > div:first-child {
+    padding: 14px;
+  }
+
+  .account-hero > div:first-child {
     padding: 14px;
   }
 
@@ -3980,6 +4311,10 @@ td .dot {
     font-size: 22px;
   }
 
+  .account-hero h2 {
+    font-size: 22px;
+  }
+
   .hypotheses-hero h2 {
     font-size: 22px;
   }
@@ -4005,6 +4340,10 @@ td .dot {
   }
 
   .capture-hero__facts {
+    padding: 0 10px 10px;
+  }
+
+  .account-hero__facts {
     padding: 0 10px 10px;
   }
 
@@ -4036,6 +4375,10 @@ td .dot {
     min-height: 64px;
   }
 
+  .account-hero__facts article {
+    min-height: 64px;
+  }
+
   .hypotheses-hero__facts article {
     min-height: 64px;
   }
@@ -4061,6 +4404,10 @@ td .dot {
   }
 
   .capture-hero__facts strong {
+    font-size: 20px;
+  }
+
+  .account-hero__facts strong {
     font-size: 20px;
   }
 
@@ -4133,6 +4480,9 @@ td .dot {
   .pursuit-timing-grid,
   .capture-stage-grid,
   .capture-queue-grid,
+  .account-brief,
+  .account-priority-grid,
+  .account-validation-grid,
   .pursuit-source-summary,
   .area-execution-grid,
   .hypothesis-thesis,
@@ -4149,6 +4499,10 @@ td .dot {
   }
 
   .hypothesis-picker {
+    max-height: 310px;
+  }
+
+  .account-picker {
     max-height: 310px;
   }
 

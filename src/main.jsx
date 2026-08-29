@@ -28,6 +28,7 @@ const TABS = [
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "hypotheses", label: "Hypotheses", icon: Lightbulb },
+  { id: "accounts", label: "Accounts", icon: Building2 },
   { id: "relationships", label: "Relationships", icon: Network },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "pursuits", label: "Pursuits", icon: CalendarClock },
@@ -50,6 +51,7 @@ const HASH_ROUTES = {
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
   hypotheses: "#/budget-spend/hypotheses",
+  accounts: "#/budget-spend/accounts",
   relationships: "#/budget-spend/relationships",
   awards: "#/budget-spend/awards",
   pursuits: "#/budget-spend/pursuits",
@@ -121,6 +123,7 @@ const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverag
 const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
 const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
 const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], items: [] };
+const ACCOUNT_PLANS = EXECUTION.accountPlans || { summary: {}, items: [] };
 const HYPOTHESES = STRATEGY.pursuitHypotheses || { summary: {}, items: [] };
 const EMPTY_ROWS = Object.freeze([]);
 
@@ -544,6 +547,218 @@ function RelationshipNodeList({ title, rows }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function AccountPlans() {
+  const items = ACCOUNT_PLANS.items || EMPTY_ROWS;
+  const summary = ACCOUNT_PLANS.summary || {};
+  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const selected = items.find((item) => item.id === selectedId) || items[0];
+  const selectedMetrics = selected ? [
+    { label: "Account score", value: selected.score, helper: selected.posture },
+    { label: "Sampled value", value: money(selected.awardAmount), helper: `${selected.awards} deduped awards` },
+    { label: "Near-term value", value: money(selected.nearTermAwardAmount), helper: `${selected.nearTermAwards} active awards ending within 24 months` },
+    { label: "Top incumbent", value: selected.topIncumbent, helper: selected.topWorkType },
+  ] : [];
+
+  return (
+    <div className="grid account-page" data-account-plans-page>
+      <section className="account-hero">
+        <div>
+          <span>Buyer account surface</span>
+          <h2>Account Plans</h2>
+          <p>Buyer-level plans that connect funded technology areas, sampled execution spend, incumbent concentration, near-term award timing, hypotheses, and validation work into one account view.</p>
+        </div>
+        <div className="account-hero__facts" aria-label="Account plan summary">
+          <article>
+            <strong>{summary.accounts || items.length}</strong>
+            <span>account plans</span>
+          </article>
+          <article>
+            <strong>{summary.buildNowAccounts || 0}</strong>
+            <span>build-now accounts</span>
+          </article>
+          <article>
+            <strong>{money(summary.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+          </article>
+          <article>
+            <strong>{summary.topAccount || "n/a"}</strong>
+            <span>top account</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="account-shell">
+        <aside className="account-picker" data-account-picker>
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={selected?.id === item.id ? "active" : ""}
+              onClick={() => setSelectedId(item.id)}
+            >
+              <span>#{item.rank} · {item.posture}</span>
+              <strong>{item.buyer}</strong>
+              <em>{item.topArea} · {money(item.nearTermAwardAmount)} near-term</em>
+            </button>
+          ))}
+        </aside>
+
+        {selected ? (
+          <div className="account-workspace">
+            <Section title={selected.buyer} meta={`${selected.buyerGroup} · ${selected.focus}`} icon={Building2}>
+              <div className="account-brief" data-account-brief>
+                {selectedMetrics.map((metric) => (
+                  <article key={metric.label}>
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
+                    <p>{metric.helper}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Account Priority Lanes" meta="technology, budget, timing, and action" icon={GitBranch}>
+              <div className="account-priority-grid" data-account-priorities>
+                {(selected.areaPriorities || []).map((priority) => (
+                  <article key={priority.id} className="account-priority-card">
+                    <header>
+                      <div>
+                        <span>{priority.queueStage} · {priority.narrativeConfirmedRecords} confirmed lines</span>
+                        <strong>{priority.area}</strong>
+                      </div>
+                      <b>{money(priority.nearTermAwardAmount)}</b>
+                    </header>
+                    <p>{priority.nextAction}</p>
+                    <dl>
+                      <div>
+                        <dt>Budget</dt>
+                        <dd>{money(priority.budgetFy2027)} · {pct(priority.budgetGrowth)}</dd>
+                      </div>
+                      <div>
+                        <dt>Execution</dt>
+                        <dd>{money(priority.activeAwardAmount)} · {priority.activeAwards} awards</dd>
+                      </div>
+                      <div>
+                        <dt>Timing</dt>
+                        <dd>{priority.nearTermAwards} near-term awards</dd>
+                      </div>
+                      <div>
+                        <dt>Incumbent</dt>
+                        <dd>{priority.topIncumbent} · {percent(priority.incumbentShare, 0)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Incumbent Map" meta="sampled award value" icon={Database}>
+                <div className="account-rank-list" data-account-incumbents>
+                  {(selected.incumbentMap || []).map((incumbent) => (
+                    <article key={incumbent.id}>
+                      <div>
+                        <strong>{incumbent.label}</strong>
+                        <span>{incumbent.awards} awards · {(incumbent.areas || []).slice(0, 2).join(", ")}</span>
+                      </div>
+                      <b>{money(incumbent.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Work Type Map" meta="PSC and NAICS concentration" icon={FileSpreadsheet}>
+                <div className="account-rank-list" data-account-worktypes>
+                  {(selected.workTypeMap || []).map((workType) => (
+                    <article key={workType.id}>
+                      <div>
+                        <strong>{workType.label}</strong>
+                        <span>{workType.awards} awards</span>
+                      </div>
+                      <b>{money(workType.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+
+            <div className="grid grid--sources">
+              <Section title="Capture Actions" meta={`${selected.captureActions?.length || 0} related queue items`} icon={ListChecks}>
+                <div className="account-action-list" data-account-actions>
+                  {(selected.captureActions || []).map((action) => (
+                    <article key={action.id}>
+                      <div>
+                        <strong>{action.recommendedAction}</strong>
+                        <span>{action.area} · {action.workType?.label || "Uncoded"} · {action.stageLabel}</span>
+                      </div>
+                      <a href={action.samSearchUrl} target="_blank" rel="noreferrer">
+                        SAM search <ExternalLink size={12} aria-hidden="true" />
+                      </a>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Related Hypotheses" meta={`${selected.hypotheses?.length || 0} generated theses`} icon={Lightbulb}>
+                <div className="account-hypothesis-list" data-account-hypotheses>
+                  {(selected.hypotheses || []).map((hypothesis) => (
+                    <article key={hypothesis.id}>
+                      <span>{hypothesis.confidenceLabel} · {hypothesis.status}</span>
+                      <strong>{hypothesis.title}</strong>
+                      <p>{hypothesis.thesis}</p>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+
+            <Section title="Validation Plan" meta="account-specific work before pursuit commitment" icon={Filter}>
+              <div className="account-validation-grid" data-account-validation>
+                {(selected.validationPlan || []).map((task, index) => (
+                  <article key={task}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{task}</strong>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Near-Term Awards" meta={`${selected.nearTermAwardsList?.length || 0} examples`} icon={CalendarClock}>
+                <div className="relationship-award-list" data-account-near-term-awards>
+                  {(selected.nearTermAwardsList || []).map((award) => (
+                    <article key={award.id}>
+                      <div>
+                        <strong>{award.awardId || award.id}</strong>
+                        <span>{award.recipient} · {award.endDate ? `ends ${award.endDate}` : "end unknown"} · {award.workType?.label || "Uncoded"}</span>
+                      </div>
+                      <b>{money(award.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
+                <div className="relationship-line-list" data-account-budget-lines>
+                  {(selected.linkedBudgetLines || []).map((line) => (
+                    <article key={line.id}>
+                      <div>
+                        <strong>{line.title}</strong>
+                        <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
+                      </div>
+                      <b>{money(line.fy2027)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -2492,6 +2707,31 @@ function Sources() {
         </div>
       </Section>
 
+      <Section title="Account Plan Coverage" meta="generated buyer account surfaces from awards, timing, queue, and hypotheses" icon={Building2}>
+        <div className="pursuit-source-summary" data-account-plan-evidence>
+          <article>
+            <strong>{ACCOUNT_PLANS.summary?.accounts || 0}</strong>
+            <span>account plans</span>
+            <p>Generated from top buyer agencies in the sampled USAspending award model.</p>
+          </article>
+          <article>
+            <strong>{ACCOUNT_PLANS.summary?.buildNowAccounts || 0}</strong>
+            <span>build-now accounts</span>
+            <p>Accounts qualify when execution value, near-term timing, queue score, and hypothesis confidence reinforce one another.</p>
+          </article>
+          <article>
+            <strong>{money(ACCOUNT_PLANS.summary?.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+            <p>Summed active sampled award value ending within 24 months across generated account plans.</p>
+          </article>
+          <article>
+            <strong>{ACCOUNT_PLANS.summary?.topAccount || "n/a"}</strong>
+            <span>top account</span>
+            <p>{ACCOUNT_PLANS.summary?.topFocus || "Account focus remains generated until SAM.gov and FPDS/SAM validation are attached."}</p>
+          </article>
+        </div>
+      </Section>
+
       <Section title="Source Health Monitor" meta={`checked ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className="source-health-summary">
           <article>
@@ -2808,7 +3048,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "hypotheses", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "hypotheses", "accounts", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -2884,6 +3124,7 @@ function App() {
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
         {activeTab === "hypotheses" ? <Hypotheses /> : null}
+        {activeTab === "accounts" ? <AccountPlans /> : null}
         {activeTab === "relationships" ? <RelationshipMap /> : null}
         {activeTab === "awards" ? <Awards /> : null}
         {activeTab === "pursuits" ? <Pursuits /> : null}

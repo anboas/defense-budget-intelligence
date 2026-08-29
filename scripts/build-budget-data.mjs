@@ -2123,6 +2123,115 @@ const pursuitHypotheses = {
   items: pursuitHypothesisItems,
 };
 
+function accountPlanPriority(buyer, areaRow, queueItems, timingAwards) {
+  const strongestQueue = queueItems[0];
+  const nearTermAwards = timingAwards.filter((award) => award.daysUntilEnd >= 0 && award.daysUntilEnd <= 730);
+  const topIncumbent = aggregateAwards(timingAwards, (award) => ({ id: award.recipient, label: award.recipient }))[0];
+  return {
+    id: `${buyer.id}:${areaRow.id}`,
+    areaId: areaRow.id,
+    area: areaRow.label,
+    budgetFy2027: areaRow.fy2027,
+    budgetRecords: areaRow.records,
+    budgetGrowth: areaRow.growth,
+    narrativeConfirmedRecords: areaRow.narrativeConfirmedRecords,
+    activeAwardAmount: round(timingAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+    activeAwards: timingAwards.length,
+    nearTermAwardAmount: round(nearTermAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
+    nearTermAwards: nearTermAwards.length,
+    topIncumbent: topIncumbent?.label || "n/a",
+    incumbentShare: topIncumbent ? round((topIncumbent.awardAmount / Math.max(timingAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 1)) * 100) : 0,
+    queueStage: strongestQueue?.stageLabel || "Watch",
+    nextAction: strongestQueue?.recommendedAction || actionForQueueItem({ area: areaRow.label, areaId: areaRow.id, workType: {}, buyer: buyer.label }),
+  };
+}
+
+const accountPlanItems = topExecutionBuyers.slice(0, 10).map((buyer, index) => {
+  const buyerAwards = drilldownAwards.filter((award) => award.buyerSubAgency === buyer.label);
+  const buyerTimingAwards = activeTimingAwards.filter((award) => award.buyerSubAgency === buyer.label);
+  const buyerQueueItems = captureQueueItems.filter((item) => item.buyer === buyer.label);
+  const buyerHypotheses = pursuitHypothesisItems.filter((item) => item.buyer === buyer.label);
+  const areaIds = [...new Set(buyerAwards.flatMap((award) => award.areaIds || [award.areaId]).filter(Boolean))];
+  const areaPriorities = areaIds
+    .map((areaId) => {
+      const areaRow = technologyAreaRows.find((area) => area.id === areaId);
+      if (!areaRow) return null;
+      return accountPlanPriority(
+        buyer,
+        areaRow,
+        buyerQueueItems.filter((item) => item.areaId === areaId),
+        buyerTimingAwards.filter((award) => (award.areaIds || []).includes(areaId)),
+      );
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.nearTermAwardAmount - a.nearTermAwardAmount || b.activeAwardAmount - a.activeAwardAmount || b.budgetFy2027 - a.budgetFy2027)
+    .slice(0, 5);
+  const topIncumbents = aggregateAwards(buyerAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 5);
+  const topWorkTypes = aggregateAwards(buyerAwards.filter((award) => award.pscCode || award.naicsCode), (award) => {
+    const workType = workTypeForAward(award);
+    return { id: workType.id, label: workType.label };
+  }).slice(0, 5);
+  const nearTermAwards = buyerTimingAwards.filter((award) => award.daysUntilEnd >= 0 && award.daysUntilEnd <= 730);
+  const sourceLines = areaPriorities
+    .flatMap((priority) => technologyAreaRows.find((area) => area.id === priority.areaId)?.topLines || [])
+    .sort((a, b) => b.fy2027 - a.fy2027)
+    .slice(0, 6);
+  const activeAwardAmount = round(buyerTimingAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+  const nearTermAwardAmount = round(nearTermAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
+  const strongestPriority = areaPriorities[0];
+  const score = Math.min(100, Math.round(
+    Math.min((buyer.awardAmount / Math.max(topExecutionBuyers[0]?.awardAmount || 1, 1)) * 30, 30)
+    + Math.min((nearTermAwardAmount / Math.max(pursuitTiming.summary.nearTermAwardValue || 1, 1)) * 32, 32)
+    + Math.min((buyerQueueItems[0]?.score || 0) * 0.22, 22)
+    + Math.min((buyerHypotheses[0]?.confidence || 0) * 0.12, 12)
+    + (sourceLines.some((line) => line.justificationEvidence?.confidenceLabel === "High") ? 4 : 0),
+  ));
+  return {
+    id: `account:${buyer.id}`,
+    rank: index + 1,
+    buyer: buyer.label,
+    buyerGroup: buyer.group,
+    score,
+    posture: score >= 72 ? "Build account plan" : score >= 55 ? "Validate account" : "Watch account",
+    focus: strongestPriority ? `${strongestPriority.area} / ${strongestPriority.nextAction}` : "Validate buyer demand and contract timing",
+    awardAmount: buyer.awardAmount,
+    awards: buyer.awards,
+    activeAwardAmount,
+    activeAwards: buyerTimingAwards.length,
+    nearTermAwardAmount,
+    nearTermAwards: nearTermAwards.length,
+    topArea: strongestPriority?.area || buyer.areas?.[0] || "n/a",
+    topIncumbent: topIncumbents[0]?.label || "n/a",
+    topWorkType: topWorkTypes[0]?.label || "n/a",
+    areaPriorities,
+    incumbentMap: topIncumbents,
+    workTypeMap: topWorkTypes,
+    captureActions: buyerQueueItems.slice(0, 5),
+    hypotheses: buyerHypotheses.slice(0, 4),
+    nearTermAwardsList: nearTermAwards
+      .sort((a, b) => (a.daysUntilEnd ?? 99999) - (b.daysUntilEnd ?? 99999) || b.awardAmount - a.awardAmount)
+      .slice(0, 6),
+    linkedBudgetLines: sourceLines,
+    validationPlan: [
+      "Confirm which buyer offices own the largest active and near-term lanes.",
+      "Map incumbent scope, subcontracting angle, and likely recompete posture.",
+      "Validate SAM.gov notices, forecast entries, and vehicle path for the top priority area.",
+      "Convert the strongest hypothesis into an account-specific capture note.",
+    ],
+  };
+}).filter((account) => account.awards > 0);
+
+const accountPlans = {
+  summary: {
+    accounts: accountPlanItems.length,
+    buildNowAccounts: accountPlanItems.filter((account) => account.posture === "Build account plan").length,
+    nearTermAwardValue: round(accountPlanItems.reduce((totalValue, account) => totalValue + account.nearTermAwardAmount, 0), 3),
+    topAccount: accountPlanItems[0]?.buyer || "n/a",
+    topFocus: accountPlanItems[0]?.focus || "n/a",
+  },
+  items: accountPlanItems,
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -2206,6 +2315,9 @@ const strategyAnalytics = {
     pursuitHypothesisCount: pursuitHypotheses.summary.hypotheses,
     strongPursuitHypotheses: pursuitHypotheses.summary.strongHypotheses,
     topPursuitHypothesis: pursuitHypotheses.summary.topHypothesis,
+    accountPlanCount: accountPlans.summary.accounts,
+    buildNowAccountPlans: accountPlans.summary.buildNowAccounts,
+    topAccountPlan: accountPlans.summary.topAccount,
   },
   readouts: [
     {
@@ -2282,6 +2394,13 @@ const strategyAnalytics = {
       tone: "blue",
     },
     {
+      id: "account-plans",
+      label: "Account plans",
+      value: accountPlans.summary.accounts,
+      helper: `${accountPlans.summary.buildNowAccounts} buyer accounts are strong enough for account-plan work; ${accountPlans.summary.topAccount} is the top account surface.`,
+      tone: "purple",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -2305,6 +2424,7 @@ const strategyAnalytics = {
     awardDrilldown,
     pursuitTiming,
     captureQueue,
+    accountPlans,
   },
 };
 
