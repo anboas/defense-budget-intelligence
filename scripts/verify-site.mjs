@@ -159,11 +159,14 @@ try {
   assert.match(visualsText, /Data Visuals/i);
   assert.match(visualsText, /Visualization layer/i);
   assert.match(visualsText, /Opportunity Field/i);
+  assert.match(visualsText, /Lane Comparison/i);
   assert.match(visualsText, /Signal Stack/i);
   assert.match(visualsText, /Timing Ribbon/i);
   assert.match(visualsText, /Buyer \/ Capability Heatmap/i);
   assert.equal(await page.locator("[data-visual-cluster-picker] button").count(), 8, "Visuals should expose eight clusters");
   assert.equal(await page.locator("[data-visual-bubble-field] button").count(), 8, "Visuals should show eight plotted bubbles");
+  assert.equal(await page.locator("[data-visual-comparison-board] button").count(), 8, "Visuals should show eight comparison rows");
+  assert.equal(await page.locator("[data-visual-comparison-board] button:first-of-type .visual-comparison-board__metric").count(), 6, "Visuals should compare six lane metrics");
   assert.equal(await page.locator("[data-visual-flow-map] article").count(), 5, "Visuals should show five flow nodes");
   assert.equal(await page.locator("[data-visual-signal-stack] article").count(), 5, "Visuals should show five signal bars");
   assert.ok(await page.locator("[data-visual-timing-ribbon] article").count() >= 1, "Visuals should show timing bands");
@@ -420,6 +423,8 @@ try {
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Data Visuals/i);
   assert.equal(await mobile.locator("[data-visual-cluster-picker] button").count(), 8, "Mobile Visuals should expose eight clusters");
   assert.equal(await mobile.locator("[data-visual-bubble-field] button").count(), 8, "Mobile Visuals should show eight plotted bubbles");
+  assert.equal(await mobile.locator("[data-visual-comparison-board] button").count(), 8, "Mobile Visuals should show comparison rows");
+  assert.equal(await mobile.locator("[data-visual-comparison-board] button:first-of-type .visual-comparison-board__metric").count(), 6, "Mobile Visuals should compare six lane metrics");
   assert.equal(await mobile.locator("[data-visual-flow-map] article").count(), 5, "Mobile Visuals should show flow nodes");
   assert.equal(await mobile.locator("[data-visual-signal-stack] article").count(), 5, "Mobile Visuals should show signal bars");
   assert.ok(await mobile.locator("[data-visual-timing-ribbon] article").count() >= 1, "Mobile Visuals should show timing bands");

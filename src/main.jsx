@@ -579,6 +579,17 @@ function DataVisuals() {
   const [selectedId, setSelectedId] = useState(() => clusters[0]?.id || "");
   const selected = clusters.find((cluster) => cluster.id === selectedId) || clusters[0];
   const maxTimingValue = Math.max(...timingBands.map((band) => band.nearTermAwardAmount || 0), 1);
+  const maxBudgetValue = Math.max(...clusters.map((cluster) => cluster.budgetFy2027 || 0), 1);
+  const maxActiveValue = Math.max(...clusters.map((cluster) => cluster.activeAwardAmount || 0), 1);
+  const maxNearTermValue = Math.max(...clusters.map((cluster) => cluster.nearTermAwardAmount || 0), 1);
+  const comparisonMetrics = [
+    { id: "score", label: "Score", value: (cluster) => cluster.score || 0, display: (value) => `${Math.round(value)}`, tone: "blue" },
+    { id: "budget", label: "Budget", value: (cluster) => ((cluster.budgetFy2027 || 0) / maxBudgetValue) * 100, display: (_value, cluster) => money(cluster.budgetFy2027), tone: "green" },
+    { id: "execution", label: "Execution", value: (cluster) => ((cluster.activeAwardAmount || 0) / maxActiveValue) * 100, display: (_value, cluster) => money(cluster.activeAwardAmount), tone: "purple" },
+    { id: "timing", label: "Timing", value: (cluster) => ((cluster.nearTermAwardAmount || 0) / maxNearTermValue) * 100, display: (_value, cluster) => money(cluster.nearTermAwardAmount), tone: "orange" },
+    { id: "confidence", label: "Confidence", value: (cluster) => cluster.confidence || 0, display: (value) => percent(value, 0), tone: "blue" },
+    { id: "pressure", label: "Incumbent", value: (cluster) => cluster.incumbentShare || 0, display: (value) => percent(value, 0), tone: "red" },
+  ];
 
   return (
     <div className="grid visuals-page" data-visuals-page>
@@ -646,6 +657,40 @@ function DataVisuals() {
                     onClick={() => setSelectedId(cluster.id)}
                   >
                     <span>{cluster.rank}</span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Lane Comparison" meta="ranked signal board for deciding what deserves validation first" icon={ListChecks}>
+              <div className="visual-comparison-board" data-visual-comparison-board>
+                <div className="visual-comparison-board__header" style={{ "--comparison-columns": comparisonMetrics.length }}>
+                  <span>Lane</span>
+                  {comparisonMetrics.map((metric) => (
+                    <span key={metric.id}>{metric.label}</span>
+                  ))}
+                </div>
+                {clusters.map((cluster) => (
+                  <button
+                    key={cluster.id}
+                    type="button"
+                    className={selected.id === cluster.id ? "active" : ""}
+                    style={{ "--comparison-columns": comparisonMetrics.length }}
+                    onClick={() => setSelectedId(cluster.id)}
+                  >
+                    <span className="visual-comparison-board__lane">
+                      <strong>#{cluster.rank} {cluster.title}</strong>
+                      <em>{cluster.buyer} · {cluster.capability}</em>
+                    </span>
+                    {comparisonMetrics.map((metric) => {
+                      const value = Math.min(Math.max(metric.value(cluster), 0), 100);
+                      return (
+                        <span className={`visual-comparison-board__metric visual-comparison-board__metric--${metric.tone}`} key={metric.id}>
+                          <b>{metric.display(value, cluster)}</b>
+                          <i aria-hidden="true"><em style={{ width: `${Math.max(value, 3)}%` }} /></i>
+                        </span>
+                      );
+                    })}
                   </button>
                 ))}
               </div>
