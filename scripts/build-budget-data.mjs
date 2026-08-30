@@ -2521,6 +2521,127 @@ const decisionBriefs = {
   items: decisionBriefItems,
 };
 
+const visualMaxBudget = Math.max(...decisionBriefItems.map((brief) => brief.keyMetrics?.budgetFy2027 || 0), 1);
+const visualMaxNearTerm = Math.max(...decisionBriefItems.map((brief) => brief.keyMetrics?.nearTermAwardAmount || 0), 1);
+const visualMaxActive = Math.max(...decisionBriefItems.map((brief) => brief.keyMetrics?.activeAwardAmount || 0), 1);
+
+function timingBandForDays(days) {
+  if (!Number.isFinite(days)) return { id: "unknown", label: "Unknown", order: 5 };
+  if (days <= 120) return { id: "0-120", label: "0-120 days", order: 1 };
+  if (days <= 365) return { id: "4-12", label: "4-12 months", order: 2 };
+  if (days <= 730) return { id: "12-24", label: "12-24 months", order: 3 };
+  return { id: "later", label: "Later", order: 4 };
+}
+
+const visualClusters = decisionBriefItems.map((brief, index) => {
+  const budget = brief.keyMetrics?.budgetFy2027 || 0;
+  const active = brief.keyMetrics?.activeAwardAmount || 0;
+  const nearTerm = brief.keyMetrics?.nearTermAwardAmount || 0;
+  const account = accountPlanItems.find((item) => item.id === brief.accountId);
+  const capability = capabilityFitItems.find((item) => item.id === brief.capabilityId);
+  const timingBand = timingBandForDays(brief.keyMetrics?.nextEndDate ? Math.round((new Date(brief.keyMetrics.nextEndDate).getTime() - new Date(pursuitAsOf).getTime()) / 86400000) : Number.NaN);
+  return {
+    id: `visual:${brief.id}`,
+    rank: index + 1,
+    title: brief.title,
+    decision: brief.decision,
+    score: brief.score,
+    buyer: brief.buyer,
+    buyerGroup: brief.buyerGroup,
+    area: brief.area,
+    areaId: brief.areaId,
+    capability: brief.capability,
+    capabilityId: brief.capabilityId,
+    action: brief.bestNextMove,
+    topIncumbent: brief.linkedAwards?.[0]?.recipient || account?.topIncumbent || "n/a",
+    workType: brief.subtitle.split(" · ")[0],
+    budgetFy2027: round(budget),
+    activeAwardAmount: round(active, 3),
+    nearTermAwardAmount: round(nearTerm, 3),
+    nearTermAwards: brief.keyMetrics?.nearTermAwards || 0,
+    incumbentShare: brief.keyMetrics?.incumbentShare || 0,
+    confidence: brief.confidence,
+    timingBand,
+    x: round(8 + (budget / visualMaxBudget) * 82),
+    y: round(82 - (nearTerm / visualMaxNearTerm) * 68),
+    radius: Math.round(28 + (brief.score / 100) * 26),
+    flow: [
+      { id: "budget", label: "Budget", value: round(budget), display: "money", helper: `${brief.area} FY2027 tagged request`, tone: "blue" },
+      { id: "execution", label: "Execution", value: round(active, 3), display: "money", helper: `${brief.keyMetrics?.nearTermAwards || 0} near-term sampled awards`, tone: "green" },
+      { id: "buyer", label: "Buyer", value: brief.buyer, helper: account?.posture || "Buyer account not scored", tone: "purple" },
+      { id: "capability", label: "Capability", value: capability?.label || brief.capability, helper: capability?.posture || "Capability fit pending", tone: "orange" },
+      { id: "incumbent", label: "Incumbent", value: brief.linkedAwards?.[0]?.recipient || account?.topIncumbent || "n/a", helper: `${brief.keyMetrics?.incumbentShare || 0}% sampled share`, tone: "red" },
+    ],
+    evidenceBars: [
+      { id: "budget", label: "Budget", value: round((budget / visualMaxBudget) * 100), tone: "blue" },
+      { id: "active", label: "Active", value: round((active / visualMaxActive) * 100), tone: "green" },
+      { id: "near-term", label: "Timing", value: round((nearTerm / visualMaxNearTerm) * 100), tone: "orange" },
+      { id: "confidence", label: "Confidence", value: brief.confidence, tone: "purple" },
+      { id: "incumbent", label: "Incumbent", value: brief.keyMetrics?.incumbentShare || 0, tone: "red" },
+    ],
+    timingExamples: (brief.linkedAwards || []).slice(0, 5).map((award) => ({
+      id: award.id,
+      awardId: award.awardId || award.id,
+      recipient: award.recipient,
+      buyer: award.buyerSubAgency,
+      endDate: award.endDate || "unknown",
+      awardAmount: award.awardAmount,
+    })),
+  };
+});
+
+const visualTimingBands = ["0-120", "4-12", "12-24", "later", "unknown"].map((bandId) => {
+  const clusterRows = visualClusters.filter((cluster) => cluster.timingBand.id === bandId);
+  return {
+    id: bandId,
+    label: clusterRows[0]?.timingBand.label || (bandId === "0-120" ? "0-120 days" : bandId === "4-12" ? "4-12 months" : bandId === "12-24" ? "12-24 months" : bandId === "later" ? "Later" : "Unknown"),
+    clusters: clusterRows.length,
+    nearTermAwardAmount: round(clusterRows.reduce((totalValue, cluster) => totalValue + cluster.nearTermAwardAmount, 0), 3),
+    topCluster: clusterRows[0]?.title || "n/a",
+  };
+}).filter((band) => band.clusters > 0);
+
+const visualHeatmapRows = accountPlanItems.slice(0, 6).map((account) => ({
+  id: account.id,
+  buyer: account.buyer,
+  cells: capabilityFitItems.slice(0, 5).map((capability) => {
+    const areaIds = new Set(capability.areaIds || []);
+    const priorities = (account.areaPriorities || []).filter((priority) => areaIds.has(priority.areaId));
+    const nearTermAwardAmount = round(priorities.reduce((totalValue, priority) => totalValue + priority.nearTermAwardAmount, 0), 3);
+    const activeAwardAmount = round(priorities.reduce((totalValue, priority) => totalValue + priority.activeAwardAmount, 0), 3);
+    const score = Math.min(100, Math.round((account.score * 0.35) + (capability.score * 0.35) + Math.min((nearTermAwardAmount / visualMaxNearTerm) * 30, 30)));
+    return {
+      id: `${account.id}:${capability.id}`,
+      capabilityId: capability.id,
+      capability: capability.label,
+      score: priorities.length ? score : 0,
+      nearTermAwardAmount,
+      activeAwardAmount,
+      matchedAreas: priorities.map((priority) => priority.area).slice(0, 2),
+    };
+  }),
+}));
+
+const visualAnalytics = {
+  summary: {
+    clusters: visualClusters.length,
+    topCluster: visualClusters[0]?.title || "n/a",
+    nearTermAwardValue: round(visualClusters.reduce((totalValue, cluster) => totalValue + cluster.nearTermAwardAmount, 0), 3),
+    activeAwardValue: round(visualClusters.reduce((totalValue, cluster) => totalValue + cluster.activeAwardAmount, 0), 3),
+    timingBands: visualTimingBands.length,
+    heatmapBuyers: visualHeatmapRows.length,
+    heatmapCapabilities: capabilityFitItems.slice(0, 5).length,
+  },
+  clusters: visualClusters,
+  timingBands: visualTimingBands,
+  heatmapColumns: capabilityFitItems.slice(0, 5).map((capability) => ({
+    id: capability.id,
+    label: capability.label,
+    posture: capability.posture,
+  })),
+  heatmapRows: visualHeatmapRows,
+};
+
 const strategyIntersections = technologyAreaRows.flatMap((area) => (
   area.byClient.slice(0, 6).map((client) => {
     const laneRecords = records.filter((record) => record.technologyAreas.includes(area.id) && record.org === client.id);
@@ -2613,6 +2734,8 @@ const strategyAnalytics = {
     decisionBriefCount: decisionBriefs.summary.briefs,
     priorityDecisionBriefs: decisionBriefs.summary.prioritizeNow,
     topDecisionBrief: decisionBriefs.summary.topBrief,
+    visualClusterCount: visualAnalytics.summary.clusters,
+    topVisualCluster: visualAnalytics.summary.topCluster,
   },
   readouts: [
     {
@@ -2710,6 +2833,13 @@ const strategyAnalytics = {
       tone: "orange",
     },
     {
+      id: "visual-analytics",
+      label: "Visual analytics",
+      value: visualAnalytics.summary.clusters,
+      helper: `${visualAnalytics.summary.topCluster} leads the visual operating picture across budget, execution, timing, buyer, incumbent, and capability signals.`,
+      tone: "green",
+    },
+    {
       id: "top-client-lane",
       label: "Priority lane",
       value: strategyIntersections[0]?.score || 0,
@@ -2736,6 +2866,7 @@ const strategyAnalytics = {
     accountPlans,
     capabilityFit,
     decisionBriefs,
+    visualAnalytics,
   },
 };
 

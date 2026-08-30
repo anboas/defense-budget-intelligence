@@ -3250,7 +3250,9 @@
           "topCapabilityFit": "Sustainment / Readiness Analytics",
           "decisionBriefCount": 8,
           "priorityDecisionBriefs": 2,
-          "topDecisionBrief": "Department of the Navy / Aircraft / Aviation"
+          "topDecisionBrief": "Department of the Navy / Aircraft / Aviation",
+          "visualClusterCount": 8,
+          "topVisualCluster": "Department of the Navy / Aircraft / Aviation"
         },
         "readouts": [
           {
@@ -3346,6 +3348,13 @@
             "value": 8,
             "helper": "2 briefs are ready for priority validation; Department of the Navy / Aircraft / Aviation is the leading judgment record.",
             "tone": "orange"
+          },
+          {
+            "id": "visual-analytics",
+            "label": "Visual analytics",
+            "value": 8,
+            "helper": "Department of the Navy / Aircraft / Aviation leads the visual operating picture across budget, execution, timing, buyer, incumbent, and capability signals.",
+            "tone": "green"
           },
           {
             "id": "top-client-lane",
@@ -72038,6 +72047,1440 @@
                   }
                 ],
                 "sampleAwardCallout": "FA248616C0002 with RELIANCE TEST & TECHNOLOGY, ending 2026-09-30, is the cleanest timing example in the brief."
+              }
+            ]
+          },
+          "visualAnalytics": {
+            "summary": {
+              "clusters": 8,
+              "topCluster": "Department of the Navy / Aircraft / Aviation",
+              "nearTermAwardValue": 182.868,
+              "activeAwardValue": 506.121,
+              "timingBands": 2,
+              "heatmapBuyers": 6,
+              "heatmapCapabilities": 5
+            },
+            "clusters": [
+              {
+                "id": "visual:brief:hypothesis:capture:aircraft-aviation:Department of the Navy:psc:1510",
+                "rank": 1,
+                "title": "Department of the Navy / Aircraft / Aviation",
+                "decision": "Prioritize validation",
+                "score": 80,
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "area": "Aircraft / Aviation",
+                "areaId": "aircraft-aviation",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "topIncumbent": "BOEING",
+                "workType": "1510",
+                "budgetFy2027": 94.7,
+                "activeAwardAmount": 188.704,
+                "nearTermAwardAmount": 55.755,
+                "nearTermAwards": 5,
+                "incumbentShare": 76,
+                "confidence": 83,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 23.2,
+                "y": 14,
+                "radius": 49,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 94.7,
+                    "display": "money",
+                    "helper": "Aircraft / Aviation FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 188.704,
+                    "display": "money",
+                    "helper": "5 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Navy",
+                    "helper": "Build account plan",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "BOEING",
+                    "helper": "76% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 18.5,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 94.6,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 100,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 83,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 76,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_N0001904C3146_9700_-NONE-_-NONE-",
+                    "awardId": "N0001904C3146",
+                    "recipient": "BOEING",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-08-31",
+                    "awardAmount": 7.634
+                  },
+                  {
+                    "id": "CONT_AWD_N0001913C9999_9700_-NONE-_-NONE-",
+                    "awardId": "N0001913C9999",
+                    "recipient": "NORTHROP GRUMMAN SYSTEMS",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-12-31",
+                    "awardAmount": 5.375
+                  },
+                  {
+                    "id": "CONT_AWD_N0001919C0010_9700_-NONE-_-NONE-",
+                    "awardId": "N0001919C0010",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2027-04-01",
+                    "awardAmount": 4.653
+                  },
+                  {
+                    "id": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
+                    "awardId": "N0001921C0020",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2027-12-30",
+                    "awardAmount": 7.953
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:shipbuilding-maritime:Department of the Navy:psc:1905",
+                "rank": 2,
+                "title": "Department of the Navy / Shipbuilding / Maritime",
+                "decision": "Prioritize validation",
+                "score": 78,
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "area": "Shipbuilding / Maritime",
+                "areaId": "shipbuilding-maritime",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Map ship program office, production lot timing, and engineering support wedge",
+                "topIncumbent": "HUNTINGTON INGALLS",
+                "workType": "1905",
+                "budgetFy2027": 127.3,
+                "activeAwardAmount": 199.41,
+                "nearTermAwardAmount": 53.556,
+                "nearTermAwards": 13,
+                "incumbentShare": 50.9,
+                "confidence": 79,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 28.4,
+                "y": 16.7,
+                "radius": 48,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 127.3,
+                    "display": "money",
+                    "helper": "Shipbuilding / Maritime FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 199.41,
+                    "display": "money",
+                    "helper": "13 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Navy",
+                    "helper": "Build account plan",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "HUNTINGTON INGALLS",
+                    "helper": "50.9% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 24.9,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 100,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 96.1,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 79,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 50.9,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_N0002418C2106_9700_-NONE-_-NONE-",
+                    "awardId": "N0002418C2106",
+                    "recipient": "HUNTINGTON INGALLS",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-09-30",
+                    "awardAmount": 0.854
+                  },
+                  {
+                    "id": "CONT_AWD_N0002421C2106_9700_-NONE-_-NONE-",
+                    "awardId": "N0002421C2106",
+                    "recipient": "HUNTINGTON INGALLS",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-10-06",
+                    "awardAmount": 3.746
+                  },
+                  {
+                    "id": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
+                    "awardId": "N0002412C2115",
+                    "recipient": "ELECTRIC BOAT",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-10-20",
+                    "awardAmount": 20.204
+                  },
+                  {
+                    "id": "CONT_AWD_N0002415C4301_9700_-NONE-_-NONE-",
+                    "awardId": "N0002415C4301",
+                    "recipient": "HUNTINGTON INGALLS",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-12-20",
+                    "awardAmount": 1.56
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:aircraft-aviation:Department of the Air Force:psc:1510",
+                "rank": 3,
+                "title": "Department of the Air Force / Aircraft / Aviation",
+                "decision": "Validate before pursuit",
+                "score": 56,
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "area": "Aircraft / Aviation",
+                "areaId": "aircraft-aviation",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "topIncumbent": "LOCKHEED MARTIN",
+                "workType": "1510",
+                "budgetFy2027": 94.7,
+                "activeAwardAmount": 58.403,
+                "nearTermAwardAmount": 45.838,
+                "nearTermAwards": 4,
+                "incumbentShare": 80.3,
+                "confidence": 60,
+                "timingBand": {
+                  "id": "4-12",
+                  "label": "4-12 months",
+                  "order": 2
+                },
+                "x": 23.2,
+                "y": 26.1,
+                "radius": 43,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 94.7,
+                    "display": "money",
+                    "helper": "Aircraft / Aviation FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 58.403,
+                    "display": "money",
+                    "helper": "4 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Air Force",
+                    "helper": "Watch account",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "LOCKHEED MARTIN",
+                    "helper": "80.3% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 18.5,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 29.3,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 82.2,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 60,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 80.3,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_FA861512C6016_9700_-NONE-_-NONE-",
+                    "awardId": "FA861512C6016",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2026-12-31",
+                    "awardAmount": 2.881
+                  },
+                  {
+                    "id": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
+                    "awardId": "FA862511C6600",
+                    "recipient": "BOEING",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2027-07-31",
+                    "awardAmount": 31.973
+                  },
+                  {
+                    "id": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
+                    "awardId": "FA863418C2701",
+                    "recipient": "BOEING",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2027-11-30",
+                    "awardAmount": 6.986
+                  },
+                  {
+                    "id": "CONT_AWD_FA862516C6599_9700_-NONE-_-NONE-",
+                    "awardId": "FA862516C6599",
+                    "recipient": "BOEING",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2028-07-31",
+                    "awardAmount": 3.998
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:readiness-sustainment:Department of the Navy:psc:1510",
+                "rank": 4,
+                "title": "Department of the Navy / Readiness / Sustainment",
+                "decision": "Validate before pursuit",
+                "score": 69,
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "area": "Readiness / Sustainment",
+                "areaId": "readiness-sustainment",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "topIncumbent": "LOCKHEED MARTIN",
+                "workType": "1510",
+                "budgetFy2027": 512.1,
+                "activeAwardAmount": 8.995,
+                "nearTermAwardAmount": 8.995,
+                "nearTermAwards": 2,
+                "incumbentShare": 100,
+                "confidence": 61,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 90,
+                "y": 71,
+                "radius": 46,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 512.1,
+                    "display": "money",
+                    "helper": "Readiness / Sustainment FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 8.995,
+                    "display": "money",
+                    "helper": "2 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Navy",
+                    "helper": "Build account plan",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "LOCKHEED MARTIN",
+                    "helper": "100% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 100,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 4.5,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 16.1,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 61,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 100,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_N0001916C0004_9700_-NONE-_-NONE-",
+                    "awardId": "N0001916C0004",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-09-30",
+                    "awardAmount": 1.042
+                  },
+                  {
+                    "id": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
+                    "awardId": "N0001921C0020",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2027-12-30",
+                    "awardAmount": 7.953
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:readiness-sustainment:Department of the Navy:psc:J015",
+                "rank": 5,
+                "title": "Department of the Navy / Readiness / Sustainment",
+                "decision": "Validate before pursuit",
+                "score": 69,
+                "buyer": "Department of the Navy",
+                "buyerGroup": "Navy / Marine Corps",
+                "area": "Readiness / Sustainment",
+                "areaId": "readiness-sustainment",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Map platform office, sustainment scope, and incumbent subcontractors",
+                "topIncumbent": "V2X AEROSPACE",
+                "workType": "J015",
+                "budgetFy2027": 512.1,
+                "activeAwardAmount": 3.179,
+                "nearTermAwardAmount": 3.179,
+                "nearTermAwards": 3,
+                "incumbentShare": 68.6,
+                "confidence": 60,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 90,
+                "y": 78.1,
+                "radius": 46,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 512.1,
+                    "display": "money",
+                    "helper": "Readiness / Sustainment FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 3.179,
+                    "display": "money",
+                    "helper": "3 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Navy",
+                    "helper": "Build account plan",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "V2X AEROSPACE",
+                    "helper": "68.6% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 100,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 1.6,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 5.7,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 60,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 68.6,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_N0042122F0116_9700_N6134019D1010_9700",
+                    "awardId": "N0042122F0116",
+                    "recipient": "V2X AEROSPACE",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-09-02",
+                    "awardAmount": 0.551
+                  },
+                  {
+                    "id": "CONT_AWD_N6852022F7005_9700_N6134019D1010_9700",
+                    "awardId": "N6852022F7005",
+                    "recipient": "V2X AEROSPACE",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2026-12-31",
+                    "awardAmount": 1.629
+                  },
+                  {
+                    "id": "CONT_AWD_N6134020F0040_9700_N6134019D1006_9700",
+                    "awardId": "N6134020F0040",
+                    "recipient": "AMENTUM SERVICES",
+                    "buyer": "Department of the Navy",
+                    "endDate": "2027-03-31",
+                    "awardAmount": 0.999
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:missiles-fires:Department of the Army:psc:1410",
+                "rank": 6,
+                "title": "Department of the Army / Missiles / Fires",
+                "decision": "Validate before pursuit",
+                "score": 54,
+                "buyer": "Department of the Army",
+                "buyerGroup": "Army",
+                "area": "Missiles / Fires",
+                "areaId": "missiles-fires",
+                "capability": "Systems / Mission Engineering",
+                "capabilityId": "systems-mission-engineering",
+                "action": "Map program office, test range demand, and systems engineering support fit",
+                "topIncumbent": "RAYTHEON",
+                "workType": "1410",
+                "budgetFy2027": 129,
+                "activeAwardAmount": 44.772,
+                "nearTermAwardAmount": 12.887,
+                "nearTermAwards": 5,
+                "incumbentShare": 97,
+                "confidence": 57,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 28.7,
+                "y": 66.3,
+                "radius": 42,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 129,
+                    "display": "money",
+                    "helper": "Missiles / Fires FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 44.772,
+                    "display": "money",
+                    "helper": "5 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Army",
+                    "helper": "Watch account",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Systems / Mission Engineering",
+                    "helper": "Strong fit",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "RAYTHEON",
+                    "helper": "97% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 25.2,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 22.5,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 23.1,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 57,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 97,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_W31P4Q17C0194_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q17C0194",
+                    "recipient": "RAYTHEON",
+                    "buyer": "Department of the Army",
+                    "endDate": "2026-08-31",
+                    "awardAmount": 1.361
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q19C0011_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q19C0011",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Army",
+                    "endDate": "2027-03-31",
+                    "awardAmount": 4.583
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q18C0130_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q18C0130",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Army",
+                    "endDate": "2027-08-31",
+                    "awardAmount": 3.158
+                  },
+                  {
+                    "id": "CONT_AWD_W31P4Q19C0092_9700_-NONE-_-NONE-",
+                    "awardId": "W31P4Q19C0092",
+                    "recipient": "LOCKHEED MARTIN",
+                    "buyer": "Department of the Army",
+                    "endDate": "2027-09-30",
+                    "awardAmount": 1.282
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:readiness-sustainment:Department of the Air Force:psc:R425",
+                "rank": 7,
+                "title": "Department of the Air Force / Readiness / Sustainment",
+                "decision": "Validate before pursuit",
+                "score": 61,
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "area": "Readiness / Sustainment",
+                "areaId": "readiness-sustainment",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Validate buyer office, vehicle, incumbent scope, and near-term notice timing",
+                "topIncumbent": "BEYOND NEW HORIZONS",
+                "workType": "R425",
+                "budgetFy2027": 512.1,
+                "activeAwardAmount": 1.348,
+                "nearTermAwardAmount": 1.348,
+                "nearTermAwards": 2,
+                "incumbentShare": 66,
+                "confidence": 60,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 90,
+                "y": 80.4,
+                "radius": 44,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 512.1,
+                    "display": "money",
+                    "helper": "Readiness / Sustainment FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 1.348,
+                    "display": "money",
+                    "helper": "2 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Air Force",
+                    "helper": "Watch account",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "BEYOND NEW HORIZONS",
+                    "helper": "66% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 100,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 0.7,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 2.4,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 60,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 66,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_FA910124CB002_9700_-NONE-_-NONE-",
+                    "awardId": "FA910124CB002",
+                    "recipient": "BEYOND NEW HORIZONS",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2026-09-30",
+                    "awardAmount": 0.89
+                  },
+                  {
+                    "id": "CONT_AWD_FA811022F0001_9700_FA861614D6060_9700",
+                    "awardId": "FA811022F0001",
+                    "recipient": "NORTHROP GRUMMAN SYSTEMS",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2026-09-30",
+                    "awardAmount": 0.458
+                  }
+                ]
+              },
+              {
+                "id": "visual:brief:hypothesis:capture:readiness-sustainment:Department of the Air Force:psc:H210",
+                "rank": 8,
+                "title": "Department of the Air Force / Readiness / Sustainment",
+                "decision": "Validate before pursuit",
+                "score": 61,
+                "buyer": "Department of the Air Force",
+                "buyerGroup": "Air Force / Space Force",
+                "area": "Readiness / Sustainment",
+                "areaId": "readiness-sustainment",
+                "capability": "Sustainment / Readiness Analytics",
+                "capabilityId": "sustainment-readiness",
+                "action": "Validate buyer office, vehicle, incumbent scope, and near-term notice timing",
+                "topIncumbent": "RELIANCE TEST & TECHNOLOGY",
+                "workType": "H210",
+                "budgetFy2027": 512.1,
+                "activeAwardAmount": 1.31,
+                "nearTermAwardAmount": 1.31,
+                "nearTermAwards": 1,
+                "incumbentShare": 100,
+                "confidence": 60,
+                "timingBand": {
+                  "id": "0-120",
+                  "label": "0-120 days",
+                  "order": 1
+                },
+                "x": 90,
+                "y": 80.4,
+                "radius": 44,
+                "flow": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 512.1,
+                    "display": "money",
+                    "helper": "Readiness / Sustainment FY2027 tagged request",
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "execution",
+                    "label": "Execution",
+                    "value": 1.31,
+                    "display": "money",
+                    "helper": "1 near-term sampled awards",
+                    "tone": "green"
+                  },
+                  {
+                    "id": "buyer",
+                    "label": "Buyer",
+                    "value": "Department of the Air Force",
+                    "helper": "Watch account",
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "capability",
+                    "label": "Capability",
+                    "value": "Sustainment / Readiness Analytics",
+                    "helper": "Primary wedge",
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": "RELIANCE TEST & TECHNOLOGY",
+                    "helper": "100% sampled share",
+                    "tone": "red"
+                  }
+                ],
+                "evidenceBars": [
+                  {
+                    "id": "budget",
+                    "label": "Budget",
+                    "value": 100,
+                    "tone": "blue"
+                  },
+                  {
+                    "id": "active",
+                    "label": "Active",
+                    "value": 0.7,
+                    "tone": "green"
+                  },
+                  {
+                    "id": "near-term",
+                    "label": "Timing",
+                    "value": 2.3,
+                    "tone": "orange"
+                  },
+                  {
+                    "id": "confidence",
+                    "label": "Confidence",
+                    "value": 60,
+                    "tone": "purple"
+                  },
+                  {
+                    "id": "incumbent",
+                    "label": "Incumbent",
+                    "value": 100,
+                    "tone": "red"
+                  }
+                ],
+                "timingExamples": [
+                  {
+                    "id": "CONT_AWD_FA248616C0002_9700_-NONE-_-NONE-",
+                    "awardId": "FA248616C0002",
+                    "recipient": "RELIANCE TEST & TECHNOLOGY",
+                    "buyer": "Department of the Air Force",
+                    "endDate": "2026-09-30",
+                    "awardAmount": 1.31
+                  }
+                ]
+              }
+            ],
+            "timingBands": [
+              {
+                "id": "0-120",
+                "label": "0-120 days",
+                "clusters": 7,
+                "nearTermAwardAmount": 137.03,
+                "topCluster": "Department of the Navy / Aircraft / Aviation"
+              },
+              {
+                "id": "4-12",
+                "label": "4-12 months",
+                "clusters": 1,
+                "nearTermAwardAmount": 45.838,
+                "topCluster": "Department of the Air Force / Aircraft / Aviation"
+              }
+            ],
+            "heatmapColumns": [
+              {
+                "id": "sustainment-readiness",
+                "label": "Sustainment / Readiness Analytics",
+                "posture": "Primary wedge"
+              },
+              {
+                "id": "systems-mission-engineering",
+                "label": "Systems / Mission Engineering",
+                "posture": "Strong fit"
+              },
+              {
+                "id": "infrastructure-program-support",
+                "label": "Infrastructure / Program Support",
+                "posture": "Validation fit"
+              },
+              {
+                "id": "software-devsecops",
+                "label": "Software / DevSecOps",
+                "posture": "Validation fit"
+              },
+              {
+                "id": "cyber-zero-trust",
+                "label": "Cyber / Zero Trust",
+                "posture": "Validation fit"
+              }
+            ],
+            "heatmapRows": [
+              {
+                "id": "account:Department of the Navy",
+                "buyer": "Department of the Navy",
+                "cells": [
+                  {
+                    "id": "account:Department of the Navy:sustainment-readiness",
+                    "capabilityId": "sustainment-readiness",
+                    "capability": "Sustainment / Readiness Analytics",
+                    "score": 81,
+                    "nearTermAwardAmount": 141.775,
+                    "activeAwardAmount": 456.225,
+                    "matchedAreas": [
+                      "Aircraft / Aviation",
+                      "Shipbuilding / Maritime"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Navy:systems-mission-engineering",
+                    "capabilityId": "systems-mission-engineering",
+                    "capability": "Systems / Mission Engineering",
+                    "score": 76,
+                    "nearTermAwardAmount": 76.591,
+                    "activeAwardAmount": 268.236,
+                    "matchedAreas": [
+                      "Aircraft / Aviation",
+                      "Missiles / Fires"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Navy:infrastructure-program-support",
+                    "capabilityId": "infrastructure-program-support",
+                    "capability": "Infrastructure / Program Support",
+                    "score": 50,
+                    "nearTermAwardAmount": 14.331,
+                    "activeAwardAmount": 15.568,
+                    "matchedAreas": [
+                      "Readiness / Sustainment"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Navy:software-devsecops",
+                    "capabilityId": "software-devsecops",
+                    "capability": "Software / DevSecOps",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  },
+                  {
+                    "id": "account:Department of the Navy:cyber-zero-trust",
+                    "capabilityId": "cyber-zero-trust",
+                    "capability": "Cyber / Zero Trust",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  }
+                ]
+              },
+              {
+                "id": "account:Department of the Air Force",
+                "buyer": "Department of the Air Force",
+                "cells": [
+                  {
+                    "id": "account:Department of the Air Force:sustainment-readiness",
+                    "capabilityId": "sustainment-readiness",
+                    "capability": "Sustainment / Readiness Analytics",
+                    "score": 69,
+                    "nearTermAwardAmount": 66.141,
+                    "activeAwardAmount": 87.727,
+                    "matchedAreas": [
+                      "Aircraft / Aviation",
+                      "Readiness / Sustainment"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Air Force:systems-mission-engineering",
+                    "capabilityId": "systems-mission-engineering",
+                    "capability": "Systems / Mission Engineering",
+                    "score": 64,
+                    "nearTermAwardAmount": 85.782,
+                    "activeAwardAmount": 181.535,
+                    "matchedAreas": [
+                      "Aircraft / Aviation",
+                      "Space Systems"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Air Force:infrastructure-program-support",
+                    "capabilityId": "infrastructure-program-support",
+                    "capability": "Infrastructure / Program Support",
+                    "score": 37,
+                    "nearTermAwardAmount": 10.628,
+                    "activeAwardAmount": 13.772,
+                    "matchedAreas": [
+                      "Readiness / Sustainment"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Air Force:software-devsecops",
+                    "capabilityId": "software-devsecops",
+                    "capability": "Software / DevSecOps",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  },
+                  {
+                    "id": "account:Department of the Air Force:cyber-zero-trust",
+                    "capabilityId": "cyber-zero-trust",
+                    "capability": "Cyber / Zero Trust",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  }
+                ]
+              },
+              {
+                "id": "account:Department of the Army",
+                "buyer": "Department of the Army",
+                "cells": [
+                  {
+                    "id": "account:Department of the Army:sustainment-readiness",
+                    "capabilityId": "sustainment-readiness",
+                    "capability": "Sustainment / Readiness Analytics",
+                    "score": 45,
+                    "nearTermAwardAmount": 16.718,
+                    "activeAwardAmount": 24.211,
+                    "matchedAreas": [
+                      "Aircraft / Aviation"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Army:systems-mission-engineering",
+                    "capabilityId": "systems-mission-engineering",
+                    "capability": "Systems / Mission Engineering",
+                    "score": 60,
+                    "nearTermAwardAmount": 54.011,
+                    "activeAwardAmount": 135.256,
+                    "matchedAreas": [
+                      "Space Systems",
+                      "Aircraft / Aviation"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Army:infrastructure-program-support",
+                    "capabilityId": "infrastructure-program-support",
+                    "capability": "Infrastructure / Program Support",
+                    "score": 33,
+                    "nearTermAwardAmount": 9.314,
+                    "activeAwardAmount": 26.005,
+                    "matchedAreas": [
+                      "Installations / Infrastructure"
+                    ]
+                  },
+                  {
+                    "id": "account:Department of the Army:software-devsecops",
+                    "capabilityId": "software-devsecops",
+                    "capability": "Software / DevSecOps",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  },
+                  {
+                    "id": "account:Department of the Army:cyber-zero-trust",
+                    "capabilityId": "cyber-zero-trust",
+                    "capability": "Cyber / Zero Trust",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  }
+                ]
+              },
+              {
+                "id": "account:Missile Defense Agency",
+                "buyer": "Missile Defense Agency",
+                "cells": [
+                  {
+                    "id": "account:Missile Defense Agency:sustainment-readiness",
+                    "capabilityId": "sustainment-readiness",
+                    "capability": "Sustainment / Readiness Analytics",
+                    "score": 30,
+                    "nearTermAwardAmount": 1.624,
+                    "activeAwardAmount": 2.875,
+                    "matchedAreas": [
+                      "Readiness / Sustainment"
+                    ]
+                  },
+                  {
+                    "id": "account:Missile Defense Agency:systems-mission-engineering",
+                    "capabilityId": "systems-mission-engineering",
+                    "capability": "Systems / Mission Engineering",
+                    "score": 29,
+                    "nearTermAwardAmount": 8.552,
+                    "activeAwardAmount": 40.271,
+                    "matchedAreas": [
+                      "Missiles / Fires",
+                      "Space Systems"
+                    ]
+                  },
+                  {
+                    "id": "account:Missile Defense Agency:infrastructure-program-support",
+                    "capabilityId": "infrastructure-program-support",
+                    "capability": "Infrastructure / Program Support",
+                    "score": 23,
+                    "nearTermAwardAmount": 2.507,
+                    "activeAwardAmount": 4.237,
+                    "matchedAreas": [
+                      "Readiness / Sustainment",
+                      "Installations / Infrastructure"
+                    ]
+                  },
+                  {
+                    "id": "account:Missile Defense Agency:software-devsecops",
+                    "capabilityId": "software-devsecops",
+                    "capability": "Software / DevSecOps",
+                    "score": 11,
+                    "nearTermAwardAmount": 1.123,
+                    "activeAwardAmount": 1.602,
+                    "matchedAreas": [
+                      "Software / Digital Engineering"
+                    ]
+                  },
+                  {
+                    "id": "account:Missile Defense Agency:cyber-zero-trust",
+                    "capabilityId": "cyber-zero-trust",
+                    "capability": "Cyber / Zero Trust",
+                    "score": 11,
+                    "nearTermAwardAmount": 1.123,
+                    "activeAwardAmount": 1.602,
+                    "matchedAreas": [
+                      "Software / Digital Engineering"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "account:Defense Information Systems Agency",
+                "buyer": "Defense Information Systems Agency",
+                "cells": [
+                  {
+                    "id": "account:Defense Information Systems Agency:sustainment-readiness",
+                    "capabilityId": "sustainment-readiness",
+                    "capability": "Sustainment / Readiness Analytics",
+                    "score": 25,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": [
+                      "Readiness / Sustainment"
+                    ]
+                  },
+                  {
+                    "id": "account:Defense Information Systems Agency:systems-mission-engineering",
+                    "capabilityId": "systems-mission-engineering",
+                    "capability": "Systems / Mission Engineering",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  },
+                  {
+                    "id": "account:Defense Information Systems Agency:infrastructure-program-support",
+                    "capabilityId": "infrastructure-program-support",
+                    "capability": "Infrastructure / Program Support",
+                    "score": 17,
+                    "nearTermAwardAmount": 0.152,
+                    "activeAwardAmount": 0.152,
+                    "matchedAreas": [
+                      "Cloud / Data Platforms",
+                      "Readiness / Sustainment"
+                    ]
+                  },
+                  {
+                    "id": "account:Defense Information Systems Agency:software-devsecops",
+                    "capabilityId": "software-devsecops",
+                    "capability": "Software / DevSecOps",
+                    "score": 6,
+                    "nearTermAwardAmount": 0.437,
+                    "activeAwardAmount": 0.437,
+                    "matchedAreas": [
+                      "Software / Digital Engineering",
+                      "Cloud / Data Platforms"
+                    ]
+                  },
+                  {
+                    "id": "account:Defense Information Systems Agency:cyber-zero-trust",
+                    "capabilityId": "cyber-zero-trust",
+                    "capability": "Cyber / Zero Trust",
+                    "score": 6,
+                    "nearTermAwardAmount": 0.437,
+                    "activeAwardAmount": 0.437,
+                    "matchedAreas": [
+                      "Software / Digital Engineering",
+                      "Cloud / Data Platforms"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "account:Defense Health Agency",
+                "buyer": "Defense Health Agency",
+                "cells": [
+                  {
+                    "id": "account:Defense Health Agency:sustainment-readiness",
+                    "capabilityId": "sustainment-readiness",
+                    "capability": "Sustainment / Readiness Analytics",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  },
+                  {
+                    "id": "account:Defense Health Agency:systems-mission-engineering",
+                    "capabilityId": "systems-mission-engineering",
+                    "capability": "Systems / Mission Engineering",
+                    "score": 0,
+                    "nearTermAwardAmount": 0,
+                    "activeAwardAmount": 0,
+                    "matchedAreas": []
+                  },
+                  {
+                    "id": "account:Defense Health Agency:infrastructure-program-support",
+                    "capabilityId": "infrastructure-program-support",
+                    "capability": "Infrastructure / Program Support",
+                    "score": 17,
+                    "nearTermAwardAmount": 0.024,
+                    "activeAwardAmount": 0.024,
+                    "matchedAreas": [
+                      "Cloud / Data Platforms"
+                    ]
+                  },
+                  {
+                    "id": "account:Defense Health Agency:software-devsecops",
+                    "capabilityId": "software-devsecops",
+                    "capability": "Software / DevSecOps",
+                    "score": 6,
+                    "nearTermAwardAmount": 0.024,
+                    "activeAwardAmount": 0.024,
+                    "matchedAreas": [
+                      "Cloud / Data Platforms",
+                      "Software / Digital Engineering"
+                    ]
+                  },
+                  {
+                    "id": "account:Defense Health Agency:cyber-zero-trust",
+                    "capabilityId": "cyber-zero-trust",
+                    "capability": "Cyber / Zero Trust",
+                    "score": 6,
+                    "nearTermAwardAmount": 0.024,
+                    "activeAwardAmount": 0.024,
+                    "matchedAreas": [
+                      "Cloud / Data Platforms",
+                      "Software / Digital Engineering"
+                    ]
+                  }
+                ]
               }
             ]
           }

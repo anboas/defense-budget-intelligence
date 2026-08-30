@@ -28,6 +28,7 @@ const TABS = [
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "briefs", label: "Briefs", icon: FileText },
+  { id: "visuals", label: "Visuals", icon: BarChart3 },
   { id: "hypotheses", label: "Hypotheses", icon: Lightbulb },
   { id: "accounts", label: "Accounts", icon: Building2 },
   { id: "fit", label: "Fit", icon: BrainCircuit },
@@ -53,6 +54,7 @@ const HASH_ROUTES = {
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
   briefs: "#/budget-spend/briefs",
+  visuals: "#/budget-spend/visuals",
   hypotheses: "#/budget-spend/hypotheses",
   accounts: "#/budget-spend/accounts",
   fit: "#/budget-spend/fit",
@@ -130,6 +132,7 @@ const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], 
 const ACCOUNT_PLANS = EXECUTION.accountPlans || { summary: {}, items: [] };
 const CAPABILITY_FIT = EXECUTION.capabilityFit || { summary: {}, items: [] };
 const DECISION_BRIEFS = EXECUTION.decisionBriefs || { summary: {}, items: [] };
+const VISUAL_ANALYTICS = EXECUTION.visualAnalytics || { summary: {}, clusters: [], timingBands: [], heatmapColumns: [], heatmapRows: [] };
 const HYPOTHESES = STRATEGY.pursuitHypotheses || { summary: {}, items: [] };
 const EMPTY_ROWS = Object.freeze([]);
 
@@ -553,6 +556,203 @@ function RelationshipNodeList({ title, rows }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function DataVisuals() {
+  const clusters = VISUAL_ANALYTICS.clusters || EMPTY_ROWS;
+  const summary = VISUAL_ANALYTICS.summary || {};
+  const timingBands = VISUAL_ANALYTICS.timingBands || EMPTY_ROWS;
+  const heatmapColumns = VISUAL_ANALYTICS.heatmapColumns || EMPTY_ROWS;
+  const heatmapRows = VISUAL_ANALYTICS.heatmapRows || EMPTY_ROWS;
+  const [selectedId, setSelectedId] = useState(() => clusters[0]?.id || "");
+  const selected = clusters.find((cluster) => cluster.id === selectedId) || clusters[0];
+  const maxTimingValue = Math.max(...timingBands.map((band) => band.nearTermAwardAmount || 0), 1);
+
+  return (
+    <div className="grid visuals-page" data-visuals-page>
+      <section className="visuals-hero">
+        <div>
+          <span>Visualization layer</span>
+          <h2>Data Visuals</h2>
+          <p>Visual operating picture for budget scale, sampled execution value, near-term timing, buyers, incumbents, capability fit, and decision-brief evidence.</p>
+        </div>
+        <div className="visuals-hero__facts" aria-label="Visual analytics summary">
+          <article>
+            <strong>{summary.clusters || clusters.length}</strong>
+            <span>visual clusters</span>
+          </article>
+          <article>
+            <strong>{money(summary.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+          </article>
+          <article>
+            <strong>{summary.timingBands || timingBands.length}</strong>
+            <span>timing bands</span>
+          </article>
+          <article>
+            <strong>{summary.topCluster || "n/a"}</strong>
+            <span>top cluster</span>
+          </article>
+        </div>
+      </section>
+
+      <div className="visuals-shell">
+        <aside className="visuals-picker" data-visual-cluster-picker>
+          {clusters.map((cluster) => (
+            <button
+              key={cluster.id}
+              type="button"
+              className={selected?.id === cluster.id ? "active" : ""}
+              onClick={() => setSelectedId(cluster.id)}
+            >
+              <span>#{cluster.rank} · score {cluster.score} · {cluster.decision}</span>
+              <strong>{cluster.title}</strong>
+              <em>{money(cluster.nearTermAwardAmount)} near-term · {cluster.capability}</em>
+            </button>
+          ))}
+        </aside>
+
+        {selected ? (
+          <div className="visuals-workspace">
+            <Section title="Opportunity Field" meta="budget scale versus near-term execution timing" icon={BarChart3}>
+              <div className="visual-bubble-field" data-visual-bubble-field>
+                <div className="visual-axis visual-axis--x">FY2027 budget signal</div>
+                <div className="visual-axis visual-axis--y">near-term sampled awards</div>
+                {clusters.map((cluster) => (
+                  <button
+                    key={cluster.id}
+                    type="button"
+                    className={selected.id === cluster.id ? "active" : ""}
+                    style={{
+                      left: `${cluster.x}%`,
+                      top: `${cluster.y}%`,
+                      width: `${cluster.radius}px`,
+                      height: `${cluster.radius}px`,
+                    }}
+                    title={`${cluster.title}: ${money(cluster.budgetFy2027)} budget, ${money(cluster.nearTermAwardAmount)} near-term`}
+                    aria-label={`${cluster.title} visual cluster`}
+                    onClick={() => setSelectedId(cluster.id)}
+                  >
+                    <span>{cluster.rank}</span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+
+            <Section title={selected.title} meta={`${selected.capability} · ${selected.timingBand?.label || "timing unknown"}`} icon={Network}>
+              <div className="visual-flow-grid" data-visual-flow-map>
+                {(selected.flow || []).map((node) => (
+                  <article key={node.id} className={`visual-flow-node visual-flow-node--${node.tone}`}>
+                    <span>{node.label}</span>
+                    <strong>{node.display === "money" ? money(node.value) : node.value}</strong>
+                    <p>{node.helper}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Signal Stack" meta={selected.action} icon={GitBranch}>
+              <div className="visual-signal-stack" data-visual-signal-stack>
+                {(selected.evidenceBars || []).map((bar) => (
+                  <article key={bar.id} className={`visual-signal visual-signal--${bar.tone}`}>
+                    <header>
+                      <span>{bar.label}</span>
+                      <b>{percent(bar.value, 0)}</b>
+                    </header>
+                    <div aria-label={`${bar.label} signal ${percent(bar.value, 0)}`}>
+                      <i style={{ width: `${Math.min(Math.max(bar.value, 3), 100)}%` }} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Timing Ribbon" meta="clustered by next sampled award end" icon={CalendarClock}>
+              <div className="visual-timing-ribbon" data-visual-timing-ribbon>
+                {timingBands.map((band) => (
+                  <article key={band.id}>
+                    <header>
+                      <span>{band.label}</span>
+                      <b>{money(band.nearTermAwardAmount)}</b>
+                    </header>
+                    <div aria-label={`${band.label} timing value`}>
+                      <i style={{ width: `${Math.max((band.nearTermAwardAmount / maxTimingValue) * 100, 3)}%` }} />
+                    </div>
+                    <p>{band.clusters} clusters · {band.topCluster}</p>
+                  </article>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Buyer / Capability Heatmap" meta={`${heatmapRows.length} buyers by ${heatmapColumns.length} capability wedges`} icon={Building2}>
+              <div className="visual-heatmap" data-visual-heatmap>
+                <div
+                  className="visual-heatmap__grid"
+                  style={{ "--heatmap-columns": heatmapColumns.length || 1 }}
+                >
+                  <strong>Buyer</strong>
+                  {heatmapColumns.map((column) => (
+                    <strong key={column.id}>{column.label}</strong>
+                  ))}
+                  {heatmapRows.map((row) => (
+                    <div className="visual-heatmap__row" key={row.id}>
+                      <b>{row.buyer}</b>
+                      {row.cells.map((cell) => (
+                        <span
+                          key={cell.id}
+                          style={{ backgroundColor: cell.score ? `rgba(0, 94, 162, ${Math.min(0.14 + (cell.score / 155), 0.78)})` : "#f8fafc" }}
+                          title={`${row.buyer} / ${cell.capability}: score ${cell.score}`}
+                        >
+                          <strong>{cell.score || "-"}</strong>
+                          <em>{cell.nearTermAwardAmount ? money(cell.nearTermAwardAmount) : "n/a"}</em>
+                        </span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Section>
+
+            <div className="grid grid--sources">
+              <Section title="Selected Cluster" meta="visual readout" icon={FileText}>
+                <div className="visual-cluster-brief" data-visual-selected-cluster>
+                  <article>
+                    <span>Buyer</span>
+                    <strong>{selected.buyer}</strong>
+                    <p>{selected.buyerGroup}</p>
+                  </article>
+                  <article>
+                    <span>Work type</span>
+                    <strong>{selected.workType}</strong>
+                    <p>{selected.topIncumbent} leads the sampled execution lane.</p>
+                  </article>
+                  <article>
+                    <span>Next action</span>
+                    <strong>{selected.action}</strong>
+                    <p>{selected.decision}</p>
+                  </article>
+                </div>
+              </Section>
+
+              <Section title="Award Examples" meta={`${selected.timingExamples?.length || 0} timing records`} icon={FileSpreadsheet}>
+                <div className="relationship-award-list" data-visual-award-examples>
+                  {(selected.timingExamples || []).map((award) => (
+                    <article key={award.id}>
+                      <div>
+                        <strong>{award.awardId}</strong>
+                        <span>{award.recipient} · {award.buyer} · ends {award.endDate}</span>
+                      </div>
+                      <b>{money(award.awardAmount)}</b>
+                    </article>
+                  ))}
+                </div>
+              </Section>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -3143,6 +3343,31 @@ function Sources() {
         </div>
       </Section>
 
+      <Section title="Visualization Coverage" meta="generated visual operating picture from briefs, accounts, capability fit, timing, and sampled awards" icon={BarChart3}>
+        <div className="pursuit-source-summary" data-visualization-evidence>
+          <article>
+            <strong>{VISUAL_ANALYTICS.summary?.clusters || 0}</strong>
+            <span>visual clusters</span>
+            <p>Clusters inherit the decision-brief evidence chain and expose it as a budget-versus-timing field.</p>
+          </article>
+          <article>
+            <strong>{money(VISUAL_ANALYTICS.summary?.nearTermAwardValue || 0)}</strong>
+            <span>near-term value</span>
+            <p>Near-term sampled award value is summarized across the generated visual clusters.</p>
+          </article>
+          <article>
+            <strong>{VISUAL_ANALYTICS.summary?.heatmapBuyers || 0} x {VISUAL_ANALYTICS.summary?.heatmapCapabilities || 0}</strong>
+            <span>heatmap shape</span>
+            <p>Buyer and capability intersections come from generated account plans and capability fit mappings.</p>
+          </article>
+          <article>
+            <strong>{VISUAL_ANALYTICS.summary?.topCluster || "n/a"}</strong>
+            <span>top visual cluster</span>
+            <p>Visualization remains directional until SAM.gov and FPDS/SAM validation are joined beneath the sampled awards.</p>
+          </article>
+        </div>
+      </Section>
+
       <Section title="Account Plan Coverage" meta="generated buyer account surfaces from awards, timing, queue, and hypotheses" icon={Building2}>
         <div className="pursuit-source-summary" data-account-plan-evidence>
           <article>
@@ -3509,7 +3734,7 @@ function App() {
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const showBudgetControls = !["sources", "trends", "strategy", "briefs", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "trends", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -3585,6 +3810,7 @@ function App() {
         {activeTab === "trends" ? <RequestTrends /> : null}
         {activeTab === "strategy" ? <Strategy /> : null}
         {activeTab === "briefs" ? <DecisionBriefs /> : null}
+        {activeTab === "visuals" ? <DataVisuals /> : null}
         {activeTab === "hypotheses" ? <Hypotheses /> : null}
         {activeTab === "accounts" ? <AccountPlans /> : null}
         {activeTab === "fit" ? <CapabilityFit /> : null}
