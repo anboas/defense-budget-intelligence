@@ -5,6 +5,7 @@ import {
   BrainCircuit,
   Building2,
   CalendarClock,
+  ChevronDown,
   Database,
   ExternalLink,
   FileText,
@@ -14,6 +15,7 @@ import {
   Layers,
   Lightbulb,
   ListChecks,
+  MoreHorizontal,
   Network,
   RefreshCcw,
   Search,
@@ -42,6 +44,15 @@ const TABS = [
   { id: "drilldown", label: "Drilldown", icon: Search },
   { id: "sources", label: "Data Sources", icon: Database },
 ];
+
+const PRIMARY_TAB_IDS = ["overview", "visuals", "briefs", "queue"];
+const PRIMARY_TABS = PRIMARY_TAB_IDS.map((tabId) => TABS.find((tab) => tab.id === tabId)).filter(Boolean);
+const SECONDARY_NAV_GROUPS = [
+  { label: "Decision Surfaces", tabIds: ["strategy", "relationships", "hypotheses", "accounts", "fit"] },
+  { label: "Evidence Surfaces", tabIds: ["trends", "awards", "pursuits"] },
+  { label: "Portfolio Slices", tabIds: ["services", "fourth", "ai", "drilldown", "sources"] },
+];
+const SECONDARY_TABS = TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
 
 const INTELLIGENCE_SUITE = [
   { label: "Budget & Spend", href: "https://defense-budget-intelligence.pages.dev/", active: true },
@@ -3728,13 +3739,20 @@ function Sources() {
 
 function App() {
   const [activeTab, setActiveTab] = useBudgetRoute();
+  const [isSecondaryNavOpen, setSecondaryNavOpen] = useState(false);
   const [filters, setFilters] = useState({ query: "", book: "all", group: "all", signal: "all", org: "all" });
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
+  const activeSecondaryTab = SECONDARY_TABS.find((tab) => tab.id === activeTab);
   const showBudgetControls = !["sources", "trends", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+
+  function openBudgetSurface(tabId) {
+    setSecondaryNavOpen(false);
+    setActiveTab(tabId);
+  }
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
@@ -3746,7 +3764,7 @@ function App() {
             data-home-link
             aria-label="Go to Budget & Spend overview"
             title="Go to Budget & Spend overview"
-            onClick={() => setActiveTab("overview")}
+            onClick={() => openBudgetSurface("overview")}
           >
             <span className="if-brand__mark masthead__mark" aria-hidden="true">
               <BarChart3 size={18} strokeWidth={2.4} />
@@ -3757,7 +3775,7 @@ function App() {
             </span>
           </button>
           <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend intelligence sections">
-            {TABS.map((tab) => {
+            {PRIMARY_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -3766,13 +3784,62 @@ function App() {
                   className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
                   aria-current={activeTab === tab.id ? "page" : undefined}
                   data-budget-nav={HASH_ROUTES[tab.id]}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => openBudgetSurface(tab.id)}
                 >
                   <Icon size={15} aria-hidden="true" />
                   {tab.label}
                 </button>
               );
             })}
+            <div
+              className={`secondary-nav${activeSecondaryTab ? " is-active" : ""}${isSecondaryNavOpen ? " is-open" : ""}`}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  setSecondaryNavOpen(false);
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="secondary-nav__trigger"
+                aria-label={activeSecondaryTab ? `Open secondary surfaces, current: ${activeSecondaryTab.label}` : "Open secondary surfaces"}
+                aria-expanded={isSecondaryNavOpen}
+                aria-controls="secondary-budget-nav"
+                data-budget-nav-more
+                title={activeSecondaryTab ? `Secondary surfaces: ${activeSecondaryTab.label}` : "Secondary surfaces"}
+                onClick={() => setSecondaryNavOpen((open) => !open)}
+              >
+                <MoreHorizontal size={15} aria-hidden="true" />
+                <span>{activeSecondaryTab ? activeSecondaryTab.label : "More"}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              <div className="secondary-nav__menu" id="secondary-budget-nav" role="menu" aria-label="Secondary budget and spend surfaces">
+                {SECONDARY_NAV_GROUPS.map((group) => (
+                  <div className="secondary-nav__group" key={group.label}>
+                    <span className="secondary-nav__label">{group.label}</span>
+                    {group.tabIds.map((tabId) => {
+                      const tab = TABS.find((item) => item.id === tabId);
+                      if (!tab) return null;
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          role="menuitem"
+                          className={`secondary-nav__item${activeTab === tab.id ? " is-active active" : ""}`}
+                          aria-current={activeTab === tab.id ? "page" : undefined}
+                          data-budget-nav={HASH_ROUTES[tab.id]}
+                          onClick={() => openBudgetSurface(tab.id)}
+                        >
+                          <Icon size={15} aria-hidden="true" />
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
           </nav>
         </div>
       </header>

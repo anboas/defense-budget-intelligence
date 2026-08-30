@@ -30,6 +30,17 @@ const browser = await chromium.launch({
   args: ["--no-sandbox", "--disable-dev-shm-usage"],
 });
 
+async function clickBudgetSurface(page, name) {
+  const directButton = page.getByRole("button", { name }).first();
+  if (await directButton.isVisible().catch(() => false)) {
+    await directButton.click();
+    return;
+  }
+
+  await page.locator("[data-budget-nav-more]").click();
+  await page.getByRole("menuitem", { name }).click();
+}
+
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
@@ -45,6 +56,8 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Budget & Spend Intelligence", "Header should expose active page title");
   const headerBox = await page.locator("[data-budget-spend-header]").boundingBox();
   assert.ok(headerBox && headerBox.height <= 96, `Desktop header should stay compact, got ${headerBox?.height}px`);
+  assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 4, "Desktop header should expose only primary nav buttons");
+  assert.equal(await page.locator("[data-budget-nav-more]").count(), 1, "Desktop header should expose secondary nav menu");
   assert.equal(await page.locator("[data-if-operations-workspace][data-visual-density='compact']").count(), 1, "Budget app should use compact operations workspace");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Budget filters should expose a control bar hook");
   assert.equal(await page.locator("[data-budget-metric]").count(), 4, "Budget metrics should use stable metric hooks");
@@ -53,7 +66,7 @@ try {
   assert.match(text, /Fastest mission signal/i);
   assert.equal(await page.locator('a[href="https://opportunity-intelligence-full.pages.dev/"]').count(), 1, "Opportunity peer link should exist");
   assert.equal(await page.locator('a[href="https://policy-intelligence-full.pages.dev/"]').count(), 1, "Policy peer link should exist");
-  await page.getByRole("button", { name: /Trends/ }).click();
+  await clickBudgetSurface(page, /Trends/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/trends", "Trends should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Trends", "Header should track Trends route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Trends should not render current-line filters");
@@ -70,7 +83,7 @@ try {
   assert.equal(await page.locator("[data-ai-signal-history] article").count(), 4, "Trends should show four AI signal history rows");
   assert.equal(await page.locator("[data-color-money-history] .trend-series-card").count(), 6, "Trends should show six color-of-money history cards");
   assert.equal(await page.locator("[data-momentum-leaders] .momentum-card").count(), 6, "Trends should show six momentum leader cards");
-  await page.getByRole("button", { name: /Strategy/ }).click();
+  await clickBudgetSurface(page, /Strategy/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/strategy", "Strategy should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Strategy", "Header should track Strategy route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Strategy should not render current-line filters");
@@ -111,7 +124,7 @@ try {
   assert.equal(await page.locator("[data-talking-points] article").count(), 3, "Strategy should show talking points");
   assert.ok(await page.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Strategy should show narrative evidence cards");
   assert.ok(await page.locator("[data-strategy-line-table] tbody tr").count() >= 4, "Strategy should show source-line examples");
-  await page.getByRole("button", { name: /^Briefs$/ }).click();
+  await clickBudgetSurface(page, /^Briefs$/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/briefs", "Briefs should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Briefs", "Header should track Briefs route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Briefs should not render budget line filters");
@@ -138,7 +151,7 @@ try {
   assert.ok(await page.locator("[data-brief-awards] article").count() >= 1, "Briefs should show linked awards");
   const briefOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(briefOverflow <= 2, `Briefs desktop overflow ${briefOverflow}`);
-  await page.getByRole("button", { name: /^Visuals$/ }).click();
+  await clickBudgetSurface(page, /^Visuals$/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/visuals", "Visuals should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Visuals", "Header should track Visuals route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Visuals should not render budget line filters");
@@ -159,7 +172,7 @@ try {
   assert.ok(await page.locator("[data-visual-award-examples] article").count() >= 1, "Visuals should show award examples");
   const visualsOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(visualsOverflow <= 2, `Visuals desktop overflow ${visualsOverflow}`);
-  await page.getByRole("button", { name: /Hypotheses/ }).click();
+  await clickBudgetSurface(page, /Hypotheses/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/hypotheses", "Hypotheses should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Hypotheses", "Header should track Hypotheses route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Hypotheses should not render budget line filters");
@@ -176,7 +189,7 @@ try {
   assert.equal(await page.locator("[data-hypothesis-validation] article").count(), 4, "Hypotheses should show four validation tasks");
   assert.ok(await page.locator("[data-hypothesis-budget-lines] article").count() >= 1, "Hypotheses should show linked budget lines");
   assert.ok(await page.locator("[data-hypothesis-awards] article").count() >= 1, "Hypotheses should show linked awards");
-  await page.getByRole("button", { name: /Accounts/ }).click();
+  await clickBudgetSurface(page, /Accounts/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/accounts", "Accounts should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Accounts", "Header should track Accounts route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Accounts should not render budget line filters");
@@ -201,7 +214,7 @@ try {
   assert.ok(await page.locator("[data-account-budget-lines] article").count() >= 1, "Accounts should show linked budget lines");
   const accountOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(accountOverflow <= 2, `Accounts desktop overflow ${accountOverflow}`);
-  await page.getByRole("button", { name: /^Fit$/ }).click();
+  await clickBudgetSurface(page, /^Fit$/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/fit", "Fit should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Fit", "Header should track Fit route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Fit should not render budget line filters");
@@ -228,7 +241,7 @@ try {
   assert.ok(await page.locator("[data-capability-budget-lines] article").count() >= 1, "Fit should show linked budget lines");
   const fitOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(fitOverflow <= 2, `Fit desktop overflow ${fitOverflow}`);
-  await page.getByRole("button", { name: /Relationships/ }).click();
+  await clickBudgetSurface(page, /Relationships/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/relationships", "Relationships should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Relationships", "Header should track Relationships route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Relationships should not render budget line filters");
@@ -242,7 +255,7 @@ try {
   assert.equal(await page.locator("[data-relationship-nodes] .relationship-node-list").count(), 5, "Relationships should show five connected node groups");
   assert.ok(await page.locator("[data-relationship-budget-lines] article").count() >= 1, "Relationships should show linked budget lines");
   assert.ok(await page.locator("[data-relationship-awards] article").count() >= 1, "Relationships should show linked awards");
-  await page.getByRole("button", { name: /Awards/ }).click();
+  await clickBudgetSurface(page, /Awards/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/awards", "Awards should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards", "Header should track Awards route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Awards should not render budget line filters");
@@ -258,7 +271,7 @@ try {
   assert.equal(await page.locator("[data-award-record-table] tbody tr").count(), 250, "Awards should show capped award records");
   await page.getByPlaceholder("Search award IDs").fill("N0001917C0001");
   assert.match(await page.locator("[data-award-record-table]").innerText(), /N0001917C0001/i);
-  await page.getByRole("button", { name: /Pursuits/ }).click();
+  await clickBudgetSurface(page, /Pursuits/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/pursuits", "Pursuits should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Pursuits", "Header should track Pursuits route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Pursuits should not render budget line filters");
@@ -273,7 +286,7 @@ try {
   assert.ok(await page.locator("[data-pursuit-candidate-table] tbody tr").count() >= 50, "Pursuits should show near-term award-end rows");
   await page.getByPlaceholder("Search buyers").fill("ELECTRIC BOAT");
   assert.match(await page.locator("[data-pursuit-candidate-table]").innerText(), /ELECTRIC BOAT/i);
-  await page.getByRole("button", { name: /^Cockpit$/ }).click();
+  await clickBudgetSurface(page, /^Cockpit$/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/queue", "Queue should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Cockpit", "Header should track Cockpit route title");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Cockpit should not render budget line filters");
@@ -292,16 +305,16 @@ try {
   assert.ok(queueOverflow <= 2, `Cockpit desktop overflow ${queueOverflow}`);
   await page.getByPlaceholder("Search actions").fill("LOCKHEED");
   assert.match(await page.locator("[data-capture-queue-table]").innerText(), /LOCKHEED/i);
-  await page.getByRole("button", { name: /Services/ }).click();
+  await clickBudgetSurface(page, /Services/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/services", "Services should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Services", "Header should track route title");
-  await page.getByRole("button", { name: /AI \/ Autonomy/ }).click();
+  await clickBudgetSurface(page, /AI \/ Autonomy/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/ai-autonomy", "AI route should deep-link through hash route");
   const aiText = await page.locator("[data-defense-budget-app]").innerText();
   assert.match(aiText, /spending/i);
   assert.match(aiText, /AI \/ Autonomy Readout/i);
   assert.match(aiText, /needs narrative validation/i);
-  await page.getByRole("button", { name: /Data Sources/ }).click();
+  await clickBudgetSurface(page, /Data Sources/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/sources", "Data Sources should deep-link through hash route");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Data Sources should not render budget analysis filters");
   const sourceHeroBox = await page.locator(".source-hero").boundingBox();
@@ -347,7 +360,7 @@ try {
   assert.equal(await page.locator("[data-source-coverage-diagnostics] .coverage-diagnostic-card").count(), 6, "Data Sources should expose six source coverage diagnostics");
   assert.equal(await page.locator("[data-source-join-map] .join-path-card").count(), 4, "Data Sources should expose four source join paths");
   assert.equal(await page.locator("[data-ingest-priority-matrix] .pipeline-matrix__point").count(), 5, "Data Sources should expose five priority points");
-  await page.getByRole("button", { name: /Drilldown/ }).click();
+  await clickBudgetSurface(page, /Drilldown/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/drilldown", "Drilldown should deep-link through hash route");
   await page.getByPlaceholder("Search line items").fill("artificial intelligence");
   assert.match(await page.locator("[data-budget-record-table]").innerText(), /Artificial Intelligence|Autonomous|Machine/i);
@@ -371,12 +384,12 @@ try {
   assert.equal(await mobile.locator(".masthead__brand p").count(), 0, "Mobile top bar should not render desktop masthead copy");
   const mobileFilterBox = await mobile.locator("[data-budget-filter-bar]").boundingBox();
   assert.ok(mobileFilterBox && mobileFilterBox.height <= 190, `Mobile filters should be compact two-column controls, got ${mobileFilterBox?.height}px`);
-  await mobile.getByRole("button", { name: /Trends/ }).click();
+  await clickBudgetSurface(mobile, /Trends/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Trends should not render current-line filters");
   assert.equal(await mobile.locator("[data-request-history-timeline] .trend-year-card").count(), 4, "Mobile Trends should show request vintages");
   assert.equal(await mobile.locator("[data-color-money-history] .trend-series-card").count(), 6, "Mobile Trends should show color-of-money history");
   assert.equal(await mobile.locator("[data-momentum-leaders] .momentum-card").count(), 6, "Mobile Trends should show momentum leaders");
-  await mobile.getByRole("button", { name: /Strategy/ }).click();
+  await clickBudgetSurface(mobile, /Strategy/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Strategy should not render current-line filters");
   assert.equal(await mobile.locator("[data-technology-area-list] button").count(), 11, "Mobile Strategy should expose technology areas");
   assert.equal(await mobile.locator("[data-service-strategy-grid] .service-strategy-card").count(), 3, "Mobile Strategy should show service strategy cards");
@@ -388,7 +401,7 @@ try {
   assert.equal(await mobile.locator("[data-buyer-pursuit-lanes] .buyer-pursuit-card").count(), 12, "Mobile Strategy should show buyer pursuit lanes");
   assert.ok(await mobile.locator("[data-area-execution] article").count() >= 2, "Mobile Strategy should show execution signals");
   assert.ok(await mobile.locator("[data-narrative-evidence] .narrative-evidence-card").count() >= 1, "Mobile Strategy should show narrative evidence cards");
-  await mobile.getByRole("button", { name: /^Briefs$/ }).click();
+  await clickBudgetSurface(mobile, /^Briefs$/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Briefs should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Decision Briefs/i);
   assert.equal(await mobile.locator("[data-brief-picker] button").count(), 8, "Mobile Briefs should expose eight decision briefs");
@@ -402,7 +415,7 @@ try {
   assert.ok(await mobile.locator("[data-brief-awards] article").count() >= 1, "Mobile Briefs should show linked awards");
   const mobileBriefOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileBriefOverflow <= 2, `Briefs mobile overflow ${mobileBriefOverflow}`);
-  await mobile.getByRole("button", { name: /^Visuals$/ }).click();
+  await clickBudgetSurface(mobile, /^Visuals$/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Visuals should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Data Visuals/i);
   assert.equal(await mobile.locator("[data-visual-cluster-picker] button").count(), 8, "Mobile Visuals should expose eight clusters");
@@ -415,7 +428,7 @@ try {
   assert.ok(await mobile.locator("[data-visual-award-examples] article").count() >= 1, "Mobile Visuals should show award examples");
   const mobileVisualsOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileVisualsOverflow <= 2, `Visuals mobile overflow ${mobileVisualsOverflow}`);
-  await mobile.getByRole("button", { name: /Hypotheses/ }).click();
+  await clickBudgetSurface(mobile, /Hypotheses/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Hypotheses should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Pursuit Hypotheses/i);
   assert.equal(await mobile.locator("[data-hypothesis-picker] button").count(), 10, "Mobile Hypotheses should expose ten generated theses");
@@ -423,7 +436,7 @@ try {
   assert.equal(await mobile.locator("[data-hypothesis-validation] article").count(), 4, "Mobile Hypotheses should show validation tasks");
   assert.ok(await mobile.locator("[data-hypothesis-budget-lines] article").count() >= 1, "Mobile Hypotheses should show budget lines");
   assert.ok(await mobile.locator("[data-hypothesis-awards] article").count() >= 1, "Mobile Hypotheses should show awards");
-  await mobile.getByRole("button", { name: /Accounts/ }).click();
+  await clickBudgetSurface(mobile, /Accounts/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Accounts should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Account Plans/i);
   assert.equal(await mobile.locator("[data-account-picker] button").count(), 10, "Mobile Accounts should expose ten generated account plans");
@@ -436,7 +449,7 @@ try {
   assert.ok(await mobile.locator("[data-account-budget-lines] article").count() >= 1, "Mobile Accounts should show linked budget lines");
   const mobileAccountOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileAccountOverflow <= 2, `Accounts mobile overflow ${mobileAccountOverflow}`);
-  await mobile.getByRole("button", { name: /^Fit$/ }).click();
+  await clickBudgetSurface(mobile, /^Fit$/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Fit should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Capability Fit/i);
   assert.equal(await mobile.locator("[data-capability-picker] button").count(), 6, "Mobile Fit should expose six capability wedges");
@@ -450,25 +463,25 @@ try {
   assert.ok(await mobile.locator("[data-capability-budget-lines] article").count() >= 1, "Mobile Fit should show linked budget lines");
   const mobileFitOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileFitOverflow <= 2, `Fit mobile overflow ${mobileFitOverflow}`);
-  await mobile.getByRole("button", { name: /Relationships/ }).click();
+  await clickBudgetSurface(mobile, /Relationships/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Relationships should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Entity Relationship Map/i);
   assert.ok(await mobile.locator("[data-relationship-picker] button").count() >= 40, "Mobile Relationships should expose selectable entities");
   assert.equal(await mobile.locator("[data-relationship-nodes] .relationship-node-list").count(), 5, "Mobile Relationships should show connected node groups");
   assert.ok(await mobile.locator("[data-relationship-budget-lines] article").count() >= 1, "Mobile Relationships should show budget lines");
   assert.ok(await mobile.locator("[data-relationship-awards] article").count() >= 1, "Mobile Relationships should show awards");
-  await mobile.getByRole("button", { name: /Awards/ }).click();
+  await clickBudgetSurface(mobile, /Awards/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Awards should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /USAspending Award Records/i);
   assert.equal(await mobile.locator("[data-award-filter-bar]").count(), 1, "Mobile Awards should expose award filters");
   assert.equal(await mobile.locator("[data-award-record-table] tbody tr").count(), 250, "Mobile Awards should show capped award rows");
-  await mobile.getByRole("button", { name: /Pursuits/ }).click();
+  await clickBudgetSurface(mobile, /Pursuits/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Pursuits should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Contract Timing Signals/i);
   assert.equal(await mobile.locator("[data-pursuit-filter-bar]").count(), 1, "Mobile Pursuits should expose pursuit filters");
   assert.equal(await mobile.locator("[data-pursuit-timing-lanes] .pursuit-timing-card").count(), 16, "Mobile Pursuits should show timing lanes");
   assert.ok(await mobile.locator("[data-pursuit-candidate-table] tbody tr").count() >= 50, "Mobile Pursuits should show near-term award-end rows");
-  await mobile.getByRole("button", { name: /^Cockpit$/ }).click();
+  await clickBudgetSurface(mobile, /^Cockpit$/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Cockpit should not render budget line filters");
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /What To Validate Next/i);
   assert.match(await mobile.locator("[data-defense-budget-app]").innerText(), /Lane Brief/i);
@@ -479,7 +492,7 @@ try {
   assert.equal(await mobile.locator("[data-capture-queue-table] tbody tr").count(), 16, "Mobile Cockpit should show capture validation rows");
   const mobileQueueOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileQueueOverflow <= 2, `Cockpit mobile overflow ${mobileQueueOverflow}`);
-  await mobile.getByRole("button", { name: /Data Sources/ }).click();
+  await clickBudgetSurface(mobile, /Data Sources/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Data Sources should not render unrelated budget filters");
   const mobileSourceHeroBox = await mobile.locator(".source-hero").boundingBox();
   assert.ok(mobileSourceHeroBox && mobileSourceHeroBox.y < 130, `Mobile Data Sources hero should start near the top, got ${mobileSourceHeroBox?.y}px`);

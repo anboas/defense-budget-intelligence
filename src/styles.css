@@ -196,15 +196,11 @@ button {
 .masthead nav {
   display: flex;
   flex-wrap: nowrap;
-  justify-content: flex-start;
+  justify-content: flex-end;
+  align-items: center;
   gap: 5px;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.masthead nav::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
 }
 
 .masthead button,
@@ -237,6 +233,85 @@ button {
   border-color: var(--brand-light);
   background: var(--brand);
   color: #ffffff;
+}
+
+.secondary-nav {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.masthead .secondary-nav__trigger {
+  min-width: 96px;
+}
+
+.secondary-nav__trigger svg:last-child {
+  transition: transform 160ms ease;
+}
+
+.secondary-nav.is-open .secondary-nav__trigger svg:last-child {
+  transform: rotate(180deg);
+}
+
+.secondary-nav.is-active .secondary-nav__trigger {
+  border-color: var(--brand-light);
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.secondary-nav__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 300;
+  display: none;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 8px;
+  width: min(610px, calc(100vw - 28px));
+  padding: 10px;
+  border: 1px solid rgba(16, 42, 67, 0.22);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text);
+  box-shadow: 0 14px 34px rgba(8, 24, 44, 0.24);
+}
+
+.secondary-nav.is-open .secondary-nav__menu {
+  display: grid;
+}
+
+.secondary-nav__group {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.secondary-nav__label {
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.masthead .secondary-nav__item {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 7px;
+  border-color: transparent;
+  background: #ffffff;
+  color: #102a43;
+  text-align: left;
+}
+
+.masthead .secondary-nav__item:hover,
+.masthead .secondary-nav__item.active,
+.masthead .secondary-nav__item.is-active {
+  border-color: #9dbbd4;
+  background: #e7f6ff;
+  color: #102a43;
 }
 
 .masthead .masthead__brand,
@@ -5067,20 +5142,43 @@ td .dot {
     min-width: 0;
     gap: 3px;
     padding: 0 1px 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .masthead nav::-webkit-scrollbar {
-    display: none;
+    overflow: visible;
   }
 
   .masthead button {
     flex: 0 0 auto;
     min-height: 29px;
-    padding: 4px 7px;
-    font-size: 11.5px;
+    gap: 4px;
+    padding: 4px 5px;
+    font-size: 10.5px;
+  }
+
+  .masthead .secondary-nav__trigger {
+    width: 36px;
+    min-width: 36px;
+  }
+
+  .secondary-nav__trigger span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .secondary-nav__menu {
+    right: auto;
+    left: 0;
+    grid-template-columns: 1fr;
+    width: min(330px, calc(100vw - 18px));
+    max-height: min(520px, calc(100vh - 86px));
+    overflow-y: auto;
+  }
+
+  .masthead .secondary-nav__item {
+    min-height: 31px;
+    font-size: 11px;
   }
 
   .suite-links {
