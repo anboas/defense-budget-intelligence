@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
+  Bookmark,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
@@ -9,10 +10,16 @@ import {
   Download,
   ExternalLink,
   Filter,
+  GitCompareArrows,
+  Network,
   Search,
   ShieldCheck,
+  Trash2,
   X,
 } from "lucide-react";
+
+const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
+const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
 
 const FILTER_DEFAULTS = {
   capQuery: "",
@@ -214,22 +221,56 @@ function copyLink() {
   navigator.clipboard?.writeText(window.location.href);
 }
 
-function BarList({ rows, valueKey = "value", format = (value) => value.toLocaleString(), testId }) {
+function readStoredArray(key) {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeSavedFilters(candidate) {
+  const filters = { ...FILTER_DEFAULTS };
+  if (!candidate || typeof candidate !== "object") return filters;
+  for (const key of Object.keys(FILTER_DEFAULTS)) {
+    if (typeof candidate[key] === "string") filters[key] = candidate[key];
+  }
+  const years = new Set(Array.from({ length: 12 }, (_value, index) => String(2023 + index)));
+  if (!years.has(filters.capFrom)) filters.capFrom = FILTER_DEFAULTS.capFrom;
+  if (!years.has(filters.capTo)) filters.capTo = FILTER_DEFAULTS.capTo;
+  if (!new Set(["25", "50", "100", "all"]).has(filters.capRows)) filters.capRows = FILTER_DEFAULTS.capRows;
+  if (!(filters.capMin in MINIMUM_VALUES)) filters.capMin = FILTER_DEFAULTS.capMin;
+  if (!new Set(["all", "contract-performance", "acquisition-window"]).has(filters.capMode)) filters.capMode = FILTER_DEFAULTS.capMode;
+  if (!new Set(["soonest", "value", "obligations", "portfolio", "company"]).has(filters.capSort)) filters.capSort = FILTER_DEFAULTS.capSort;
+  if (!new Set(["all", "verified", "corrected", "unresolved"]).has(filters.capValidation)) filters.capValidation = FILTER_DEFAULTS.capValidation;
+  if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(filters.capHorizon)) filters.capHorizon = FILTER_DEFAULTS.capHorizon;
+  if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(filters.capActivity)) filters.capActivity = FILTER_DEFAULTS.capActivity;
+  if (!new Set(["comfortable", "compact"]).has(filters.capDensity)) filters.capDensity = FILTER_DEFAULTS.capDensity;
+  if (!new Set(["none", "portfolio"]).has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
+  if (!new Set(["dates", "money", "none"]).has(filters.capLabels)) filters.capLabels = FILTER_DEFAULTS.capLabels;
+  return filters;
+}
+
+function BarList({ rows, valueKey = "value", format = (value) => value.toLocaleString(), testId, onSelect, selectedId }) {
   const maximum = Math.max(...rows.map((row) => Number(row[valueKey] || 0)), 1);
   return (
     <div className="capture-bars" data-capture-chart={testId}>
-      {rows.map((row) => (
-        <article key={row.id || row.label}>
-          <div><strong>{row.label}</strong><span>{format(row[valueKey])}</span></div>
-          <i aria-hidden="true"><b style={{ width: `${Math.max((Number(row[valueKey] || 0) / maximum) * 100, 1)}%` }} /></i>
-          {row.helper ? <small>{row.helper}</small> : null}
-        </article>
-      ))}
+      {rows.map((row) => {
+        const Element = onSelect ? "button" : "article";
+        return (
+          <Element key={row.id || row.label} type={onSelect ? "button" : undefined} className={`capture-bar-row${selectedId === row.id ? " is-selected" : ""}`} onClick={onSelect ? () => onSelect(row) : undefined}>
+            <div><strong>{row.label}</strong><span>{format(row[valueKey])}</span></div>
+            <i aria-hidden="true"><b style={{ width: `${Math.max((Number(row[valueKey] || 0) / maximum) * 100, 1)}%` }} /></i>
+            {row.helper ? <small>{row.helper}</small> : null}
+          </Element>
+        );
+      })}
     </div>
   );
 }
 
-function StackedMoneyList({ rows }) {
+function StackedMoneyList({ rows, onSelect }) {
   return (
     <div className="capture-money-stack" data-capture-chart="obligation-headroom">
       {rows.map((row) => {
@@ -237,30 +278,30 @@ function StackedMoneyList({ rows }) {
         const obligatedWidth = Math.min((row.obligated / total) * 100, 100);
         const remaining = Math.max(row.potential - row.obligated, 0);
         return (
-          <article key={row.id}>
+          <button key={row.id} type="button" className={onSelect ? "is-interactive" : ""} onClick={onSelect ? () => onSelect(row) : undefined}>
             <div><strong>{row.label}</strong><span>{Math.round(obligatedWidth)}% obligated</span></div>
             <i aria-label={`${formatMoney(row.obligated)} obligated of ${formatMoney(row.potential)} potential`}>
               <b style={{ width: `${obligatedWidth}%` }} />
               <em style={{ width: `${100 - obligatedWidth}%` }} />
             </i>
             <small>{formatMoney(row.obligated)} obligated · {formatMoney(remaining)} reported headroom</small>
-          </article>
+          </button>
         );
       })}
     </div>
   );
 }
 
-function QuarterOutlook({ rows }) {
+function QuarterOutlook({ rows, onSelect }) {
   const maximum = Math.max(...rows.map((row) => row.total), 1);
   return (
     <div className="capture-quarter-outlook" data-capture-chart="quarter-outlook">
       {rows.map((row) => (
-        <article key={row.id} style={{ "--capture-quarter-intensity": row.total / maximum }}>
+        <button type="button" key={row.id} style={{ "--capture-quarter-intensity": row.total / maximum }} onClick={() => onSelect?.(row)}>
           <strong>{row.label}</strong>
           <span>{row.total}</span>
           <small>{row.ends} end{row.ends === 1 ? "" : "s"} · {row.milestones} milestone{row.milestones === 1 ? "" : "s"}</small>
-        </article>
+        </button>
       ))}
     </div>
   );
@@ -370,7 +411,7 @@ function AwardActionHistory({ record, actions, state, onRetry }) {
   );
 }
 
-function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose }) {
+function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose, isCompared, onToggleCompare, parentRelations, vehicleRelations, onSelectRelated }) {
   if (!record) return null;
   const observed = Number(liveAward?.awardAmountDollars || record.obligatedAmount || 0);
   const potential = Number(record.potentialAmount || record.valueHigh || 0);
@@ -383,7 +424,10 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           <span>{record.id} · {record.portfolio}</span>
           <h2>{record.title}</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close record details"><X size={18} /></button>
+        <div className="capture-detail__heading-actions">
+          <button type="button" className={isCompared ? "is-active" : ""} onClick={onToggleCompare} aria-label={isCompared ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{isCompared ? "Compared" : "Compare"}</button>
+          <button type="button" onClick={onClose} aria-label="Close record details"><X size={18} /></button>
+        </div>
       </div>
       <div className="capture-detail__grid">
         <article><span>Company / sponsor</span><strong>{liveAward?.recipient || record.party}</strong><small>{liveAward ? "Current award analytics match" : "Source record"}</small></article>
@@ -417,6 +461,13 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           ))}
         </div>
       ) : null}
+      {(parentRelations.length || vehicleRelations.length) ? (
+        <div className="capture-detail__relations" data-capture-relations>
+          <h3>Published instrument relationships</h3>
+          {parentRelations.length ? <section><strong>Same parent award / IDV</strong><small>Exact published parent reference: {record.parentReference}</small>{parentRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
+          {vehicleRelations.length ? <section><strong>Same published vehicle label</strong><small>{record.vehicle}; this is a route relationship, not proof of the same contract family.</small>{vehicleRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
+        </div>
+      ) : null}
       <div className="capture-detail__sources">
         {record.sourceUrls.map((url, index) => (
           <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>
@@ -424,6 +475,40 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
       </div>
       <AwardActionHistory key={record.opportunityId} record={record} actions={actions} state={actionState} onRetry={onRetryActions} />
     </aside>
+  );
+}
+
+function ComparisonTray({ records, startYear, endYear, onOpen, onRemove, onClear }) {
+  if (!records.length) return null;
+  return (
+    <section className="capture-compare" data-capture-compare>
+      <div className="capture-compare__heading"><div><GitCompareArrows size={18} /><span><strong>Comparison tray</strong><small>{records.length} of 4 records · browser-local</small></span></div><button type="button" onClick={onClear}>Clear comparison</button></div>
+      <div className="capture-compare__grid">
+        {records.map((record) => {
+          const dates = recordDates(record);
+          const start = dates.length ? firstDate(record) : null;
+          const end = dates.length ? finalDate(record) : null;
+          const left = start ? positionFor(start, startYear, endYear) : 0;
+          const right = end ? positionFor(end, startYear, endYear) : left;
+          return <article key={record.opportunityId}>
+            <div className="capture-compare__card-heading"><button type="button" onClick={() => onOpen(record.opportunityId)}><b>{record.id}</b><span>{record.title}</span></button><button type="button" onClick={() => onRemove(record.opportunityId)} aria-label={`Remove ${record.title} from comparison`}><X size={15} /></button></div>
+            <dl><div><dt>Company / sponsor</dt><dd>{record.party}</dd></div><div><dt>Observed obligations</dt><dd>{formatMoney(recordObligations(record))}</dd></div><div><dt>Potential / high</dt><dd>{formatMoney(recordValue(record))}</dd></div><div><dt>Lifecycle</dt><dd>{label(record.lifecycleStatus)}</dd></div><div><dt>Evidence</dt><dd>{label(record.evidenceTier)}</dd></div><div><dt>FPDS actions</dt><dd>{record.transactionSummary?.actions?.toLocaleString() || "None"}</dd></div></dl>
+            <div className="capture-compare__track" aria-label={start ? `${formatDate(start)} to ${formatDate(end)}` : "Schedule not published"}>{start ? <i style={{ left: `${left}%`, width: `${Math.max(right - left, 1.2)}%` }} /> : null}</div>
+            <small>{start ? `${formatDate(start)} to ${formatDate(end)}` : "Schedule not published"}</small>
+          </article>;
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SavedViews({ views, onSave, onLoad, onDelete }) {
+  return (
+    <section className="capture-saved-views" data-capture-saved-views>
+      <div><Bookmark size={17} /><span><strong>Saved analytical views</strong><small>Filters, time window, density, grouping, and labels are stored in this browser.</small></span></div>
+      <button type="button" onClick={onSave}><Bookmark size={14} />Save current view</button>
+      {views.length ? <div className="capture-saved-views__list">{views.map((view) => <span key={view.id}><button type="button" onClick={() => onLoad(view)}><b>{view.name}</b><small>{view.savedAt && !Number.isNaN(Date.parse(view.savedAt)) ? new Date(view.savedAt).toLocaleString() : "Saved view"}</small></button><button type="button" onClick={() => onDelete(view.id)} aria-label={`Delete saved view ${view.name}`}><Trash2 size={14} /></button></span>)}</div> : <small>No saved views yet.</small>}
+    </section>
   );
 }
 
@@ -523,7 +608,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
   );
 }
 
-function LifecycleMatrix({ records, portfolios }) {
+function LifecycleMatrix({ records, portfolios, onSelect }) {
   const statuses = [...new Set(records.map((record) => record.lifecycleStatus))];
   const counts = new Map();
   for (const record of records) counts.set(`${record.portfolio}|${record.lifecycleStatus}`, (counts.get(`${record.portfolio}|${record.lifecycleStatus}`) || 0) + 1);
@@ -538,7 +623,7 @@ function LifecycleMatrix({ records, portfolios }) {
             <b>{portfolio}</b>
             {statuses.map((status) => {
               const count = counts.get(`${portfolio}|${status}`) || 0;
-              return <span key={status} style={{ "--capture-intensity": count / maximum }}><strong>{count || "·"}</strong><em>{label(status)}</em></span>;
+              return <button type="button" key={status} disabled={!count} onClick={() => onSelect?.(portfolio, status)} style={{ "--capture-intensity": count / maximum }}><strong>{count || "·"}</strong><em>{label(status)}</em></button>;
             })}
           </div>
         ))}
@@ -554,6 +639,15 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const [actionState, setActionState] = useState("idle");
   const [actionLoadAttempt, setActionLoadAttempt] = useState(0);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [comparisonIds, setComparisonIds] = useState(() => {
+    const validIds = new Set((dataset.records || []).map((record) => record.opportunityId));
+    return [...new Set(readStoredArray(COMPARISON_STORAGE_KEY).filter((value) => typeof value === "string" && validIds.has(value)))].slice(0, 4);
+  });
+  const [savedViews, setSavedViews] = useState(() => readStoredArray(SAVED_VIEWS_STORAGE_KEY)
+    .filter((view) => view && typeof view.id === "string" && view.filters)
+    .map((view) => ({ ...view, name: typeof view.name === "string" && view.name.trim() ? view.name : "Saved view", filters: normalizeSavedFilters(view.filters) }))
+    .slice(0, 8));
+  const [compareNotice, setCompareNotice] = useState("");
   const records = useMemo(() => dataset.records || [], [dataset]);
   const asOf = dataset.metadata.asOf;
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
@@ -566,6 +660,15 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const lifecycleStates = useMemo(() => [...new Set(records.map((record) => record.lifecycleStatus))], [records]);
   const awardMap = useMemo(() => new Map(awards.map((award) => [String(award.awardId || "").toUpperCase(), award])), [awards]);
   const enriched = useMemo(() => records.map((record) => ({ ...record, liveAward: awardMap.get(String(record.reference || "").toUpperCase()) || null })), [records, awardMap]);
+  const comparisonRecords = comparisonIds.map((id) => enriched.find((record) => record.opportunityId === id)).filter(Boolean);
+
+  useEffect(() => {
+    window.localStorage.setItem(COMPARISON_STORAGE_KEY, JSON.stringify(comparisonIds));
+  }, [comparisonIds]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SAVED_VIEWS_STORAGE_KEY, JSON.stringify(savedViews));
+  }, [savedViews]);
 
   useEffect(() => {
     const normalized = {};
@@ -630,6 +733,12 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const selectedLiveAward = selected ? awardMap.get(String(selected.reference || "").toUpperCase()) : null;
   const selectedActions = actionDataset?.byOpportunity?.[selectedId] || [];
   const resolvedActionState = actionDataset ? "ready" : actionState === "error" ? "error" : "loading";
+  const parentRelations = selected?.parentReference
+    ? enriched.filter((record) => record.opportunityId !== selected.opportunityId && record.parentReference === selected.parentReference).slice(0, 8)
+    : [];
+  const vehicleRelations = selected?.vehicle
+    ? enriched.filter((record) => record.opportunityId !== selected.opportunityId && record.vehicle === selected.vehicle && !parentRelations.some((related) => related.opportunityId === record.opportunityId)).slice(0, 8)
+    : [];
 
   function setSelectedId(nextId) {
     setSelectedIdState(nextId);
@@ -639,6 +748,38 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     else params.delete("capRecord");
     const query = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
+  }
+
+  function toggleComparison(opportunityId) {
+    setComparisonIds((current) => {
+      if (current.includes(opportunityId)) {
+        setCompareNotice("");
+        return current.filter((id) => id !== opportunityId);
+      }
+      if (current.length >= 4) {
+        setCompareNotice("Comparison is limited to four records. Remove one before adding another.");
+        return current;
+      }
+      setCompareNotice("");
+      return [...current, opportunityId];
+    });
+  }
+
+  function saveCurrentView() {
+    const primary = filters.capQuery
+      ? `Search: ${filters.capQuery}`
+      : filters.capPortfolio !== "all"
+        ? filters.capPortfolio
+        : filters.capParty !== "all"
+          ? filters.capParty
+          : `Capture view ${savedViews.length + 1}`;
+    const savedAt = new Date().toISOString();
+    setSavedViews((current) => [{ id: `view-${Date.now()}`, name: primary, savedAt, filters: { ...filters } }, ...current].slice(0, 8));
+  }
+
+  function applyChartFilter(next) {
+    setFilters(next);
+    window.requestAnimationFrame(() => document.querySelector("[data-capture-timeline]")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   useEffect(() => {
@@ -729,6 +870,22 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     obligated: recordObligations(record),
     potential: Number(record.potentialAmount || record.valueHigh || 0),
   })).filter((row) => row.potential > 0).sort((left, right) => right.potential - left.potential).slice(0, 10);
+  const relationshipGroups = new Map();
+  for (const record of filtered) {
+    const kind = record.parentReference ? "parent" : record.vehicle ? "vehicle" : null;
+    const relationship = record.parentReference || record.vehicle;
+    if (!kind || !relationship) continue;
+    const key = `${kind}|${relationship}`;
+    const current = relationshipGroups.get(key) || { id: key, kind, relationship, label: relationship, value: 0, obligations: 0 };
+    current.value += 1;
+    current.obligations += recordObligations(record);
+    relationshipGroups.set(key, current);
+  }
+  const relationshipRows = [...relationshipGroups.values()]
+    .filter((row) => row.value > 1)
+    .map((row) => ({ ...row, helper: `${row.kind === "parent" ? "Exact parent" : "Published vehicle"} · ${formatMoney(row.obligations)} observed obligations` }))
+    .sort((left, right) => right.value - left.value || right.obligations - left.obligations)
+    .slice(0, 10);
   const snapshotDate = new Date(`${asOf}T00:00:00Z`);
   const startQuarter = Math.floor(snapshotDate.getUTCMonth() / 3);
   const quarterRows = Array.from({ length: 8 }, (_value, index) => {
@@ -775,6 +932,13 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <span><strong>{dataset.metadata.coverage.publicRows} public records</strong> with {dataset.metadata.coverage.normalizedEvents.toLocaleString()} normalized events and {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions across {dataset.metadata.coverage.uniqueAwards} awards. {dataset.metadata.coverage.excludedPrivateRows} internal campaign rows are excluded.</span>
       </section>
 
+      <SavedViews
+        views={savedViews}
+        onSave={saveCurrentView}
+        onLoad={(view) => setFilters(normalizeSavedFilters(view.filters))}
+        onDelete={(viewId) => setSavedViews((current) => current.filter((view) => view.id !== viewId))}
+      />
+
       <section className={`capture-filters${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters>
         <div className="capture-filters__heading"><Filter size={17} /><strong>Filter calendar</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 12 more filters"}</button><button type="button" onClick={() => setFilters(FILTER_DEFAULTS)} disabled={!activeFilters}>Reset</button></div>
         <div className="capture-quickviews" aria-label="Capture calendar quick views">
@@ -812,12 +976,16 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <SummaryMetric label="Near-term endpoints" value={totals.endingWithinYear.toLocaleString()} helper={`Reported current ends within 12 months of ${formatDate(asOf)}`} tone="orange" />
       </section>
 
-      <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} />
+      {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
+      <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
+
+      <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={Boolean(selected && comparisonIds.includes(selected.opportunityId))} onToggleCompare={() => selected && toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} onSelectRelated={setSelectedId} />
 
       <section className="capture-section">
         <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Performance and acquisition Gantt</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry with quarterly guides</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone</span></div>
         <div className="capture-gantt-tools" data-capture-gantt-tools>
           <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
+          <div className="capture-gantt-window" aria-label="Timeline windows"><span>Window</span><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Decision</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
           <label><span>Row density</span><select value={filters.capDensity} onChange={(event) => setFilters({ capDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
           <label><span>Grouping</span><select value={filters.capGroup} onChange={(event) => setFilters({ capGroup: event.target.value })}><option value="none">No grouping</option><option value="portfolio">Portfolio groups</option></select></label>
           <label><span>Bar labels</span><select value={filters.capLabels} onChange={(event) => setFilters({ capLabels: event.target.value })}><option value="dates">Date ranges</option><option value="money">Observed money</option><option value="none">No labels</option></select></label>
@@ -826,23 +994,24 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       </section>
 
       <div className="capture-dashboard-grid">
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio concentration</strong><small>Top filtered portfolios by record count</small></span></div></div><BarList rows={portfolioRows} testId="portfolio" /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Observed company obligations</strong><small>Top companies using refreshed award values where matched</small></span></div></div><BarList rows={partyRows} format={formatMoney} testId="company-money" /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Calendar density</strong><small>Records touching each visible year</small></span></div></div><BarList rows={yearRows} testId="year-density" /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><CheckCircle2 size={18} /><span><strong>Evidence distribution</strong><small>Corroboration strength across filtered records</small></span></div></div><BarList rows={evidenceRows} testId="evidence" /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>FPDS annual net obligations</strong><small>Primary-award action deltas by fiscal year</small></span></div></div>{fiscalRows.length ? <BarList rows={fiscalRows} format={formatMoney} testId="fiscal-obligations" /> : <p className="capture-empty">No annual obligation series match these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio concentration</strong><small>Select a bar to drive the Gantt</small></span></div></div><BarList rows={portfolioRows} testId="portfolio" onSelect={(row) => applyChartFilter({ capPortfolio: row.id })} selectedId={filters.capPortfolio} /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Observed company obligations</strong><small>Select a company to drive the Gantt</small></span></div></div><BarList rows={partyRows} format={formatMoney} testId="company-money" onSelect={(row) => applyChartFilter({ capParty: row.id })} selectedId={filters.capParty} /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Calendar density</strong><small>Select a year to focus the timeline</small></span></div></div><BarList rows={yearRows} testId="year-density" onSelect={(row) => applyChartFilter({ capFrom: String(row.id), capTo: String(row.id) })} /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><CheckCircle2 size={18} /><span><strong>Evidence distribution</strong><small>Select a tier to drive the Gantt</small></span></div></div><BarList rows={evidenceRows} testId="evidence" onSelect={(row) => applyChartFilter({ capEvidence: row.id })} selectedId={filters.capEvidence} /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>FPDS annual net obligations</strong><small>Select a fiscal year to focus the timeline</small></span></div></div>{fiscalRows.length ? <BarList rows={fiscalRows} format={formatMoney} testId="fiscal-obligations" onSelect={(row) => applyChartFilter({ capFrom: String(row.id), capTo: String(row.id) })} /> : <p className="capture-empty">No annual obligation series match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Value posture</strong><small>Observed obligations compared with potential / published high values</small></span></div></div><BarList rows={moneyRows} format={formatMoney} testId="value-posture" /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>FPDS action volume</strong><small>Primary-award transaction actions by fiscal year</small></span></div></div>{actionRows.length ? <BarList rows={actionRows} testId="action-volume" /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Funding action direction</strong><small>Derived only from signed obligation deltas</small></span></div></div>{actionDirectionRows.length ? <BarList rows={actionDirectionRows} testId="action-direction" /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
-        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Eight-quarter decision outlook</strong><small>Reported current ends and published acquisition milestones</small></span></div></div><QuarterOutlook rows={quarterRows} /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Obligation versus reported headroom</strong><small>Largest filtered potential values; values are not additive pipeline</small></span></div></div>{headroomRows.length ? <StackedMoneyList rows={headroomRows} /> : <p className="capture-empty">No comparable obligation and potential values match these filters.</p>}</section>
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Buying office exposure</strong><small>Observed obligations by recorded funding or contracting office</small></span></div></div>{officeRows.length ? <BarList rows={officeRows} format={formatMoney} testId="office-money" /> : <p className="capture-empty">No office-linked obligations match these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>FPDS action volume</strong><small>Select a fiscal year to focus the timeline</small></span></div></div>{actionRows.length ? <BarList rows={actionRows} testId="action-volume" onSelect={(row) => applyChartFilter({ capFrom: String(row.id), capTo: String(row.id) })} /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Funding action direction</strong><small>Select funding or deobligation activity</small></span></div></div>{actionDirectionRows.length ? <BarList rows={actionDirectionRows} testId="action-direction" onSelect={(row) => row.id !== "non-obligation" && applyChartFilter({ capActivity: row.id })} selectedId={filters.capActivity} /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Eight-quarter decision outlook</strong><small>Select a quarter to focus the timeline</small></span></div></div><QuarterOutlook rows={quarterRows} onSelect={(row) => applyChartFilter({ capFrom: row.id.slice(0, 4), capTo: row.id.slice(0, 4) })} /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Obligation versus reported headroom</strong><small>Select an instrument to open its evidence</small></span></div></div>{headroomRows.length ? <StackedMoneyList rows={headroomRows} onSelect={(row) => setSelectedId(row.id)} /> : <p className="capture-empty">No comparable obligation and potential values match these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Buying office exposure</strong><small>Select an office to drive the Gantt</small></span></div></div>{officeRows.length ? <BarList rows={officeRows} format={formatMoney} testId="office-money" onSelect={(row) => applyChartFilter({ capOffice: row.id })} selectedId={filters.capOffice} /> : <p className="capture-empty">No office-linked obligations match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Reported term duration</strong><small>Current performance periods at contract grain</small></span></div></div>{durationBuckets.length ? <BarList rows={durationBuckets} testId="duration" /> : <p className="capture-empty">No reported contract durations match these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><Network size={18} /><span><strong>Contract family and vehicle relationships</strong><small>Repeated exact parents or published vehicle labels</small></span></div></div>{relationshipRows.length ? <BarList rows={relationshipRows} testId="relationships" onSelect={(row) => applyChartFilter(row.kind === "parent" ? { capQuery: row.relationship } : { capVehicle: row.relationship })} /> : <p className="capture-empty">No repeated parent or vehicle relationships match these filters.</p>}</section>
       </div>
 
       <section className="capture-section">
         <div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio by lifecycle heatmap</strong><small>Top portfolios across the filtered calendar states</small></span></div></div>
-        <LifecycleMatrix records={filtered} portfolios={matrixPortfolios} />
+        <LifecycleMatrix records={filtered} portfolios={matrixPortfolios} onSelect={(portfolio, lifecycle) => applyChartFilter({ capPortfolio: portfolio, capLifecycle: lifecycle })} />
       </section>
 
       <section className="capture-methodology">

@@ -359,6 +359,10 @@ try {
   assert.ok(await page.locator("[data-pursuit-candidate-table] tbody tr").count() >= 50, "Pursuits should show near-term award-end rows");
   await page.getByPlaceholder("Search buyers").fill("ELECTRIC BOAT");
   assert.match(await page.locator("[data-pursuit-candidate-table]").innerText(), /ELECTRIC BOAT/i);
+  await page.evaluate(() => {
+    window.localStorage.removeItem("dbi:capture-comparison:v1");
+    window.localStorage.removeItem("dbi:capture-saved-views:v1");
+  });
   await clickBudgetSurface(page, /Capture Calendar/);
   await page.waitForSelector("[data-capture-calendar-page]");
   assert.equal(new URL(page.url()).hash, "#/budget-spend/capture-calendar", "Capture Calendar should deep-link through hash route");
@@ -373,11 +377,13 @@ try {
   assert.doesNotMatch(captureText, /OUR AWARD \/ DELIVERY-LED EXPANSION|ACTIVE TEAMED BID|Targets A1|campaign qualification/i, "Capture Calendar should not expose internal campaign labels");
   assert.equal(await page.locator("[data-capture-filters]").count(), 1, "Capture Calendar should expose linked filters");
   assert.equal(await page.locator("[data-capture-metric]").count(), 6, "Capture Calendar should expose six filtered metrics");
-  assert.equal(await page.locator("[data-capture-chart]").count(), 12, "Capture Calendar should expose twelve linked charts");
+  assert.equal(await page.locator("[data-capture-chart]").count(), 13, "Capture Calendar should expose thirteen linked charts");
+  assert.equal(await page.locator("[data-capture-chart='relationships']").count(), 1, "Capture Calendar should expose contract-family and vehicle relationships");
   assert.equal(await page.locator("[data-capture-matrix]").count(), 1, "Capture Calendar should expose the lifecycle heatmap");
+  assert.equal(await page.locator("[data-capture-saved-views]").count(), 1, "Capture Calendar should expose browser-local saved analytical views");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 16, "Capture Calendar should expose sixteen linked filter dimensions");
   assert.equal(await page.locator(".capture-quickviews button").count(), 5, "Capture Calendar should expose five decision quick views");
-  assert.equal(await page.locator("[data-capture-gantt-tools] button, [data-capture-gantt-tools] select").count(), 4, "Capture Calendar should expose Gantt navigation and presentation controls");
+  assert.equal(await page.locator("[data-capture-gantt-tools] button, [data-capture-gantt-tools] select").count(), 7, "Capture Calendar should expose Gantt navigation, window, and presentation controls");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Capture Calendar should default to fifty timeline rows");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count(), 48, "The default twelve-year Gantt should expose quarterly guides");
   const captureBars = await page.locator("[data-capture-timeline] .capture-timeline__bar").evaluateAll((elements) => elements.slice(0, 12).map((element) => ({ height: element.getBoundingClientRect().height, radius: getComputedStyle(element).borderRadius })));
@@ -391,6 +397,13 @@ try {
   await page.getByRole("button", { name: "Ending in 12 months" }).click();
   await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capHorizon") === "ending12");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Near-term quick view should expose reported endpoints");
+  await page.getByRole("button", { name: "Save current view" }).click();
+  assert.equal(await page.locator("[data-capture-saved-views] .capture-saved-views__list > span").count(), 1, "Capture Calendar should save the current analytical view");
+  assert.equal(await page.evaluate(() => JSON.parse(window.localStorage.getItem("dbi:capture-saved-views:v1") || "[]").length), 1, "Saved views should persist in browser storage");
+  await page.locator("[data-capture-filters]").getByRole("button", { name: "Reset" }).click();
+  await page.locator("[data-capture-saved-views] .capture-saved-views__list > span button").first().click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capHorizon") === "ending12");
+  assert.equal(await page.getByLabel("Schedule horizon").inputValue(), "ending12", "Loading a saved view should restore its filters");
   await page.locator("[data-capture-filters]").getByRole("button", { name: "Reset" }).click();
   await page.locator("[data-capture-gantt-tools]").getByLabel("Row density").selectOption("compact");
   assert.ok((await page.locator("[data-capture-timeline] .capture-timeline__row").first().evaluate((element) => element.getBoundingClientRect().height)) <= 45, "Compact Gantt mode should reduce row height to 44px");
@@ -405,6 +418,10 @@ try {
   assert.ok(await page.locator("[data-capture-detail] a").count() >= 2, "Capture details should expose source links");
   await page.waitForSelector("[data-capture-action-history]");
   assert.match(await page.locator("[data-capture-action-history]").innerText(), /20 exact public actions/i, "Capture detail should expose the exact Application Arsenal action history");
+  assert.ok(await page.locator("[data-capture-relations] button").count() > 0, "Capture detail should expose published parent or vehicle relationships where available");
+  await page.getByRole("button", { name: "Add to comparison" }).click();
+  assert.equal(await page.locator("[data-capture-compare] article").count(), 1, "Capture detail should add a stable record to the comparison tray");
+  assert.deepEqual(await page.evaluate(() => JSON.parse(window.localStorage.getItem("dbi:capture-comparison:v1") || "[]")), ["opp_4d78f85a742aeb6f4b59"], "Comparison selection should persist by stable opportunity ID");
   assert.equal(await page.locator("[data-capture-action-chart] svg").count(), 1, "Capture detail should chart cumulative primary-award obligations");
   assert.equal(await page.locator("[data-capture-action-table] tbody tr").count(), 10, "Capture detail should default to a compact ten-action preview");
   await page.getByRole("button", { name: "Show latest 20" }).click();
@@ -419,6 +436,12 @@ try {
   assert.match((await captureDownloadPromise).suggestedFilename(), /capture-calendar-filtered\.csv$/, "Capture export should download the filtered rows");
   await page.locator("[data-capture-filters]").getByRole("button", { name: "Reset" }).click();
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Reset should restore the default timeline rows");
+  const portfolioBar = page.locator("[data-capture-chart='portfolio'] .capture-bar-row").first();
+  const portfolioLabel = await portfolioBar.locator("strong").innerText();
+  await portfolioBar.click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").has("capPortfolio"));
+  assert.equal(await page.locator(".capture-filter").filter({ hasText: /^Portfolio/ }).locator("select").inputValue(), portfolioLabel, "Selecting a portfolio chart bar should drive the Gantt filter");
+  await page.locator("[data-capture-filters]").getByRole("button", { name: "Reset" }).click();
   await page.getByPlaceholder("Program, company, reference, buyer").fill("HQ085823C0001");
   await page.locator("[data-capture-timeline] .capture-timeline__row").click();
   assert.match(await page.locator("[data-capture-action-history]").innerText(), /Newer FPDS action/i, "The TEAMS-Next award should disclose its newer FPDS modification separately from USAspending totals");
@@ -694,11 +717,11 @@ try {
   await mobile.waitForSelector("[data-capture-calendar-page]");
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Capture Calendar should not render budget line filters");
   assert.equal(await mobile.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Mobile Capture Calendar should show the default timeline rows");
-  assert.equal(await mobile.locator("[data-capture-chart]").count(), 12, "Mobile Capture Calendar should expose all linked charts");
+  assert.equal(await mobile.locator("[data-capture-chart]").count(), 13, "Mobile Capture Calendar should expose all linked charts");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Mobile Capture Calendar should keep advanced filters behind disclosure by default");
   await mobile.getByRole("button", { name: "Show 12 more filters" }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 12, "Mobile Capture Calendar should reveal every advanced filter on request");
-  const captureTargets = await mobile.locator("[data-capture-filters] input:visible, [data-capture-filters] select:visible, [data-capture-filters] button:visible, .capture-hero__actions button:visible, [data-capture-gantt-tools] select:visible, [data-capture-gantt-tools] button:visible").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
+  const captureTargets = await mobile.locator("[data-capture-filters] input:visible, [data-capture-filters] select:visible, [data-capture-filters] button:visible, .capture-hero__actions button:visible, [data-capture-gantt-tools] select:visible, [data-capture-gantt-tools] button:visible, [data-capture-saved-views] button:visible, [data-capture-chart] button:visible, [data-capture-matrix] button:not(:disabled):visible").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
   assert.ok(captureTargets.every((height) => height >= 43.5), `Mobile Capture Calendar controls should be 44px: ${captureTargets.join(", ")}`);
   const captureScroller = await mobile.locator("[data-capture-timeline]").evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth, scrollLeft: element.scrollLeft }));
   assert.ok(captureScroller.scrollWidth > captureScroller.clientWidth, "Mobile Capture Calendar should contain its wide Gantt in an internal scroller");
