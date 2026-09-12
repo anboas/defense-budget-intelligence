@@ -1,0 +1,46 @@
+name: Refresh intelligence snapshots
+
+on:
+  schedule:
+    - cron: "17 10 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-intelligence
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      BUDGET_SOURCE_DIR: ${{ runner.temp }}/defense-budget-intelligence/budget
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Refresh official sources
+        run: npm run source:refresh
+      - name: Verify generated site
+        run: npm run lint && npm run build
+      - name: Commit changed snapshots
+        run: |
+          if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json; then
+            echo "No snapshot changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/budget-intelligence.json src/data/source-health.json
+          git commit -m "chore(data): refresh budget intelligence snapshots"
+          git push origin HEAD:main

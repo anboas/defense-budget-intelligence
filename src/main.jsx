@@ -6,7 +6,9 @@ import {
   Building2,
   CalendarClock,
   ChevronDown,
+  Copy,
   Database,
+  Download,
   ExternalLink,
   FileText,
   FileSpreadsheet,
@@ -21,7 +23,6 @@ import {
   Search,
   TrendingUp,
 } from "lucide-react";
-import data from "./data/budget-intelligence.json";
 import sourceHealth from "./data/source-health.json";
 import "./styles.css";
 
@@ -82,7 +83,55 @@ const HASH_ROUTES = {
 
 function tabFromHash(hash = "") {
   const normalized = hash || HASH_ROUTES.overview;
-  return Object.entries(HASH_ROUTES).find(([, route]) => route === normalized)?.[0] || "overview";
+  const routePath = normalized.split("?")[0];
+  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || "overview";
+}
+
+function hashParams() {
+  if (typeof window === "undefined") return new URLSearchParams();
+  return new URLSearchParams(window.location.hash.split("?")[1] || "");
+}
+
+function stateFromHash(defaults) {
+  const params = hashParams();
+  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, params.get(key) ?? fallback]));
+}
+
+function replaceHashState(nextState, defaults) {
+  const route = (window.location.hash || HASH_ROUTES.overview).split("?")[0];
+  const params = hashParams();
+  for (const [key, value] of Object.entries(nextState)) {
+    if (value === defaults[key] || value === "" || value == null) params.delete(key);
+    else params.set(key, value);
+  }
+  const query = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
+}
+
+function useUrlState(defaults) {
+  const [stableDefaults] = useState(defaults);
+  const [state, setState] = useState(() => stateFromHash(defaults));
+
+  useEffect(() => {
+    const sync = () => setState(stateFromHash(stableDefaults));
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [stableDefaults]);
+
+  function update(next) {
+    setState((current) => {
+      const resolved = typeof next === "function" ? next(current) : next;
+      replaceHashState(resolved, stableDefaults);
+      return resolved;
+    });
+  }
+
+  return [state, update];
+}
+
+function useUrlSelection(defaultValue) {
+  const [selection, setSelection] = useUrlState({ selected: defaultValue });
+  return [selection.selected, (selected) => setSelection({ selected })];
 }
 
 function useBudgetRoute() {
@@ -112,6 +161,103 @@ function useBudgetRoute() {
   return [activeTab, openTab];
 }
 
+function csvCell(value) {
+  const normalized = value && typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function downloadRows(rows, filename, format) {
+  const safeRows = rows || [];
+  let body;
+  let type;
+  if (format === "json") {
+    body = JSON.stringify(safeRows, null, 2);
+    type = "application/json";
+  } else {
+    const columns = [...new Set(safeRows.flatMap((row) => Object.keys(row || {})))];
+    body = [columns.map(csvCell).join(","), ...safeRows.map((row) => columns.map((column) => csvCell(row?.[column])).join(","))].join("\n");
+    type = "text/csv";
+  }
+  const url = URL.createObjectURL(new Blob([body], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${filename}.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value);
+  const field = document.createElement("textarea");
+  field.value = value;
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  document.execCommand("copy");
+  field.remove();
+}
+
+function AnalysisActions({ rows = [], filename = "budget-analysis", copyValue = "", copyLabel = "Copy view" }) {
+  const [message, setMessage] = useState("");
+  async function handleCopy() {
+    await copyText(copyValue || window.location.href);
+    setMessage("Copied");
+    window.setTimeout(() => setMessage(""), 1600);
+  }
+  return (
+    <div className="analysis-actions" data-analysis-actions>
+      <button type="button" onClick={handleCopy}><Copy size={14} aria-hidden="true" />{copyLabel}</button>
+      <button type="button" onClick={() => downloadRows(rows, filename, "csv")} disabled={!rows.length}><Download size={14} aria-hidden="true" />CSV</button>
+      <button type="button" onClick={() => downloadRows(rows, filename, "json")} disabled={!rows.length}><Download size={14} aria-hidden="true" />JSON</button>
+      <span role="status" aria-live="polite">{message}</span>
+    </div>
+  );
+}
+
+function MobileDisclosure({ expanded, onToggle, label }) {
+  return (
+    <button
+      type="button"
+      className="mobile-disclosure-toggle"
+      aria-expanded={expanded}
+      onClick={() => onToggle(!expanded)}
+    >
+      {expanded ? `Show less ${label}` : `Show full ${label}`}
+    </button>
+  );
+}
+
+function freshnessState(timestamp, maxAgeDays) {
+  if (!timestamp) return { label: "Unavailable", tone: "unavailable" };
+  const ageDays = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 86400000);
+  return ageDays <= maxAgeDays
+    ? { label: "Current", tone: "current", ageDays }
+    : { label: "Review", tone: "stale", ageDays };
+}
+
+function FreshnessStrip() {
+  const layers = [
+    { id: "budget", label: "Budget books", at: data.metadata.generatedAt, maxAgeDays: 400 },
+    { id: "awards", label: "Award execution", at: EXECUTION_COVERAGE.cachedAt, maxAgeDays: 14 },
+    { id: "health", label: "Source health", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
+  ];
+  return (
+    <section className="freshness-strip" aria-label="Data freshness" data-freshness-strip>
+      {layers.map((layer) => {
+        const state = freshnessState(layer.at, layer.maxAgeDays);
+        return (
+          <span key={layer.id} className={`freshness-chip freshness-chip--${state.tone}`}>
+            <strong>{layer.label}</strong>
+            <em>{state.label}</em>
+            <small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small>
+          </span>
+        );
+      })}
+    </section>
+  );
+}
+
 const BOOK_COLORS = {
   "M-1": "#005ea2",
   "O-1": "#216e1f",
@@ -127,24 +273,72 @@ const GROUP_LABELS = {
   other: "Other / Reconciliation",
 };
 
-const BOOKS = data.metadata.sources;
-const SIGNALS = data.signals;
-const DATA_INVENTORY = data.metadata.dataInventory;
-const REQUEST_HISTORY = DATA_INVENTORY.requestHistory || [];
-const TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
-const ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
-const STRATEGY = DATA_INVENTORY.strategyAnalytics || {};
-const JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
-const EXECUTION = STRATEGY.executionAnalytics || {};
-const EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
-const AWARD_DRILLDOWN = EXECUTION.awardDrilldown || { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
-const PURSUIT_TIMING = EXECUTION.pursuitTiming || { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
-const CAPTURE_QUEUE = EXECUTION.captureQueue || { summary: {}, stageCounts: [], items: [] };
-const ACCOUNT_PLANS = EXECUTION.accountPlans || { summary: {}, items: [] };
-const CAPABILITY_FIT = EXECUTION.capabilityFit || { summary: {}, items: [] };
-const DECISION_BRIEFS = EXECUTION.decisionBriefs || { summary: {}, items: [] };
-const VISUAL_ANALYTICS = EXECUTION.visualAnalytics || { summary: {}, clusters: [], timingBands: [], heatmapColumns: [], heatmapRows: [] };
-const HYPOTHESES = STRATEGY.pursuitHypotheses || { summary: {}, items: [] };
+let data = null;
+let BOOKS = [];
+let SIGNALS = [];
+let DATA_INVENTORY = {};
+let REQUEST_HISTORY = [];
+let TREND_SUMMARY = {};
+let ANALYTICS = {};
+let STRATEGY = {};
+let JUSTIFICATION_COVERAGE = {};
+let EXECUTION = {};
+let EXECUTION_COVERAGE = {};
+let AWARD_DRILLDOWN = { summary: {}, awards: [], byBuyer: [], byVendor: [], byPsc: [], byNaics: [], byTechnologyArea: [] };
+let PURSUIT_TIMING = { summary: {}, lanes: [], recompeteCandidates: [], byContractType: [], byBuyer: [], byVendor: [] };
+let CAPTURE_QUEUE = { summary: {}, stageCounts: [], items: [] };
+let ACCOUNT_PLANS = { summary: {}, items: [] };
+let CAPABILITY_FIT = { summary: {}, items: [] };
+let DECISION_BRIEFS = { summary: {}, items: [] };
+let VISUAL_ANALYTICS = { summary: {}, clusters: [], timingBands: [], heatmapColumns: [], heatmapRows: [] };
+let HYPOTHESES = { summary: {}, items: [] };
+let strategyReady = false;
+
+const STRATEGY_TAB_IDS = new Set(["strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue", "sources"]);
+
+function hydrateCore(nextData) {
+  data = nextData;
+  BOOKS = data.metadata.sources || [];
+  SIGNALS = data.signals || [];
+  DATA_INVENTORY = data.metadata.dataInventory || {};
+  REQUEST_HISTORY = DATA_INVENTORY.requestHistory || [];
+  TREND_SUMMARY = DATA_INVENTORY.trendSummary || {};
+  ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
+  JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
+  EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || {};
+}
+
+function hydrateStrategy(nextStrategy) {
+  STRATEGY = nextStrategy || {};
+  EXECUTION = STRATEGY.executionAnalytics || {};
+  EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
+  AWARD_DRILLDOWN = EXECUTION.awardDrilldown || AWARD_DRILLDOWN;
+  PURSUIT_TIMING = EXECUTION.pursuitTiming || PURSUIT_TIMING;
+  CAPTURE_QUEUE = EXECUTION.captureQueue || CAPTURE_QUEUE;
+  ACCOUNT_PLANS = EXECUTION.accountPlans || ACCOUNT_PLANS;
+  CAPABILITY_FIT = EXECUTION.capabilityFit || CAPABILITY_FIT;
+  DECISION_BRIEFS = EXECUTION.decisionBriefs || DECISION_BRIEFS;
+  VISUAL_ANALYTICS = EXECUTION.visualAnalytics || VISUAL_ANALYTICS;
+  HYPOTHESES = STRATEGY.pursuitHypotheses || HYPOTHESES;
+  strategyReady = true;
+}
+
+function runtimeDataUrl(filename) {
+  return `${import.meta.env.BASE_URL}data/${filename}`;
+}
+
+async function fetchRuntimeData(filename) {
+  const response = await fetch(runtimeDataUrl(filename));
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return response.json();
+}
+
+let strategyPromise = null;
+function ensureStrategyData() {
+  if (strategyReady) return Promise.resolve();
+  if (!strategyPromise) strategyPromise = fetchRuntimeData("budget-strategy.json").then(hydrateStrategy);
+  return strategyPromise;
+}
 const EMPTY_ROWS = Object.freeze([]);
 
 function money(value, digits = 1) {
@@ -407,7 +601,7 @@ function relatedQueueItemsForRelationship(option, awards) {
 
 function RelationshipMap() {
   const options = useMemo(() => relationshipOptionRows(), []);
-  const [selectedId, setSelectedId] = useState(() => options[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(options[0]?.id || "");
   const selected = options.find((option) => option.id === selectedId) || options[0];
   const awards = useMemo(() => relationshipAwards(selected).sort((a, b) => b.awardAmount - a.awardAmount).slice(0, 80), [selected]);
   const budgetLines = useMemo(() => budgetLinesForRelationship(selected, awards), [selected, awards]);
@@ -576,7 +770,7 @@ function DataVisuals() {
   const timingBands = VISUAL_ANALYTICS.timingBands || EMPTY_ROWS;
   const heatmapColumns = VISUAL_ANALYTICS.heatmapColumns || EMPTY_ROWS;
   const heatmapRows = VISUAL_ANALYTICS.heatmapRows || EMPTY_ROWS;
-  const [selectedId, setSelectedId] = useState(() => clusters[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(clusters[0]?.id || "");
   const selected = clusters.find((cluster) => cluster.id === selectedId) || clusters[0];
   const maxTimingValue = Math.max(...timingBands.map((band) => band.nearTermAwardAmount || 0), 1);
   const maxBudgetValue = Math.max(...clusters.map((cluster) => cluster.budgetFy2027 || 0), 1);
@@ -815,7 +1009,7 @@ function DataVisuals() {
 function DecisionBriefs() {
   const items = DECISION_BRIEFS.items || EMPTY_ROWS;
   const summary = DECISION_BRIEFS.summary || {};
-  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const metrics = selected ? [
     { label: "Brief score", value: selected.score, helper: `${selected.decision} · ${selected.confidenceLabel}` },
@@ -851,6 +1045,15 @@ function DecisionBriefs() {
           </article>
         </div>
       </section>
+
+      {selected ? (
+        <AnalysisActions
+          rows={[selected]}
+          filename={`decision-brief-${selected.id}`}
+          copyLabel="Copy brief"
+          copyValue={`${selected.title}\n${selected.verdict}\n\n${selected.bestNextMove}\n\n${window.location.href}`}
+        />
+      ) : null}
 
       <div className="briefs-shell">
         <aside className="briefs-picker" data-brief-picker>
@@ -992,7 +1195,7 @@ function DecisionBriefs() {
 function AccountPlans() {
   const items = ACCOUNT_PLANS.items || EMPTY_ROWS;
   const summary = ACCOUNT_PLANS.summary || {};
-  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const selectedMetrics = selected ? [
     { label: "Account score", value: selected.score, helper: selected.posture },
@@ -1204,7 +1407,7 @@ function AccountPlans() {
 function CapabilityFit() {
   const items = CAPABILITY_FIT.items || EMPTY_ROWS;
   const summary = CAPABILITY_FIT.summary || {};
-  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const selectedMetrics = selected ? [
     { label: "Fit score", value: selected.score, helper: selected.posture },
@@ -1432,7 +1635,7 @@ function CapabilityFit() {
 function Hypotheses() {
   const items = HYPOTHESES.items || EMPTY_ROWS;
   const summary = HYPOTHESES.summary || {};
-  const [selectedId, setSelectedId] = useState(() => items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const selectedMetricRows = selected ? [
     { label: "Budget signal", value: money(selected.metrics?.budgetFy2027), helper: `${selected.metrics?.budgetRecords || 0} lines · ${pct(selected.metrics?.budgetGrowth || 0)}` },
@@ -1884,13 +2087,14 @@ function Strategy() {
   const trendPeriods = trends.periods || [];
   const recentTotalPeriods = (trends.totalByPeriod || []).slice(-6);
   const maxTrendTotal = Math.max(...recentTotalPeriods.map((period) => period.awardAmount || 0), 1);
-  const [selectedAreaId, setSelectedAreaId] = useState(() => areas[0]?.id || "all");
+  const [selectedAreaId, setSelectedAreaId] = useUrlSelection(areas[0]?.id || "all");
+  const [expanded, setExpanded] = useState(false);
   const selectedArea = areas.find((area) => area.id === selectedAreaId) || areas[0];
   const maxArea = Math.max(...areas.map((area) => area.fy2027), 1);
   const maxClient = Math.max(...intersections.map((lane) => lane.fy2027), 1);
 
   return (
-    <div className="grid strategy-page" data-strategy-page>
+    <div className={`grid strategy-page${expanded ? " is-expanded" : ""}`} data-strategy-page>
       <AnalyticsReadout title="Portfolio Strategy" meta="technology, service, and organization posture" items={STRATEGY.readouts || []} icon={GitBranch} />
 
       <section className="strategy-hero">
@@ -1918,6 +2122,8 @@ function Strategy() {
           </article>
         </div>
       </section>
+
+      <MobileDisclosure expanded={expanded} onToggle={setExpanded} label="strategy evidence" />
 
       <div className="grid grid--sources">
         <Section title="Technology Areas" meta="FY2027 tagged request value" icon={BrainCircuit}>
@@ -2412,7 +2618,7 @@ function awardOptionRows(awards, keyFn) {
 function Awards() {
   const awards = AWARD_DRILLDOWN.awards;
   const summary = AWARD_DRILLDOWN.summary || {};
-  const [filters, setFilters] = useState({ query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" });
+  const [filters, setFilters] = useUrlState({ query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" });
   const areaOptions = useMemo(() => awardOptionRows(awards.flatMap((award) => (award.areaIds || []).map((id, index) => ({ id, label: award.areas?.[index] || id }))), (item) => item), [awards]);
   const buyerOptions = useMemo(() => awardOptionRows(awards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })), [awards]);
   const vendorOptions = useMemo(() => awardOptionRows(awards, (award) => ({ id: award.recipient, label: award.recipient })), [awards]);
@@ -2536,6 +2742,8 @@ function Awards() {
         <Metric label="Largest vendor" value={topVendor[0]?.label || "n/a"} helper={topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards"} tone="orange" />
       </section>
 
+      <AnalysisActions rows={filteredAwards} filename="filtered-awards" />
+
       <div className="grid grid--sources">
         <AwardRollup title="Top Buyers" rows={topBuyer} />
         <AwardRollup title="Top Vendors" rows={topVendor} />
@@ -2553,7 +2761,8 @@ function Pursuits() {
   const lanes = PURSUIT_TIMING.lanes || EMPTY_ROWS;
   const candidates = PURSUIT_TIMING.recompeteCandidates || EMPTY_ROWS;
   const summary = PURSUIT_TIMING.summary || {};
-  const [filters, setFilters] = useState({ query: "", area: "all", buyer: "all", workType: "all", sort: "score" });
+  const [filters, setFilters] = useUrlState({ query: "", area: "all", buyer: "all", workType: "all", sort: "score" });
+  const [expanded, setExpanded] = useState(false);
   const areaOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.areaId, label: lane.area })), [lanes]);
   const buyerOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.buyer, label: lane.buyer })), [lanes]);
   const workTypeOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.workType?.id, label: lane.workType?.label })), [lanes]);
@@ -2607,7 +2816,7 @@ function Pursuits() {
   const topVendor = aggregateAwardsForUi(filteredCandidates, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 1)[0];
 
   return (
-    <div className="grid pursuits-page" data-pursuits-page>
+    <div className={`grid pursuits-page${expanded ? " is-expanded" : ""}`} data-pursuits-page>
       <section className="pursuit-hero">
         <div>
           <span>Execution pursuit timing</span>
@@ -2677,6 +2886,9 @@ function Pursuits() {
         <Metric label="Largest buyer" value={topBuyer?.label || "n/a"} helper={topBuyer ? `${money(topBuyer.awardAmount)} · ${topBuyer.awards} awards` : "No matching candidates"} tone="purple" />
         <Metric label="Largest incumbent" value={topVendor?.label || "n/a"} helper={topVendor ? `${money(topVendor.awardAmount)} · ${topVendor.awards} awards` : "No matching candidates"} tone="orange" />
       </section>
+
+      <AnalysisActions rows={filteredCandidates} filename="pursuit-candidates" />
+      <MobileDisclosure expanded={expanded} onToggle={setExpanded} label="pursuit evidence" />
 
       <Section title="Pursuit Timing Lanes" meta={`${filteredLanes.length.toLocaleString()} matched active buyer-area-work type lanes`} icon={GitBranch}>
         <div className="pursuit-timing-grid" data-pursuit-timing-lanes>
@@ -2821,8 +3033,9 @@ function CaptureQueue() {
   const items = CAPTURE_QUEUE.items || EMPTY_ROWS;
   const summary = CAPTURE_QUEUE.summary || {};
   const stageCounts = CAPTURE_QUEUE.stageCounts || EMPTY_ROWS;
-  const [filters, setFilters] = useState({ query: "", stage: "all", area: "all", buyer: "all", sort: "score" });
-  const [selectedItemId, setSelectedItemId] = useState(() => items[0]?.id || "");
+  const [filters, setFilters] = useUrlState({ query: "", stage: "all", area: "all", buyer: "all", sort: "score" });
+  const [selectedItemId, setSelectedItemId] = useUrlSelection(items[0]?.id || "");
+  const [expanded, setExpanded] = useState(false);
   const stageOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.stage, label: item.stageLabel })), [items]);
   const areaOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.areaId, label: item.area })), [items]);
   const buyerOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.buyer, label: item.buyer })), [items]);
@@ -2853,7 +3066,7 @@ function CaptureQueue() {
   const selectedItem = filteredItems.find((item) => item.id === selectedItemId) || filteredItems[0];
 
   return (
-    <div className="grid capture-page" data-capture-queue-page>
+    <div className={`grid capture-page${expanded ? " is-expanded" : ""}`} data-capture-queue-page>
       <section className="capture-hero">
         <div>
           <span>Pursuit cockpit</span>
@@ -2926,6 +3139,9 @@ function CaptureQueue() {
           </article>
         ))}
       </div>
+
+      <AnalysisActions rows={filteredItems} filename="capture-queue" />
+      <MobileDisclosure expanded={expanded} onToggle={setExpanded} label="cockpit evidence" />
 
       <LaneBrief item={selectedItem} />
 
@@ -3188,9 +3404,10 @@ function Sources() {
   const sourceDiagnostics = DATA_INVENTORY.sourceDiagnostics || [];
   const healthSources = sourceHealth.sources || [];
   const healthTotals = sourceHealth.totals || {};
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="grid">
+    <div className={`grid source-page${expanded ? " is-expanded" : ""}`} data-source-page>
       <section className="source-hero">
         <div>
           <span>Source Governance</span>
@@ -3216,6 +3433,8 @@ function Sources() {
           </article>
         </div>
       </section>
+
+      <MobileDisclosure expanded={expanded} onToggle={setExpanded} label="source evidence" />
 
       <div className="source-metrics">
         <Metric label="Official publisher" value="OUSD(C)" helper={DATA_INVENTORY.sourcePackage} />
@@ -3785,7 +4004,9 @@ function Sources() {
 function App() {
   const [activeTab, setActiveTab] = useBudgetRoute();
   const [isSecondaryNavOpen, setSecondaryNavOpen] = useState(false);
-  const [filters, setFilters] = useState({ query: "", book: "all", group: "all", signal: "all", org: "all" });
+  const [filters, setFilters] = useUrlState({ query: "", book: "all", group: "all", signal: "all", org: "all" });
+  const [strategyRevision, setStrategyRevision] = useState(0);
+  const [strategyError, setStrategyError] = useState("");
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
@@ -3793,6 +4014,22 @@ function App() {
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
   const activeSecondaryTab = SECONDARY_TABS.find((tab) => tab.id === activeTab);
   const showBudgetControls = !["sources", "trends", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const needsStrategy = STRATEGY_TAB_IDS.has(activeTab);
+
+  useEffect(() => {
+    document.title = `${activeTitle} · Defense Budget & Spend Intelligence`;
+  }, [activeTitle]);
+
+  useEffect(() => {
+    if (!needsStrategy || strategyReady) return;
+    let cancelled = false;
+    ensureStrategyData()
+      .then(() => { if (!cancelled) setStrategyRevision((value) => value + 1); })
+      .catch((error) => { if (!cancelled) setStrategyError(error.message); });
+    return () => { cancelled = true; };
+  }, [needsStrategy]);
+
+  void strategyRevision;
 
   function openBudgetSurface(tabId) {
     setSecondaryNavOpen(false);
@@ -3803,22 +4040,21 @@ function App() {
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
       <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
         <div className="if-product-header__inner masthead__inner">
-          <button
-            type="button"
+          <a
+            href={HASH_ROUTES.overview}
             className="if-brand masthead__brand if-product-header__brand"
             data-home-link
             aria-label="Go to Budget & Spend overview"
             title="Go to Budget & Spend overview"
-            onClick={() => openBudgetSurface("overview")}
           >
             <span className="if-brand__mark masthead__mark" aria-hidden="true">
               <BarChart3 size={18} strokeWidth={2.4} />
             </span>
             <span className="masthead__copy">
               <span className="if-product-header__eyebrow">Defense Budget & Spend Intelligence</span>
-              <span className="if-product-header__title" data-active-page-title>{activeTitle}</span>
+              <h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1>
             </span>
-          </button>
+          </a>
           <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend intelligence sections">
             {PRIMARY_TABS.map((tab) => {
               const Icon = tab.icon;
@@ -3905,6 +4141,9 @@ function App() {
           ))}
         </div>
 
+        <p className="sr-only" role="status" aria-live="polite">{activeTitle} view loaded. {records.length.toLocaleString()} budget records match the current filters.</p>
+        <FreshnessStrip />
+
         {showBudgetControls ? (
           <>
             <FilterShell filters={filters} setFilters={setFilters} />
@@ -3915,29 +4154,70 @@ function App() {
               <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
               <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
             </section>
+            <AnalysisActions rows={records} filename={`${activeTab}-budget-records`} />
           </>
         ) : null}
 
-        {activeTab === "overview" ? <Overview records={records} /> : null}
+        {needsStrategy && !strategyReady ? (
+          <section className="runtime-state" data-strategy-loading role="status">
+            <RefreshCcw size={18} aria-hidden="true" />
+            <div><strong>{strategyError ? "Decision data unavailable" : "Loading decision data"}</strong><p>{strategyError || "The selected evidence surface is loading on demand."}</p></div>
+          </section>
+        ) : null}
+
+        {!needsStrategy && activeTab === "overview" ? <Overview records={records} /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
-        {activeTab === "strategy" ? <Strategy /> : null}
-        {activeTab === "briefs" ? <DecisionBriefs /> : null}
-        {activeTab === "visuals" ? <DataVisuals /> : null}
-        {activeTab === "hypotheses" ? <Hypotheses /> : null}
-        {activeTab === "accounts" ? <AccountPlans /> : null}
-        {activeTab === "fit" ? <CapabilityFit /> : null}
-        {activeTab === "relationships" ? <RelationshipMap /> : null}
-        {activeTab === "awards" ? <Awards /> : null}
-        {activeTab === "pursuits" ? <Pursuits /> : null}
-        {activeTab === "queue" ? <CaptureQueue /> : null}
+        {strategyReady && activeTab === "strategy" ? <Strategy /> : null}
+        {strategyReady && activeTab === "briefs" ? <DecisionBriefs /> : null}
+        {strategyReady && activeTab === "visuals" ? <DataVisuals /> : null}
+        {strategyReady && activeTab === "hypotheses" ? <Hypotheses /> : null}
+        {strategyReady && activeTab === "accounts" ? <AccountPlans /> : null}
+        {strategyReady && activeTab === "fit" ? <CapabilityFit /> : null}
+        {strategyReady && activeTab === "relationships" ? <RelationshipMap /> : null}
+        {strategyReady && activeTab === "awards" ? <Awards /> : null}
+        {strategyReady && activeTab === "pursuits" ? <Pursuits /> : null}
+        {strategyReady && activeTab === "queue" ? <CaptureQueue /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
         {activeTab === "drilldown" ? <Drilldown records={records} /> : null}
-        {activeTab === "sources" ? <Sources /> : null}
+        {strategyReady && activeTab === "sources" ? <Sources /> : null}
       </div>
     </main>
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+function RuntimeApp() {
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchRuntimeData("budget-core.json")
+      .then((nextData) => {
+        if (cancelled) return;
+        hydrateCore(nextData);
+        setStatus("ready");
+      })
+      .catch((runtimeError) => {
+        if (cancelled) return;
+        setError(runtimeError.message);
+        setStatus("error");
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (status !== "ready") {
+    return (
+      <main className="runtime-loading" data-runtime-loading role="status">
+        <BarChart3 size={24} aria-hidden="true" />
+        <h1>{status === "error" ? "Budget data unavailable" : "Loading Budget & Spend Intelligence"}</h1>
+        <p>{status === "error" ? error : "Loading the current budget request dataset."}</p>
+      </main>
+    );
+  }
+
+  return <App />;
+}
+
+createRoot(document.getElementById("root")).render(<RuntimeApp />);
