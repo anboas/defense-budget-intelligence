@@ -136,9 +136,32 @@ function escapeCsv(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
 
-function downloadCsv(records) {
-  const fields = ["id", "portfolio", "mode", "title", "party", "reference", "context", "lifecycleStatus", "evidenceTier", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "corroborationFinding"];
-  const csv = [fields.join(","), ...records.map((record) => fields.map((field) => escapeCsv(record[field])).join(","))].join("\n");
+function downloadCsv(records, metadata) {
+  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "context", "lifecycleStatus", "evidenceTier", "validationStatus", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsActionCount", "primarySourceUrl", "fpdsSourceUrl"];
+  const rows = records.map((record) => ({
+    snapshotAsOf: metadata.asOf,
+    viewUrl: window.location.href,
+    opportunityId: record.opportunityId,
+    ganttAlias: record.id,
+    portfolio: record.portfolio,
+    mode: record.mode,
+    title: record.title,
+    party: record.party,
+    reference: record.reference,
+    context: record.context,
+    lifecycleStatus: record.lifecycleStatus,
+    evidenceTier: record.evidenceTier,
+    validationStatus: record.validationStatus,
+    start: record.start,
+    currentEnd: record.currentEnd,
+    potentialEnd: record.potentialEnd,
+    obligatedAmount: record.obligatedAmount,
+    potentialAmount: record.potentialAmount,
+    fpdsActionCount: record.transactionSummary?.actions || 0,
+    primarySourceUrl: record.sourceUrls?.[0] || "",
+    fpdsSourceUrl: record.sourceUrls?.find((url) => url.includes("fpds.gov")) || "",
+  }));
+  const csv = [fields.join(","), ...rows.map((record) => fields.map((field) => escapeCsv(record[field])).join(","))].join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -176,7 +199,101 @@ function SummaryMetric({ label: metricLabel, value, helper, tone = "blue" }) {
   );
 }
 
-function DetailPanel({ record, liveAward, onClose }) {
+function signedMoney(value) {
+  const amount = Number(value || 0);
+  if (!amount) return "$0";
+  return `${amount > 0 ? "+" : "−"}${formatMoney(Math.abs(amount))}`;
+}
+
+function downloadActionsCsv(record, actions) {
+  const fields = ["opportunityId", "ganttAlias", "piid", "parentPiid", "modification", "transactionNumber", "signed", "direction", "obligationDelta", "potentialDelta", "obligationsTotal", "potentialTotal", "performanceStart", "currentEnd", "potentialEnd", "supportingInstrument", "vendor", "uei", "description"];
+  const rows = actions.map((action) => ({ opportunityId: record.opportunityId, ganttAlias: record.id, ...action }));
+  const csv = [fields.join(","), ...rows.map((row) => fields.map((field) => escapeCsv(row[field])).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${record.reference || record.id}-fpds-actions.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function ActionTrend({ actions }) {
+  const points = actions
+    .filter((action) => !action.supportingInstrument && action.signed && action.obligationsTotal != null)
+    .sort((left, right) => left.signed.localeCompare(right.signed) || left.actionId.localeCompare(right.actionId));
+  if (points.length < 2) return <p className="capture-empty">No primary-award cumulative series is available.</p>;
+  const width = 760;
+  const height = 190;
+  const inset = { top: 18, right: 16, bottom: 28, left: 64 };
+  const minimum = Math.min(0, ...points.map((point) => point.obligationsTotal));
+  const maximum = Math.max(...points.map((point) => point.obligationsTotal), 1);
+  const timeMinimum = Date.parse(`${points[0].signed}T00:00:00Z`);
+  const timeMaximum = Date.parse(`${points.at(-1).signed}T00:00:00Z`);
+  const x = (date) => inset.left + ((Date.parse(`${date}T00:00:00Z`) - timeMinimum) / Math.max(timeMaximum - timeMinimum, 1)) * (width - inset.left - inset.right);
+  const y = (value) => inset.top + (1 - ((value - minimum) / Math.max(maximum - minimum, 1))) * (height - inset.top - inset.bottom);
+  const path = points.map((point, index) => `${index ? "L" : "M"}${x(point.signed).toFixed(1)},${y(point.obligationsTotal).toFixed(1)}`).join(" ");
+  return (
+    <div className="capture-action-trend" data-capture-action-chart>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Cumulative primary-award FPDS obligations from ${formatDate(points[0].signed)} through ${formatDate(points.at(-1).signed)}`}>
+        <line x1={inset.left} x2={width - inset.right} y1={y(minimum)} y2={y(minimum)} />
+        <path d={path} />
+        <circle cx={x(points.at(-1).signed)} cy={y(points.at(-1).obligationsTotal)} r="4" />
+        <text x={inset.left} y={height - 8}>{points[0].signed.slice(0, 4)}</text>
+        <text x={width - inset.right} y={height - 8} textAnchor="end">{points.at(-1).signed.slice(0, 4)}</text>
+        <text x={inset.left - 8} y={y(maximum) + 4} textAnchor="end">{formatMoney(maximum)}</text>
+        <text x={inset.left - 8} y={y(minimum) + 4} textAnchor="end">{minimum ? formatMoney(minimum) : "$0"}</text>
+      </svg>
+    </div>
+  );
+}
+
+function AwardActionHistory({ record, actions, state, onRetry }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!record.transactionSummary?.actions) return null;
+  if (state === "loading") return <section className="capture-action-history" data-capture-actions-loading role="status">Loading exact FPDS action history…</section>;
+  if (state === "error") return <section className="capture-action-history" role="alert">Action history could not be loaded. <button type="button" onClick={onRetry}>Retry</button></section>;
+  const recent = [...actions].sort((left, right) => (right.signed || "").localeCompare(left.signed || "") || right.actionId.localeCompare(left.actionId)).slice(0, 24);
+  const visible = expanded ? recent : recent.slice(0, 10);
+  return (
+    <section className="capture-action-history" data-capture-action-history>
+      <div className="capture-action-history__heading">
+        <div><strong>FPDS modification and transaction history</strong><small>{record.transactionSummary.actions.toLocaleString()} exact public actions across {record.transactionSummary.instruments} instrument{record.transactionSummary.instruments === 1 ? "" : "s"}</small></div>
+        <span>{formatDate(record.transactionSummary.firstSigned)} to {formatDate(record.transactionSummary.lastSigned)}</span>
+      </div>
+      <div className="capture-action-stats">
+        <article><span>Primary net obligations</span><strong>{formatMoney(record.transactionSummary.primaryNetObligations)}</strong></article>
+        <article><span>Funding actions</span><strong>{record.transactionSummary.fundingActions.toLocaleString()}</strong></article>
+        <article><span>Deobligations</span><strong>{record.transactionSummary.deobligationActions.toLocaleString()}</strong></article>
+        <article><span>Supporting actions</span><strong>{record.transactionSummary.supportingActions.toLocaleString()}</strong></article>
+      </div>
+      <ActionTrend actions={actions} />
+      {record.corroborationStatus === "newer_fpds_action" ? (
+        <p className="capture-action-discrepancy"><strong>Newer FPDS action:</strong> FPDS includes a later public modification than the current USAspending transaction set. USAspending values above remain primary; the FPDS totals are shown separately.</p>
+      ) : null}
+      <div className="capture-action-table" data-capture-action-table>
+        <table>
+          <thead><tr><th>Signed</th><th>PIID / modification</th><th>Action</th><th>Obligation change</th><th>Cumulative obligations</th><th>Reported end</th><th>Description</th></tr></thead>
+          <tbody>{visible.map((action) => <tr key={action.actionId}>
+            <td>{formatDate(action.signed)}</td>
+            <td><strong>{action.piid}</strong><small>{action.modification || "Base"} · txn {action.transactionNumber || "0"}{action.supportingInstrument ? " · supporting" : ""}</small></td>
+            <td><span className={`capture-action-direction capture-action-direction--${action.direction}`}>{label(action.direction)}</span></td>
+            <td className={action.obligationDelta < 0 ? "is-negative" : action.obligationDelta > 0 ? "is-positive" : ""}>{signedMoney(action.obligationDelta)}</td>
+            <td>{formatMoney(action.obligationsTotal)}</td>
+            <td>{formatDate(action.currentEnd)}</td>
+            <td>{action.description || "Not published"}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <div className="capture-action-history__actions">
+        {recent.length > 10 ? <button type="button" onClick={() => setExpanded((value) => !value)}>{expanded ? "Show recent 10" : `Show latest ${recent.length}`}</button> : null}
+        <button type="button" onClick={() => downloadActionsCsv(record, actions)}><Download size={14} />Export all {actions.length.toLocaleString()} actions</button>
+      </div>
+      <small className="capture-action-history__limit">Showing {visible.length} of {actions.length.toLocaleString()} actions. The chart uses every primary-award action; the CSV includes the full exact history.</small>
+    </section>
+  );
+}
+
+function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose }) {
   if (!record) return null;
   return (
     <aside className="capture-detail" data-capture-detail aria-label={`${record.title} evidence details`}>
@@ -191,7 +308,8 @@ function DetailPanel({ record, liveAward, onClose }) {
         <article><span>Company / sponsor</span><strong>{liveAward?.recipient || record.party}</strong><small>{liveAward ? "Current award analytics match" : "Source record"}</small></article>
         <article><span>Reference</span><strong>{record.reference || "Not published"}</strong><small>{record.context}</small></article>
         <article><span>Reported term</span><strong>{compactDate(record.start)} to {compactDate(record.currentEnd)}</strong><small>Potential through {compactDate(record.potentialEnd)}</small></article>
-        <article><span>Money</span><strong>{formatMoney(liveAward?.awardAmountDollars || record.obligatedAmount)}</strong><small>Potential / high {formatMoney(record.potentialAmount || record.valueHigh)}</small></article>
+        <article><span>USAspending money</span><strong>{formatMoney(liveAward?.awardAmountDollars || record.obligatedAmount)}</strong><small>Potential / high {formatMoney(record.potentialAmount || record.valueHigh)}</small></article>
+        <article><span>FPDS public action sum</span><strong>{formatMoney(record.fpdsObligatedAmount)}</strong><small>Potential {formatMoney(record.fpdsPotentialAmount)}</small></article>
       </div>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
       {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
@@ -206,6 +324,7 @@ function DetailPanel({ record, liveAward, onClose }) {
           <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>
         ))}
       </div>
+      <AwardActionHistory key={record.opportunityId} record={record} actions={actions} state={actionState} onRetry={onRetryActions} />
     </aside>
   );
 }
@@ -252,7 +371,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect }) 
           {years.map((year) => <span key={year}>{year}</span>)}
         </div>
         {records.map((record) => (
-          <button key={record.id} type="button" className={`capture-timeline__row${selectedId === record.id ? " is-selected" : ""}`} onClick={() => onSelect(record.id)}>
+          <button key={record.opportunityId} type="button" className={`capture-timeline__row${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)}>
             <span className="capture-timeline__label">
               <b>{record.id}</b>
               <strong>{record.title}</strong>
@@ -298,7 +417,10 @@ function LifecycleMatrix({ records, portfolios }) {
 
 export default function CaptureCalendar({ dataset, awards = [] }) {
   const [filters, setFilters] = useCaptureFilters();
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
+  const [actionDataset, setActionDataset] = useState(null);
+  const [actionState, setActionState] = useState("idle");
+  const [actionLoadAttempt, setActionLoadAttempt] = useState(0);
   const records = useMemo(() => dataset.records || [], [dataset]);
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
   const timelineEndYear = Math.max(Number(filters.capFrom), Number(filters.capTo));
@@ -331,14 +453,60 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   }, [enriched, filters, timelineEndYear, timelineStartYear]);
 
   const visible = filtered.slice(0, filters.capRows === "all" ? filtered.length : Number(filters.capRows));
-  const selected = enriched.find((record) => record.id === selectedId) || null;
+  const selected = enriched.find((record) => record.opportunityId === selectedId) || null;
   const selectedLiveAward = selected ? awardMap.get(String(selected.reference || "").toUpperCase()) : null;
+  const selectedActions = actionDataset?.byOpportunity?.[selectedId] || [];
+  const resolvedActionState = actionDataset ? "ready" : actionState === "error" ? "error" : "loading";
+
+  function setSelectedId(nextId) {
+    setSelectedIdState(nextId);
+    const [route] = window.location.hash.split("?");
+    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    if (nextId) params.set("capRecord", nextId);
+    else params.delete("capRecord");
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
+  }
+
+  useEffect(() => {
+    const sync = () => setSelectedIdState(new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId || selected) return;
+    const timer = window.setTimeout(() => setSelectedId(""), 0);
+    return () => window.clearTimeout(timer);
+  }, [selected, selectedId]);
+
+  useEffect(() => {
+    if (!selected?.transactionSummary?.actions || actionDataset) return;
+    let cancelled = false;
+    fetch(`${import.meta.env.BASE_URL}data/capture-transactions.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Transaction payload returned ${response.status}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (payload.metadata?.actionCount !== dataset.metadata.coverage.fpdsActions) throw new Error("Transaction payload coverage mismatch");
+        if (!cancelled) {
+          setActionDataset(payload);
+          setActionState("ready");
+        }
+      })
+      .catch(() => { if (!cancelled) setActionState("error"); });
+    return () => { cancelled = true; };
+  }, [actionDataset, actionLoadAttempt, dataset.metadata.coverage.fpdsActions, selected]);
   const totals = filtered.reduce((summary, record) => ({
     obligated: summary.obligated + Number(record.liveAward?.awardAmountDollars || record.obligatedAmount || 0),
     potential: summary.potential + Number(record.potentialAmount || record.valueHigh || 0),
     matched: summary.matched + Number(Boolean(record.liveAward)),
     sourced: summary.sourced + Number(record.sourceUrls.length > 0),
-  }), { obligated: 0, potential: 0, matched: 0, sourced: 0 });
+    actions: summary.actions + Number(record.transactionSummary?.actions || 0),
+    fundingActions: summary.fundingActions + Number(record.transactionSummary?.fundingActions || 0),
+    deobligationActions: summary.deobligationActions + Number(record.transactionSummary?.deobligationActions || 0),
+  }), { obligated: 0, potential: 0, matched: 0, sourced: 0, actions: 0, fundingActions: 0, deobligationActions: 0 });
 
   const portfolioRows = [...new Map(portfolios.map((portfolio) => [portfolio, { id: portfolio, label: portfolio, value: filtered.filter((record) => record.portfolio === portfolio).length }])).values()].filter((row) => row.value).sort((a, b) => b.value - a.value).slice(0, 10);
   const partyRows = [...new Set(filtered.map((record) => record.party))].map((party) => {
@@ -355,6 +523,15 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     ...year,
     value: filtered.reduce((sum, record) => sum + record.fiscalValues.filter((item) => item.fiscalYear === Number(year.id)).reduce((yearSum, item) => yearSum + item.amount, 0), 0),
   })).filter((row) => row.value);
+  const actionRows = yearRows.map((year) => ({
+    ...year,
+    value: filtered.reduce((sum, record) => sum + (record.fiscalActions || []).filter((item) => item.fiscalYear === Number(year.id)).reduce((yearSum, item) => yearSum + item.actions, 0), 0),
+  })).filter((row) => row.value);
+  const actionDirectionRows = [
+    { id: "funding", label: "Funding actions", value: totals.fundingActions },
+    { id: "deobligation", label: "Deobligations", value: totals.deobligationActions },
+    { id: "non-obligation", label: "Non-obligation actions", value: Math.max(totals.actions - totals.fundingActions - totals.deobligationActions, 0) },
+  ].filter((row) => row.value);
   const moneyRows = [
     { id: "obligated", label: "Observed obligations", value: totals.obligated, helper: "Refreshed award amount where matched" },
     { id: "potential", label: "Potential / published high", value: totals.potential, helper: "Potential values and opportunity range highs" },
@@ -372,13 +549,13 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         </div>
         <div className="capture-hero__actions">
           <button type="button" onClick={copyLink}><Copy size={15} />Copy filtered link</button>
-          <button type="button" onClick={() => downloadCsv(filtered)}><Download size={15} />Export {filtered.length.toLocaleString()} rows</button>
+          <button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)}><Download size={15} />Export {filtered.length.toLocaleString()} rows</button>
         </div>
       </section>
 
       <section className="capture-trust" aria-label="Capture calendar data boundary">
         <ShieldCheck size={18} aria-hidden="true" />
-        <span><strong>{dataset.metadata.coverage.publicRows} public records</strong> from {dataset.metadata.sourcePdf.pages} source pages, checked against {dataset.metadata.corroboration.rows} corroboration rows. {dataset.metadata.coverage.excludedPrivateRows} internal campaign rows are excluded.</span>
+        <span><strong>{dataset.metadata.coverage.publicRows} public records</strong> with {dataset.metadata.coverage.normalizedEvents.toLocaleString()} normalized events and {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions across {dataset.metadata.coverage.uniqueAwards} awards. {dataset.metadata.coverage.excludedPrivateRows} internal campaign rows are excluded.</span>
       </section>
 
       <section className="capture-filters" data-capture-filters>
@@ -401,9 +578,10 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <SummaryMetric label="Observed obligations" value={formatMoney(totals.obligated)} helper={`${totals.matched} refreshed award-bundle matches`} tone="green" />
         <SummaryMetric label="Potential / high value" value={formatMoney(totals.potential)} helper="Reported potential values and published ranges" tone="purple" />
         <SummaryMetric label="Evidence coverage" value={`${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`} helper={`${totals.sourced} rows with external sources`} tone="orange" />
+        <SummaryMetric label="FPDS actions" value={totals.actions.toLocaleString()} helper={`${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`} tone="green" />
       </section>
 
-      <DetailPanel record={selected} liveAward={selectedLiveAward} onClose={() => setSelectedId("")} />
+      <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} />
 
       <section className="capture-section">
         <div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Performance and acquisition Gantt</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · select a row for evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone</span></div>
@@ -415,8 +593,10 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Observed company obligations</strong><small>Top companies using refreshed award values where matched</small></span></div></div><BarList rows={partyRows} format={formatMoney} testId="company-money" /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Calendar density</strong><small>Records touching each visible year</small></span></div></div><BarList rows={yearRows} testId="year-density" /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><CheckCircle2 size={18} /><span><strong>Evidence distribution</strong><small>Corroboration strength across filtered records</small></span></div></div><BarList rows={evidenceRows} testId="evidence" /></section>
-        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Reported annual net obligations</strong><small>Fiscal values printed in the source Gantt</small></span></div></div>{fiscalRows.length ? <BarList rows={fiscalRows} format={formatMoney} testId="fiscal-obligations" /> : <p className="capture-empty">No annual obligation series match these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>FPDS annual net obligations</strong><small>Primary-award action deltas by fiscal year</small></span></div></div>{fiscalRows.length ? <BarList rows={fiscalRows} format={formatMoney} testId="fiscal-obligations" /> : <p className="capture-empty">No annual obligation series match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Value posture</strong><small>Observed obligations compared with potential / published high values</small></span></div></div><BarList rows={moneyRows} format={formatMoney} testId="value-posture" /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>FPDS action volume</strong><small>Primary-award transaction actions by fiscal year</small></span></div></div>{actionRows.length ? <BarList rows={actionRows} testId="action-volume" /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
+        <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Funding action direction</strong><small>Derived only from signed obligation deltas</small></span></div></div>{actionDirectionRows.length ? <BarList rows={actionDirectionRows} testId="action-direction" /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
       </div>
 
       <section className="capture-section">
@@ -426,7 +606,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
 
       <section className="capture-methodology">
         <ChevronDown size={17} aria-hidden="true" />
-        <div><strong>Interpretation and publication boundary</strong><p>Dates describe reported performance or published acquisition events. They do not establish recompete dates. Dollar values are award-level obligations, reported potential values, or published opportunity ranges. Internal campaign fields and proposed work packages are excluded from this public runtime.</p></div>
+        <div><strong>Interpretation and publication boundary</strong><p>Dates describe reported performance or published acquisition events. They do not establish recompete dates. USAspending award totals remain primary. FPDS actions provide exact modification history and are never added to USAspending totals. Supporting-instrument actions remain separately labeled. Internal campaign fields, target mappings, access labels, and proposed work packages are excluded from this public runtime.</p></div>
       </section>
     </div>
   );

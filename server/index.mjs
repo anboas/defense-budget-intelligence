@@ -12,6 +12,7 @@ import {
 } from "./snapshots.mjs";
 import { registerStateRoutes } from "./state-routes.mjs";
 import { importAccountSpine, registerAccountSpineRoutes } from "./account-spine.mjs";
+import { importCaptureCalendar, registerCaptureCalendarRoutes } from "./capture-calendar.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIST_ROOT = resolve(ROOT, "dist");
@@ -30,6 +31,8 @@ const imported = await importCommittedSnapshots(pool);
 app.log.info({ imported }, "committed intelligence snapshots synchronized");
 const accountSpine = await importAccountSpine(pool);
 app.log.info({ accountSpine }, "normalized account spine synchronized");
+const captureCalendar = await importCaptureCalendar(pool);
+app.log.info({ captureCalendar }, "normalized capture calendar synchronized");
 
 app.addHook("onSend", async (_request, reply) => {
   reply.header("x-content-type-options", "nosniff");
@@ -62,6 +65,7 @@ app.get("/api/v1/snapshots/:kind/current", async (request, reply) => {
 
 await registerStateRoutes(app, pool);
 await registerAccountSpineRoutes(app, pool);
+await registerCaptureCalendarRoutes(app, pool);
 
 await access(resolve(DIST_ROOT, "index.html"));
 await app.register(fastifyStatic, {
