@@ -15,7 +15,7 @@ import { importAccountSpine, registerAccountSpineRoutes } from "./account-spine.
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIST_ROOT = resolve(ROOT, "dist");
-const SNAPSHOT_KINDS = new Set(["budget", "source_health", "refresh_delta", "account_spine"]);
+const SNAPSHOT_KINDS = new Set(["budget", "source_health", "refresh_delta", "account_spine", "capture_calendar"]);
 const app = Fastify({
   logger: {
     level: process.env.LOG_LEVEL || "info",

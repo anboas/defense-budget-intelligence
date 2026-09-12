@@ -26,7 +26,7 @@ Defense Budget & Spend Intelligence follows the same product-family conventions 
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
 - Product header shell with active page title, flat top navigation, and stable `if-*` / `data-*` hooks for future framework alignment.
-- Hash-route deep links for each major surface: Overview, Trends, Strategy, Hypotheses, Relationships, Awards, Pursuits, Cockpit, Services, Fourth Estate, AI / Autonomy, Drilldown, Data Sources, and Changes.
+- Hash-route deep links for each major surface: Overview, Trends, Strategy, Hypotheses, Relationships, Awards, Pursuits, Capture Calendar, Cockpit, Services, Fourth Estate, AI / Autonomy, Drilldown, Data Sources, and Changes.
 - Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local watched views, and deterministic snapshot deltas.
 - CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
 - Peer navigation to Budget & Spend, Opportunity, and Policy as complementary intelligence platforms with separate product boundaries.
@@ -39,7 +39,7 @@ The repository also includes a production-neutral container stack for the next p
 - one Node container serves the compiled Vite application and a versioned `/api/v1` surface;
 - PostgreSQL stores immutable intelligence snapshots and mutable analyst state;
 - idempotent SQL migrations run under a PostgreSQL advisory lock at application startup;
-- committed budget, source-health, refresh-delta, and account-spine snapshots are imported by content hash;
+- committed budget, source-health, refresh-delta, account-spine, and capture-calendar snapshots are imported by content hash;
 - public snapshot reads are available immediately;
 - saved-view writes are disabled by default and require both `ENABLE_WRITES=true` and a host-injected `APP_WRITE_TOKEN`.
 
@@ -60,7 +60,7 @@ Container health contracts:
 - `GET /api/healthz` confirms the process is running.
 - `GET /api/readyz` confirms PostgreSQL is reachable.
 - `GET /api/v1/snapshots` lists the latest snapshot metadata by layer.
-- `GET /api/v1/snapshots/:kind/current` returns the current persisted payload for `budget`, `source_health`, `refresh_delta`, or `account_spine`.
+- `GET /api/v1/snapshots/:kind/current` returns the current persisted payload for `budget`, `source_health`, `refresh_delta`, `account_spine`, or `capture_calendar`.
 - `GET /api/v1/account-spine` returns normalized account-spine coverage.
 - `GET /api/v1/account-spine/accounts` returns current federal-account execution measures.
 - `GET /api/v1/account-spine/accounts/:code` returns source-linked observations by TAFS for one federal account.
@@ -90,6 +90,12 @@ Justification source refresh uses `npm run source:justifications`, which caches 
 Execution source refresh uses `npm run source:usaspending`, which caches top DoD contract award results by technology-area keyword search under `BUDGET_SOURCE_DIR/usaspending/FY2025-FY2026`.
 
 Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI. It also enriches the 250 highest-value awards in the current technology sample through USAspending's award-account endpoint, preserving those transaction-funded federal-account edges as exact while making the sample boundary explicit.
+
+Capture Calendar reconstructs positioned contract-performance and acquisition-window rows from a source Gantt PDF, reconciles every row to the corroboration CSV, and merges exact award references with the current award analytics bundle. The public runtime excludes internal campaign fields and proposed work packages. Rebuild it from authorized local source artifacts with:
+
+```bash
+node scripts/build-capture-calendar.mjs --pdf /path/to/gantt.pdf --csv /path/to/corroboration.csv
+```
 
 GitHub Actions checks all source layers every Monday. Budget books are annual source material, while award execution and source health are reviewed weekly. The site labels each layer independently as current, review-needed, or unavailable rather than presenting one misleading global freshness date.
 

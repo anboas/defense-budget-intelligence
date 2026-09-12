@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
 import refreshDelta from "./data/refresh-delta.json";
+import CaptureCalendar from "./CaptureCalendar.jsx";
 import "./styles.css";
 
 const TABS = [
@@ -43,6 +44,7 @@ const TABS = [
   { id: "relationships", label: "Relationships", icon: Network },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "pursuits", label: "Pursuits", icon: CalendarClock },
+  { id: "calendar", label: "Capture Calendar", icon: CalendarClock },
   { id: "queue", label: "Cockpit", icon: ListChecks },
   { id: "services", label: "Services", icon: Building2 },
   { id: "fourth", label: "Fourth Estate", icon: Layers },
@@ -56,7 +58,7 @@ const PRIMARY_TAB_IDS = ["overview", "lifecycle", "visuals", "briefs", "queue"];
 const PRIMARY_TABS = PRIMARY_TAB_IDS.map((tabId) => TABS.find((tab) => tab.id === tabId)).filter(Boolean);
 const SECONDARY_NAV_GROUPS = [
   { label: "Decision Surfaces", tabIds: ["strategy", "relationships", "hypotheses", "accounts", "fit"] },
-  { label: "Evidence Surfaces", tabIds: ["trends", "awards", "pursuits", "changes"] },
+  { label: "Evidence Surfaces", tabIds: ["trends", "awards", "pursuits", "calendar", "changes"] },
   { label: "Portfolio Slices", tabIds: ["services", "fourth", "ai", "drilldown", "sources"] },
 ];
 const SECONDARY_TABS = TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
@@ -80,6 +82,7 @@ const HASH_ROUTES = {
   relationships: "#/budget-spend/relationships",
   awards: "#/budget-spend/awards",
   pursuits: "#/budget-spend/pursuits",
+  calendar: "#/budget-spend/capture-calendar",
   queue: "#/budget-spend/queue",
   services: "#/budget-spend/services",
   fourth: "#/budget-spend/fourth-estate",
@@ -419,8 +422,10 @@ let HYPOTHESES = { summary: {}, items: [] };
 let strategyReady = false;
 let ACCOUNT_SPINE = null;
 let accountSpineReady = false;
+let CAPTURE_CALENDAR = null;
+let captureCalendarReady = false;
 
-const STRATEGY_TAB_IDS = new Set(["strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue", "sources"]);
+const STRATEGY_TAB_IDS = new Set(["strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "calendar", "queue", "sources"]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -476,6 +481,18 @@ function ensureAccountSpineData() {
     });
   }
   return accountSpinePromise;
+}
+
+let captureCalendarPromise = null;
+function ensureCaptureCalendarData() {
+  if (captureCalendarReady) return Promise.resolve();
+  if (!captureCalendarPromise) {
+    captureCalendarPromise = fetchRuntimeData("capture-calendar.json").then((payload) => {
+      CAPTURE_CALENDAR = payload;
+      captureCalendarReady = true;
+    });
+  }
+  return captureCalendarPromise;
 }
 const EMPTY_ROWS = Object.freeze([]);
 
@@ -4529,6 +4546,9 @@ function App() {
   const [accountSpineRevision, setAccountSpineRevision] = useState(0);
   const [accountSpineLoadAttempt, setAccountSpineLoadAttempt] = useState(0);
   const [accountSpineError, setAccountSpineError] = useState("");
+  const [captureCalendarRevision, setCaptureCalendarRevision] = useState(0);
+  const [captureCalendarLoadAttempt, setCaptureCalendarLoadAttempt] = useState(0);
+  const [captureCalendarError, setCaptureCalendarError] = useState("");
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
@@ -4537,9 +4557,10 @@ function App() {
   const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
   const activeSecondaryTab = SECONDARY_TABS.find((tab) => tab.id === activeTab);
-  const showBudgetControls = !["sources", "changes", "trends", "lifecycle", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "changes", "trends", "lifecycle", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "calendar", "queue"].includes(activeTab);
   const needsStrategy = STRATEGY_TAB_IDS.has(activeTab);
   const needsAccountSpine = activeTab === "lifecycle";
+  const needsCaptureCalendar = activeTab === "calendar";
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Intelligence`;
@@ -4564,8 +4585,18 @@ function App() {
     return () => { cancelled = true; };
   }, [needsAccountSpine, accountSpineLoadAttempt]);
 
+  useEffect(() => {
+    if (!needsCaptureCalendar || captureCalendarReady) return;
+    let cancelled = false;
+    ensureCaptureCalendarData()
+      .then(() => { if (!cancelled) { setCaptureCalendarError(""); setCaptureCalendarRevision((value) => value + 1); } })
+      .catch((error) => { if (!cancelled) { captureCalendarPromise = null; setCaptureCalendarError(error.message); } });
+    return () => { cancelled = true; };
+  }, [needsCaptureCalendar, captureCalendarLoadAttempt]);
+
   void strategyRevision;
   void accountSpineRevision;
+  void captureCalendarRevision;
 
   function openBudgetSurface(tabId) {
     setSecondaryNavOpen(false);
@@ -4725,6 +4756,17 @@ function App() {
           </section>
         ) : null}
 
+        {needsCaptureCalendar && !captureCalendarReady ? (
+          <section className="runtime-state" data-capture-calendar-loading role="status">
+            <RefreshCcw size={18} aria-hidden="true" />
+            <div>
+              <strong>{captureCalendarError ? "Capture calendar unavailable" : "Loading capture calendar"}</strong>
+              <p>{captureCalendarError || "Public contract-performance and acquisition-window evidence is loading on demand."}</p>
+              {captureCalendarError ? <button type="button" onClick={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }}>Retry</button> : null}
+            </div>
+          </section>
+        ) : null}
+
         {!needsStrategy && activeTab === "overview" ? <Overview records={records} /> : null}
         {accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
@@ -4737,6 +4779,7 @@ function App() {
         {strategyReady && activeTab === "relationships" ? <RelationshipMap /> : null}
         {strategyReady && activeTab === "awards" ? <Awards /> : null}
         {strategyReady && activeTab === "pursuits" ? <Pursuits /> : null}
+        {strategyReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} /> : null}
         {strategyReady && activeTab === "queue" ? <CaptureQueue /> : null}
         {activeTab === "services" ? <Services records={records} /> : null}
         {activeTab === "fourth" ? <FourthEstate records={records} /> : null}

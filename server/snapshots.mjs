@@ -10,12 +10,14 @@ const SNAPSHOT_FILES = [
   { kind: "source_health", path: "src/data/source-health.json" },
   { kind: "refresh_delta", path: "src/data/refresh-delta.json" },
   { kind: "account_spine", path: "src/data/account-spine.json" },
+  { kind: "capture_calendar", path: "src/data/capture-calendar.json" },
 ];
 
 function capturedAt(kind, payload) {
   if (kind === "budget") return payload.metadata?.generatedAt;
   if (kind === "source_health") return payload.metadata?.checkedAt;
   if (kind === "account_spine") return payload.metadata?.generatedAt;
+  if (kind === "capture_calendar") return payload.metadata?.generatedAt;
   return payload.metadata?.generatedAt;
 }
 
@@ -23,6 +25,7 @@ function recordCount(kind, payload) {
   if (kind === "budget") return payload.records?.length || 0;
   if (kind === "source_health") return payload.sources?.length || 0;
   if (kind === "account_spine") return payload.accounts?.length || 0;
+  if (kind === "capture_calendar") return payload.records?.length || 0;
   return ["budgetChanges", "awardChanges", "queueChanges", "sourceChanges"]
     .reduce((total, key) => total + (payload[key]?.length || 0), 0);
 }

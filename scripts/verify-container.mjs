@@ -34,13 +34,18 @@ assert.equal(readiness.status, "ready");
 const metadata = await (await get("api/v1/snapshots")).json();
 assert.deepEqual(
   metadata.snapshots.map((snapshot) => snapshot.kind).sort(),
-  ["account_spine", "budget", "refresh_delta", "source_health"],
+  ["account_spine", "budget", "capture_calendar", "refresh_delta", "source_health"],
 );
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "budget")?.record_count > 3000);
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "account_spine")?.record_count > 100);
+assert.equal(metadata.snapshots.find((snapshot) => snapshot.kind === "capture_calendar")?.record_count, 198);
 
 const budget = await (await get("api/v1/snapshots/budget/current")).json();
 assert.ok(budget.payload?.records?.length > 3000);
+const captureCalendar = await (await get("api/v1/snapshots/capture_calendar/current")).json();
+assert.equal(captureCalendar.payload?.records?.length, 198);
+assert.equal(captureCalendar.payload?.metadata?.coverage?.excludedPrivateRows, 45);
+assert.ok(captureCalendar.payload.records.every((record) => !("statusLabel" in record) && !("note" in record)), "capture snapshot should exclude internal parser fields");
 
 const spine = await (await get("api/v1/account-spine")).json();
 assert.ok(spine.federal_accounts > 100, "account spine should contain Department federal accounts");
@@ -73,5 +78,5 @@ const writesDisabled = await fetch(new URL("api/v1/saved-views", baseUrl));
 assert.equal(writesDisabled.status, 503, "persistent writes should be disabled by default");
 
 console.log(
-  `Verified container API: snapshots=${metadata.snapshots.length} budget_records=${budget.payload.records.length} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
+  `Verified container API: snapshots=${metadata.snapshots.length} budget_records=${budget.payload.records.length} capture_records=${captureCalendar.payload.records.length} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
 );
