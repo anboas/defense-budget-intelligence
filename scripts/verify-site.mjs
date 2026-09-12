@@ -66,6 +66,7 @@ try {
   assert.equal(await page.locator("[data-freshness-strip] .freshness-chip").count(), 3, "App should expose per-layer freshness");
   assert.equal(await page.locator("[data-analysis-actions] button").count(), 4, "Budget views should expose copy, watch, and export actions");
   await page.getByPlaceholder("Search line items, accounts, organizations").fill("artificial intelligence");
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("query") === "artificial intelligence");
   assert.match(new URL(page.url()).hash, /query=artificial\+intelligence/, "Filter state should be encoded in the shareable URL");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
