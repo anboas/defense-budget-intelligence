@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "generatedAt": "2026-09-12T13:49:54.117Z",
-    "previousSnapshotAt": "2026-09-12T13:00:02.942Z",
-    "currentSnapshotAt": "2026-09-12T13:03:01.567Z",
+    "generatedAt": "2026-09-12T13:58:12.864Z",
+    "previousSnapshotAt": "2026-09-12T13:03:01.567Z",
+    "currentSnapshotAt": "2026-09-12T13:53:54.667Z",
     "methodology": "Deterministic comparison of consecutive committed budget, award, queue, and source-health snapshots. Missing prior snapshots produce an explicit baseline rather than inferred changes.",
     "displayLimits": {
       "budgetChanges": 100,
