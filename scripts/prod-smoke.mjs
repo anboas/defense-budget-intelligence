@@ -72,11 +72,29 @@ for (const assetUrl of [...assets.scripts, ...assets.stylesheets]) {
   assert.equal(assetResponse.status, 200, `Asset should return 200: ${assetUrl} got ${statusText(assetResponse)}`);
 }
 
+const scriptResponse = await fetchWithCheck(assets.scripts[0]);
+assert.equal(scriptResponse.status, 200, `JavaScript bundle should return 200, got ${statusText(scriptResponse)}`);
+const scriptBytes = (await scriptResponse.arrayBuffer()).byteLength;
+assert.ok(scriptBytes < 500000, `Initial JavaScript bundle should stay below 500KB, got ${scriptBytes}`);
+
+const coreResponse = await fetchWithCheck(new URL("data/budget-core.json", baseUrl));
+assert.equal(coreResponse.status, 200, `Core runtime data should return 200, got ${statusText(coreResponse)}`);
+const core = await coreResponse.json();
+assert.ok(core.records?.length > 3000, "Core runtime data should contain budget records");
+assert.equal(core.metadata?.dataInventory?.strategyAnalytics, undefined, "Core runtime data should exclude deferred strategy evidence");
+
+const strategyResponse = await fetchWithCheck(new URL("data/budget-strategy.json", baseUrl));
+assert.equal(strategyResponse.status, 200, `Strategy runtime data should return 200, got ${statusText(strategyResponse)}`);
+const strategy = await strategyResponse.json();
+assert.ok(strategy.technologyAreas?.length > 0, "Deferred strategy data should contain technology areas");
+
 console.log(
   [
     `Verified production smoke for ${baseUrl.href}`,
     "homepage=200",
     `js_assets=${assets.scripts.length}`,
     `css_assets=${assets.stylesheets.length}`,
+    `js_bytes=${scriptBytes}`,
+    `budget_records=${core.records.length}`,
   ].join(" "),
 );
