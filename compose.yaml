@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 12
     ports:
-      - "8080:8080"
+      - "${BUDGET_APP_PORT:-8080}:8080"
     restart: unless-stopped
 
 volumes:

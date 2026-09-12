@@ -116,6 +116,8 @@ try {
   assert.equal(await page.locator("[data-lifecycle-waterfall] .lifecycle-stage").count(), 4, "Money Flow should compare four distinct money stages");
   assert.ok(await page.locator("[data-account-flow] article").count() >= 1, "Money Flow should expose exact TAFS account flows");
   assert.equal(await page.locator("[data-burn-curve] svg").count(), 1, "Money Flow should expose a department obligation burn curve");
+  assert.ok(await page.locator("[data-fiscal-history] article").count() >= 5, "Money Flow should compare at least five fiscal years");
+  assert.equal(await page.locator("[data-award-account-flow]").count(), 1, "Money Flow should reserve an exact award-account flow surface");
   assert.ok(await page.locator("[data-lifecycle-evidence] a").count() >= 2, "Money Flow should expose source evidence");
   assert.ok(await page.locator("#lifecycle-account option").count() > 100, "Money Flow should expose the Department federal-account inventory");
   const lifecycleText = await page.locator("[data-account-spine-page]").innerText();
@@ -511,6 +513,7 @@ try {
   const lifecycleSelectBox = await mobile.locator("#lifecycle-account").boundingBox();
   assert.ok(lifecycleSelectBox && lifecycleSelectBox.height >= 44, "Mobile account selection should meet the 44px target");
   assert.ok(await mobile.locator("[data-account-flow] article").count() >= 1, "Mobile Money Flow should show exact TAFS flows");
+  assert.ok(await mobile.locator("[data-fiscal-history] article").count() >= 5, "Mobile Money Flow should show fiscal-year comparisons");
   const mobileLifecycleOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(mobileLifecycleOverflow <= 2, `Money Flow mobile overflow ${mobileLifecycleOverflow}`);
   await clickBudgetSurface(mobile, /Trends/);

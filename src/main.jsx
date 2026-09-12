@@ -925,7 +925,21 @@ function LifecycleStage({ label, amount, maximum, source, relationship = "exact"
 
 function AccountLifecycle() {
   const accounts = ACCOUNT_SPINE?.accounts || EMPTY_ROWS;
-  const complete = accounts.filter((account) => account.requestMatch && account.exactApportionmentJoinCount > 0);
+  const awardFlows = ACCOUNT_SPINE?.awardFlows || EMPTY_ROWS;
+  const awardCounts = useMemo(() => {
+    const counts = new Map();
+    for (const award of awardFlows) {
+      for (const account of award.accounts || []) {
+        counts.set(account.federalAccountCode, (counts.get(account.federalAccountCode) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [awardFlows]);
+  const complete = accounts.filter((account) => (
+    account.requestMatch
+    && account.exactApportionmentJoinCount > 0
+    && (!awardCounts.size || awardCounts.has(account.federalAccountCode))
+  ));
   const defaultAccount = complete[0] || accounts[0];
   const [selectedCode, setSelectedCode] = useUrlSelection(
     defaultAccount?.federalAccountCode || "",
@@ -949,8 +963,24 @@ function AccountLifecycle() {
     row.obligatedAmount || 0,
     row.outlayedAmount || 0,
   ]), 1);
+  const selectedAwardRows = awardFlows
+    .flatMap((award) => (award.accounts || [])
+      .filter((account) => account.federalAccountCode === selected?.federalAccountCode)
+      .map((account) => ({ ...award, accountObligatedAmount: account.obligatedAmount })))
+    .sort((left, right) => right.accountObligatedAmount - left.accountObligatedAmount)
+    .slice(0, 10);
+  const maxAwardObligation = Math.max(...selectedAwardRows.map((award) => award.accountObligatedAmount), 1);
   const burn = (ACCOUNT_SPINE?.agencyBurn?.agency_data_by_year || [])
     .find((row) => Number(row.fiscal_year) === Number(fiscalYear));
+  const historyRows = (ACCOUNT_SPINE?.agencyBurn?.agency_data_by_year || [])
+    .filter((row) => Number(row.fiscal_year) <= Number(fiscalYear))
+    .sort((left, right) => Number(left.fiscal_year) - Number(right.fiscal_year))
+    .slice(-5);
+  const historyMaximum = Math.max(...historyRows.flatMap((row) => [
+    Number(row.agency_budgetary_resources || 0),
+    Number(row.agency_total_obligated || 0),
+    Number(row.agency_total_outlayed || 0),
+  ]), 1);
   const burnRows = burn?.agency_obligation_by_period || EMPTY_ROWS;
   const latestBurnIsPartial = burnRows.length > 1
     && Number(burnRows.at(-1)?.obligated || 0) < Math.max(...burnRows.slice(0, -1).map((row) => Number(row.obligated || 0)));
@@ -977,6 +1007,8 @@ function AccountLifecycle() {
           <article><strong>{coverage.exactTafsJoins || 0}</strong><span>exact TAFS joins</span></article>
           <article><strong>{Math.round((coverage.exactTafsJoinRate || 0) * 100)}%</strong><span>TAFS coverage</span></article>
           <article><strong>{coverage.requestMatchedAccounts || 0}</strong><span>request matches</span></article>
+          <article><strong>{coverage.exactAwardAccountLinks || 0}</strong><span>exact award links</span></article>
+          <article><strong>{coverage.awardsMappedToCurrentAccounts || 0}</strong><span>awards mapped</span></article>
         </div>
       </section>
 
@@ -1025,6 +1057,51 @@ function AccountLifecycle() {
         </div>
       </Section>
 
+      <Section title="Award-to-Account Flow" meta={`${selectedAwardRows.length} highest-obligation sampled awards shown`} icon={GitBranch}>
+        <div className="award-account-flow" data-award-account-flow>
+          {selectedAwardRows.length ? selectedAwardRows.map((award) => (
+            <article key={award.awardId}>
+              <header>
+                <div>
+                  <strong>{award.recipient}</strong>
+                  <span>{award.awardNumber} · {award.areas?.map((area) => area.label).join(", ")}</span>
+                </div>
+                <a href={award.sourceUrl} target="_blank" rel="noreferrer">Award source <ExternalLink size={13} aria-hidden="true" /></a>
+              </header>
+              <p>{award.description || "No public award description."}</p>
+              <div>
+                <span>Obligations from {selected.federalAccountCode}</span>
+                <i aria-hidden="true"><b style={{ width: `${Math.max(2, (award.accountObligatedAmount / maxAwardObligation) * 100)}%` }} /></i>
+                <strong>{federalMoney(award.accountObligatedAmount)}</strong>
+              </div>
+            </article>
+          )) : <p className="empty-state">No exact award-account links are present for this account in the ranked technology-award sample.</p>}
+        </div>
+        <p className="lifecycle-caveat">Each edge is reported by USAspending from award transactions to a federal account. The set is limited to the {coverage.sampledAwards || 0} highest-value awards in the current technology sample and is not a complete account ledger.</p>
+      </Section>
+
+      <Section title="Five-Year Execution History" meta="Department totals as published by USAspending" icon={BarChart3}>
+        <div className="fiscal-history" data-fiscal-history>
+          {historyRows.map((row) => (
+            <article key={row.fiscal_year}>
+              <header><strong>FY{row.fiscal_year}</strong><span>{percent((Number(row.agency_total_obligated || 0) / Math.max(Number(row.agency_budgetary_resources || 0), 1)) * 100)} obligated</span></header>
+              {[
+                ["Resources", row.agency_budgetary_resources, "blue"],
+                ["Obligations", row.agency_total_obligated, "purple"],
+                ["Outlays", row.agency_total_outlayed, "green"],
+              ].map(([label, amount, tone]) => (
+                <div key={label}>
+                  <span>{label}</span>
+                  <i aria-hidden="true"><b className={`tone-${tone}`} style={{ width: `${Math.max(1, (Number(amount || 0) / historyMaximum) * 100)}%` }} /></i>
+                  <strong>{federalMoney(amount)}</strong>
+                </div>
+              ))}
+            </article>
+          ))}
+        </div>
+        <p className="lifecycle-caveat">Fiscal years are separate published snapshots. Current-year values may be partial or revised and should not be treated as final year-end totals.</p>
+      </Section>
+
       <Section title="Department Obligation Burn" meta={`FY${fiscalYear} reported agency obligations by period`} icon={TrendingUp}>
         <div className="burn-chart" data-burn-curve>
           <svg viewBox="0 0 600 210" role="img" aria-labelledby="burn-title burn-description">
@@ -1049,11 +1126,12 @@ function AccountLifecycle() {
         <div className="lifecycle-evidence" data-lifecycle-evidence>
           <a href={selected.sourceUrl} target="_blank" rel="noreferrer"><strong>USAspending federal account</strong><span>Resources, obligations, outlays, and Treasury accounts</span></a>
           <a href={ACCOUNT_SPINE.metadata.sources.ombApportionments} target="_blank" rel="noreferrer"><strong>OMB approved apportionments</strong><span>Latest public FY{fiscalYear} document by TAFS</span></a>
+          <a href={ACCOUNT_SPINE.metadata.sources.usaSpendingAwardAccounts} target="_blank" rel="noreferrer"><strong>USAspending award accounts</strong><span>Exact transaction-funded federal-account links for sampled awards</span></a>
           {(selected.requestMatch?.sourceUrls || []).slice(0, 2).map((url) => (
             <a key={url} href={url} target="_blank" rel="noreferrer"><strong>DoW budget request</strong><span>Exact normalized account-title match, labeled derived</span></a>
           ))}
         </div>
-        <p className="lifecycle-caveat">No budget-line-to-award link is asserted on this surface. The financial spine ends at the federal and Treasury-account levels until a public identifier supports a deeper edge.</p>
+        <p className="lifecycle-caveat">Award-to-account edges are exact. No budget-line or program-element-to-award link is asserted; that last-mile relationship remains unlinked until a public identifier or cited source supports it.</p>
       </Section>
     </div>
   );

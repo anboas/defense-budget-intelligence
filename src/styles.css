@@ -5694,6 +5694,123 @@ td .dot {
 .tafs-flow__bars .tone-green { background: var(--green); }
 .tafs-flow__bars .tone-blue { background: var(--brand); }
 
+.award-account-flow,
+.fiscal-history {
+  display: grid;
+  gap: 10px;
+}
+
+.award-account-flow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.award-account-flow article,
+.fiscal-history article {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  background: var(--surface-muted);
+}
+
+.award-account-flow article > header,
+.fiscal-history article > header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.award-account-flow article > header > div {
+  display: grid;
+  min-width: 0;
+}
+
+.award-account-flow article > header strong,
+.award-account-flow article > header span,
+.award-account-flow article > p {
+  overflow-wrap: anywhere;
+}
+
+.award-account-flow article > header span,
+.award-account-flow article > p,
+.fiscal-history article > header span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.award-account-flow article > header a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  align-items: center;
+  min-height: 32px;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.award-account-flow article > p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.award-account-flow article > div,
+.fiscal-history article > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(100px, 1fr) 88px;
+  gap: 8px;
+  align-items: center;
+}
+
+.award-account-flow article > div span,
+.award-account-flow article > div strong,
+.fiscal-history article > div span,
+.fiscal-history article > div strong {
+  font-size: 11px;
+}
+
+.award-account-flow article > div strong,
+.fiscal-history article > div strong {
+  text-align: right;
+}
+
+.award-account-flow article > div i,
+.fiscal-history article > div i {
+  display: block;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf5;
+}
+
+.award-account-flow article > div i > b,
+.fiscal-history article > div i > b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.fiscal-history {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.fiscal-history article > div {
+  grid-template-columns: 72px minmax(44px, 1fr) 76px;
+}
+
+.fiscal-history .tone-purple { background: var(--purple); }
+.fiscal-history .tone-green { background: var(--green); }
+.fiscal-history .tone-blue { background: var(--brand); }
+
 .burn-chart {
   display: grid;
   gap: 8px;
@@ -6634,6 +6751,11 @@ td .dot {
   .lifecycle-hero,
   .lifecycle-account-picker,
   .lifecycle-waterfall {
+    grid-template-columns: 1fr;
+  }
+
+  .award-account-flow,
+  .fiscal-history {
     grid-template-columns: 1fr;
   }
 

@@ -5,13 +5,22 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const BUDGET_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const OUT_FILE = resolve(ROOT, "src/data/account-spine.json");
+const DEFAULT_SOURCE_DIR = process.env.HOME
+  ? resolve(process.env.HOME, "clawd/artifacts/defense-budget-intelligence/budget")
+  : resolve(ROOT, "../artifacts/defense-budget-intelligence/budget");
+const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
+const AWARD_SOURCE_FILE = process.env.USASPENDING_AWARD_FILE
+  || resolve(SOURCE_DIR, "usaspending/FY2025-FY2026/technology-awards.json");
 const OMB_INDEX_URL = "https://apportionment-public.max.gov/";
 const USASPENDING_API = "https://api.usaspending.gov/api/v2";
+const USASPENDING_AWARD_ACCOUNTS_URL = `${USASPENDING_API}/awards/accounts/`;
 const today = new Date();
 const defaultFiscalYear = today.getUTCMonth() >= 9 ? today.getUTCFullYear() + 1 : today.getUTCFullYear();
 const FISCAL_YEAR = Number(process.env.ACCOUNT_SPINE_FISCAL_YEAR || defaultFiscalYear);
 const AGENCY_CODE = process.env.ACCOUNT_SPINE_AGENCY_CODE || "097";
 const CONCURRENCY = Math.max(1, Number(process.env.ACCOUNT_SPINE_CONCURRENCY || 12));
+const AWARD_ACCOUNT_CONCURRENCY = Math.max(1, Number(process.env.AWARD_ACCOUNT_CONCURRENCY || 4));
+const AWARD_ACCOUNT_LIMIT = Math.max(1, Number(process.env.AWARD_ACCOUNT_LIMIT || 250));
 const USER_AGENT = "defense-budget-intelligence-account-spine/1.0";
 
 function normalizeTitle(value = "") {
@@ -24,16 +33,53 @@ function normalizeTitle(value = "") {
 }
 
 async function fetchText(url, attempt = 1) {
-  const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
-  if (!response.ok) {
-    if (attempt < 3 && response.status >= 500) return fetchText(url, attempt + 1);
-    throw new Error(`${response.status} ${response.statusText}: ${url}`);
+  try {
+    const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+    if (!response.ok) {
+      if (attempt < 6 && (response.status === 429 || response.status >= 500)) {
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, Math.min(8_000, attempt * 750)));
+        return fetchText(url, attempt + 1);
+      }
+      throw new Error(`${response.status} ${response.statusText}: ${url}`);
+    }
+    return response.text();
+  } catch (error) {
+    if (attempt >= 6 || /^\d{3}\s/.test(error.message)) throw error;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, Math.min(8_000, attempt * 750)));
+    return fetchText(url, attempt + 1);
   }
-  return response.text();
 }
 
 async function fetchJson(url) {
   return JSON.parse(await fetchText(url));
+}
+
+async function fetchJsonPost(url, body, attempt = 1) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent": USER_AGENT,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      if (attempt < 8 && (response.status === 429 || response.status >= 500)) {
+        const retryAfter = Number(response.headers.get("retry-after") || 0) * 1000;
+        const backoff = Math.min(10_000, 500 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, Math.max(retryAfter, backoff)));
+        return fetchJsonPost(url, body, attempt + 1);
+      }
+      throw new Error(`${response.status} ${response.statusText}: ${url}`);
+    }
+    return response.json();
+  } catch (error) {
+    if (attempt >= 8 || /^\d{3}\s/.test(error.message)) throw error;
+    const backoff = Math.min(10_000, 500 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, backoff));
+    return fetchJsonPost(url, body, attempt + 1);
+  }
 }
 
 async function mapLimit(items, limit, mapper) {
@@ -148,6 +194,81 @@ async function fetchFederalAccounts() {
   return { accounts: details, failures, agencyBudgetaryResources };
 }
 
+function sampledAwards() {
+  const payload = JSON.parse(readFileSync(AWARD_SOURCE_FILE, "utf8"));
+  const awards = new Map();
+  for (const area of payload.areas || []) {
+    const areaId = area.area?.id || "unclassified";
+    const areaLabel = area.area?.label || "Unclassified technology";
+    for (const raw of area.results || []) {
+      const awardId = raw.generated_internal_id;
+      if (!awardId) continue;
+      const current = awards.get(awardId) || {
+        awardId,
+        awardNumber: String(raw["Award ID"] || ""),
+        recipient: String(raw["Recipient Name"] || "Unspecified recipient").replace(/\s+/g, " ").trim(),
+        description: String(raw.Description || "").replace(/\s+/g, " ").trim(),
+        startDate: raw["Start Date"] || null,
+        endDate: raw["End Date"] || null,
+        awardAmount: Number(raw["Award Amount"] || 0),
+        awardingOffice: raw["Awarding Office"] || null,
+        fundingOffice: raw["Funding Office"] || null,
+        fundingSubAgency: raw["Funding Sub Agency"] || null,
+        areas: new Map(),
+        sourceUrl: `https://www.usaspending.gov/award/${encodeURIComponent(awardId)}/`,
+      };
+      current.areas.set(areaId, areaLabel);
+      awards.set(awardId, current);
+    }
+  }
+  const rankedAwards = [...awards.values()]
+    .sort((left, right) => right.awardAmount - left.awardAmount);
+  return {
+    generatedAt: payload.metadata?.generatedAt || null,
+    methodology: payload.metadata?.methodology || null,
+    availableAwardCount: rankedAwards.length,
+    awards: rankedAwards.slice(0, AWARD_ACCOUNT_LIMIT).map((award) => ({
+      ...award,
+      areas: [...award.areas].map(([id, label]) => ({ id, label })),
+    })),
+  };
+}
+
+async function fetchAwardAccountFlows() {
+  const sample = sampledAwards();
+  const failures = [];
+  const flows = (await mapLimit(sample.awards, AWARD_ACCOUNT_CONCURRENCY, async (award) => {
+    try {
+      const page = await fetchJsonPost(USASPENDING_AWARD_ACCOUNTS_URL, {
+        award_id: award.awardId,
+        page: 1,
+        limit: 100,
+        sort: "total_transaction_obligated_amount",
+        order: "desc",
+      });
+      return {
+        ...award,
+        accounts: (page.results || []).map((account) => ({
+          federalAccountCode: account.federal_account,
+          accountTitle: account.account_title,
+          obligatedAmount: Number(account.total_transaction_obligated_amount || 0),
+          fundingAgencyAbbreviation: account.funding_agency_abbreviation || null,
+          fundingAgencyName: account.funding_agency_name || null,
+          fundingAgencySlug: account.funding_agency_slug || null,
+          relationshipClass: "exact",
+        })),
+      };
+    } catch (error) {
+      failures.push({ awardId: award.awardId, awardNumber: award.awardNumber, error: error.message });
+      return null;
+    }
+  })).filter(Boolean);
+  if (flows.length < Math.floor(sample.awards.length * 0.9)) {
+    throw new Error(`USAspending award-account coverage too low: ${flows.length}/${sample.awards.length}`);
+  }
+  return { ...sample, flows, failures };
+}
+
 function budgetRequests() {
   const payload = JSON.parse(readFileSync(BUDGET_FILE, "utf8"));
   const amountField = `fy${FISCAL_YEAR}`;
@@ -224,6 +345,7 @@ const [omb, usa, request] = await Promise.all([
   fetchFederalAccounts(),
   Promise.resolve(budgetRequests()),
 ]);
+const awardAccounts = await fetchAwardAccountFlows();
 const ombByTas = new Map(omb.documents.map((document) => [document.tasCode, document]));
 const accounts = usa.accounts
   .map((account) => accountStages(account, request, ombByTas))
@@ -235,6 +357,15 @@ const requestedAmount = accounts.reduce((total, account) => total + account.requ
 const apportionedAmount = accounts.reduce((total, account) => total + account.apportionedAmount, 0);
 const obligatedAmount = accounts.reduce((total, account) => total + account.obligatedAmount, 0);
 const outlayedAmount = accounts.reduce((total, account) => total + account.outlayedAmount, 0);
+const exactAwardAccountLinks = awardAccounts.flows.reduce((total, award) => total + award.accounts.length, 0);
+const exactAwardAccountObligations = awardAccounts.flows.reduce(
+  (total, award) => total + award.accounts.reduce((accountTotal, account) => accountTotal + account.obligatedAmount, 0),
+  0,
+);
+const currentAccountCodes = new Set(accounts.map((account) => account.federalAccountCode));
+const awardsMappedToCurrentAccounts = awardAccounts.flows.filter((award) => (
+  award.accounts.some((account) => currentAccountCodes.has(account.federalAccountCode))
+)).length;
 
 const output = {
   metadata: {
@@ -248,6 +379,9 @@ const output = {
       ombApportionments: OMB_INDEX_URL,
       usaSpendingAgencyAccounts: `${USASPENDING_API}/agency/${AGENCY_CODE}/federal_account/`,
       usaSpendingBudgetaryResources: `${USASPENDING_API}/agency/${AGENCY_CODE}/budgetary_resources/`,
+      usaSpendingAwardAccounts: USASPENDING_AWARD_ACCOUNTS_URL,
+      usaSpendingAwardSampleGeneratedAt: awardAccounts.generatedAt,
+      usaSpendingAwardSampleMethodology: awardAccounts.methodology,
       budgetRequestGeneratedAt: request.generatedAt,
     },
     coverage: {
@@ -261,6 +395,12 @@ const output = {
       requestMatchRate: accounts.length ? matchedRequestAccounts / accounts.length : 0,
       ombFailures: omb.failures.length,
       usaSpendingFailures: usa.failures.length,
+      sampledAwards: awardAccounts.awards.length,
+      availableSampledAwards: awardAccounts.availableAwardCount,
+      awardAccountsFetched: awardAccounts.flows.length,
+      exactAwardAccountLinks,
+      awardsMappedToCurrentAccounts,
+      awardAccountFailures: awardAccounts.failures.length,
     },
   },
   summary: {
@@ -268,16 +408,18 @@ const output = {
     apportionedAmount,
     obligatedAmount,
     outlayedAmount,
+    exactAwardAccountObligations,
   },
   agencyBurn: usa.agencyBudgetaryResources,
   accounts,
+  awardFlows: awardAccounts.flows,
   unmatchedApportionments: omb.documents
     .filter((document) => !accounts.some((account) => account.treasuryAccounts.some((row) => row.tasCode === document.tasCode)))
     .map((document) => ({ tasCode: document.tasCode, title: document.accountTitle, approvedAmount: document.approvedAmount, sourceUrl: document.sourceUrl })),
-  failures: { omb: omb.failures, usaSpending: usa.failures },
+  failures: { omb: omb.failures, usaSpending: usa.failures, awardAccounts: awardAccounts.failures },
 };
 
 writeFileSync(OUT_FILE, `${JSON.stringify(output, null, 2)}\n`);
 console.log(
-  `Built FY${FISCAL_YEAR} account spine: ${accounts.length} federal accounts, ${joinedTreasuryAccounts}/${treasuryAccounts} exact TAFS joins, ${matchedRequestAccounts} request matches.`,
+  `Built FY${FISCAL_YEAR} account spine: ${accounts.length} federal accounts, ${joinedTreasuryAccounts}/${treasuryAccounts} exact TAFS joins, ${matchedRequestAccounts} request matches, ${exactAwardAccountLinks} exact award-account links.`,
 );

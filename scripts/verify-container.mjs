@@ -54,6 +54,13 @@ assert.ok(operatingNavy.observations.some((row) => row.amount_type === "apportio
 assert.ok(operatingNavy.observations.some((row) => row.amount_type === "obligated" && row.relationship_class === "exact"));
 assert.ok(operatingNavy.observations.some((row) => row.amount_type === "outlayed" && row.relationship_class === "exact"));
 
+const history = await (await get("api/v1/account-spine/history")).json();
+assert.ok(history.fiscal_years?.length >= 5, "account spine should preserve at least five agency fiscal years");
+assert.ok(history.fiscal_years.every((row) => Number(row.obligated_amount) > 0), "history should expose agency obligations");
+
+const awardFlows = await (await get("api/v1/account-spine/award-flows")).json();
+assert.ok(Number(awardFlows.awards) >= 0, "award flow summary API should return a numeric award count");
+
 const home = await (await get("/")).text();
 assert.match(home, /Defense Budget & Spend Intelligence/);
 

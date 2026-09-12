@@ -43,7 +43,7 @@ The repository also includes a production-neutral container stack for the next p
 - public snapshot reads are available immediately;
 - saved-view writes are disabled by default and require both `ENABLE_WRITES=true` and a host-injected `APP_WRITE_TOKEN`.
 
-The schema includes `intelligence_snapshots`, `source_documents`, `fiscal_accounts`, `fiscal_account_observations`, `refresh_runs`, `saved_views`, `comparison_sets`, and `annotations`. This is an additive migration path: the live Pages sites can remain online while frontend reads move from static JSON to the API route by route.
+The schema includes `intelligence_snapshots`, `source_documents`, `fiscal_accounts`, `fiscal_account_observations`, `federal_awards`, `award_account_observations`, `agency_fiscal_year_observations`, `refresh_runs`, `saved_views`, `comparison_sets`, and `annotations`. This is an additive migration path: the live Pages sites can remain online while frontend reads move from static JSON to the API route by route.
 
 Run the local stack:
 
@@ -64,6 +64,9 @@ Container health contracts:
 - `GET /api/v1/account-spine` returns normalized account-spine coverage.
 - `GET /api/v1/account-spine/accounts` returns current federal-account execution measures.
 - `GET /api/v1/account-spine/accounts/:code` returns source-linked observations by TAFS for one federal account.
+- `GET /api/v1/account-spine/history` returns normalized Department resource, obligation, and outlay history by fiscal year.
+- `GET /api/v1/account-spine/award-flows` returns exact award-account coverage and linked obligations.
+- `GET /api/v1/account-spine/accounts/:code/awards` returns source-linked sampled awards funded by one federal account.
 
 The GitHub Pages workflow treats this stack as a release gate: it builds the images, starts a fresh database, applies migrations, imports snapshots, verifies the API, and only then publishes the static fallback. The public Pages site remains the production surface until a container host and managed Postgres are selected and provisioned.
 
@@ -86,7 +89,7 @@ Justification source refresh uses `npm run source:justifications`, which caches 
 
 Execution source refresh uses `npm run source:usaspending`, which caches top DoD contract award results by technology-area keyword search under `BUDGET_SOURCE_DIR/usaspending/FY2025-FY2026`.
 
-Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI.
+Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI. It also enriches the 250 highest-value awards in the current technology sample through USAspending's award-account endpoint, preserving those transaction-funded federal-account edges as exact while making the sample boundary explicit.
 
 GitHub Actions checks all source layers every Monday. Budget books are annual source material, while award execution and source health are reviewed weekly. The site labels each layer independently as current, review-needed, or unavailable rather than presenting one misleading global freshness date.
 

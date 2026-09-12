@@ -60,6 +60,8 @@ export async function importAccountSpine(pool) {
   const client = await pool.connect();
   let accountCount = 0;
   let observationCount = 0;
+  let awardCount = 0;
+  let awardAccountCount = 0;
   try {
     await client.query("BEGIN");
     const budgetDocumentId = await sourceDocument(client, {
@@ -153,8 +155,103 @@ export async function importAccountSpine(pool) {
         }
       }
     }
+
+    const awardFlows = payload.awardFlows || [];
+    let awardAccountsDocumentId = null;
+    if (awardFlows.length) {
+      awardAccountsDocumentId = await sourceDocument(client, {
+        sourceSystem: "USAspending Award Accounts",
+        sourceIdentifier: `sampled-award-accounts-FY${fiscalYear}`,
+        sourceUri: payload.metadata.sources.usaSpendingAwardAccounts,
+        contentHash: hash(awardFlows),
+        observedAt,
+        metadata: {
+          relationshipClass: "exact",
+          sampledAwards: payload.metadata.coverage.sampledAwards,
+          availableSampledAwards: payload.metadata.coverage.availableSampledAwards,
+        },
+      });
+    }
+    for (const award of awardFlows) {
+      await client.query(
+        `INSERT INTO federal_awards
+          (award_id, award_number, recipient_name, description, start_date, end_date,
+           total_award_amount, source_uri, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+         ON CONFLICT (award_id)
+         DO UPDATE SET award_number = EXCLUDED.award_number,
+                       recipient_name = EXCLUDED.recipient_name,
+                       description = EXCLUDED.description,
+                       start_date = EXCLUDED.start_date,
+                       end_date = EXCLUDED.end_date,
+                       total_award_amount = EXCLUDED.total_award_amount,
+                       source_uri = EXCLUDED.source_uri,
+                       metadata = EXCLUDED.metadata,
+                       updated_at = NOW()`,
+        [
+          award.awardId,
+          award.awardNumber,
+          award.recipient,
+          award.description || "",
+          award.startDate || null,
+          award.endDate || null,
+          award.awardAmount,
+          award.sourceUrl,
+          JSON.stringify({ areas: award.areas || [], fundingOffice: award.fundingOffice, awardingOffice: award.awardingOffice }),
+        ],
+      );
+      awardCount += 1;
+      for (const account of award.accounts || []) {
+        const fiscalAccount = await client.query(
+          `SELECT id FROM fiscal_accounts WHERE federal_account_code = $1`,
+          [account.federalAccountCode],
+        );
+        await client.query(
+          `INSERT INTO award_account_observations
+            (award_id, fiscal_account_id, federal_account_code, account_title, obligated_amount,
+             relationship_class, source_document_id, observed_at, metadata)
+           VALUES ($1, $2, $3, $4, $5, 'exact', $6, $7, $8::jsonb)
+           ON CONFLICT DO NOTHING`,
+          [
+            award.awardId,
+            fiscalAccount.rows[0]?.id || null,
+            account.federalAccountCode,
+            account.accountTitle,
+            account.obligatedAmount,
+            awardAccountsDocumentId,
+            observedAt,
+            JSON.stringify({ fundingAgencyName: account.fundingAgencyName, fundingAgencySlug: account.fundingAgencySlug }),
+          ],
+        );
+        awardAccountCount += 1;
+      }
+    }
+
+    const agencyDocumentId = await sourceDocument(client, {
+      sourceSystem: "USAspending Agency Budgetary Resources",
+      sourceIdentifier: `agency-${payload.metadata.agencyCode}-history-observed-${observedAt}`,
+      sourceUri: payload.metadata.sources.usaSpendingBudgetaryResources,
+      contentHash: hash(payload.agencyBurn || {}),
+      observedAt,
+      metadata: { agencyCode: payload.metadata.agencyCode },
+    });
+    for (const year of payload.agencyBurn?.agency_data_by_year || []) {
+      for (const [amountType, amount] of [
+        ["budgetary_resources", year.agency_budgetary_resources],
+        ["obligated", year.agency_total_obligated],
+        ["outlayed", year.agency_total_outlayed],
+      ]) {
+        await client.query(
+          `INSERT INTO agency_fiscal_year_observations
+            (agency_code, fiscal_year, amount_type, amount, source_document_id, observed_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT DO NOTHING`,
+          [payload.metadata.agencyCode, year.fiscal_year, amountType, Number(amount || 0), agencyDocumentId, observedAt],
+        );
+      }
+    }
     await client.query("COMMIT");
-    return { accounts: accountCount, observations: observationCount, fiscalYear };
+    return { accounts: accountCount, observations: observationCount, awards: awardCount, awardAccounts: awardAccountCount, fiscalYear };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -227,5 +324,68 @@ export async function registerAccountSpineRoutes(app, pool) {
       ORDER BY o.fiscal_year, o.treasury_account_symbol, o.amount_type, o.observed_at DESC, o.id DESC
     `, [account.rows[0].id]);
     return { account: account.rows[0], observations: observations.rows };
+  });
+
+  app.get("/api/v1/account-spine/history", async (request) => {
+    const agencyCode = String(request.query?.agency_code || "097");
+    const result = await pool.query(`
+      WITH latest AS (
+        SELECT DISTINCT ON (agency_code, fiscal_year, amount_type)
+          agency_code, fiscal_year, amount_type, amount, observed_at
+        FROM agency_fiscal_year_observations
+        WHERE agency_code = $1
+        ORDER BY agency_code, fiscal_year, amount_type, observed_at DESC, id DESC
+      )
+      SELECT fiscal_year,
+        MAX(amount) FILTER (WHERE amount_type = 'budgetary_resources') AS budgetary_resources_amount,
+        MAX(amount) FILTER (WHERE amount_type = 'obligated') AS obligated_amount,
+        MAX(amount) FILTER (WHERE amount_type = 'outlayed') AS outlayed_amount,
+        MAX(observed_at) AS observed_at
+      FROM latest
+      GROUP BY fiscal_year
+      ORDER BY fiscal_year
+    `, [agencyCode]);
+    return { agency_code: agencyCode, fiscal_years: result.rows };
+  });
+
+  app.get("/api/v1/account-spine/award-flows", async () => {
+    const result = await pool.query(`
+      WITH latest AS (
+        SELECT DISTINCT ON (award_id, federal_account_code)
+          award_id, federal_account_code, obligated_amount, observed_at
+        FROM award_account_observations
+        ORDER BY award_id, federal_account_code, observed_at DESC, id DESC
+      )
+      SELECT COUNT(DISTINCT award_id)::integer AS awards,
+        COUNT(*)::integer AS exact_account_links,
+        COUNT(DISTINCT federal_account_code)::integer AS federal_accounts,
+        SUM(obligated_amount) AS linked_obligations,
+        MAX(observed_at) AS observed_at
+      FROM latest
+    `);
+    return result.rows[0];
+  });
+
+  app.get("/api/v1/account-spine/accounts/:code/awards", async (request) => {
+    const limit = Math.min(100, Math.max(1, Number(request.query?.limit || 25)));
+    const result = await pool.query(`
+      WITH latest AS (
+        SELECT DISTINCT ON (award_id, federal_account_code)
+          award_id, federal_account_code, account_title, obligated_amount,
+          relationship_class, observed_at, metadata
+        FROM award_account_observations
+        WHERE federal_account_code = $1
+        ORDER BY award_id, federal_account_code, observed_at DESC, id DESC
+      )
+      SELECT l.federal_account_code, l.account_title, l.obligated_amount,
+        l.relationship_class, l.observed_at, l.metadata,
+        a.award_id, a.award_number, a.recipient_name, a.description,
+        a.start_date, a.end_date, a.total_award_amount, a.source_uri, a.metadata AS award_metadata
+      FROM latest l
+      JOIN federal_awards a ON a.award_id = l.award_id
+      ORDER BY l.obligated_amount DESC
+      LIMIT $2
+    `, [request.params.code, limit]);
+    return { federal_account_code: request.params.code, awards: result.rows };
   });
 }
