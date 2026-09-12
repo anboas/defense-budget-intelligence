@@ -102,6 +102,7 @@ Current version depth:
 - Source health checks track current workbook URLs and pipeline-source URLs with status, probe method, response time, and checked timestamp. Refresh with `npm run source:health`.
 - Changes compares consecutive budget, award, capture-queue, and source-health snapshots; build it locally with `npm run data:delta` and `PREVIOUS_GIT_REF` or explicit prior-snapshot file paths.
 - Budget and award tables link each visible record to its official workbook or USAspending record and expose an evidence-detail drawer with source system, snapshot, method, and record identity.
+- The sequenced [Federal Money Lifecycle Roadmap](docs/federal-money-lifecycle-roadmap.md) defines the account-level progression from request through apportionment, execution, procurement, awards, subawards, and active/upcoming work without overstating budget-line-to-contract joins.
 
 ## Commands
 
