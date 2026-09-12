@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BarChart3,
+  Bookmark,
   BrainCircuit,
   Building2,
   CalendarClock,
@@ -20,10 +21,13 @@ import {
   MoreHorizontal,
   Network,
   RefreshCcw,
+  RotateCcw,
   Search,
   TrendingUp,
+  X,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
+import refreshDelta from "./data/refresh-delta.json";
 import "./styles.css";
 
 const TABS = [
@@ -44,13 +48,14 @@ const TABS = [
   { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
   { id: "drilldown", label: "Drilldown", icon: Search },
   { id: "sources", label: "Data Sources", icon: Database },
+  { id: "changes", label: "Changes", icon: RefreshCcw },
 ];
 
 const PRIMARY_TAB_IDS = ["overview", "visuals", "briefs", "queue"];
 const PRIMARY_TABS = PRIMARY_TAB_IDS.map((tabId) => TABS.find((tab) => tab.id === tabId)).filter(Boolean);
 const SECONDARY_NAV_GROUPS = [
   { label: "Decision Surfaces", tabIds: ["strategy", "relationships", "hypotheses", "accounts", "fit"] },
-  { label: "Evidence Surfaces", tabIds: ["trends", "awards", "pursuits"] },
+  { label: "Evidence Surfaces", tabIds: ["trends", "awards", "pursuits", "changes"] },
   { label: "Portfolio Slices", tabIds: ["services", "fourth", "ai", "drilldown", "sources"] },
 ];
 const SECONDARY_TABS = TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
@@ -79,6 +84,7 @@ const HASH_ROUTES = {
   ai: "#/budget-spend/ai-autonomy",
   drilldown: "#/budget-spend/drilldown",
   sources: "#/budget-spend/sources",
+  changes: "#/budget-spend/changes",
 };
 
 function tabFromHash(hash = "") {
@@ -92,9 +98,23 @@ function hashParams() {
   return new URLSearchParams(window.location.hash.split("?")[1] || "");
 }
 
-function stateFromHash(defaults) {
+function normalizeState(candidate, defaults, validators = {}) {
+  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => {
+    const value = candidate[key] ?? fallback;
+    const validator = validators[key];
+    if (!validator) return [key, value];
+    const valid = typeof validator === "function" ? validator(value) : validator.includes(value);
+    return [key, valid ? value : fallback];
+  }));
+}
+
+function stateFromHash(defaults, validators = {}) {
   const params = hashParams();
-  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, params.get(key) ?? fallback]));
+  return normalizeState(
+    Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, params.get(key) ?? fallback])),
+    defaults,
+    validators,
+  );
 }
 
 function replaceHashState(nextState, defaults) {
@@ -108,19 +128,28 @@ function replaceHashState(nextState, defaults) {
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
 }
 
-function useUrlState(defaults) {
+function useUrlState(defaults, validators = {}) {
   const [stableDefaults] = useState(defaults);
-  const [state, setState] = useState(() => stateFromHash(defaults));
+  const [stableValidators] = useState(validators);
+  const [state, setState] = useState(() => stateFromHash(defaults, validators));
 
   useEffect(() => {
-    const sync = () => setState(stateFromHash(stableDefaults));
+    const sync = () => {
+      const raw = Object.fromEntries(Object.entries(stableDefaults).map(([key, fallback]) => [key, hashParams().get(key) ?? fallback]));
+      const normalized = normalizeState(raw, stableDefaults, stableValidators);
+      setState(normalized);
+      if (Object.keys(stableDefaults).some((key) => raw[key] !== normalized[key])) {
+        replaceHashState(normalized, stableDefaults);
+      }
+    };
+    sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
-  }, [stableDefaults]);
+  }, [stableDefaults, stableValidators]);
 
   function update(next) {
     setState((current) => {
-      const resolved = typeof next === "function" ? next(current) : next;
+      const resolved = normalizeState(typeof next === "function" ? next(current) : next, stableDefaults, stableValidators);
       replaceHashState(resolved, stableDefaults);
       return resolved;
     });
@@ -129,8 +158,11 @@ function useUrlState(defaults) {
   return [state, update];
 }
 
-function useUrlSelection(defaultValue) {
-  const [selection, setSelection] = useUrlState({ selected: defaultValue });
+function useUrlSelection(defaultValue, validValues = []) {
+  const [selection, setSelection] = useUrlState(
+    { selected: defaultValue },
+    { selected: (value) => validValues.includes(value) },
+  );
   return [selection.selected, (selected) => setSelection({ selected })];
 }
 
@@ -166,16 +198,92 @@ function csvCell(value) {
   return `"${normalized.replace(/"/g, '""')}"`;
 }
 
+function sourceUrlForRow(row) {
+  if (row?.justificationEvidence?.sourcePdfUrl || row?.justificationEvidence?.sourceUrl) {
+    return row.justificationEvidence.sourcePdfUrl || row.justificationEvidence.sourceUrl;
+  }
+  if (row?.bookId) return BOOKS.find((book) => book.id === row.bookId)?.sourceUrl || "";
+  if (row?.id?.startsWith("CONT_AWD_") || row?.awardId) {
+    return row.id ? `https://www.usaspending.gov/award/${encodeURIComponent(row.id)}/latest` : "https://www.usaspending.gov/";
+  }
+  return DATA_INVENTORY.sourcePackageUrl || "";
+}
+
+function EvidenceDrawer({ record, onClose }) {
+  if (!record) return null;
+  const book = record.bookId ? BOOKS.find((item) => item.id === record.bookId) : null;
+  const isAward = Boolean(record.awardId || record.id?.startsWith("CONT_AWD_"));
+  const sourceUrl = sourceUrlForRow(record);
+  const evidence = record.justificationEvidence;
+  const title = record.lineTitle || record.accountTitle || record.awardId || record.recipient || record.id;
+  return (
+    <div
+      className="evidence-drawer-backdrop"
+      onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}
+    >
+      <aside
+        className="evidence-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="evidence-drawer-title"
+        onKeyDown={(event) => { if (event.key === "Escape") onClose(); }}
+        data-evidence-drawer
+      >
+        <header>
+          <div>
+            <span>{isAward ? "Award evidence" : "Budget evidence"}</span>
+            <h2 id="evidence-drawer-title">{title}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close evidence details" autoFocus><X size={18} aria-hidden="true" /></button>
+        </header>
+        <dl>
+          <div><dt>Record ID</dt><dd>{record.awardId || record.id}</dd></div>
+          <div><dt>Source system</dt><dd>{isAward ? "USAspending award snapshot" : evidence?.kind || `${book?.short || record.bookId} official display workbook`}</dd></div>
+          <div><dt>Snapshot</dt><dd>{dateTime(isAward ? EXECUTION_COVERAGE.cachedAt : data.metadata.generatedAt)}</dd></div>
+          {!isAward ? <div><dt>Workbook</dt><dd>{book?.label || book?.color || record.bookId}</dd></div> : null}
+          {evidence?.sourceDocument || evidence?.sourceName ? <div><dt>Narrative source</dt><dd>{evidence.sourceDocument || evidence.sourceName}</dd></div> : null}
+          {evidence?.page || evidence?.lineNumber ? <div><dt>Evidence location</dt><dd>{evidence.page ? `Page ${evidence.page}` : `Line ${evidence.lineNumber}`}</dd></div> : null}
+          <div><dt>Method</dt><dd>{isAward ? EXECUTION_COVERAGE.methodology || "Cached USAspending award search with deterministic deduplication." : data.metadata.methodology}</dd></div>
+        </dl>
+        <a className="evidence-drawer__source" href={sourceUrl} target="_blank" rel="noreferrer" data-evidence-source>
+          Open official source <ExternalLink size={14} aria-hidden="true" />
+        </a>
+      </aside>
+    </div>
+  );
+}
+
+function auditedRows(rows) {
+  const viewUrl = window.location.href;
+  return (rows || []).map((row) => ({
+    _snapshot_generated_at: data.metadata.generatedAt,
+    _exported_at: new Date().toISOString(),
+    _view_url: viewUrl,
+    _source_url: sourceUrlForRow(row),
+    ...row,
+  }));
+}
+
 function downloadRows(rows, filename, format) {
   const safeRows = rows || [];
+  const exportRows = auditedRows(safeRows);
   let body;
   let type;
   if (format === "json") {
-    body = JSON.stringify(safeRows, null, 2);
+    body = JSON.stringify({
+      metadata: {
+        exportedAt: new Date().toISOString(),
+        snapshotGeneratedAt: data.metadata.generatedAt,
+        viewUrl: window.location.href,
+        methodology: data.metadata.methodology,
+        rowCount: safeRows.length,
+      },
+      rows: exportRows,
+    }, null, 2);
     type = "application/json";
   } else {
-    const columns = [...new Set(safeRows.flatMap((row) => Object.keys(row || {})))];
-    body = [columns.map(csvCell).join(","), ...safeRows.map((row) => columns.map((column) => csvCell(row?.[column])).join(","))].join("\n");
+    const columns = [...new Set(exportRows.flatMap((row) => Object.keys(row || {})))];
+    body = [columns.map(csvCell).join(","), ...exportRows.map((row) => columns.map((column) => csvCell(row?.[column])).join(","))].join("\n");
     type = "text/csv";
   }
   const url = URL.createObjectURL(new Blob([body], { type }));
@@ -183,7 +291,7 @@ function downloadRows(rows, filename, format) {
   link.href = url;
   link.download = `${filename}.${format}`;
   link.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 async function copyText(value) {
@@ -200,14 +308,28 @@ async function copyText(value) {
 
 function AnalysisActions({ rows = [], filename = "budget-analysis", copyValue = "", copyLabel = "Copy view" }) {
   const [message, setMessage] = useState("");
+  const [watchedUrls, setWatchedUrls] = useState(() => JSON.parse(localStorage.getItem("budget-intelligence-watches") || "[]").map((watch) => watch.url));
+  const watched = watchedUrls.includes(window.location.href);
   async function handleCopy() {
     await copyText(copyValue || window.location.href);
     setMessage("Copied");
     window.setTimeout(() => setMessage(""), 1600);
   }
+  function handleWatch() {
+    const watches = JSON.parse(localStorage.getItem("budget-intelligence-watches") || "[]");
+    const currentUrl = window.location.href;
+    const next = watched
+      ? watches.filter((watch) => watch.url !== currentUrl)
+      : [...watches.filter((watch) => watch.url !== currentUrl), { url: currentUrl, label: document.title.split(" · ")[0], createdAt: new Date().toISOString() }].slice(-12);
+    localStorage.setItem("budget-intelligence-watches", JSON.stringify(next));
+    setWatchedUrls(next.map((watch) => watch.url));
+    setMessage(watched ? "Watch removed" : "View watched");
+    window.setTimeout(() => setMessage(""), 1600);
+  }
   return (
     <div className="analysis-actions" data-analysis-actions>
       <button type="button" onClick={handleCopy}><Copy size={14} aria-hidden="true" />{copyLabel}</button>
+      <button type="button" onClick={handleWatch} aria-pressed={watched}><Bookmark size={14} aria-hidden="true" />{watched ? "Watching" : "Watch"}</button>
       <button type="button" onClick={() => downloadRows(rows, filename, "csv")} disabled={!rows.length}><Download size={14} aria-hidden="true" />CSV</button>
       <button type="button" onClick={() => downloadRows(rows, filename, "json")} disabled={!rows.length}><Download size={14} aria-hidden="true" />JSON</button>
       <span role="status" aria-live="polite">{message}</span>
@@ -601,7 +723,7 @@ function relatedQueueItemsForRelationship(option, awards) {
 
 function RelationshipMap() {
   const options = useMemo(() => relationshipOptionRows(), []);
-  const [selectedId, setSelectedId] = useUrlSelection(options[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(options[0]?.id || "", options.map((option) => option.id));
   const selected = options.find((option) => option.id === selectedId) || options[0];
   const awards = useMemo(() => relationshipAwards(selected).sort((a, b) => b.awardAmount - a.awardAmount).slice(0, 80), [selected]);
   const budgetLines = useMemo(() => budgetLinesForRelationship(selected, awards), [selected, awards]);
@@ -770,7 +892,7 @@ function DataVisuals() {
   const timingBands = VISUAL_ANALYTICS.timingBands || EMPTY_ROWS;
   const heatmapColumns = VISUAL_ANALYTICS.heatmapColumns || EMPTY_ROWS;
   const heatmapRows = VISUAL_ANALYTICS.heatmapRows || EMPTY_ROWS;
-  const [selectedId, setSelectedId] = useUrlSelection(clusters[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(clusters[0]?.id || "", clusters.map((cluster) => cluster.id));
   const selected = clusters.find((cluster) => cluster.id === selectedId) || clusters[0];
   const maxTimingValue = Math.max(...timingBands.map((band) => band.nearTermAwardAmount || 0), 1);
   const maxBudgetValue = Math.max(...clusters.map((cluster) => cluster.budgetFy2027 || 0), 1);
@@ -1009,7 +1131,7 @@ function DataVisuals() {
 function DecisionBriefs() {
   const items = DECISION_BRIEFS.items || EMPTY_ROWS;
   const summary = DECISION_BRIEFS.summary || {};
-  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "", items.map((item) => item.id));
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const metrics = selected ? [
     { label: "Brief score", value: selected.score, helper: `${selected.decision} · ${selected.confidenceLabel}` },
@@ -1195,7 +1317,7 @@ function DecisionBriefs() {
 function AccountPlans() {
   const items = ACCOUNT_PLANS.items || EMPTY_ROWS;
   const summary = ACCOUNT_PLANS.summary || {};
-  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "", items.map((item) => item.id));
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const selectedMetrics = selected ? [
     { label: "Account score", value: selected.score, helper: selected.posture },
@@ -1407,7 +1529,7 @@ function AccountPlans() {
 function CapabilityFit() {
   const items = CAPABILITY_FIT.items || EMPTY_ROWS;
   const summary = CAPABILITY_FIT.summary || {};
-  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "", items.map((item) => item.id));
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const selectedMetrics = selected ? [
     { label: "Fit score", value: selected.score, helper: selected.posture },
@@ -1635,7 +1757,7 @@ function CapabilityFit() {
 function Hypotheses() {
   const items = HYPOTHESES.items || EMPTY_ROWS;
   const summary = HYPOTHESES.summary || {};
-  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "");
+  const [selectedId, setSelectedId] = useUrlSelection(items[0]?.id || "", items.map((item) => item.id));
   const selected = items.find((item) => item.id === selectedId) || items[0];
   const selectedMetricRows = selected ? [
     { label: "Budget signal", value: money(selected.metrics?.budgetFy2027), helper: `${selected.metrics?.budgetRecords || 0} lines · ${pct(selected.metrics?.budgetGrowth || 0)}` },
@@ -1781,6 +1903,17 @@ function Hypotheses() {
   );
 }
 
+const BUDGET_FILTER_DEFAULTS = { query: "", book: "all", group: "all", signal: "all", org: "all" };
+
+function ResetFilters({ filters, defaults, onReset }) {
+  const active = Object.keys(defaults).some((key) => filters[key] !== defaults[key]);
+  return (
+    <button type="button" className="reset-filters" onClick={onReset} disabled={!active}>
+      <RotateCcw size={14} aria-hidden="true" /> Reset
+    </button>
+  );
+}
+
 function FilterShell({ filters, setFilters }) {
   const orgs = useMemo(() => aggregate(data.records, (record) => ({ id: record.org, label: record.orgName })).slice(0, 40), []);
 
@@ -1824,6 +1957,7 @@ function FilterShell({ filters, setFilters }) {
           {orgs.map((org) => <option key={org.id} value={org.id}>{org.label}</option>)}
         </select>
       </label>
+      <ResetFilters filters={filters} defaults={BUDGET_FILTER_DEFAULTS} onReset={() => setFilters(BUDGET_FILTER_DEFAULTS)} />
     </div>
   );
 }
@@ -2087,7 +2221,7 @@ function Strategy() {
   const trendPeriods = trends.periods || [];
   const recentTotalPeriods = (trends.totalByPeriod || []).slice(-6);
   const maxTrendTotal = Math.max(...recentTotalPeriods.map((period) => period.awardAmount || 0), 1);
-  const [selectedAreaId, setSelectedAreaId] = useUrlSelection(areas[0]?.id || "all");
+  const [selectedAreaId, setSelectedAreaId] = useUrlSelection(areas[0]?.id || "all", areas.map((area) => area.id));
   const [expanded, setExpanded] = useState(false);
   const selectedArea = areas.find((area) => area.id === selectedAreaId) || areas[0];
   const maxArea = Math.max(...areas.map((area) => area.fy2027), 1);
@@ -2575,9 +2709,11 @@ function AiAutonomy({ records }) {
 }
 
 function RecordTable({ records, compact = false }) {
+  const [evidenceRecord, setEvidenceRecord] = useState(null);
   return (
-    <div className="table-shell" data-budget-record-table>
-      <table>
+    <>
+      <div className="table-shell" data-budget-record-table>
+        <table>
         <thead>
           <tr>
             <th>Line item</th>
@@ -2595,6 +2731,10 @@ function RecordTable({ records, compact = false }) {
               <td>
                 <strong>{record.lineTitle || record.budgetActivityTitle || record.accountTitle}</strong>
                 {!compact ? <span>{record.accountTitle} · {record.budgetActivityTitle}</span> : null}
+                <a className="record-source-link" href={sourceUrlForRow(record)} target="_blank" rel="noreferrer">
+                  Official source <ExternalLink size={12} aria-hidden="true" />
+                </a>
+                <button type="button" className="record-evidence-button" onClick={() => setEvidenceRecord(record)}>Evidence details</button>
               </td>
               <td>{record.orgName}</td>
               <td><i className="dot" style={{ background: BOOK_COLORS[record.bookId] }} />{record.colorShort}</td>
@@ -2605,8 +2745,10 @@ function RecordTable({ records, compact = false }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+      <EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} />
+    </>
   );
 }
 
@@ -2618,7 +2760,14 @@ function awardOptionRows(awards, keyFn) {
 function Awards() {
   const awards = AWARD_DRILLDOWN.awards;
   const summary = AWARD_DRILLDOWN.summary || {};
-  const [filters, setFilters] = useUrlState({ query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" });
+  const defaults = { query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" };
+  const [filters, setFilters] = useUrlState(defaults, {
+    area: (value) => value === "all" || awards.some((award) => (award.areaIds || []).includes(value)),
+    buyer: (value) => value === "all" || awards.some((award) => award.buyerSubAgency === value),
+    vendor: (value) => value === "all" || awards.some((award) => award.recipient === value),
+    workType: (value) => value === "all" || awards.some((award) => value === `psc:${award.pscCode}` || value === `naics:${award.naicsCode}`),
+    sort: ["amount", "end", "start", "vendor"],
+  });
   const areaOptions = useMemo(() => awardOptionRows(awards.flatMap((award) => (award.areaIds || []).map((id, index) => ({ id, label: award.areas?.[index] || id }))), (item) => item), [awards]);
   const buyerOptions = useMemo(() => awardOptionRows(awards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })), [awards]);
   const vendorOptions = useMemo(() => awardOptionRows(awards, (award) => ({ id: award.recipient, label: award.recipient })), [awards]);
@@ -2656,6 +2805,7 @@ function Awards() {
   });
   const visibleAwards = filteredAwards.slice(0, 250);
   const filteredValue = sum(filteredAwards, "awardAmount");
+  const filteredOfficeCount = filteredAwards.filter((award) => award.fundingOffice || award.awardingOffice).length;
   const topBuyer = aggregateAwardsForUi(filteredAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 4);
   const topVendor = aggregateAwardsForUi(filteredAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 4);
   const topWork = aggregateAwardsForUi(filteredAwards.filter((award) => award.pscCode || award.naicsCode), (award) => ({
@@ -2733,6 +2883,7 @@ function Awards() {
             <option value="vendor">Vendor</option>
           </select>
         </label>
+        <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
       <section className="if-metric-grid source-metrics" aria-label="Award filter metrics">
@@ -2740,6 +2891,7 @@ function Awards() {
         <Metric label="Filtered value" value={money(filteredValue)} helper="Deduped award amount from current filters" tone="green" />
         <Metric label="Largest buyer" value={topBuyer[0]?.label || "n/a"} helper={topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards"} tone="purple" />
         <Metric label="Largest vendor" value={topVendor[0]?.label || "n/a"} helper={topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards"} tone="orange" />
+        <Metric label="Office detail" value={filteredAwards.length ? percent((filteredOfficeCount / filteredAwards.length) * 100, 1) : "0.0%"} helper={`${filteredOfficeCount.toLocaleString()} awards identify an awarding or funding office`} tone="green" />
       </section>
 
       <AnalysisActions rows={filteredAwards} filename="filtered-awards" />
@@ -2761,7 +2913,13 @@ function Pursuits() {
   const lanes = PURSUIT_TIMING.lanes || EMPTY_ROWS;
   const candidates = PURSUIT_TIMING.recompeteCandidates || EMPTY_ROWS;
   const summary = PURSUIT_TIMING.summary || {};
-  const [filters, setFilters] = useUrlState({ query: "", area: "all", buyer: "all", workType: "all", sort: "score" });
+  const defaults = { query: "", area: "all", buyer: "all", workType: "all", sort: "score" };
+  const [filters, setFilters] = useUrlState(defaults, {
+    area: (value) => value === "all" || lanes.some((lane) => lane.areaId === value),
+    buyer: (value) => value === "all" || lanes.some((lane) => lane.buyer === value),
+    workType: (value) => value === "all" || lanes.some((lane) => lane.workType?.id === value),
+    sort: ["score", "end", "value", "near"],
+  });
   const [expanded, setExpanded] = useState(false);
   const areaOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.areaId, label: lane.area })), [lanes]);
   const buyerOptions = useMemo(() => awardOptionRows(lanes, (lane) => ({ id: lane.buyer, label: lane.buyer })), [lanes]);
@@ -2812,6 +2970,7 @@ function Pursuits() {
   });
   const visibleCandidates = filteredCandidates.slice(0, 150);
   const nearTermValue = sum(filteredCandidates, "awardAmount");
+  const filteredOfficeCount = filteredCandidates.filter((award) => award.fundingOffice || award.awardingOffice).length;
   const topBuyer = aggregateAwardsForUi(filteredCandidates, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 1)[0];
   const topVendor = aggregateAwardsForUi(filteredCandidates, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 1)[0];
 
@@ -2878,6 +3037,7 @@ function Pursuits() {
             <option value="value">Active value</option>
           </select>
         </label>
+        <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
       <section className="if-metric-grid source-metrics" aria-label="Pursuit filter metrics">
@@ -2885,6 +3045,7 @@ function Pursuits() {
         <Metric label="Near-term value" value={money(nearTermValue)} helper="Awards ending within 24 months in current filters" tone="green" />
         <Metric label="Largest buyer" value={topBuyer?.label || "n/a"} helper={topBuyer ? `${money(topBuyer.awardAmount)} · ${topBuyer.awards} awards` : "No matching candidates"} tone="purple" />
         <Metric label="Largest incumbent" value={topVendor?.label || "n/a"} helper={topVendor ? `${money(topVendor.awardAmount)} · ${topVendor.awards} awards` : "No matching candidates"} tone="orange" />
+        <Metric label="Office detail" value={filteredCandidates.length ? percent((filteredOfficeCount / filteredCandidates.length) * 100, 1) : "0.0%"} helper={`${filteredOfficeCount.toLocaleString()} candidates identify an awarding or funding office`} tone="green" />
       </section>
 
       <AnalysisActions rows={filteredCandidates} filename="pursuit-candidates" />
@@ -3033,8 +3194,14 @@ function CaptureQueue() {
   const items = CAPTURE_QUEUE.items || EMPTY_ROWS;
   const summary = CAPTURE_QUEUE.summary || {};
   const stageCounts = CAPTURE_QUEUE.stageCounts || EMPTY_ROWS;
-  const [filters, setFilters] = useUrlState({ query: "", stage: "all", area: "all", buyer: "all", sort: "score" });
-  const [selectedItemId, setSelectedItemId] = useUrlSelection(items[0]?.id || "");
+  const defaults = { query: "", stage: "all", area: "all", buyer: "all", sort: "score" };
+  const [filters, setFilters] = useUrlState(defaults, {
+    stage: (value) => value === "all" || items.some((item) => item.stage === value),
+    area: (value) => value === "all" || items.some((item) => item.areaId === value),
+    buyer: (value) => value === "all" || items.some((item) => item.buyer === value),
+    sort: ["score", "end", "near", "alignment"],
+  });
+  const [selectedItemId, setSelectedItemId] = useUrlSelection(items[0]?.id || "", items.map((item) => item.id));
   const [expanded, setExpanded] = useState(false);
   const stageOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.stage, label: item.stageLabel })), [items]);
   const areaOptions = useMemo(() => awardOptionRows(items, (item) => ({ id: item.areaId, label: item.area })), [items]);
@@ -3128,6 +3295,7 @@ function CaptureQueue() {
             <option value="alignment">Budget alignment</option>
           </select>
         </label>
+        <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
       <div className="capture-stage-grid" data-capture-stage-counts>
@@ -3258,9 +3426,11 @@ function CaptureQueueTable({ items }) {
 }
 
 function PursuitCandidateTable({ awards }) {
+  const [evidenceRecord, setEvidenceRecord] = useState(null);
   return (
-    <div className="table-shell pursuit-table-shell" data-pursuit-candidate-table>
-      <table>
+    <>
+      <div className="table-shell pursuit-table-shell" data-pursuit-candidate-table>
+        <table>
         <thead>
           <tr>
             <th>Score</th>
@@ -3283,6 +3453,10 @@ function PursuitCandidateTable({ awards }) {
               <td>
                 <strong>{award.awardId || award.id}</strong>
                 <span>{award.contractType || "Contract award"} · {award.description || "No description"}</span>
+                <a className="record-source-link" href={sourceUrlForRow(award)} target="_blank" rel="noreferrer">
+                  USAspending record <ExternalLink size={12} aria-hidden="true" />
+                </a>
+                <button type="button" className="record-evidence-button" onClick={() => setEvidenceRecord(award)}>Evidence details</button>
               </td>
               <td>{award.recipient}</td>
               <td>
@@ -3297,8 +3471,10 @@ function PursuitCandidateTable({ awards }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+      <EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} />
+    </>
   );
 }
 
@@ -3323,9 +3499,11 @@ function AwardRollup({ title, rows }) {
 }
 
 function AwardTable({ awards }) {
+  const [evidenceRecord, setEvidenceRecord] = useState(null);
   return (
-    <div className="table-shell award-table-shell" data-award-record-table>
-      <table>
+    <>
+      <div className="table-shell award-table-shell" data-award-record-table>
+        <table>
         <thead>
           <tr>
             <th>Award</th>
@@ -3343,6 +3521,10 @@ function AwardTable({ awards }) {
               <td>
                 <strong>{award.awardId || award.id}</strong>
                 <span>{award.contractType || "Contract award"} · {award.description || "No description"}</span>
+                <a className="record-source-link" href={sourceUrlForRow(award)} target="_blank" rel="noreferrer">
+                  USAspending record <ExternalLink size={12} aria-hidden="true" />
+                </a>
+                <button type="button" className="record-evidence-button" onClick={() => setEvidenceRecord(award)}>Evidence details</button>
               </td>
               <td>{award.recipient}</td>
               <td>
@@ -3362,8 +3544,10 @@ function AwardTable({ awards }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+      <EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} />
+    </>
   );
 }
 
@@ -4001,33 +4185,120 @@ function Sources() {
   );
 }
 
+function ChangeList({ title, rows, kind }) {
+  return (
+    <Section title={title} meta={`${rows.length} highest-impact changes shown`} icon={RefreshCcw}>
+      {rows.length ? (
+        <div className="change-list" data-change-list={kind}>
+          {rows.slice(0, 20).map((row) => (
+            <article key={`${kind}-${row.id}`}>
+              <div>
+                <span>{row.kind || (row.delta > 0 ? "Increased" : "Decreased")}</span>
+                <strong>{row.label || row.awardId || row.id}</strong>
+                <p>{row.organization || row.buyer || row.action || `${row.before} → ${row.after}`}</p>
+              </div>
+              <b>
+                {kind === "source"
+                  ? row.after
+                  : kind === "queue"
+                    ? `${row.delta > 0 ? "+" : ""}${row.delta}`
+                    : money(Math.abs(row.delta || 0))}
+              </b>
+            </article>
+          ))}
+        </div>
+      ) : <p className="empty-state">No changes were recorded between the two most recent verified snapshots.</p>}
+    </Section>
+  );
+}
+
+function Changes() {
+  const [watches, setWatches] = useState(() => JSON.parse(localStorage.getItem("budget-intelligence-watches") || "[]"));
+  const summary = refreshDelta.summary || {};
+  function removeWatch(url) {
+    const next = watches.filter((watch) => watch.url !== url);
+    localStorage.setItem("budget-intelligence-watches", JSON.stringify(next));
+    setWatches(next);
+  }
+  return (
+    <div className="grid changes-page" data-changes-page>
+      <section className="changes-hero">
+        <div>
+          <span>Refresh intelligence</span>
+          <h2>What Changed</h2>
+          <p>Deterministic differences between the two most recent verified snapshots, plus locally saved analysis views. A missing baseline is shown explicitly and never inferred.</p>
+        </div>
+        <div className="changes-hero__facts" aria-label="Refresh change summary">
+          <article><strong>{summary.budgetChanges || 0}</strong><span>budget changes</span></article>
+          <article><strong>{summary.awardChanges || 0}</strong><span>award changes</span></article>
+          <article><strong>{summary.queueChanges || 0}</strong><span>queue movements</span></article>
+          <article><strong>{summary.sourceChanges || 0}</strong><span>source changes</span></article>
+        </div>
+      </section>
+
+      <section className="delta-lineage" data-delta-lineage>
+        <span>Previous <strong>{refreshDelta.metadata.previousSnapshotAt ? dateTime(refreshDelta.metadata.previousSnapshotAt) : "Baseline unavailable"}</strong></span>
+        <span>Current <strong>{dateTime(refreshDelta.metadata.currentSnapshotAt)}</strong></span>
+        <span>Compared <strong>{dateTime(refreshDelta.metadata.generatedAt)}</strong></span>
+      </section>
+
+      <Section title="Saved Watches" meta="stored only in this browser" icon={Bookmark}>
+        {watches.length ? (
+          <div className="watch-list" data-saved-watches>
+            {watches.map((watch) => (
+              <article key={watch.url}>
+                <a href={watch.url}><strong>{watch.label}</strong><span>{watch.url.split("#")[1] || "overview"}</span></a>
+                <button type="button" onClick={() => removeWatch(watch.url)}>Remove</button>
+              </article>
+            ))}
+          </div>
+        ) : <p className="empty-state">No watched views yet. Use Watch beside any exportable analysis.</p>}
+      </Section>
+
+      <ChangeList title="Budget Line Changes" rows={refreshDelta.budgetChanges || []} kind="budget" />
+      <ChangeList title="Award Changes" rows={refreshDelta.awardChanges || []} kind="award" />
+      <ChangeList title="Queue Score Movement" rows={refreshDelta.queueChanges || []} kind="queue" />
+      <ChangeList title="Source Health Changes" rows={(refreshDelta.sourceChanges || []).map((row) => ({ ...row, label: `${row.label}: ${row.before} → ${row.after}` }))} kind="source" />
+    </div>
+  );
+}
+
 function App() {
   const [activeTab, setActiveTab] = useBudgetRoute();
   const [isSecondaryNavOpen, setSecondaryNavOpen] = useState(false);
-  const [filters, setFilters] = useUrlState({ query: "", book: "all", group: "all", signal: "all", org: "all" });
+  const [filters, setFilters] = useUrlState(BUDGET_FILTER_DEFAULTS, {
+    book: (value) => value === "all" || BOOKS.some((book) => book.id === value),
+    group: ["all", "service", "fourth-estate", "other"],
+    signal: (value) => value === "all" || SIGNALS.some((signal) => signal.id === value),
+    org: (value) => value === "all" || data.records.some((record) => record.org === value),
+  });
   const [strategyRevision, setStrategyRevision] = useState(0);
+  const [strategyLoadAttempt, setStrategyLoadAttempt] = useState(0);
   const [strategyError, setStrategyError] = useState("");
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
+  const evidenceRecords = records.filter((record) => record.justificationEvidence);
+  const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
   const activeSecondaryTab = SECONDARY_TABS.find((tab) => tab.id === activeTab);
-  const showBudgetControls = !["sources", "trends", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "changes", "trends", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
   const needsStrategy = STRATEGY_TAB_IDS.has(activeTab);
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Intelligence`;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [activeTitle]);
 
   useEffect(() => {
     if (!needsStrategy || strategyReady) return;
     let cancelled = false;
     ensureStrategyData()
-      .then(() => { if (!cancelled) setStrategyRevision((value) => value + 1); })
-      .catch((error) => { if (!cancelled) setStrategyError(error.message); });
+      .then(() => { if (!cancelled) { setStrategyError(""); setStrategyRevision((value) => value + 1); } })
+      .catch((error) => { if (!cancelled) { strategyPromise = null; setStrategyError(error.message); } });
     return () => { cancelled = true; };
-  }, [needsStrategy]);
+  }, [needsStrategy, strategyLoadAttempt]);
 
   void strategyRevision;
 
@@ -4141,7 +4412,9 @@ function App() {
           ))}
         </div>
 
-        <p className="sr-only" role="status" aria-live="polite">{activeTitle} view loaded. {records.length.toLocaleString()} budget records match the current filters.</p>
+        <p className="sr-only" role="status" aria-live="polite">
+          {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
+        </p>
         <FreshnessStrip />
 
         {showBudgetControls ? (
@@ -4153,6 +4426,12 @@ function App() {
               <Metric label="AI / autonomy signal" value={money(ai.fy2027)} helper={`${ai.records} matched source lines`} tone="purple" />
               <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
               <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
+              <Metric
+                label="Narrative coverage"
+                value={records.length ? percent((evidenceRecords.length / records.length) * 100, 1) : "0.0%"}
+                helper={`${evidenceRecords.length.toLocaleString()} source-matched · ${confirmedEvidenceRecords.length.toLocaleString()} narrative-confirmed`}
+                tone="green"
+              />
             </section>
             <AnalysisActions rows={records} filename={`${activeTab}-budget-records`} />
           </>
@@ -4161,7 +4440,11 @@ function App() {
         {needsStrategy && !strategyReady ? (
           <section className="runtime-state" data-strategy-loading role="status">
             <RefreshCcw size={18} aria-hidden="true" />
-            <div><strong>{strategyError ? "Decision data unavailable" : "Loading decision data"}</strong><p>{strategyError || "The selected evidence surface is loading on demand."}</p></div>
+            <div>
+              <strong>{strategyError ? "Decision data unavailable" : "Loading decision data"}</strong>
+              <p>{strategyError || "The selected evidence surface is loading on demand."}</p>
+              {strategyError ? <button type="button" onClick={() => { setStrategyError(""); setStrategyLoadAttempt((value) => value + 1); }}>Retry</button> : null}
+            </div>
           </section>
         ) : null}
 
@@ -4182,6 +4465,7 @@ function App() {
         {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
         {activeTab === "drilldown" ? <Drilldown records={records} /> : null}
         {strategyReady && activeTab === "sources" ? <Sources /> : null}
+        {activeTab === "changes" ? <Changes /> : null}
       </div>
     </main>
   );
@@ -4190,6 +4474,7 @@ function App() {
 function RuntimeApp() {
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -4205,7 +4490,7 @@ function RuntimeApp() {
         setStatus("error");
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
 
   if (status !== "ready") {
     return (
@@ -4213,6 +4498,7 @@ function RuntimeApp() {
         <BarChart3 size={24} aria-hidden="true" />
         <h1>{status === "error" ? "Budget data unavailable" : "Loading Budget & Spend Intelligence"}</h1>
         <p>{status === "error" ? error : "Loading the current budget request dataset."}</p>
+        {status === "error" ? <button type="button" onClick={() => { setError(""); setStatus("loading"); setAttempt((value) => value + 1); }}>Retry</button> : null}
       </main>
     );
   }

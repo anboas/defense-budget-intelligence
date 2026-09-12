@@ -26,7 +26,9 @@ Defense Budget & Spend Intelligence follows the same product-family conventions 
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
 - Product header shell with active page title, flat top navigation, and stable `if-*` / `data-*` hooks for future framework alignment.
-- Hash-route deep links for each major surface: Overview, Trends, Strategy, Hypotheses, Relationships, Awards, Pursuits, Cockpit, Services, Fourth Estate, AI / Autonomy, Drilldown, and Data Sources.
+- Hash-route deep links for each major surface: Overview, Trends, Strategy, Hypotheses, Relationships, Awards, Pursuits, Cockpit, Services, Fourth Estate, AI / Autonomy, Drilldown, Data Sources, and Changes.
+- Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local watched views, and deterministic snapshot deltas.
+- CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
 - Peer navigation to Budget & Spend, Opportunity, and Policy as complementary intelligence platforms with separate product boundaries.
 - Cloudflare Pages as the primary public surface, with GitHub Pages retained as a fallback.
 
@@ -66,6 +68,8 @@ Current version depth:
 - Justification evidence diagnostics show official XML count, extracted program items, matched budget lines, and narrative-confirmed technology lines.
 - USAspending diagnostics show technology searches, award hits, unique awards, sampled award value, top vendors, top buyers, and selected-area execution signals.
 - Source health checks track current workbook URLs and pipeline-source URLs with status, probe method, response time, and checked timestamp. Refresh with `npm run source:health`.
+- Changes compares consecutive budget, award, capture-queue, and source-health snapshots; build it locally with `npm run data:delta` and `PREVIOUS_GIT_REF` or explicit prior-snapshot file paths.
+- Budget and award tables link each visible record to its official workbook or USAspending record and expose an evidence-detail drawer with source system, snapshot, method, and record identity.
 
 ## Commands
 
