@@ -9,7 +9,28 @@ permissions:
   contents: write
 
 jobs:
+  container-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build and start container stack
+        run: docker compose up --build --detach --wait
+      - name: Verify stateful API contract
+        run: node scripts/verify-container.mjs
+      - name: Inspect container state
+        if: always()
+        run: docker compose ps && docker compose logs --no-color --tail=200 app
+      - name: Stop container stack
+        if: always()
+        run: docker compose down --volumes
+
   deploy:
+    needs: container-contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -21,8 +42,10 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Build
-        run: npm run build
+      - name: Install browser contract runtime
+        run: npx playwright-core install --with-deps chromium
+      - name: Verify and build
+        run: npm run verify
       - name: Publish gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:

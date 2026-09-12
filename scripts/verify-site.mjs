@@ -24,7 +24,13 @@ async function waitForServer(url, timeoutMs = 20000) {
 const server = REMOTE_BASE_URL ? null : spawn("npm", ["run", "dev", "--", "--port", "4188", "--strictPort"], { stdio: "ignore" });
 if (server) await waitForServer(BASE_URL);
 
-const executablePath = [process.env.CHROMIUM_PATH, "/usr/bin/chromium-browser", "/usr/bin/chromium"].find((candidate) => candidate && existsSync(candidate));
+const executablePath = [
+  process.env.CHROMIUM_PATH,
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/chromium",
+].find((candidate) => candidate && existsSync(candidate));
 const browser = await chromium.launch({
   ...(executablePath ? { executablePath } : {}),
   headless: true,

@@ -32,6 +32,38 @@ Defense Budget & Spend Intelligence follows the same product-family conventions 
 - Peer navigation to Budget & Spend, Opportunity, and Policy as complementary intelligence platforms with separate product boundaries.
 - Cloudflare Pages as the primary public surface, with GitHub Pages retained as a fallback.
 
+## Stateful container foundation
+
+The repository also includes a production-neutral container stack for the next platform phase:
+
+- one Node container serves the compiled Vite application and a versioned `/api/v1` surface;
+- PostgreSQL stores immutable intelligence snapshots and mutable analyst state;
+- idempotent SQL migrations run under a PostgreSQL advisory lock at application startup;
+- committed budget, source-health, and refresh-delta snapshots are imported by content hash;
+- public snapshot reads are available immediately;
+- saved-view writes are disabled by default and require both `ENABLE_WRITES=true` and a host-injected `APP_WRITE_TOKEN`.
+
+The initial schema includes `intelligence_snapshots`, `refresh_runs`, `saved_views`, `comparison_sets`, and `annotations`. This is an additive migration path: the live Pages sites can remain online while frontend reads move from static JSON to the API route by route.
+
+Run the local stack:
+
+```bash
+npm run container:up
+npm run container:verify
+npm run container:down
+```
+
+The Compose database is private to the application network and uses local trust authentication. Production must use a managed PostgreSQL connection supplied through the host's protected secret store. Do not commit a production connection string or write token.
+
+Container health contracts:
+
+- `GET /api/healthz` confirms the process is running.
+- `GET /api/readyz` confirms PostgreSQL is reachable.
+- `GET /api/v1/snapshots` lists the latest snapshot metadata by layer.
+- `GET /api/v1/snapshots/:kind/current` returns the current persisted payload for `budget`, `source_health`, or `refresh_delta`.
+
+The GitHub Pages workflow treats this stack as a release gate: it builds the images, starts a fresh database, applies migrations, imports snapshots, verifies the API, and only then publishes the static fallback. The public Pages site remains the production surface until a container host and managed Postgres are selected and provisioned.
+
 ## Data Sources
 
 The site currently uses six official FY2027 Office of the Under Secretary of Defense (Comptroller) display workbooks:
@@ -83,6 +115,9 @@ npm run data:build
 npm run source:health
 npm run dev
 npm run verify
+npm run container:up
+npm run container:verify
+npm run container:down
 npm run verify:prod-interactions
 npm run pages:deploy
 npm run verify:prod-smoke

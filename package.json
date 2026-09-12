@@ -9,6 +9,11 @@
     "dev": "npm run data:runtime && vite --host 0.0.0.0",
     "build": "npm run data:runtime && vite build",
     "build:cloudflare": "VITE_BASE_PATH=/ npm run build",
+    "start": "node server/index.mjs",
+    "db:migrate": "node server/migrate.mjs",
+    "container:up": "docker compose up --build -d",
+    "container:down": "docker compose down",
+    "container:verify": "node scripts/verify-container.mjs",
     "data:build": "node scripts/build-budget-data.mjs",
     "data:runtime": "node scripts/build-runtime-data.mjs",
     "data:delta": "node scripts/build-refresh-delta.mjs",
@@ -26,19 +31,22 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^6.0.2",
-    "vite": "^8.0.16",
-    "typescript": "^5.9.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "^0.542.0"
+    "@fastify/static": "^10.1.3",
+    "fastify": "^5.12.4",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^10.4.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.6.0",
+    "lucide-react": "^0.542.0",
     "playwright-core": "^1.61.0",
-    "wrangler": "^4.99.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.2",
+    "vite": "^8.0.16",
+    "wrangler": "^4.131.1"
   }
 }
