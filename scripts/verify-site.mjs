@@ -3,7 +3,8 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import { chromium } from "playwright-core";
 
-const BASE_URL = "http://127.0.0.1:4188/";
+const REMOTE_BASE_URL = process.env.BUDGET_VERIFY_URL;
+const BASE_URL = REMOTE_BASE_URL ? new URL(REMOTE_BASE_URL).href : "http://127.0.0.1:4188/";
 const OUT_DIR = "test-results";
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -20,8 +21,8 @@ async function waitForServer(url, timeoutMs = 20000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
-const server = spawn("npm", ["run", "dev", "--", "--port", "4188", "--strictPort"], { stdio: "ignore" });
-await waitForServer(BASE_URL);
+const server = REMOTE_BASE_URL ? null : spawn("npm", ["run", "dev", "--", "--port", "4188", "--strictPort"], { stdio: "ignore" });
+if (server) await waitForServer(BASE_URL);
 
 const executablePath = [process.env.CHROMIUM_PATH, "/usr/bin/chromium-browser", "/usr/bin/chromium"].find((candidate) => candidate && existsSync(candidate));
 const browser = await chromium.launch({
@@ -631,5 +632,5 @@ try {
   console.log("Verified Defense Budget & Spend Intelligence desktop/mobile.");
 } finally {
   await browser.close();
-  server.kill("SIGTERM");
+  server?.kill("SIGTERM");
 }

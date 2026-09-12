@@ -83,6 +83,7 @@ npm run data:build
 npm run source:health
 npm run dev
 npm run verify
+npm run verify:prod-interactions
 npm run pages:deploy
 npm run verify:prod-smoke
 ```

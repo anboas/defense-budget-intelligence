@@ -19,6 +19,7 @@
     "source:health": "node scripts/check-source-health.mjs",
     "lint": "eslint .",
     "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",
+    "verify:prod-interactions": "BUDGET_VERIFY_URL=https://defense-budget-intelligence.pages.dev/ node scripts/verify-site.mjs",
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",
     "pages:dev": "npm run build:cloudflare && wrangler pages dev dist",
     "pages:deploy": "npm run build:cloudflare && wrangler pages deploy dist --project-name defense-budget-intelligence",
