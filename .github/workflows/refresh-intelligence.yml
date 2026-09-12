@@ -15,8 +15,6 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    env:
-      BUDGET_SOURCE_DIR: ${{ runner.temp }}/defense-budget-intelligence/budget
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,8 +28,12 @@ jobs:
       - name: Install
         run: npm ci
       - name: Refresh official sources
+        env:
+          BUDGET_SOURCE_DIR: ${{ runner.temp }}/defense-budget-intelligence/budget
         run: npm run source:refresh
       - name: Verify generated site
+        env:
+          BUDGET_SOURCE_DIR: ${{ runner.temp }}/defense-budget-intelligence/budget
         run: npm run lint && npm run build
       - name: Commit changed snapshots
         run: |
