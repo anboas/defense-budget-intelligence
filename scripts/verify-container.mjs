@@ -59,7 +59,12 @@ assert.ok(history.fiscal_years?.length >= 5, "account spine should preserve at l
 assert.ok(history.fiscal_years.every((row) => Number(row.obligated_amount) > 0), "history should expose agency obligations");
 
 const awardFlows = await (await get("api/v1/account-spine/award-flows")).json();
-assert.ok(Number(awardFlows.awards) >= 0, "award flow summary API should return a numeric award count");
+assert.ok(Number(awardFlows.sampled_awards) >= 250, "award flow summary should report the ranked award sample");
+assert.ok(Number(awardFlows.linked_awards) >= 180, "award flow summary should report awards with federal-account links");
+assert.ok(Number(awardFlows.exact_account_links) >= 400, "award flow summary should preserve exact federal-account links");
+const operatingNavyAwards = await (await get("api/v1/account-spine/accounts/017-1804/awards?limit=10")).json();
+assert.ok(operatingNavyAwards.awards?.length >= 5, "account award API should return linked awards");
+assert.ok(operatingNavyAwards.awards.every((row) => row.relationship_class === "exact" && row.source_uri), "account award rows should retain exact lineage and source URLs");
 
 const home = await (await get("/")).text();
 assert.match(home, /Defense Budget & Spend Intelligence/);

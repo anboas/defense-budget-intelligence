@@ -350,13 +350,21 @@ export async function registerAccountSpineRoutes(app, pool) {
 
   app.get("/api/v1/account-spine/award-flows", async () => {
     const result = await pool.query(`
-      WITH latest AS (
+      WITH sample AS (
+        SELECT observed_at, (metadata ->> 'sampledAwards')::integer AS sampled_awards
+        FROM source_documents
+        WHERE source_system = 'USAspending Award Accounts'
+        ORDER BY observed_at DESC, created_at DESC
+        LIMIT 1
+      ), latest AS (
         SELECT DISTINCT ON (award_id, federal_account_code)
           award_id, federal_account_code, obligated_amount, observed_at
         FROM award_account_observations
+        WHERE observed_at = (SELECT observed_at FROM sample)
         ORDER BY award_id, federal_account_code, observed_at DESC, id DESC
       )
-      SELECT COUNT(DISTINCT award_id)::integer AS awards,
+      SELECT COALESCE((SELECT sampled_awards FROM sample), 0)::integer AS sampled_awards,
+        COUNT(DISTINCT award_id)::integer AS linked_awards,
         COUNT(*)::integer AS exact_account_links,
         COUNT(DISTINCT federal_account_code)::integer AS federal_accounts,
         SUM(obligated_amount) AS linked_obligations,

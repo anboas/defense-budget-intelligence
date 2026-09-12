@@ -93,6 +93,8 @@ assert.equal(accountSpineResponse.status, 200, `Account-spine runtime data shoul
 const accountSpine = await accountSpineResponse.json();
 assert.ok(accountSpine.accounts?.length > 100, "Account-spine runtime data should contain federal accounts");
 assert.ok(accountSpine.metadata?.coverage?.exactTafsJoins > 300, "Account-spine runtime data should preserve exact TAFS joins");
+assert.ok(accountSpine.metadata?.coverage?.exactAwardAccountLinks > 400, "Account-spine runtime data should preserve exact award-account links");
+assert.ok(accountSpine.awardFlows?.length >= 200, "Account-spine runtime data should contain the ranked award sample");
 
 console.log(
   [
@@ -104,5 +106,6 @@ console.log(
     `budget_records=${core.records.length}`,
     `federal_accounts=${accountSpine.accounts.length}`,
     `exact_tafs=${accountSpine.metadata.coverage.exactTafsJoins}`,
+    `exact_award_accounts=${accountSpine.metadata.coverage.exactAwardAccountLinks}`,
   ].join(" "),
 );
