@@ -136,7 +136,7 @@ export async function importAccountSpine(pool) {
             sourceIdentifier: omb.sourceIdentifier,
             sourceUri: omb.sourceUrl,
             contentHash: hash(omb),
-            publishedAt: omb.approvalTimestamp || null,
+            publishedAt: null,
             observedAt,
             metadata: { approvalTimestamp: omb.approvalTimestamp, iteration: omb.iteration },
           });
