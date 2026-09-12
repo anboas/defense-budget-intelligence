@@ -32,6 +32,7 @@ import "./styles.css";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "lifecycle", label: "Money Flow", icon: Network },
   { id: "trends", label: "Trends", icon: TrendingUp },
   { id: "strategy", label: "Strategy", icon: GitBranch },
   { id: "briefs", label: "Briefs", icon: FileText },
@@ -51,7 +52,7 @@ const TABS = [
   { id: "changes", label: "Changes", icon: RefreshCcw },
 ];
 
-const PRIMARY_TAB_IDS = ["overview", "visuals", "briefs", "queue"];
+const PRIMARY_TAB_IDS = ["overview", "lifecycle", "visuals", "briefs", "queue"];
 const PRIMARY_TABS = PRIMARY_TAB_IDS.map((tabId) => TABS.find((tab) => tab.id === tabId)).filter(Boolean);
 const SECONDARY_NAV_GROUPS = [
   { label: "Decision Surfaces", tabIds: ["strategy", "relationships", "hypotheses", "accounts", "fit"] },
@@ -68,6 +69,7 @@ const INTELLIGENCE_SUITE = [
 
 const HASH_ROUTES = {
   overview: "#/budget-spend",
+  lifecycle: "#/budget-spend/lifecycle",
   trends: "#/budget-spend/trends",
   strategy: "#/budget-spend/strategy",
   briefs: "#/budget-spend/briefs",
@@ -415,6 +417,8 @@ let DECISION_BRIEFS = { summary: {}, items: [] };
 let VISUAL_ANALYTICS = { summary: {}, clusters: [], timingBands: [], heatmapColumns: [], heatmapRows: [] };
 let HYPOTHESES = { summary: {}, items: [] };
 let strategyReady = false;
+let ACCOUNT_SPINE = null;
+let accountSpineReady = false;
 
 const STRATEGY_TAB_IDS = new Set(["strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue", "sources"]);
 
@@ -461,12 +465,28 @@ function ensureStrategyData() {
   if (!strategyPromise) strategyPromise = fetchRuntimeData("budget-strategy.json").then(hydrateStrategy);
   return strategyPromise;
 }
+
+let accountSpinePromise = null;
+function ensureAccountSpineData() {
+  if (accountSpineReady) return Promise.resolve();
+  if (!accountSpinePromise) {
+    accountSpinePromise = fetchRuntimeData("account-spine.json").then((payload) => {
+      ACCOUNT_SPINE = payload;
+      accountSpineReady = true;
+    });
+  }
+  return accountSpinePromise;
+}
 const EMPTY_ROWS = Object.freeze([]);
 
 function money(value, digits = 1) {
   const number = Number(value || 0);
   if (number > 0 && Math.abs(number) < 0.1) return `$${(number * 1000).toFixed(0)}M`;
   return `$${number.toFixed(digits)}B`;
+}
+
+function federalMoney(value, digits = 1) {
+  return money(Number(value || 0) / 1_000_000_000, digits);
 }
 
 function fileSize(bytes) {
@@ -883,6 +903,159 @@ function RelationshipNodeList({ title, rows }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function LifecycleStage({ label, amount, maximum, source, relationship = "exact" }) {
+  const width = maximum > 0 ? Math.max(2, (Number(amount || 0) / maximum) * 100) : 0;
+  return (
+    <article className="lifecycle-stage">
+      <header>
+        <div>
+          <span>{label}</span>
+          <em className={`evidence-class evidence-class--${relationship}`}>{relationship}</em>
+        </div>
+        <strong>{amount ? federalMoney(amount) : "Unavailable"}</strong>
+      </header>
+      <i aria-hidden="true"><b style={{ width: `${Math.min(width, 100)}%` }} /></i>
+      <p>{source}</p>
+    </article>
+  );
+}
+
+function AccountLifecycle() {
+  const accounts = ACCOUNT_SPINE?.accounts || EMPTY_ROWS;
+  const complete = accounts.filter((account) => account.requestMatch && account.exactApportionmentJoinCount > 0);
+  const defaultAccount = complete[0] || accounts[0];
+  const [selectedCode, setSelectedCode] = useUrlSelection(
+    defaultAccount?.federalAccountCode || "",
+    accounts.map((account) => account.federalAccountCode),
+  );
+  const selected = accounts.find((account) => account.federalAccountCode === selectedCode) || defaultAccount;
+  const fiscalYear = ACCOUNT_SPINE?.metadata?.fiscalYear;
+  const stages = selected ? [
+    { label: "Requested", amount: selected.requestAmount, source: `FY${fiscalYear} President's Budget display books`, relationship: "derived" },
+    { label: "Apportioned", amount: selected.apportionedAmount, source: `${selected.exactApportionmentJoinCount} exact OMB TAFS joins` },
+    { label: "Obligated", amount: selected.obligatedAmount, source: "USAspending account execution" },
+    { label: "Outlays", amount: selected.outlayedAmount, source: "USAspending account execution" },
+  ] : [];
+  const maximum = Math.max(...stages.map((stage) => stage.amount || 0), 1);
+  const treasuryRows = (selected?.treasuryAccounts || [])
+    .filter((row) => row.exactApportionmentJoin)
+    .sort((left, right) => right.obligatedAmount - left.obligatedAmount)
+    .slice(0, 10);
+  const maxTreasury = Math.max(...treasuryRows.flatMap((row) => [
+    row.apportionment?.approvedAmount || 0,
+    row.obligatedAmount || 0,
+    row.outlayedAmount || 0,
+  ]), 1);
+  const burn = (ACCOUNT_SPINE?.agencyBurn?.agency_data_by_year || [])
+    .find((row) => Number(row.fiscal_year) === Number(fiscalYear));
+  const burnRows = burn?.agency_obligation_by_period || EMPTY_ROWS;
+  const latestBurnIsPartial = burnRows.length > 1
+    && Number(burnRows.at(-1)?.obligated || 0) < Math.max(...burnRows.slice(0, -1).map((row) => Number(row.obligated || 0)));
+  const burnMaximum = Math.max(...burnRows.map((row) => Number(row.obligated || 0)), 1);
+  const burnPoints = burnRows.map((row, index) => {
+    const x = burnRows.length > 1 ? 24 + (index / (burnRows.length - 1)) * 552 : 24;
+    const y = 176 - (Number(row.obligated || 0) / burnMaximum) * 140;
+    return `${x},${y}`;
+  }).join(" ");
+  const coverage = ACCOUNT_SPINE?.metadata?.coverage || {};
+
+  if (!selected) return <p className="empty-state">No account-spine data is available.</p>;
+
+  return (
+    <div className="grid lifecycle-page" data-account-spine-page>
+      <section className="lifecycle-hero">
+        <div>
+          <span>Exact financial spine</span>
+          <h2>Federal Money Flow</h2>
+          <p>Follow a federal account from requested funding through OMB apportionment, obligations, and outlays. Exact TAFS joins stay solid; the request edge is separately labeled derived.</p>
+        </div>
+        <div className="lifecycle-hero__facts" aria-label="Account spine coverage">
+          <article><strong>{coverage.federalAccounts || accounts.length}</strong><span>federal accounts</span></article>
+          <article><strong>{coverage.exactTafsJoins || 0}</strong><span>exact TAFS joins</span></article>
+          <article><strong>{Math.round((coverage.exactTafsJoinRate || 0) * 100)}%</strong><span>TAFS coverage</span></article>
+          <article><strong>{coverage.requestMatchedAccounts || 0}</strong><span>request matches</span></article>
+        </div>
+      </section>
+
+      <section className="lifecycle-account-picker">
+        <label htmlFor="lifecycle-account">Federal account</label>
+        <select id="lifecycle-account" value={selected.federalAccountCode} onChange={(event) => setSelectedCode(event.target.value)}>
+          {accounts.map((account) => (
+            <option key={account.federalAccountCode} value={account.federalAccountCode}>
+              {account.federalAccountCode} · {account.title}
+            </option>
+          ))}
+        </select>
+        <p>{selected.bureauName || "Department of War"} · FY{fiscalYear} · observed {dateTime(ACCOUNT_SPINE.metadata.generatedAt)}</p>
+      </section>
+
+      <Section title="Request-to-Execution Waterfall" meta="distinct money stages, never summed" icon={BarChart3}>
+        <div className="lifecycle-waterfall" data-lifecycle-waterfall>
+          {stages.map((stage) => <LifecycleStage key={stage.label} {...stage} maximum={maximum} />)}
+        </div>
+        <p className="lifecycle-caveat">Apportionment can exceed the current request because it can include prior-year balances, collections, and other budgetary resources. These stages are compared, not added.</p>
+      </Section>
+
+      <Section title="TAFS Account Flow" meta={`${treasuryRows.length} highest-obligation exact joins shown`} icon={Network}>
+        <div className="tafs-flow" data-account-flow>
+          {treasuryRows.map((row) => (
+            <article key={row.tasCode}>
+              <header>
+                <div><strong>{row.tasCode}</strong><span>{row.title}</span></div>
+                <a href={row.apportionment.sourceUrl} target="_blank" rel="noreferrer">OMB source <ExternalLink size={13} aria-hidden="true" /></a>
+              </header>
+              <div className="tafs-flow__bars">
+                {[
+                  ["Apportioned", row.apportionment.approvedAmount, "blue"],
+                  ["Obligated", row.obligatedAmount, "purple"],
+                  ["Outlays", row.outlayedAmount, "green"],
+                ].map(([label, amount, tone]) => (
+                  <div key={label}>
+                    <span>{label}</span>
+                    <i aria-hidden="true"><b className={`tone-${tone}`} style={{ width: `${Math.max(1, (Number(amount || 0) / maxTreasury) * 100)}%` }} /></i>
+                    <strong>{federalMoney(amount)}</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Department Obligation Burn" meta={`FY${fiscalYear} reported agency obligations by period`} icon={TrendingUp}>
+        <div className="burn-chart" data-burn-curve>
+          <svg viewBox="0 0 600 210" role="img" aria-labelledby="burn-title burn-description">
+            <title id="burn-title">Department-wide obligation burn curve</title>
+            <desc id="burn-description">Reported Department of War obligations by USAspending reporting period for fiscal year {fiscalYear}.</desc>
+            <line x1="24" y1="176" x2="576" y2="176" />
+            <line x1="24" y1="36" x2="24" y2="176" />
+            <polyline points={burnPoints} />
+            {burnRows.map((row, index) => {
+              const [x, y] = burnPoints.split(" ")[index].split(",");
+              return <circle key={row.period} cx={x} cy={y} r="4"><title>Period {row.period}: {federalMoney(row.obligated)}</title></circle>;
+            })}
+          </svg>
+          <div className="burn-chart__periods">
+            {burnRows.map((row) => <span key={row.period}>P{row.period}<strong>{federalMoney(row.obligated)}</strong></span>)}
+          </div>
+          {latestBurnIsPartial ? <p className="lifecycle-caveat">The latest reported period is below the prior high-water mark and may be incomplete or revised. It is shown as published rather than forced into a monotonic curve.</p> : null}
+        </div>
+      </Section>
+
+      <Section title="Evidence and Join Policy" meta="reproducible public sources" icon={Database}>
+        <div className="lifecycle-evidence" data-lifecycle-evidence>
+          <a href={selected.sourceUrl} target="_blank" rel="noreferrer"><strong>USAspending federal account</strong><span>Resources, obligations, outlays, and Treasury accounts</span></a>
+          <a href={ACCOUNT_SPINE.metadata.sources.ombApportionments} target="_blank" rel="noreferrer"><strong>OMB approved apportionments</strong><span>Latest public FY{fiscalYear} document by TAFS</span></a>
+          {(selected.requestMatch?.sourceUrls || []).slice(0, 2).map((url) => (
+            <a key={url} href={url} target="_blank" rel="noreferrer"><strong>DoW budget request</strong><span>Exact normalized account-title match, labeled derived</span></a>
+          ))}
+        </div>
+        <p className="lifecycle-caveat">No budget-line-to-award link is asserted on this surface. The financial spine ends at the federal and Treasury-account levels until a public identifier supports a deeper edge.</p>
+      </Section>
+    </div>
   );
 }
 
@@ -4275,6 +4448,9 @@ function App() {
   const [strategyRevision, setStrategyRevision] = useState(0);
   const [strategyLoadAttempt, setStrategyLoadAttempt] = useState(0);
   const [strategyError, setStrategyError] = useState("");
+  const [accountSpineRevision, setAccountSpineRevision] = useState(0);
+  const [accountSpineLoadAttempt, setAccountSpineLoadAttempt] = useState(0);
+  const [accountSpineError, setAccountSpineError] = useState("");
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
@@ -4283,8 +4459,9 @@ function App() {
   const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
   const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
   const activeSecondaryTab = SECONDARY_TABS.find((tab) => tab.id === activeTab);
-  const showBudgetControls = !["sources", "changes", "trends", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
+  const showBudgetControls = !["sources", "changes", "trends", "lifecycle", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "queue"].includes(activeTab);
   const needsStrategy = STRATEGY_TAB_IDS.has(activeTab);
+  const needsAccountSpine = activeTab === "lifecycle";
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Intelligence`;
@@ -4300,7 +4477,17 @@ function App() {
     return () => { cancelled = true; };
   }, [needsStrategy, strategyLoadAttempt]);
 
+  useEffect(() => {
+    if (!needsAccountSpine || accountSpineReady) return;
+    let cancelled = false;
+    ensureAccountSpineData()
+      .then(() => { if (!cancelled) { setAccountSpineError(""); setAccountSpineRevision((value) => value + 1); } })
+      .catch((error) => { if (!cancelled) { accountSpinePromise = null; setAccountSpineError(error.message); } });
+    return () => { cancelled = true; };
+  }, [needsAccountSpine, accountSpineLoadAttempt]);
+
   void strategyRevision;
+  void accountSpineRevision;
 
   function openBudgetSurface(tabId) {
     setSecondaryNavOpen(false);
@@ -4336,6 +4523,7 @@ function App() {
                   className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
                   aria-current={activeTab === tab.id ? "page" : undefined}
                   data-budget-nav={HASH_ROUTES[tab.id]}
+                  title={tab.label}
                   onClick={() => openBudgetSurface(tab.id)}
                 >
                   <Icon size={15} aria-hidden="true" />
@@ -4448,7 +4636,19 @@ function App() {
           </section>
         ) : null}
 
+        {needsAccountSpine && !accountSpineReady ? (
+          <section className="runtime-state" data-account-spine-loading role="status">
+            <RefreshCcw size={18} aria-hidden="true" />
+            <div>
+              <strong>{accountSpineError ? "Money-flow data unavailable" : "Loading money-flow data"}</strong>
+              <p>{accountSpineError || "OMB apportionments and USAspending account execution are loading on demand."}</p>
+              {accountSpineError ? <button type="button" onClick={() => { setAccountSpineError(""); setAccountSpineLoadAttempt((value) => value + 1); }}>Retry</button> : null}
+            </div>
+          </section>
+        ) : null}
+
         {!needsStrategy && activeTab === "overview" ? <Overview records={records} /> : null}
+        {accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {strategyReady && activeTab === "strategy" ? <Strategy /> : null}
         {strategyReady && activeTab === "briefs" ? <DecisionBriefs /> : null}

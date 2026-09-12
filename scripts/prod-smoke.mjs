@@ -88,6 +88,12 @@ assert.equal(strategyResponse.status, 200, `Strategy runtime data should return 
 const strategy = await strategyResponse.json();
 assert.ok(strategy.technologyAreas?.length > 0, "Deferred strategy data should contain technology areas");
 
+const accountSpineResponse = await fetchWithCheck(new URL("data/account-spine.json", baseUrl));
+assert.equal(accountSpineResponse.status, 200, `Account-spine runtime data should return 200, got ${statusText(accountSpineResponse)}`);
+const accountSpine = await accountSpineResponse.json();
+assert.ok(accountSpine.accounts?.length > 100, "Account-spine runtime data should contain federal accounts");
+assert.ok(accountSpine.metadata?.coverage?.exactTafsJoins > 300, "Account-spine runtime data should preserve exact TAFS joins");
+
 console.log(
   [
     `Verified production smoke for ${baseUrl.href}`,
@@ -96,5 +102,7 @@ console.log(
     `css_assets=${assets.stylesheets.length}`,
     `js_bytes=${scriptBytes}`,
     `budget_records=${core.records.length}`,
+    `federal_accounts=${accountSpine.accounts.length}`,
+    `exact_tafs=${accountSpine.metadata.coverage.exactTafsJoins}`,
   ].join(" "),
 );

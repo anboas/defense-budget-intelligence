@@ -204,6 +204,13 @@ with current materialized views, so corrections do not erase the historical reco
 
 No new credential is required.
 
+Status as of September 12, 2026: the first production slice is implemented. It ingests
+the latest FY2026 OMB Department apportionment JSON, all USAspending Department federal
+accounts and their Treasury-account children, and Department obligation burn periods.
+The Money Flow surface ships the four-stage account comparison, exact TAFS flow bars,
+burn curve, and source evidence. Award-account transactions, enacted measures, and
+historical fiscal years remain the next Phase 1 increments.
+
 - Ingest OMB apportionment JSON/XLSX by TAFS.
 - Replace keyword-only USAspending sampling with account, award-account, transaction,
   obligation, and outlay pulls.
@@ -253,4 +260,3 @@ then adds timing and acquisition structure to a financial graph that is already 
 The validation spike in `.tmp/openclaw-spikes/federal-money-join/` is **PARTIAL**: exact
 account-level joins work, including multi-account awards; universal budget-line-to-award
 joins do not. The product design above preserves that distinction.
-

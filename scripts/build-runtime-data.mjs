@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SOURCE_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
+const ACCOUNT_SPINE_FILE = resolve(ROOT, "src/data/account-spine.json");
 const OUT_DIR = resolve(ROOT, "public/data");
 
 const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
@@ -23,6 +24,10 @@ writeFileSync(resolve(OUT_DIR, "budget-core.json"), JSON.stringify(core));
 writeFileSync(
   resolve(OUT_DIR, "budget-strategy.json"),
   JSON.stringify(strategyAnalytics),
+);
+writeFileSync(
+  resolve(OUT_DIR, "account-spine.json"),
+  readFileSync(ACCOUNT_SPINE_FILE, "utf8"),
 );
 
 console.log(

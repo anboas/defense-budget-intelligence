@@ -93,9 +93,10 @@ try {
   assert.equal(await page.getByPlaceholder("Search line items, accounts, organizations").inputValue(), "", "Reset should clear the current filter state");
   assert.doesNotMatch(new URL(page.url()).hash, /query=/, "Reset should clear owned URL parameters");
   assert.equal(await page.evaluate(() => performance.getEntriesByType("resource").filter((entry) => entry.name.endsWith("/data/budget-strategy.json")).length), 0, "Overview should not load strategy evidence up front");
+  assert.equal(await page.evaluate(() => performance.getEntriesByType("resource").filter((entry) => entry.name.endsWith("/data/account-spine.json")).length), 0, "Overview should not load account-spine evidence up front");
   const headerBox = await page.locator("[data-budget-spend-header]").boundingBox();
   assert.ok(headerBox && headerBox.height <= 96, `Desktop header should stay compact, got ${headerBox?.height}px`);
-  assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 4, "Desktop header should expose only primary nav buttons");
+  assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 5, "Desktop header should expose only primary nav buttons");
   assert.equal(await page.locator("[data-budget-nav-more]").count(), 1, "Desktop header should expose secondary nav menu");
   assert.equal(await page.locator("[data-if-operations-workspace][data-visual-density='compact']").count(), 1, "Budget app should use compact operations workspace");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Budget filters should expose a control bar hook");
@@ -106,6 +107,22 @@ try {
   assert.match(text, /Fastest mission signal/i);
   assert.equal(await page.locator('a[href="https://opportunity-intelligence-full.pages.dev/"]').count(), 1, "Opportunity peer link should exist");
   assert.equal(await page.locator('a[href="https://policy-intelligence-full.pages.dev/"]').count(), 1, "Policy peer link should exist");
+  await clickBudgetSurface(page, /Money Flow/);
+  await page.waitForSelector("[data-account-spine-page]");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/lifecycle", "Money Flow should deep-link through hash route");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Money Flow", "Header should track Money Flow route title");
+  assert.equal(await page.locator("[data-budget-filter-bar]").count(), 0, "Money Flow should not render budget-line filters");
+  assert.equal(await page.evaluate(() => performance.getEntriesByType("resource").filter((entry) => entry.name.endsWith("/data/account-spine.json")).length), 1, "Money Flow should load its evidence payload on demand once");
+  assert.equal(await page.locator("[data-lifecycle-waterfall] .lifecycle-stage").count(), 4, "Money Flow should compare four distinct money stages");
+  assert.ok(await page.locator("[data-account-flow] article").count() >= 1, "Money Flow should expose exact TAFS account flows");
+  assert.equal(await page.locator("[data-burn-curve] svg").count(), 1, "Money Flow should expose a department obligation burn curve");
+  assert.ok(await page.locator("[data-lifecycle-evidence] a").count() >= 2, "Money Flow should expose source evidence");
+  assert.ok(await page.locator("#lifecycle-account option").count() > 100, "Money Flow should expose the Department federal-account inventory");
+  const lifecycleText = await page.locator("[data-account-spine-page]").innerText();
+  assert.match(lifecycleText, /derived/i, "Money Flow should label the request edge as derived");
+  assert.match(lifecycleText, /exact TAFS joins/i, "Money Flow should label exact account joins");
+  const lifecycleOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(lifecycleOverflow <= 2, `Money Flow desktop overflow ${lifecycleOverflow}`);
   await clickBudgetSurface(page, /Trends/);
   assert.equal(new URL(page.url()).hash, "#/budget-spend/trends", "Trends should deep-link through hash route");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Trends", "Header should track Trends route title");
@@ -462,6 +479,17 @@ try {
   await retry.getByRole("button", { name: "Retry" }).click();
   await retry.waitForSelector("[data-strategy-page]");
   assert.equal(strategyAttempts, 2, "Deferred data failures should recover through an explicit retry");
+  let accountSpineAttempts = 0;
+  await retry.route("**/data/account-spine.json", async (route) => {
+    accountSpineAttempts += 1;
+    if (accountSpineAttempts === 1) await route.abort("failed");
+    else await route.continue();
+  });
+  await clickBudgetSurface(retry, /Money Flow/);
+  await retry.getByRole("button", { name: "Retry" }).waitFor();
+  await retry.getByRole("button", { name: "Retry" }).click();
+  await retry.waitForSelector("[data-account-spine-page]");
+  assert.equal(accountSpineAttempts, 2, "Account-spine data failures should recover through an explicit retry");
   await retry.close();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -477,6 +505,14 @@ try {
   assert.equal(await mobile.locator(".masthead__brand p").count(), 0, "Mobile top bar should not render desktop masthead copy");
   const mobileFilterBox = await mobile.locator("[data-budget-filter-bar]").boundingBox();
   assert.ok(mobileFilterBox && mobileFilterBox.height <= 270, `Mobile filters should remain compact while preserving 44px targets and Reset, got ${mobileFilterBox?.height}px`);
+  await clickBudgetSurface(mobile, /Money Flow/);
+  await mobile.waitForSelector("[data-account-spine-page]");
+  assert.equal(await mobile.locator("[data-lifecycle-waterfall] .lifecycle-stage").count(), 4, "Mobile Money Flow should show all money stages");
+  const lifecycleSelectBox = await mobile.locator("#lifecycle-account").boundingBox();
+  assert.ok(lifecycleSelectBox && lifecycleSelectBox.height >= 44, "Mobile account selection should meet the 44px target");
+  assert.ok(await mobile.locator("[data-account-flow] article").count() >= 1, "Mobile Money Flow should show exact TAFS flows");
+  const mobileLifecycleOverflow = await mobile.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(mobileLifecycleOverflow <= 2, `Money Flow mobile overflow ${mobileLifecycleOverflow}`);
   await clickBudgetSurface(mobile, /Trends/);
   assert.equal(await mobile.locator("[data-budget-filter-bar]").count(), 0, "Mobile Trends should not render current-line filters");
   assert.equal(await mobile.locator("[data-request-history-timeline] .trend-year-card").count(), 4, "Mobile Trends should show request vintages");

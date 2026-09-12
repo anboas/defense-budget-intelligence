@@ -39,11 +39,11 @@ The repository also includes a production-neutral container stack for the next p
 - one Node container serves the compiled Vite application and a versioned `/api/v1` surface;
 - PostgreSQL stores immutable intelligence snapshots and mutable analyst state;
 - idempotent SQL migrations run under a PostgreSQL advisory lock at application startup;
-- committed budget, source-health, and refresh-delta snapshots are imported by content hash;
+- committed budget, source-health, refresh-delta, and account-spine snapshots are imported by content hash;
 - public snapshot reads are available immediately;
 - saved-view writes are disabled by default and require both `ENABLE_WRITES=true` and a host-injected `APP_WRITE_TOKEN`.
 
-The initial schema includes `intelligence_snapshots`, `refresh_runs`, `saved_views`, `comparison_sets`, and `annotations`. This is an additive migration path: the live Pages sites can remain online while frontend reads move from static JSON to the API route by route.
+The schema includes `intelligence_snapshots`, `source_documents`, `fiscal_accounts`, `fiscal_account_observations`, `refresh_runs`, `saved_views`, `comparison_sets`, and `annotations`. This is an additive migration path: the live Pages sites can remain online while frontend reads move from static JSON to the API route by route.
 
 Run the local stack:
 
@@ -60,7 +60,10 @@ Container health contracts:
 - `GET /api/healthz` confirms the process is running.
 - `GET /api/readyz` confirms PostgreSQL is reachable.
 - `GET /api/v1/snapshots` lists the latest snapshot metadata by layer.
-- `GET /api/v1/snapshots/:kind/current` returns the current persisted payload for `budget`, `source_health`, or `refresh_delta`.
+- `GET /api/v1/snapshots/:kind/current` returns the current persisted payload for `budget`, `source_health`, `refresh_delta`, or `account_spine`.
+- `GET /api/v1/account-spine` returns normalized account-spine coverage.
+- `GET /api/v1/account-spine/accounts` returns current federal-account execution measures.
+- `GET /api/v1/account-spine/accounts/:code` returns source-linked observations by TAFS for one federal account.
 
 The GitHub Pages workflow treats this stack as a release gate: it builds the images, starts a fresh database, applies migrations, imports snapshots, verifies the API, and only then publishes the static fallback. The public Pages site remains the production surface until a container host and managed Postgres are selected and provisioned.
 
@@ -82,6 +85,8 @@ Local source refresh uses cached workbooks from `BUDGET_SOURCE_DIR`, defaulting 
 Justification source refresh uses `npm run source:justifications`, which caches reachable official FY2027 Procurement and RDT&E XML sources under `BUDGET_SOURCE_DIR/justifications/FY2027` and records unavailable official links in the manifest.
 
 Execution source refresh uses `npm run source:usaspending`, which caches top DoD contract award results by technology-area keyword search under `BUDGET_SOURCE_DIR/usaspending/FY2025-FY2026`.
+
+Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI.
 
 GitHub Actions checks all source layers every Monday. Budget books are annual source material, while award execution and source health are reviewed weekly. The site labels each layer independently as current, review-needed, or unavailable rather than presenting one misleading global freshness date.
 
@@ -111,6 +116,7 @@ npm install
 npm run source:workbooks
 npm run source:justifications
 npm run source:usaspending
+npm run source:account-spine
 npm run source:refresh
 npm run data:build
 npm run source:health
