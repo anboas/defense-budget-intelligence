@@ -7,7 +7,7 @@
   "description": "Defense budget and spend intelligence platform for service, Fourth Estate, and color-of-money analytics.",
   "scripts": {
     "dev": "npm run data:runtime && vite --host 0.0.0.0",
-    "build": "npm run data:build && npm run data:runtime && vite build",
+    "build": "npm run data:runtime && vite build",
     "build:cloudflare": "VITE_BASE_PATH=/ npm run build",
     "data:build": "node scripts/build-budget-data.mjs",
     "data:runtime": "node scripts/build-runtime-data.mjs",
