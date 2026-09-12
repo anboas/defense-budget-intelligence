@@ -10,7 +10,7 @@
       2026,
       2027
     ],
-    "generatedAt": "2026-09-12T13:00:02.942Z",
+    "generatedAt": "2026-09-12T13:03:01.567Z",
     "sourceCache": "Local Comptroller workbook cache supplied through BUDGET_SOURCE_DIR during data generation.",
     "sources": [
       {
@@ -25,7 +25,7 @@
         "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
         "requestYear": 2027,
         "localFile": "m1_display.xlsx",
-        "cacheModifiedAt": "2026-09-12T13:00:02.167Z",
+        "cacheModifiedAt": "2026-09-12T13:03:01.346Z",
         "cacheSizeBytes": 245701,
         "availableBudgetRequestYears": [
           2027
@@ -69,7 +69,7 @@
         "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
         "requestYear": 2027,
         "localFile": "o1_display.xlsx",
-        "cacheModifiedAt": "2026-09-12T13:00:02.230Z",
+        "cacheModifiedAt": "2026-09-12T13:03:01.432Z",
         "cacheSizeBytes": 334518,
         "availableBudgetRequestYears": [
           2027
@@ -113,7 +113,7 @@
         "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
         "requestYear": 2027,
         "localFile": "p1_display.xlsx",
-        "cacheModifiedAt": "2026-09-12T13:00:02.309Z",
+        "cacheModifiedAt": "2026-09-12T13:03:01.493Z",
         "cacheSizeBytes": 926568,
         "availableBudgetRequestYears": [
           2027
@@ -157,7 +157,7 @@
         "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
         "requestYear": 2027,
         "localFile": "r1_display.xlsx",
-        "cacheModifiedAt": "2026-09-12T13:00:02.480Z",
+        "cacheModifiedAt": "2026-09-12T13:03:01.503Z",
         "cacheSizeBytes": 691426,
         "availableBudgetRequestYears": [
           2027
@@ -201,7 +201,7 @@
         "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
         "requestYear": 2027,
         "localFile": "rf1_display.xlsx",
-        "cacheModifiedAt": "2026-09-12T13:00:02.694Z",
+        "cacheModifiedAt": "2026-09-12T13:03:01.547Z",
         "cacheSizeBytes": 36300,
         "availableBudgetRequestYears": [
           2027
@@ -245,7 +245,7 @@
         "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
         "requestYear": 2027,
         "localFile": "c1_display.xlsx",
-        "cacheModifiedAt": "2026-09-12T13:00:02.942Z",
+        "cacheModifiedAt": "2026-09-12T13:03:01.567Z",
         "cacheSizeBytes": 117109,
         "availableBudgetRequestYears": [
           2027
@@ -506,7 +506,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2024,
           "localFile": "FY2024/m1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T12:59:58.927Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.006Z",
           "cacheSizeBytes": 94034,
           "availableBudgetRequestYears": [
             2024
@@ -550,7 +550,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2024,
           "localFile": "FY2024/o1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T12:59:59.176Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.082Z",
           "cacheSizeBytes": 188295,
           "availableBudgetRequestYears": [
             2024
@@ -594,7 +594,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2024,
           "localFile": "FY2024/p1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T12:59:59.401Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.276Z",
           "cacheSizeBytes": 432740,
           "availableBudgetRequestYears": [
             2024
@@ -638,7 +638,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2024,
           "localFile": "FY2024/r1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T12:59:59.671Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.387Z",
           "cacheSizeBytes": 327443,
           "availableBudgetRequestYears": [
             2024
@@ -682,7 +682,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2024,
           "localFile": "FY2024/rf1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T12:59:59.957Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.488Z",
           "cacheSizeBytes": 18917,
           "availableBudgetRequestYears": [
             2024
@@ -726,7 +726,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2025,
           "localFile": "FY2025/m1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:00.398Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.534Z",
           "cacheSizeBytes": 79954,
           "availableBudgetRequestYears": [
             2025
@@ -770,7 +770,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2025,
           "localFile": "FY2025/o1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:00.598Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.650Z",
           "cacheSizeBytes": 172857,
           "availableBudgetRequestYears": [
             2025
@@ -814,7 +814,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2025,
           "localFile": "FY2025/p1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:00.807Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.666Z",
           "cacheSizeBytes": 405552,
           "availableBudgetRequestYears": [
             2025
@@ -858,7 +858,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2025,
           "localFile": "FY2025/r1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:00.973Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.815Z",
           "cacheSizeBytes": 291588,
           "availableBudgetRequestYears": [
             2025
@@ -902,7 +902,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2025,
           "localFile": "FY2025/rf1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:01.125Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.840Z",
           "cacheSizeBytes": 21448,
           "availableBudgetRequestYears": [
             2025
@@ -946,7 +946,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2026,
           "localFile": "FY2026/m1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:01.330Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.954Z",
           "cacheSizeBytes": 188458,
           "availableBudgetRequestYears": [
             2026
@@ -990,7 +990,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2026,
           "localFile": "FY2026/o1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:01.359Z",
+          "cacheModifiedAt": "2026-09-12T13:03:00.977Z",
           "cacheSizeBytes": 286458,
           "availableBudgetRequestYears": [
             2026
@@ -1034,7 +1034,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2026,
           "localFile": "FY2026/p1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:01.604Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.139Z",
           "cacheSizeBytes": 592351,
           "availableBudgetRequestYears": [
             2026
@@ -1078,7 +1078,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2026,
           "localFile": "FY2026/r1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:01.757Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.283Z",
           "cacheSizeBytes": 555211,
           "availableBudgetRequestYears": [
             2026
@@ -1122,7 +1122,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2026,
           "localFile": "FY2026/rf1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.000Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.326Z",
           "cacheSizeBytes": 35050,
           "availableBudgetRequestYears": [
             2026
@@ -1166,7 +1166,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2027,
           "localFile": "m1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.167Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.346Z",
           "cacheSizeBytes": 245701,
           "availableBudgetRequestYears": [
             2027
@@ -1210,7 +1210,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2027,
           "localFile": "o1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.230Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.432Z",
           "cacheSizeBytes": 334518,
           "availableBudgetRequestYears": [
             2027
@@ -1254,7 +1254,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2027,
           "localFile": "p1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.309Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.493Z",
           "cacheSizeBytes": 926568,
           "availableBudgetRequestYears": [
             2027
@@ -1298,7 +1298,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2027,
           "localFile": "r1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.480Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.503Z",
           "cacheSizeBytes": 691426,
           "availableBudgetRequestYears": [
             2027
@@ -1342,7 +1342,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2027,
           "localFile": "rf1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.694Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.547Z",
           "cacheSizeBytes": 36300,
           "availableBudgetRequestYears": [
             2027
@@ -1386,7 +1386,7 @@
           "sourceRefreshCadence": "Annual President's Budget release, with replacement workbooks when Comptroller republishes display books.",
           "requestYear": 2027,
           "localFile": "c1_display.xlsx",
-          "cacheModifiedAt": "2026-09-12T13:00:02.942Z",
+          "cacheModifiedAt": "2026-09-12T13:03:01.567Z",
           "cacheSizeBytes": 117109,
           "availableBudgetRequestYears": [
             2027
@@ -16269,7 +16269,7 @@
         "justificationCoverage": {
           "sourcePage": "https://comptroller.war.gov/BudgetMaterials/FY2027budgetjustification.aspx",
           "sourceCache": "/home/runner/work/_temp/defense-budget-intelligence/budget/justifications/FY2027",
-          "cachedAt": "2026-09-12T13:01:05.138Z",
+          "cachedAt": "2026-09-12T13:05:10.679Z",
           "sourceCount": 35,
           "officialLinkCount": 39,
           "unavailableSourceCount": 4,
@@ -16291,7 +16291,7 @@
           "coverage": {
             "sourceUrl": "https://api.usaspending.gov/api/v2/search/spending_by_award/",
             "spendingOverTimeUrl": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
-            "cachedAt": "2026-09-12T13:01:37.668Z",
+            "cachedAt": "2026-09-12T13:05:18.878Z",
             "startDate": "2024-10-01",
             "endDate": "2026-09-12",
             "methodology": "Top Department of Defense contract awards by technology-area keyword search using USAspending award search, plus quarterly contract-obligation time series from USAspending spending_over_time for selected technology, buyer, vendor, PSC, and NAICS filters.",
@@ -72203,7 +72203,7 @@
       "justificationCoverage": {
         "sourcePage": "https://comptroller.war.gov/BudgetMaterials/FY2027budgetjustification.aspx",
         "sourceCache": "/home/runner/work/_temp/defense-budget-intelligence/budget/justifications/FY2027",
-        "cachedAt": "2026-09-12T13:01:05.138Z",
+        "cachedAt": "2026-09-12T13:05:10.679Z",
         "sourceCount": 35,
         "officialLinkCount": 39,
         "unavailableSourceCount": 4,
@@ -72224,7 +72224,7 @@
       "executionCoverage": {
         "sourceUrl": "https://api.usaspending.gov/api/v2/search/spending_by_award/",
         "spendingOverTimeUrl": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
-        "cachedAt": "2026-09-12T13:01:37.668Z",
+        "cachedAt": "2026-09-12T13:05:18.878Z",
         "startDate": "2024-10-01",
         "endDate": "2026-09-12",
         "methodology": "Top Department of Defense contract awards by technology-area keyword search using USAspending award search, plus quarterly contract-obligation time series from USAspending spending_over_time for selected technology, buyer, vendor, PSC, and NAICS filters.",
