@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Bookmark,
@@ -20,6 +20,7 @@ import {
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
+const CaptureTargeting = lazy(() => import("./CaptureTargeting.jsx"));
 
 const FILTER_DEFAULTS = {
   capQuery: "",
@@ -975,6 +976,10 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <SummaryMetric label="FPDS actions" value={totals.actions.toLocaleString()} helper={`${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`} tone="green" />
         <SummaryMetric label="Near-term endpoints" value={totals.endingWithinYear.toLocaleString()} helper={`Reported current ends within 12 months of ${formatDate(asOf)}`} tone="orange" />
       </section>
+
+      <Suspense fallback={<section className="capture-targeting-loading" role="status">Loading targeting visualizations…</section>}>
+        <CaptureTargeting records={filtered} asOf={asOf} onSelect={setSelectedId} onFilter={applyChartFilter} />
+      </Suspense>
 
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
