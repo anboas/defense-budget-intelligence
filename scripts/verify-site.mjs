@@ -264,7 +264,11 @@ try {
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Full and open competitive procurement/i);
   const applicationIncumbentRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
   assert.ok(await applicationIncumbentRow.locator("[data-followon-activity]").count() >= 1, "Application Arsenal incumbent should expose the published follow-on crosswalk");
-  await applicationIncumbentRow.getByRole("button", { name: /Active solicitation window/i }).click();
+  const applicationFollowOnWindow = applicationIncumbentRow.getByRole("button", { name: /Active solicitation window/i });
+  const applicationDeadline = applicationIncumbentRow.getByRole("button", { name: /Proposals due/i });
+  const followOnGeometry = await Promise.all([applicationFollowOnWindow.boundingBox(), applicationDeadline.boundingBox()]);
+  assert.ok(followOnGeometry[0] && followOnGeometry[1] && followOnGeometry[0].y + followOnGeometry[0].height <= followOnGeometry[1].y, `Follow-on window and deadline must occupy independently clickable lanes: ${JSON.stringify(followOnGeometry)}`);
+  await applicationFollowOnWindow.click();
   await page.waitForSelector("[data-followon-modal][open]");
   const applicationFollowOn = await page.locator("[data-followon-modal]").innerText();
   assert.match(applicationFollowOn, /Application Arsenal enterprise engineering/i);

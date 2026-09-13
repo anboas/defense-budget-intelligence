@@ -9184,6 +9184,7 @@ td .dot {
 }
 
 .capture-timeline__followon-marker {
+  top: 14px;
   width: 10px;
   border: 2px solid #fff;
   border-radius: 50%;
@@ -9193,6 +9194,7 @@ td .dot {
 }
 
 .capture-timeline__followon-window {
+  top: 4px;
   min-width: 6px;
   border: 1px solid #a63a78;
   border-radius: 3px;
