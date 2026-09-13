@@ -62,7 +62,7 @@ const homeResponse = await fetchWithCheck(baseUrl);
 assert.equal(homeResponse.status, 200, `Homepage should return 200, got ${statusText(homeResponse)}`);
 
 const html = await homeResponse.text();
-assert.match(html, /Defense Budget & Spend Intelligence/, "Homepage should identify the app");
+assert.match(html, /Defense Budget & Spend Analytics/, "Homepage should identify the app");
 
 const assets = extractAssets(html, homeResponse.url || baseUrl);
 assert.ok(assets.scripts.length > 0, "Homepage should reference at least one JavaScript asset");
@@ -83,10 +83,11 @@ const core = await coreResponse.json();
 assert.ok(core.records?.length > 3000, "Core runtime data should contain budget records");
 assert.equal(core.metadata?.dataInventory?.strategyAnalytics, undefined, "Core runtime data should exclude deferred strategy evidence");
 
-const strategyResponse = await fetchWithCheck(new URL("data/budget-strategy.json", baseUrl));
-assert.equal(strategyResponse.status, 200, `Strategy runtime data should return 200, got ${statusText(strategyResponse)}`);
-const strategy = await strategyResponse.json();
-assert.ok(strategy.technologyAreas?.length > 0, "Deferred strategy data should contain technology areas");
+const executionResponse = await fetchWithCheck(new URL("data/budget-execution.json", baseUrl));
+assert.equal(executionResponse.status, 200, `Execution runtime data should return 200, got ${statusText(executionResponse)}`);
+const execution = await executionResponse.json();
+assert.ok(execution.awardDrilldown?.summary?.awards > 600, "Execution runtime data should contain the sampled award inventory");
+assert.equal(execution.strategy, undefined, "Execution runtime data should exclude strategy judgments");
 
 const accountSpineResponse = await fetchWithCheck(new URL("data/account-spine.json", baseUrl));
 assert.equal(accountSpineResponse.status, 200, `Account-spine runtime data should return 200, got ${statusText(accountSpineResponse)}`);
@@ -104,6 +105,7 @@ console.log(
     `css_assets=${assets.stylesheets.length}`,
     `js_bytes=${scriptBytes}`,
     `budget_records=${core.records.length}`,
+    `awards=${execution.awardDrilldown.summary.awards}`,
     `federal_accounts=${accountSpine.accounts.length}`,
     `exact_tafs=${accountSpine.metadata.coverage.exactTafsJoins}`,
     `exact_award_accounts=${accountSpine.metadata.coverage.exactAwardAccountLinks}`,

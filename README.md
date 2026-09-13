@@ -1,35 +1,30 @@
-# Defense Budget & Spend Intelligence
+# Defense Budget & Spend Analytics
 
-Purpose-built analytics platform for understanding Department of Defense budget and spend data in detail.
+Factual analytics platform tracing published defense money data from the President's Budget request through account execution, awards, and FPDS transactions.
 
 Live Cloudflare Pages site: <https://defense-budget-intelligence.pages.dev/>
 
 GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
-
-Complementary intelligence platforms:
-
-- Defense Budget & Spend Intelligence: <https://defense-budget-intelligence.pages.dev/>
-- Opportunity Intelligence: <https://opportunity-intelligence-full.pages.dev/>
-- Policy Intelligence: <https://policy-intelligence-full.pages.dev/>
 
 ## Scope
 
 - Services: Army, Navy / Marine Corps, Air Force / Space Force.
 - Fourth Estate: OSD / Defense-Wide, defense agencies, combatant commands, and joint organizations.
 - Colors of money: M-1, O-1, P-1, R-1, RF-1, and C-1 display books.
-- Drilldown levels: portfolio, request vintage, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, technology area, and source evidence.
-- Signal views: AI / autonomy, cyber, space, software / digital, missiles, shipbuilding, aircraft, medical, logistics, and infrastructure.
+- Left-to-right stages: PDB Request, Request History, Account Flow, Awards, Transactions, and Sources.
+- Drilldown levels: request vintage, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, Treasury account, award, modification, and source evidence.
+- Classifications: color of money and keyword-derived mission categories remain labeled as classifications, not recommendations.
 
-## Platform Paradigms
+## Analytics contract
 
-Defense Budget & Spend Intelligence follows the same product-family conventions as Opportunity Intelligence, Policy Intelligence, and Control Surface UI:
+Defense Budget & Spend Analytics uses six ordered factual surfaces:
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
-- Product header shell with active page title, flat top navigation, and stable `if-*` / `data-*` hooks for future framework alignment.
-- Hash-route deep links for each major surface: Overview, Trends, Strategy, Hypotheses, Relationships, Awards, Pursuits, Capture Calendar, Cockpit, Services, Fourth Estate, AI / Autonomy, Drilldown, Data Sources, and Changes.
-- Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local watched views, and deterministic snapshot deltas.
+- A five-stage left-to-right money rail ending at the lowest published FPDS action grain; Sources remains a separate lineage utility.
+- Hash-route deep links for PDB Request, Request History, Account Flow, Awards, Transactions, and Sources.
+- Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local saved views, and deterministic snapshots.
 - CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
-- Peer navigation to Budget & Spend, Opportunity, and Policy as complementary intelligence platforms with separate product boundaries.
+- No strategy rankings, pursuit recommendations, opportunity scores, decision briefs, or target workboards in the public runtime.
 - Cloudflare Pages as the primary public surface, with GitHub Pages retained as a fallback.
 
 ## Stateful container foundation
@@ -72,7 +67,7 @@ The GitHub Pages workflow treats this stack as a release gate: it builds the ima
 
 ## Data Sources
 
-The site currently uses six official FY2027 Office of the Under Secretary of Defense (Comptroller) display workbooks:
+The request stage currently uses six official FY2027 Office of the Under Secretary of Defense (Comptroller) display workbooks:
 
 - M-1: Military Personnel
 - O-1: Operations and Maintenance
@@ -81,7 +76,7 @@ The site currently uses six official FY2027 Office of the Under Secretary of Def
 - RF-1: Revolving and Management Funds
 - C-1: Military Construction / Family Housing / BRAC
 
-The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. It can also read cached FY2027 Procurement and RDT&E justification XML from OUSD(C) to add compact narrative evidence, confidence, and source links to strategy lanes. A separate USAspending snapshot adds execution-side contract award, buyer, vendor, PSC, NAICS, and services-fit signals. CI builds use the committed generated JSON when the local workbook cache is not present.
+The parser reads line-level data from the official display workbooks and preserves FY2025, FY2026, and FY2027 values when present. For C-1, values are organized by the workbook fiscal-year field. Cached FY2027 Procurement and RDT&E justification XML adds source-linked narrative evidence. A separate USAspending snapshot adds contract awards, buyers, vendors, PSCs, NAICS, and transaction-funded federal-account links. CI builds use committed generated JSON when the local workbook cache is unavailable.
 
 Local source refresh uses cached workbooks from `BUDGET_SOURCE_DIR`, defaulting to the user home artifact directory. `npm run source:workbooks` downloads the official FY2024-FY2027 display books, and `npm run source:refresh` rebuilds all public snapshots.
 
@@ -91,7 +86,7 @@ Execution source refresh uses `npm run source:usaspending`, which caches top DoD
 
 Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI. It also enriches the 250 highest-value awards in the current technology sample through USAspending's award-account endpoint, preserving those transaction-funded federal-account edges as exact while making the sample boundary explicit.
 
-Capture Calendar reconstructs positioned contract-performance and acquisition-window rows from a source Gantt PDF, reconciles every row to the corroboration CSV, and merges exact award references with the current award analytics bundle. The public runtime excludes internal campaign fields and proposed work packages. Rebuild it from authorized local source artifacts with:
+Transactions reconstructs published contract-performance and acquisition-event rows from a source Gantt PDF, reconciles every row to the corroboration CSV, and merges exact award references with the current award analytics bundle. The public runtime excludes internal campaign fields, proposed work packages, scores, recommendations, and analyst workboard state. Rebuild it from authorized local source artifacts with:
 
 ```bash
 node scripts/build-capture-calendar.mjs --pdf /path/to/gantt.pdf --csv /path/to/corroboration.csv
@@ -106,15 +101,15 @@ Current version depth:
 - Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; USAspending execution-side award snapshots are partially ingested; FPDS/SAM and market timing feeds are staged next.
 - Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, USAspending obligation trend pulls, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
 - Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
-- Relationships connects lanes, technology areas, buyers, vendors, work types, budget lines, award evidence, and pursuit actions into a single decision surface.
-- Hypotheses turns top pursuit lanes into generated theses with budget evidence, execution evidence, counterpoints, validation tasks, and linked source records.
-- Cockpit turns the generated capture queue into selected lane briefs with budget posture, execution posture, timing, incumbent, evidence, gaps, and next actions.
-- Data Sources visualizes the ingestion ladder, source join paths, and an impact-versus-readiness matrix for deciding what to integrate next.
+- Account Flow preserves request, apportionment, obligation, outlay, and award-account measures at their published grains.
+- Awards exposes the sampled USAspending inventory without ranking work or prescribing action.
+- Transactions exposes reported terms, canonical events, exact FPDS actions, cumulative obligations, and descriptive distributions.
+- Sources visualizes publishers, record counts, refresh times, relationship classes, and join policy.
 - Coverage diagnostics show signal-tagged record/value coverage, workbook-level organization mix, and top mission signals by source.
 - Justification evidence diagnostics show official XML count, extracted program items, matched budget lines, and narrative-confirmed technology lines.
 - USAspending diagnostics show technology searches, award hits, unique awards, sampled award value, top vendors, top buyers, and selected-area execution signals.
 - Source health checks track current workbook URLs and pipeline-source URLs with status, probe method, response time, and checked timestamp. Refresh with `npm run source:health`.
-- Changes compares consecutive budget, award, capture-queue, and source-health snapshots; build it locally with `npm run data:delta` and `PREVIOUS_GIT_REF` or explicit prior-snapshot file paths.
+- Snapshot deltas remain available in generated data for audit and refresh diagnostics; build them locally with `npm run data:delta` and `PREVIOUS_GIT_REF` or explicit prior-snapshot file paths.
 - Budget and award tables link each visible record to its official workbook or USAspending record and expose an evidence-detail drawer with source system, snapshot, method, and record identity.
 - The sequenced [Federal Money Lifecycle Roadmap](docs/federal-money-lifecycle-roadmap.md) defines the account-level progression from request through apportionment, execution, procurement, awards, subawards, and active/upcoming work without overstating budget-line-to-contract joins.
 

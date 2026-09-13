@@ -9305,3 +9305,261 @@ td .dot {
     grid-template-columns: 1fr;
   }
 }
+.money-flow-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  padding: 0;
+  border: 1px solid #c9d8e8;
+  border-radius: 12px;
+  background: #fff;
+  scrollbar-width: thin;
+}
+
+.money-flow-rail__step {
+  display: flex;
+  align-items: center;
+  flex: 1 0 150px;
+  min-width: 0;
+}
+
+.money-flow-rail__step > svg {
+  flex: 0 0 auto;
+  color: #7f96ad;
+  margin: 0 -8px;
+  position: relative;
+  z-index: 2;
+}
+
+.money-flow-rail__step a {
+  display: grid;
+  grid-template-columns: 24px 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 18px;
+  color: #27435f;
+  text-decoration: none;
+  border-radius: 10px;
+}
+
+.money-flow-rail__step a > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e8f1fa;
+  color: #174b78;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.money-flow-rail__step a strong {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.83rem;
+}
+
+.money-flow-rail__step a:hover,
+.money-flow-rail__step a:focus-visible {
+  background: #eef5fb;
+}
+
+.money-flow-rail__step a.is-active {
+  background: #0b4f7c;
+  color: #fff;
+}
+
+.money-flow-rail__step a.is-active > span {
+  background: #fff;
+  color: #0b4f7c;
+}
+
+.request-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid #c9d8e8;
+  border-radius: 14px;
+  background: #f5f9fc;
+}
+
+.request-hero > div:first-child {
+  max-width: 760px;
+}
+
+.request-hero span {
+  color: #54708b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.request-hero h2 {
+  margin: 4px 0 8px;
+  color: #102f4c;
+  font-size: clamp(1.55rem, 2.8vw, 2.35rem);
+}
+
+.request-hero p {
+  margin: 0;
+  color: #415d78;
+  line-height: 1.55;
+}
+
+.request-hero__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+  min-width: 300px;
+}
+
+.request-hero__facts article {
+  padding: 10px 12px;
+  border: 1px solid #d7e3ee;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.request-hero__facts strong,
+.request-hero__facts span {
+  display: block;
+}
+
+.request-hero__facts strong {
+  color: #123f66;
+  font-size: 1.05rem;
+}
+
+.request-hero__facts span {
+  margin-top: 3px;
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.source-flow {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding: 4px;
+}
+
+.source-flow__step {
+  display: flex;
+  align-items: center;
+  flex: 1 0 220px;
+}
+
+.source-flow__step > svg {
+  flex: 0 0 auto;
+  color: #7890a7;
+  margin: 0 8px;
+}
+
+.source-flow__step article {
+  width: 100%;
+  min-height: 210px;
+  padding: 16px;
+  border: 1px solid #cbd9e6;
+  border-radius: 12px;
+  background: #f8fbfd;
+}
+
+.source-flow__step article > span,
+.source-flow__step article > strong,
+.source-flow__step article > b {
+  display: block;
+}
+
+.source-flow__step article > span {
+  color: #54708b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.source-flow__step article > strong {
+  margin-top: 8px;
+  color: #163c5f;
+}
+
+.source-flow__step article > b {
+  margin-top: 12px;
+  color: #0b4f7c;
+  font-size: 1.15rem;
+}
+
+.source-flow__step article p {
+  color: #506b84;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.source-flow__step article a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #005ea2;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.join-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.join-policy-grid article {
+  padding: 14px;
+  border-left: 3px solid #2d78a8;
+  background: #f5f9fc;
+}
+
+.join-policy-grid strong,
+.join-policy-grid span {
+  display: block;
+}
+
+.join-policy-grid strong {
+  color: #173f62;
+  font-size: 0.83rem;
+}
+
+.join-policy-grid span {
+  margin-top: 6px;
+  color: #536c83;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+  .money-flow-rail__step {
+    flex-basis: 142px;
+  }
+
+  .money-flow-rail__step a {
+    min-height: 44px;
+    padding: 7px 14px;
+  }
+
+  .request-hero {
+    display: block;
+    padding: 18px;
+  }
+
+  .request-hero__facts {
+    min-width: 0;
+    margin-top: 16px;
+  }
+
+  .join-policy-grid {
+    grid-template-columns: 1fr;
+  }
+}

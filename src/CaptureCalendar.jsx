@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Bookmark,
@@ -20,7 +20,6 @@ import {
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
-const CaptureTargeting = lazy(() => import("./CaptureTargeting.jsx"));
 
 const FILTER_DEFAULTS = {
   capQuery: "",
@@ -213,7 +212,7 @@ function downloadCsv(records, metadata) {
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "capture-calendar-filtered.csv";
+  anchor.download = "award-transactions-filtered.csv";
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -774,7 +773,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         ? filters.capPortfolio
         : filters.capParty !== "all"
           ? filters.capParty
-          : `Capture view ${savedViews.length + 1}`;
+          : `Transaction view ${savedViews.length + 1}`;
     const savedAt = new Date().toISOString();
     setSavedViews((current) => [{ id: `view-${Date.now()}`, name: primary, savedAt, filters: { ...filters } }, ...current].slice(0, 8));
   }
@@ -915,12 +914,12 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   }
 
   return (
-    <div className="capture-page" data-capture-calendar-page>
+    <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page>
       <section className="capture-hero">
         <div>
-          <span className="eyebrow">Public-source performance and acquisition intelligence</span>
-          <h2>Growth and Capture Calendar</h2>
-          <p>Interactive performance periods, acquisition windows, incumbents, spending, and evidence. Contract endpoints are not recompete dates.</p>
+          <span className="eyebrow">Stage 5 · Award actions and reported performance</span>
+          <h2>Transactions</h2>
+          <p>FPDS actions, cumulative obligations, reported performance periods, published acquisition events, recipients, buyers, and evidence. Contract endpoints remain source dates, not inferred recompetes.</p>
         </div>
         <div className="capture-hero__actions">
           <button type="button" onClick={copyLink}><Copy size={15} />Copy filtered link</button>
@@ -928,7 +927,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         </div>
       </section>
 
-      <section className="capture-trust" aria-label="Capture calendar data boundary">
+      <section className="capture-trust" aria-label="Transaction analytics data boundary">
         <ShieldCheck size={18} aria-hidden="true" />
         <span><strong>{dataset.metadata.coverage.publicRows} public records</strong> with {dataset.metadata.coverage.normalizedEvents.toLocaleString()} normalized events and {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions across {dataset.metadata.coverage.uniqueAwards} awards. {dataset.metadata.coverage.excludedPrivateRows} internal campaign rows are excluded.</span>
       </section>
@@ -941,9 +940,9 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       />
 
       <section className={`capture-filters${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters>
-        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter calendar</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 12 more filters"}</button><button type="button" onClick={() => setFilters(FILTER_DEFAULTS)} disabled={!activeFilters}>Reset</button></div>
-        <div className="capture-quickviews" aria-label="Capture calendar quick views">
-          <span>Quick views</span>
+        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 12 more filters"}</button><button type="button" onClick={() => setFilters(FILTER_DEFAULTS)} disabled={!activeFilters}>Reset</button></div>
+        <div className="capture-quickviews" aria-label="Transaction analytical presets">
+          <span>Analytical presets</span>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "contract-performance", capHorizon: "active", capFrom: "2025", capTo: "2030" })}>Active terms</button>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "contract-performance", capHorizon: "ending12", capFrom: "2026", capTo: "2028" })}>Ending in 12 months</button>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "acquisition-window", capFrom: "2026", capTo: "2029" })}>Acquisition horizon</button>
@@ -977,20 +976,16 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <SummaryMetric label="Near-term endpoints" value={totals.endingWithinYear.toLocaleString()} helper={`Reported current ends within 12 months of ${formatDate(asOf)}`} tone="orange" />
       </section>
 
-      <Suspense fallback={<section className="capture-targeting-loading" role="status">Loading targeting visualizations…</section>}>
-        <CaptureTargeting records={filtered} asOf={asOf} selectedId={selectedId} onSelect={setSelectedId} onFilter={applyChartFilter} />
-      </Suspense>
-
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
 
       <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={Boolean(selected && comparisonIds.includes(selected.opportunityId))} onToggleCompare={() => selected && toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} onSelectRelated={setSelectedId} />
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Performance and acquisition Gantt</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry with quarterly guides</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance and acquisition events</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry with quarterly guides</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone</span></div>
         <div className="capture-gantt-tools" data-capture-gantt-tools>
           <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
-          <div className="capture-gantt-window" aria-label="Timeline windows"><span>Window</span><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Decision</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
+          <div className="capture-gantt-window" aria-label="Timeline windows"><span>Window</span><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Current</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
           <label><span>Row density</span><select value={filters.capDensity} onChange={(event) => setFilters({ capDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
           <label><span>Grouping</span><select value={filters.capGroup} onChange={(event) => setFilters({ capGroup: event.target.value })}><option value="none">No grouping</option><option value="portfolio">Portfolio groups</option></select></label>
           <label><span>Bar labels</span><select value={filters.capLabels} onChange={(event) => setFilters({ capLabels: event.target.value })}><option value="dates">Date ranges</option><option value="money">Observed money</option><option value="none">No labels</option></select></label>
@@ -1007,7 +1002,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Value posture</strong><small>Observed obligations compared with potential / published high values</small></span></div></div><BarList rows={moneyRows} format={formatMoney} testId="value-posture" /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>FPDS action volume</strong><small>Select a fiscal year to focus the timeline</small></span></div></div>{actionRows.length ? <BarList rows={actionRows} testId="action-volume" onSelect={(row) => applyChartFilter({ capFrom: String(row.id), capTo: String(row.id) })} /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Funding action direction</strong><small>Select funding or deobligation activity</small></span></div></div>{actionDirectionRows.length ? <BarList rows={actionDirectionRows} testId="action-direction" onSelect={(row) => row.id !== "non-obligation" && applyChartFilter({ capActivity: row.id })} selectedId={filters.capActivity} /> : <p className="capture-empty">No FPDS action history matches these filters.</p>}</section>
-        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Eight-quarter decision outlook</strong><small>Select a quarter to focus the timeline</small></span></div></div><QuarterOutlook rows={quarterRows} onSelect={(row) => applyChartFilter({ capFrom: row.id.slice(0, 4), capTo: row.id.slice(0, 4) })} /></section>
+        <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Eight-quarter event timeline</strong><small>Select a quarter to focus the timeline</small></span></div></div><QuarterOutlook rows={quarterRows} onSelect={(row) => applyChartFilter({ capFrom: row.id.slice(0, 4), capTo: row.id.slice(0, 4) })} /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Obligation versus reported headroom</strong><small>Select an instrument to open its evidence</small></span></div></div>{headroomRows.length ? <StackedMoneyList rows={headroomRows} onSelect={(row) => setSelectedId(row.id)} /> : <p className="capture-empty">No comparable obligation and potential values match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Buying office exposure</strong><small>Select an office to drive the Gantt</small></span></div></div>{officeRows.length ? <BarList rows={officeRows} format={formatMoney} testId="office-money" onSelect={(row) => applyChartFilter({ capOffice: row.id })} selectedId={filters.capOffice} /> : <p className="capture-empty">No office-linked obligations match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Reported term duration</strong><small>Current performance periods at contract grain</small></span></div></div>{durationBuckets.length ? <BarList rows={durationBuckets} testId="duration" /> : <p className="capture-empty">No reported contract durations match these filters.</p>}</section>
@@ -1021,7 +1016,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
 
       <section className="capture-methodology">
         <ChevronDown size={17} aria-hidden="true" />
-        <div><strong>Interpretation and publication boundary</strong><p>Dates describe reported performance or published acquisition events. They do not establish recompete dates. USAspending award totals remain primary. FPDS actions provide exact modification history and are never added to USAspending totals. Supporting-instrument actions remain separately labeled. Internal campaign fields, target mappings, access labels, and proposed work packages are excluded from this public runtime.</p></div>
+        <div><strong>Measurement and publication boundary</strong><p>Dates describe reported performance or published acquisition events. They do not establish recompete dates. USAspending award totals remain primary. FPDS actions provide exact modification history and are never added to USAspending totals. Supporting-instrument actions remain separately labeled. Internal campaign fields, target mappings, access labels, proposed work packages, scores, recommendations, and analyst workboard state are excluded from this analytical surface.</p></div>
       </section>
     </div>
   );

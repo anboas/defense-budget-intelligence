@@ -86,7 +86,7 @@ assert.ok(operatingNavyAwards.awards?.length >= 5, "account award API should ret
 assert.ok(operatingNavyAwards.awards.every((row) => row.relationship_class === "exact" && row.source_uri), "account award rows should retain exact lineage and source URLs");
 
 const home = await (await get("/")).text();
-assert.match(home, /Defense Budget & Spend Intelligence/);
+assert.match(home, /Defense Budget & Spend Analytics/);
 
 const writesDisabled = await fetch(new URL("api/v1/saved-views", baseUrl));
 assert.equal(writesDisabled.status, 503, "persistent writes should be disabled by default");

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BarChart3,
+  ArrowRight,
   Bookmark,
   BrainCircuit,
   Building2,
   CalendarClock,
-  ChevronDown,
   Copy,
   Database,
   Download,
@@ -18,7 +18,6 @@ import {
   Layers,
   Lightbulb,
   ListChecks,
-  MoreHorizontal,
   Network,
   RefreshCcw,
   RotateCcw,
@@ -32,70 +31,48 @@ import CaptureCalendar from "./CaptureCalendar.jsx";
 import "./styles.css";
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: BarChart3 },
-  { id: "lifecycle", label: "Money Flow", icon: Network },
-  { id: "trends", label: "Trends", icon: TrendingUp },
-  { id: "strategy", label: "Strategy", icon: GitBranch },
-  { id: "briefs", label: "Briefs", icon: FileText },
-  { id: "visuals", label: "Visuals", icon: BarChart3 },
-  { id: "hypotheses", label: "Hypotheses", icon: Lightbulb },
-  { id: "accounts", label: "Accounts", icon: Building2 },
-  { id: "fit", label: "Fit", icon: BrainCircuit },
-  { id: "relationships", label: "Relationships", icon: Network },
+  { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
+  { id: "trends", label: "Request History", icon: TrendingUp, stage: "History" },
+  { id: "lifecycle", label: "Account Flow", icon: Network, stage: "Accounts" },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
-  { id: "pursuits", label: "Pursuits", icon: CalendarClock },
-  { id: "calendar", label: "Capture Calendar", icon: CalendarClock },
-  { id: "queue", label: "Cockpit", icon: ListChecks },
-  { id: "services", label: "Services", icon: Building2 },
-  { id: "fourth", label: "Fourth Estate", icon: Layers },
-  { id: "ai", label: "AI / Autonomy", icon: BrainCircuit },
-  { id: "drilldown", label: "Drilldown", icon: Search },
-  { id: "sources", label: "Data Sources", icon: Database },
-  { id: "changes", label: "Changes", icon: RefreshCcw },
+  { id: "calendar", label: "Transactions", icon: CalendarClock },
+  { id: "sources", label: "Sources", icon: Database },
 ];
 
-const PRIMARY_TAB_IDS = ["overview", "lifecycle", "visuals", "briefs", "queue"];
-const PRIMARY_TABS = PRIMARY_TAB_IDS.map((tabId) => TABS.find((tab) => tab.id === tabId)).filter(Boolean);
-const SECONDARY_NAV_GROUPS = [
-  { label: "Decision Surfaces", tabIds: ["strategy", "relationships", "hypotheses", "accounts", "fit"] },
-  { label: "Evidence Surfaces", tabIds: ["trends", "awards", "pursuits", "calendar", "changes"] },
-  { label: "Portfolio Slices", tabIds: ["services", "fourth", "ai", "drilldown", "sources"] },
-];
-const SECONDARY_TABS = TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
-
-const INTELLIGENCE_SUITE = [
-  { label: "Budget & Spend", href: "https://defense-budget-intelligence.pages.dev/", active: true },
-  { label: "Opportunity", href: "https://opportunity-intelligence-full.pages.dev/" },
-  { label: "Policy", href: "https://policy-intelligence-full.pages.dev/" },
-];
+const PRIMARY_TABS = TABS;
+const MONEY_FLOW_TABS = TABS.filter((tab) => tab.id !== "sources");
 
 const HASH_ROUTES = {
   overview: "#/budget-spend",
   lifecycle: "#/budget-spend/lifecycle",
   trends: "#/budget-spend/trends",
-  strategy: "#/budget-spend/strategy",
-  briefs: "#/budget-spend/briefs",
-  visuals: "#/budget-spend/visuals",
-  hypotheses: "#/budget-spend/hypotheses",
-  accounts: "#/budget-spend/accounts",
-  fit: "#/budget-spend/fit",
-  relationships: "#/budget-spend/relationships",
   awards: "#/budget-spend/awards",
-  pursuits: "#/budget-spend/pursuits",
-  calendar: "#/budget-spend/capture-calendar",
-  queue: "#/budget-spend/queue",
-  services: "#/budget-spend/services",
-  fourth: "#/budget-spend/fourth-estate",
-  ai: "#/budget-spend/ai-autonomy",
-  drilldown: "#/budget-spend/drilldown",
+  calendar: "#/budget-spend/transactions",
   sources: "#/budget-spend/sources",
-  changes: "#/budget-spend/changes",
+};
+
+const LEGACY_ROUTE_TABS = {
+  "#/budget-spend/strategy": "overview",
+  "#/budget-spend/briefs": "overview",
+  "#/budget-spend/visuals": "overview",
+  "#/budget-spend/hypotheses": "overview",
+  "#/budget-spend/accounts": "lifecycle",
+  "#/budget-spend/fit": "overview",
+  "#/budget-spend/relationships": "awards",
+  "#/budget-spend/pursuits": "calendar",
+  "#/budget-spend/capture-calendar": "calendar",
+  "#/budget-spend/queue": "calendar",
+  "#/budget-spend/services": "overview",
+  "#/budget-spend/fourth-estate": "overview",
+  "#/budget-spend/ai-autonomy": "overview",
+  "#/budget-spend/drilldown": "overview",
+  "#/budget-spend/changes": "sources",
 };
 
 function tabFromHash(hash = "") {
   const normalized = hash || HASH_ROUTES.overview;
   const routePath = normalized.split("?")[0];
-  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || "overview";
+  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || LEGACY_ROUTE_TABS[routePath] || "overview";
 }
 
 function hashParams() {
@@ -176,8 +153,14 @@ function useBudgetRoute() {
 
   useEffect(() => {
     function handleRouteChange() {
-      setActiveTab(tabFromHash(window.location.hash));
+      const nextTab = tabFromHash(window.location.hash);
+      const routePath = (window.location.hash || HASH_ROUTES.overview).split("?")[0];
+      if (LEGACY_ROUTE_TABS[routePath]) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES[nextTab]}`);
+      }
+      setActiveTab(nextTab);
     }
+    handleRouteChange();
     window.addEventListener("hashchange", handleRouteChange);
     window.addEventListener("popstate", handleRouteChange);
     return () => {
@@ -328,13 +311,13 @@ function AnalysisActions({ rows = [], filename = "budget-analysis", copyValue = 
       : [...watches.filter((watch) => watch.url !== currentUrl), { url: currentUrl, label: document.title.split(" · ")[0], createdAt: new Date().toISOString() }].slice(-12);
     localStorage.setItem("budget-intelligence-watches", JSON.stringify(next));
     setWatchedUrls(next.map((watch) => watch.url));
-    setMessage(watched ? "Watch removed" : "View watched");
+    setMessage(watched ? "Saved view removed" : "View saved");
     window.setTimeout(() => setMessage(""), 1600);
   }
   return (
     <div className="analysis-actions" data-analysis-actions>
       <button type="button" onClick={handleCopy}><Copy size={14} aria-hidden="true" />{copyLabel}</button>
-      <button type="button" onClick={handleWatch} aria-pressed={watched}><Bookmark size={14} aria-hidden="true" />{watched ? "Watching" : "Watch"}</button>
+      <button type="button" onClick={handleWatch} aria-pressed={watched}><Bookmark size={14} aria-hidden="true" />{watched ? "Saved" : "Save view"}</button>
       <button type="button" onClick={() => downloadRows(rows, filename, "csv")} disabled={!rows.length}><Download size={14} aria-hidden="true" />CSV</button>
       <button type="button" onClick={() => downloadRows(rows, filename, "json")} disabled={!rows.length}><Download size={14} aria-hidden="true" />JSON</button>
       <span role="status" aria-live="polite">{message}</span>
@@ -385,6 +368,26 @@ function FreshnessStrip() {
   );
 }
 
+function MoneyFlowRail({ activeTab }) {
+  return (
+    <nav className="money-flow-rail" aria-label="Federal money flow stages" data-money-flow-rail>
+      {MONEY_FLOW_TABS.map((tab, index) => {
+        const Icon = tab.icon;
+        return (
+          <div className="money-flow-rail__step" key={tab.id}>
+            <a href={HASH_ROUTES[tab.id]} className={activeTab === tab.id ? "is-active" : ""} aria-current={activeTab === tab.id ? "page" : undefined}>
+              <span>{index + 1}</span>
+              <Icon size={16} aria-hidden="true" />
+              <strong>{tab.label}</strong>
+            </a>
+            {index < MONEY_FLOW_TABS.length - 1 ? <ArrowRight size={16} aria-hidden="true" /> : null}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
 const BOOK_COLORS = {
   "M-1": "#005ea2",
   "O-1": "#216e1f",
@@ -419,13 +422,13 @@ let CAPABILITY_FIT = { summary: {}, items: [] };
 let DECISION_BRIEFS = { summary: {}, items: [] };
 let VISUAL_ANALYTICS = { summary: {}, clusters: [], timingBands: [], heatmapColumns: [], heatmapRows: [] };
 let HYPOTHESES = { summary: {}, items: [] };
-let strategyReady = false;
+let executionReady = false;
 let ACCOUNT_SPINE = null;
 let accountSpineReady = false;
 let CAPTURE_CALENDAR = null;
 let captureCalendarReady = false;
 
-const STRATEGY_TAB_IDS = new Set(["strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "calendar", "queue", "sources"]);
+const EXECUTION_TAB_IDS = new Set(["awards", "calendar"]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -439,19 +442,11 @@ function hydrateCore(nextData) {
   EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || {};
 }
 
-function hydrateStrategy(nextStrategy) {
-  STRATEGY = nextStrategy || {};
-  EXECUTION = STRATEGY.executionAnalytics || {};
+function hydrateExecution(nextExecution) {
+  EXECUTION = nextExecution || {};
   EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || EXECUTION.coverage || {};
   AWARD_DRILLDOWN = EXECUTION.awardDrilldown || AWARD_DRILLDOWN;
-  PURSUIT_TIMING = EXECUTION.pursuitTiming || PURSUIT_TIMING;
-  CAPTURE_QUEUE = EXECUTION.captureQueue || CAPTURE_QUEUE;
-  ACCOUNT_PLANS = EXECUTION.accountPlans || ACCOUNT_PLANS;
-  CAPABILITY_FIT = EXECUTION.capabilityFit || CAPABILITY_FIT;
-  DECISION_BRIEFS = EXECUTION.decisionBriefs || DECISION_BRIEFS;
-  VISUAL_ANALYTICS = EXECUTION.visualAnalytics || VISUAL_ANALYTICS;
-  HYPOTHESES = STRATEGY.pursuitHypotheses || HYPOTHESES;
-  strategyReady = true;
+  executionReady = true;
 }
 
 function runtimeDataUrl(filename) {
@@ -464,11 +459,11 @@ async function fetchRuntimeData(filename) {
   return response.json();
 }
 
-let strategyPromise = null;
-function ensureStrategyData() {
-  if (strategyReady) return Promise.resolve();
-  if (!strategyPromise) strategyPromise = fetchRuntimeData("budget-strategy.json").then(hydrateStrategy);
-  return strategyPromise;
+let executionPromise = null;
+function ensureExecutionData() {
+  if (executionReady) return Promise.resolve();
+  if (!executionPromise) executionPromise = fetchRuntimeData("budget-execution.json").then(hydrateExecution);
+  return executionPromise;
 }
 
 let accountSpinePromise = null;
@@ -758,6 +753,8 @@ function relatedQueueItemsForRelationship(option, awards) {
   )).slice(0, 6);
 }
 
+// Retained temporarily for source-history comparison; the analytics shell does not route here.
+// eslint-disable-next-line no-unused-vars
 function RelationshipMap() {
   const options = useMemo(() => relationshipOptionRows(), []);
   const [selectedId, setSelectedId] = useUrlSelection(options[0]?.id || "", options.map((option) => option.id));
@@ -1015,8 +1012,8 @@ function AccountLifecycle() {
     <div className="grid lifecycle-page" data-account-spine-page>
       <section className="lifecycle-hero">
         <div>
-          <span>Exact financial spine</span>
-          <h2>Federal Money Flow</h2>
+          <span>Stage 3 · Account execution</span>
+          <h2>Account Flow</h2>
           <p>Follow a federal account from requested funding through OMB apportionment, obligations, and outlays. Exact TAFS joins stay solid; the request edge is separately labeled derived.</p>
         </div>
         <div className="lifecycle-hero__facts" aria-label="Account spine coverage">
@@ -1154,6 +1151,7 @@ function AccountLifecycle() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function DataVisuals() {
   const clusters = VISUAL_ANALYTICS.clusters || EMPTY_ROWS;
   const summary = VISUAL_ANALYTICS.summary || {};
@@ -1396,6 +1394,7 @@ function DataVisuals() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function DecisionBriefs() {
   const items = DECISION_BRIEFS.items || EMPTY_ROWS;
   const summary = DECISION_BRIEFS.summary || {};
@@ -1582,6 +1581,7 @@ function DecisionBriefs() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function AccountPlans() {
   const items = ACCOUNT_PLANS.items || EMPTY_ROWS;
   const summary = ACCOUNT_PLANS.summary || {};
@@ -1794,6 +1794,7 @@ function AccountPlans() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function CapabilityFit() {
   const items = CAPABILITY_FIT.items || EMPTY_ROWS;
   const summary = CAPABILITY_FIT.summary || {};
@@ -2022,6 +2023,7 @@ function CapabilityFit() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Hypotheses() {
   const items = HYPOTHESES.items || EMPTY_ROWS;
   const summary = HYPOTHESES.summary || {};
@@ -2262,7 +2264,19 @@ function Overview({ records }) {
 
   return (
     <div className="grid">
-      <AnalyticsReadout items={ANALYTICS.headlineCards || []} meta="portfolio posture" />
+      <section className="request-hero" data-pdb-request-page>
+        <div>
+          <span>Stage 1 · Source request</span>
+          <h2>PDB Request</h2>
+          <p>Line-level President's Budget defense request data from official Comptroller display books. Values are shown as published and remain separate from apportionments, obligations, awards, and transactions.</p>
+        </div>
+        <div className="request-hero__facts" aria-label="PDB request coverage">
+          <article><strong>{records.length.toLocaleString()}</strong><span>filtered request lines</span></article>
+          <article><strong>{money(sum(records, "fy2027"))}</strong><span>filtered FY2027 request</span></article>
+          <article><strong>{BOOKS.length}</strong><span>colors of money</span></article>
+          <article><strong>{DATA_INVENTORY.availableBudgetRequestYears?.length || 0}</strong><span>request vintages</span></article>
+        </div>
+      </section>
       <div className="grid grid--wide">
         <Section title="Color of Money" meta="FY2027 request" icon={Layers}>
           <div className="rank-list">
@@ -2331,14 +2345,19 @@ function RequestTrends() {
 
   return (
     <div className="grid">
+      <section className="request-hero" data-request-history-page>
+        <div>
+          <span>Stage 2 · Published request vintages</span>
+          <h2>Request History</h2>
+          <p>Year-over-year request values from official budget packages. Comparable trends use only books present across the compared vintages; keyword-derived categories remain labeled as classifications.</p>
+        </div>
+      </section>
       <section className="source-metrics trend-metrics" aria-label="Request trend summary">
         <Metric label="Request vintages" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper={`${TREND_SUMMARY.sourceVersionCount || 0} workbook versions parsed`} />
         <Metric label="Historical records" value={(TREND_SUMMARY.historicalRecordCount || 0).toLocaleString()} helper="Aggregate model records across request packages" tone="purple" />
         <Metric label="Comparable set" value={`${TREND_SUMMARY.comparableBookCount || 0} books`} helper={(TREND_SUMMARY.comparableBooks || []).join(", ")} tone="green" />
         <Metric label="Comparable trend" value={pct(TREND_SUMMARY.comparableGrowth || 0)} helper={`${money(TREND_SUMMARY.comparableEarliestRequestValue)} FY${TREND_SUMMARY.comparableEarliestRequestYear} to ${money(TREND_SUMMARY.comparableCurrentRequestValue)} FY${latest?.requestYear}`} tone="orange" />
       </section>
-
-      <AnalyticsReadout title="Trend Readout" meta="request-vintage interpretation" items={ANALYTICS.observations || []} icon={TrendingUp} />
 
       <Section title="Request Vintage Timeline" meta="annual President's Budget packages" icon={CalendarClock}>
         <div className="trend-year-list" data-request-history-timeline>
@@ -2407,7 +2426,7 @@ function RequestTrends() {
         </Section>
       </div>
 
-      <Section title="Momentum Leaders" meta="largest FY2026-FY2027 request moves" icon={TrendingUp}>
+      <Section title="Largest Request Changes" meta="largest FY2026-FY2027 changes by keyword-derived mission signal" icon={TrendingUp}>
         <div className="momentum-grid" data-momentum-leaders>
           {(ANALYTICS.signalMomentum || []).slice(0, 6).map((row) => (
             <article key={row.id} className="momentum-card">
@@ -2477,6 +2496,7 @@ function RequestTrends() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Strategy() {
   const areas = STRATEGY.technologyAreas || [];
   const summary = STRATEGY.summary || {};
@@ -2852,6 +2872,7 @@ function Strategy() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Services({ records }) {
   const serviceRecords = records.filter((record) => record.orgGroup === "service");
   const services = aggregate(serviceRecords, (record) => ({ id: record.org, label: record.orgName }));
@@ -2885,6 +2906,7 @@ function Services({ records }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function FourthEstate({ records }) {
   const rows = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), (record) => ({ id: record.org, label: record.orgName })).slice(0, 24);
   const max = Math.max(...rows.map((row) => row.fy2027), 1);
@@ -2907,6 +2929,7 @@ function FourthEstate({ records }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function AiAutonomy({ records }) {
   const aiRecords = records.filter((record) => record.signals.includes("ai-autonomy"));
   const byOrg = aggregate(aiRecords, (record) => ({ id: record.org, label: record.orgName, group: record.orgGroup })).slice(0, 12);
@@ -3085,9 +3108,9 @@ function Awards() {
     <div className="grid awards-page" data-awards-page>
       <section className="award-hero">
         <div>
-          <span>Contract award drilldown</span>
-          <h2>USAspending Award Records</h2>
-          <p>Deduped contract award records from cached USAspending technology searches, with buyer, vendor, PSC, NAICS, dates, descriptions, and Award IDs. This is sampled award intelligence, not exhaustive FPDS action history.</p>
+          <span>Stage 4 · Award-level spend</span>
+          <h2>Awards</h2>
+          <p>Deduped contract award records from cached USAspending technology searches, with buyer, vendor, PSC, NAICS, dates, descriptions, and Award IDs. This is a sampled award dataset, not exhaustive FPDS action history.</p>
         </div>
         <div className="award-hero__facts" aria-label="Award drilldown summary">
           <article>
@@ -3177,6 +3200,7 @@ function Awards() {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Pursuits() {
   const lanes = PURSUIT_TIMING.lanes || EMPTY_ROWS;
   const candidates = PURSUIT_TIMING.recompeteCandidates || EMPTY_ROWS;
@@ -3458,6 +3482,7 @@ function LaneBrief({ item }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function CaptureQueue() {
   const items = CAPTURE_QUEUE.items || EMPTY_ROWS;
   const summary = CAPTURE_QUEUE.summary || {};
@@ -3819,6 +3844,7 @@ function AwardTable({ awards }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Drilldown({ records }) {
   const [sort, setSort] = useState("fy2027");
   const rows = [...records]
@@ -3843,6 +3869,7 @@ function scoreTone(score) {
   return "low";
 }
 
+// eslint-disable-next-line no-unused-vars
 function Sources() {
   const latestSourceRefresh = BOOKS
     .map((source) => new Date(source.cacheModifiedAt).getTime())
@@ -4480,6 +4507,7 @@ function ChangeList({ title, rows, kind }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function Changes() {
   const [watches, setWatches] = useState(() => JSON.parse(localStorage.getItem("budget-intelligence-watches") || "[]"));
   const summary = refreshDelta.summary || {};
@@ -4531,18 +4559,127 @@ function Changes() {
   );
 }
 
+function AnalyticsSources() {
+  const accountCoverage = ACCOUNT_SPINE?.metadata?.coverage || {};
+  const transactionCoverage = CAPTURE_CALENDAR?.metadata?.coverage || {};
+  const healthTotals = sourceHealth.totals || {};
+  const layers = [
+    {
+      id: "request",
+      stage: "1",
+      title: "PDB request lines",
+      system: "OUSD(C) display books",
+      count: `${data.records.length.toLocaleString()} lines`,
+      detail: `${BOOKS.length} colors of money across ${DATA_INVENTORY.availableBudgetRequestYears?.length || 0} request vintages`,
+      href: DATA_INVENTORY.sourcePackageUrl || BOOKS[0]?.sourceUrl,
+      relationship: "published",
+    },
+    {
+      id: "apportionment",
+      stage: "2",
+      title: "Approved apportionments",
+      system: "OMB public apportionments",
+      count: `${accountCoverage.ombDocumentsFetched || 0} documents`,
+      detail: `${accountCoverage.exactTafsJoins || 0} exact TAFS joins`,
+      href: ACCOUNT_SPINE?.metadata?.sources?.ombApportionments,
+      relationship: "exact TAFS",
+    },
+    {
+      id: "accounts",
+      stage: "3",
+      title: "Federal and Treasury accounts",
+      system: "USAspending account APIs",
+      count: `${accountCoverage.federalAccounts || 0} federal accounts`,
+      detail: `${accountCoverage.treasuryAccounts || 0} Treasury-account children`,
+      href: ACCOUNT_SPINE?.metadata?.sources?.usaSpendingAgencyAccounts,
+      relationship: "published",
+    },
+    {
+      id: "awards",
+      stage: "4",
+      title: "Contract awards",
+      system: "USAspending award search",
+      count: `${AWARD_DRILLDOWN.summary?.awards || 0} sampled awards`,
+      detail: `${accountCoverage.exactAwardAccountLinks || 0} exact award-account links`,
+      href: EXECUTION_COVERAGE.sourceUrl,
+      relationship: "exact award IDs",
+    },
+    {
+      id: "transactions",
+      stage: "5",
+      title: "Award actions and modifications",
+      system: "FPDS public actions",
+      count: `${(transactionCoverage.fpdsActions || 0).toLocaleString()} actions`,
+      detail: `${transactionCoverage.primaryAwardActions || 0} primary-award and ${transactionCoverage.supportingInstrumentActions || 0} supporting-instrument actions`,
+      href: "https://sam.gov/fpds",
+      relationship: "exact PIID context",
+    },
+  ];
+
+  return (
+    <div className="grid analytics-sources" data-analytics-sources-page>
+      <section className="request-hero">
+        <div>
+          <span>Lineage and coverage</span>
+          <h2>Sources</h2>
+          <p>Source systems, record counts, refresh times, and join classes for every stage of the published money flow. No recommendations or opportunity scores are generated here.</p>
+        </div>
+        <div className="request-hero__facts">
+          <article><strong>{healthTotals.targets || sourceHealth.sources?.length || 0}</strong><span>tracked source URLs</span></article>
+          <article><strong>{healthTotals.online || 0}</strong><span>online at last probe</span></article>
+          <article><strong>{healthTotals.unavailable || 0}</strong><span>unavailable at last probe</span></article>
+        </div>
+      </section>
+      <Section title="Money-flow lineage" meta="left to right from request to public award actions" icon={Database}>
+        <div className="source-flow" data-source-flow>
+          {layers.map((layer, index) => (
+            <div className="source-flow__step" key={layer.id}>
+              <article>
+                <span>Stage {layer.stage} · {layer.relationship}</span>
+                <strong>{layer.title}</strong>
+                <b>{layer.count}</b>
+                <p>{layer.system}<br />{layer.detail}</p>
+                {layer.href ? <a href={layer.href} target="_blank" rel="noreferrer">Open source <ExternalLink size={13} aria-hidden="true" /></a> : null}
+              </article>
+              {index < layers.length - 1 ? <ArrowRight size={18} aria-hidden="true" /> : null}
+            </div>
+          ))}
+        </div>
+      </Section>
+      <Section title="Join policy" meta="amounts remain at their published grains" icon={Network}>
+        <div className="join-policy-grid">
+          <article><strong>Request → federal account</strong><span>Derived only when normalized account titles match exactly.</span></article>
+          <article><strong>OMB → Treasury account</strong><span>Exact full TAFS/TAS identifier.</span></article>
+          <article><strong>Award → federal account</strong><span>Exact USAspending transaction funding-account relationship.</span></article>
+          <article><strong>Award → FPDS action</strong><span>Exact PIID, agency/parent, modification, and transaction context.</span></article>
+          <article><strong>Budget line → award</strong><span>Unlinked unless a public identifier or cited source supports the edge.</span></article>
+        </div>
+      </Section>
+      <Section title="Source health" meta={`point-in-time probe ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
+        <div className="source-health-grid" data-source-health-monitor>
+          {(sourceHealth.sources || []).map((source) => (
+            <article key={source.id} className={`source-health-card source-health-card--${source.health.toLowerCase()}`}>
+              <header><div><span>{source.group} · {source.layer}</span><strong>{source.name}</strong></div><b>{source.health}</b></header>
+              <dl><div><dt>Status</dt><dd>{source.status} {source.statusText}</dd></div><div><dt>Probe</dt><dd>{source.method} · {source.responseMs}ms</dd></div><div><dt>Publisher</dt><dd>{source.publisher}</dd></div></dl>
+            </article>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 function App() {
   const [activeTab, setActiveTab] = useBudgetRoute();
-  const [isSecondaryNavOpen, setSecondaryNavOpen] = useState(false);
   const [filters, setFilters] = useUrlState(BUDGET_FILTER_DEFAULTS, {
     book: (value) => value === "all" || BOOKS.some((book) => book.id === value),
     group: ["all", "service", "fourth-estate", "other"],
     signal: (value) => value === "all" || SIGNALS.some((signal) => signal.id === value),
     org: (value) => value === "all" || data.records.some((record) => record.org === value),
   });
-  const [strategyRevision, setStrategyRevision] = useState(0);
-  const [strategyLoadAttempt, setStrategyLoadAttempt] = useState(0);
-  const [strategyError, setStrategyError] = useState("");
+  const [executionRevision, setExecutionRevision] = useState(0);
+  const [executionLoadAttempt, setExecutionLoadAttempt] = useState(0);
+  const [executionError, setExecutionError] = useState("");
   const [accountSpineRevision, setAccountSpineRevision] = useState(0);
   const [accountSpineLoadAttempt, setAccountSpineLoadAttempt] = useState(0);
   const [accountSpineError, setAccountSpineError] = useState("");
@@ -4555,26 +4692,25 @@ function App() {
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const evidenceRecords = records.filter((record) => record.justificationEvidence);
   const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
-  const activeTitle = activeTab === "overview" ? "Budget & Spend Intelligence" : TABS.find((tab) => tab.id === activeTab)?.label || "Budget & Spend Intelligence";
-  const activeSecondaryTab = SECONDARY_TABS.find((tab) => tab.id === activeTab);
-  const showBudgetControls = !["sources", "changes", "trends", "lifecycle", "strategy", "briefs", "visuals", "hypotheses", "accounts", "fit", "relationships", "awards", "pursuits", "calendar", "queue"].includes(activeTab);
-  const needsStrategy = STRATEGY_TAB_IDS.has(activeTab);
-  const needsAccountSpine = activeTab === "lifecycle";
-  const needsCaptureCalendar = activeTab === "calendar";
+  const activeTitle = TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
+  const showBudgetControls = activeTab === "overview";
+  const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
+  const needsAccountSpine = activeTab === "lifecycle" || activeTab === "sources";
+  const needsCaptureCalendar = activeTab === "calendar" || activeTab === "sources";
 
   useEffect(() => {
-    document.title = `${activeTitle} · Defense Budget & Spend Intelligence`;
+    document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [activeTitle]);
 
   useEffect(() => {
-    if (!needsStrategy || strategyReady) return;
+    if (!needsExecution || executionReady) return;
     let cancelled = false;
-    ensureStrategyData()
-      .then(() => { if (!cancelled) { setStrategyError(""); setStrategyRevision((value) => value + 1); } })
-      .catch((error) => { if (!cancelled) { strategyPromise = null; setStrategyError(error.message); } });
+    ensureExecutionData()
+      .then(() => { if (!cancelled) { setExecutionError(""); setExecutionRevision((value) => value + 1); } })
+      .catch((error) => { if (!cancelled) { executionPromise = null; setExecutionError(error.message); } });
     return () => { cancelled = true; };
-  }, [needsStrategy, strategyLoadAttempt]);
+  }, [needsExecution, executionLoadAttempt]);
 
   useEffect(() => {
     if (!needsAccountSpine || accountSpineReady) return;
@@ -4594,12 +4730,11 @@ function App() {
     return () => { cancelled = true; };
   }, [needsCaptureCalendar, captureCalendarLoadAttempt]);
 
-  void strategyRevision;
+  void executionRevision;
   void accountSpineRevision;
   void captureCalendarRevision;
 
   function openBudgetSurface(tabId) {
-    setSecondaryNavOpen(false);
     setActiveTab(tabId);
   }
 
@@ -4611,18 +4746,18 @@ function App() {
             href={HASH_ROUTES.overview}
             className="if-brand masthead__brand if-product-header__brand"
             data-home-link
-            aria-label="Go to Budget & Spend overview"
-            title="Go to Budget & Spend overview"
+            aria-label="Go to PDB Request"
+            title="Go to PDB Request"
           >
             <span className="if-brand__mark masthead__mark" aria-hidden="true">
               <BarChart3 size={18} strokeWidth={2.4} />
             </span>
             <span className="masthead__copy">
-              <span className="if-product-header__eyebrow">Defense Budget & Spend Intelligence</span>
+              <span className="if-product-header__eyebrow">Defense Budget & Spend Analytics</span>
               <h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1>
             </span>
           </a>
-          <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend intelligence sections">
+          <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend analytics stages">
             {PRIMARY_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -4640,79 +4775,16 @@ function App() {
                 </button>
               );
             })}
-            <div
-              className={`secondary-nav${activeSecondaryTab ? " is-active" : ""}${isSecondaryNavOpen ? " is-open" : ""}`}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                  setSecondaryNavOpen(false);
-                }
-              }}
-            >
-              <button
-                type="button"
-                className="secondary-nav__trigger"
-                aria-label={activeSecondaryTab ? `Open secondary surfaces, current: ${activeSecondaryTab.label}` : "Open secondary surfaces"}
-                aria-expanded={isSecondaryNavOpen}
-                aria-controls="secondary-budget-nav"
-                data-budget-nav-more
-                title={activeSecondaryTab ? `Secondary surfaces: ${activeSecondaryTab.label}` : "Secondary surfaces"}
-                onClick={() => setSecondaryNavOpen((open) => !open)}
-              >
-                <MoreHorizontal size={15} aria-hidden="true" />
-                <span>{activeSecondaryTab ? activeSecondaryTab.label : "More"}</span>
-                <ChevronDown size={14} aria-hidden="true" />
-              </button>
-              <div className="secondary-nav__menu" id="secondary-budget-nav" role="menu" aria-label="Secondary budget and spend surfaces">
-                {SECONDARY_NAV_GROUPS.map((group) => (
-                  <div className="secondary-nav__group" key={group.label}>
-                    <span className="secondary-nav__label">{group.label}</span>
-                    {group.tabIds.map((tabId) => {
-                      const tab = TABS.find((item) => item.id === tabId);
-                      if (!tab) return null;
-                      const Icon = tab.icon;
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          role="menuitem"
-                          className={`secondary-nav__item${activeTab === tab.id ? " is-active active" : ""}`}
-                          aria-current={activeTab === tab.id ? "page" : undefined}
-                          data-budget-nav={HASH_ROUTES[tab.id]}
-                          onClick={() => openBudgetSurface(tab.id)}
-                        >
-                          <Icon size={15} aria-hidden="true" />
-                          {tab.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
           </nav>
         </div>
       </header>
 
       <div className={`if-content if-page if-operations-workspace if-operations-workspace--compact app__content app__content--${activeTab}`} data-if-operations-workspace data-visual-density="compact">
-        <div className="suite-links" aria-label="Complementary intelligence platforms" data-peer-intelligence-nav>
-          {INTELLIGENCE_SUITE.map((site) => (
-            <a
-              key={site.label}
-              href={site.href}
-              target={site.active ? undefined : "_blank"}
-              rel={site.active ? undefined : "noreferrer"}
-              className={site.active ? "active" : ""}
-              aria-current={site.active ? "page" : undefined}
-            >
-              {site.label}
-            </a>
-          ))}
-        </div>
-
         <p className="sr-only" role="status" aria-live="polite">
           {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
         </p>
         <FreshnessStrip />
+        <MoneyFlowRail activeTab={activeTab} />
 
         {showBudgetControls ? (
           <>
@@ -4734,13 +4806,13 @@ function App() {
           </>
         ) : null}
 
-        {needsStrategy && !strategyReady ? (
-          <section className="runtime-state" data-strategy-loading role="status">
+        {needsExecution && !executionReady ? (
+          <section className="runtime-state" data-execution-loading role="status">
             <RefreshCcw size={18} aria-hidden="true" />
             <div>
-              <strong>{strategyError ? "Decision data unavailable" : "Loading decision data"}</strong>
-              <p>{strategyError || "The selected evidence surface is loading on demand."}</p>
-              {strategyError ? <button type="button" onClick={() => { setStrategyError(""); setStrategyLoadAttempt((value) => value + 1); }}>Retry</button> : null}
+              <strong>{executionError ? "Award data unavailable" : "Loading award data"}</strong>
+              <p>{executionError || "Published USAspending award records are loading on demand."}</p>
+              {executionError ? <button type="button" onClick={() => { setExecutionError(""); setExecutionLoadAttempt((value) => value + 1); }}>Retry</button> : null}
             </div>
           </section>
         ) : null}
@@ -4760,33 +4832,19 @@ function App() {
           <section className="runtime-state" data-capture-calendar-loading role="status">
             <RefreshCcw size={18} aria-hidden="true" />
             <div>
-              <strong>{captureCalendarError ? "Capture calendar unavailable" : "Loading capture calendar"}</strong>
-              <p>{captureCalendarError || "Public contract-performance and acquisition-window evidence is loading on demand."}</p>
+              <strong>{captureCalendarError ? "Transaction timeline unavailable" : "Loading transaction timeline"}</strong>
+              <p>{captureCalendarError || "Public award actions and reported contract periods are loading on demand."}</p>
               {captureCalendarError ? <button type="button" onClick={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }}>Retry</button> : null}
             </div>
           </section>
         ) : null}
 
-        {!needsStrategy && activeTab === "overview" ? <Overview records={records} /> : null}
+        {activeTab === "overview" ? <Overview records={records} /> : null}
         {accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
-        {strategyReady && activeTab === "strategy" ? <Strategy /> : null}
-        {strategyReady && activeTab === "briefs" ? <DecisionBriefs /> : null}
-        {strategyReady && activeTab === "visuals" ? <DataVisuals /> : null}
-        {strategyReady && activeTab === "hypotheses" ? <Hypotheses /> : null}
-        {strategyReady && activeTab === "accounts" ? <AccountPlans /> : null}
-        {strategyReady && activeTab === "fit" ? <CapabilityFit /> : null}
-        {strategyReady && activeTab === "relationships" ? <RelationshipMap /> : null}
-        {strategyReady && activeTab === "awards" ? <Awards /> : null}
-        {strategyReady && activeTab === "pursuits" ? <Pursuits /> : null}
-        {strategyReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} /> : null}
-        {strategyReady && activeTab === "queue" ? <CaptureQueue /> : null}
-        {activeTab === "services" ? <Services records={records} /> : null}
-        {activeTab === "fourth" ? <FourthEstate records={records} /> : null}
-        {activeTab === "ai" ? <AiAutonomy records={records} /> : null}
-        {activeTab === "drilldown" ? <Drilldown records={records} /> : null}
-        {strategyReady && activeTab === "sources" ? <Sources /> : null}
-        {activeTab === "changes" ? <Changes /> : null}
+        {executionReady && activeTab === "awards" ? <Awards /> : null}
+        {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} /> : null}
+        {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
       </div>
     </main>
   );
@@ -4817,7 +4875,7 @@ function RuntimeApp() {
     return (
       <main className="runtime-loading" data-runtime-loading role="status">
         <BarChart3 size={24} aria-hidden="true" />
-        <h1>{status === "error" ? "Budget data unavailable" : "Loading Budget & Spend Intelligence"}</h1>
+        <h1>{status === "error" ? "Budget data unavailable" : "Loading Defense Budget & Spend Analytics"}</h1>
         <p>{status === "error" ? error : "Loading the current budget request dataset."}</p>
         {status === "error" ? <button type="button" onClick={() => { setError(""); setStatus("loading"); setAttempt((value) => value + 1); }}>Retry</button> : null}
       </main>

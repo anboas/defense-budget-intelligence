@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +33,15 @@ if (/OUR AWARD \/ DELIVERY-LED EXPANSION|ACTIVE TEAMED BID|Targets A1|campaign q
 }
 const { strategyAnalytics = {}, ...coreInventory } =
   source.metadata?.dataInventory || {};
+const execution = {
+  metadata: {
+    generatedAt: source.metadata?.generatedAt,
+    methodology: strategyAnalytics.executionAnalytics?.coverage?.methodology
+      || "Cached USAspending award records with deterministic deduplication.",
+  },
+  coverage: strategyAnalytics.executionAnalytics?.coverage || {},
+  awardDrilldown: strategyAnalytics.executionAnalytics?.awardDrilldown || {},
+};
 const core = {
   metadata: {
     ...source.metadata,
@@ -44,10 +53,8 @@ const core = {
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(resolve(OUT_DIR, "budget-core.json"), JSON.stringify(core));
-writeFileSync(
-  resolve(OUT_DIR, "budget-strategy.json"),
-  JSON.stringify(strategyAnalytics),
-);
+rmSync(resolve(OUT_DIR, "budget-strategy.json"), { force: true });
+writeFileSync(resolve(OUT_DIR, "budget-execution.json"), JSON.stringify(execution));
 writeFileSync(
   resolve(OUT_DIR, "account-spine.json"),
   readFileSync(ACCOUNT_SPINE_FILE, "utf8"),
@@ -62,5 +69,5 @@ writeFileSync(
 );
 
 console.log(
-  `Built runtime data: core=${Buffer.byteLength(JSON.stringify(core))} bytes strategy=${Buffer.byteLength(JSON.stringify(strategyAnalytics))} bytes capture=${captureCalendar.records.length} records/${captureTransactions.metadata.actionCount} actions`,
+  `Built runtime data: core=${Buffer.byteLength(JSON.stringify(core))} bytes execution=${Buffer.byteLength(JSON.stringify(execution))} bytes capture=${captureCalendar.records.length} records/${captureTransactions.metadata.actionCount} actions`,
 );
