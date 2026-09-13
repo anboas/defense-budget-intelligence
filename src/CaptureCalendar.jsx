@@ -43,8 +43,10 @@ const FILTER_DEFAULTS = {
   capGroup: "none",
   capLabels: "dates",
   capFields: "party,reference,value",
-  capFeed: "schedule",
+  capFeed: "none",
 };
+
+const MULTI_FILTER_KEYS = ["capPortfolio", "capEvidence", "capLifecycle", "capParty", "capOffice", "capVehicle"];
 
 const GROUP_BY_OPTIONS = [
   ["none", "No grouping"],
@@ -76,7 +78,41 @@ const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
 const ROW_FIELD_IDS = new Set(ROW_FIELD_OPTIONS.map(([id]) => id));
 const MAX_ROW_FIELDS = 4;
 const BAR_LABEL_IDS = new Set(["dates", "obligations", "potential", "utilization", "actions", "none"]);
-const FEED_IDS = new Set(["schedule", "fpds"]);
+const FEED_OPTIONS = [
+  ["fpds", "FPDS action pulses"],
+  ["fiscal", "FPDS annual obligations"],
+  ["awards", "USAspending refreshed end"],
+  ["followon", "Published follow-on activity"],
+];
+const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
+
+function parseMultiValues(value) {
+  if (!value || value === "all" || value === "none" || value === "schedule") return [];
+  if (String(value).startsWith("[")) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? [...new Set(parsed.filter((item) => typeof item === "string" && item))] : [];
+    } catch {
+      return [];
+    }
+  }
+  return [String(value)];
+}
+
+function serializeMultiValues(values, emptyValue = "all") {
+  const normalized = [...new Set((values || []).filter(Boolean))];
+  return normalized.length ? JSON.stringify(normalized) : emptyValue;
+}
+
+function normalizeMultiValue(value, options, emptyValue = "all") {
+  const available = new Set(options);
+  return serializeMultiValues(parseMultiValues(value).filter((item) => available.has(item)), emptyValue);
+}
+
+function multiValueMatches(value, candidate) {
+  const selected = parseMultiValues(value);
+  return !selected.length || selected.includes(candidate);
+}
 
 function normalizeFieldIds(value) {
   if (value === "none") return "none";
@@ -116,6 +152,82 @@ const LABELS = {
 
 function label(value) {
   return LABELS[value] || value?.replaceAll("-", " ") || "Not published";
+}
+
+function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [menuGeometry, setMenuGeometry] = useState(null);
+  const rootRef = useRef(null);
+  const menuRef = useRef(null);
+  const searchRef = useRef(null);
+  const rows = options.map((option) => Array.isArray(option) ? { value: option[0], label: option[1] } : typeof option === "string" ? { value: option, label: option } : option);
+  const selected = parseMultiValues(value);
+  const selectedSet = new Set(selected);
+  const visibleRows = rows.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
+  const buttonLabel = selected.length ? `${title} (${selected.length})` : allLabel;
+
+  useEffect(() => {
+    function closeOutside(event) {
+      if (!rootRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) setOpen(false);
+    }
+    function closeOnEscape(event) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function updateGeometry() {
+      const button = rootRef.current?.querySelector("button");
+      if (!button) return;
+      const bounds = button.getBoundingClientRect();
+      const width = Math.min(440, Math.max(280, window.innerWidth - 24));
+      setMenuGeometry({
+        left: Math.max(12, Math.min(bounds.left, window.innerWidth - width - 12)),
+        top: Math.max(12, Math.min(bounds.bottom + 5, window.innerHeight - 420)),
+        width,
+      });
+    }
+    updateGeometry();
+    const focusFrame = window.requestAnimationFrame(() => searchRef.current?.focus());
+    window.addEventListener("resize", updateGeometry);
+    window.addEventListener("scroll", updateGeometry, true);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("resize", updateGeometry);
+      window.removeEventListener("scroll", updateGeometry, true);
+    };
+  }, [open]);
+
+  function toggle(optionValue) {
+    const next = selectedSet.has(optionValue) ? selected.filter((item) => item !== optionValue) : [...selected, optionValue];
+    if (maxSelected && next.length > maxSelected) return;
+    onChange(next);
+  }
+
+  const menu = open ? createPortal(
+    <div ref={menuRef} className="capture-multiselect__menu" style={{ left: menuGeometry?.left, top: menuGeometry?.top, width: menuGeometry?.width, visibility: menuGeometry ? "visible" : "hidden" }}>
+      <header><span><strong>{title}</strong><small>{selected.length ? `${selected.length} selected` : allLabel}</small></span><button type="button" onClick={() => onChange([])} disabled={!selected.length}>Clear</button></header>
+      <label className="capture-multiselect__search"><Search size={15} aria-hidden="true" /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} aria-label={`Search ${title} options`} /></label>
+      <div className="capture-multiselect__options" role="listbox" aria-label={`${title} options`} aria-multiselectable="true">
+        {visibleRows.length ? visibleRows.map((option) => {
+          const checked = selectedSet.has(option.value);
+          const disabled = Boolean(maxSelected && !checked && selected.length >= maxSelected);
+          return <label key={option.value} role="option" aria-selected={checked} className={checked ? "is-selected" : ""}><input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggle(option.value)} /><span>{option.label}</span>{Number.isFinite(option.count) ? <small>{option.count.toLocaleString()}</small> : null}</label>;
+        }) : <p>No matching options</p>}
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
+  return <div ref={rootRef} className={`capture-filter capture-multiselect ${className}`.trim()}><span>{title}</span><button type="button" className="capture-multiselect__trigger" aria-label={`${title}. ${buttonLabel}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)} title={selected.length ? selected.join(", ") : allLabel}><span>{buttonLabel}</span><ChevronDown size={14} aria-hidden="true" /></button>{menu}</div>;
 }
 
 function formatMoney(value) {
@@ -186,7 +298,7 @@ function parseHashFilters() {
   if (!GROUP_BY_IDS.has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
   if (!BAR_LABEL_IDS.has(parsed.capLabels)) parsed.capLabels = FILTER_DEFAULTS.capLabels;
   parsed.capFields = normalizeFieldIds(parsed.capFields);
-  if (!FEED_IDS.has(parsed.capFeed)) parsed.capFeed = FILTER_DEFAULTS.capFeed;
+  parsed.capFeed = normalizeMultiValue(parsed.capFeed, FEED_IDS, "none");
   return parsed;
 }
 
@@ -314,18 +426,19 @@ function normalizeSavedFilters(candidate) {
   if (!GROUP_BY_IDS.has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
   if (!BAR_LABEL_IDS.has(filters.capLabels)) filters.capLabels = FILTER_DEFAULTS.capLabels;
   filters.capFields = normalizeFieldIds(filters.capFields);
-  if (!FEED_IDS.has(filters.capFeed)) filters.capFeed = FILTER_DEFAULTS.capFeed;
+  filters.capFeed = normalizeMultiValue(filters.capFeed, FEED_IDS, "none");
   return filters;
 }
 
 function BarList({ rows, valueKey = "value", format = (value) => value.toLocaleString(), testId, onSelect, selectedId }) {
   const maximum = Math.max(...rows.map((row) => Number(row[valueKey] || 0)), 1);
+  const selectedIds = Array.isArray(selectedId) ? selectedId : parseMultiValues(selectedId);
   return (
     <div className="capture-bars" data-capture-chart={testId}>
       {rows.map((row) => {
         const Element = onSelect ? "button" : "article";
         return (
-          <Element key={row.id || row.label} type={onSelect ? "button" : undefined} className={`capture-bar-row${selectedId === row.id ? " is-selected" : ""}`} onClick={onSelect ? () => onSelect(row) : undefined}>
+          <Element key={row.id || row.label} type={onSelect ? "button" : undefined} className={`capture-bar-row${selectedIds.includes(String(row.id)) ? " is-selected" : ""}`} onClick={onSelect ? () => onSelect(row) : undefined}>
             <div><strong>{row.label}</strong><span>{format(row[valueKey])}</span></div>
             <i aria-hidden="true"><b style={{ width: `${Math.max((Number(row[valueKey] || 0) / maximum) * 100, 1)}%` }} /></i>
             {row.helper ? <small>{row.helper}</small> : null}
@@ -477,7 +590,7 @@ function AwardActionHistory({ record, actions, state, onRetry }) {
   );
 }
 
-function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose, isCompared, onToggleCompare, parentRelations, vehicleRelations, onSelectRelated }) {
+function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose, isCompared, onToggleCompare, parentRelations, vehicleRelations, followOnRelations, onSelectRelated }) {
   if (!record) return null;
   const observed = Number(liveAward?.awardAmountDollars || record.obligatedAmount || 0);
   const potential = Number(record.potentialAmount || record.valueHigh || 0);
@@ -527,9 +640,10 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           ))}
         </div>
       ) : null}
-      {(parentRelations.length || vehicleRelations.length) ? (
+      {(parentRelations.length || vehicleRelations.length || followOnRelations.length) ? (
         <div className="capture-detail__relations" data-capture-relations>
           <h3>Published instrument relationships</h3>
+          {followOnRelations.length ? <section data-followon-relations><strong>Published follow-on activity</strong><small>Exact source-declared predecessor PIID match. The activity date is published evidence, not a win or recompete prediction.</small>{followOnRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{related.sourceSystem}</em></button>)}</section> : null}
           {parentRelations.length ? <section><strong>Same parent award / IDV</strong><small>Exact published parent reference: {record.parentReference}</small>{parentRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
           {vehicleRelations.length ? <section><strong>Same published vehicle label</strong><small>{record.vehicle}; this is a route relationship, not proof of the same contract family.</small>{vehicleRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
         </div>
@@ -645,14 +759,14 @@ function timelineActionMarkers(actions, startYear, endYear) {
 
 function TimelineHoverCard({ hover }) {
   if (!hover) return null;
-  const { record, actions, left, top } = hover;
+  const { record, actions, context, left, top } = hover;
   const observed = recordObligations(record);
   const potential = recordValue(record);
   const primaryActions = (actions || []).filter((action) => !action.supportingInstrument);
   const latestAction = [...primaryActions].sort((a, b) => (b.signed || "").localeCompare(a.signed || ""))[0];
   return createPortal(
     <aside id="capture-timeline-tooltip" className="capture-timeline-tooltip" role="tooltip" style={{ left, top }} data-capture-hovercard>
-      <header><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><small>{label(record.lifecycleStatus)} · {label(record.mode)}</small></header>
+      <header><span>{context?.label || "Timeline context"} · {record.id}</span><strong>{record.title}</strong><small>{context?.detail || `${label(record.lifecycleStatus)} · ${label(record.mode)}`}</small></header>
       <dl>
         <div><dt>Observed obligations</dt><dd>{formatMoney(observed)}</dd></div>
         <div><dt>Potential / high</dt><dd>{formatMoney(potential)}</dd></div>
@@ -669,8 +783,23 @@ function TimelineHoverCard({ hover }) {
   );
 }
 
-function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions }) {
-  const actionMarkers = feedMode === "fpds" ? timelineActionMarkers(actions, startYear, endYear) : [];
+function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions, followOnActivities }) {
+  const feeds = new Set(parseMultiValues(feedMode));
+  const actionMarkers = feeds.has("fpds") ? timelineActionMarkers(actions, startYear, endYear) : [];
+  const fiscalMaximum = Math.max(...record.fiscalValues.map((item) => Math.abs(Number(item.amount || 0))), 1);
+  const fiscalMarkers = feeds.has("fiscal") ? record.fiscalValues.filter((item) => item.fiscalYear >= startYear && item.fiscalYear <= endYear + 1) : [];
+  const refreshedEnd = feeds.has("awards") ? record.liveAward?.endDate : null;
+  const refreshedEndVisible = refreshedEnd && refreshedEnd >= `${startYear}-01-01` && refreshedEnd <= `${endYear}-12-31`;
+  const followOnMarkers = feeds.has("followon") ? (followOnActivities || []).flatMap((activity) => activity.milestones.map((milestone) => ({ ...milestone, activity }))).filter((marker) => marker.start && marker.end >= `${startYear}-01-01` && marker.start <= `${endYear}-12-31`) : [];
+  const followOnElements = followOnMarkers.map((marker) => {
+    const left = positionFor(marker.start, startYear, endYear);
+    const right = positionFor(marker.end, startYear, endYear);
+    const context = `Published follow-on · ${marker.activity.id}`;
+    const detail = `${marker.activity.title} · ${marker.label} · exact predecessor PIID · ${marker.activity.sourceSystem}`;
+    return marker.precision === "day"
+      ? <i key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-marker" data-followon-activity data-timeline-context={context} data-timeline-detail={detail} style={{ left: `${left}%` }} title={`${detail} · ${formatDate(marker.start)}`} />
+      : <i key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-window" data-followon-activity data-timeline-context={context} data-timeline-detail={detail} style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${detail} · ${formatDate(marker.start)} to ${formatDate(marker.end)}`} />;
+  });
   if (record.mode === "contract-performance" && record.start && (record.currentEnd || record.potentialEnd)) {
     const baseEnd = record.currentEnd || record.potentialEnd;
     const left = positionFor(record.start, startYear, endYear);
@@ -682,15 +811,18 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
     return (
       <>
         {potentialRight > baseRight ? (
-          <i className="capture-timeline__bar capture-timeline__bar--potential" style={{ left: `${baseRight}%`, width: `${Math.max(potentialRight - baseRight, 0.6)}%` }} title={`Potential through ${formatDate(record.potentialEnd)}`}>
+          <i className="capture-timeline__bar capture-timeline__bar--potential" data-timeline-context="Potential option horizon" data-timeline-detail={`Potential through ${formatDate(record.potentialEnd)}`} style={{ left: `${baseRight}%`, width: `${Math.max(potentialRight - baseRight, 0.6)}%` }} title={`Potential through ${formatDate(record.potentialEnd)}`}>
             {potentialRight - baseRight >= 9 && labelMode !== "none" ? <b>Option to {monthYear(record.potentialEnd)}</b> : null}
           </i>
         ) : null}
-        <i className={`capture-timeline__bar capture-timeline__bar--base capture-timeline__bar--${state}`} style={{ left: `${left}%`, width: `${Math.max(baseRight - left, 0.6)}%` }} title={`Reported term ${formatDate(record.start)} to ${formatDate(baseEnd)}`}>
+        <i className={`capture-timeline__bar capture-timeline__bar--base capture-timeline__bar--${state}`} data-timeline-context="Reported performance term" data-timeline-detail={`${formatDate(record.start)} to ${formatDate(baseEnd)}`} style={{ left: `${left}%`, width: `${Math.max(baseRight - left, 0.6)}%` }} title={`Reported term ${formatDate(record.start)} to ${formatDate(baseEnd)}`}>
           <span style={{ width: `${elapsed}%` }} aria-hidden="true" />
           {baseRight - left >= 10 && labelMode !== "none" ? <b>{barLabel}</b> : null}
         </i>
-        {actionMarkers.map((marker) => <i key={marker.month} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)}
+        {fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })}
+        {actionMarkers.map((marker) => <i key={marker.month} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)}
+        {refreshedEndVisible ? <i className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} /> : null}
+        {followOnElements}
       </>
     );
   }
@@ -698,16 +830,16 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
     const left = positionFor(milestone.start, startYear, endYear);
     const right = positionFor(milestone.end, startYear, endYear);
     return milestone.precision === "day" ? (
-      <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__milestone" style={{ left: `${left}%` }} title={`${milestone.label}: ${formatDate(milestone.start)}`}><span>{labelMode === "none" ? "" : milestone.label}</span></i>
+      <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__milestone" data-timeline-context={milestone.label} data-timeline-detail={formatDate(milestone.start)} style={{ left: `${left}%` }} title={`${milestone.label}: ${formatDate(milestone.start)}`}><span>{labelMode === "none" ? "" : milestone.label}</span></i>
     ) : (
-      <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__bar capture-timeline__bar--window" style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${milestone.label}: ${formatDate(milestone.start)} to ${formatDate(milestone.end)}`}>
+      <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__bar capture-timeline__bar--window" data-timeline-context={milestone.label} data-timeline-detail={`${formatDate(milestone.start)} to ${formatDate(milestone.end)}`} style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${milestone.label}: ${formatDate(milestone.start)} to ${formatDate(milestone.end)}`}>
         {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "dates" ? milestone.label : timelineBarLabel(record, labelMode, milestone.start, milestone.end)}</b> : null}
       </i>
     );
-  }).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>));
+  }).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} />] : []).concat(followOnElements);
 }
 
-function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity }) {
+function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity }) {
   const scrollerRef = useRef(null);
   const [hover, setHover] = useState(null);
   const years = Array.from({ length: endYear - startYear + 1 }, (_value, index) => startYear + index);
@@ -723,12 +855,17 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
       return map;
     }, new Map())].map(([groupLabel, groupRecords]) => ({ id: groupLabel, label: groupLabel, records: groupRecords }));
   const activeFields = selectedFieldIds(rowFields);
-  function showHover(record, target, clientX, clientY) {
+  function showHover(record, target, clientX, clientY, context = null) {
     const bounds = target.getBoundingClientRect();
     const width = Math.min(360, window.innerWidth - 16);
     const left = Math.max(8, Math.min(clientX || bounds.right + 12, window.innerWidth - width - 8));
     const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 330));
-    setHover({ record, actions: actionsByOpportunity?.[record.opportunityId] || [], left, top });
+    setHover({ record, actions: actionsByOpportunity?.[record.opportunityId] || [], context, left, top });
+  }
+  function showPointerContext(record, event) {
+    if (event.pointerType !== "mouse") return;
+    const mark = event.target.closest("[data-timeline-context]");
+    showHover(record, event.currentTarget, event.clientX + 14, event.clientY + 14, mark ? { label: mark.dataset.timelineContext, detail: mark.dataset.timelineDetail } : { label: "Timeline row", detail: recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "Schedule not published" });
   }
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -752,16 +889,16 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
           <Fragment key={group.id}>
             {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)} onPointerEnter={(event) => { if (event.pointerType === "mouse") showHover(record, event.currentTarget, event.clientX + 14, event.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) showHover(record, event.currentTarget); }} onBlur={() => setHover(null)} aria-describedby={hover?.record.opportunityId === record.opportunityId ? "capture-timeline-tooltip" : undefined}>
+              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)} onPointerDown={() => setHover(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible") && !window.matchMedia("(pointer: coarse)").matches) showHover(record, event.currentTarget, undefined, undefined, { label: "Keyboard focus", detail: "Select for full evidence" }); }} onBlur={() => setHover(null)} aria-describedby={hover?.record.opportunityId === record.opportunityId ? "capture-timeline-tooltip" : undefined}>
                 <span className="capture-timeline__label">
                   <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em></span>
                   <strong>{record.title}</strong>
                   <small className="capture-timeline__fields">{activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
                 </span>
-                <span className="capture-timeline__plot" aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
+                <span className="capture-timeline__plot" onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
-                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} actions={actionsByOpportunity?.[record.opportunityId] || []} />
+                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} actions={actionsByOpportunity?.[record.opportunityId] || []} followOnActivities={followOnByOpportunity?.[record.opportunityId] || []} />
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
                 <ChevronRight size={16} aria-hidden="true" />
@@ -828,6 +965,28 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const lifecycleStates = useMemo(() => [...new Set(records.map((record) => record.lifecycleStatus))], [records]);
   const awardMap = useMemo(() => new Map(awards.map((award) => [String(award.awardId || "").toUpperCase(), award])), [awards]);
   const enriched = useMemo(() => records.map((record) => ({ ...record, liveAward: awardMap.get(String(record.reference || "").toUpperCase()) || null })), [records, awardMap]);
+  const followOnByOpportunity = useMemo(() => {
+    const contractsByReference = new Map();
+    for (const record of enriched.filter((item) => item.mode === "contract-performance" && item.reference)) {
+      const key = String(record.reference).toUpperCase();
+      const matches = contractsByReference.get(key) || [];
+      matches.push(record.opportunityId);
+      contractsByReference.set(key, matches);
+    }
+    const links = {};
+    for (const activity of enriched.filter((item) => item.mode === "acquisition-window" && item.parentReference)) {
+      const sourceSystem = activity.sourceUrls.some((url) => /sam\.gov/i.test(url))
+        ? "SAM.gov"
+        : activity.sourceUrls.some((url) => /forecast|\.pdf(?:$|\?)/i.test(url))
+          ? "Agency acquisition forecast"
+          : "Published acquisition source";
+      for (const opportunityId of contractsByReference.get(String(activity.parentReference).toUpperCase()) || []) {
+        links[opportunityId] = [...(links[opportunityId] || []), { ...activity, sourceSystem }];
+      }
+    }
+    return links;
+  }, [enriched]);
+  const followOnLinkCount = Object.values(followOnByOpportunity).reduce((total, rows) => total + rows.length, 0);
   const comparisonRecords = comparisonIds.map((id) => enriched.find((record) => record.opportunityId === id)).filter(Boolean);
 
   useEffect(() => {
@@ -840,16 +999,15 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
 
   useEffect(() => {
     const normalized = {};
-    if (filters.capPortfolio !== "all" && !portfolios.includes(filters.capPortfolio)) normalized.capPortfolio = "all";
-    if (filters.capEvidence !== "all" && !evidenceTiers.includes(filters.capEvidence)) normalized.capEvidence = "all";
-    if (filters.capLifecycle !== "all" && !lifecycleStates.includes(filters.capLifecycle)) normalized.capLifecycle = "all";
-    if (filters.capParty !== "all" && !parties.includes(filters.capParty)) normalized.capParty = "all";
-    if (filters.capOffice !== "all" && !offices.includes(filters.capOffice)) normalized.capOffice = "all";
-    if (filters.capVehicle !== "all" && !vehicles.includes(filters.capVehicle)) normalized.capVehicle = "all";
+    const optionSets = { capPortfolio: portfolios, capEvidence: evidenceTiers, capLifecycle: lifecycleStates, capParty: parties, capOffice: offices, capVehicle: vehicles };
+    for (const key of MULTI_FILTER_KEYS) {
+      const canonical = normalizeMultiValue(filters[key], optionSets[key]);
+      if (canonical !== filters[key]) normalized[key] = canonical;
+    }
     if (!Object.keys(normalized).length) return undefined;
     const timer = window.setTimeout(() => setFilters(normalized), 0);
     return () => window.clearTimeout(timer);
-  }, [evidenceTiers, filters.capEvidence, filters.capLifecycle, filters.capOffice, filters.capParty, filters.capPortfolio, filters.capVehicle, lifecycleStates, offices, parties, portfolios, setFilters, vehicles]);
+  }, [evidenceTiers, filters, lifecycleStates, offices, parties, portfolios, setFilters, vehicles]);
   const filtered = useMemo(() => {
     const query = filters.capQuery.toLowerCase().trim();
     const minimum = MINIMUM_VALUES[filters.capMin] || 0;
@@ -875,13 +1033,13 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         || (filters.capActivity === "no-actions" && !record.transactionSummary?.actions);
       const searchable = [record.id, record.title, record.party, record.reference, record.context, record.portfolio, record.sourceDescription, record.contractingOffice, record.fundingOffice, record.vehicle].join(" ").toLowerCase();
       return (!query || searchable.includes(query))
-        && (filters.capPortfolio === "all" || record.portfolio === filters.capPortfolio)
+        && multiValueMatches(filters.capPortfolio, record.portfolio)
         && (filters.capMode === "all" || record.mode === filters.capMode)
-        && (filters.capEvidence === "all" || record.evidenceTier === filters.capEvidence)
-        && (filters.capLifecycle === "all" || record.lifecycleStatus === filters.capLifecycle)
-        && (filters.capParty === "all" || record.party === filters.capParty)
-        && (filters.capOffice === "all" || [record.contractingOffice, record.fundingOffice, record.owner].includes(filters.capOffice))
-        && (filters.capVehicle === "all" || record.vehicle === filters.capVehicle)
+        && multiValueMatches(filters.capEvidence, record.evidenceTier)
+        && multiValueMatches(filters.capLifecycle, record.lifecycleStatus)
+        && multiValueMatches(filters.capParty, record.party)
+        && (!parseMultiValues(filters.capOffice).length || [record.contractingOffice, record.fundingOffice, record.owner].some((office) => parseMultiValues(filters.capOffice).includes(office)))
+        && multiValueMatches(filters.capVehicle, record.vehicle)
         && (filters.capValidation === "all" || record.validationStatus === filters.capValidation)
         && horizonMatch
         && activityMatch
@@ -907,6 +1065,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const vehicleRelations = selected?.vehicle
     ? enriched.filter((record) => record.opportunityId !== selected.opportunityId && record.vehicle === selected.vehicle && !parentRelations.some((related) => related.opportunityId === record.opportunityId)).slice(0, 8)
     : [];
+  const followOnRelations = selected ? followOnByOpportunity[selected.opportunityId] || [] : [];
 
   function setSelectedId(nextId) {
     setSelectedIdState(nextId);
@@ -936,10 +1095,10 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   function saveCurrentView() {
     const primary = filters.capQuery
       ? `Search: ${filters.capQuery}`
-      : filters.capPortfolio !== "all"
-        ? filters.capPortfolio
-        : filters.capParty !== "all"
-          ? filters.capParty
+      : parseMultiValues(filters.capPortfolio).length
+        ? parseMultiValues(filters.capPortfolio).join(", ")
+        : parseMultiValues(filters.capParty).length
+          ? parseMultiValues(filters.capParty).join(", ")
           : `Transaction view ${savedViews.length + 1}`;
     const savedAt = new Date().toISOString();
     setSavedViews((current) => [{ id: `view-${Date.now()}`, name: primary, savedAt, filters: { ...filters } }, ...current].slice(0, 8));
@@ -970,7 +1129,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   }, [selected, selectedId]);
 
   useEffect(() => {
-    if (!(filters.capFeed === "fpds" || selected?.transactionSummary?.actions) || actionDataset || actionRequestRef.current) return;
+    if (!(parseMultiValues(filters.capFeed).includes("fpds") || selected?.transactionSummary?.actions) || actionDataset || actionRequestRef.current) return;
     setActionState("loading");
     const request = fetch(`${import.meta.env.BASE_URL}data/capture-transactions.json`)
       .then((response) => {
@@ -1125,13 +1284,13 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capValidation: "unresolved" })}>Evidence gaps</button>
         </div>
         <label className="capture-filter capture-filter--search"><span>Search</span><i><Search size={15} /><input value={filters.capQuery} onChange={(event) => setFilters({ capQuery: event.target.value })} placeholder="Program, company, reference, buyer" /></i></label>
-        <label className="capture-filter"><span>Portfolio</span><select value={filters.capPortfolio} onChange={(event) => setFilters({ capPortfolio: event.target.value })}><option value="all">All portfolios</option>{portfolios.map((portfolio) => <option key={portfolio}>{portfolio}</option>)}</select></label>
+        <SearchMultiSelect title="Portfolio" allLabel="All portfolios" value={filters.capPortfolio} options={portfolios} onChange={(values) => setFilters({ capPortfolio: serializeMultiValues(values) })} />
         <label className="capture-filter"><span>Record type</span><select value={filters.capMode} onChange={(event) => setFilters({ capMode: event.target.value })}><option value="all">All records</option><option value="contract-performance">Contract performance</option><option value="acquisition-window">Acquisition windows</option></select></label>
-        <label className="capture-filter capture-filter--advanced"><span>Evidence</span><select value={filters.capEvidence} onChange={(event) => setFilters({ capEvidence: event.target.value })}><option value="all">All evidence</option>{evidenceTiers.map((tier) => <option key={tier} value={tier}>{label(tier)}</option>)}</select></label>
-        <label className="capture-filter capture-filter--advanced"><span>Lifecycle</span><select value={filters.capLifecycle} onChange={(event) => setFilters({ capLifecycle: event.target.value })}><option value="all">All lifecycle states</option>{lifecycleStates.map((status) => <option key={status} value={status}>{label(status)}</option>)}</select></label>
-        <label className="capture-filter capture-filter--advanced"><span>Company / sponsor</span><select value={filters.capParty} onChange={(event) => setFilters({ capParty: event.target.value })}><option value="all">All companies and sponsors</option>{parties.map((party) => <option key={party}>{party}</option>)}</select></label>
-        <label className="capture-filter capture-filter--advanced"><span>Funding / contracting office</span><select value={filters.capOffice} onChange={(event) => setFilters({ capOffice: event.target.value })}><option value="all">All offices</option>{offices.map((office) => <option key={office}>{office}</option>)}</select></label>
-        <label className="capture-filter capture-filter--advanced"><span>Vehicle</span><select value={filters.capVehicle} onChange={(event) => setFilters({ capVehicle: event.target.value })}><option value="all">All published vehicles</option>{vehicles.map((vehicle) => <option key={vehicle}>{vehicle}</option>)}</select></label>
+        <SearchMultiSelect className="capture-filter--advanced" title="Evidence" allLabel="All evidence" value={filters.capEvidence} options={evidenceTiers.map((tier) => [tier, label(tier)])} onChange={(values) => setFilters({ capEvidence: serializeMultiValues(values) })} />
+        <SearchMultiSelect className="capture-filter--advanced" title="Lifecycle" allLabel="All lifecycle states" value={filters.capLifecycle} options={lifecycleStates.map((status) => [status, label(status)])} onChange={(values) => setFilters({ capLifecycle: serializeMultiValues(values) })} />
+        <SearchMultiSelect className="capture-filter--advanced" title="Company / sponsor" allLabel="All companies and sponsors" value={filters.capParty} options={parties} onChange={(values) => setFilters({ capParty: serializeMultiValues(values) })} />
+        <SearchMultiSelect className="capture-filter--advanced" title="Funding / contracting office" allLabel="All offices" value={filters.capOffice} options={offices} onChange={(values) => setFilters({ capOffice: serializeMultiValues(values) })} />
+        <SearchMultiSelect className="capture-filter--advanced" title="Vehicle" allLabel="All published vehicles" value={filters.capVehicle} options={vehicles} onChange={(values) => setFilters({ capVehicle: serializeMultiValues(values) })} />
         <label className="capture-filter capture-filter--advanced"><span>Validation</span><select value={filters.capValidation} onChange={(event) => setFilters({ capValidation: event.target.value })}><option value="all">All validation states</option><option value="verified">Verified</option><option value="corrected">Corrected</option><option value="unresolved">Unresolved</option></select></label>
         <label className="capture-filter"><span>Schedule horizon</span><select value={filters.capHorizon} onChange={(event) => setFilters({ capHorizon: event.target.value })}><option value="all">Any schedule posture</option><option value="active">Active reported term</option><option value="ending12">Ending within 12 months</option><option value="ending24">Ending within 24 months</option><option value="upcoming">Future starts / milestones</option><option value="past">All endpoints passed</option><option value="undated">Schedule not published</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>FPDS activity</span><select value={filters.capActivity} onChange={(event) => setFilters({ capActivity: event.target.value })}><option value="all">Any action posture</option><option value="recent">Action in past 12 months</option><option value="funding">Has funding actions</option><option value="deobligation">Has deobligations</option><option value="no-actions">No exact action history</option></select></label>
@@ -1154,10 +1313,10 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
 
-      <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={Boolean(selected && comparisonIds.includes(selected.opportunityId))} onToggleCompare={() => selected && toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} onSelectRelated={setSelectedId} />
+      <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={Boolean(selected && comparisonIds.includes(selected.opportunityId))} onToggleCompare={() => selected && toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction pulses</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry · hover or focus any row for source detail</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{filters.capFeed === "fpds" ? <><i className="action" />FPDS action</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} exact predecessor-linked follow-on activities · hover only the time plane for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligations</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}</span></div>
         <div className="capture-gantt-tools" data-capture-gantt-tools>
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
             <legend>Time</legend>
@@ -1176,14 +1335,16 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
           </fieldset>
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
             <legend>Data</legend>
-            <label><span>Overlay</span><select aria-label="Feed overlay" value={filters.capFeed} onChange={(event) => setFilters({ capFeed: event.target.value })}><option value="schedule">Schedule only</option><option value="fpds">FPDS action pulses</option></select></label>
-            {filters.capFeed === "fpds" ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : <span className="capture-gantt-feed-status">Contract terms and canonical events</span>}
+            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={4} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
+            {parseMultiValues(filters.capFeed).includes("fpds") ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : <span className="capture-gantt-feed-status">Reported schedule remains the baseline</span>}
           </fieldset>
         </div>
-        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} /> : <p className="capture-empty">No public records match these filters.</p>}
+        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>
 
-      <div className="capture-dashboard-grid">
+      <details className="capture-analytics-disclosure" data-capture-analytics-disclosure>
+        <summary><span><BarChart3 size={17} aria-hidden="true" /><b>More transaction analytics</b><small>13 descriptive charts and the portfolio lifecycle matrix</small></span><a href="#/budget-spend/analytics">Open D3 Analytics</a></summary>
+        <div className="capture-dashboard-grid">
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio concentration</strong><small>Select a bar to drive the Gantt</small></span></div></div><BarList rows={portfolioRows} testId="portfolio" onSelect={(row) => applyChartFilter({ capPortfolio: row.id })} selectedId={filters.capPortfolio} /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Observed company obligations</strong><small>Select a company to drive the Gantt</small></span></div></div><BarList rows={partyRows} format={formatMoney} testId="company-money" onSelect={(row) => applyChartFilter({ capParty: row.id })} selectedId={filters.capParty} /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Calendar density</strong><small>Select a year to focus the timeline</small></span></div></div><BarList rows={yearRows} testId="year-density" onSelect={(row) => applyChartFilter({ capFrom: String(row.id), capTo: String(row.id) })} /></section>
@@ -1197,12 +1358,13 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Buying office exposure</strong><small>Select an office to drive the Gantt</small></span></div></div>{officeRows.length ? <BarList rows={officeRows} format={formatMoney} testId="office-money" onSelect={(row) => applyChartFilter({ capOffice: row.id })} selectedId={filters.capOffice} /> : <p className="capture-empty">No office-linked obligations match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><CalendarClock size={18} /><span><strong>Reported term duration</strong><small>Current performance periods at contract grain</small></span></div></div>{durationBuckets.length ? <BarList rows={durationBuckets} testId="duration" /> : <p className="capture-empty">No reported contract durations match these filters.</p>}</section>
         <section className="capture-section"><div className="capture-section__heading"><div><Network size={18} /><span><strong>Contract family and vehicle relationships</strong><small>Repeated exact parents or published vehicle labels</small></span></div></div>{relationshipRows.length ? <BarList rows={relationshipRows} testId="relationships" onSelect={(row) => applyChartFilter(row.kind === "parent" ? { capQuery: row.relationship } : { capVehicle: row.relationship })} /> : <p className="capture-empty">No repeated parent or vehicle relationships match these filters.</p>}</section>
-      </div>
+        </div>
 
-      <section className="capture-section">
-        <div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio by lifecycle heatmap</strong><small>Top portfolios across the filtered calendar states</small></span></div></div>
-        <LifecycleMatrix records={filtered} portfolios={matrixPortfolios} onSelect={(portfolio, lifecycle) => applyChartFilter({ capPortfolio: portfolio, capLifecycle: lifecycle })} />
-      </section>
+        <section className="capture-section">
+          <div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio by lifecycle heatmap</strong><small>Top portfolios across the filtered calendar states</small></span></div></div>
+          <LifecycleMatrix records={filtered} portfolios={matrixPortfolios} onSelect={(portfolio, lifecycle) => applyChartFilter({ capPortfolio: portfolio, capLifecycle: lifecycle })} />
+        </section>
+      </details>
 
       <section className="capture-methodology">
         <ChevronDown size={17} aria-hidden="true" />

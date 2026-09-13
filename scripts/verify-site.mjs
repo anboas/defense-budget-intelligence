@@ -39,7 +39,7 @@ async function assertNoPageOverflow(page, label) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 6, "Header should expose exactly six factual surfaces");
+  assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 7, "Header should expose five money stages plus analytics and sources");
   assert.equal(await page.locator("[data-budget-nav-more]").count(), 0, "Header should not expose a secondary strategy menu");
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
   const rail = page.locator("[data-money-flow-rail]");
@@ -126,6 +126,12 @@ try {
   assert.equal(await page.locator("[data-award-filter-bar] select").count(), 5, "Awards should expose factual filter dimensions");
   assert.ok(await page.locator("[data-award-record-table] tbody tr").count() >= 100, "Awards should expose the sampled award table");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
+  const awardSearchGeometry = await page.getByPlaceholder("Search award IDs, vendors, buyers, descriptions").evaluate((input) => {
+    const icon = input.parentElement?.querySelector("svg")?.getBoundingClientRect();
+    const bounds = input.getBoundingClientRect();
+    return { iconRight: icon?.right || 0, textStart: bounds.left + Number.parseFloat(getComputedStyle(input).paddingLeft) };
+  });
+  assert.ok(awardSearchGeometry.iconRight + 5 <= awardSearchGeometry.textStart, `Award search icon must not overlap its text lane: ${JSON.stringify(awardSearchGeometry)}`);
 
   await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Transactions");
@@ -140,6 +146,19 @@ try {
   assert.equal(await page.locator("[data-capture-chart]").count(), 13, "Transactions should retain thirteen descriptive charts");
   assert.equal(await page.locator("[data-capture-matrix]").count(), 1, "Transactions should retain its descriptive lifecycle matrix");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 16, "Transactions should expose sixteen factual filters");
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
+  await page.getByRole("button", { name: "Show 12 more filters" }).click();
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 12, "Advanced factual filters should remain reachable");
+  await page.getByRole("button", { name: "Show core filters" }).click();
+  const portfolioTrigger = page.getByRole("button", { name: /^Portfolio\./ });
+  await portfolioTrigger.click();
+  await page.getByLabel("Search Portfolio options").fill("Navy Mission");
+  await page.getByRole("option", { name: "Navy Mission Engineering" }).getByRole("checkbox").check();
+  await page.getByLabel("Search Portfolio options").fill("DAF Mission");
+  await page.getByRole("option", { name: "DAF Mission Software" }).getByRole("checkbox").check();
+  assert.match(await portfolioTrigger.getAttribute("aria-label"), /Portfolio \(2\)/, "Portfolio filter should support searchable multi-selection");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Reset" }).click();
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Transactions should render the default fifty timeline rows");
   const barBox = await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().boundingBox();
   assert.ok(barBox && barBox.height >= 20 && barBox.height <= 24, `Timeline bars should stay precisely formatted, got ${barBox?.height}px`);
@@ -155,7 +174,9 @@ try {
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]:checked").count(), 4, "Gantt should cap visible row metadata at four fields");
   assert.ok(await page.locator("[data-capture-field-picker] input[type=checkbox]:not(:checked):disabled").count() >= 1, "Additional row fields should disable at the readability cap");
   await page.locator("[data-capture-field-picker] summary").click();
-  await page.locator("[data-capture-timeline] .capture-timeline__row").first().hover();
+  await page.locator("[data-capture-timeline] .capture-timeline__label").first().hover();
+  assert.equal(await page.locator("[data-capture-hovercard]").count(), 0, "Hovering row labels must not open a timeline card");
+  await page.locator("[data-capture-timeline] .capture-timeline__plot").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
   const hoverText = await page.locator("[data-capture-hovercard]").innerText();
   assert.match(hoverText, /Observed obligations/i);
@@ -175,7 +196,21 @@ try {
   });
   assert.ok(desktopLastRowReachable, "The final Gantt row should remain reachable inside the bounded timeline");
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
-  await page.getByLabel("Feed overlay").selectOption("fpds");
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("Agile SSD");
+  const overlayTrigger = page.getByRole("button", { name: /^Overlays\./ });
+  await overlayTrigger.click();
+  await page.getByRole("option", { name: "Published follow-on activity" }).getByRole("checkbox").check();
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.querySelectorAll("[data-followon-activity]").length > 0);
+  assert.equal(transactionRequests, 0, "Follow-on relationships should not load the deferred FPDS action payload");
+  await page.locator("[data-followon-activity]").first().hover();
+  await page.waitForSelector("[data-capture-hovercard]");
+  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /exact predecessor PIID/i, "Follow-on overlay should disclose its exact join basis");
+  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Agency acquisition forecast/i, "Follow-on overlay should disclose its source system");
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("");
+  await overlayTrigger.click();
+  await page.getByRole("option", { name: "FPDS action pulses" }).getByRole("checkbox").check();
+  await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
   assert.ok(await page.locator(".capture-timeline__action-marker").count() > 0, "FPDS feed should render timeline action pulses");
@@ -190,7 +225,7 @@ try {
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
   assert.equal(await page.getByLabel("Grouping").inputValue(), "none", "Malformed grouping should canonicalize to the factual default");
-  assert.equal(await page.getByLabel("Feed overlay").inputValue(), "schedule", "Malformed feed selection should canonicalize to the factual default");
+  assert.match(await page.getByRole("button", { name: /^Overlays\./ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
   await page.locator("[data-capture-field-picker] summary").click();
   const checkedFields = page.locator("[data-capture-field-picker] input[type=checkbox]:checked");
   while (await checkedFields.count()) await checkedFields.first().uncheck();
@@ -200,9 +235,17 @@ try {
   await page.waitForSelector("[data-capture-timeline]");
   assert.equal(await page.locator("[data-capture-field-picker] summary").innerText(), "Row fields (0)", "Title-only field state should survive reload");
   await page.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
-  await page.locator("[data-capture-timeline] .capture-timeline__row").first().hover();
+  await page.locator("[data-capture-timeline] .capture-timeline__plot").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
   await page.screenshot({ path: `${OUT_DIR}/transactions-gantt-desktop.png` });
+
+  await openSurface(page, "#/budget-spend/analytics", "[data-transaction-d3-page]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Analytics");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 4, "Analytics should expose four factual D3 views");
+  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 4, "Every D3 view should render its analytical SVG");
+  assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
+  assert.match(await page.locator("[data-transaction-d3-page]").innerText(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
+  await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Sources");
@@ -271,7 +314,7 @@ try {
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 12, "All advanced filters should remain reachable");
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
-  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] select, [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] select, [data-capture-field-picker] summary, [data-capture-gantt-tools] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileScroller.scrollWidth > mobileScroller.clientWidth, "Wide transaction timeline should use an internal mobile scroller");
@@ -294,12 +337,18 @@ try {
   await mobile.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });
 
+  await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
+  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 4);
+  assert.ok((await mobile.locator("[data-d3-analytics]").first().evaluate((node) => node.scrollWidth > node.clientWidth || node.querySelector(".transaction-viz__scroller")?.scrollWidth > node.querySelector(".transaction-viz__scroller")?.clientWidth)), "Mobile D3 charts should use contained horizontal scrolling");
+  await assertNoPageOverflow(mobile, "Mobile D3 analytics");
+  await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
+
   await openSurface(mobile, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 5);
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=6 money_stages=5 request_records>3000 accounts>100 awards>600 opportunities=198 events=502 fpds_actions=3085 descriptive_charts=13`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=7 money_stages=5 request_records>3000 accounts>100 awards>600 opportunities=198 events=502 fpds_actions=3085 descriptive_charts=13 d3_charts=4`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

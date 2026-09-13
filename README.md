@@ -11,17 +11,17 @@ GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
 - Services: Army, Navy / Marine Corps, Air Force / Space Force.
 - Fourth Estate: OSD / Defense-Wide, defense agencies, combatant commands, and joint organizations.
 - Colors of money: M-1, O-1, P-1, R-1, RF-1, and C-1 display books.
-- Left-to-right stages: PDB Request, Request History, Account Flow, Awards, Transactions, and Sources.
+- Left-to-right money stages: PDB Request, Request History, Account Flow, Awards, and Transactions. Analytics and Sources are factual utilities outside the money-stage rail.
 - Drilldown levels: request vintage, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, Treasury account, award, modification, and source evidence.
 - Classifications: color of money and keyword-derived mission categories remain labeled as classifications, not recommendations.
 
 ## Analytics contract
 
-Defense Budget & Spend Analytics uses six ordered factual surfaces:
+Defense Budget & Spend Analytics uses five ordered money stages plus two factual utility surfaces:
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
 - A five-stage left-to-right money rail ending at the lowest published FPDS action grain; Sources remains a separate lineage utility.
-- Hash-route deep links for PDB Request, Request History, Account Flow, Awards, Transactions, and Sources.
+- Hash-route deep links for PDB Request, Request History, Account Flow, Awards, Transactions, Analytics, and Sources.
 - Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local saved views, and deterministic snapshots.
 - CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
 - No strategy rankings, pursuit recommendations, opportunity scores, decision briefs, or target workboards in the public runtime.
@@ -98,12 +98,13 @@ Current version depth:
 
 - Budget request packages versioned in this repo: FY2024-FY2027 display-book vintages, with FY2027 as the current full-color package.
 - Fiscal-year values extracted from current and historical packages: FY2022-FY2027 where available by request vintage.
-- Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; USAspending execution-side award snapshots are partially ingested; FPDS/SAM and market timing feeds are staged next.
-- Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, USAspending obligation trend pulls, FPDS / SAM.gov contract data, and SAM.gov contract opportunities.
+- Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; USAspending execution-side award snapshots are partially ingested; exact FPDS action history is live; published acquisition schedules are curated; current SAM.gov opportunity monitoring remains incomplete.
+- Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, broader USAspending award coverage, scheduled SAM.gov notice refreshes, agency acquisition forecasts, and exact predecessor/successor crosswalks.
 - Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
 - Account Flow preserves request, apportionment, obligation, outlay, and award-account measures at their published grains.
 - Awards exposes the sampled USAspending inventory without ranking work or prescribing action.
-- Transactions exposes reported terms, canonical events, exact FPDS actions, cumulative obligations, and descriptive distributions.
+- Transactions exposes reported terms, canonical events, exact FPDS actions, cumulative obligations, contextual overlays, and configurable descriptive Gantt views.
+- Analytics adds four route-loaded D3 views for quarterly schedule activity, obligation/value distribution, portfolio-recipient composition, and funding-office fiscal history.
 - Sources visualizes publishers, record counts, refresh times, relationship classes, and join policy.
 - Coverage diagnostics show signal-tagged record/value coverage, workbook-level organization mix, and top mission signals by source.
 - Justification evidence diagnostics show official XML count, extracted program items, matched budget lines, and narrative-confirmed technology lines.

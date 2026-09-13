@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BarChart3,
@@ -30,17 +30,20 @@ import refreshDelta from "./data/refresh-delta.json";
 import CaptureCalendar from "./CaptureCalendar.jsx";
 import "./styles.css";
 
+const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
+
 const TABS = [
   { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
   { id: "trends", label: "Request History", icon: TrendingUp, stage: "History" },
   { id: "lifecycle", label: "Account Flow", icon: Network, stage: "Accounts" },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "calendar", label: "Transactions", icon: CalendarClock },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "sources", label: "Sources", icon: Database },
 ];
 
 const PRIMARY_TABS = TABS;
-const MONEY_FLOW_TABS = TABS.filter((tab) => tab.id !== "sources");
+const MONEY_FLOW_TABS = TABS.filter((tab) => !["analytics", "sources"].includes(tab.id));
 
 const HASH_ROUTES = {
   overview: "#/budget-spend",
@@ -48,13 +51,14 @@ const HASH_ROUTES = {
   trends: "#/budget-spend/trends",
   awards: "#/budget-spend/awards",
   calendar: "#/budget-spend/transactions",
+  analytics: "#/budget-spend/analytics",
   sources: "#/budget-spend/sources",
 };
 
 const LEGACY_ROUTE_TABS = {
   "#/budget-spend/strategy": "overview",
   "#/budget-spend/briefs": "overview",
-  "#/budget-spend/visuals": "overview",
+  "#/budget-spend/visuals": "analytics",
   "#/budget-spend/hypotheses": "overview",
   "#/budget-spend/accounts": "lifecycle",
   "#/budget-spend/fit": "overview",
@@ -4696,7 +4700,7 @@ function App() {
   const showBudgetControls = activeTab === "overview";
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || activeTab === "sources";
-  const needsCaptureCalendar = activeTab === "calendar" || activeTab === "sources";
+  const needsCaptureCalendar = activeTab === "calendar" || activeTab === "analytics" || activeTab === "sources";
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
@@ -4844,6 +4848,7 @@ function App() {
         {activeTab === "trends" ? <RequestTrends /> : null}
         {executionReady && activeTab === "awards" ? <Awards /> : null}
         {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} /> : null}
+        {captureCalendarReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} /></Suspense> : null}
         {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
       </div>
     </main>
