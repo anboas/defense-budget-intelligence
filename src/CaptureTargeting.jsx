@@ -10,8 +10,11 @@ import {
   tree,
   treemap,
 } from "d3";
+import { useEffect, useMemo, useState } from "react";
 
 const DAY = 86_400_000;
+const TARGET_WORKBOARD_STORAGE_KEY = "dbi:capture-target-workboard:v1";
+const WORKBOARD_STAGES = ["verify", "qualify", "shape", "bid", "monitor", "complete"];
 
 function money(value) {
   const amount = Number(value || 0);
@@ -24,6 +27,85 @@ function money(value) {
 function short(value, length = 28) {
   if (!value) return "Not published";
   return value.length > length ? `${value.slice(0, length - 1)}…` : value;
+}
+
+function addDays(value, days) {
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeWorkboard(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const opportunityId = String(candidate.opportunityId || "");
+    if (!/^opp_[a-z0-9]+$/.test(opportunityId) || seen.has(opportunityId)) return [];
+    seen.add(opportunityId);
+    return [{
+      opportunityId,
+      stage: WORKBOARD_STAGES.includes(candidate.stage) ? candidate.stage : "verify",
+      owner: typeof candidate.owner === "string" ? candidate.owner.slice(0, 80) : "",
+      dueDate: /^\d{4}-\d{2}-\d{2}$/.test(candidate.dueDate || "") ? candidate.dueDate : "",
+      note: typeof candidate.note === "string" ? candidate.note.slice(0, 500) : "",
+      createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : new Date().toISOString(),
+      updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : new Date().toISOString(),
+    }];
+  }).slice(0, 24);
+}
+
+function readWorkboard() {
+  try {
+    return normalizeWorkboard(JSON.parse(window.localStorage.getItem(TARGET_WORKBOARD_STORAGE_KEY) || "[]"));
+  } catch {
+    return [];
+  }
+}
+
+function suggestedStage(signal) {
+  if (signal.blocked || signal.evidenceTier === "evidence-gap") return "verify";
+  if (signal.factors.route < 8) return "qualify";
+  if (signal.lane === "Act now" || signal.lane === "Pursue") return "shape";
+  return "monitor";
+}
+
+function suggestedCheckpoint(signal, asOf) {
+  const interval = signal.decisionDays == null ? 60 : signal.decisionDays <= 30 ? 3 : signal.decisionDays <= 90 ? 7 : signal.decisionDays <= 180 ? 14 : signal.decisionDays <= 365 ? 30 : 60;
+  const checkpoint = addDays(asOf, interval);
+  return signal.decision?.date && signal.decision.date < checkpoint ? signal.decision.date : checkpoint;
+}
+
+function exportWorkboard(rows, asOf) {
+  const fields = ["opportunity_id", "gantt_alias", "title", "portfolio", "attention_score", "attention_lane", "analyst_stage", "owner", "analyst_checkpoint", "next_published_signal", "published_buyer", "published_route", "evidence_tier", "observed_obligations_usd", "reported_value_usd", "next_action", "analyst_note", "snapshot_as_of"];
+  const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const records = rows.map(({ task, signal }) => ({
+    opportunity_id: signal.opportunityId,
+    gantt_alias: signal.id,
+    title: signal.title,
+    portfolio: signal.portfolio,
+    attention_score: signal.attentionScore,
+    attention_lane: signal.lane,
+    analyst_stage: task.stage,
+    owner: task.owner,
+    analyst_checkpoint: task.dueDate,
+    next_published_signal: signal.decision ? `${signal.decision.label} · ${signal.decision.date} · ${signal.decision.basis}` : "Not published",
+    published_buyer: officeOf(signal),
+    published_route: signal.parentReference || signal.vehicle || "Not published",
+    evidence_tier: signal.evidenceTier,
+    observed_obligations_usd: signal.observedObligations,
+    reported_value_usd: signal.targetValue,
+    next_action: signal.nextAction,
+    analyst_note: task.note,
+    snapshot_as_of: asOf,
+  }));
+  const csv = [fields.join(","), ...records.map((record) => fields.map((field) => escape(record[field])).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "capture-target-workboard.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 function valueOf(record) {
@@ -399,6 +481,86 @@ function TargetBrief({ signal, adjacencies, onSelect }) {
   );
 }
 
+function TargetWorkboard({ signals, active, asOf, onSelect }) {
+  const [tasks, setTasks] = useState(readWorkboard);
+  const signalMap = useMemo(() => new Map(signals.map((signal) => [signal.opportunityId, signal])), [signals]);
+  const visibleRows = useMemo(() => tasks
+    .map((task) => ({ task, signal: signalMap.get(task.opportunityId) }))
+    .filter((row) => row.signal)
+    .sort((left, right) => (left.task.stage === "complete") - (right.task.stage === "complete") || (left.task.dueDate || "9999-12-31").localeCompare(right.task.dueDate || "9999-12-31") || right.signal.attentionScore - left.signal.attentionScore), [tasks, signalMap]);
+  const hiddenCount = tasks.length - visibleRows.length;
+  const stageCounts = WORKBOARD_STAGES.map((stage) => ({ stage, count: visibleRows.filter((row) => row.task.stage === stage).length }));
+  const dueSoon = visibleRows.filter(({ task }) => task.stage !== "complete" && task.dueDate && task.dueDate >= asOf && task.dueDate <= addDays(asOf, 30)).length;
+
+  useEffect(() => {
+    window.localStorage.setItem(TARGET_WORKBOARD_STORAGE_KEY, JSON.stringify(tasks));
+  }, [tasks]);
+
+  function addSignals(candidates) {
+    setTasks((current) => {
+      const existing = new Set(current.map((task) => task.opportunityId));
+      const now = new Date().toISOString();
+      const additions = candidates.filter((signal) => signal && !existing.has(signal.opportunityId)).map((signal) => ({
+        opportunityId: signal.opportunityId,
+        stage: suggestedStage(signal),
+        owner: "",
+        dueDate: suggestedCheckpoint(signal, asOf),
+        note: "",
+        createdAt: now,
+        updatedAt: now,
+      }));
+      return normalizeWorkboard([...current, ...additions]);
+    });
+  }
+
+  function updateTask(opportunityId, patch) {
+    setTasks((current) => current.map((task) => task.opportunityId === opportunityId ? { ...task, ...patch, updatedAt: new Date().toISOString() } : task));
+  }
+
+  function removeTask(opportunityId) {
+    setTasks((current) => current.filter((task) => task.opportunityId !== opportunityId));
+  }
+
+  return (
+    <section className="target-workboard" data-capture-workboard>
+      <header>
+        <div><span>Browser-local execution</span><h3>Target workboard</h3><p>Turn public signals into analyst-owned checkpoints. Owners, stages, dates, and notes stay in this browser and never enter the public dataset or URL.</p></div>
+        <div className="target-workboard__actions">
+          <button type="button" onClick={() => addSignals([active])} disabled={!active || tasks.some((task) => task.opportunityId === active.opportunityId)}>Track selected</button>
+          <button type="button" onClick={() => addSignals(signals.filter((signal) => signal.lane !== "Monitor").slice(0, 5))}>Seed top 5</button>
+          <button type="button" onClick={() => exportWorkboard(visibleRows, asOf)} disabled={!visibleRows.length}>Export board</button>
+        </div>
+      </header>
+      <div className="target-workboard__status" aria-label="Target workboard status">
+        {stageCounts.map(({ stage, count }) => <span key={stage} data-stage={stage}><b>{count}</b>{stage}</span>)}
+        <span data-stage="due"><b>{dueSoon}</b>due ≤30d</span>
+      </div>
+      {hiddenCount ? <p className="target-workboard__hidden">{hiddenCount} tracked {hiddenCount === 1 ? "target is" : "targets are"} outside the current filters. Reset filters to manage the full board.</p> : null}
+      {visibleRows.length ? <div className="target-workboard__rows">
+        {visibleRows.map(({ task, signal }, index) => <article key={task.opportunityId} data-workboard-row={signal.opportunityId}>
+          <details defaultOpen={index === 0}>
+            <summary className="target-workboard__record"><span><b>{signal.id} · {signal.title}</b><small>{signal.lane} · attention {signal.attentionScore}</small></span><strong>{task.stage} · {task.dueDate || "no checkpoint"}</strong></summary>
+            <div className="target-workboard__row-actions"><button type="button" onClick={() => onSelect(signal.opportunityId)}>Open evidence</button><button type="button" onClick={() => removeTask(signal.opportunityId)} aria-label={`Remove ${signal.title} from target workboard`}>Remove target</button></div>
+            <div className="target-workboard__evidence">
+              <span><b>Next published signal</b>{signal.decision ? `${signal.decision.label} · ${signal.decision.date}` : "Not published"}</span>
+              <span><b>Buyer / route</b>{officeOf(signal)} · {signal.parentReference || signal.vehicle || "route not published"}</span>
+              <span><b>Funding posture</b>{money(signal.observedObligations)} observed · {signal.transactionSummary?.fundingActions || 0} funding actions</span>
+              <span><b>Recommended action</b>{signal.nextAction}</span>
+            </div>
+            <div className="target-workboard__fields">
+              <label><span>Analyst stage</span><select aria-label={`Analyst stage for ${signal.id}`} value={task.stage} onChange={(event) => updateTask(signal.opportunityId, { stage: event.target.value })}>{WORKBOARD_STAGES.map((stage) => <option key={stage} value={stage}>{stage[0].toUpperCase() + stage.slice(1)}</option>)}</select></label>
+              <label><span>Owner</span><input aria-label={`Owner for ${signal.id}`} value={task.owner} maxLength="80" placeholder="Unassigned" onChange={(event) => updateTask(signal.opportunityId, { owner: event.target.value })} /></label>
+              <label><span>Analyst checkpoint</span><input aria-label={`Analyst checkpoint for ${signal.id}`} type="date" value={task.dueDate} onChange={(event) => updateTask(signal.opportunityId, { dueDate: event.target.value })} /></label>
+              <label className="target-workboard__note"><span>Private browser note</span><textarea aria-label={`Private browser note for ${signal.id}`} value={task.note} maxLength="500" rows="2" placeholder="Decision, question, or next contact to resolve" onChange={(event) => updateTask(signal.opportunityId, { note: event.target.value })} /></label>
+            </div>
+          </details>
+        </article>)}
+      </div> : <div className="target-workboard__empty"><strong>No targets tracked yet.</strong><p>Track the selected record or seed the five highest non-monitor signals, then assign a stage, owner, checkpoint, and private note.</p></div>}
+      <small className="target-workboard__boundary">Suggested checkpoints are analyst planning dates derived from the snapshot horizon. They are not government deadlines, customer commitments, or evidence of a procurement.</small>
+    </section>
+  );
+}
+
 function FactorBar({ factors }) {
   const rows = [["Timing", factors.timing, 30], ["Value", factors.value, 20], ["Evidence", factors.evidence, 20], ["Route", factors.route, 15], ["Momentum", factors.momentum, 15]];
   return <div className="target-factor-bar" aria-label={rows.map(([name, value, maximum]) => `${name} ${value} of ${maximum}`).join(", ")}>{rows.map(([name, value, maximum]) => <i key={name} title={`${name}: ${value}/${maximum}`} style={{ width: `${(value / maximum) * 20}%` }} data-factor={name.toLowerCase()} />)}</div>;
@@ -435,6 +597,8 @@ export default function CaptureTargeting({ records, asOf, selectedId, onSelect, 
       </div>
 
       <TargetBrief signal={active} adjacencies={adjacencies} onSelect={selectRecord} />
+
+      <TargetWorkboard signals={signals} active={active} asOf={asOf} onSelect={selectRecord} />
 
       <div className="capture-targeting__visuals">
         <section><header><div><strong>Target map</strong><small>Score versus next published decision</small></div></header><TargetMap signals={signals} onSelect={selectRecord} /></section>

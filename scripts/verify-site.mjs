@@ -368,6 +368,7 @@ try {
   await page.evaluate(() => {
     window.localStorage.removeItem("dbi:capture-comparison:v1");
     window.localStorage.removeItem("dbi:capture-saved-views:v1");
+    window.localStorage.removeItem("dbi:capture-target-workboard:v1");
   });
   await clickBudgetSurface(page, /Capture Calendar/);
   await page.waitForSelector("[data-capture-calendar-page]");
@@ -389,6 +390,26 @@ try {
   assert.equal(await page.locator("[data-capture-target-list] button").count(), 12, "Targeting workspace should rank twelve records");
   assert.equal(await page.locator("[data-capture-target-brief]").count(), 1, "Targeting workspace should expose a target execution brief");
   assert.match(await page.locator("[data-capture-target-brief]").innerText(), /Verify the demand signal[\s\S]*Qualify the access route[\s\S]*Build the funded wedge/i, "Target brief should translate evidence into a three-step pursuit plan");
+  assert.equal(await page.locator("[data-capture-workboard]").count(), 1, "Targeting workspace should expose a browser-local target workboard");
+  assert.match(await page.locator("[data-capture-workboard]").innerText(), /Owners, stages, dates, and notes stay in this browser/i, "Target workboard should disclose its local-only boundary");
+  await page.locator("[data-capture-workboard]").getByRole("button", { name: "Track selected" }).click();
+  assert.equal(await page.locator("[data-workboard-row]").count(), 1, "Target workboard should track the selected stable opportunity");
+  const trackedAlias = (await page.locator("[data-workboard-row]").first().getAttribute("data-workboard-row"));
+  const trackedHeading = await page.locator("[data-workboard-row]").first().locator(".target-workboard__record b").innerText();
+  const trackedGanttAlias = trackedHeading.split(" · ")[0];
+  const trackedStage = page.getByLabel(`Analyst stage for ${trackedGanttAlias}`);
+  if (!(await trackedStage.isVisible())) await page.locator(`[data-workboard-row="${trackedAlias}"] summary`).click();
+  await trackedStage.selectOption("qualify");
+  await page.getByLabel(`Owner for ${trackedGanttAlias}`).fill("Capture lead");
+  await page.getByLabel(`Private browser note for ${trackedGanttAlias}`).fill("Validate the published route before assigning bid resources.");
+  await page.locator("[data-capture-workboard]").getByRole("button", { name: "Seed top 5" }).click();
+  assert.equal(await page.locator("[data-workboard-row]").count(), 5, "Target workboard should seed five ranked non-monitor targets without duplicates");
+  const storedWorkboard = await page.evaluate(() => JSON.parse(window.localStorage.getItem("dbi:capture-target-workboard:v1") || "[]"));
+  assert.equal(storedWorkboard.length, 5, "Target workboard should persist tracked rows in browser storage");
+  assert.ok(storedWorkboard.some((task) => task.opportunityId === trackedAlias && task.stage === "qualify" && task.owner === "Capture lead"), "Target workboard should persist stable ID, stage, and owner");
+  const workboardDownload = page.waitForEvent("download");
+  await page.locator("[data-capture-workboard]").getByRole("button", { name: "Export board" }).click();
+  assert.equal((await workboardDownload).suggestedFilename(), "capture-target-workboard.csv", "Target workboard should export its explicit analyst plan");
   assert.match(await page.locator("[data-capture-targeting]").innerText(), /attention scores[\s\S]*not win probabilities/i, "Targeting workspace should disclose its interpretation boundary");
   const attentionScores = await page.locator(".capture-target-list__score b").allTextContents();
   assert.ok(attentionScores.every((value) => Number(value) >= 0 && Number(value) <= 100), `Attention scores should remain bounded to 0-100: ${attentionScores.join(", ")}`);
@@ -760,10 +781,11 @@ try {
   assert.equal(await mobile.locator("[data-capture-chart]").count(), 19, "Mobile Capture Calendar should expose all linked charts");
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 6, "Mobile Capture Calendar should expose all D3 targeting views");
   assert.equal(await mobile.locator("[data-capture-target-list] button").count(), 12, "Mobile targeting workspace should keep the ranked queue reachable");
+  assert.equal(await mobile.locator("[data-capture-workboard]").count(), 1, "Mobile Capture Calendar should keep the target workboard reachable");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Mobile Capture Calendar should keep advanced filters behind disclosure by default");
   await mobile.getByRole("button", { name: "Show 12 more filters" }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 12, "Mobile Capture Calendar should reveal every advanced filter on request");
-  const captureTargets = await mobile.locator("[data-capture-filters] input:visible, [data-capture-filters] select:visible, [data-capture-filters] button:visible, .capture-hero__actions button:visible, [data-capture-gantt-tools] select:visible, [data-capture-gantt-tools] button:visible, [data-capture-saved-views] button:visible, [data-capture-chart] button:visible, [data-capture-target-brief] button:visible, [data-capture-matrix] button:not(:disabled):visible").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
+  const captureTargets = await mobile.locator("[data-capture-filters] input:visible, [data-capture-filters] select:visible, [data-capture-filters] button:visible, .capture-hero__actions button:visible, [data-capture-gantt-tools] select:visible, [data-capture-gantt-tools] button:visible, [data-capture-saved-views] button:visible, [data-capture-chart] button:visible, [data-capture-target-brief] button:visible, [data-capture-workboard] button:visible, [data-capture-workboard] input:visible, [data-capture-workboard] select:visible, [data-capture-workboard] textarea:visible, [data-capture-matrix] button:not(:disabled):visible").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
   assert.ok(captureTargets.every((height) => height >= 43.5), `Mobile Capture Calendar controls should be 44px: ${captureTargets.join(", ")}`);
   const d3Targets = await mobile.locator("[data-targeting-chart] [role='button']").evaluateAll((elements) => elements.map((element) => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height })));
   assert.ok(d3Targets.every((box) => box.width >= 43.5 && box.height >= 43.5), `Mobile D3 targets should expose 44px hit areas: ${JSON.stringify(d3Targets)}`);

@@ -32,3 +32,5 @@ The public runtime excludes all `internal_proposal` records and does not project
 `capture-calendar.json` contains the 198-record public projection, 502 normalized events, coverage, and aggregate action analytics. `capture-transactions.json` contains 3,085 exact actions and loads only after a record with action history is selected.
 
 PostgreSQL stores the immutable capture snapshot and normalized `capture_opportunities`, `capture_events`, and `capture_fpds_actions` rows. The read API exposes coverage, stable opportunity detail, and exact action history. Browser exports carry the snapshot date, canonical filtered URL, stable opportunity ID, source links, and public money fields.
+
+The target workboard is deliberately outside that public persistence boundary. It stores at most 24 analyst-selected stable opportunity IDs with stage, owner, checkpoint, and private note in browser local storage under `dbi:capture-target-workboard:v1`. Workboard state is not written to PostgreSQL, encoded in shareable URLs, or projected into public runtime files. Suggested checkpoints are analyst planning dates, never represented as government deadlines or procurement evidence.
