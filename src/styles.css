@@ -11877,8 +11877,17 @@ td .dot {
   .trend-metrics > .metric,
   .awards-page > .source-metrics > .metric {
     flex: 0 0 154px;
-    min-height: 88px;
+    height: 94px;
+    min-height: 94px;
+    padding: 9px 10px;
     scroll-snap-align: start;
+  }
+
+  .metrics > .metric strong,
+  .trend-metrics > .metric strong,
+  .awards-page > .source-metrics > .metric strong {
+    margin: 4px 0 2px;
+    font-size: 20px;
   }
 
   .metrics > .metric p,
