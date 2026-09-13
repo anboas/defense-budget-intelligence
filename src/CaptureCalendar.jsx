@@ -1355,7 +1355,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page>
       <section className="capture-hero">
         <div>
-          <div className="capture-hero__title"><span className="eyebrow">Stage 5</span><h2>Transactions</h2></div>
+          <div className="capture-hero__title"><h2>Transactions</h2></div>
           <p>Award actions, obligations, reported performance, published acquisition events, recipients, buyers, and evidence.</p>
           <p className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{dataset.metadata.coverage.publicRows} public records</strong><span>{dataset.metadata.coverage.normalizedEvents.toLocaleString()} events · {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions · {dataset.metadata.coverage.excludedPrivateRows} internal rows excluded</span></p>
         </div>

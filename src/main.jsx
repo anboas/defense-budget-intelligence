@@ -43,8 +43,6 @@ const TABS = [
 ];
 
 const PRIMARY_TABS = TABS;
-const MONEY_FLOW_TABS = TABS.filter((tab) => !["analytics", "sources"].includes(tab.id));
-
 const HASH_ROUTES = {
   overview: "#/budget-spend",
   lifecycle: "#/budget-spend/lifecycle",
@@ -377,26 +375,6 @@ function FreshnessStrip() {
   );
 }
 
-function MoneyFlowRail({ activeTab }) {
-  return (
-    <nav className="money-flow-rail" aria-label="Federal money flow stages" data-money-flow-rail>
-      {MONEY_FLOW_TABS.map((tab, index) => {
-        const Icon = tab.icon;
-        return (
-          <div className="money-flow-rail__step" key={tab.id}>
-            <a href={HASH_ROUTES[tab.id]} className={activeTab === tab.id ? "is-active" : ""} aria-current={activeTab === tab.id ? "page" : undefined}>
-              <span>{index + 1}</span>
-              <Icon size={16} aria-hidden="true" />
-              <strong>{tab.label}</strong>
-            </a>
-            {index < MONEY_FLOW_TABS.length - 1 ? <ArrowRight size={16} aria-hidden="true" /> : null}
-          </div>
-        );
-      })}
-    </nav>
-  );
-}
-
 const BOOK_COLORS = {
   "M-1": "#005ea2",
   "O-1": "#216e1f",
@@ -600,6 +578,27 @@ function Metric({ label, value, helper, tone = "blue" }) {
       <strong>{value}</strong>
       <p>{helper}</p>
     </article>
+  );
+}
+
+function PhaseIntro({ eyebrow, description, facts = [], tone = "blue", dataAttribute = {} }) {
+  return (
+    <section className={`phase-intro phase-intro--${tone}${facts.length ? " phase-intro--with-facts" : ""}`} {...dataAttribute}>
+      <div className="phase-intro__copy">
+        <span>{eyebrow}</span>
+        <p>{description}</p>
+      </div>
+      {facts.length ? (
+        <div className="phase-intro__facts" aria-label={`${eyebrow} coverage`}>
+          {facts.map((fact) => (
+            <article key={fact.label}>
+              <strong>{fact.value}</strong>
+              <span>{fact.label}</span>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -1019,21 +1018,18 @@ function AccountLifecycle() {
 
   return (
     <div className="grid lifecycle-page" data-account-spine-page>
-      <section className="lifecycle-hero">
-        <div>
-          <span>Stage 3 · Account execution</span>
-          <h2>Account Flow</h2>
-          <p>Follow a federal account from requested funding through OMB apportionment, obligations, and outlays. Exact TAFS joins stay solid; the request edge is separately labeled derived.</p>
-        </div>
-        <div className="lifecycle-hero__facts" aria-label="Account spine coverage">
-          <article><strong>{coverage.federalAccounts || accounts.length}</strong><span>federal accounts</span></article>
-          <article><strong>{coverage.exactTafsJoins || 0}</strong><span>exact TAFS joins</span></article>
-          <article><strong>{Math.round((coverage.exactTafsJoinRate || 0) * 100)}%</strong><span>TAFS coverage</span></article>
-          <article><strong>{coverage.requestMatchedAccounts || 0}</strong><span>request matches</span></article>
-          <article><strong>{coverage.exactAwardAccountLinks || 0}</strong><span>exact award links</span></article>
-          <article><strong>{coverage.awardsMappedToCurrentAccounts || 0}</strong><span>awards mapped</span></article>
-        </div>
-      </section>
+      <PhaseIntro
+        eyebrow="Account execution"
+        description="Follow a federal account from requested funding through OMB apportionment, obligations, and outlays. Exact TAFS joins stay solid; the request edge is separately labeled derived."
+        facts={[
+          { value: coverage.federalAccounts || accounts.length, label: "federal accounts" },
+          { value: coverage.exactTafsJoins || 0, label: "exact TAFS joins" },
+          { value: `${Math.round((coverage.exactTafsJoinRate || 0) * 100)}%`, label: "TAFS coverage" },
+          { value: coverage.requestMatchedAccounts || 0, label: "request matches" },
+          { value: coverage.exactAwardAccountLinks || 0, label: "exact award links" },
+          { value: coverage.awardsMappedToCurrentAccounts || 0, label: "awards mapped" },
+        ]}
+      />
 
       <section className="lifecycle-account-picker">
         <label htmlFor="lifecycle-account">Federal account</label>
@@ -2273,19 +2269,11 @@ function Overview({ records }) {
 
   return (
     <div className="grid">
-      <section className="request-hero" data-pdb-request-page>
-        <div>
-          <span>Stage 1 · Source request</span>
-          <h2>PDB Request</h2>
-          <p>Line-level President's Budget defense request data from official Comptroller display books. Values are shown as published and remain separate from apportionments, obligations, awards, and transactions.</p>
-        </div>
-        <div className="request-hero__facts" aria-label="PDB request coverage">
-          <article><strong>{records.length.toLocaleString()}</strong><span>filtered request lines</span></article>
-          <article><strong>{money(sum(records, "fy2027"))}</strong><span>filtered FY2027 request</span></article>
-          <article><strong>{BOOKS.length}</strong><span>colors of money</span></article>
-          <article><strong>{DATA_INVENTORY.availableBudgetRequestYears?.length || 0}</strong><span>request vintages</span></article>
-        </div>
-      </section>
+      <PhaseIntro
+        eyebrow="Official source request"
+        description="Line-level President's Budget defense request data from official Comptroller display books. Values remain separate from apportionments, obligations, awards, and transactions."
+        dataAttribute={{ "data-pdb-request-page": true }}
+      />
       <div className="grid grid--wide">
         <Section title="Color of Money" meta="FY2027 request" icon={Layers}>
           <div className="rank-list">
@@ -2354,13 +2342,11 @@ function RequestTrends() {
 
   return (
     <div className="grid">
-      <section className="request-hero" data-request-history-page>
-        <div>
-          <span>Stage 2 · Published request vintages</span>
-          <h2>Request History</h2>
-          <p>Year-over-year request values from official budget packages. Comparable trends use only books present across the compared vintages; keyword-derived categories remain labeled as classifications.</p>
-        </div>
-      </section>
+      <PhaseIntro
+        eyebrow="Published request vintages"
+        description="Year-over-year request values from official budget packages. Comparable trends use only books present across the compared vintages; keyword-derived categories remain labeled as classifications."
+        dataAttribute={{ "data-request-history-page": true }}
+      />
       <section className="source-metrics trend-metrics" aria-label="Request trend summary">
         <Metric label="Request vintages" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper={`${TREND_SUMMARY.sourceVersionCount || 0} workbook versions parsed`} />
         <Metric label="Historical records" value={(TREND_SUMMARY.historicalRecordCount || 0).toLocaleString()} helper="Aggregate model records across request packages" tone="purple" />
@@ -3115,31 +3101,17 @@ function Awards() {
 
   return (
     <div className="grid awards-page" data-awards-page>
-      <section className="award-hero">
-        <div>
-          <span>Stage 4 · Award-level spend</span>
-          <h2>Awards</h2>
-          <p>Deduped contract award records from cached USAspending technology searches, with buyer, vendor, PSC, NAICS, dates, descriptions, and Award IDs. This is a sampled award dataset, not exhaustive FPDS action history.</p>
-        </div>
-        <div className="award-hero__facts" aria-label="Award drilldown summary">
-          <article>
-            <strong>{(summary.awards || awards.length).toLocaleString()}</strong>
-            <span>deduped awards</span>
-          </article>
-          <article>
-            <strong>{money(summary.sampledAwardValue || 0)}</strong>
-            <span>sampled value</span>
-          </article>
-          <article>
-            <strong>{summary.buyerCount || 0}</strong>
-            <span>buyers</span>
-          </article>
-          <article>
-            <strong>{summary.vendorCount || 0}</strong>
-            <span>vendors</span>
-          </article>
-        </div>
-      </section>
+      <PhaseIntro
+        eyebrow="Award-level spend"
+        description="Deduped contract award records from cached USAspending technology searches. This is a sampled award dataset, not exhaustive FPDS action history."
+        tone="green"
+        facts={[
+          { value: (summary.awards || awards.length).toLocaleString(), label: "deduped awards" },
+          { value: money(summary.sampledAwardValue || 0), label: "sampled value" },
+          { value: summary.buyerCount || 0, label: "buyers" },
+          { value: summary.vendorCount || 0, label: "vendors" },
+        ]}
+      />
 
       <div className="award-filter-bar" data-award-filter-bar>
         <label className="searchbox">
@@ -4793,8 +4765,6 @@ function App() {
           {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
         </p>
         <FreshnessStrip />
-        <MoneyFlowRail activeTab={activeTab} />
-
         {showBudgetControls ? (
           <>
             <FilterShell filters={filters} setFilters={setFilters} />

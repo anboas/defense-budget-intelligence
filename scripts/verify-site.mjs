@@ -6,7 +6,6 @@ import { chromium } from "playwright-core";
 const REMOTE_BASE_URL = process.env.BUDGET_VERIFY_URL;
 const BASE_URL = REMOTE_BASE_URL ? new URL(REMOTE_BASE_URL).href : "http://127.0.0.1:4188/";
 const OUT_DIR = "test-results";
-const FLOW_LABELS = ["PDB Request", "Request History", "Account Flow", "Awards", "Transactions"];
 const FORBIDDEN_SURFACE_TEXT = /Decision Briefs|Portfolio Strategy|Pursuit Cockpit|Target execution brief|Target workboard|attention score|win probability/i;
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -42,11 +41,7 @@ async function assertFlowShell(page) {
   assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 7, "Header should expose five money stages plus analytics and sources");
   assert.equal(await page.locator("[data-budget-nav-more]").count(), 0, "Header should not expose a secondary strategy menu");
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
-  const rail = page.locator("[data-money-flow-rail]");
-  assert.equal(await rail.locator("a").count(), 5, "Money-flow rail should end at transaction-level spend");
-  for (const [index, label] of FLOW_LABELS.entries()) {
-    assert.match((await rail.locator("a").nth(index).innerText()).replace(/\s+/g, " "), new RegExp(`^${index + 1} ${label}$`), `Stage ${index + 1} should be ${label}`);
-  }
+  assert.equal(await page.locator("[data-money-flow-rail]").count(), 0, "Pages should not repeat the primary header navigation as a numbered phase rail");
   assert.doesNotMatch(await page.locator("[data-defense-budget-app]").innerText(), FORBIDDEN_SURFACE_TEXT, "Rendered analytics shell should not expose judgment surfaces");
 }
 
@@ -86,6 +81,8 @@ try {
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Request surface should expose line-level filters");
   assert.equal(await page.locator("[data-budget-metric]").count(), 5, "Request surface should expose factual coverage metrics");
   assert.equal(await page.locator("[data-analytics-readout]").count(), 0, "Request surface should not generate narrative judgments");
+  assert.ok(await page.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Request intro should remain compact");
+  assert.doesNotMatch(await page.locator("[data-pdb-request-page]").innerText(), /Stage\s+1/i, "Request intro should not repeat numbered phase navigation");
   assert.equal(await resourceCount(page, "budget-execution.json"), 0, "Request surface should defer award data");
   assert.equal(await resourceCount(page, "account-spine.json"), 0, "Request surface should defer account data");
   assert.equal(await resourceCount(page, "budget-strategy.json"), 0, "Retired strategy payload must never load");
@@ -104,6 +101,8 @@ try {
   assert.equal(await page.locator("[data-request-history-timeline] .trend-year-card").count(), 4, "History should expose four request vintages");
   assert.equal(await page.locator("[data-comparable-request-trend] article").count(), 4, "History should expose comparable request values");
   assert.equal(await page.locator("[data-color-money-history] .trend-series-card").count(), 6, "History should expose all six colors of money");
+  assert.ok(await page.locator("[data-request-history-page]").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Request-history intro should remain compact");
+  assert.doesNotMatch(await page.locator("[data-request-history-page]").innerText(), /Stage\s+2/i, "Request history should not repeat numbered phase navigation");
   const historyText = await page.locator("[data-request-history-page]").locator("xpath=..").innerText();
   assert.match(historyText, /Largest Request Changes/);
   assert.doesNotMatch(historyText, /Momentum Leaders|Trend Readout/);
@@ -116,6 +115,8 @@ try {
   assert.ok(await page.locator("[data-award-account-flow] article").count() >= 1, "Account flow should expose award-to-account links");
   assert.equal(await page.locator("[data-burn-curve] svg").count(), 1, "Account flow should expose obligation history");
   assert.ok(await page.locator("#lifecycle-account option").count() > 100, "Account flow should expose the federal-account inventory");
+  assert.ok(await page.locator("[data-account-spine-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Account-flow intro should remain compact");
+  assert.doesNotMatch(await page.locator("[data-account-spine-page] .phase-intro").innerText(), /Stage\s+3/i, "Account flow should not repeat numbered phase navigation");
   const lifecycleText = await page.locator("[data-account-spine-page]").innerText();
   assert.match(lifecycleText, /derived/i, "Derived request joins should be labeled");
   assert.match(lifecycleText, /exact TAFS joins/i, "Exact TAFS joins should be labeled");
@@ -125,6 +126,8 @@ try {
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
   assert.equal(await page.locator("[data-award-filter-bar] select").count(), 5, "Awards should expose factual filter dimensions");
   assert.ok(await page.locator("[data-award-record-table] tbody tr").count() >= 100, "Awards should expose the sampled award table");
+  assert.ok(await page.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Awards intro should remain compact");
+  assert.doesNotMatch(await page.locator("[data-awards-page] .phase-intro").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
   const awardSearchGeometry = await page.getByPlaceholder("Search award IDs, vendors, buyers, descriptions").evaluate((input) => {
     const icon = input.parentElement?.querySelector("svg")?.getBoundingClientRect();
@@ -149,12 +152,10 @@ try {
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
   const compactDesktopGeometry = await page.evaluate(() => ({
     freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
-    flowHeight: document.querySelector("[data-money-flow-rail]")?.getBoundingClientRect().height || 0,
     firstRowTop: document.querySelector("[data-capture-timeline] .capture-timeline__row")?.getBoundingClientRect().top || 0,
     timelineToolsHeight: document.querySelector("[data-capture-gantt-tools]")?.getBoundingClientRect().height || 0,
   }));
   assert.ok(compactDesktopGeometry.freshnessHeight <= 32, `Desktop freshness should be a compact status line, got ${compactDesktopGeometry.freshnessHeight}px`);
-  assert.equal(compactDesktopGeometry.flowHeight, 0, "Transactions should not repeat the primary money-flow navigation");
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
   await page.getByRole("button", { name: "Show 12 more filters" }).click();
@@ -259,7 +260,8 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
-  await page.locator("[data-capture-gantt-tools] > summary").click();
+  await page.locator("[data-capture-gantt-tools]").evaluate((node) => { node.open = true; });
+  await page.getByRole("button", { name: /^Overlays\./ }).waitFor();
   assert.equal(await page.getByLabel("Grouping").inputValue(), "none", "Malformed grouping should canonicalize to the factual default");
   assert.match(await page.getByRole("button", { name: /^Overlays\./ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
   await page.locator("[data-capture-field-picker] summary").click();
@@ -337,12 +339,22 @@ try {
   await assertFlowShell(mobile);
   const mobileNavHeights = await mobile.locator(".ci-header-nav > button[data-budget-nav]").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileNavHeights.every((height) => height >= 43.5), `Mobile surface controls should be 44px: ${mobileNavHeights.join(", ")}`);
+  assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile request");
+
+  await openSurface(mobile, "#/budget-spend/trends", "[data-request-history-page]");
+  assert.ok(await mobile.locator("[data-request-history-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request-history intro should stay compact");
+  await assertNoPageOverflow(mobile, "Mobile request history");
 
   await openSurface(mobile, "#/budget-spend/lifecycle", "[data-account-spine-page]");
   const accountHeight = await mobile.locator("#lifecycle-account").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(accountHeight >= 43.5, `Mobile account selector should be 44px, got ${accountHeight}`);
+  assert.ok(await mobile.locator("[data-account-spine-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile account-flow intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile account flow");
+
+  await openSurface(mobile, "#/budget-spend/awards", "[data-awards-page]");
+  assert.ok(await mobile.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile awards intro should stay compact");
+  await assertNoPageOverflow(mobile, "Mobile awards");
 
   await openSurface(mobile, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced transaction filters should start collapsed on mobile");
