@@ -147,10 +147,13 @@ try {
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose the source as-of marker");
   assert.equal(await page.getByLabel("Grouping").locator("option").count(), 10, "Gantt should expose ten factual grouping modes");
   assert.equal(await page.getByLabel("Bar labels").locator("option").count(), 6, "Gantt should expose six bar-label modes");
+  assert.equal(await page.locator("[data-capture-gantt-tools] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
   await page.locator("[data-capture-field-picker] summary").click();
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 10, "Gantt should expose ten configurable row fields");
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "FPDS action count" }).check();
   assert.match(await page.locator("[data-capture-timeline] .capture-timeline__fields").first().innerText(), /FPDS actions/, "Selected row fields should render immediately");
+  assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]:checked").count(), 4, "Gantt should cap visible row metadata at four fields");
+  assert.ok(await page.locator("[data-capture-field-picker] input[type=checkbox]:not(:checked):disabled").count() >= 1, "Additional row fields should disable at the readability cap");
   await page.locator("[data-capture-field-picker] summary").click();
   await page.locator("[data-capture-timeline] .capture-timeline__row").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
@@ -160,6 +163,18 @@ try {
   assert.match(hoverText, /Latest FPDS action/i);
   await page.getByLabel("Grouping").selectOption("funding-office");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
+  const desktopTimelineScroll = await page.locator("[data-capture-timeline]").evaluate((node) => ({ clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }));
+  assert.ok(desktopTimelineScroll.scrollHeight > desktopTimelineScroll.clientHeight, "Long Gantts should use a bounded internal vertical scroller");
+  await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  const desktopLastRowReachable = await page.locator("[data-capture-timeline]").evaluate((node) => {
+    const row = node.querySelector(".capture-timeline__row:last-of-type");
+    if (!row) return false;
+    const timelineRect = node.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    return rowRect.bottom <= timelineRect.bottom + 2 && rowRect.top >= timelineRect.top - 2;
+  });
+  assert.ok(desktopLastRowReachable, "The final Gantt row should remain reachable inside the bounded timeline");
+  await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   await page.getByLabel("Feed overlay").selectOption("fpds");
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
@@ -204,7 +219,7 @@ try {
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
 
-  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-pdb-request-page]");
   await assertFlowShell(mobile);
@@ -227,6 +242,21 @@ try {
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileScroller.scrollWidth > mobileScroller.clientWidth, "Wide transaction timeline should use an internal mobile scroller");
+  const mobileTimelineGeometry = await mobile.locator("[data-capture-timeline]").evaluate((node) => {
+    const label = node.querySelector(".capture-timeline__label");
+    return {
+      clientHeight: node.clientHeight,
+      scrollHeight: node.scrollHeight,
+      labelWidth: label?.getBoundingClientRect().width || 0,
+      visibleTimePlane: node.clientWidth - (label?.getBoundingClientRect().width || 0),
+    };
+  });
+  assert.ok(mobileTimelineGeometry.scrollHeight > mobileTimelineGeometry.clientHeight, "Mobile Gantt should bound long results inside its own vertical scroller");
+  assert.ok(mobileTimelineGeometry.labelWidth <= 212, `Mobile sticky labels should preserve the time plane, got ${mobileTimelineGeometry.labelWidth}px`);
+  assert.ok(mobileTimelineGeometry.visibleTimePlane >= 140, `Mobile should expose a useful time-plane viewport, got ${mobileTimelineGeometry.visibleTimePlane}px`);
+  await mobile.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
+  await mobile.locator("[data-capture-timeline] .capture-timeline__row").first().tap();
+  assert.equal(await mobile.locator("[data-capture-hovercard]").count(), 0, "Touch selection should not leave a hover card covering the timeline");
   await assertNoPageOverflow(mobile, "Mobile transactions");
   await mobile.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });

@@ -74,13 +74,14 @@ const ROW_FIELD_OPTIONS = [
 
 const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
 const ROW_FIELD_IDS = new Set(ROW_FIELD_OPTIONS.map(([id]) => id));
+const MAX_ROW_FIELDS = 4;
 const BAR_LABEL_IDS = new Set(["dates", "obligations", "potential", "utilization", "actions", "none"]);
 const FEED_IDS = new Set(["schedule", "fpds"]);
 
 function normalizeFieldIds(value) {
   if (value === "none") return "none";
   const fields = [...new Set(String(value || "").split(",").filter((field) => ROW_FIELD_IDS.has(field)))];
-  return fields.length ? fields.join(",") : FILTER_DEFAULTS.capFields;
+  return fields.length ? fields.slice(0, MAX_ROW_FIELDS).join(",") : FILTER_DEFAULTS.capFields;
 }
 
 function selectedFieldIds(value) {
@@ -733,7 +734,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
     const scroller = scrollerRef.current;
     if (!scroller || !showAsOf || !window.matchMedia("(max-width: 760px)").matches) return;
     const frame = window.requestAnimationFrame(() => {
-      const labelWidth = 244;
+      const labelWidth = Number.parseFloat(getComputedStyle(scroller).getPropertyValue("--capture-label-width")) || 330;
       const plotWidth = Math.max(scroller.scrollWidth - labelWidth - 24, 1);
       scroller.scrollLeft = Math.max(labelWidth + (asOfPosition / 100) * plotWidth - scroller.clientWidth / 2, 0);
     });
@@ -751,7 +752,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
           <Fragment key={group.id}>
             {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)} onPointerEnter={(event) => showHover(record, event.currentTarget, event.clientX + 14, event.clientY + 14)} onPointerLeave={() => setHover(null)} onFocus={(event) => showHover(record, event.currentTarget)} onBlur={() => setHover(null)} aria-describedby={hover?.record.opportunityId === record.opportunityId ? "capture-timeline-tooltip" : undefined}>
+              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)} onPointerEnter={(event) => { if (event.pointerType === "mouse") showHover(record, event.currentTarget, event.clientX + 14, event.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) showHover(record, event.currentTarget); }} onBlur={() => setHover(null)} aria-describedby={hover?.record.opportunityId === record.opportunityId ? "capture-timeline-tooltip" : undefined}>
                 <span className="capture-timeline__label">
                   <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em></span>
                   <strong>{record.title}</strong>
@@ -952,6 +953,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   function toggleRowField(field) {
     const current = selectedFieldIds(filters.capFields);
     const next = current.includes(field) ? current.filter((item) => item !== field) : [...current, field];
+    if (next.length > MAX_ROW_FIELDS) return;
     setFilters({ capFields: next.length ? next.join(",") : "none" });
   }
 
@@ -1157,17 +1159,26 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       <section className="capture-section">
         <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction pulses</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry · hover or focus any row for source detail</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{filters.capFeed === "fpds" ? <><i className="action" />FPDS action</> : null}</span></div>
         <div className="capture-gantt-tools" data-capture-gantt-tools>
-          <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
-          <div className="capture-gantt-window" aria-label="Timeline windows"><span>Window</span><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Current</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
-          <label><span>Row density</span><select value={filters.capDensity} onChange={(event) => setFilters({ capDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
-          <label><span>Grouping</span><select value={filters.capGroup} onChange={(event) => setFilters({ capGroup: event.target.value })}>{GROUP_BY_OPTIONS.map(([id, text]) => <option value={id} key={id}>{text}</option>)}</select></label>
-          <label><span>Bar labels</span><select value={filters.capLabels} onChange={(event) => setFilters({ capLabels: event.target.value })}><option value="dates">Date ranges</option><option value="obligations">Observed obligations</option><option value="potential">Potential / high value</option><option value="utilization">Obligation ratio</option><option value="actions">FPDS action count</option><option value="none">No labels</option></select></label>
-          <label><span>Feed overlay</span><select value={filters.capFeed} onChange={(event) => setFilters({ capFeed: event.target.value })}><option value="schedule">Schedule only</option><option value="fpds">FPDS action pulses</option></select></label>
-          <details className="capture-gantt-fields" data-capture-field-picker>
-            <summary>Row fields ({selectedFieldIds(filters.capFields).length})</summary>
-            <div role="group" aria-label="Visible Gantt row fields">{ROW_FIELD_OPTIONS.map(([id, text]) => <label key={id}><input type="checkbox" checked={selectedFieldIds(filters.capFields).includes(id)} onChange={() => toggleRowField(id)} /><span>{text}</span></label>)}</div>
-          </details>
-          {filters.capFeed === "fpds" ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : null}
+          <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
+            <legend>Time</legend>
+            <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
+            <div className="capture-gantt-window" aria-label="Timeline windows"><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Current</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
+          </fieldset>
+          <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--display">
+            <legend>Display</legend>
+            <label><span>Density</span><select aria-label="Row density" value={filters.capDensity} onChange={(event) => setFilters({ capDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
+            <label><span>Group</span><select aria-label="Grouping" value={filters.capGroup} onChange={(event) => setFilters({ capGroup: event.target.value })}>{GROUP_BY_OPTIONS.map(([id, text]) => <option value={id} key={id}>{text}</option>)}</select></label>
+            <label><span>Bar text</span><select aria-label="Bar labels" value={filters.capLabels} onChange={(event) => setFilters({ capLabels: event.target.value })}><option value="dates">Date ranges</option><option value="obligations">Observed obligations</option><option value="potential">Potential / high value</option><option value="utilization">Obligation ratio</option><option value="actions">FPDS action count</option><option value="none">No labels</option></select></label>
+            <details className="capture-gantt-fields" data-capture-field-picker>
+              <summary>Row fields ({selectedFieldIds(filters.capFields).length})</summary>
+              <div role="group" aria-label="Visible Gantt row fields"><p>Choose up to four fields. Full detail remains available on hover or focus.</p>{ROW_FIELD_OPTIONS.map(([id, text]) => { const activeFields = selectedFieldIds(filters.capFields); const checked = activeFields.includes(id); return <label key={id}><input type="checkbox" checked={checked} disabled={!checked && activeFields.length >= MAX_ROW_FIELDS} onChange={() => toggleRowField(id)} /><span>{text}</span></label>; })}</div>
+            </details>
+          </fieldset>
+          <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
+            <legend>Data</legend>
+            <label><span>Overlay</span><select aria-label="Feed overlay" value={filters.capFeed} onChange={(event) => setFilters({ capFeed: event.target.value })}><option value="schedule">Schedule only</option><option value="fpds">FPDS action pulses</option></select></label>
+            {filters.capFeed === "fpds" ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : <span className="capture-gantt-feed-status">Contract terms and canonical events</span>}
+          </fieldset>
         </div>
         {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>

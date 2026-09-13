@@ -6109,10 +6109,17 @@ td .dot {
     justify-content: flex-start;
     width: 100%;
     min-width: 0;
+    max-width: 100%;
     gap: 3px;
     padding: 0 1px 2px;
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    contain: inline-size;
   }
+
+  .masthead nav::-webkit-scrollbar { display: none; }
 
   .masthead button {
     flex: 0 0 auto;
@@ -8217,18 +8224,50 @@ td .dot {
 .capture-legend i.action { width: 8px; height: 8px; border: 1px solid #fff; border-radius: 50%; background: #216e1f; box-shadow: 0 0 0 1px #174f16; }
 
 .capture-gantt-tools {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(270px, auto) minmax(520px, 1fr) minmax(210px, 0.42fr);
+  align-items: stretch;
   gap: 8px;
   padding: 9px 12px;
   border-bottom: 1px solid var(--border-soft);
   background: #f8fafc;
 }
 
+.capture-gantt-toolgroup {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 8px 8px;
+  border: 1px solid #d4e0e9;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.capture-gantt-toolgroup > legend {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  padding: 0;
+  color: var(--quiet);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.capture-gantt-toolgroup--time { flex-wrap: nowrap; }
+.capture-gantt-toolgroup--display > label { flex: 1 1 126px; }
+.capture-gantt-toolgroup--data > label { flex: 1 1 150px; }
+
 .capture-gantt-tools label {
   display: grid;
   gap: 3px;
+  min-width: 0;
 }
 
 .capture-gantt-tools label > span {
@@ -8240,6 +8279,7 @@ td .dot {
 }
 
 .capture-gantt-tools select {
+  width: 100%;
   min-height: 32px;
   padding: 4px 28px 4px 8px;
   border: 1px solid #b9cad8;
@@ -8293,6 +8333,16 @@ td .dot {
   box-shadow: 0 10px 28px rgba(16, 45, 68, 0.2);
 }
 
+.capture-gantt-fields > div > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 4px 7px 7px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 .capture-gantt-fields > div label {
   display: flex;
   align-items: center;
@@ -8305,6 +8355,8 @@ td .dot {
 }
 
 .capture-gantt-fields > div label:hover { background: #edf5fa; }
+.capture-gantt-fields > div label:has(input:disabled) { color: #8293a1; cursor: not-allowed; }
+.capture-gantt-fields > div label:has(input:disabled):hover { background: transparent; }
 .capture-gantt-fields input { width: 16px; height: 16px; margin: 0 7px 0 0; accent-color: var(--brand); }
 
 .capture-gantt-feed-status {
@@ -8320,28 +8372,23 @@ td .dot {
   gap: 4px;
 }
 
-.capture-gantt-window > span {
-  align-self: center;
-  color: var(--quiet);
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
 .capture-gantt-window button {
   min-height: 32px;
   padding-inline: 8px;
 }
 
 .capture-timeline {
+  --capture-label-width: 330px;
   max-width: 100%;
+  max-height: min(72vh, 760px);
   overflow: auto;
   overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
 }
 
 .capture-timeline__inner {
   display: grid;
-  grid-template-columns: 330px minmax(780px, 1fr) 26px;
+  grid-template-columns: var(--capture-label-width) minmax(780px, 1fr) 26px;
   min-width: 1136px;
 }
 
@@ -8501,6 +8548,7 @@ td .dot {
   position: sticky;
   z-index: 5;
   left: 0;
+  top: 42px;
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
@@ -8742,6 +8790,17 @@ td .dot {
 .capture-timeline-tooltip p b { color: var(--quiet); font-size: 8px; text-transform: uppercase; }
 .capture-timeline-tooltip footer { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border-soft); color: var(--muted); font-size: 8px; }
 
+@media (max-width: 1100px) and (min-width: 761px) {
+  .capture-gantt-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .capture-gantt-toolgroup--display {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
 .capture-timeline__row:hover .capture-timeline__milestone > span,
 .capture-timeline__row.is-selected .capture-timeline__milestone > span {
   display: block;
@@ -8978,8 +9037,13 @@ td .dot {
 }
 
 .capture-matrix {
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  contain: inline-size;
 }
 
 .capture-matrix__grid {
@@ -9342,12 +9406,19 @@ td .dot {
 
   .capture-gantt-tools {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     align-items: stretch;
   }
 
-  .capture-gantt-tools > button {
-    align-self: end;
+  .capture-gantt-toolgroup--display {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .capture-gantt-toolgroup--display > legend,
+  .capture-gantt-toolgroup--time > legend,
+  .capture-gantt-toolgroup--data > legend {
+    grid-column: 1 / -1;
   }
 
   .capture-quarter-outlook {
@@ -9355,12 +9426,24 @@ td .dot {
   }
 
   .capture-legend {
+    width: 100%;
+    flex-wrap: nowrap;
     justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    white-space: nowrap;
   }
 
+  .capture-legend i { flex: 0 0 auto; }
+
   .capture-timeline__inner {
-    grid-template-columns: 244px minmax(720px, 1fr) 24px;
-    min-width: 988px;
+    grid-template-columns: var(--capture-label-width) minmax(720px, 1fr) 24px;
+    min-width: calc(var(--capture-label-width) + 744px);
+  }
+
+  .capture-timeline {
+    --capture-label-width: 204px;
+    max-height: 68vh;
   }
 
   .capture-timeline__row {
@@ -9402,6 +9485,8 @@ td .dot {
   .capture-gantt-tools {
     grid-template-columns: 1fr;
   }
+
+  .capture-gantt-toolgroup--display { grid-template-columns: 1fr; }
 
   .capture-gantt-fields > div { grid-template-columns: 1fr; }
 }
@@ -9470,12 +9555,17 @@ td .dot {
   display: flex;
   align-items: stretch;
   gap: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   padding: 0;
   border: 1px solid #c9d8e8;
   border-radius: 12px;
   background: #fff;
+  overscroll-behavior-inline: contain;
   scrollbar-width: thin;
+  contain: inline-size;
 }
 
 .money-flow-rail__step {
