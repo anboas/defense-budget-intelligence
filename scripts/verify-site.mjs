@@ -176,12 +176,19 @@ try {
   await page.locator("[data-capture-field-picker] summary").click();
   await page.locator("[data-capture-timeline] .capture-timeline__label").first().hover();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 0, "Hovering row labels must not open a timeline card");
-  await page.locator("[data-capture-timeline] .capture-timeline__plot").first().hover();
+  const emptyPlotBox = await page.locator("[data-capture-timeline] .capture-timeline__plot").first().boundingBox();
+  assert.ok(emptyPlotBox, "Timeline plot should have measurable geometry");
+  await page.mouse.move(emptyPlotBox.x + 4, emptyPlotBox.y + 4);
+  assert.equal(await page.locator("[data-capture-hovercard]").count(), 0, "Blank timeline space must not open a hover card");
+  const firstTimelineBar = page.locator("[data-capture-timeline] .capture-timeline__bar--base").first();
+  await firstTimelineBar.hover();
   await page.waitForSelector("[data-capture-hovercard]");
   const hoverText = await page.locator("[data-capture-hovercard]").innerText();
   assert.match(hoverText, /Observed obligations/i);
   assert.match(hoverText, /Funding office/i);
   assert.match(hoverText, /Latest FPDS action/i);
+  await firstTimelineBar.focus();
+  assert.equal(await page.locator("[data-capture-hovercard]").count(), 1, "Keyboard focus on an actual Gantt bar should expose contextual evidence");
   await page.getByLabel("Grouping").selectOption("funding-office");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
   const desktopTimelineScroll = await page.locator("[data-capture-timeline]").evaluate((node) => ({ clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }));
@@ -207,6 +214,16 @@ try {
   await page.waitForSelector("[data-capture-hovercard]");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /exact predecessor PIID/i, "Follow-on overlay should disclose its exact join basis");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Agency acquisition forecast/i, "Follow-on overlay should disclose its source system");
+  await page.locator("[data-followon-activity]").first().click();
+  await page.waitForSelector("[data-followon-modal][open]");
+  const followOnModalText = await page.locator("[data-followon-modal]").innerText();
+  assert.match(followOnModalText, /Published follow-on activity/i);
+  assert.match(followOnModalText, /exact predecessor PIID match/i);
+  assert.match(followOnModalText, /Agency acquisition forecast/i);
+  assert.equal(await page.locator("[data-capture-detail]").count(), 0, "Follow-on selection should open its own modal rather than the record detail modal");
+  await page.screenshot({ path: `${OUT_DIR}/transactions-followon-modal-desktop.png` });
+  await page.getByRole("button", { name: "Close follow-on details" }).click();
+  await page.waitForSelector("[data-followon-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await overlayTrigger.click();
   await page.getByRole("option", { name: "FPDS action pulses" }).getByRole("checkbox").check();
@@ -214,12 +231,19 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
   assert.ok(await page.locator(".capture-timeline__action-marker").count() > 0, "FPDS feed should render timeline action pulses");
+  const pageHeightBeforeModal = await page.evaluate(() => document.documentElement.scrollHeight);
   await page.locator("[data-capture-timeline] .capture-timeline__row").first().click();
+  await page.waitForSelector("[data-capture-detail-modal][open]");
   await page.waitForSelector("[data-capture-detail]");
   await page.waitForSelector("[data-capture-action-history]");
+  assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), pageHeightBeforeModal, "Opening record detail must not reflow or lengthen the page");
   assert.equal(transactionRequests, 1, "Opening an award should reuse the already-loaded FPDS history");
   assert.equal(await page.locator("[data-capture-action-chart]").count(), 1, "Selected award should expose cumulative obligations");
   assert.ok(await page.locator("[data-capture-action-table] tbody tr").count() >= 1, "Selected award should expose exact action rows");
+  await page.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-desktop.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
+  assert.ok(!new URL(page.url()).hash.includes("capRecord="), "Closing the detail modal should remove the selected record from the shareable URL");
 
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
@@ -235,7 +259,7 @@ try {
   await page.waitForSelector("[data-capture-timeline]");
   assert.equal(await page.locator("[data-capture-field-picker] summary").innerText(), "Row fields (0)", "Title-only field state should survive reload");
   await page.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
-  await page.locator("[data-capture-timeline] .capture-timeline__plot").first().hover();
+  await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
   await page.screenshot({ path: `${OUT_DIR}/transactions-gantt-desktop.png` });
 
@@ -333,6 +357,16 @@ try {
   await mobile.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   await mobile.locator("[data-capture-timeline] .capture-timeline__row").first().tap();
   assert.equal(await mobile.locator("[data-capture-hovercard]").count(), 0, "Touch selection should not leave a hover card covering the timeline");
+  await mobile.waitForSelector("[data-capture-detail-modal][open]");
+  const mobileModalGeometry = await mobile.locator("[data-capture-detail-modal]").evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return { width: rect.width, height: rect.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+  });
+  assert.ok(mobileModalGeometry.width <= mobileModalGeometry.viewportWidth, `Mobile detail modal must fit the viewport width, got ${mobileModalGeometry.width}px`);
+  assert.ok(mobileModalGeometry.height <= mobileModalGeometry.viewportHeight, `Mobile detail modal must fit the viewport height, got ${mobileModalGeometry.height}px`);
+  await mobile.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-mobile.png` });
+  await mobile.getByRole("button", { name: "Close record details" }).click();
+  await mobile.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await assertNoPageOverflow(mobile, "Mobile transactions");
   await mobile.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });

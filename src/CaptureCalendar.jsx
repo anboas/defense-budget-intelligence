@@ -605,7 +605,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         </div>
         <div className="capture-detail__heading-actions">
           <button type="button" className={isCompared ? "is-active" : ""} onClick={onToggleCompare} aria-label={isCompared ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{isCompared ? "Compared" : "Compare"}</button>
-          <button type="button" onClick={onClose} aria-label="Close record details"><X size={18} /></button>
+          <button type="button" autoFocus onClick={onClose} aria-label="Close record details"><X size={18} /></button>
         </div>
       </div>
       <div className="capture-detail__grid">
@@ -783,7 +783,74 @@ function TimelineHoverCard({ hover }) {
   );
 }
 
-function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions, followOnActivities }) {
+function ModalShell({ label, testId, tone = "default", onClose, children }) {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      className={`capture-modal capture-modal--${tone}`}
+      aria-label={label}
+      data-capture-modal
+      {...{ [testId]: "" }}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className="capture-modal__surface">{children}</div>
+    </dialog>,
+    document.body,
+  );
+}
+
+function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
+  if (!detail) return null;
+  const { predecessor, activity, milestone } = detail;
+  return (
+    <ModalShell label={`${activity.title} follow-on activity details`} testId="data-followon-modal" tone="followon" onClose={onClose}>
+      <section className="capture-followon-detail">
+        <header>
+          <div><span>Published follow-on activity · {activity.id}</span><h2>{activity.title}</h2><p>{activity.sourceSystem} · exact predecessor PIID match</p></div>
+          <button type="button" autoFocus onClick={onClose} aria-label="Close follow-on details"><X size={19} /></button>
+        </header>
+        <div className="capture-followon-detail__lineage">
+          <article><span>Predecessor contract</span><strong>{predecessor.id} · {predecessor.title}</strong><small>{activity.parentReference || predecessor.reference || "Reference not published"}</small></article>
+          <ChevronRight size={20} aria-hidden="true" />
+          <article><span>Published activity</span><strong>{milestone.label}</strong><small>{formatDate(milestone.start)}{milestone.end && milestone.end !== milestone.start ? ` to ${formatDate(milestone.end)}` : ""} · {milestone.precision || "precision not published"}</small></article>
+        </div>
+        <dl>
+          <div><dt>Company / sponsor</dt><dd>{activity.party || "Not published"}</dd></div>
+          <div><dt>Vehicle</dt><dd>{activity.vehicle || "Not published"}</dd></div>
+          <div><dt>Published value</dt><dd>{formatMoney(recordValue(activity))}</dd></div>
+          <div><dt>Portfolio</dt><dd>{activity.portfolio || "Not published"}</dd></div>
+          <div><dt>Funding office</dt><dd>{activity.fundingOffice || activity.owner || "Not published"}</dd></div>
+          <div><dt>Contracting office</dt><dd>{activity.contractingOffice || "Not published"}</dd></div>
+          <div><dt>Evidence tier</dt><dd>{label(activity.evidenceTier)}</dd></div>
+          <div><dt>Validation</dt><dd>{label(activity.validationStatus)}</dd></div>
+        </dl>
+        <p className="capture-followon-detail__boundary"><ShieldCheck size={17} aria-hidden="true" />This is a source-declared predecessor relationship. It is published acquisition evidence, not a win prediction or an inferred recompete date.</p>
+        {activity.sourceDescription ? <p>{activity.sourceDescription}</p> : null}
+        <div className="capture-followon-detail__actions">
+          <button type="button" onClick={() => onOpenRecord(activity.opportunityId)}>Open full activity record</button>
+          {activity.sourceUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>)}
+        </div>
+      </section>
+    </ModalShell>
+  );
+}
+
+function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions, followOnActivities, onOpenFollowOn }) {
   const feeds = new Set(parseMultiValues(feedMode));
   const actionMarkers = feeds.has("fpds") ? timelineActionMarkers(actions, startYear, endYear) : [];
   const fiscalMaximum = Math.max(...record.fiscalValues.map((item) => Math.abs(Number(item.amount || 0))), 1);
@@ -796,9 +863,28 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
     const right = positionFor(marker.end, startYear, endYear);
     const context = `Published follow-on · ${marker.activity.id}`;
     const detail = `${marker.activity.title} · ${marker.label} · exact predecessor PIID · ${marker.activity.sourceSystem}`;
+    const openFollowOn = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenFollowOn({ predecessor: record, activity: marker.activity, milestone: marker });
+    };
+    const keyboardOpenFollowOn = (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      openFollowOn(event);
+    };
+    const common = {
+      role: "button",
+      tabIndex: 0,
+      "aria-label": `${context}: ${detail}`,
+      "data-followon-activity": "",
+      "data-timeline-context": context,
+      "data-timeline-detail": detail,
+      onClick: openFollowOn,
+      onKeyDown: keyboardOpenFollowOn,
+    };
     return marker.precision === "day"
-      ? <i key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-marker" data-followon-activity data-timeline-context={context} data-timeline-detail={detail} style={{ left: `${left}%` }} title={`${detail} · ${formatDate(marker.start)}`} />
-      : <i key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-window" data-followon-activity data-timeline-context={context} data-timeline-detail={detail} style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${detail} · ${formatDate(marker.start)} to ${formatDate(marker.end)}`} />;
+      ? <i {...common} key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-marker" style={{ left: `${left}%` }} title={`${detail} · ${formatDate(marker.start)}`} />
+      : <i {...common} key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-window" style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${detail} · ${formatDate(marker.start)} to ${formatDate(marker.end)}`} />;
   });
   if (record.mode === "contract-performance" && record.start && (record.currentEnd || record.potentialEnd)) {
     const baseEnd = record.currentEnd || record.potentialEnd;
@@ -811,11 +897,11 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
     return (
       <>
         {potentialRight > baseRight ? (
-          <i className="capture-timeline__bar capture-timeline__bar--potential" data-timeline-context="Potential option horizon" data-timeline-detail={`Potential through ${formatDate(record.potentialEnd)}`} style={{ left: `${baseRight}%`, width: `${Math.max(potentialRight - baseRight, 0.6)}%` }} title={`Potential through ${formatDate(record.potentialEnd)}`}>
+          <i role="button" tabIndex="0" aria-label={`Potential option horizon through ${formatDate(record.potentialEnd)}`} className="capture-timeline__bar capture-timeline__bar--potential" data-timeline-context="Potential option horizon" data-timeline-detail={`Potential through ${formatDate(record.potentialEnd)}`} style={{ left: `${baseRight}%`, width: `${Math.max(potentialRight - baseRight, 0.6)}%` }} title={`Potential through ${formatDate(record.potentialEnd)}`}>
             {potentialRight - baseRight >= 9 && labelMode !== "none" ? <b>Option to {monthYear(record.potentialEnd)}</b> : null}
           </i>
         ) : null}
-        <i className={`capture-timeline__bar capture-timeline__bar--base capture-timeline__bar--${state}`} data-timeline-context="Reported performance term" data-timeline-detail={`${formatDate(record.start)} to ${formatDate(baseEnd)}`} style={{ left: `${left}%`, width: `${Math.max(baseRight - left, 0.6)}%` }} title={`Reported term ${formatDate(record.start)} to ${formatDate(baseEnd)}`}>
+        <i role="button" tabIndex="0" aria-label={`Reported performance term ${formatDate(record.start)} to ${formatDate(baseEnd)}`} className={`capture-timeline__bar capture-timeline__bar--base capture-timeline__bar--${state}`} data-timeline-context="Reported performance term" data-timeline-detail={`${formatDate(record.start)} to ${formatDate(baseEnd)}`} style={{ left: `${left}%`, width: `${Math.max(baseRight - left, 0.6)}%` }} title={`Reported term ${formatDate(record.start)} to ${formatDate(baseEnd)}`}>
           <span style={{ width: `${elapsed}%` }} aria-hidden="true" />
           {baseRight - left >= 10 && labelMode !== "none" ? <b>{barLabel}</b> : null}
         </i>
@@ -830,9 +916,9 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
     const left = positionFor(milestone.start, startYear, endYear);
     const right = positionFor(milestone.end, startYear, endYear);
     return milestone.precision === "day" ? (
-      <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__milestone" data-timeline-context={milestone.label} data-timeline-detail={formatDate(milestone.start)} style={{ left: `${left}%` }} title={`${milestone.label}: ${formatDate(milestone.start)}`}><span>{labelMode === "none" ? "" : milestone.label}</span></i>
+      <i role="button" tabIndex="0" aria-label={`${milestone.label}: ${formatDate(milestone.start)}`} key={`${milestone.label}-${milestone.start}`} className="capture-timeline__milestone" data-timeline-context={milestone.label} data-timeline-detail={formatDate(milestone.start)} style={{ left: `${left}%` }} title={`${milestone.label}: ${formatDate(milestone.start)}`}><span>{labelMode === "none" ? "" : milestone.label}</span></i>
     ) : (
-      <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__bar capture-timeline__bar--window" data-timeline-context={milestone.label} data-timeline-detail={`${formatDate(milestone.start)} to ${formatDate(milestone.end)}`} style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${milestone.label}: ${formatDate(milestone.start)} to ${formatDate(milestone.end)}`}>
+      <i role="button" tabIndex="0" aria-label={`${milestone.label}: ${formatDate(milestone.start)} to ${formatDate(milestone.end)}`} key={`${milestone.label}-${milestone.start}`} className="capture-timeline__bar capture-timeline__bar--window" data-timeline-context={milestone.label} data-timeline-detail={`${formatDate(milestone.start)} to ${formatDate(milestone.end)}`} style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${milestone.label}: ${formatDate(milestone.start)} to ${formatDate(milestone.end)}`}>
         {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "dates" ? milestone.label : timelineBarLabel(record, labelMode, milestone.start, milestone.end)}</b> : null}
       </i>
     );
@@ -842,6 +928,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
 function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity }) {
   const scrollerRef = useRef(null);
   const [hover, setHover] = useState(null);
+  const [followOnDetail, setFollowOnDetail] = useState(null);
   const years = Array.from({ length: endYear - startYear + 1 }, (_value, index) => startYear + index);
   const asOfPosition = positionFor(asOf, startYear, endYear);
   const showAsOf = asOf >= `${startYear}-01-01` && asOf <= `${endYear}-12-31`;
@@ -865,7 +952,23 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
   function showPointerContext(record, event) {
     if (event.pointerType !== "mouse") return;
     const mark = event.target.closest("[data-timeline-context]");
-    showHover(record, event.currentTarget, event.clientX + 14, event.clientY + 14, mark ? { label: mark.dataset.timelineContext, detail: mark.dataset.timelineDetail } : { label: "Timeline row", detail: recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "Schedule not published" });
+    if (!mark) {
+      setHover(null);
+      return;
+    }
+    showHover(record, mark, event.clientX + 14, event.clientY + 14, { label: mark.dataset.timelineContext, detail: mark.dataset.timelineDetail });
+  }
+  function showFocusedContext(record, event) {
+    const mark = event.target.closest("[data-timeline-context]");
+    if (!mark || window.matchMedia("(pointer: coarse)").matches) return;
+    showHover(record, mark, undefined, undefined, { label: mark.dataset.timelineContext, detail: mark.dataset.timelineDetail });
+  }
+  function activateTimelineMark(record, event) {
+    const mark = event.target.closest("[data-timeline-context]");
+    if (!mark || mark.hasAttribute("data-followon-activity")) return;
+    if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+    if (event.type === "keydown") event.preventDefault();
+    onSelect(record.opportunityId);
   }
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -889,25 +992,26 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
           <Fragment key={group.id}>
             {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)} onPointerDown={() => setHover(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible") && !window.matchMedia("(pointer: coarse)").matches) showHover(record, event.currentTarget, undefined, undefined, { label: "Keyboard focus", detail: "Select for full evidence" }); }} onBlur={() => setHover(null)} aria-describedby={hover?.record.opportunityId === record.opportunityId ? "capture-timeline-tooltip" : undefined}>
-                <span className="capture-timeline__label">
+              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} data-capture-timeline-row>
+                <button type="button" className="capture-timeline__label" onClick={() => onSelect(record.opportunityId)} aria-label={`Open ${record.title} details`}>
                   <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em></span>
                   <strong>{record.title}</strong>
                   <small className="capture-timeline__fields">{activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
-                </span>
-                <span className="capture-timeline__plot" onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
+                </button>
+                <span className="capture-timeline__plot" onClick={(event) => { if (!event.target.closest("[data-followon-activity]")) onSelect(record.opportunityId); }} onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} onFocusCapture={(event) => showFocusedContext(record, event)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHover(null); }} onKeyDown={(event) => activateTimelineMark(record, event)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
-                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} actions={actionsByOpportunity?.[record.opportunityId] || []} followOnActivities={followOnByOpportunity?.[record.opportunityId] || []} />
+                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} actions={actionsByOpportunity?.[record.opportunityId] || []} followOnActivities={followOnByOpportunity?.[record.opportunityId] || []} onOpenFollowOn={(detail) => { setHover(null); setFollowOnDetail(detail); }} />
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
+                <button type="button" className="capture-timeline__open" onClick={() => onSelect(record.opportunityId)} aria-label={`Open ${record.title} details`}><ChevronRight size={16} aria-hidden="true" /></button>
+              </div>
             ))}
           </Fragment>
         ))}
       </div>
       <TimelineHoverCard hover={hover} />
+      <FollowOnDetailModal detail={followOnDetail} onClose={() => setFollowOnDetail(null)} onOpenRecord={(opportunityId) => { setFollowOnDetail(null); onSelect(opportunityId); }} />
     </div>
   );
 }
@@ -1313,7 +1417,11 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
 
-      <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={Boolean(selected && comparisonIds.includes(selected.opportunityId))} onToggleCompare={() => selected && toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
+      {selected ? (
+        <ModalShell label={`${selected.title} evidence details`} testId="data-capture-detail-modal" onClose={() => setSelectedId("")}>
+          <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={comparisonIds.includes(selected.opportunityId)} onToggleCompare={() => toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
+        </ModalShell>
+      ) : null}
 
       <section className="capture-section">
         <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} exact predecessor-linked follow-on activities · hover only the time plane for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligations</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}</span></div>
