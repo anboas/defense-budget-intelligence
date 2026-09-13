@@ -64,8 +64,14 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   let transactionRequests = 0;
+  let subawardDetailRequests = 0;
   await page.route("**/data/capture-transactions.json", async (route) => {
     transactionRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  await page.route("**/data/usaspending-subaward-details.json", async (route) => {
+    subawardDetailRequests += 1;
     await new Promise((resolve) => setTimeout(resolve, 250));
     await route.continue();
   });
@@ -139,6 +145,8 @@ try {
   await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Transactions");
   assert.equal(await resourceCount(page, "capture-calendar.json"), 1, "Transactions should load the public event payload once");
+  assert.equal(await resourceCount(page, "usaspending-subawards.json"), 1, "Transactions should load the compact subaward summary once");
+  assert.equal(subawardDetailRequests, 0, "Recent subaward detail should remain deferred until its overlay or a positive prime opens");
   assert.equal(transactionRequests, 0, "Exact FPDS actions should remain deferred until a record opens");
   const transactionText = await page.locator("[data-transaction-analytics-page]").innerText();
   const publicRecordCount = Number(transactionText.match(/([\d,]+) public records/i)?.[1].replaceAll(",", "") || 0);
@@ -147,6 +155,7 @@ try {
   assert.ok(automaticAdditionCount >= 677, `Transactions should retain the automated USAspending baseline and permit new feeds, got ${automaticAdditionCount}`);
   assert.match(transactionText, /FPDS ACTIONS\s+3,085/i);
   const capturePayload = await page.evaluate(() => fetch(new URL("data/capture-calendar.json", document.baseURI)).then((response) => response.json()));
+  const subawardPayload = await page.evaluate(() => fetch(new URL("data/usaspending-subawards.json", document.baseURI)).then((response) => response.json()));
   assert.equal(capturePayload.metadata.coverage.normalizedEvents, 502, "Source packet should retain every canonical event");
   assert.equal(capturePayload.metadata.coverage.fpdsActions, 3085, "Source packet should retain every exact FPDS action");
   assert.equal(capturePayload.metadata.coverage.awardsWithPricingType, 113, "Acquisition structure should include pricing on 112 awards plus the active Application Arsenal solicitation");
@@ -156,6 +165,11 @@ try {
   assert.equal(capturePayload.metadata.coverage.rowsWithWorkCategory, 145, "Normalized source rows should retain deterministic work classifications");
   assert.equal(capturePayload.metadata.coverage.workCategories, 15, "Work taxonomy should expose fifteen factual categories including the explicit unclassified state");
   assert.equal(capturePayload.metadata.coverage.rowsWithIngestionProvenance, 198, "Every normalized source row should disclose ingestion provenance");
+  assert.ok(subawardPayload.metadata.checkedPrimeCount >= 689, "Subaward summary should cover the indexed prime-award universe");
+  assert.ok(["current", "partial"].includes(subawardPayload.metadata.status), `Subaward summary should disclose current or partial status, got ${subawardPayload.metadata.status}`);
+  assert.ok(subawardPayload.metadata.reportedSubawardCount > 0, "Subaward summary should retain exact reported counts");
+  assert.ok(subawardPayload.metadata.retainedDetailCount > 0, "Subaward summary should disclose the bounded retained detail count");
+  assert.ok(subawardPayload.primes.every((prime) => !("subawards" in prime)), "The initial Transactions payload must not embed the multi-megabyte subaward detail list");
   const samPayload = await page.evaluate(() => fetch(new URL("data/sam-opportunities.json", document.baseURI)).then((response) => response.json()));
   assert.ok(["current", "unavailable"].includes(samPayload.metadata.status), `SAM feed should disclose current or unavailable status, got ${samPayload.metadata.status}`);
   assert.doesNotMatch(transactionText, FORBIDDEN_SURFACE_TEXT);
@@ -163,7 +177,7 @@ try {
   assert.equal(await page.locator("[data-capture-workboard]").count(), 0, "Analyst workboard should be removed");
   assert.equal(await page.locator("[data-capture-chart]").count(), 13, "Transactions should retain thirteen descriptive charts");
   assert.equal(await page.locator("[data-capture-matrix]").count(), 1, "Transactions should retain its descriptive lifecycle matrix");
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 19, "Transactions should expose nineteen factual filters");
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 20, "Transactions should expose twenty factual filters");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
   const compactDesktopGeometry = await page.evaluate(() => ({
     freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
@@ -173,8 +187,8 @@ try {
   assert.ok(compactDesktopGeometry.freshnessHeight <= 32, `Desktop freshness should be a compact status line, got ${compactDesktopGeometry.freshnessHeight}px`);
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
-  await page.getByRole("button", { name: "Show 15 more filters" }).click();
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 15, "Advanced factual filters should remain reachable");
+  await page.getByRole("button", { name: "Show 16 more filters" }).click();
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "Advanced factual filters should remain reachable");
   const workFilterTrigger = page.getByRole("button", { name: /^Type of work\./ });
   await workFilterTrigger.click();
   await page.getByLabel("Search Type of work options").fill("Cloud infrastructure");
@@ -189,6 +203,10 @@ try {
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capWork=.*cloud-infrastructure/, "Selected work category should be URL-backed");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capOrigin=.*automated/, "Selected ingestion provenance should be URL-backed");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Combined work and provenance filters should retain matching public records");
+  await page.getByRole("button", { name: "Reset" }).click();
+  await page.getByLabel("Subaward activity").selectOption("has");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capSubaward=has/, "Subaward posture should be URL-backed");
+  assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Subaward posture should retain exactly joined prime awards");
   await page.getByRole("button", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Show core filters" }).click();
   const portfolioTrigger = page.getByRole("button", { name: /^Portfolio\./ });
@@ -206,11 +224,11 @@ try {
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count() >= 20, "Timeline should expose quarter guides");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose the source as-of marker");
   await page.locator("[data-capture-gantt-tools] > summary").click();
-  assert.equal(await page.getByLabel("Grouping").locator("option").count(), 13, "Gantt should expose thirteen factual grouping modes");
+  assert.equal(await page.getByLabel("Grouping").locator("option").count(), 14, "Gantt should expose fourteen factual grouping modes");
   assert.equal(await page.getByLabel("Bar labels").locator("option").count(), 6, "Gantt should expose six bar-label modes");
   assert.equal(await page.locator("[data-capture-gantt-tools] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
   await page.locator("[data-capture-field-picker] summary").click();
-  assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 14, "Gantt should expose fourteen configurable row fields");
+  assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 15, "Gantt should expose fifteen configurable row fields");
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "FPDS action count" }).check();
   assert.match(await page.locator("[data-capture-timeline] .capture-timeline__fields").first().innerText(), /FPDS actions/, "Selected row fields should render immediately");
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]:checked").count(), 4, "Gantt should cap visible row metadata at four fields");
@@ -343,6 +361,25 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll("[data-pricing-kind]")].some((node) => node.dataset.pricingKind === "pricing-time-materials"));
   assert.equal(await page.locator('[data-pricing-kind="pricing-time-materials"]').count(), 1, "Pricing overlay should distinguish a known T&M row");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("N0002417C2100");
+  await overlayTrigger.click();
+  await page.getByRole("option", { name: "USAspending subaward actions" }).getByRole("checkbox").check();
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.querySelectorAll("[data-subaward-overlay]").length > 0);
+  assert.equal(subawardDetailRequests, 1, "Enabling the subaward overlay should lazily load recent detail once");
+  const subawardMarker = page.locator("[data-subaward-overlay]").first();
+  await subawardMarker.focus();
+  await page.waitForSelector("[data-capture-hovercard]");
+  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Subaward actions/i, "Subaward markers should expose keyboard-focus evidence");
+  await subawardMarker.click();
+  await page.waitForSelector("[data-capture-detail-modal][open]");
+  await page.waitForSelector("[data-capture-subawards]");
+  const subawardDetailText = await page.locator("[data-capture-subawards]").innerText();
+  assert.match(subawardDetailText, /exact USAspending generated prime-award ID/i, "Subaward detail should disclose its exact join basis");
+  assert.match(subawardDetailText, /retained/i, "Subaward detail should distinguish the bounded detail sample");
+  await page.getByRole("button", { name: "Close record details" }).click();
+  await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await overlayTrigger.click();
   await page.getByRole("option", { name: "FPDS action pulses" }).getByRole("checkbox").check();
   await page.keyboard.press("Escape");
@@ -388,21 +425,22 @@ try {
 
   await openSurface(page, "#/budget-spend/analytics", "[data-transaction-d3-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Analytics");
-  assert.equal(await page.locator("[data-d3-analytics]").count(), 9, "Analytics should expose nine factual D3 views");
-  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 9, "Every D3 view should render its analytical SVG");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 10, "Analytics should expose ten factual D3 views");
+  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 10, "Every D3 view should render its analytical SVG");
   assert.equal(await page.locator('[data-d3-analytics="work-categories"]').count(), 1, "Analytics should include type-of-work composition");
   assert.equal(await page.locator('[data-d3-analytics="provenance"]').count(), 1, "Analytics should include ingestion provenance");
   assert.equal(await page.locator('[data-d3-analytics="changes"]').count(), 1, "Analytics should include refresh changes");
   assert.equal(await page.locator('[data-d3-analytics="field-coverage"]').count(), 1, "Analytics should disclose field coverage");
   assert.equal(await page.locator('[data-d3-analytics="money-lineage"]').count(), 1, "Analytics should disclose money lineage and unresolved join gaps");
+  assert.equal(await page.locator('[data-d3-analytics="subawards"]').count(), 1, "Analytics should disclose exactly joined prime-to-subaward concentration");
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
   assert.match(await page.locator("[data-transaction-d3-page]").innerText(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
   await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Sources");
-  assert.equal(await page.locator("[data-source-flow] .source-flow__step").count(), 5, "Sources should trace five published data layers");
-  assert.equal(await page.locator(".join-policy-grid article").count(), 5, "Sources should disclose five join rules");
+  assert.equal(await page.locator("[data-source-flow] .source-flow__step").count(), 6, "Sources should trace six published data layers");
+  assert.equal(await page.locator(".join-policy-grid article").count(), 6, "Sources should disclose six join rules");
   assert.ok(await page.locator("[data-source-health-monitor] article").count() >= 1, "Sources should expose source health");
   assert.doesNotMatch(await page.locator("[data-analytics-sources-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
 
@@ -481,8 +519,8 @@ try {
   assert.ok(compactMobileGeometry.freshnessHeight <= 34, `Mobile freshness should remain one compact row, got ${compactMobileGeometry.freshnessHeight}px`);
   assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
   assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
-  await mobile.getByRole("button", { name: "Show 15 more filters" }).click();
-  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 15, "All advanced filters should remain reachable");
+  await mobile.getByRole("button", { name: "Show 16 more filters" }).click();
+  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "All advanced filters should remain reachable");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 3, "Expanded mobile filters should expose every core dimension");
   await mobile.getByRole("button", { name: "Show core filters" }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
@@ -522,17 +560,17 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });
 
   await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
-  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 9);
+  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 10);
   assert.ok((await mobile.locator("[data-d3-analytics]").first().evaluate((node) => node.scrollWidth > node.clientWidth || node.querySelector(".transaction-viz__scroller")?.scrollWidth > node.querySelector(".transaction-viz__scroller")?.clientWidth)), "Mobile D3 charts should use contained horizontal scrolling");
   await assertNoPageOverflow(mobile, "Mobile D3 analytics");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/sources", "[data-analytics-sources-page]");
-  assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 5);
+  assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 6);
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=7 money_stages=5 request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 descriptive_charts=13 d3_charts=9`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=7 money_stages=6 request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_charts=10 subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

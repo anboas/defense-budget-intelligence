@@ -34,11 +34,12 @@ assert.equal(readiness.status, "ready");
 const metadata = await (await get("api/v1/snapshots")).json();
 assert.deepEqual(
   metadata.snapshots.map((snapshot) => snapshot.kind).sort(),
-  ["account_spine", "budget", "capture_calendar", "refresh_delta", "source_health"],
+  ["account_spine", "budget", "capture_calendar", "refresh_delta", "source_health", "usaspending_subawards"],
 );
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "budget")?.record_count > 3000);
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "account_spine")?.record_count > 100);
 assert.equal(metadata.snapshots.find((snapshot) => snapshot.kind === "capture_calendar")?.record_count, 198);
+assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "usaspending_subawards")?.record_count > 0);
 
 const budget = await (await get("api/v1/snapshots/budget/current")).json();
 assert.ok(budget.payload?.records?.length > 3000);
@@ -61,6 +62,8 @@ assert.ok(normalizedCapture.source_channels >= 1056, "normalized capture API sho
 assert.ok(normalizedCapture.events >= 502, "normalized capture API should expose every canonical event and permit new SAM events");
 assert.equal(normalizedCapture.actions, 3085, "normalized capture API should expose every exact FPDS action");
 assert.equal(normalizedCapture.instruments, 134, "normalized capture API should preserve primary and supporting instruments");
+assert.ok(Number(normalizedCapture.reported_subawards) > 0, "normalized capture API should report exact prime-linked subaward totals");
+assert.ok(normalizedCapture.retained_subaward_details > 0, "normalized capture API should persist recent subaward details");
 const applicationArsenal = await (await get("api/v1/capture-calendar/opportunities/opp_4d78f85a742aeb6f4b59")).json();
 assert.equal(applicationArsenal.id, "C028");
 assert.equal(applicationArsenal.transactionSummary.actions, 20);
@@ -75,6 +78,13 @@ assert.equal(applicationArsenalFollowOn.solicitationEnd, "2026-09-30");
 assert.match(applicationArsenalFollowOn.competitionType, /full and open/i);
 assert.match(applicationArsenalFollowOn.eligibility, /SeaPort NxG contract holders only/i);
 assert.match(applicationArsenalFollowOn.pricingType, /CPFF/i);
+const submarinePrimeId = "auto_usaspending_CONT_AWD_N0002417C2100_9700__NONE___NONE_";
+const submarinePrime = await (await get(`api/v1/capture-calendar/opportunities/${submarinePrimeId}`)).json();
+assert.ok(submarinePrime.subawardSummary?.reportedCount > 0, "prime award should retain exact subaward summary");
+const submarineSubawards = await (await get(`api/v1/capture-calendar/opportunities/${submarinePrimeId}/subawards`)).json();
+assert.equal(submarineSubawards.summary.primeAwardId, "CONT_AWD_N0002417C2100_9700_-NONE-_-NONE-");
+assert.ok(submarineSubawards.subawards.length > 0, "subaward API should return retained exact-prime detail rows");
+assert.ok(submarineSubawards.subawards.every((row) => row.primeAwardId === submarineSubawards.summary.primeAwardId));
 
 const spine = await (await get("api/v1/account-spine")).json();
 assert.ok(spine.federal_accounts > 100, "account spine should contain Department federal accounts");
@@ -107,5 +117,5 @@ const writesDisabled = await fetch(new URL("api/v1/saved-views", baseUrl));
 assert.equal(writesDisabled.status, 503, "persistent writes should be disabled by default");
 
 console.log(
-  `Verified container API: snapshots=${metadata.snapshots.length} source_capture_records=${captureCalendar.payload.records.length} normalized_opportunities=${normalizedCapture.opportunities} automated_imports=${normalizedCapture.automated_imports} capture_events=${normalizedCapture.events} fpds_actions=${normalizedCapture.actions} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
+  `Verified container API: snapshots=${metadata.snapshots.length} source_capture_records=${captureCalendar.payload.records.length} normalized_opportunities=${normalizedCapture.opportunities} automated_imports=${normalizedCapture.automated_imports} capture_events=${normalizedCapture.events} fpds_actions=${normalizedCapture.actions} reported_subawards=${normalizedCapture.reported_subawards} retained_subaward_details=${normalizedCapture.retained_subaward_details} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
 );

@@ -45,6 +45,7 @@ const FILTER_DEFAULTS = {
   capValidation: "all",
   capHorizon: "all",
   capActivity: "all",
+  capSubaward: "all",
   capFrom: "2023",
   capTo: "2034",
   capMin: "all",
@@ -73,6 +74,7 @@ const GROUP_BY_OPTIONS = [
   ["work-category", "Work category"],
   ["ingestion-source", "Ingestion provenance"],
   ["change-status", "Changed since refresh"],
+  ["subaward-posture", "Subaward posture"],
 ];
 
 const ROW_FIELD_OPTIONS = [
@@ -90,6 +92,7 @@ const ROW_FIELD_OPTIONS = [
   ["codes", "PSC / NAICS"],
   ["ingestion-source", "Ingestion provenance"],
   ["change-status", "Change status"],
+  ["subawards", "Subaward count / value"],
 ];
 
 const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
@@ -107,6 +110,7 @@ const FEED_OPTIONS = [
   ["work", "Type of work"],
   ["provenance", "Ingestion provenance"],
   ["changes", "Changed since refresh"],
+  ["subawards", "USAspending subaward actions"],
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
 
@@ -325,6 +329,7 @@ function parseHashFilters() {
   if (!new Set(["all", "verified", "corrected", "unresolved"]).has(parsed.capValidation)) parsed.capValidation = FILTER_DEFAULTS.capValidation;
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(parsed.capHorizon)) parsed.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(parsed.capActivity)) parsed.capActivity = FILTER_DEFAULTS.capActivity;
+  if (!new Set(["all", "has", "recent", "none"]).has(parsed.capSubaward)) parsed.capSubaward = FILTER_DEFAULTS.capSubaward;
   if (!new Set(["all", "added", "updated", "unchanged"]).has(parsed.capChange)) parsed.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(parsed.capDensity)) parsed.capDensity = FILTER_DEFAULTS.capDensity;
   if (!GROUP_BY_IDS.has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
@@ -380,7 +385,7 @@ function escapeCsv(value) {
 }
 
 function downloadCsv(records, metadata) {
-  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "awardType", "pricingType", "competitionType", "setAside", "eligibility", "workCategory", "workCategories", "workCategoryBasis", "workCategoryConfidence", "pscCode", "pscDescription", "naicsCode", "naicsDescription", "ingestionMethod", "ingestionLabel", "ingestionChannels", "sourceSystem", "automatedImport", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
+  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "awardType", "pricingType", "competitionType", "setAside", "eligibility", "workCategory", "workCategories", "workCategoryBasis", "workCategoryConfidence", "pscCode", "pscDescription", "naicsCode", "naicsDescription", "ingestionMethod", "ingestionLabel", "ingestionChannels", "sourceSystem", "automatedImport", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "reportedSubawardCount", "reportedSubawardAmount", "latestSubawardAction", "subawardDetailStatus", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
   const rows = records.map((record) => ({
     snapshotAsOf: metadata.asOf,
     viewUrl: window.location.href,
@@ -431,6 +436,10 @@ function downloadCsv(records, metadata) {
     potentialAmount: record.potentialAmount,
     fpdsObligatedAmount: record.fpdsObligatedAmount,
     fpdsPotentialAmount: record.fpdsPotentialAmount,
+    reportedSubawardCount: record.subawardSummary?.reportedCount || 0,
+    sampledSubawardAmount: record.subawardSummary?.sampledAmount || 0,
+    latestSubawardAction: record.subawardSummary?.latestActionDate || "",
+    subawardDetailStatus: record.subawardSummary?.status || "not-reported",
     sourceRoleCount: record.sourceRoleCount,
     normalizedEventCount: record.events.length,
     fpdsActionCount: record.transactionSummary?.actions || 0,
@@ -671,6 +680,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         <article><span>Reported term</span><strong>{compactDate(record.start)} to {compactDate(record.currentEnd)}</strong><small>Potential through {compactDate(record.potentialEnd)}</small></article>
         <article><span>USAspending money</span><strong>{formatMoney(observed)}</strong><small>Potential / high {formatMoney(potential)}</small></article>
         <article><span>FPDS public action sum</span><strong>{formatMoney(record.fpdsObligatedAmount)}</strong><small>Potential {formatMoney(record.fpdsPotentialAmount)}</small></article>
+        <article><span>USAspending subawards</span><strong>{record.subawardSummary?.reportedCount ? `${record.subawardSummary.reportedCount.toLocaleString()} reported` : "None reported"}</strong><small>{record.subawardSummary?.latestActionDate ? `${formatMoney(record.subawardSummary.sampledAmount)} in retained detail · latest ${formatDate(record.subawardSummary.latestActionDate)}` : "Exact prime-award join"}</small></article>
         <article><span>Obligation posture</span><strong>{utilization == null ? "Not calculable" : `${Math.round(utilization)}% of potential`}</strong><small>{potential ? `${formatMoney(Math.max(potential - observed, 0))} reported headroom` : "No potential value published"}</small></article>
         <article><span>Reported duration</span><strong>{durationDays == null ? "Not published" : `${Math.max(Math.round(durationDays / 30.44), 1)} months`}</strong><small>{label(record.lifecycleStatus)}</small></article>
         <article><span>Funding office</span><strong>{record.fundingOffice || record.owner || "Not published"}</strong><small>Distinct from contracting office</small></article>
@@ -713,6 +723,13 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           {vehicleRelations.length ? <section><strong>Same published vehicle label</strong><small>{record.vehicle}; this is a route relationship, not proof of the same contract family.</small>{vehicleRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
         </div>
       ) : null}
+      {record.subawardSummary?.reportedCount ? (
+        <div className="capture-detail__subawards" data-capture-subawards>
+          <h3>USAspending subaward activity</h3>
+          <p>{record.subawardSummary.reportedCount.toLocaleString()} reported subawards are linked by exact USAspending generated prime-award ID. The retained {record.subawardSummary.sampledCount.toLocaleString()} recent detail rows total {formatMoney(record.subawardSummary.sampledAmount)}. {record.subawardSummary.detailTruncated ? "This sampled amount is not the complete subaward total." : "The retained detail covers the current reported rows."}</p>
+          <div>{(record.subawards || []).slice(0, 12).map((subaward) => <article key={subaward.subawardId}><span><b>{subaward.recipientName}</b><small>{subaward.subawardNumber || subaward.subawardId}</small></span><strong>{formatMoney(subaward.amount)}</strong><time>{formatDate(subaward.actionDate)}</time><p>{subaward.description || "Description not published"}</p></article>)}</div>
+        </div>
+      ) : null}
       <div className="capture-detail__sources">
         {record.sourceUrls.map((url, index) => (
           <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>
@@ -737,7 +754,7 @@ function ComparisonTray({ records, startYear, endYear, onOpen, onRemove, onClear
           const right = end ? positionFor(end, startYear, endYear) : left;
           return <article key={record.opportunityId}>
             <div className="capture-compare__card-heading"><button type="button" onClick={() => onOpen(record.opportunityId)}><b>{record.id}</b><span>{record.title}</span></button><button type="button" onClick={() => onRemove(record.opportunityId)} aria-label={`Remove ${record.title} from comparison`}><X size={15} /></button></div>
-            <dl><div><dt>Company / sponsor</dt><dd>{record.party}</dd></div><div><dt>Observed obligations</dt><dd>{formatMoney(recordObligations(record))}</dd></div><div><dt>Potential / high</dt><dd>{formatMoney(recordValue(record))}</dd></div><div><dt>Lifecycle</dt><dd>{label(record.lifecycleStatus)}</dd></div><div><dt>Evidence</dt><dd>{label(record.evidenceTier)}</dd></div><div><dt>FPDS actions</dt><dd>{record.transactionSummary?.actions?.toLocaleString() || "None"}</dd></div></dl>
+            <dl><div><dt>Company / sponsor</dt><dd>{record.party}</dd></div><div><dt>Observed obligations</dt><dd>{formatMoney(recordObligations(record))}</dd></div><div><dt>Potential / high</dt><dd>{formatMoney(recordValue(record))}</dd></div><div><dt>Lifecycle</dt><dd>{label(record.lifecycleStatus)}</dd></div><div><dt>Evidence</dt><dd>{label(record.evidenceTier)}</dd></div><div><dt>FPDS actions</dt><dd>{record.transactionSummary?.actions?.toLocaleString() || "None"}</dd></div><div><dt>Subawards</dt><dd>{record.subawardSummary?.reportedCount?.toLocaleString() || "None reported"}</dd></div></dl>
             <div className="capture-compare__track" aria-label={start ? `${formatDate(start)} to ${formatDate(end)}` : "Schedule not published"}>{start ? <i style={{ left: `${left}%`, width: `${Math.max(right - left, 1.2)}%` }} /> : null}</div>
             <small>{start ? `${formatDate(start)} to ${formatDate(end)}` : "Schedule not published"}</small>
           </article>;
@@ -776,6 +793,7 @@ function timelineGroupValue(record, groupBy) {
   if (groupBy === "work-category") return WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified";
   if (groupBy === "ingestion-source") return record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || "Provenance not published";
   if (groupBy === "change-status") return record.changeStatus === "unchanged" ? "Unchanged in latest comparison" : `${label(record.changeStatus)} in latest comparison`;
+  if (groupBy === "subaward-posture") return record.subawardSummary?.reportedCount ? "Has reported subawards" : "No reported subawards in current snapshot";
   if (groupBy === "end-year") {
     const reportedEnd = record.currentEnd || (finalDate(record) === "0000-01-01" ? "" : finalDate(record));
     return reportedEnd ? reportedEnd.slice(0, 4) : "End year not published";
@@ -798,6 +816,7 @@ function timelineFieldValue(record, field) {
   if (field === "codes") return [record.pscCode ? `PSC ${record.pscCode}` : "", record.naicsCode ? `NAICS ${record.naicsCode}` : ""].filter(Boolean).join(" · ") || "PSC / NAICS not published";
   if (field === "ingestion-source") return record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || "Provenance not published";
   if (field === "change-status") return record.changeStatus === "unchanged" ? "No detected change" : `${label(record.changeStatus)} · ${record.changeSourceSystem}`;
+  if (field === "subawards") return record.subawardSummary?.reportedCount ? `${record.subawardSummary.reportedCount.toLocaleString()} subawards · ${formatMoney(record.subawardSummary.sampledAmount)} sampled` : "No reported subawards";
   return null;
 }
 
@@ -829,6 +848,20 @@ function timelineActionMarkers(actions, startYear, endYear) {
   return [...buckets.values()].sort((left, right) => left.month.localeCompare(right.month));
 }
 
+function timelineSubawardMarkers(subawards, startYear, endYear) {
+  const buckets = new Map();
+  for (const subaward of subawards || []) {
+    if (!subaward.actionDate || subaward.actionDate < `${startYear}-01-01` || subaward.actionDate > `${endYear}-12-31`) continue;
+    const month = subaward.actionDate.slice(0, 7);
+    const bucket = buckets.get(month) || { month, count: 0, amount: 0, recipients: new Set() };
+    bucket.count += 1;
+    bucket.amount += Number(subaward.amount || 0);
+    if (subaward.recipientName) bucket.recipients.add(subaward.recipientName);
+    buckets.set(month, bucket);
+  }
+  return [...buckets.values()].map((bucket) => ({ ...bucket, recipientCount: bucket.recipients.size })).sort((left, right) => left.month.localeCompare(right.month));
+}
+
 function TimelineHoverCard({ hover }) {
   if (!hover) return null;
   const { record, actions, context, left, top } = hover;
@@ -844,6 +877,7 @@ function TimelineHoverCard({ hover }) {
         <div><dt>Potential / high</dt><dd>{formatMoney(potential)}</dd></div>
         <div><dt>Reported schedule</dt><dd>{recordDates(record).length ? `${compactDate(firstDate(record))} to ${compactDate(finalDate(record))}` : "Not published"}</dd></div>
         <div><dt>FPDS actions</dt><dd>{record.transactionSummary?.actions?.toLocaleString() || "None"}</dd></div>
+        <div><dt>Reported subawards</dt><dd>{record.subawardSummary?.reportedCount ? `${record.subawardSummary.reportedCount.toLocaleString()} · ${formatMoney(record.subawardSummary.sampledAmount)} in retained detail` : "None in current snapshot"}</dd></div>
         <div><dt>Latest FPDS action</dt><dd>{latestAction ? `${compactDate(latestAction.signed)} · ${signedMoney(latestAction.obligationDelta)}` : formatDate(record.transactionSummary?.lastSigned)}</dd></div>
         <div><dt>Contract vehicle</dt><dd>{record.vehicle || "Not published"}</dd></div>
         <div><dt>Award / pricing type</dt><dd>{[record.awardType, record.pricingType].filter(Boolean).join(" · ") || "Not published"}</dd></div>
@@ -954,6 +988,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ov
   const provenanceElement = feeds.has("provenance") && classificationVisible ? <i role="button" tabIndex="0" key={`provenance-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--provenance" data-ingestion-provenance-overlay data-ingestion-method={record.ingestionMethod} data-timeline-context="Ingestion provenance" data-timeline-detail={`${record.ingestionLabel || provenanceMethod?.label} · ${(record.ingestionChannels || []).map((channel) => channel.label).join(" · ") || record.sourceSystem || "source channel not published"}`} style={{ ...laneStyle("provenance"), "--capture-provenance-color": provenanceMethod?.color || "#647a8b" }} aria-label={`Ingestion provenance overlay: ${record.ingestionLabel || provenanceMethod?.label}`} /> : null;
   const changeElement = feeds.has("changes") && classificationVisible && record.changeStatus !== "unchanged" ? <i role="button" tabIndex="0" key={`change-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--change capture-timeline__classification--change-${record.changeStatus}`} data-procurement-change-overlay data-change-status={record.changeStatus} data-timeline-context="Changed since prior snapshot" data-timeline-detail={`${label(record.changeStatus)} in ${record.changeSourceSystem || "public feed"}`} style={laneStyle("changes")} aria-label={`Changed since prior snapshot: ${label(record.changeStatus)}`} /> : null;
   const actionMarkers = feeds.has("fpds") ? timelineActionMarkers(actions, startYear, endYear) : [];
+  const subawardMarkers = feeds.has("subawards") ? timelineSubawardMarkers(record.subawards, startYear, endYear) : [];
   const fiscalMaximum = Math.max(...record.fiscalValues.map((item) => Math.abs(Number(item.amount || 0))), 1);
   const fiscalMarkers = feeds.has("fiscal") ? record.fiscalValues.filter((item) => item.fiscalYear >= startYear && item.fiscalYear <= endYear + 1) : [];
   const refreshedEnd = feeds.has("awards") ? record.liveAward?.endDate : null;
@@ -1011,6 +1046,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ov
         </i>
         {fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })}
         {actionMarkers.map((marker) => <i key={marker.month} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)}
+        {subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward action${marker.count === 1 ? "" : "s"} in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipient${marker.recipientCount === 1 ? "" : "s"}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }} title={`${marker.count} sampled subaward action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.amount)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)}
         {refreshedEndVisible ? <i className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} /> : null}
         {solicitationElement}
         {competitionElement}
@@ -1033,7 +1069,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ov
         {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "dates" ? milestone.label : timelineBarLabel(record, labelMode, milestone.start, milestone.end)}</b> : null}
       </i>
     );
-  })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} />] : []).concat(followOnElements);
+  })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward actions in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipients`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }} title={`${marker.count} sampled subaward actions in ${marker.month} · ${signedMoney(marker.amount)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} />] : []).concat(followOnElements);
 }
 
 function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity }) {
@@ -1155,16 +1191,19 @@ function LifecycleMatrix({ records, portfolios, onSelect }) {
   );
 }
 
-export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} } }) {
+export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] } }) {
   const [filters, setFilters] = useCaptureFilters();
   const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
   const [actionDataset, setActionDataset] = useState(null);
   const [actionState, setActionState] = useState("idle");
   const [actionLoadAttempt, setActionLoadAttempt] = useState(0);
   const actionRequestRef = useRef(null);
+  const [subawardDetails, setSubawardDetails] = useState(null);
+  const [subawardDetailState, setSubawardDetailState] = useState("idle");
+  const subawardRequestRef = useRef(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [comparisonIds, setComparisonIds] = useState(() => {
-    const validIds = new Set(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || []).map((record) => record.opportunityId));
+    const validIds = new Set(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot).map((record) => record.opportunityId));
     return [...new Set(readStoredArray(COMPARISON_STORAGE_KEY).filter((value) => typeof value === "string" && validIds.has(value)))].slice(0, 4);
   });
   const [savedViews, setSavedViews] = useState(() => readStoredArray(SAVED_VIEWS_STORAGE_KEY)
@@ -1174,7 +1213,14 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const [compareNotice, setCompareNotice] = useState("");
   const asOf = dataset.metadata.asOf;
   const sourceRecords = useMemo(() => dataset.records || [], [dataset]);
-  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, asOf, samOpportunities.records || [], manualProcurement.records || []), procurementDelta.records || []), [asOf, awards, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
+  const effectiveSubawardSnapshot = useMemo(() => ({
+    ...subawardSnapshot,
+    primes: (subawardSnapshot.primes || []).map((prime) => ({
+      ...prime,
+      subawards: subawardDetails?.byPrime?.[prime.primeAwardId] || [],
+    })),
+  }), [subawardDetails, subawardSnapshot]);
+  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, asOf, samOpportunities.records || [], manualProcurement.records || [], effectiveSubawardSnapshot), procurementDelta.records || []), [asOf, awards, effectiveSubawardSnapshot, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
   const timelineEndYear = Math.max(Number(filters.capFrom), Number(filters.capTo));
   const portfolios = useMemo(() => [...new Set(records.map((record) => record.portfolio))].sort(), [records]);
@@ -1253,6 +1299,10 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         || (filters.capActivity === "deobligation" && record.transactionSummary?.deobligationActions > 0)
         || (filters.capActivity === "recent" && lastAction >= recentCutoff.toISOString().slice(0, 10))
         || (filters.capActivity === "no-actions" && !record.transactionSummary?.actions);
+      const subawardMatch = filters.capSubaward === "all"
+        || (filters.capSubaward === "has" && record.subawardSummary?.reportedCount > 0)
+        || (filters.capSubaward === "recent" && record.subawardSummary?.latestActionDate >= recentCutoff.toISOString().slice(0, 10))
+        || (filters.capSubaward === "none" && !record.subawardSummary?.reportedCount);
       const searchable = [record.id, record.title, record.party, record.reference, record.context, record.portfolio, record.sourceDescription, record.contractingOffice, record.fundingOffice, record.vehicle, record.pscCode, record.pscDescription, record.naicsCode, record.naicsDescription, ...(record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || category), record.ingestionLabel, record.sourceSystem].join(" ").toLowerCase();
       return (!query || searchable.includes(query))
         && multiValueMatches(filters.capPortfolio, record.portfolio)
@@ -1268,6 +1318,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         && (filters.capValidation === "all" || record.validationStatus === filters.capValidation)
         && horizonMatch
         && activityMatch
+        && subawardMatch
         && recordValue(record) >= minimum
         && withinWindow;
     }).sort((left, right) => {
@@ -1375,6 +1426,24 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       .finally(() => { actionRequestRef.current = null; });
     actionRequestRef.current = request;
   }, [actionDataset, actionLoadAttempt, dataset.metadata.coverage.fpdsActions, filters.capFeed, selected]);
+
+  useEffect(() => {
+    if (!(parseMultiValues(filters.capFeed).includes("subawards") || selected?.subawardSummary?.reportedCount) || subawardDetails || subawardRequestRef.current) return;
+    setSubawardDetailState("loading");
+    const request = fetch(`${import.meta.env.BASE_URL}data/usaspending-subaward-details.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Subaward detail payload returned ${response.status}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (Number(payload.metadata?.retainedDetailCount || 0) !== Number(subawardSnapshot.metadata?.retainedDetailCount || 0)) throw new Error("Subaward detail coverage mismatch");
+        setSubawardDetails(payload);
+        setSubawardDetailState("ready");
+      })
+      .catch(() => setSubawardDetailState("error"))
+      .finally(() => { subawardRequestRef.current = null; });
+    subawardRequestRef.current = request;
+  }, [filters.capFeed, selected, subawardDetails, subawardSnapshot.metadata?.retainedDetailCount]);
   const totals = filtered.reduce((summary, record) => ({
     obligated: summary.obligated + Number(record.liveAward?.awardAmountDollars || record.obligatedAmount || 0),
     potential: summary.potential + Number(record.potentialAmount || record.valueHigh || 0),
@@ -1383,8 +1452,10 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     actions: summary.actions + Number(record.transactionSummary?.actions || 0),
     fundingActions: summary.fundingActions + Number(record.transactionSummary?.fundingActions || 0),
     deobligationActions: summary.deobligationActions + Number(record.transactionSummary?.deobligationActions || 0),
+    subawards: summary.subawards + Number(record.subawardSummary?.reportedCount || 0),
+    subawardAmount: summary.subawardAmount + Number(record.subawardSummary?.sampledAmount || 0),
     endingWithinYear: summary.endingWithinYear + Number(Boolean(record.currentEnd && record.currentEnd >= asOf && dateDiffDays(asOf, record.currentEnd) <= 365)),
-  }), { obligated: 0, potential: 0, matched: 0, sourced: 0, actions: 0, fundingActions: 0, deobligationActions: 0, endingWithinYear: 0 });
+  }), { obligated: 0, potential: 0, matched: 0, sourced: 0, actions: 0, fundingActions: 0, deobligationActions: 0, subawards: 0, subawardAmount: 0, endingWithinYear: 0 });
 
   const portfolioRows = [...new Map(portfolios.map((portfolio) => [portfolio, { id: portfolio, label: portfolio, value: filtered.filter((record) => record.portfolio === portfolio).length }])).values()].filter((row) => row.value).sort((a, b) => b.value - a.value).slice(0, 10);
   const partyRows = [...new Set(filtered.map((record) => record.party))].map((party) => {
@@ -1479,6 +1550,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     feedStatusParts.push(`${fiscalObservationCount} FY observations across ${fiscalAwardCount} awards`);
   }
   if (selectedFeeds.has("fpds")) feedStatusParts.push(actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…");
+  if (selectedFeeds.has("subawards")) feedStatusParts.push(subawardSnapshot.metadata?.status === "unavailable" ? "Subaward feed unavailable" : subawardDetailState === "error" ? "Subaward summaries loaded · recent detail unavailable" : `${Number(subawardSnapshot.metadata?.reportedSubawardCount || 0).toLocaleString()} reported subawards · ${Number(subawardSnapshot.metadata?.primeWithSubawardsCount || 0).toLocaleString()} indexed primes${subawardDetails ? " · recent detail loaded" : " · loading recent detail…"}`);
   const feedStatusText = feedStatusParts.length ? feedStatusParts.join(" · ") : "Reported schedule remains the baseline";
 
   function scrollTimelineToToday() {
@@ -1514,7 +1586,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       />
 
       <section className={`capture-filters${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters>
-        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 15 more filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}</div>
+        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 16 more filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}</div>
         {filtersExpanded ? <div className="capture-quickviews" aria-label="Transaction analytical presets">
           <span>Analytical presets</span>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "contract-performance", capHorizon: "active", capFrom: "2025", capTo: "2030" })}>Active terms</button>
@@ -1537,6 +1609,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <label className="capture-filter capture-filter--advanced"><span>Validation</span><select value={filters.capValidation} onChange={(event) => setFilters({ capValidation: event.target.value })}><option value="all">All validation states</option><option value="verified">Verified</option><option value="corrected">Corrected</option><option value="unresolved">Unresolved</option></select></label>
         <label className="capture-filter capture-filter--core-secondary"><span>Schedule horizon</span><select value={filters.capHorizon} onChange={(event) => setFilters({ capHorizon: event.target.value })}><option value="all">Any schedule posture</option><option value="active">Active reported term</option><option value="ending12">Ending within 12 months</option><option value="ending24">Ending within 24 months</option><option value="upcoming">Future starts / milestones</option><option value="past">All endpoints passed</option><option value="undated">Schedule not published</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>FPDS activity</span><select value={filters.capActivity} onChange={(event) => setFilters({ capActivity: event.target.value })}><option value="all">Any action posture</option><option value="recent">Action in past 12 months</option><option value="funding">Has funding actions</option><option value="deobligation">Has deobligations</option><option value="no-actions">No exact action history</option></select></label>
+        <label className="capture-filter capture-filter--advanced"><span>Subaward activity</span><select value={filters.capSubaward} onChange={(event) => setFilters({ capSubaward: event.target.value })}><option value="all">Any subaward posture</option><option value="has">Has reported subawards</option><option value="recent">Subaward action in past 12 months</option><option value="none">No reported subawards</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>From year</span><select value={filters.capFrom} onChange={(event) => setFilters({ capFrom: event.target.value })}>{Array.from({ length: 12 }, (_value, index) => 2023 + index).map((year) => <option key={year}>{year}</option>)}</select></label>
         <label className="capture-filter capture-filter--advanced"><span>Through year</span><select value={filters.capTo} onChange={(event) => setFilters({ capTo: event.target.value })}>{Array.from({ length: 12 }, (_value, index) => 2023 + index).map((year) => <option key={year}>{year}</option>)}</select></label>
         <label className="capture-filter capture-filter--advanced"><span>Minimum value</span><select value={filters.capMin} onChange={(event) => setFilters({ capMin: event.target.value })}><option value="all">Any published value</option><option value="1m">$1M+</option><option value="10m">$10M+</option><option value="50m">$50M+</option><option value="100m">$100M+</option><option value="500m">$500M+</option></select></label>
@@ -1550,6 +1623,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <SummaryMetric label="Potential / high value" value={formatMoney(totals.potential)} helper="Reported potential values and published ranges" tone="purple" />
         <SummaryMetric label="Evidence coverage" value={`${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`} helper={`${totals.sourced} rows with external sources`} tone="orange" />
         <SummaryMetric label="FPDS actions" value={totals.actions.toLocaleString()} helper={`${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`} tone="green" />
+        <SummaryMetric label="Subawards" value={totals.subawards.toLocaleString()} helper={`${formatMoney(totals.subawardAmount)} retained-detail sample · exact prime IDs`} tone="purple" />
         <SummaryMetric label="Near-term endpoints" value={totals.endingWithinYear.toLocaleString()} helper={`Reported current ends within 12 months of ${formatDate(asOf)}`} tone="orange" />
       </section>
 
@@ -1563,7 +1637,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       ) : null}
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
         <details className="capture-gantt-tools" data-capture-gantt-tools>
           <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
           <div className="capture-gantt-tools__grid">
@@ -1584,7 +1658,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
           </fieldset>
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
             <legend>Data</legend>
-            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={10} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
+            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={11} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
             <span className="capture-gantt-feed-status" role="status">{feedStatusText}</span>
           </fieldset>
           </div>
@@ -1618,7 +1692,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
       <section className="capture-methodology">
         <ChevronDown size={17} aria-hidden="true" />
-        <div><strong>Measurement and publication boundary</strong><p>Dates describe reported performance or published acquisition events. They do not establish recompete dates. USAspending award totals remain primary. FPDS actions provide exact modification history and are never added to USAspending totals. Supporting-instrument actions remain separately labeled. Internal campaign fields, target mappings, access labels, proposed work packages, scores, recommendations, and analyst workboard state are excluded from this analytical surface.</p></div>
+        <div><strong>Measurement and publication boundary</strong><p>Dates describe reported performance or published acquisition events. They do not establish recompete dates. USAspending prime-award totals, FPDS actions, and USAspending subawards are separate measures and are never added together. Subawards join only through the exact generated prime-award ID; capped detail lists are labeled. Supporting-instrument actions remain separately labeled. Internal campaign fields, target mappings, access labels, proposed work packages, scores, recommendations, and analyst workboard state are excluded from this analytical surface.</p></div>
       </section>
     </div>
   );

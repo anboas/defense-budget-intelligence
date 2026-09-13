@@ -32,6 +32,7 @@ jobs:
           cp src/data/budget-intelligence.json "${RUNNER_TEMP}/previous-budget-intelligence.json"
           cp src/data/source-health.json "${RUNNER_TEMP}/previous-source-health.json"
           cp src/data/sam-opportunities.json "${RUNNER_TEMP}/previous-sam-opportunities.json"
+          cp src/data/usaspending-subawards.json "${RUNNER_TEMP}/previous-usaspending-subawards.json"
       - name: Refresh official sources
         env:
           BUDGET_SOURCE_DIR: ${{ runner.temp }}/defense-budget-intelligence/budget
@@ -53,13 +54,13 @@ jobs:
         run: npm run lint && npm run build
       - name: Commit changed snapshots
         run: |
-          if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/procurement-delta.json; then
+          if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json; then
             echo "No snapshot changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/procurement-delta.json
+          git add src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json
           git commit -m "chore(data): refresh budget intelligence snapshots"
           git push origin HEAD:main
       - name: Publish refreshed GitHub Pages

@@ -7,6 +7,7 @@ const TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.json");
 const SAM_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
 const BUDGET_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const MANUAL_FILE = resolve(ROOT, "src/data/manual-procurement.json");
+const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 import { assembleProcurementRecords } from "../src/procurement-taxonomy.js";
 
 async function currentCaptureSnapshot(pool) {
@@ -22,15 +23,17 @@ async function currentCaptureSnapshot(pool) {
 
 export async function importCaptureCalendar(pool) {
   const snapshot = await currentCaptureSnapshot(pool);
-  if (!snapshot) return { opportunities: 0, events: 0, actions: 0 };
+  if (!snapshot) return { opportunities: 0, events: 0, actions: 0, subawards: 0 };
   const transactions = JSON.parse(await readFile(TRANSACTIONS_FILE, "utf8"));
   const budget = JSON.parse(await readFile(BUDGET_FILE, "utf8"));
   const sam = JSON.parse(await readFile(SAM_FILE, "utf8"));
   const manual = JSON.parse(await readFile(MANUAL_FILE, "utf8"));
+  const subawardSnapshot = JSON.parse(await readFile(SUBAWARDS_FILE, "utf8"));
   const awards = budget.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards || [];
-  const opportunities = assembleProcurementRecords(snapshot.payload.records || [], awards, snapshot.payload.metadata?.asOf, sam.records || [], manual.records || []);
+  const opportunities = assembleProcurementRecords(snapshot.payload.records || [], awards, snapshot.payload.metadata?.asOf, sam.records || [], manual.records || [], subawardSnapshot);
   const events = opportunities.flatMap((opportunity) => (opportunity.events || []).map((event) => ({ opportunityId: opportunity.opportunityId, ...event })));
   const actions = Object.entries(transactions.byOpportunity || {}).flatMap(([opportunityId, rows]) => rows.map((action) => ({ opportunityId, ...action })));
+  const subawards = opportunities.flatMap((opportunity) => (opportunity.subawards || []).map((subaward) => ({ opportunityId: opportunity.opportunityId, ...subaward })));
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -135,8 +138,34 @@ export async function importCaptureCalendar(pool) {
         payload: action,
       })))],
     );
+    const subawardResult = subawards.length ? await client.query(
+      `INSERT INTO capture_subawards
+        (snapshot_id, opportunity_id, subaward_id, prime_award_generated_id, subaward_number,
+         action_date, amount, recipient_name, payload)
+       SELECT $1, row.opportunity_id, row.subaward_id, row.prime_award_generated_id, row.subaward_number,
+              row.action_date, row.amount, row.recipient_name, row.payload
+       FROM jsonb_to_recordset($2::jsonb) AS row(
+         opportunity_id TEXT, subaward_id TEXT, prime_award_generated_id TEXT, subaward_number TEXT,
+         action_date DATE, amount NUMERIC, recipient_name TEXT, payload JSONB
+       )
+       ON CONFLICT (snapshot_id, opportunity_id, subaward_id) DO UPDATE SET
+         action_date = EXCLUDED.action_date,
+         amount = EXCLUDED.amount,
+         recipient_name = EXCLUDED.recipient_name,
+         payload = EXCLUDED.payload`,
+      [snapshot.id, JSON.stringify(subawards.map((subaward) => ({
+        opportunity_id: subaward.opportunityId,
+        subaward_id: subaward.subawardId,
+        prime_award_generated_id: subaward.primeAwardId,
+        subaward_number: subaward.subawardNumber,
+        action_date: subaward.actionDate,
+        amount: subaward.amount,
+        recipient_name: subaward.recipientName,
+        payload: subaward,
+      })))],
+    ) : { rowCount: 0 };
     await client.query("COMMIT");
-    return { opportunities: opportunityResult.rowCount, events: eventResult.rowCount, actions: actionResult.rowCount };
+    return { opportunities: opportunityResult.rowCount, events: eventResult.rowCount, actions: actionResult.rowCount, subawards: subawardResult.rowCount };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -153,6 +182,9 @@ export async function registerCaptureCalendarRoutes(app, pool) {
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1)::INTEGER AS opportunities,
          (SELECT COUNT(*) FROM capture_events WHERE snapshot_id = $1)::INTEGER AS events,
          (SELECT COUNT(*) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS actions,
+         (SELECT COUNT(*) FROM capture_subawards WHERE snapshot_id = $1)::INTEGER AS retained_subaward_details,
+         (SELECT COALESCE(SUM((payload->'subawardSummary'->>'reportedCount')::BIGINT), 0) FROM capture_opportunities WHERE snapshot_id = $1 AND payload ? 'subawardSummary')::BIGINT AS reported_subawards,
+         (SELECT COALESCE(SUM((payload->'subawardSummary'->>'sampledAmount')::NUMERIC), 0) FROM capture_opportunities WHERE snapshot_id = $1 AND payload ? 'subawardSummary')::NUMERIC AS sampled_subaward_amount,
          (SELECT COUNT(DISTINCT piid) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS instruments,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND automated_import)::INTEGER AS automated_imports,
          (SELECT COUNT(*) FROM capture_opportunity_sources WHERE snapshot_id = $1)::INTEGER AS source_channels,
@@ -185,5 +217,21 @@ export async function registerCaptureCalendarRoutes(app, pool) {
       [snapshot.id, request.params.opportunityId],
     );
     return { opportunity_id: request.params.opportunityId, actions: result.rows.map((row) => row.payload) };
+  });
+
+  app.get("/api/v1/capture-calendar/opportunities/:opportunityId/subawards", async (request, reply) => {
+    const snapshot = await currentCaptureSnapshot(pool);
+    const opportunity = await pool.query(
+      `SELECT payload FROM capture_opportunities WHERE snapshot_id = $1 AND opportunity_id = $2`,
+      [snapshot.id, request.params.opportunityId],
+    );
+    if (!opportunity.rowCount) return reply.code(404).send({ error: "capture opportunity not found" });
+    const result = await pool.query(
+      `SELECT payload FROM capture_subawards
+       WHERE snapshot_id = $1 AND opportunity_id = $2
+       ORDER BY action_date DESC NULLS LAST, subaward_id`,
+      [snapshot.id, request.params.opportunityId],
+    );
+    return { opportunity_id: request.params.opportunityId, summary: opportunity.rows[0].payload.subawardSummary || null, subawards: result.rows.map((row) => row.payload) };
   });
 }

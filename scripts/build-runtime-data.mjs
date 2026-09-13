@@ -10,11 +10,13 @@ const CAPTURE_TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.j
 const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
 const MANUAL_PROCUREMENT_FILE = resolve(ROOT, "src/data/manual-procurement.json");
 const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
+const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 const OUT_DIR = resolve(ROOT, "public/data");
 
 const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
 const captureCalendar = JSON.parse(readFileSync(CAPTURE_CALENDAR_FILE, "utf8"));
 const captureTransactions = JSON.parse(readFileSync(CAPTURE_TRANSACTIONS_FILE, "utf8"));
+const subawards = JSON.parse(readFileSync(SUBAWARDS_FILE, "utf8"));
 const captureIds = new Set(captureCalendar.records.map((record) => record.opportunityId));
 if (captureCalendar.records.length < 190 || captureIds.size !== captureCalendar.records.length) {
   throw new Error("Capture calendar must contain at least 190 unique public records");
@@ -27,6 +29,14 @@ if (captureCalendar.metadata?.coverage?.normalizedEvents !== 502 || captureCalen
 }
 if (captureTransactions.metadata?.actionCount !== 3085) {
   throw new Error("Capture transaction payload must contain 3,085 exact FPDS actions");
+}
+const subawardPrimeIds = new Set((subawards.primes || []).map((prime) => prime.primeAwardId));
+const currentAwardIds = new Set(source.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards?.map((award) => award.id) || []);
+if (subawards.metadata?.checkedPrimeCount < currentAwardIds.size || !subawardPrimeIds.size) {
+  throw new Error("Subaward snapshot must cover the indexed USAspending prime-award universe");
+}
+if ([...subawardPrimeIds].some((primeAwardId) => !currentAwardIds.has(primeAwardId))) {
+  throw new Error("Subaward snapshot contains an unknown prime-award identifier");
 }
 if (captureCalendar.records.some((record) => "statusLabel" in record || "note" in record || "visibility" in record || "targetIds" in record || "captureMotion" in record)) {
   throw new Error("Capture calendar contains private parser fields");
@@ -81,6 +91,29 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "procurement-delta.json"),
   readFileSync(PROCUREMENT_DELTA_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "usaspending-subawards.json"),
+  JSON.stringify({
+    metadata: subawards.metadata,
+    primes: (subawards.primes || []).map(({ subawards: _details, ...prime }) => prime),
+  }),
+);
+writeFileSync(
+  resolve(OUT_DIR, "usaspending-subaward-details.json"),
+  JSON.stringify({
+    metadata: {
+      generatedAt: subawards.metadata?.generatedAt,
+      retainedDetailCount: subawards.metadata?.retainedDetailCount || 0,
+      detailLimitPerPrime: subawards.metadata?.detailLimitPerPrime || 0,
+      relationship: "Exact USAspending generated prime-award ID",
+    },
+    byPrime: Object.fromEntries(
+      (subawards.primes || [])
+        .filter((prime) => prime.subawards?.length)
+        .map((prime) => [prime.primeAwardId, prime.subawards]),
+    ),
+  }),
 );
 
 console.log(

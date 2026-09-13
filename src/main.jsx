@@ -416,6 +416,7 @@ let CAPTURE_CALENDAR = null;
 let SAM_OPPORTUNITIES = { metadata: { status: "unavailable", recordCount: 0 }, records: [] };
 let MANUAL_PROCUREMENT = { metadata: { recordCount: 0 }, records: [] };
 let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0, updated: 0, removed: 0 }, records: [] };
+let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
 const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics"]);
@@ -477,11 +478,13 @@ function ensureCaptureCalendarData() {
       fetchRuntimeData("sam-opportunities.json").catch(() => SAM_OPPORTUNITIES),
       fetchRuntimeData("manual-procurement.json").catch(() => MANUAL_PROCUREMENT),
       fetchRuntimeData("procurement-delta.json").catch(() => PROCUREMENT_DELTA),
-    ]).then(([capturePayload, samPayload, manualPayload, deltaPayload]) => {
+      fetchRuntimeData("usaspending-subawards.json").catch(() => USASPENDING_SUBAWARDS),
+    ]).then(([capturePayload, samPayload, manualPayload, deltaPayload, subawardPayload]) => {
       CAPTURE_CALENDAR = capturePayload;
       SAM_OPPORTUNITIES = samPayload;
       MANUAL_PROCUREMENT = manualPayload;
       PROCUREMENT_DELTA = deltaPayload;
+      USASPENDING_SUBAWARDS = subawardPayload;
       captureCalendarReady = true;
     });
   }
@@ -4606,6 +4609,16 @@ function AnalyticsSources() {
       href: "https://sam.gov/fpds",
       relationship: "exact PIID context",
     },
+    {
+      id: "subawards",
+      stage: "6",
+      title: "Subaward actions",
+      system: "USAspending subaward API",
+      count: `${Number(USASPENDING_SUBAWARDS.metadata?.reportedSubawardCount || 0).toLocaleString()} reported subawards`,
+      detail: `${Number(USASPENDING_SUBAWARDS.metadata?.primeWithSubawardsCount || 0).toLocaleString()} indexed primes with activity · ${Number(USASPENDING_SUBAWARDS.metadata?.failedPrimeCount || 0).toLocaleString()} unavailable count probes · ${USASPENDING_SUBAWARDS.metadata?.status || "unavailable"} snapshot`,
+      href: USASPENDING_SUBAWARDS.metadata?.sourceUrl || "https://api.usaspending.gov/docs/endpoints",
+      relationship: "exact generated prime-award ID",
+    },
   ];
 
   return (
@@ -4622,7 +4635,7 @@ function AnalyticsSources() {
           <article><strong>{healthTotals.unavailable || 0}</strong><span>unavailable at last probe</span></article>
         </div>
       </section>
-      <Section title="Money-flow lineage" meta="left to right from request to public award actions" icon={Database}>
+      <Section title="Money-flow lineage" meta="left to right from request to public subaward actions" icon={Database}>
         <div className="source-flow" data-source-flow>
           {layers.map((layer, index) => (
             <div className="source-flow__step" key={layer.id}>
@@ -4644,6 +4657,7 @@ function AnalyticsSources() {
           <article><strong>OMB → Treasury account</strong><span>Exact full TAFS/TAS identifier.</span></article>
           <article><strong>Award → federal account</strong><span>Exact USAspending transaction funding-account relationship.</span></article>
           <article><strong>Award → FPDS action</strong><span>Exact PIID, agency/parent, modification, and transaction context.</span></article>
+          <article><strong>Prime award → subaward</strong><span>Exact USAspending generated prime-award identifier. Subaward dollars remain separate from prime-award and FPDS totals.</span></article>
           <article><strong>Budget line → award</strong><span>Unlinked unless a public identifier or cited source supports the edge.</span></article>
         </div>
       </Section>
@@ -4828,8 +4842,8 @@ function App() {
         {accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {executionReady && activeTab === "awards" ? <Awards /> : null}
-        {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} /> : null}
-        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} accountSpine={ACCOUNT_SPINE} requestLineCount={data.records?.length || 0} /></Suspense> : null}
+        {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /> : null}
+        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.records?.length || 0} /></Suspense> : null}
         {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
       </div>
     </main>

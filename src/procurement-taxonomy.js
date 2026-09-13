@@ -323,7 +323,37 @@ export function importedManualRecord(input, asOf) {
   };
 }
 
-export function enrichSourceRecord(record, liveAward = null) {
+function subawardSummaryForAward(subawardByPrime, award = null) {
+  if (!award?.id) return null;
+  return subawardByPrime.get(award.id) || null;
+}
+
+function attachSubawards(record, subawardSummary = null) {
+  if (!subawardSummary) return record;
+  const ingestionChannels = [...(record.ingestionChannels || [])];
+  if (!ingestionChannels.some((channel) => channel.id === "usaspending-subawards")) {
+    ingestionChannels.push({ id: "usaspending-subawards", label: "USAspending subaward API", method: "automated" });
+  }
+  return {
+    ...record,
+    subawardSummary: {
+      primeAwardId: subawardSummary.primeAwardId,
+      reportedCount: subawardSummary.reportedCount,
+      sampledAmount: subawardSummary.sampledAmount,
+      latestActionDate: subawardSummary.latestActionDate,
+      earliestActionDate: subawardSummary.earliestActionDate,
+      sampledCount: subawardSummary.sampledCount,
+      detailTruncated: subawardSummary.detailTruncated,
+      detailStatus: subawardSummary.detailStatus,
+      status: subawardSummary.status,
+      changeStatus: subawardSummary.changeStatus,
+    },
+    subawards: subawardSummary.subawards || [],
+    ingestionChannels,
+  };
+}
+
+export function enrichSourceRecord(record, liveAward = null, subawardSummary = null) {
   const classification = classifyWork({
     title: record.title,
     description: record.sourceDescription,
@@ -336,7 +366,7 @@ export function enrichSourceRecord(record, liveAward = null) {
   const provenance = record.ingestionMethod
     ? { method: record.ingestionMethod, label: record.ingestionLabel, channels: record.ingestionChannels || [] }
     : provenanceForSourceRecord(record, liveAward);
-  return {
+  return attachSubawards({
     ...record,
     liveAward,
     naicsCode: record.naicsCode || liveAward?.naicsCode || null,
@@ -353,14 +383,18 @@ export function enrichSourceRecord(record, liveAward = null) {
     sourceSystem: record.sourceSystem || "Normalized capture source packet",
     sourceRecordId: record.sourceRecordId || record.opportunityId,
     automatedImport: Boolean(record.automatedImport),
-  };
+  }, subawardSummary);
 }
 
-export function assembleProcurementRecords(sourceRecords = [], awards = [], asOf = "9999-12-31", samRecords = [], manualRecords = []) {
+export function assembleProcurementRecords(sourceRecords = [], awards = [], asOf = "9999-12-31", samRecords = [], manualRecords = [], subawardSnapshot = { primes: [] }) {
   const awardMap = new Map(awards.map((award) => [String(award.awardId || "").toUpperCase(), award]));
+  const subawardByPrime = new Map((subawardSnapshot.primes || []).map((prime) => [prime.primeAwardId, prime]));
   const references = new Set(sourceRecords.map((record) => String(record.reference || "").toUpperCase()).filter(Boolean));
-  const curated = sourceRecords.map((record) => enrichSourceRecord(record, awardMap.get(String(record.reference || "").toUpperCase()) || null));
-  const automatic = awards.filter((award) => award.awardId && !references.has(String(award.awardId).toUpperCase())).map((award) => automatedAwardRecord(award, asOf));
+  const curated = sourceRecords.map((record) => {
+    const liveAward = awardMap.get(String(record.reference || "").toUpperCase()) || null;
+    return enrichSourceRecord(record, liveAward, subawardSummaryForAward(subawardByPrime, liveAward));
+  });
+  const automatic = awards.filter((award) => award.awardId && !references.has(String(award.awardId).toUpperCase())).map((award) => attachSubawards(automatedAwardRecord(award, asOf), subawardSummaryForAward(subawardByPrime, award)));
   const knownNotices = new Set(sourceRecords.flatMap((record) => [record.reference, record.noticeId, record.solicitationNumber]).map((value) => String(value || "").toUpperCase()).filter(Boolean));
   const sam = samRecords.filter((notice) => {
     const keys = [notice.noticeId, notice.solicitationNumber].map((value) => String(value || "").toUpperCase()).filter(Boolean);

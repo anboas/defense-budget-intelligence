@@ -7,6 +7,8 @@ The Transactions workspace assembles a public analytical universe from four expl
 3. `automated`: Department of Defense SAM.gov notices when a protected API key is available.
 4. `manual` or `curated`: public records in `src/data/manual-procurement.json`.
 
+USAspending subawards enrich matching prime awards through the exact generated prime-award identifier. Exact reported counts remain separate from the retained recent-detail sample and from prime-award or FPDS dollars. The runtime loads the compact summary on Transactions entry and defers the multi-megabyte detail payload until a user enables the subaward overlay or opens a prime with reported subawards.
+
 Every record retains `ingestionMethod`, `ingestionLabel`, `ingestionChannels`, `sourceSystem`, and `automatedImport`. The Gantt can filter, group, label, export, and overlay those fields. A source reference is not relabeled as an automated import merely because its URL points to an API.
 
 ## Work categories
@@ -30,3 +32,9 @@ Do not place private capture notes, scores, owners, internal work packages, bid 
 ## SAM.gov refresh
 
 `npm run source:sam` refreshes the rolling 180-day Department of Defense notice snapshot. Without a protected key, the script preserves the prior snapshot and reports the feed as unavailable. The GitHub workflow is already wired to the optional `SAM_GOV_API_KEY` secret; credentials must never be committed or entered in chat.
+
+## USAspending subaward refresh
+
+`npm run source:subawards` checks each indexed USAspending prime award through the official exact-count endpoint, then retains at most 100 recent detail rows for positive primes. The snapshot records failed prime probes and remains `partial` when the public API returns an empty or invalid response. Do not interpret the retained detail dollar sum as the complete subaward total.
+
+The database stores retained detail at its native subaward grain. The normalized API exposes exact reported counts and sampled detail dollars as separate fields, and `/api/capture-calendar/opportunities/:opportunityId/subawards` returns the exact prime relationship plus the retained rows.
