@@ -38,7 +38,7 @@ async function assertNoPageOverflow(page, label) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 7, "Header should expose five money stages plus analytics and sources as native links");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 8, "Header should expose five money stages plus analytics, operations, and sources as native links");
   assert.equal(await page.locator("[data-budget-nav-more]").count(), 0, "Header should not expose a secondary strategy menu");
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
   assert.equal(await page.locator("[data-money-flow-rail]").count(), 0, "Pages should not repeat the primary header navigation as a numbered phase rail");
@@ -177,7 +177,7 @@ try {
   assert.equal(await page.locator("[data-capture-workboard]").count(), 0, "Analyst workboard should be removed");
   assert.equal(await page.locator("[data-capture-chart]").count(), 13, "Transactions should retain thirteen descriptive charts");
   assert.equal(await page.locator("[data-capture-matrix]").count(), 1, "Transactions should retain its descriptive lifecycle matrix");
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 20, "Transactions should expose twenty factual filters");
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 21, "Transactions should expose twenty factual data filters plus tracking scope");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
   const compactDesktopGeometry = await page.evaluate(() => ({
     freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
@@ -187,6 +187,42 @@ try {
   assert.ok(compactDesktopGeometry.freshnessHeight <= 32, `Desktop freshness should be a compact status line, got ${compactDesktopGeometry.freshnessHeight}px`);
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
+  const firstWatchRow = page.locator("[data-capture-timeline-row]").first();
+  const firstWatchId = await firstWatchRow.getAttribute("data-record-id");
+  const firstWatchStar = firstWatchRow.locator(".capture-timeline__star");
+  await firstWatchStar.click();
+  assert.equal(await firstWatchStar.getAttribute("aria-pressed"), "true", "Gantt rows should support stable-ID tracking");
+  await page.locator("[data-capture-filters] .capture-filter").filter({ hasText: "Tracking" }).locator("select").selectOption("tracked");
+  assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
+  await openSurface(page, "#/budget-spend/operations", "[data-operations-hub]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Operations");
+  assert.equal(await page.locator("[data-ops-watch-row]").count(), 1, "Operations should project the tracked stable-ID working set");
+  assert.equal(await page.locator(`[data-ops-watch-row="${firstWatchId}"]`).count(), 1, "Watchlist should preserve the exact Gantt stable ID");
+  const watchRow = page.locator(`[data-ops-watch-row="${firstWatchId}"]`);
+  await watchRow.locator("details summary").click();
+  await watchRow.locator("textarea").fill("Verify public record details before the next review.");
+  await watchRow.locator("textarea").blur();
+  await watchRow.locator('input[type="date"]').fill("2026-10-01");
+  await page.getByRole("button", { name: "Events" }).click();
+  await page.getByRole("button", { name: "Add event" }).click();
+  await page.waitForSelector("[data-ops-event-editor]");
+  await page.getByLabel("Title").fill("Portfolio evidence review");
+  await page.getByLabel("Starts").fill("2027-01-15T14:00");
+  await page.getByRole("button", { name: "Save event" }).click();
+  await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });
+  assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
+  await page.getByRole("button", { name: "Integrations" }).click();
+  assert.equal(await page.locator("[data-ops-integrations] .ops-integration-list article").count(), 7, "Operations should summarize each current ingestion layer");
+  await page.getByRole("button", { name: "Activity" }).click();
+  assert.ok(await page.locator("[data-ops-activity] .ops-activity-list li").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
+  await page.getByRole("button", { name: "Wallboard" }).click();
+  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Portfolio evidence review/, "Wallboard should project scheduled operator events");
+  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+1/i, "Wallboard should project tracked-record counts");
+  await assertNoPageOverflow(page, "Desktop operations");
+  await page.screenshot({ path: `${OUT_DIR}/operations-wallboard-desktop.png`, fullPage: true });
+  await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
+  assert.equal(await page.locator("[data-capture-timeline-row]").first().locator(".capture-timeline__star").getAttribute("aria-pressed"), "true", "Tracking state should persist across application surfaces");
   await page.getByRole("button", { name: "Show 16 more filters" }).click();
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "Advanced factual filters should remain reachable");
   const workFilterTrigger = page.getByRole("button", { name: /^Type of work\./ });
@@ -610,7 +646,7 @@ try {
   assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
   await mobile.getByRole("button", { name: "Show 16 more filters" }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "All advanced filters should remain reachable");
-  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 3, "Expanded mobile filters should expose every core dimension");
+  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 4, "Expanded mobile filters should expose every core dimension including tracking scope");
   await mobile.getByRole("button", { name: "Show core filters" }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
@@ -661,12 +697,19 @@ try {
   await assertNoPageOverflow(mobile, "Mobile D3 analytics");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
+  await openSurface(mobile, "#/budget-spend/operations", "[data-operations-hub]");
+  const mobileOperationsHeights = await mobile.locator(".operations-tabs button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileOperationsHeights.every((height) => height >= 43.5), `Mobile Operations tabs should meet the 44px contract: ${mobileOperationsHeights.join(", ")}`);
+  await mobile.getByRole("button", { name: "Wallboard" }).click();
+  await assertNoPageOverflow(mobile, "Mobile operations wallboard");
+  await mobile.screenshot({ path: `${OUT_DIR}/operations-wallboard-mobile.png`, fullPage: true });
+
   await openSurface(mobile, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 6);
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=7 money_stages=6 request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=19 focused_workspaces=4 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=8 money_stages=6 management_surface=operations watchlist=stable-id events=operator-local integrations=7 wallboard=responsive request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=19 focused_workspaces=4 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

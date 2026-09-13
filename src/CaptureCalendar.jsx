@@ -15,6 +15,7 @@ import {
   Network,
   Search,
   ShieldCheck,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import {
   WORK_CATEGORY_BY_ID,
   WORK_CATEGORY_OPTIONS,
 } from "./procurement-taxonomy.js";
+import { useManagementState } from "./management-state.js";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -46,6 +48,7 @@ const FILTER_DEFAULTS = {
   capHorizon: "all",
   capActivity: "all",
   capSubaward: "all",
+  capTracked: "all",
   capFrom: "2023",
   capTo: "2034",
   capMin: "all",
@@ -330,6 +333,7 @@ function parseHashFilters() {
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(parsed.capHorizon)) parsed.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(parsed.capActivity)) parsed.capActivity = FILTER_DEFAULTS.capActivity;
   if (!new Set(["all", "has", "recent", "none"]).has(parsed.capSubaward)) parsed.capSubaward = FILTER_DEFAULTS.capSubaward;
+  if (!new Set(["all", "tracked"]).has(parsed.capTracked)) parsed.capTracked = FILTER_DEFAULTS.capTracked;
   if (!new Set(["all", "added", "updated", "unchanged"]).has(parsed.capChange)) parsed.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(parsed.capDensity)) parsed.capDensity = FILTER_DEFAULTS.capDensity;
   if (!GROUP_BY_IDS.has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
@@ -487,6 +491,7 @@ function normalizeSavedFilters(candidate) {
   if (!new Set(["all", "verified", "corrected", "unresolved"]).has(filters.capValidation)) filters.capValidation = FILTER_DEFAULTS.capValidation;
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(filters.capHorizon)) filters.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(filters.capActivity)) filters.capActivity = FILTER_DEFAULTS.capActivity;
+  if (!new Set(["all", "tracked"]).has(filters.capTracked)) filters.capTracked = FILTER_DEFAULTS.capTracked;
   if (!new Set(["all", "added", "updated", "unchanged"]).has(filters.capChange)) filters.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(filters.capDensity)) filters.capDensity = FILTER_DEFAULTS.capDensity;
   if (!GROUP_BY_IDS.has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
@@ -656,7 +661,7 @@ function AwardActionHistory({ record, actions, state, onRetry }) {
   );
 }
 
-function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose, isCompared, onToggleCompare, parentRelations, vehicleRelations, followOnRelations, onSelectRelated }) {
+function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose, isCompared, onToggleCompare, isWatched, onToggleWatch, parentRelations, vehicleRelations, followOnRelations, onSelectRelated }) {
   if (!record) return null;
   const observed = Number(liveAward?.awardAmountDollars || record.obligatedAmount || 0);
   const potential = Number(record.potentialAmount || record.valueHigh || 0);
@@ -670,6 +675,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           <h2>{record.title}</h2>
         </div>
         <div className="capture-detail__heading-actions">
+          <button type="button" className={isWatched ? "is-active is-starred" : ""} aria-pressed={isWatched} onClick={onToggleWatch} aria-label={isWatched ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={isWatched ? "currentColor" : "none"} />{isWatched ? "Tracked" : "Track"}</button>
           <button type="button" className={isCompared ? "is-active" : ""} onClick={onToggleCompare} aria-label={isCompared ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{isCompared ? "Compared" : "Compare"}</button>
           <button type="button" autoFocus onClick={onClose} aria-label="Close record details"><X size={18} /></button>
         </div>
@@ -1072,7 +1078,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ov
   })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward actions in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipients`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }} title={`${marker.count} sampled subaward actions in ${marker.month} · ${signedMoney(marker.amount)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} />] : []).concat(followOnElements);
 }
 
-function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity }) {
+function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity, watchedIds, onToggleWatch }) {
   const scrollerRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [followOnDetail, setFollowOnDetail] = useState(null);
@@ -1143,12 +1149,13 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
           <Fragment key={group.id}>
             {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} data-capture-timeline-row>
-                <button type="button" className="capture-timeline__label" onClick={() => onSelect(record.opportunityId)} aria-label={`Open ${record.title} details`}>
+              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}${watchedIds.has(record.opportunityId) ? " is-watched" : ""}`} data-capture-timeline-row data-record-id={record.opportunityId}>
+                <div className="capture-timeline__label">
                   <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em></span>
-                  <strong>{record.title}</strong>
+                  <button type="button" className={`capture-timeline__star${watchedIds.has(record.opportunityId) ? " is-starred" : ""}`} aria-pressed={watchedIds.has(record.opportunityId)} onClick={() => onToggleWatch(record.opportunityId)} aria-label={watchedIds.has(record.opportunityId) ? `Stop tracking ${record.title}` : `Track ${record.title}`}><Star size={16} fill={watchedIds.has(record.opportunityId) ? "currentColor" : "none"} /></button>
+                  <button type="button" className="capture-timeline__record-button" onClick={() => onSelect(record.opportunityId)} aria-label={`Open ${record.title} details`}><strong>{record.title}</strong></button>
                   <small className="capture-timeline__fields">{activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
-                </button>
+                </div>
                 <span className="capture-timeline__plot" onClick={(event) => { if (!event.target.closest("[data-followon-activity]")) onSelect(record.opportunityId); }} onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} onFocusCapture={(event) => showFocusedContext(record, event)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHover(null); }} onKeyDown={(event) => activateTimelineMark(record, event)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
@@ -1221,6 +1228,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     })),
   }), [subawardDetails, subawardSnapshot]);
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, asOf, samOpportunities.records || [], manualProcurement.records || [], effectiveSubawardSnapshot), procurementDelta.records || []), [asOf, awards, effectiveSubawardSnapshot, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
+  const management = useManagementState(records);
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
   const timelineEndYear = Math.max(Number(filters.capFrom), Number(filters.capTo));
   const portfolios = useMemo(() => [...new Set(records.map((record) => record.portfolio))].sort(), [records]);
@@ -1305,6 +1313,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         || (filters.capSubaward === "none" && !record.subawardSummary?.reportedCount);
       const searchable = [record.id, record.title, record.party, record.reference, record.context, record.portfolio, record.sourceDescription, record.contractingOffice, record.fundingOffice, record.vehicle, record.pscCode, record.pscDescription, record.naicsCode, record.naicsDescription, ...(record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || category), record.ingestionLabel, record.sourceSystem].join(" ").toLowerCase();
       return (!query || searchable.includes(query))
+        && (filters.capTracked === "all" || management.watchedIds.has(record.opportunityId))
         && multiValueMatches(filters.capPortfolio, record.portfolio)
         && (filters.capMode === "all" || record.mode === filters.capMode)
         && multiValueMatches(filters.capEvidence, record.evidenceTier)
@@ -1333,7 +1342,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       if (leftPast !== rightPast) return Number(leftPast) - Number(rightPast);
       return leftPast ? rightDate.localeCompare(leftDate) : leftDate.localeCompare(rightDate);
     });
-  }, [asOf, enriched, filters, timelineEndYear, timelineStartYear]);
+  }, [asOf, enriched, filters, management.watchedIds, timelineEndYear, timelineStartYear]);
 
   const visible = filtered.slice(0, filters.capRows === "all" ? filtered.length : Number(filters.capRows));
   const selected = enriched.find((record) => record.opportunityId === selectedId) || null;
@@ -1596,6 +1605,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capValidation: "unresolved" })}>Evidence gaps</button>
         </div> : null}
         <label className="capture-filter capture-filter--search"><span>Search</span><i><Search size={15} /><input value={filters.capQuery} onChange={(event) => setFilters({ capQuery: event.target.value })} placeholder="Program, company, reference, buyer" /></i></label>
+        <label className="capture-filter capture-filter--core-secondary"><span>Tracking</span><select value={filters.capTracked} onChange={(event) => setFilters({ capTracked: event.target.value })}><option value="all">All records</option><option value="tracked">Tracked only ({management.watchlist.length})</option></select></label>
         <SearchMultiSelect className="capture-filter--core-secondary" title="Portfolio" allLabel="All portfolios" value={filters.capPortfolio} options={portfolios} onChange={(values) => setFilters({ capPortfolio: serializeMultiValues(values) })} />
         <label className="capture-filter capture-filter--core-secondary"><span>Record type</span><select value={filters.capMode} onChange={(event) => setFilters({ capMode: event.target.value })}><option value="all">All records</option><option value="contract-performance">Contract performance</option><option value="acquisition-window">Acquisition windows</option></select></label>
         <SearchMultiSelect className="capture-filter--advanced" title="Evidence" allLabel="All evidence" value={filters.capEvidence} options={evidenceTiers.map((tier) => [tier, label(tier)])} onChange={(values) => setFilters({ capEvidence: serializeMultiValues(values) })} />
@@ -1632,7 +1642,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
       {selected ? (
         <ModalShell label={`${selected.title} evidence details`} testId="data-capture-detail-modal" onClose={() => setSelectedId("")}>
-          <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={comparisonIds.includes(selected.opportunityId)} onToggleCompare={() => toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
+          <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={comparisonIds.includes(selected.opportunityId)} onToggleCompare={() => toggleComparison(selected.opportunityId)} isWatched={management.watchedIds.has(selected.opportunityId)} onToggleWatch={() => management.toggleWatch(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
         </ModalShell>
       ) : null}
 
@@ -1663,7 +1673,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
           </fieldset>
           </div>
         </details>
-        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} /> : <p className="capture-empty">No public records match these filters.</p>}
+        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>
 
       <details className="capture-analytics-disclosure" data-capture-analytics-disclosure>

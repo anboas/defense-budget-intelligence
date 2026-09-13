@@ -22,6 +22,7 @@ import {
   RefreshCcw,
   RotateCcw,
   Search,
+  Star,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import CaptureCalendar from "./CaptureCalendar.jsx";
 import "./styles.css";
 
 const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
+const OperationsHub = lazy(() => import("./OperationsHub.jsx"));
 
 const TABS = [
   { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
@@ -39,6 +41,7 @@ const TABS = [
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "calendar", label: "Transactions", icon: CalendarClock },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "operations", label: "Operations", icon: Star },
   { id: "sources", label: "Sources", icon: Database },
 ];
 
@@ -50,6 +53,7 @@ const HASH_ROUTES = {
   awards: "#/budget-spend/awards",
   calendar: "#/budget-spend/transactions",
   analytics: "#/budget-spend/analytics",
+  operations: "#/budget-spend/operations",
   sources: "#/budget-spend/sources",
 };
 
@@ -419,7 +423,7 @@ let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0,
 let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
-const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics"]);
+const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics", "operations"]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -4702,7 +4706,7 @@ function App() {
   const showBudgetControls = activeTab === "overview";
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || activeTab === "analytics" || activeTab === "sources";
-  const needsCaptureCalendar = activeTab === "calendar" || activeTab === "analytics" || activeTab === "sources";
+  const needsCaptureCalendar = activeTab === "calendar" || activeTab === "analytics" || activeTab === "operations" || activeTab === "sources";
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
@@ -4844,6 +4848,7 @@ function App() {
         {executionReady && activeTab === "awards" ? <Awards /> : null}
         {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /> : null}
         {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.records?.length || 0} /></Suspense> : null}
+        {executionReady && captureCalendarReady && activeTab === "operations" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading operations</strong><p>Watchlist, events, integrations, activity, and wallboard are loading.</p></div></section>}><OperationsHub dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
         {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
       </div>
     </main>
