@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { enrichSourceRecord } from "../src/procurement-taxonomy.js";
 
 const args = Object.fromEntries(process.argv.slice(2).flatMap((value, index, all) => (
   value.startsWith("--") ? [[value.slice(2), all[index + 1]]] : []
@@ -343,7 +344,7 @@ const records = publicRows.map((row) => {
     ? []
     : events.filter((event) => event.start).map((event) => ({ label: event.label, start: event.start, end: event.end || event.start, precision: event.precision }));
   const sourceUrls = unique([row.primary_source_url, row.fpds_source_url, augmentation.sourceUrl, ...events.map((event) => event.sourceUrl)]);
-  return {
+  return enrichSourceRecord({
     opportunityId: row.opportunity_id,
     id: row.gantt_row_id,
     portfolio: row.portfolio_group,
@@ -365,6 +366,10 @@ const records = publicRows.map((row) => {
     eligibility: augmentation.eligibility || null,
     awardType: award.award_type || null,
     pricingType: augmentation.pricingType || award.pricing || null,
+    naicsCode: award.naics || award.naics_code || null,
+    naicsDescription: award.naics_description || null,
+    pscCode: award.psc || award.psc_code || null,
+    pscDescription: award.psc_description || null,
     context: publicText(row.scope),
     sourceDescription: publicText(row.scope),
     evidenceTier: evidenceTier(row.corroboration_status),
@@ -389,7 +394,7 @@ const records = publicRows.map((row) => {
     fiscalValues,
     fiscalActions,
     transactionSummary: transactionSummary(actions),
-  };
+  });
 });
 
 const transactionYears = new Map();
@@ -443,6 +448,9 @@ const coreOutput = {
       awardsWithAwardType: records.filter((record) => record.awardType).length,
       rowsWithVehicle: records.filter((record) => record.vehicle).length,
       rowsWithCompetition: records.filter((record) => record.competitionType || record.setAside || record.eligibility).length,
+      rowsWithWorkCategory: records.filter((record) => record.workCategory && record.workCategory !== "other-unclassified").length,
+      workCategories: new Set(records.flatMap((record) => record.workCategories || [])).size,
+      rowsWithIngestionProvenance: records.filter((record) => record.ingestionMethod).length,
       fpdsActions: transactionsInput.rows.length,
       primaryAwardActions: primaryActionCount,
       supportingInstrumentActions: supportingActionCount,

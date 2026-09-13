@@ -8563,6 +8563,9 @@ td .dot {
 .capture-legend i.pricing-fixed-price { height: 5px; background: #1479a8; }
 .capture-legend i.pricing-cost-reimbursable { height: 5px; background: #bf5b17; }
 .capture-legend i.pricing-time-materials { height: 5px; background: #7651a8; }
+.capture-legend i.work { height: 5px; background: linear-gradient(90deg, #1b6ca8 0 33%, #a33b6f 33% 66%, #bd641e 66%); }
+.capture-legend i.provenance { height: 5px; background: linear-gradient(90deg, #0086b3 0 50%, #647a8b 50%); }
+.capture-legend i.change { height: 5px; background: #d17a00; }
 
 .capture-gantt-tools {
   display: block;
@@ -8891,7 +8894,7 @@ td .dot {
   display: grid;
   grid-template-columns: subgrid;
   align-items: stretch;
-  min-height: 58px;
+  min-height: calc(58px + var(--capture-extra-lanes, 0) * 6px);
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--border-soft);
@@ -8991,7 +8994,7 @@ td .dot {
   position: relative;
   display: block;
   min-width: 0;
-  min-height: 57px;
+  min-height: calc(57px + var(--capture-extra-lanes, 0) * 6px);
   overflow: hidden;
   cursor: pointer;
 }
@@ -9233,18 +9236,21 @@ td .dot {
   border-radius: 3px;
   cursor: pointer;
   font-style: normal;
+  top: calc(41px + var(--capture-lane-index, 0) * 6px);
 }
 
-.capture-timeline__classification--competition { bottom: 12px; }
 .capture-timeline__classification--full-open { background: #248642; box-shadow: 0 0 0 1px #17602d; }
 .capture-timeline__classification--small-business { background: #7651a8; box-shadow: 0 0 0 1px #55377e; }
 .capture-timeline__classification--other { background: #667b8d; box-shadow: 0 0 0 1px #435565; }
-.capture-timeline__classification--vehicle { bottom: 6px; background: #087f8c; box-shadow: 0 0 0 1px #045963; }
-.capture-timeline__classification--structure { bottom: 0; }
+.capture-timeline__classification--vehicle { background: #087f8c; box-shadow: 0 0 0 1px #045963; }
 .capture-timeline__classification--pricing-fixed-price { background: #1479a8; box-shadow: 0 0 0 1px #0a5578; }
 .capture-timeline__classification--pricing-cost-reimbursable { background: #bf5b17; box-shadow: 0 0 0 1px #873c0b; }
 .capture-timeline__classification--pricing-time-materials { background: #7651a8; box-shadow: 0 0 0 1px #55377e; }
 .capture-timeline__classification--pricing-other { background: #667b8d; box-shadow: 0 0 0 1px #435565; }
+.capture-timeline__classification--work { background: var(--capture-category-color, #6c7b88); box-shadow: 0 0 0 1px color-mix(in srgb, var(--capture-category-color, #6c7b88) 72%, #000); }
+.capture-timeline__classification--provenance { background: var(--capture-provenance-color, #647a8b); box-shadow: 0 0 0 1px color-mix(in srgb, var(--capture-provenance-color, #647a8b) 72%, #000); }
+.capture-timeline__classification--change { background: #d17a00; box-shadow: 0 0 0 1px #8a4c00; }
+.capture-timeline__classification--change-updated { background: #7a4ca5; box-shadow: 0 0 0 1px #56387a; }
 
 .capture-timeline-tooltip {
   position: fixed;

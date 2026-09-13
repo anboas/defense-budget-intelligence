@@ -54,8 +54,11 @@ assert.equal(captureCalendar.payload?.metadata?.coverage?.rowsWithCompetition, 1
 assert.ok(captureCalendar.payload.records.every((record) => record.opportunityId && !("statusLabel" in record) && !("note" in record) && !("targetIds" in record) && !("captureMotion" in record)), "capture snapshot should use stable IDs and exclude internal parser fields");
 
 const normalizedCapture = await (await get("api/v1/capture-calendar")).json();
-assert.equal(normalizedCapture.opportunities, 198, "normalized capture API should expose all public opportunities");
-assert.equal(normalizedCapture.events, 502, "normalized capture API should expose every canonical event");
+assert.ok(normalizedCapture.opportunities >= 875, "normalized capture API should expose the current baseline and permit automatic feed growth");
+assert.ok(normalizedCapture.automated_imports >= 677, "normalized capture API should retain the automated USAspending baseline and permit new feeds");
+assert.ok(normalizedCapture.classified_records >= 632, "normalized capture API should report records with a specific work category");
+assert.ok(normalizedCapture.source_channels >= 1056, "normalized capture API should preserve every disclosed ingestion channel");
+assert.ok(normalizedCapture.events >= 502, "normalized capture API should expose every canonical event and permit new SAM events");
 assert.equal(normalizedCapture.actions, 3085, "normalized capture API should expose every exact FPDS action");
 assert.equal(normalizedCapture.instruments, 134, "normalized capture API should preserve primary and supporting instruments");
 const applicationArsenal = await (await get("api/v1/capture-calendar/opportunities/opp_4d78f85a742aeb6f4b59")).json();
@@ -104,5 +107,5 @@ const writesDisabled = await fetch(new URL("api/v1/saved-views", baseUrl));
 assert.equal(writesDisabled.status, 503, "persistent writes should be disabled by default");
 
 console.log(
-  `Verified container API: snapshots=${metadata.snapshots.length} budget_records=${budget.payload.records.length} capture_records=${captureCalendar.payload.records.length} capture_events=${normalizedCapture.events} fpds_actions=${normalizedCapture.actions} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
+  `Verified container API: snapshots=${metadata.snapshots.length} source_capture_records=${captureCalendar.payload.records.length} normalized_opportunities=${normalizedCapture.opportunities} automated_imports=${normalizedCapture.automated_imports} capture_events=${normalizedCapture.events} fpds_actions=${normalizedCapture.actions} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
 );

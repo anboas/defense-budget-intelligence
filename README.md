@@ -84,6 +84,8 @@ Justification source refresh uses `npm run source:justifications`, which caches 
 
 Execution source refresh uses `npm run source:usaspending`, which caches top DoD contract award results by technology-area keyword search under `BUDGET_SOURCE_DIR/usaspending/FY2025-FY2026`.
 
+SAM.gov refresh uses `npm run source:sam` to retrieve a rolling 180-day Department of Defense opportunity window when a protected `SAM_GOV_API_KEY` is available. Without the credential, the prior snapshot is preserved and the feed is explicitly labeled unavailable. Manual and CRM-derived public records use the separate schema described in [Procurement ingestion and classification](docs/procurement-ingestion.md); private capture fields never enter the public bundle.
+
 Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI. It also enriches the 250 highest-value awards in the current technology sample through USAspending's award-account endpoint, preserving those transaction-funded federal-account edges as exact while making the sample boundary explicit.
 
 Transactions reconstructs published contract-performance and acquisition-event rows from a source Gantt PDF, reconciles every row to the corroboration CSV, and merges exact award references with the current award analytics bundle. The public runtime excludes internal campaign fields, proposed work packages, scores, recommendations, and analyst workboard state. Rebuild it from authorized local source artifacts with:
@@ -98,13 +100,13 @@ Current version depth:
 
 - Budget request packages versioned in this repo: FY2024-FY2027 display-book vintages, with FY2027 as the current full-color package.
 - Fiscal-year values extracted from current and historical packages: FY2022-FY2027 where available by request vintage.
-- Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; USAspending execution-side award snapshots are partially ingested; exact FPDS action history is live; published acquisition schedules are curated; current SAM.gov opportunity monitoring remains incomplete.
-- Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, broader USAspending award coverage, scheduled SAM.gov notice refreshes, agency acquisition forecasts, and exact predecessor/successor crosswalks.
+- Source coverage ladder: budget request line items are live; FY2027 OUSD(C) Procurement/RDT&E program narrative is partially ingested; 689 USAspending execution-side awards feed the analytical universe; exact FPDS action history is live; published acquisition schedules and agency forecasts are normalized from the source packet; SAM.gov monitoring is wired but currently unavailable without its protected credential.
+- Next ingest queue: historical C-1 discovery, service-hosted RDT&E/procurement justification books, broader USAspending award coverage, automated agency acquisition forecasts and DoD announcements, subawards, and exact predecessor/successor crosswalks.
 - Each pipeline source tracks publisher, source URL, priority, status, cadence, access model, readiness, impact, effort, join keys, first ingest task, and analytic value.
 - Account Flow preserves request, apportionment, obligation, outlay, and award-account measures at their published grains.
 - Awards exposes the sampled USAspending inventory without ranking work or prescribing action.
-- Transactions exposes reported terms, canonical events, exact FPDS actions, cumulative obligations, contextual overlays, and configurable descriptive Gantt views.
-- Analytics adds four route-loaded D3 views for quarterly schedule activity, obligation/value distribution, portfolio-recipient composition, and funding-office fiscal history.
+- Transactions assembles 198 normalized source rows with 677 non-duplicate automatic USAspending additions, then exposes reported terms, canonical events, exact FPDS actions, cumulative obligations, work categories, ingestion provenance, refresh changes, and configurable descriptive Gantt views.
+- Analytics adds nine route-loaded D3 views for schedule activity, obligation/value distribution, portfolio-recipient composition, funding-office fiscal history, work categories, ingestion provenance, field coverage, money lineage/public join gaps, and refresh changes.
 - Sources visualizes publishers, record counts, refresh times, relationship classes, and join policy.
 - Coverage diagnostics show signal-tagged record/value coverage, workbook-level organization mix, and top mission signals by source.
 - Justification evidence diagnostics show official XML count, extracted program items, matched budget lines, and narrative-confirmed technology lines.

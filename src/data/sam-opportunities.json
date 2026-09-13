@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "generatedAt": null,
+    "status": "unavailable",
+    "sourceSystem": "SAM.gov Contract Opportunities",
+    "sourceUrl": "https://sam.gov/content/opportunities",
+    "note": "Automatic ingestion is configured but no protected SAM.gov API key was available for this snapshot.",
+    "recordCount": 0
+  },
+  "records": []
+}

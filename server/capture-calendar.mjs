@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.json");
+const SAM_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
+const BUDGET_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
+const MANUAL_FILE = resolve(ROOT, "src/data/manual-procurement.json");
+import { assembleProcurementRecords } from "../src/procurement-taxonomy.js";
 
 async function currentCaptureSnapshot(pool) {
   const result = await pool.query(
@@ -20,7 +24,11 @@ export async function importCaptureCalendar(pool) {
   const snapshot = await currentCaptureSnapshot(pool);
   if (!snapshot) return { opportunities: 0, events: 0, actions: 0 };
   const transactions = JSON.parse(await readFile(TRANSACTIONS_FILE, "utf8"));
-  const opportunities = snapshot.payload.records || [];
+  const budget = JSON.parse(await readFile(BUDGET_FILE, "utf8"));
+  const sam = JSON.parse(await readFile(SAM_FILE, "utf8"));
+  const manual = JSON.parse(await readFile(MANUAL_FILE, "utf8"));
+  const awards = budget.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards || [];
+  const opportunities = assembleProcurementRecords(snapshot.payload.records || [], awards, snapshot.payload.metadata?.asOf, sam.records || [], manual.records || []);
   const events = opportunities.flatMap((opportunity) => (opportunity.events || []).map((event) => ({ opportunityId: opportunity.opportunityId, ...event })));
   const actions = Object.entries(transactions.byOpportunity || {}).flatMap(([opportunityId, rows]) => rows.map((action) => ({ opportunityId, ...action })));
   const client = await pool.connect();
@@ -28,14 +36,23 @@ export async function importCaptureCalendar(pool) {
     await client.query("BEGIN");
     const opportunityResult = await client.query(
       `INSERT INTO capture_opportunities
-        (snapshot_id, opportunity_id, gantt_alias, portfolio, record_type, award_piid, validation_status, event_count, action_count, payload)
+        (snapshot_id, opportunity_id, gantt_alias, portfolio, record_type, award_piid, validation_status, event_count, action_count,
+         work_category, ingestion_method, psc_code, naics_code, automated_import, payload)
        SELECT $1, row.opportunity_id, row.gantt_alias, row.portfolio, row.record_type, row.award_piid,
-              row.validation_status, row.event_count, row.action_count, row.payload
+              row.validation_status, row.event_count, row.action_count, row.work_category, row.ingestion_method,
+              row.psc_code, row.naics_code, row.automated_import, row.payload
        FROM jsonb_to_recordset($2::jsonb) AS row(
          opportunity_id TEXT, gantt_alias TEXT, portfolio TEXT, record_type TEXT, award_piid TEXT,
-         validation_status TEXT, event_count INTEGER, action_count INTEGER, payload JSONB
+         validation_status TEXT, event_count INTEGER, action_count INTEGER, work_category TEXT,
+         ingestion_method TEXT, psc_code TEXT, naics_code TEXT, automated_import BOOLEAN, payload JSONB
        )
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT (snapshot_id, opportunity_id) DO UPDATE SET
+         work_category = EXCLUDED.work_category,
+         ingestion_method = EXCLUDED.ingestion_method,
+         psc_code = EXCLUDED.psc_code,
+         naics_code = EXCLUDED.naics_code,
+         automated_import = EXCLUDED.automated_import,
+         payload = EXCLUDED.payload`,
       [snapshot.id, JSON.stringify(opportunities.map((record) => ({
         opportunity_id: record.opportunityId,
         gantt_alias: record.id,
@@ -45,8 +62,30 @@ export async function importCaptureCalendar(pool) {
         validation_status: record.validationStatus,
         event_count: record.events?.length || 0,
         action_count: record.transactionSummary?.actions || 0,
+        work_category: record.workCategory,
+        ingestion_method: record.ingestionMethod,
+        psc_code: record.pscCode,
+        naics_code: record.naicsCode,
+        automated_import: record.automatedImport,
         payload: record,
       })))],
+    );
+    const sourceRows = opportunities.flatMap((record) => (record.ingestionChannels || []).map((channel) => ({
+      opportunity_id: record.opportunityId,
+      source_channel: channel.id,
+      ingestion_method: channel.method || record.ingestionMethod,
+      source_label: channel.label,
+      payload: channel,
+    })));
+    if (sourceRows.length) await client.query(
+      `INSERT INTO capture_opportunity_sources
+        (snapshot_id, opportunity_id, source_channel, ingestion_method, source_label, payload)
+       SELECT $1, row.opportunity_id, row.source_channel, row.ingestion_method, row.source_label, row.payload
+       FROM jsonb_to_recordset($2::jsonb) AS row(
+         opportunity_id TEXT, source_channel TEXT, ingestion_method TEXT, source_label TEXT, payload JSONB
+       )
+       ON CONFLICT DO NOTHING`,
+      [snapshot.id, JSON.stringify(sourceRows)],
     );
     const eventResult = await client.query(
       `INSERT INTO capture_events
@@ -114,7 +153,10 @@ export async function registerCaptureCalendarRoutes(app, pool) {
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1)::INTEGER AS opportunities,
          (SELECT COUNT(*) FROM capture_events WHERE snapshot_id = $1)::INTEGER AS events,
          (SELECT COUNT(*) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS actions,
-         (SELECT COUNT(DISTINCT piid) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS instruments`,
+         (SELECT COUNT(DISTINCT piid) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS instruments,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND automated_import)::INTEGER AS automated_imports,
+         (SELECT COUNT(*) FROM capture_opportunity_sources WHERE snapshot_id = $1)::INTEGER AS source_channels,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND work_category IS NOT NULL AND work_category <> 'other-unclassified')::INTEGER AS classified_records`,
       [snapshot.id],
     );
     return { snapshot_id: snapshot.id, captured_at: snapshot.captured_at, ...counts.rows[0], coverage: snapshot.payload.metadata?.coverage };

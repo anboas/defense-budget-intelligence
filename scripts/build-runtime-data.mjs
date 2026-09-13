@@ -7,6 +7,9 @@ const SOURCE_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const ACCOUNT_SPINE_FILE = resolve(ROOT, "src/data/account-spine.json");
 const CAPTURE_CALENDAR_FILE = resolve(ROOT, "src/data/capture-calendar.json");
 const CAPTURE_TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.json");
+const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
+const MANUAL_PROCUREMENT_FILE = resolve(ROOT, "src/data/manual-procurement.json");
+const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
 const OUT_DIR = resolve(ROOT, "public/data");
 
 const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
@@ -66,6 +69,18 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "capture-transactions.json"),
   JSON.stringify(captureTransactions),
+);
+writeFileSync(
+  resolve(OUT_DIR, "sam-opportunities.json"),
+  readFileSync(SAM_OPPORTUNITIES_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "manual-procurement.json"),
+  readFileSync(MANUAL_PROCUREMENT_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "procurement-delta.json"),
+  readFileSync(PROCUREMENT_DELTA_FILE, "utf8"),
 );
 
 console.log(

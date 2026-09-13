@@ -18,6 +18,14 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import {
+  assembleProcurementRecords,
+  applyProcurementChanges,
+  INGESTION_METHOD_BY_ID,
+  INGESTION_METHOD_OPTIONS,
+  WORK_CATEGORY_BY_ID,
+  WORK_CATEGORY_OPTIONS,
+} from "./procurement-taxonomy.js";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -31,6 +39,9 @@ const FILTER_DEFAULTS = {
   capParty: "all",
   capOffice: "all",
   capVehicle: "all",
+  capWork: "all",
+  capOrigin: "all",
+  capChange: "all",
   capValidation: "all",
   capHorizon: "all",
   capActivity: "all",
@@ -46,7 +57,7 @@ const FILTER_DEFAULTS = {
   capFeed: "none",
 };
 
-const MULTI_FILTER_KEYS = ["capPortfolio", "capEvidence", "capLifecycle", "capParty", "capOffice", "capVehicle"];
+const MULTI_FILTER_KEYS = ["capPortfolio", "capEvidence", "capLifecycle", "capParty", "capOffice", "capVehicle", "capWork", "capOrigin"];
 
 const GROUP_BY_OPTIONS = [
   ["none", "No grouping"],
@@ -59,6 +70,9 @@ const GROUP_BY_OPTIONS = [
   ["vehicle", "Vehicle / parent"],
   ["evidence", "Evidence tier"],
   ["end-year", "Reported end year"],
+  ["work-category", "Work category"],
+  ["ingestion-source", "Ingestion provenance"],
+  ["change-status", "Changed since refresh"],
 ];
 
 const ROW_FIELD_OPTIONS = [
@@ -72,6 +86,10 @@ const ROW_FIELD_OPTIONS = [
   ["actions", "FPDS action count"],
   ["last-action", "Latest FPDS action"],
   ["evidence", "Evidence tier"],
+  ["work-category", "Work category"],
+  ["codes", "PSC / NAICS"],
+  ["ingestion-source", "Ingestion provenance"],
+  ["change-status", "Change status"],
 ];
 
 const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
@@ -86,6 +104,9 @@ const FEED_OPTIONS = [
   ["competition", "Competition / set-aside"],
   ["vehicle", "Contract vehicle"],
   ["structure", "Award / pricing type"],
+  ["work", "Type of work"],
+  ["provenance", "Ingestion provenance"],
+  ["changes", "Changed since refresh"],
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
 
@@ -151,6 +172,8 @@ const LABELS = {
   "upcoming-published-milestone": "Upcoming published milestone",
   "past-published-milestone": "Past published milestone",
   "schedule-not-published": "Schedule not published",
+  "official-record": "Official public record",
+  automated: "Automated",
 };
 
 function label(value) {
@@ -266,6 +289,11 @@ function finalDate(record) {
   return [...recordDates(record)].sort().at(-1) || "0000-01-01";
 }
 
+function relevantDate(record, asOf) {
+  const future = recordDates(record).filter((date) => date >= asOf).sort();
+  return future[0] || finalDate(record);
+}
+
 function recordValue(record) {
   return record.potentialAmount || record.valueHigh || record.obligatedAmount || record.valueLow || 0;
 }
@@ -297,6 +325,7 @@ function parseHashFilters() {
   if (!new Set(["all", "verified", "corrected", "unresolved"]).has(parsed.capValidation)) parsed.capValidation = FILTER_DEFAULTS.capValidation;
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(parsed.capHorizon)) parsed.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(parsed.capActivity)) parsed.capActivity = FILTER_DEFAULTS.capActivity;
+  if (!new Set(["all", "added", "updated", "unchanged"]).has(parsed.capChange)) parsed.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(parsed.capDensity)) parsed.capDensity = FILTER_DEFAULTS.capDensity;
   if (!GROUP_BY_IDS.has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
   if (!BAR_LABEL_IDS.has(parsed.capLabels)) parsed.capLabels = FILTER_DEFAULTS.capLabels;
@@ -351,7 +380,7 @@ function escapeCsv(value) {
 }
 
 function downloadCsv(records, metadata) {
-  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "awardType", "pricingType", "competitionType", "setAside", "eligibility", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
+  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "awardType", "pricingType", "competitionType", "setAside", "eligibility", "workCategory", "workCategories", "workCategoryBasis", "workCategoryConfidence", "pscCode", "pscDescription", "naicsCode", "naicsDescription", "ingestionMethod", "ingestionLabel", "ingestionChannels", "sourceSystem", "automatedImport", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
   const rows = records.map((record) => ({
     snapshotAsOf: metadata.asOf,
     viewUrl: window.location.href,
@@ -373,6 +402,21 @@ function downloadCsv(records, metadata) {
     competitionType: record.competitionType,
     setAside: record.setAside,
     eligibility: record.eligibility,
+    workCategory: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || label(record.workCategory),
+    workCategories: (record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" | "),
+    workCategoryBasis: record.workCategoryBasis,
+    workCategoryConfidence: record.workCategoryConfidence,
+    pscCode: record.pscCode,
+    pscDescription: record.pscDescription,
+    naicsCode: record.naicsCode,
+    naicsDescription: record.naicsDescription,
+    ingestionMethod: record.ingestionMethod,
+    ingestionLabel: record.ingestionLabel,
+    ingestionChannels: (record.ingestionChannels || []).map((channel) => channel.label).join(" | "),
+    sourceSystem: record.sourceSystem,
+    automatedImport: record.automatedImport,
+    changeStatus: record.changeStatus,
+    changeSourceSystem: record.changeSourceSystem,
     solicitationStart: record.solicitationStart,
     solicitationEnd: record.solicitationEnd,
     noticeType: record.noticeType,
@@ -434,6 +478,7 @@ function normalizeSavedFilters(candidate) {
   if (!new Set(["all", "verified", "corrected", "unresolved"]).has(filters.capValidation)) filters.capValidation = FILTER_DEFAULTS.capValidation;
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(filters.capHorizon)) filters.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(filters.capActivity)) filters.capActivity = FILTER_DEFAULTS.capActivity;
+  if (!new Set(["all", "added", "updated", "unchanged"]).has(filters.capChange)) filters.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(filters.capDensity)) filters.capDensity = FILTER_DEFAULTS.capDensity;
   if (!GROUP_BY_IDS.has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
   if (!BAR_LABEL_IDS.has(filters.capLabels)) filters.capLabels = FILTER_DEFAULTS.capLabels;
@@ -634,6 +679,10 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         {record.competitionType || record.setAside || record.eligibility ? <article><span>Competition / eligibility</span><strong>{record.competitionType || "Competition not published"}</strong><small>{[record.setAside, record.eligibility].filter(Boolean).join(" · ") || "Set-aside / eligibility not published"}</small></article> : null}
         {record.vehicle ? <article><span>Contract vehicle</span><strong>{record.vehicle}</strong><small>{record.parentReference ? `Parent / predecessor ${record.parentReference}` : "Published vehicle classification"}</small></article> : null}
         {record.awardType || record.pricingType ? <article><span>Award / pricing structure</span><strong>{record.pricingType || "Pricing not published"}</strong><small>{record.awardType || "Award instrument type not published"}</small></article> : null}
+        <article><span>Type of work</span><strong>{WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified"}</strong><small>{(record.workCategories || []).slice(1).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || record.workCategoryConfidence || "No secondary category"}</small></article>
+        <article><span>PSC / NAICS</span><strong>{record.pscCode ? `PSC ${record.pscCode}` : "PSC not published"}</strong><small>{record.naicsCode ? `NAICS ${record.naicsCode}` : "NAICS not published"}</small></article>
+        <article><span>Ingestion provenance</span><strong>{record.ingestionLabel || "Not published"}</strong><small>{(record.ingestionChannels || []).map((channel) => channel.label).join(" · ") || record.sourceSystem || "No ingestion channel recorded"}</small></article>
+        <article><span>Latest refresh comparison</span><strong>{record.changeStatus === "unchanged" ? "No detected change" : label(record.changeStatus)}</strong><small>{record.changeSourceSystem || "Current baseline or unchanged public record"}</small></article>
         <article><span>Source posture</span><strong>{record.sourceRoleCount} source role{record.sourceRoleCount === 1 ? "" : "s"}</strong><small>{label(record.validationStatus)} · checked {formatDate(record.validationCheckedAt?.slice(0, 10))}</small></article>
       </div>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
@@ -724,6 +773,9 @@ function timelineGroupValue(record, groupBy) {
   if (groupBy === "contracting-office") return record.contractingOffice || "Contracting office not published";
   if (groupBy === "vehicle") return record.parentReference || record.vehicle || "Vehicle / parent not published";
   if (groupBy === "evidence") return label(record.evidenceTier);
+  if (groupBy === "work-category") return WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified";
+  if (groupBy === "ingestion-source") return record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || "Provenance not published";
+  if (groupBy === "change-status") return record.changeStatus === "unchanged" ? "Unchanged in latest comparison" : `${label(record.changeStatus)} in latest comparison`;
   if (groupBy === "end-year") {
     const reportedEnd = record.currentEnd || (finalDate(record) === "0000-01-01" ? "" : finalDate(record));
     return reportedEnd ? reportedEnd.slice(0, 4) : "End year not published";
@@ -742,6 +794,10 @@ function timelineFieldValue(record, field) {
   if (field === "actions") return `${record.transactionSummary?.actions?.toLocaleString() || 0} FPDS actions`;
   if (field === "last-action") return record.transactionSummary?.lastSigned ? `Last action ${compactDate(record.transactionSummary.lastSigned)}` : "No FPDS actions";
   if (field === "evidence") return label(record.evidenceTier);
+  if (field === "work-category") return WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified";
+  if (field === "codes") return [record.pscCode ? `PSC ${record.pscCode}` : "", record.naicsCode ? `NAICS ${record.naicsCode}` : ""].filter(Boolean).join(" · ") || "PSC / NAICS not published";
+  if (field === "ingestion-source") return record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || "Provenance not published";
+  if (field === "change-status") return record.changeStatus === "unchanged" ? "No detected change" : `${label(record.changeStatus)} · ${record.changeSourceSystem}`;
   return null;
 }
 
@@ -793,6 +849,8 @@ function TimelineHoverCard({ hover }) {
         <div><dt>Award / pricing type</dt><dd>{[record.awardType, record.pricingType].filter(Boolean).join(" · ") || "Not published"}</dd></div>
         <div><dt>Competition / set-aside</dt><dd>{[record.competitionType, record.setAside, record.eligibility].filter(Boolean).join(" · ") || "Not published"}</dd></div>
         <div><dt>Parent / predecessor</dt><dd>{record.parentReference || "Not published"}</dd></div>
+        <div><dt>Type of work</dt><dd>{(record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || "Other / unclassified"}</dd></div>
+        <div><dt>Imported through</dt><dd>{record.ingestionLabel || "Provenance not published"}</dd></div>
       </dl>
       <p><b>Funding office</b>{record.fundingOffice || record.owner || "Not published"}</p>
       <p><b>Contracting office</b>{record.contractingOffice || "Not published"}</p>
@@ -869,7 +927,7 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
   );
 }
 
-function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions, followOnActivities, onOpenFollowOn }) {
+function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, overlayLanes, actions, followOnActivities, onOpenFollowOn }) {
   const feeds = new Set(parseMultiValues(feedMode));
   const solicitationVisible = record.solicitationStart && record.solicitationEnd && record.solicitationEnd >= `${startYear}-01-01` && record.solicitationStart <= `${endYear}-12-31`;
   const solicitationLeft = solicitationVisible ? positionFor(record.solicitationStart, startYear, endYear) : 0;
@@ -883,11 +941,18 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
   const classificationRight = classificationVisible ? positionFor(classificationEnd, startYear, endYear) : 0;
   const competitionText = [record.competitionType, record.setAside, record.eligibility].filter(Boolean).join(" · ");
   const competitionKind = /small business|8\(a\)|hubzone|sdvosb|wosb/i.test(competitionText) ? "small-business" : /full and open/i.test(competitionText) ? "full-open" : "other";
-  const competitionElement = feeds.has("competition") && classificationVisible && competitionText ? <i role="button" tabIndex="0" key={`competition-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--competition capture-timeline__classification--${competitionKind}`} data-competition-overlay data-timeline-context="Competition / set-aside" data-timeline-detail={competitionText} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Competition and set-aside overlay: ${competitionText}`} /> : null;
-  const vehicleElement = feeds.has("vehicle") && classificationVisible && record.vehicle ? <i role="button" tabIndex="0" key={`vehicle-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--vehicle" data-vehicle-overlay data-timeline-context="Contract vehicle" data-timeline-detail={record.vehicle} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Contract vehicle overlay: ${record.vehicle}`} /> : null;
+  const laneStyle = (lane) => ({ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%`, "--capture-lane-index": overlayLanes?.[lane] || 0 });
+  const competitionElement = feeds.has("competition") && classificationVisible && competitionText ? <i role="button" tabIndex="0" key={`competition-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--competition capture-timeline__classification--${competitionKind}`} data-competition-overlay data-timeline-context="Competition / set-aside" data-timeline-detail={competitionText} style={laneStyle("competition")} aria-label={`Competition and set-aside overlay: ${competitionText}`} /> : null;
+  const vehicleElement = feeds.has("vehicle") && classificationVisible && record.vehicle ? <i role="button" tabIndex="0" key={`vehicle-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--vehicle" data-vehicle-overlay data-timeline-context="Contract vehicle" data-timeline-detail={record.vehicle} style={laneStyle("vehicle")} aria-label={`Contract vehicle overlay: ${record.vehicle}`} /> : null;
   const pricingText = [record.pricingType, record.awardType].filter(Boolean).join(" · ");
   const pricingKind = /firm fixed price|\bffp\b/i.test(record.pricingType || "") ? "pricing-fixed-price" : /cost plus|cost no fee|\bcpff\b|\bcpaf\b|\bcpif\b/i.test(record.pricingType || "") ? "pricing-cost-reimbursable" : /time and materials|\bt&m\b/i.test(record.pricingType || "") ? "pricing-time-materials" : "pricing-other";
-  const structureElement = feeds.has("structure") && classificationVisible && pricingText ? <i role="button" tabIndex="0" key={`structure-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--structure capture-timeline__classification--${pricingKind}`} data-structure-overlay data-pricing-kind={pricingKind} data-timeline-context="Award / pricing structure" data-timeline-detail={pricingText} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Award and pricing type overlay: ${pricingText}`} /> : null;
+  const structureElement = feeds.has("structure") && classificationVisible && pricingText ? <i role="button" tabIndex="0" key={`structure-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--structure capture-timeline__classification--${pricingKind}`} data-structure-overlay data-pricing-kind={pricingKind} data-timeline-context="Award / pricing structure" data-timeline-detail={pricingText} style={laneStyle("structure")} aria-label={`Award and pricing type overlay: ${pricingText}`} /> : null;
+  const categoryLabels = (record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category));
+  const primaryCategory = WORK_CATEGORY_BY_ID.get(record.workCategory) || WORK_CATEGORY_BY_ID.get("other-unclassified");
+  const workElement = feeds.has("work") && classificationVisible ? <i role="button" tabIndex="0" key={`work-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--work" data-work-category-overlay data-work-category={record.workCategory} data-timeline-context="Type of work" data-timeline-detail={`${categoryLabels.join(" · ") || "Other / unclassified"} · ${record.workCategoryBasis || "classification basis not published"}`} style={{ ...laneStyle("work"), "--capture-category-color": primaryCategory?.color || "#6c7b88" }} aria-label={`Type of work overlay: ${categoryLabels.join(", ") || "Other / unclassified"}`} /> : null;
+  const provenanceMethod = INGESTION_METHOD_BY_ID.get(record.ingestionMethod) || INGESTION_METHOD_BY_ID.get("source-file");
+  const provenanceElement = feeds.has("provenance") && classificationVisible ? <i role="button" tabIndex="0" key={`provenance-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--provenance" data-ingestion-provenance-overlay data-ingestion-method={record.ingestionMethod} data-timeline-context="Ingestion provenance" data-timeline-detail={`${record.ingestionLabel || provenanceMethod?.label} · ${(record.ingestionChannels || []).map((channel) => channel.label).join(" · ") || record.sourceSystem || "source channel not published"}`} style={{ ...laneStyle("provenance"), "--capture-provenance-color": provenanceMethod?.color || "#647a8b" }} aria-label={`Ingestion provenance overlay: ${record.ingestionLabel || provenanceMethod?.label}`} /> : null;
+  const changeElement = feeds.has("changes") && classificationVisible && record.changeStatus !== "unchanged" ? <i role="button" tabIndex="0" key={`change-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--change capture-timeline__classification--change-${record.changeStatus}`} data-procurement-change-overlay data-change-status={record.changeStatus} data-timeline-context="Changed since prior snapshot" data-timeline-detail={`${label(record.changeStatus)} in ${record.changeSourceSystem || "public feed"}`} style={laneStyle("changes")} aria-label={`Changed since prior snapshot: ${label(record.changeStatus)}`} /> : null;
   const actionMarkers = feeds.has("fpds") ? timelineActionMarkers(actions, startYear, endYear) : [];
   const fiscalMaximum = Math.max(...record.fiscalValues.map((item) => Math.abs(Number(item.amount || 0))), 1);
   const fiscalMarkers = feeds.has("fiscal") ? record.fiscalValues.filter((item) => item.fiscalYear >= startYear && item.fiscalYear <= endYear + 1) : [];
@@ -951,11 +1016,14 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
         {competitionElement}
         {vehicleElement}
         {structureElement}
+        {workElement}
+        {provenanceElement}
+        {changeElement}
         {followOnElements}
       </>
     );
   }
-  return [solicitationElement, competitionElement, vehicleElement, structureElement].filter(Boolean).concat(record.milestones.map((milestone) => {
+  return [solicitationElement, competitionElement, vehicleElement, structureElement, workElement, provenanceElement, changeElement].filter(Boolean).concat(record.milestones.map((milestone) => {
     const left = positionFor(milestone.start, startYear, endYear);
     const right = positionFor(milestone.end, startYear, endYear);
     return milestone.precision === "day" ? (
@@ -986,7 +1054,9 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
     }, new Map())].map(([groupLabel, groupRecords]) => ({ id: groupLabel, label: groupLabel, records: groupRecords }));
   const activeFields = selectedFieldIds(rowFields);
   const activeFeeds = new Set(parseMultiValues(feedMode));
-  const hasClassificationLanes = ["competition", "vehicle", "structure"].some((feed) => activeFeeds.has(feed));
+  const categoricalFeeds = ["competition", "vehicle", "structure", "work", "provenance", "changes"].filter((feed) => activeFeeds.has(feed));
+  const overlayLanes = Object.fromEntries(categoricalFeeds.map((feed, index) => [feed, index]));
+  const hasClassificationLanes = categoricalFeeds.length > 0;
   function showHover(record, target, clientX, clientY, context = null) {
     const bounds = target.getBoundingClientRect();
     const width = Math.min(360, window.innerWidth - 16);
@@ -1026,7 +1096,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
     return () => window.cancelAnimationFrame(frame);
   }, [asOfPosition, endYear, showAsOf, startYear]);
   return (
-    <div ref={scrollerRef} className={`capture-timeline capture-timeline--${density}${hasClassificationLanes ? " capture-timeline--has-classification-lanes" : ""}`} data-capture-timeline>
+    <div ref={scrollerRef} className={`capture-timeline capture-timeline--${density}${hasClassificationLanes ? " capture-timeline--has-classification-lanes" : ""}`} style={{ "--capture-extra-lanes": Math.max(categoricalFeeds.length - 3, 0) }} data-capture-timeline>
       <div className="capture-timeline__inner" style={{ "--capture-years": years.length }}>
         <div className="capture-timeline__head capture-timeline__label"><strong>Contract / acquisition</strong><span>{activeFields.map((field) => ROW_FIELD_OPTIONS.find(([id]) => id === field)?.[1]).join(" · ")}</span></div>
         <div className="capture-timeline__head capture-timeline__years">
@@ -1046,7 +1116,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
                 <span className="capture-timeline__plot" onClick={(event) => { if (!event.target.closest("[data-followon-activity]")) onSelect(record.opportunityId); }} onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} onFocusCapture={(event) => showFocusedContext(record, event)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHover(null); }} onKeyDown={(event) => activateTimelineMark(record, event)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
-                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} actions={actionsByOpportunity?.[record.opportunityId] || []} followOnActivities={followOnByOpportunity?.[record.opportunityId] || []} onOpenFollowOn={(detail) => { setHover(null); setFollowOnDetail(detail); }} />
+                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[record.opportunityId] || []} followOnActivities={followOnByOpportunity?.[record.opportunityId] || []} onOpenFollowOn={(detail) => { setHover(null); setFollowOnDetail(detail); }} />
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
                 <button type="button" className="capture-timeline__open" onClick={() => onSelect(record.opportunityId)} aria-label={`Open ${record.title} details`}><ChevronRight size={16} aria-hidden="true" /></button>
@@ -1085,7 +1155,7 @@ function LifecycleMatrix({ records, portfolios, onSelect }) {
   );
 }
 
-export default function CaptureCalendar({ dataset, awards = [] }) {
+export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} } }) {
   const [filters, setFilters] = useCaptureFilters();
   const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
   const [actionDataset, setActionDataset] = useState(null);
@@ -1094,7 +1164,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const actionRequestRef = useRef(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [comparisonIds, setComparisonIds] = useState(() => {
-    const validIds = new Set((dataset.records || []).map((record) => record.opportunityId));
+    const validIds = new Set(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || []).map((record) => record.opportunityId));
     return [...new Set(readStoredArray(COMPARISON_STORAGE_KEY).filter((value) => typeof value === "string" && validIds.has(value)))].slice(0, 4);
   });
   const [savedViews, setSavedViews] = useState(() => readStoredArray(SAVED_VIEWS_STORAGE_KEY)
@@ -1102,18 +1172,21 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     .map((view) => ({ ...view, name: typeof view.name === "string" && view.name.trim() ? view.name : "Saved view", filters: normalizeSavedFilters(view.filters) }))
     .slice(0, 8));
   const [compareNotice, setCompareNotice] = useState("");
-  const records = useMemo(() => dataset.records || [], [dataset]);
   const asOf = dataset.metadata.asOf;
+  const sourceRecords = useMemo(() => dataset.records || [], [dataset]);
+  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, asOf, samOpportunities.records || [], manualProcurement.records || []), procurementDelta.records || []), [asOf, awards, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
   const timelineEndYear = Math.max(Number(filters.capFrom), Number(filters.capTo));
   const portfolios = useMemo(() => [...new Set(records.map((record) => record.portfolio))].sort(), [records]);
   const parties = useMemo(() => [...new Set(records.map((record) => record.party).filter(Boolean))].sort(), [records]);
   const offices = useMemo(() => [...new Set(records.flatMap((record) => [record.contractingOffice, record.fundingOffice, record.owner]).filter(Boolean))].sort(), [records]);
   const vehicles = useMemo(() => [...new Set(records.map((record) => record.vehicle).filter(Boolean))].sort(), [records]);
+  const workCategories = useMemo(() => WORK_CATEGORY_OPTIONS.filter((category) => records.some((record) => (record.workCategories || []).includes(category.id))), [records]);
+  const ingestionMethods = useMemo(() => INGESTION_METHOD_OPTIONS.filter((method) => records.some((record) => record.ingestionMethod === method.id)), [records]);
   const evidenceTiers = useMemo(() => [...new Set(records.map((record) => record.evidenceTier))], [records]);
   const lifecycleStates = useMemo(() => [...new Set(records.map((record) => record.lifecycleStatus))], [records]);
   const awardMap = useMemo(() => new Map(awards.map((award) => [String(award.awardId || "").toUpperCase(), award])), [awards]);
-  const enriched = useMemo(() => records.map((record) => ({ ...record, liveAward: awardMap.get(String(record.reference || "").toUpperCase()) || null })), [records, awardMap]);
+  const enriched = useMemo(() => records.map((record) => ({ ...record, liveAward: record.liveAward || awardMap.get(String(record.reference || "").toUpperCase()) || null })), [records, awardMap]);
   const followOnByOpportunity = useMemo(() => {
     const contractsByReference = new Map();
     for (const record of enriched.filter((item) => item.mode === "contract-performance" && item.reference)) {
@@ -1148,7 +1221,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
 
   useEffect(() => {
     const normalized = {};
-    const optionSets = { capPortfolio: portfolios, capEvidence: evidenceTiers, capLifecycle: lifecycleStates, capParty: parties, capOffice: offices, capVehicle: vehicles };
+    const optionSets = { capPortfolio: portfolios, capEvidence: evidenceTiers, capLifecycle: lifecycleStates, capParty: parties, capOffice: offices, capVehicle: vehicles, capWork: workCategories.map((category) => category.id), capOrigin: ingestionMethods.map((method) => method.id) };
     for (const key of MULTI_FILTER_KEYS) {
       const canonical = normalizeMultiValue(filters[key], optionSets[key]);
       if (canonical !== filters[key]) normalized[key] = canonical;
@@ -1156,7 +1229,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     if (!Object.keys(normalized).length) return undefined;
     const timer = window.setTimeout(() => setFilters(normalized), 0);
     return () => window.clearTimeout(timer);
-  }, [evidenceTiers, filters, lifecycleStates, offices, parties, portfolios, setFilters, vehicles]);
+  }, [evidenceTiers, filters, ingestionMethods, lifecycleStates, offices, parties, portfolios, setFilters, vehicles, workCategories]);
   const filtered = useMemo(() => {
     const query = filters.capQuery.toLowerCase().trim();
     const minimum = MINIMUM_VALUES[filters.capMin] || 0;
@@ -1180,7 +1253,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         || (filters.capActivity === "deobligation" && record.transactionSummary?.deobligationActions > 0)
         || (filters.capActivity === "recent" && lastAction >= recentCutoff.toISOString().slice(0, 10))
         || (filters.capActivity === "no-actions" && !record.transactionSummary?.actions);
-      const searchable = [record.id, record.title, record.party, record.reference, record.context, record.portfolio, record.sourceDescription, record.contractingOffice, record.fundingOffice, record.vehicle].join(" ").toLowerCase();
+      const searchable = [record.id, record.title, record.party, record.reference, record.context, record.portfolio, record.sourceDescription, record.contractingOffice, record.fundingOffice, record.vehicle, record.pscCode, record.pscDescription, record.naicsCode, record.naicsDescription, ...(record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || category), record.ingestionLabel, record.sourceSystem].join(" ").toLowerCase();
       return (!query || searchable.includes(query))
         && multiValueMatches(filters.capPortfolio, record.portfolio)
         && (filters.capMode === "all" || record.mode === filters.capMode)
@@ -1189,6 +1262,9 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         && multiValueMatches(filters.capParty, record.party)
         && (!parseMultiValues(filters.capOffice).length || [record.contractingOffice, record.fundingOffice, record.owner].some((office) => parseMultiValues(filters.capOffice).includes(office)))
         && multiValueMatches(filters.capVehicle, record.vehicle)
+        && (!parseMultiValues(filters.capWork).length || (record.workCategories || []).some((category) => parseMultiValues(filters.capWork).includes(category)))
+        && multiValueMatches(filters.capOrigin, record.ingestionMethod)
+        && (filters.capChange === "all" || record.changeStatus === filters.capChange)
         && (filters.capValidation === "all" || record.validationStatus === filters.capValidation)
         && horizonMatch
         && activityMatch
@@ -1199,7 +1275,12 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       if (filters.capSort === "obligations") return (right.liveAward?.awardAmountDollars || right.obligatedAmount || 0) - (left.liveAward?.awardAmountDollars || left.obligatedAmount || 0);
       if (filters.capSort === "portfolio") return left.portfolio.localeCompare(right.portfolio) || left.title.localeCompare(right.title);
       if (filters.capSort === "company") return left.party.localeCompare(right.party) || left.title.localeCompare(right.title);
-      return firstDate(left).localeCompare(firstDate(right));
+      const leftDate = relevantDate(left, asOf);
+      const rightDate = relevantDate(right, asOf);
+      const leftPast = leftDate < asOf;
+      const rightPast = rightDate < asOf;
+      if (leftPast !== rightPast) return Number(leftPast) - Number(rightPast);
+      return leftPast ? rightDate.localeCompare(leftDate) : leftDate.localeCompare(rightDate);
     });
   }, [asOf, enriched, filters, timelineEndYear, timelineStartYear]);
 
@@ -1389,6 +1470,9 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   if (selectedFeeds.has("structure")) feedStatusParts.push(`${dataset.metadata.coverage.awardsWithPricingType} pricing rows · ${dataset.metadata.coverage.awardsWithAwardType} award-instrument rows`);
   if (selectedFeeds.has("vehicle")) feedStatusParts.push(`${dataset.metadata.coverage.rowsWithVehicle} vehicle rows`);
   if (selectedFeeds.has("competition")) feedStatusParts.push(`${dataset.metadata.coverage.rowsWithCompetition} competition / set-aside rows`);
+  if (selectedFeeds.has("work")) feedStatusParts.push(`${records.filter((record) => record.workCategory && record.workCategory !== "other-unclassified").length.toLocaleString()} classified work records · ${workCategories.length} categories`);
+  if (selectedFeeds.has("provenance")) feedStatusParts.push(`${records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automated · ${records.filter((record) => record.ingestionMethod !== "automated").length.toLocaleString()} imported / curated`);
+  if (selectedFeeds.has("changes")) feedStatusParts.push(`${Number(procurementDelta.summary?.added || 0).toLocaleString()} added · ${Number(procurementDelta.summary?.updated || 0).toLocaleString()} updated since prior snapshot`);
   if (selectedFeeds.has("fiscal")) {
     const fiscalAwardCount = dataset.records.filter((record) => record.fiscalValues?.length).length;
     const fiscalObservationCount = dataset.records.reduce((sum, record) => sum + (record.fiscalValues?.length || 0), 0);
@@ -1414,7 +1498,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <div>
           <div className="capture-hero__title"><h2>Transactions</h2></div>
           <p>Award actions, obligations, reported performance, published acquisition events, recipients, buyers, and evidence.</p>
-          <p className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{dataset.metadata.coverage.publicRows} public records</strong><span>{dataset.metadata.coverage.normalizedEvents.toLocaleString()} events · {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions · {dataset.metadata.coverage.excludedPrivateRows} internal rows excluded</span></p>
+          <p className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></p>
         </div>
         <div className="capture-hero__actions">
           <button type="button" onClick={copyLink}><Copy size={15} />Copy filtered link</button>
@@ -1430,7 +1514,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       />
 
       <section className={`capture-filters${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters>
-        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 12 more filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}</div>
+        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 15 more filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}</div>
         {filtersExpanded ? <div className="capture-quickviews" aria-label="Transaction analytical presets">
           <span>Analytical presets</span>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "contract-performance", capHorizon: "active", capFrom: "2025", capTo: "2030" })}>Active terms</button>
@@ -1447,6 +1531,9 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
         <SearchMultiSelect className="capture-filter--advanced" title="Company / sponsor" allLabel="All companies and sponsors" value={filters.capParty} options={parties} onChange={(values) => setFilters({ capParty: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Funding / contracting office" allLabel="All offices" value={filters.capOffice} options={offices} onChange={(values) => setFilters({ capOffice: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Vehicle" allLabel="All published vehicles" value={filters.capVehicle} options={vehicles} onChange={(values) => setFilters({ capVehicle: serializeMultiValues(values) })} />
+        <SearchMultiSelect className="capture-filter--advanced" title="Type of work" allLabel="All work categories" value={filters.capWork} options={workCategories.map((category) => [category.id, category.label])} onChange={(values) => setFilters({ capWork: serializeMultiValues(values) })} />
+        <SearchMultiSelect className="capture-filter--advanced" title="Ingestion provenance" allLabel="All ingestion methods" value={filters.capOrigin} options={ingestionMethods.map((method) => [method.id, method.label])} onChange={(values) => setFilters({ capOrigin: serializeMultiValues(values) })} />
+        <label className="capture-filter capture-filter--advanced"><span>Changed since refresh</span><select value={filters.capChange} onChange={(event) => setFilters({ capChange: event.target.value })}><option value="all">Any change status</option><option value="added">Added</option><option value="updated">Updated</option><option value="unchanged">No detected change</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>Validation</span><select value={filters.capValidation} onChange={(event) => setFilters({ capValidation: event.target.value })}><option value="all">All validation states</option><option value="verified">Verified</option><option value="corrected">Corrected</option><option value="unresolved">Unresolved</option></select></label>
         <label className="capture-filter capture-filter--core-secondary"><span>Schedule horizon</span><select value={filters.capHorizon} onChange={(event) => setFilters({ capHorizon: event.target.value })}><option value="all">Any schedule posture</option><option value="active">Active reported term</option><option value="ending12">Ending within 12 months</option><option value="ending24">Ending within 24 months</option><option value="upcoming">Future starts / milestones</option><option value="past">All endpoints passed</option><option value="undated">Schedule not published</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>FPDS activity</span><select value={filters.capActivity} onChange={(event) => setFilters({ capActivity: event.target.value })}><option value="all">Any action posture</option><option value="recent">Action in past 12 months</option><option value="funding">Has funding actions</option><option value="deobligation">Has deobligations</option><option value="no-actions">No exact action history</option></select></label>
@@ -1458,7 +1545,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       </section>
 
       <section className="capture-metrics" aria-label="Filtered calendar metrics">
-        <SummaryMetric label="Matching records" value={filtered.length.toLocaleString()} helper={`${filtered.filter((record) => record.mode === "contract-performance").length} contracts · ${filtered.filter((record) => record.mode === "acquisition-window").length} acquisition rows`} />
+        <SummaryMetric label="Matching records" value={filtered.length.toLocaleString()} helper={`${filtered.filter((record) => record.mode === "contract-performance").length} contracts · ${filtered.filter((record) => record.ingestionMethod === "automated").length} automated`} />
         <SummaryMetric label="Observed obligations" value={formatMoney(totals.obligated)} helper={`${totals.matched} refreshed award-bundle matches`} tone="green" />
         <SummaryMetric label="Potential / high value" value={formatMoney(totals.potential)} helper="Reported potential values and published ranges" tone="purple" />
         <SummaryMetric label="Evidence coverage" value={`${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`} helper={`${totals.sourced} rows with external sources`} tone="orange" />
@@ -1476,7 +1563,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       ) : null}
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
         <details className="capture-gantt-tools" data-capture-gantt-tools>
           <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
           <div className="capture-gantt-tools__grid">
@@ -1497,7 +1584,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
           </fieldset>
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
             <legend>Data</legend>
-            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={7} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
+            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={10} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
             <span className="capture-gantt-feed-status" role="status">{feedStatusText}</span>
           </fieldset>
           </div>

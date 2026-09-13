@@ -413,9 +413,12 @@ let executionReady = false;
 let ACCOUNT_SPINE = null;
 let accountSpineReady = false;
 let CAPTURE_CALENDAR = null;
+let SAM_OPPORTUNITIES = { metadata: { status: "unavailable", recordCount: 0 }, records: [] };
+let MANUAL_PROCUREMENT = { metadata: { recordCount: 0 }, records: [] };
+let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0, updated: 0, removed: 0 }, records: [] };
 let captureCalendarReady = false;
 
-const EXECUTION_TAB_IDS = new Set(["awards", "calendar"]);
+const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics"]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -469,8 +472,16 @@ let captureCalendarPromise = null;
 function ensureCaptureCalendarData() {
   if (captureCalendarReady) return Promise.resolve();
   if (!captureCalendarPromise) {
-    captureCalendarPromise = fetchRuntimeData("capture-calendar.json").then((payload) => {
-      CAPTURE_CALENDAR = payload;
+    captureCalendarPromise = Promise.all([
+      fetchRuntimeData("capture-calendar.json"),
+      fetchRuntimeData("sam-opportunities.json").catch(() => SAM_OPPORTUNITIES),
+      fetchRuntimeData("manual-procurement.json").catch(() => MANUAL_PROCUREMENT),
+      fetchRuntimeData("procurement-delta.json").catch(() => PROCUREMENT_DELTA),
+    ]).then(([capturePayload, samPayload, manualPayload, deltaPayload]) => {
+      CAPTURE_CALENDAR = capturePayload;
+      SAM_OPPORTUNITIES = samPayload;
+      MANUAL_PROCUREMENT = manualPayload;
+      PROCUREMENT_DELTA = deltaPayload;
       captureCalendarReady = true;
     });
   }
@@ -4676,7 +4687,7 @@ function App() {
   const activeTitle = TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const showBudgetControls = activeTab === "overview";
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
-  const needsAccountSpine = activeTab === "lifecycle" || activeTab === "sources";
+  const needsAccountSpine = activeTab === "lifecycle" || activeTab === "analytics" || activeTab === "sources";
   const needsCaptureCalendar = activeTab === "calendar" || activeTab === "analytics" || activeTab === "sources";
 
   useEffect(() => {
@@ -4817,8 +4828,8 @@ function App() {
         {accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
         {activeTab === "trends" ? <RequestTrends /> : null}
         {executionReady && activeTab === "awards" ? <Awards /> : null}
-        {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} /> : null}
-        {captureCalendarReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} /></Suspense> : null}
+        {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} /> : null}
+        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} accountSpine={ACCOUNT_SPINE} requestLineCount={data.records?.length || 0} /></Suspense> : null}
         {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
       </div>
     </main>

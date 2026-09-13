@@ -18,6 +18,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY src/data ./src/data
+COPY src/procurement-taxonomy.js ./src/procurement-taxonomy.js
 
 USER node
 EXPOSE 8080
