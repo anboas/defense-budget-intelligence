@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart3,
   Bookmark,
@@ -41,7 +42,51 @@ const FILTER_DEFAULTS = {
   capDensity: "comfortable",
   capGroup: "none",
   capLabels: "dates",
+  capFields: "party,reference,value",
+  capFeed: "schedule",
 };
+
+const GROUP_BY_OPTIONS = [
+  ["none", "No grouping"],
+  ["portfolio", "Portfolio"],
+  ["lifecycle", "Lifecycle state"],
+  ["mode", "Record type"],
+  ["party", "Company / sponsor"],
+  ["funding-office", "Funding office"],
+  ["contracting-office", "Contracting office"],
+  ["vehicle", "Vehicle / parent"],
+  ["evidence", "Evidence tier"],
+  ["end-year", "Reported end year"],
+];
+
+const ROW_FIELD_OPTIONS = [
+  ["party", "Company / sponsor"],
+  ["reference", "Award / notice reference"],
+  ["value", "Potential / high value"],
+  ["obligations", "Observed obligations"],
+  ["funding-office", "Funding office"],
+  ["contracting-office", "Contracting office"],
+  ["vehicle", "Vehicle / parent"],
+  ["actions", "FPDS action count"],
+  ["last-action", "Latest FPDS action"],
+  ["evidence", "Evidence tier"],
+];
+
+const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
+const ROW_FIELD_IDS = new Set(ROW_FIELD_OPTIONS.map(([id]) => id));
+const BAR_LABEL_IDS = new Set(["dates", "obligations", "potential", "utilization", "actions", "none"]);
+const FEED_IDS = new Set(["schedule", "fpds"]);
+
+function normalizeFieldIds(value) {
+  if (value === "none") return "none";
+  const fields = [...new Set(String(value || "").split(",").filter((field) => ROW_FIELD_IDS.has(field)))];
+  return fields.length ? fields.join(",") : FILTER_DEFAULTS.capFields;
+}
+
+function selectedFieldIds(value) {
+  const normalized = normalizeFieldIds(value);
+  return normalized === "none" ? [] : normalized.split(",");
+}
 
 const MINIMUM_VALUES = {
   all: 0,
@@ -137,8 +182,10 @@ function parseHashFilters() {
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(parsed.capHorizon)) parsed.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(parsed.capActivity)) parsed.capActivity = FILTER_DEFAULTS.capActivity;
   if (!new Set(["comfortable", "compact"]).has(parsed.capDensity)) parsed.capDensity = FILTER_DEFAULTS.capDensity;
-  if (!new Set(["none", "portfolio"]).has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
-  if (!new Set(["dates", "money", "none"]).has(parsed.capLabels)) parsed.capLabels = FILTER_DEFAULTS.capLabels;
+  if (!GROUP_BY_IDS.has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
+  if (!BAR_LABEL_IDS.has(parsed.capLabels)) parsed.capLabels = FILTER_DEFAULTS.capLabels;
+  parsed.capFields = normalizeFieldIds(parsed.capFields);
+  if (!FEED_IDS.has(parsed.capFeed)) parsed.capFeed = FILTER_DEFAULTS.capFeed;
   return parsed;
 }
 
@@ -149,6 +196,22 @@ function useCaptureFilters() {
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
+
+  useEffect(() => {
+    const [route] = window.location.hash.split("?");
+    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    let changed = false;
+    for (const [key, value] of Object.entries(filters)) {
+      const canonical = value === FILTER_DEFAULTS[key] || !value ? null : value;
+      if (params.get(key) === canonical) continue;
+      if (canonical === null) params.delete(key);
+      else params.set(key, canonical);
+      changed = true;
+    }
+    if (!changed) return;
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
+  }, [filters]);
 
   function setFilters(next) {
     setFiltersState((current) => {
@@ -247,8 +310,10 @@ function normalizeSavedFilters(candidate) {
   if (!new Set(["all", "active", "ending12", "ending24", "upcoming", "past", "undated"]).has(filters.capHorizon)) filters.capHorizon = FILTER_DEFAULTS.capHorizon;
   if (!new Set(["all", "funding", "deobligation", "recent", "no-actions"]).has(filters.capActivity)) filters.capActivity = FILTER_DEFAULTS.capActivity;
   if (!new Set(["comfortable", "compact"]).has(filters.capDensity)) filters.capDensity = FILTER_DEFAULTS.capDensity;
-  if (!new Set(["none", "portfolio"]).has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
-  if (!new Set(["dates", "money", "none"]).has(filters.capLabels)) filters.capLabels = FILTER_DEFAULTS.capLabels;
+  if (!GROUP_BY_IDS.has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
+  if (!BAR_LABEL_IDS.has(filters.capLabels)) filters.capLabels = FILTER_DEFAULTS.capLabels;
+  filters.capFields = normalizeFieldIds(filters.capFields);
+  if (!FEED_IDS.has(filters.capFeed)) filters.capFeed = FILTER_DEFAULTS.capFeed;
   return filters;
 }
 
@@ -519,7 +584,92 @@ function positionFor(date, startYear, endYear) {
   return Math.max(0, Math.min(100, ((point - start) / (end - start)) * 100));
 }
 
-function TimelineBar({ record, startYear, endYear, asOf, labelMode }) {
+function timelineGroupValue(record, groupBy) {
+  if (groupBy === "portfolio") return record.portfolio || "Portfolio not published";
+  if (groupBy === "lifecycle") return label(record.lifecycleStatus);
+  if (groupBy === "mode") return label(record.mode);
+  if (groupBy === "party") return record.party || "Company / sponsor not published";
+  if (groupBy === "funding-office") return record.fundingOffice || record.owner || "Funding office not published";
+  if (groupBy === "contracting-office") return record.contractingOffice || "Contracting office not published";
+  if (groupBy === "vehicle") return record.parentReference || record.vehicle || "Vehicle / parent not published";
+  if (groupBy === "evidence") return label(record.evidenceTier);
+  if (groupBy === "end-year") {
+    const reportedEnd = record.currentEnd || (finalDate(record) === "0000-01-01" ? "" : finalDate(record));
+    return reportedEnd ? reportedEnd.slice(0, 4) : "End year not published";
+  }
+  return null;
+}
+
+function timelineFieldValue(record, field) {
+  if (field === "party") return record.party;
+  if (field === "reference") return record.reference || label(record.mode);
+  if (field === "value") return `Value ${formatMoney(recordValue(record))}`;
+  if (field === "obligations") return `Obligated ${formatMoney(recordObligations(record))}`;
+  if (field === "funding-office") return record.fundingOffice || record.owner || "Funding office not published";
+  if (field === "contracting-office") return record.contractingOffice || "Contracting office not published";
+  if (field === "vehicle") return record.parentReference || record.vehicle || "Vehicle / parent not published";
+  if (field === "actions") return `${record.transactionSummary?.actions?.toLocaleString() || 0} FPDS actions`;
+  if (field === "last-action") return record.transactionSummary?.lastSigned ? `Last action ${compactDate(record.transactionSummary.lastSigned)}` : "No FPDS actions";
+  if (field === "evidence") return label(record.evidenceTier);
+  return null;
+}
+
+function timelineBarLabel(record, labelMode, start, end) {
+  if (labelMode === "dates") return `${monthYear(start)} → ${monthYear(end)}`;
+  if (labelMode === "obligations") return formatMoney(recordObligations(record));
+  if (labelMode === "potential") return formatMoney(recordValue(record));
+  if (labelMode === "actions") return `${record.transactionSummary?.actions?.toLocaleString() || 0} actions`;
+  if (labelMode === "utilization") {
+    const potential = recordValue(record);
+    return potential ? `${Math.round(Math.min((recordObligations(record) / potential) * 100, 100))}% obligated` : "No ratio";
+  }
+  return "";
+}
+
+function timelineActionMarkers(actions, startYear, endYear) {
+  const buckets = new Map();
+  for (const action of actions || []) {
+    if (!action.signed || action.signed < `${startYear}-01-01` || action.signed > `${endYear}-12-31`) continue;
+    const month = action.signed.slice(0, 7);
+    const bucket = buckets.get(month) || { month, count: 0, obligationDelta: 0, funding: 0, deobligation: 0, latest: "" };
+    bucket.count += 1;
+    bucket.obligationDelta += Number(action.obligationDelta || 0);
+    bucket.funding += Number(action.direction === "funding");
+    bucket.deobligation += Number(action.direction === "deobligation");
+    bucket.latest = [bucket.latest, action.signed].sort().at(-1);
+    buckets.set(month, bucket);
+  }
+  return [...buckets.values()].sort((left, right) => left.month.localeCompare(right.month));
+}
+
+function TimelineHoverCard({ hover }) {
+  if (!hover) return null;
+  const { record, actions, left, top } = hover;
+  const observed = recordObligations(record);
+  const potential = recordValue(record);
+  const primaryActions = (actions || []).filter((action) => !action.supportingInstrument);
+  const latestAction = [...primaryActions].sort((a, b) => (b.signed || "").localeCompare(a.signed || ""))[0];
+  return createPortal(
+    <aside id="capture-timeline-tooltip" className="capture-timeline-tooltip" role="tooltip" style={{ left, top }} data-capture-hovercard>
+      <header><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><small>{label(record.lifecycleStatus)} · {label(record.mode)}</small></header>
+      <dl>
+        <div><dt>Observed obligations</dt><dd>{formatMoney(observed)}</dd></div>
+        <div><dt>Potential / high</dt><dd>{formatMoney(potential)}</dd></div>
+        <div><dt>Reported schedule</dt><dd>{recordDates(record).length ? `${compactDate(firstDate(record))} to ${compactDate(finalDate(record))}` : "Not published"}</dd></div>
+        <div><dt>FPDS actions</dt><dd>{record.transactionSummary?.actions?.toLocaleString() || "None"}</dd></div>
+        <div><dt>Latest FPDS action</dt><dd>{latestAction ? `${compactDate(latestAction.signed)} · ${signedMoney(latestAction.obligationDelta)}` : formatDate(record.transactionSummary?.lastSigned)}</dd></div>
+        <div><dt>Vehicle / parent</dt><dd>{record.parentReference || record.vehicle || "Not published"}</dd></div>
+      </dl>
+      <p><b>Funding office</b>{record.fundingOffice || record.owner || "Not published"}</p>
+      <p><b>Contracting office</b>{record.contractingOffice || "Not published"}</p>
+      <footer>{label(record.evidenceTier)} · {record.sourceRoleCount} source role{record.sourceRoleCount === 1 ? "" : "s"} · select for full evidence</footer>
+    </aside>,
+    document.body,
+  );
+}
+
+function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions }) {
+  const actionMarkers = feedMode === "fpds" ? timelineActionMarkers(actions, startYear, endYear) : [];
   if (record.mode === "contract-performance" && record.start && (record.currentEnd || record.potentialEnd)) {
     const baseEnd = record.currentEnd || record.potentialEnd;
     const left = positionFor(record.start, startYear, endYear);
@@ -527,8 +677,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode }) {
     const potentialRight = positionFor(record.potentialEnd || baseEnd, startYear, endYear);
     const elapsed = Math.max(0, Math.min(100, (dateDiffDays(record.start, asOf) / Math.max(dateDiffDays(record.start, baseEnd), 1)) * 100));
     const state = baseEnd < asOf ? "historical" : record.start > asOf ? "upcoming" : "active";
-    const dateLabel = `${monthYear(record.start)} → ${monthYear(baseEnd)}`;
-    const moneyLabel = formatMoney(recordObligations(record));
+    const barLabel = timelineBarLabel(record, labelMode, record.start, baseEnd);
     return (
       <>
         {potentialRight > baseRight ? (
@@ -538,8 +687,9 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode }) {
         ) : null}
         <i className={`capture-timeline__bar capture-timeline__bar--base capture-timeline__bar--${state}`} style={{ left: `${left}%`, width: `${Math.max(baseRight - left, 0.6)}%` }} title={`Reported term ${formatDate(record.start)} to ${formatDate(baseEnd)}`}>
           <span style={{ width: `${elapsed}%` }} aria-hidden="true" />
-          {baseRight - left >= 10 && labelMode !== "none" ? <b>{labelMode === "money" ? moneyLabel : dateLabel}</b> : null}
+          {baseRight - left >= 10 && labelMode !== "none" ? <b>{barLabel}</b> : null}
         </i>
+        {actionMarkers.map((marker) => <i key={marker.month} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)}
       </>
     );
   }
@@ -550,20 +700,35 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode }) {
       <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__milestone" style={{ left: `${left}%` }} title={`${milestone.label}: ${formatDate(milestone.start)}`}><span>{labelMode === "none" ? "" : milestone.label}</span></i>
     ) : (
       <i key={`${milestone.label}-${milestone.start}`} className="capture-timeline__bar capture-timeline__bar--window" style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} title={`${milestone.label}: ${formatDate(milestone.start)} to ${formatDate(milestone.end)}`}>
-        {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "money" ? formatMoney(recordValue(record)) : milestone.label}</b> : null}
+        {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "dates" ? milestone.label : timelineBarLabel(record, labelMode, milestone.start, milestone.end)}</b> : null}
       </i>
     );
-  });
+  }).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>));
 }
 
-function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode }) {
+function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity }) {
   const scrollerRef = useRef(null);
+  const [hover, setHover] = useState(null);
   const years = Array.from({ length: endYear - startYear + 1 }, (_value, index) => startYear + index);
   const asOfPosition = positionFor(asOf, startYear, endYear);
   const showAsOf = asOf >= `${startYear}-01-01` && asOf <= `${endYear}-12-31`;
-  const groups = groupBy === "portfolio"
-    ? [...new Set(records.map((record) => record.portfolio))].map((portfolio) => ({ portfolio, records: records.filter((record) => record.portfolio === portfolio) }))
-    : [{ portfolio: null, records }];
+  const groups = groupBy === "none"
+    ? [{ id: "all", label: null, records }]
+    : [...records.reduce((map, record) => {
+      const group = timelineGroupValue(record, groupBy);
+      const current = map.get(group) || [];
+      current.push(record);
+      map.set(group, current);
+      return map;
+    }, new Map())].map(([groupLabel, groupRecords]) => ({ id: groupLabel, label: groupLabel, records: groupRecords }));
+  const activeFields = selectedFieldIds(rowFields);
+  function showHover(record, target, clientX, clientY) {
+    const bounds = target.getBoundingClientRect();
+    const width = Math.min(360, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(clientX || bounds.right + 12, window.innerWidth - width - 8));
+    const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 330));
+    setHover({ record, actions: actionsByOpportunity?.[record.opportunityId] || [], left, top });
+  }
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller || !showAsOf || !window.matchMedia("(max-width: 760px)").matches) return;
@@ -577,25 +742,25 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
   return (
     <div ref={scrollerRef} className={`capture-timeline capture-timeline--${density}`} data-capture-timeline>
       <div className="capture-timeline__inner" style={{ "--capture-years": years.length }}>
-        <div className="capture-timeline__head capture-timeline__label"><strong>Contract / acquisition</strong><span>Company, reference, value</span></div>
+        <div className="capture-timeline__head capture-timeline__label"><strong>Contract / acquisition</strong><span>{activeFields.map((field) => ROW_FIELD_OPTIONS.find(([id]) => id === field)?.[1]).join(" · ")}</span></div>
         <div className="capture-timeline__head capture-timeline__years">
           {years.map((year) => <span key={year}><b>{year}</b><small><i>Q1</i><i>Q2</i><i>Q3</i><i>Q4</i></small></span>)}
           {showAsOf ? <em className="capture-timeline__today-label" style={{ left: `${asOfPosition}%` }}>As of {monthYear(asOf)}</em> : null}
         </div>
         {groups.map((group) => (
-          <Fragment key={group.portfolio || "all"}>
-            {group.portfolio ? <div className="capture-timeline__group"><strong>{group.portfolio}</strong><span>{group.records.length} row{group.records.length === 1 ? "" : "s"}</span></div> : null}
+          <Fragment key={group.id}>
+            {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)}>
+              <button key={record.opportunityId} type="button" className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}`} onClick={() => onSelect(record.opportunityId)} onPointerEnter={(event) => showHover(record, event.currentTarget, event.clientX + 14, event.clientY + 14)} onPointerLeave={() => setHover(null)} onFocus={(event) => showHover(record, event.currentTarget)} onBlur={() => setHover(null)} aria-describedby={hover?.record.opportunityId === record.opportunityId ? "capture-timeline-tooltip" : undefined}>
                 <span className="capture-timeline__label">
                   <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em></span>
                   <strong>{record.title}</strong>
-                  <small>{record.party} · {record.reference || label(record.mode)} · {formatMoney(recordValue(record))}</small>
+                  <small className="capture-timeline__fields">{activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
                 </span>
                 <span className="capture-timeline__plot" aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
-                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} />
+                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} actions={actionsByOpportunity?.[record.opportunityId] || []} />
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
                 <ChevronRight size={16} aria-hidden="true" />
@@ -604,6 +769,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
           </Fragment>
         ))}
       </div>
+      <TimelineHoverCard hover={hover} />
     </div>
   );
 }
@@ -783,6 +949,12 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     window.requestAnimationFrame(() => document.querySelector("[data-capture-timeline]")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
+  function toggleRowField(field) {
+    const current = selectedFieldIds(filters.capFields);
+    const next = current.includes(field) ? current.filter((item) => item !== field) : [...current, field];
+    setFilters({ capFields: next.length ? next.join(",") : "none" });
+  }
+
   useEffect(() => {
     const sync = () => setSelectedIdState(new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
     window.addEventListener("hashchange", sync);
@@ -796,7 +968,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   }, [selected, selectedId]);
 
   useEffect(() => {
-    if (!selected?.transactionSummary?.actions || actionDataset || actionRequestRef.current) return;
+    if (!(filters.capFeed === "fpds" || selected?.transactionSummary?.actions) || actionDataset || actionRequestRef.current) return;
     setActionState("loading");
     const request = fetch(`${import.meta.env.BASE_URL}data/capture-transactions.json`)
       .then((response) => {
@@ -811,7 +983,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       .catch(() => setActionState("error"))
       .finally(() => { actionRequestRef.current = null; });
     actionRequestRef.current = request;
-  }, [actionDataset, actionLoadAttempt, dataset.metadata.coverage.fpdsActions, selected]);
+  }, [actionDataset, actionLoadAttempt, dataset.metadata.coverage.fpdsActions, filters.capFeed, selected]);
   const totals = filtered.reduce((summary, record) => ({
     obligated: summary.obligated + Number(record.liveAward?.awardAmountDollars || record.obligatedAmount || 0),
     potential: summary.potential + Number(record.potentialAmount || record.valueHigh || 0),
@@ -900,7 +1072,8 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     return { id: `${year}-Q${quarter + 1}`, label: `Q${quarter + 1} ${year}`, ends: endingRecords.length, milestones: milestoneCount, total: endingRecords.length + milestoneCount };
   });
   const matrixPortfolios = portfolioRows.slice(0, 8).map((row) => row.id);
-  const activeFilters = Object.entries(filters).filter(([key, value]) => value !== FILTER_DEFAULTS[key]).length;
+  const displaySettings = new Set(["capSort", "capRows", "capDensity", "capGroup", "capLabels", "capFields", "capFeed"]);
+  const activeFilters = Object.entries(filters).filter(([key, value]) => !displaySettings.has(key) && value !== FILTER_DEFAULTS[key]).length;
 
   function scrollTimelineToToday() {
     if (asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`) return;
@@ -982,15 +1155,21 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={Boolean(selected && comparisonIds.includes(selected.opportunityId))} onToggleCompare={() => selected && toggleComparison(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} onSelectRelated={setSelectedId} />
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance and acquisition events</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry with quarterly guides</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction pulses</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · exact daily geometry · hover or focus any row for source detail</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{filters.capFeed === "fpds" ? <><i className="action" />FPDS action</> : null}</span></div>
         <div className="capture-gantt-tools" data-capture-gantt-tools>
           <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
           <div className="capture-gantt-window" aria-label="Timeline windows"><span>Window</span><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Current</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
           <label><span>Row density</span><select value={filters.capDensity} onChange={(event) => setFilters({ capDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
-          <label><span>Grouping</span><select value={filters.capGroup} onChange={(event) => setFilters({ capGroup: event.target.value })}><option value="none">No grouping</option><option value="portfolio">Portfolio groups</option></select></label>
-          <label><span>Bar labels</span><select value={filters.capLabels} onChange={(event) => setFilters({ capLabels: event.target.value })}><option value="dates">Date ranges</option><option value="money">Observed money</option><option value="none">No labels</option></select></label>
+          <label><span>Grouping</span><select value={filters.capGroup} onChange={(event) => setFilters({ capGroup: event.target.value })}>{GROUP_BY_OPTIONS.map(([id, text]) => <option value={id} key={id}>{text}</option>)}</select></label>
+          <label><span>Bar labels</span><select value={filters.capLabels} onChange={(event) => setFilters({ capLabels: event.target.value })}><option value="dates">Date ranges</option><option value="obligations">Observed obligations</option><option value="potential">Potential / high value</option><option value="utilization">Obligation ratio</option><option value="actions">FPDS action count</option><option value="none">No labels</option></select></label>
+          <label><span>Feed overlay</span><select value={filters.capFeed} onChange={(event) => setFilters({ capFeed: event.target.value })}><option value="schedule">Schedule only</option><option value="fpds">FPDS action pulses</option></select></label>
+          <details className="capture-gantt-fields" data-capture-field-picker>
+            <summary>Row fields ({selectedFieldIds(filters.capFields).length})</summary>
+            <div role="group" aria-label="Visible Gantt row fields">{ROW_FIELD_OPTIONS.map(([id, text]) => <label key={id}><input type="checkbox" checked={selectedFieldIds(filters.capFields).includes(id)} onChange={() => toggleRowField(id)} /><span>{text}</span></label>)}</div>
+          </details>
+          {filters.capFeed === "fpds" ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : null}
         </div>
-        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} /> : <p className="capture-empty">No public records match these filters.</p>}
+        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>
 
       <div className="capture-dashboard-grid">
