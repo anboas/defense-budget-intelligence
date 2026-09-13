@@ -219,6 +219,39 @@ try {
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
 
+  const ultrawide = await browser.newPage({ viewport: { width: 3440, height: 1440 } });
+  await ultrawide.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  await ultrawide.waitForSelector("[data-defense-budget-app]");
+  await openSurface(ultrawide, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
+  const ultrawideGeometry = await ultrawide.evaluate(() => {
+    const contentNode = document.querySelector(".app__content");
+    const content = contentNode?.getBoundingClientRect();
+    const contentPadding = contentNode ? Number.parseFloat(getComputedStyle(contentNode).paddingLeft) : 0;
+    const header = document.querySelector(".masthead__inner")?.getBoundingClientRect();
+    const timeline = document.querySelector("[data-capture-timeline]")?.getBoundingClientRect();
+    const controls = document.querySelector("[data-capture-gantt-tools]")?.getBoundingClientRect();
+    const label = document.querySelector("[data-capture-timeline] .capture-timeline__label")?.getBoundingClientRect();
+    return {
+      viewportWidth: window.innerWidth,
+      contentWidth: content?.width || 0,
+      contentInnerLeft: (content?.left || 0) + contentPadding,
+      headerWidth: header?.width || 0,
+      headerLeft: header?.left || 0,
+      timelineWidth: timeline?.width || 0,
+      controlsWidth: controls?.width || 0,
+      visibleTimePlane: (timeline?.width || 0) - (label?.width || 0),
+    };
+  });
+  assert.ok(ultrawideGeometry.contentWidth >= ultrawideGeometry.viewportWidth * 0.98, `Ultrawide workspace should use the viewport, got ${ultrawideGeometry.contentWidth}px of ${ultrawideGeometry.viewportWidth}px`);
+  assert.ok(ultrawideGeometry.headerWidth >= ultrawideGeometry.viewportWidth * 0.97, `Ultrawide header should use the viewport, got ${ultrawideGeometry.headerWidth}px`);
+  assert.ok(Math.abs(ultrawideGeometry.contentInnerLeft - ultrawideGeometry.headerLeft) <= 2, `Header and workspace gutters should align: ${ultrawideGeometry.headerLeft}px vs ${ultrawideGeometry.contentInnerLeft}px`);
+  assert.ok(ultrawideGeometry.timelineWidth >= 3300, `Ultrawide Gantt should expand beyond the old 1,580px cap, got ${ultrawideGeometry.timelineWidth}px`);
+  assert.ok(ultrawideGeometry.controlsWidth >= 3300, `Ultrawide Gantt controls should expand with the timeline, got ${ultrawideGeometry.controlsWidth}px`);
+  assert.ok(ultrawideGeometry.visibleTimePlane >= 2900, `Ultrawide Gantt should expose a broad time plane, got ${ultrawideGeometry.visibleTimePlane}px`);
+  await assertNoPageOverflow(ultrawide, "Ultrawide transactions");
+  await ultrawide.screenshot({ path: `${OUT_DIR}/transactions-gantt-ultrawide.png` });
+  await ultrawide.close();
+
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-pdb-request-page]");
