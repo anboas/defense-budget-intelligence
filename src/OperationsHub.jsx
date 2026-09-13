@@ -45,6 +45,24 @@ function dateTime(value) {
   return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function freshnessState(timestamp, maxAgeDays) {
+  if (!timestamp) return { label: "Unavailable", tone: "unavailable" };
+  const ageDays = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 86400000);
+  return ageDays <= maxAgeDays ? { label: "Current", tone: "current" } : { label: "Review", tone: "stale" };
+}
+
+function IntegrationFreshness({ budgetGeneratedAt, awardGeneratedAt }) {
+  const layers = [
+    { id: "budget", label: "Budget books", mobileLabel: "Budget", at: budgetGeneratedAt, maxAgeDays: 400 },
+    { id: "awards", label: "Award execution", mobileLabel: "Awards", at: awardGeneratedAt, maxAgeDays: 14 },
+    { id: "health", label: "Source health", mobileLabel: "Sources", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
+  ];
+  return <section className="freshness-strip" aria-label="Data freshness" data-freshness-strip data-integration-freshness>{layers.map((layer) => {
+    const state = freshnessState(layer.at, layer.maxAgeDays);
+    return <span key={layer.id} className={`freshness-chip freshness-chip--${state.tone}`} title={`${layer.label}: ${state.label} · ${layer.at ? dateTime(layer.at) : "No snapshot"}`}><strong data-mobile-label={layer.mobileLabel}>{layer.label}</strong><em>{state.label}</em><small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small></span>;
+  })}</section>;
+}
+
 function money(value) {
   const amount = Number(value || 0);
   if (!amount) return "$0";
@@ -148,7 +166,7 @@ function EventsView({ events, records, onAdd, onEdit, onDelete }) {
   return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></header>{sorted.length ? <div className="ops-event-list">{sorted.map((event) => <article key={event.id}><time>{dateTime(event.startsAt)}</time><div><span>{event.status}{event.wallboard ? " · wallboard" : ""}</span><strong>{event.title}</strong><p>{event.location || "Location not set"}</p><small>{event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records"}</small></div><div><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={15} /></button></div></article>)}</div> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p></div>}</section>;
 }
 
-function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot }) {
+function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
   const rows = [
     { name: "PDB display books", status: "current", count: "3,888 request lines", detail: "Scheduled workbook and justification build" },
     { name: "USAspending prime awards", status: "current", count: `${dataset.metadata?.coverage?.totalPublicRecords?.toLocaleString?.() || "875"} assembled records`, detail: "Automatic award feed plus normalized source records" },
@@ -158,7 +176,7 @@ function IntegrationsView({ dataset, samOpportunities, manualProcurement, procur
     { name: "Manual / CRM imports", status: "ready", count: `${Number(manualProcurement.records?.length || 0).toLocaleString()} records`, detail: "Stable procurement identifiers required" },
     { name: "Change detection", status: procurementDelta.metadata?.status || "baseline", count: `${Number(procurementDelta.summary?.added || 0) + Number(procurementDelta.summary?.updated || 0)} changes`, detail: "Deterministic consecutive-snapshot comparison" },
   ];
-  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><div className="ops-integration-list">{rows.map((row) => <article key={row.name}><i className={`is-${String(row.status).toLowerCase().replaceAll(" ", "-")}`} /><div><strong>{row.name}</strong><span>{row.detail}</span></div><b>{row.count}</b><em>{row.status}</em></article>)}</div></section>;
+  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><div className="ops-integration-list">{rows.map((row) => <article key={row.name}><i className={`is-${String(row.status).toLowerCase().replaceAll(" ", "-")}`} /><div><strong>{row.name}</strong><span>{row.detail}</span></div><b>{row.count}</b><em>{row.status}</em></article>)}</div></section>;
 }
 
 function ActivityView({ activity, records, remote }) {
@@ -202,7 +220,7 @@ function WallboardRecords({ records, asOf, onToggleWatch }) {
   return <section className="ops-wallboard__section"><header><span>Stable-ID watchlist</span><strong>Tracked records</strong></header>{records.length ? <div className="ops-wallboard__cards">{records.map((record) => <article key={record.opportunityId}><button type="button" onClick={() => onToggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={15} fill="currentColor" /></button><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><time>{nextPublishedDate(record, asOf) ? `Next published date ${compactDate(nextPublishedDate(record, asOf))}` : "No future published date"}</time><small>{record.party || "Party not published"} · {money(recordAmount(record))}</small></article>)}</div> : <p>No records are enabled for the wallboard.</p>}</section>;
 }
 
-export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] } }) {
+export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
   const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
@@ -221,7 +239,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
-    {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /> : null}
+    {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} onToggleWatch={state.toggleWatch} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}

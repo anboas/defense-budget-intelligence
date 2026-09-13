@@ -316,11 +316,11 @@ try {
   assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 21, "Transactions should expose twenty factual data filters plus tracking scope");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
   const compactDesktopGeometry = await page.evaluate(() => ({
-    freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
+    freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
     firstRowTop: document.querySelector("[data-capture-timeline] .capture-timeline__row")?.getBoundingClientRect().top || 0,
     timelineToolsHeight: document.querySelector("[data-capture-gantt-tools]")?.getBoundingClientRect().height || 0,
   }));
-  assert.ok(compactDesktopGeometry.freshnessHeight <= 32, `Desktop freshness should be a compact status line, got ${compactDesktopGeometry.freshnessHeight}px`);
+  assert.equal(compactDesktopGeometry.freshnessCount, 0, "Transactions should not render source-freshness cards above the working canvas");
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
   const firstWatchRow = page.locator("[data-capture-timeline-row]").first();
@@ -350,6 +350,7 @@ try {
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
   await openSurface(page, "#/budget-spend/integrations", "[data-ops-integrations]");
   assert.equal(await page.locator("[data-ops-integrations] .ops-integration-list article").count(), 7, "Operations should summarize each current ingestion layer");
+  assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 3, "Budget, award, and source freshness should live with Admin integration health");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
   assert.ok(await page.locator("[data-ops-activity] .ops-activity-list li").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
   await openSurface(page, "#/budget-spend/wallboard", "[data-ops-wallboard]");
@@ -764,11 +765,11 @@ try {
   const mobileRequestChrome = await mobile.evaluate(() => ({
     filters: document.querySelector("[data-budget-filter-bar]")?.getBoundingClientRect().height || 0,
     metrics: document.querySelector(".metrics")?.getBoundingClientRect().height || 0,
-    freshnessClipped: [...document.querySelectorAll(".freshness-chip strong, .freshness-chip em")].some((node) => node.scrollWidth > node.clientWidth + 1),
+    freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
   }));
   assert.ok(mobileRequestChrome.filters <= 140, `Mobile request filters should use one search row and one contained control rail, got ${mobileRequestChrome.filters}px`);
   assert.ok(mobileRequestChrome.metrics <= 115, `Mobile request KPIs should use one horizontal strip, got ${mobileRequestChrome.metrics}px`);
-  assert.equal(mobileRequestChrome.freshnessClipped, false, "Compact mobile freshness labels should not clip");
+  assert.equal(mobileRequestChrome.freshnessCount, 0, "Money-flow pages should not carry the integration-health strip");
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile request");
 
@@ -791,11 +792,11 @@ try {
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced transaction filters should start collapsed on mobile");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 0, "Secondary core filters should stay behind disclosure on narrow screens");
   const compactMobileGeometry = await mobile.evaluate(() => ({
-    freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
+    freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
     firstRowTop: document.querySelector("[data-capture-timeline] .capture-timeline__row")?.getBoundingClientRect().top || 0,
     metricHeight: document.querySelector(".capture-metrics")?.getBoundingClientRect().height || 0,
   }));
-  assert.ok(compactMobileGeometry.freshnessHeight <= 34, `Mobile freshness should remain one compact row, got ${compactMobileGeometry.freshnessHeight}px`);
+  assert.equal(compactMobileGeometry.freshnessCount, 0, "Mobile Transactions should begin with the transaction workspace, not source-health cards");
   assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
   assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
   await mobile.getByRole("button", { name: "Show 16 more filters" }).click();

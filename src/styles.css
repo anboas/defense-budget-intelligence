@@ -399,6 +399,78 @@ button {
 .profile-popover > button:hover,
 .profile-popover > button:focus-visible { background: #edf5fb; }
 
+/* Exact Control Framework account-menu shell shared with Opportunity Intelligence. */
+.ci-profile-menu {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ci-profile-menu .if-account-menu {
+  min-width: 0;
+  max-width: min(220px, 32vw) !important;
+}
+
+.ci-profile-menu .if-account-menu__name,
+.ci-profile-menu__surface :where(.if-account-surface__identity, .if-account-action__content, .if-account-surface__footer) {
+  min-width: 0;
+}
+
+.ci-profile-menu .if-account-menu__name,
+.ci-profile-menu__surface :where(.if-account-surface__identity strong, .if-account-surface__identity span, .if-account-action__title, .if-account-action__meta, .if-account-surface__footer .if-text-xs) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci-profile-menu__surface {
+  max-width: calc(100vw - 24px);
+  overflow: hidden;
+  color: #1b1b1b;
+}
+
+.ci-profile-menu__surface .if-account-surface__header,
+.ci-profile-menu__surface .if-account-surface__body,
+.ci-profile-menu__surface .if-account-surface__section,
+.ci-profile-menu__surface .if-account-surface__controls,
+.ci-profile-menu__surface .if-account-action,
+.ci-profile-menu__surface .if-account-surface__footer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ci-profile-menu__surface .if-account-surface__header {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.ci-profile-menu__surface .if-account-action {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ci-profile-menu__surface .if-account-surface__controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ci-profile-menu__surface .if-account-surface__control {
+  min-width: 0;
+}
+
+.ci-profile-menu__surface .if-account-action__title {
+  color: #1f2937;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.ci-profile-menu__surface .if-account-action__meta {
+  color: #64748b;
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
 .account-gate {
   display: grid;
   place-items: center;
@@ -11962,6 +12034,89 @@ td .dot {
     width: 26px;
     height: 26px;
     flex-basis: 26px;
+  }
+
+  .ci-profile-menu {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    width: 70px;
+    height: 34px;
+    margin-left: 0 !important;
+  }
+
+  .ci-profile-menu .if-account-menu {
+    position: absolute;
+    top: -5px;
+    right: 0;
+    width: 70px;
+    min-width: 70px;
+    min-height: 44px !important;
+    max-width: none !important;
+    gap: 5px;
+    padding: 8px 7px;
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none;
+  }
+
+  .ci-profile-menu .if-account-menu::before {
+    content: "";
+    position: absolute;
+    inset: 5px 0;
+    z-index: 0;
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    border-radius: 6px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(8, 24, 44, 0.16);
+  }
+
+  .ci-profile-menu .if-account-menu > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .ci-profile-menu .if-profile-avatar {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .ci-profile-menu__surface {
+    position: fixed !important;
+    top: 102px !important;
+    right: 12px !important;
+    left: 12px !important;
+    z-index: 260 !important;
+    width: auto !important;
+    max-height: calc(100dvh - 118px);
+    overflow-y: auto !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: 0 14px 36px rgba(8, 24, 44, 0.24) !important;
+  }
+
+  .ci-profile-menu__surface .if-account-surface__header {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .ci-profile-menu__surface .if-account-surface__body {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .ci-profile-menu__surface .if-account-surface__section {
+    gap: 5px;
+    padding-block: 6px;
+  }
+
+  .ci-profile-menu__surface .if-account-action {
+    min-height: 42px;
+  }
+
+  .ci-profile-menu__surface .if-account-surface__footer {
+    gap: 8px;
+    padding: 9px 10px;
   }
 
   .ci-header-nav .ci-header-nav__mobile-menu {

@@ -366,41 +366,6 @@ function MobileDisclosure({ expanded, onToggle, label }) {
   );
 }
 
-function freshnessState(timestamp, maxAgeDays) {
-  if (!timestamp) return { label: "Unavailable", tone: "unavailable" };
-  const ageDays = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 86400000);
-  return ageDays <= maxAgeDays
-    ? { label: "Current", tone: "current", ageDays }
-    : { label: "Review", tone: "stale", ageDays };
-}
-
-function FreshnessStrip() {
-  const layers = [
-    { id: "budget", label: "Budget books", mobileLabel: "Budget", at: data.metadata.generatedAt, maxAgeDays: 400 },
-    { id: "awards", label: "Award execution", mobileLabel: "Awards", at: EXECUTION_COVERAGE.cachedAt, maxAgeDays: 14 },
-    { id: "health", label: "Source health", mobileLabel: "Sources", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
-  ];
-  return (
-    <section className="freshness-strip" aria-label="Data freshness" data-freshness-strip>
-      {layers.map((layer) => {
-        const state = freshnessState(layer.at, layer.maxAgeDays);
-        return (
-          <span
-            key={layer.id}
-            className={`freshness-chip freshness-chip--${state.tone}`}
-            title={`${layer.label}: ${state.label} · ${layer.at ? dateTime(layer.at) : "No snapshot"}`}
-            aria-label={`${layer.label}: ${state.label} as of ${layer.at ? dateTime(layer.at) : "no snapshot"}`}
-          >
-            <strong data-mobile-label={layer.mobileLabel}>{layer.label}</strong>
-            <em>{state.label}</em>
-            <small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small>
-          </span>
-        );
-      })}
-    </section>
-  );
-}
-
 const BOOK_COLORS = {
   "M-1": "#005ea2",
   "O-1": "#216e1f",
@@ -4778,7 +4743,6 @@ function App() {
         <p className="sr-only" role="status" aria-live="polite">
           {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
         </p>
-        {!PROFILE_TAB_IDS.has(activeTab) ? <FreshnessStrip /> : null}
         {showBudgetControls ? (
           <>
             <FilterShell filters={filters} setFilters={setFilters} />
@@ -4838,7 +4802,7 @@ function App() {
         {executionReady && activeTab === "awards" ? <Awards /> : null}
         {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /> : null}
         {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.records?.length || 0} /></Suspense> : null}
-        {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading {activeTitle.toLowerCase()}</strong><p>The shared management workspace is loading.</p></div></section>}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
+        {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading {activeTitle.toLowerCase()}</strong><p>The shared management workspace is loading.</p></div></section>}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
         {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
         {PROFILE_TAB_IDS.has(activeTab) ? <ProfilePage section={activeTab} /> : null}
       </div>

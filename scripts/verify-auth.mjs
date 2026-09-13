@@ -47,7 +47,7 @@ try {
   assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Agent Access/i);
   assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Admin");
   await page.locator('[data-nav-group-trigger="admin"]').click();
-  const desktopTrigger = page.getByRole("button", { name: new RegExp(initialName) });
+  const desktopTrigger = page.locator("[data-profile-menu-trigger]");
   const desktopTriggerBox = await desktopTrigger.boundingBox();
   assert.ok(desktopTriggerBox && desktopTriggerBox.height >= 34 && desktopTriggerBox.height <= 38, `Desktop profile trigger should match the compact account control, got ${desktopTriggerBox?.height}px`);
   assert.equal(await desktopTrigger.locator("small").count(), 0, "Desktop account trigger should keep role metadata inside the menu, not in a second header line");
@@ -56,9 +56,19 @@ try {
     return { backgroundColor: style.backgroundColor, color: style.color };
   });
   assert.equal(desktopTriggerStyle.backgroundColor, "rgb(255, 255, 255)", "Desktop profile trigger should use the shared white account-control surface");
+  assert.match(await page.locator("[data-profile-menu]").getAttribute("class"), /if-popover[\s\S]*if-account-popover[\s\S]*ci-profile-menu/, "Profile should use the same Control Framework popover shell as Opportunity Intelligence");
   await desktopTrigger.click();
+  const profileSurface = page.getByRole("dialog", { name: "Profile controls" });
+  await profileSurface.waitFor();
+  const profileSurfaceBox = await profileSurface.boundingBox();
+  assert.ok(profileSurfaceBox && Math.abs(profileSurfaceBox.width - 360) <= 1, `Desktop profile surface should match the 360px Opportunity Intelligence account component, got ${profileSurfaceBox?.width}px`);
+  assert.equal(await profileSurface.locator(".if-account-surface__header").count(), 1, "Profile dropdown should use the shared account-surface header");
+  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 4, "Profile dropdown should use shared account-action rows for Defense Budget destinations");
+  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 4, "Every shared account-action row should render its icon glyph");
+  assert.equal(await profileSurface.locator(".if-account-surface__footer").count(), 1, "Profile dropdown should use the shared account-surface footer");
   assert.ok(await page.getByText("Super user", { exact: true }).count() >= 1, "Profile menu should identify the first account as super user");
-  await page.getByRole("menuitem", { name: "My profile" }).click();
+  await page.screenshot({ path: "test-results/profile-menu-desktop.png" });
+  await page.getByRole("link", { name: /Open Profile/i }).click();
   await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Profile should render as a routed page, not a modal");
   assert.match(new URL(page.url()).hash, /^#\/profile$/, "Profile menu should navigate to the canonical profile route");
@@ -67,8 +77,8 @@ try {
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByText("Profile saved.").waitFor();
 
-  await page.getByRole("button", { name: new RegExp(finalName) }).click();
-  await page.getByRole("menuitem", { name: "Agent access" }).click();
+  await page.locator("[data-profile-menu-trigger]").click();
+  await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /Agent Access/i }).click();
   await page.waitForSelector('[data-profile-page][data-profile-section="agents"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render in the routed profile workspace");
   await page.getByLabel("Name").fill("Browser verifier");
@@ -106,8 +116,8 @@ try {
     await fetch(`/api/v1/agent/tracking/${encodeURIComponent(recordId)}`, { method: "DELETE" });
   }, workspaceSeed);
 
-  await page.getByRole("button", { name: new RegExp(finalName) }).click();
-  await page.getByRole("menuitem", { name: "Security" }).click();
+  await page.locator("[data-profile-menu-trigger]").click();
+  await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /Security/i }).click();
   await page.waitForSelector('[data-profile-page][data-profile-section="security"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Password management should render as a routed profile page");
   await page.getByLabel("Current password").fill(initialPassword);
@@ -131,8 +141,8 @@ try {
   });
   assert.equal(duplicateClaimStatus, 409, "A second first-account claim must be rejected atomically");
 
-  await page.getByRole("button", { name: new RegExp(finalName) }).click();
-  await page.getByRole("menuitem", { name: "Sign out" }).click();
+  await page.locator("[data-profile-menu-trigger]").click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await page.waitForSelector('[data-account-gate="login"]');
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(initialPassword);
@@ -151,11 +161,15 @@ try {
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Authenticated mobile More should retain all grouped routes including Agent Access");
   assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Agent Access/i);
   await page.locator("[data-mobile-more-menu-button]").click();
-  const trigger = page.locator(".profile-trigger");
+  const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();
   assert.ok(box && box.width >= 42 && box.height >= 42, "Mobile profile trigger must meet the 42px touch target");
   await trigger.click();
-  await page.getByRole("menuitem", { name: "My profile" }).click();
+  const mobileSurface = page.getByRole("dialog", { name: "Profile controls" });
+  const mobileSurfaceBox = await mobileSurface.boundingBox();
+  assert.ok(mobileSurfaceBox && mobileSurfaceBox.x <= 13 && Math.abs((mobileSurfaceBox.x + mobileSurfaceBox.width) - 378) <= 2, "Mobile profile dropdown should use the same fixed 12px-gutter account sheet as Opportunity Intelligence");
+  await page.screenshot({ path: "test-results/profile-menu-mobile.png" });
+  await page.getByRole("link", { name: /Open Profile/i }).click();
   await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
   const profileOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(profileOverflow <= 2, `Mobile profile page should not overflow, got ${profileOverflow}px`);
