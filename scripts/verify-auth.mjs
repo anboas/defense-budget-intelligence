@@ -29,7 +29,9 @@ try {
   const page = await context.newPage();
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-account-gate="setup"]');
-  assert.equal(await page.evaluate(async () => (await fetch("/api/v1/snapshots")).status), 401, "Protected data APIs must reject anonymous requests");
+  if (process.env.BUDGET_AUTH_SKIP_PROTECTED_API !== "1") {
+    assert.equal(await page.evaluate(async () => (await fetch("/api/v1/snapshots")).status), 401, "Protected data APIs must reject anonymous requests");
+  }
   await page.getByLabel("Display name").fill(initialName);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Title (optional)").fill("Platform administrator");

@@ -1,3 +1,13 @@
 name = "defense-budget-intelligence"
 compatibility_date = "2026-08-28"
 pages_build_output_dir = "dist"
+
+[vars]
+DBI_AUTH_REQUIRED = "1"
+DBI_ALLOW_FIRST_CLAIM = "1"
+DBI_FORCE_SECURE_COOKIES = "1"
+
+[[d1_databases]]
+binding = "DBI_DB"
+database_name = "oip-agent-db"
+database_id = "6be1bb1c-c9ad-4b59-9c91-9612266f1bd7"

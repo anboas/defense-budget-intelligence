@@ -1,0 +1,299 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createServer } from "node:net";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
+
+mkdirSync("test-results", { recursive: true });
+
+async function freePort() {
+  const server = createServer();
+  await new Promise((resolveListen, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  const address = server.address();
+  await new Promise((resolveClose) => server.close(resolveClose));
+  return address.port;
+}
+
+async function waitForStatus(baseUrl, timeoutMs = 30_000) {
+  const startedAt = Date.now();
+  let lastError;
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(`${baseUrl}api/v1/auth/status`);
+      if (response.ok) return;
+      lastError = new Error(`Status probe returned ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 200));
+  }
+  throw lastError || new Error(`Timed out waiting for ${baseUrl}`);
+}
+
+async function startPages(persistPath) {
+  const port = await freePort();
+  const baseUrl = `http://127.0.0.1:${port}/`;
+  const output = [];
+  const child = spawn("npx", [
+    "wrangler",
+    "pages",
+    "dev",
+    "dist",
+    "--ip",
+    "127.0.0.1",
+    "--port",
+    String(port),
+    "--persist-to",
+    persistPath,
+    "--log-level",
+    "error",
+  ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+  try {
+    await waitForStatus(baseUrl);
+  } catch (error) {
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch {
+      child.kill("SIGTERM");
+    }
+    throw new Error(`${error.message}\n${output.join("").slice(-12_000)}`, { cause: error });
+  }
+  return { child, baseUrl, output };
+}
+
+async function stopPages(instance) {
+  if (!instance) return;
+  try {
+    process.kill(-instance.child.pid, "SIGTERM");
+  } catch {
+    if (instance.child.exitCode === null) instance.child.kill("SIGTERM");
+  }
+  await Promise.race([
+    new Promise((resolveExit) => instance.child.once("exit", resolveExit)),
+    new Promise((resolveTimeout) => setTimeout(resolveTimeout, 3_000)),
+  ]);
+  try {
+    process.kill(-instance.child.pid, "SIGKILL");
+  } catch {
+    if (instance.child.exitCode === null) instance.child.kill("SIGKILL");
+  }
+  instance.child.stdout?.destroy();
+  instance.child.stderr?.destroy();
+}
+
+function claimPayload(index) {
+  return {
+    email: `owner-${index}@example.test`,
+    displayName: `Owner ${index}`,
+    title: "Platform administrator",
+    passwordSalt: String(index).padStart(2, "0").repeat(24),
+    passwordProof: String(index + 1).padStart(2, "0").repeat(32),
+  };
+}
+
+function cookieFrom(response) {
+  return String(response.headers.get("set-cookie") || "").split(";")[0];
+}
+
+async function apiRequest(baseUrl, path, { method = "GET", body, cookie = "", origin } = {}) {
+  const headers = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (cookie) headers.cookie = cookie;
+  if (origin) headers.origin = origin;
+  return fetch(new URL(path, baseUrl), {
+    method,
+    headers,
+    body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
+  });
+}
+
+async function verifyApiLifecycle(persistPath) {
+  let instance = await startPages(persistPath);
+  const { baseUrl } = instance;
+  try {
+    let response = await apiRequest(baseUrl, "/api/v1/auth/status");
+    assert.deepEqual(await response.json(), {
+      authVersion: "dbi-pages-auth-v1",
+      enabled: true,
+      required: true,
+      claimed: false,
+      user: null,
+    });
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/claim", {
+      method: "POST",
+      body: claimPayload(8),
+      origin: "https://cross-origin.example",
+    });
+    assert.equal(response.status, 403, "Cross-origin first claim must be rejected");
+
+    const candidates = [claimPayload(1), claimPayload(2)];
+    const claimResponses = await Promise.all(candidates.map((payload) => apiRequest(baseUrl, "/api/v1/auth/claim", {
+      method: "POST",
+      body: payload,
+      origin: baseUrl.slice(0, -1),
+    })));
+    assert.deepEqual(claimResponses.map((item) => item.status).sort(), [201, 409], "Concurrent claims must produce exactly one owner");
+    const winningIndex = claimResponses.findIndex((item) => item.status === 201);
+    const winner = candidates[winningIndex];
+    const winningResponse = claimResponses[winningIndex];
+    const ownerCookie = cookieFrom(winningResponse);
+    const setCookie = winningResponse.headers.get("set-cookie") || "";
+    assert.match(setCookie, /HttpOnly/i, "D1 session must be HttpOnly");
+    assert.match(setCookie, /SameSite=Strict/i, "D1 session must be SameSite Strict");
+    assert.match(setCookie, /Secure/i, "Pages session must be Secure");
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/claim", {
+      method: "POST",
+      body: "not-json",
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 409, "A claimed workspace must reject before parsing claimant input");
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: ownerCookie });
+    let body = await response.json();
+    assert.equal(body.claimed, true);
+    assert.equal(body.user.email, winner.email);
+    assert.equal(body.user.role, "Super user");
+
+    const correctConfig = await apiRequest(baseUrl, "/api/v1/auth/login-config", {
+      method: "POST",
+      body: { email: winner.email },
+      origin: baseUrl.slice(0, -1),
+    }).then((item) => item.json());
+    const unknownConfig = await apiRequest(baseUrl, "/api/v1/auth/login-config", {
+      method: "POST",
+      body: { email: "unknown@example.test" },
+      origin: baseUrl.slice(0, -1),
+    }).then((item) => item.json());
+    assert.equal(correctConfig.passwordSalt, winner.passwordSalt);
+    assert.equal(unknownConfig.passwordSalt.length, winner.passwordSalt.length);
+    assert.notEqual(unknownConfig.passwordSalt, winner.passwordSalt);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: "unknown@example.test", passwordProof: winner.passwordProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "Email or password is incorrect");
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: winner.email, passwordProof: winner.passwordProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    const secondCookie = cookieFrom(response);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/profile", {
+      method: "PATCH",
+      body: { displayName: "D1 Workspace Owner", title: "Analytics administrator" },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.equal(body.user.displayName, "D1 Workspace Owner");
+    assert.equal(body.user.title, "Analytics administrator");
+
+    const nextSalt = "ab".repeat(24);
+    const nextProof = "cd".repeat(32);
+    response = await apiRequest(baseUrl, "/api/v1/auth/password", {
+      method: "POST",
+      body: {
+        currentPasswordProof: winner.passwordProof,
+        newPasswordSalt: nextSalt,
+        newPasswordProof: nextProof,
+      },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    const rotatedCookie = cookieFrom(response);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: secondCookie });
+    assert.equal((await response.json()).user, null, "Password rotation must revoke other sessions");
+    response = await apiRequest(baseUrl, "/api/v1/auth/profile", {
+      method: "PATCH",
+      body: { displayName: "Invalid session", title: "" },
+      cookie: secondCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 401);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: winner.email, passwordProof: winner.passwordProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 401, "Old proof must fail after password rotation");
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: winner.email, passwordProof: nextProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "New proof must authenticate after password rotation");
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/logout", {
+      method: "POST",
+      body: {},
+      cookie: rotatedCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("set-cookie") || "", /Max-Age=0/);
+
+    await stopPages(instance);
+    instance = await startPages(persistPath);
+    response = await apiRequest(instance.baseUrl, "/api/v1/auth/status");
+    body = await response.json();
+    assert.equal(body.claimed, true, "D1 first-account state must survive a Pages runtime restart");
+    assert.equal(body.user, null);
+    response = await apiRequest(instance.baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: winner.email, passwordProof: nextProof },
+      origin: instance.baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Persisted D1 credentials must remain usable after restart");
+  } finally {
+    await stopPages(instance);
+  }
+}
+
+async function verifyBrowserLifecycle(persistPath) {
+  const instance = await startPages(persistPath);
+  try {
+    const child = spawn("node", ["scripts/verify-auth.mjs"], {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        BUDGET_AUTH_VERIFY_URL: instance.baseUrl,
+        BUDGET_AUTH_SKIP_PROTECTED_API: "1",
+      },
+    });
+    const exitCode = await new Promise((resolveExit, reject) => {
+      child.once("error", reject);
+      child.once("exit", resolveExit);
+    });
+    assert.equal(exitCode, 0, "Pages + D1 browser account lifecycle must pass");
+  } finally {
+    await stopPages(instance);
+  }
+}
+
+const apiPersistPath = resolve(mkdtempSync("test-results/pages-auth-api-"));
+const browserPersistPath = resolve(mkdtempSync("test-results/pages-auth-browser-"));
+try {
+  await verifyApiLifecycle(apiPersistPath);
+  await verifyBrowserLifecycle(browserPersistPath);
+  console.log("Verified Cloudflare Pages + D1 atomic first claim, persistent sessions, profile/password lifecycle, and authenticated browser UI");
+} finally {
+  rmSync(apiPersistPath, { recursive: true, force: true });
+  rmSync(browserPersistPath, { recursive: true, force: true });
+}

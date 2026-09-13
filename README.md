@@ -27,9 +27,17 @@ Defense Budget & Spend Analytics uses five ordered money stages plus two factual
 - No strategy rankings, pursuit recommendations, opportunity scores, decision briefs, or target workboards in the public runtime.
 - Cloudflare Pages as the primary public surface, with GitHub Pages retained as a fallback.
 
-## Stateful container foundation
+## Production state and portability
 
-The repository also includes a production-neutral container stack for the next platform phase:
+The primary Cloudflare deployment uses the same platform pattern as Opportunity Intelligence:
+
+- Cloudflare Pages serves the compiled Vite application;
+- Pages Functions implement the same-origin `/api/v1/auth/*` account surface;
+- the existing intelligence-platform D1 database stores namespace-isolated `dbi_*` account, session, and login-attempt records;
+- the next successful first-party account claim atomically becomes the sole Super user;
+- the account UI is omitted automatically on the static GitHub Pages fallback because that host has no account API.
+
+The repository also retains a production-neutral Docker and PostgreSQL stack as a portability and release-contract target:
 
 - one Node container serves the compiled Vite application and a versioned `/api/v1` surface;
 - PostgreSQL stores immutable intelligence snapshots and mutable analyst state;
@@ -48,7 +56,7 @@ npm run container:verify
 npm run container:down
 ```
 
-The Compose database is private to the application network and uses local trust authentication. Production must use a managed PostgreSQL connection supplied through the host's protected secret store. Do not commit a production connection string or write token.
+The Compose database is private to the application network and uses local trust authentication. It is not the Cloudflare production runtime. Do not commit a production connection string or write token.
 
 Container health contracts:
 
@@ -63,7 +71,9 @@ Container health contracts:
 - `GET /api/v1/account-spine/award-flows` returns exact award-account coverage and linked obligations.
 - `GET /api/v1/account-spine/accounts/:code/awards` returns source-linked sampled awards funded by one federal account.
 
-The GitHub Pages workflow treats this stack as a release gate: it builds the images, starts a fresh database, applies migrations, imports snapshots, verifies the API, and only then publishes the static fallback. The public Pages site remains the production surface until a container host and managed Postgres are selected and provisioned.
+The release workflow treats both stateful implementations as gates. It proves the full first-account lifecycle against a fresh local D1 database, then builds the Docker images, starts a fresh PostgreSQL database, applies migrations, imports snapshots, and verifies the portable API before publishing the static fallback.
+
+Cloudflare deployment and first-claim operations are documented in [Cloudflare Pages and D1](docs/CLOUDFLARE_PAGES.md).
 
 ## Data Sources
 

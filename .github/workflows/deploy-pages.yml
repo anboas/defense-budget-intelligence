@@ -44,6 +44,8 @@ jobs:
         run: npm ci
       - name: Install browser contract runtime
         run: npx playwright-core install --with-deps chromium
+      - name: Verify Cloudflare Pages and D1 account lifecycle
+        run: npm run verify:pages-auth
       - name: Verify and build
         run: npm run verify
       - name: Publish gh-pages branch
