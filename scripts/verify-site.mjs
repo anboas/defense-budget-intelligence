@@ -30,10 +30,14 @@ function resourceCount(page, filename) {
 }
 
 async function openSurface(page, route, selector) {
-  let link = page.locator(`[data-budget-nav="${route}"]`);
+  let link = page.locator(`[data-budget-nav="${route}"]:visible`).first();
   if (!await link.count()) {
-    await page.locator("[data-budget-nav-menu-trigger]").click();
-    link = page.locator(`[data-budget-nav="${route}"]`);
+    if (await page.locator("[data-budget-nav-menu-trigger]").isVisible()) {
+      await page.locator("[data-budget-nav-menu-trigger]").click();
+    } else {
+      await page.locator("[data-mobile-more-menu-button]").click();
+    }
+    link = page.locator(`[data-budget-nav="${route}"]:visible`).first();
   }
   await link.click();
   await page.waitForSelector(selector);
@@ -48,10 +52,17 @@ async function assertFlowShell(page) {
   assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 5, "Header should preserve the five left-to-right money stages as native links");
   assert.equal(await page.locator("[data-budget-nav-more]").count(), 1, "Header should expose one Control Framework workspace menu");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
-  await page.locator("[data-budget-nav-menu-trigger]").click();
-  assert.equal(await page.locator("[data-budget-nav-menu] a[data-budget-nav]").count(), 3, "Workspace menu should contain only Analytics, Operations, and Sources");
-  assert.match(await page.locator("[data-budget-nav-menu]").innerText(), /Analytics[\s\S]*19 views[\s\S]*Operations[\s\S]*5 tools[\s\S]*Sources[\s\S]*6 stages/i, "Workspace menu should use rich descriptive cards and factual badges");
-  await page.locator("[data-budget-nav-menu-trigger]").click();
+  if (await page.locator("[data-budget-nav-menu-trigger]").isVisible()) {
+    await page.locator("[data-budget-nav-menu-trigger]").click();
+    assert.equal(await page.locator("[data-budget-nav-menu] a[data-budget-nav]").count(), 3, "Workspace menu should contain only Analytics, Operations, and Sources");
+    assert.match(await page.locator("[data-budget-nav-menu]").innerText(), /Analytics[\s\S]*19 views[\s\S]*Operations[\s\S]*5 tools[\s\S]*Sources[\s\S]*6 stages/i, "Workspace menu should use rich descriptive cards and factual badges");
+    await page.locator("[data-budget-nav-menu-trigger]").click();
+  } else {
+    await page.locator("[data-mobile-more-menu-button]").click();
+    assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 8, "Mobile More should contain all five money-flow and three workspace routes");
+    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*19 views[\s\S]*Operations[\s\S]*5 tools[\s\S]*Sources[\s\S]*6 stages/i, "Mobile More should retain the rich workspace cards and factual badges");
+    await page.locator("[data-mobile-more-menu-button]").click();
+  }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
   assert.equal(await page.locator("[data-money-flow-rail]").count(), 0, "Pages should not repeat the primary header navigation as a numbered phase rail");
   assert.doesNotMatch(await page.locator("[data-defense-budget-app]").innerText(), FORBIDDEN_SURFACE_TEXT, "Rendered analytics shell should not expose judgment surfaces");
@@ -98,9 +109,85 @@ try {
   assert.equal(await productMark.count(), 1, "Header should render the supplied Defense Budget Intelligence product mark");
   const productMarkGeometry = await productMark.evaluate((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, naturalWidth: node.naturalWidth, naturalHeight: node.naturalHeight }));
   assert.deepEqual([productMarkGeometry.naturalWidth, productMarkGeometry.naturalHeight], [192, 192], "Header should use the supplied 192px icon asset");
-  assert.ok(productMarkGeometry.width >= 31 && productMarkGeometry.width <= 35 && productMarkGeometry.height >= 31 && productMarkGeometry.height <= 35, `Header product mark should remain compact, got ${productMarkGeometry.width}×${productMarkGeometry.height}`);
+  assert.deepEqual([productMarkGeometry.width, productMarkGeometry.height], [30, 30], `Header product image should fill the 30px content box inside the established 32px bordered mark, got ${productMarkGeometry.width}×${productMarkGeometry.height}`);
   assert.match(await page.locator('link[rel="manifest"]').getAttribute("href"), /site\.webmanifest$/, "Document should advertise install metadata");
   assert.match(await page.locator('link[rel="icon"]').getAttribute("href"), /icon-192\.png$/, "Document favicon should use the supplied product mark");
+
+  const frameworkHeaderContract = await page.evaluate(() => {
+    const header = document.querySelector("[data-budget-spend-header]");
+    const link = document.querySelector(".ci-header-nav > .if-operations-topnav__link");
+    const active = document.querySelector(".ci-header-nav > .if-operations-topnav__link[aria-current='page']");
+    const style = (node) => {
+      const computed = getComputedStyle(node);
+      const bounds = node.getBoundingClientRect();
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        display: computed.display,
+        background: computed.backgroundColor,
+        border: computed.border,
+        boxShadow: computed.boxShadow,
+        fontFamily: computed.fontFamily,
+        fontSize: computed.fontSize,
+        fontWeight: computed.fontWeight,
+        padding: computed.padding,
+      };
+    };
+    return {
+      header: style(header),
+      inner: style(header.querySelector(".if-product-header__inner")),
+      mark: style(header.querySelector(".if-brand__mark")),
+      title: style(header.querySelector(".if-product-header__title")),
+      link: style(link),
+      active: style(active),
+      linkIconCount: link.querySelectorAll("svg").length,
+    };
+  });
+  assert.equal(frameworkHeaderContract.header.display, "flex", "Masthead should use the established Control Framework header component layout");
+  assert.equal(frameworkHeaderContract.header.background, "rgb(22, 46, 81)", "Masthead should use the established intelligence-site header color");
+  assert.ok(frameworkHeaderContract.header.height >= 49 && frameworkHeaderContract.header.height <= 52, `Desktop masthead should match the established compact height, got ${frameworkHeaderContract.header.height}px`);
+  assert.equal(frameworkHeaderContract.inner.padding, "0px 16px", "Desktop masthead inner should match the established component inset");
+  assert.deepEqual([frameworkHeaderContract.mark.width, frameworkHeaderContract.mark.height], [32, 32], "Desktop product mark should match the established 32px framework component");
+  assert.equal(frameworkHeaderContract.title.fontSize, "18.496px", "Desktop masthead title should match the established framework type scale");
+  assert.equal(frameworkHeaderContract.title.fontWeight, "900", "Desktop masthead title should match the established framework emphasis");
+  assert.equal(frameworkHeaderContract.linkIconCount, 0, "Primary navigation should use the established text-tab component without decorative icons");
+  assert.equal(frameworkHeaderContract.link.height, 30, "Primary navigation tabs should match the 30px Control Framework component");
+  assert.equal(frameworkHeaderContract.link.fontFamily, '"Public Sans", system-ui, sans-serif', "Primary navigation should use the framework typography");
+  assert.equal(frameworkHeaderContract.link.fontSize, "12px", "Primary navigation should match the framework type scale");
+  assert.equal(frameworkHeaderContract.link.fontWeight, "750", "Primary navigation should match the framework emphasis");
+  assert.match(frameworkHeaderContract.active.boxShadow, /rgb\(139, 211, 255\)/, "Active navigation should use the established inset blue indicator");
+
+  await page.locator("[data-budget-nav-menu-trigger]").click();
+  const frameworkMenuContract = await page.evaluate(() => {
+    const menu = document.querySelector("[data-budget-nav-menu]");
+    const item = menu.querySelector(".if-operations-topnav__menu-item");
+    const badge = item.querySelector(".ci-topnav-menu-badge");
+    const description = item.querySelector(".ci-topnav-menu-description");
+    const style = (node) => {
+      const computed = getComputedStyle(node);
+      const bounds = node.getBoundingClientRect();
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        background: computed.backgroundColor,
+        border: computed.border,
+        fontSize: computed.fontSize,
+        fontWeight: computed.fontWeight,
+        padding: computed.padding,
+      };
+    };
+    return { menu: style(menu), item: style(item), badge: style(badge), description: style(description) };
+  });
+  assert.equal(frameworkMenuContract.menu.width, 280, "Workspace menu should match the established 280px Control Framework popover");
+  assert.equal(frameworkMenuContract.item.width, 262, "Workspace menu cards should match the established inner width");
+  assert.equal(frameworkMenuContract.item.height, 48, "Workspace menu cards should match the established compact height");
+  assert.equal(frameworkMenuContract.item.background, "rgb(255, 255, 255)", "Workspace menu cards should use the established white surface");
+  assert.equal(frameworkMenuContract.item.border, "1px solid rgb(227, 232, 239)", "Workspace menu cards should use the established divider border");
+  assert.equal(frameworkMenuContract.item.padding, "0px 9px", "Workspace menu cards should match the established horizontal inset");
+  assert.equal(frameworkMenuContract.badge.height, 20, "Workspace count badges should match the established badge component");
+  assert.equal(frameworkMenuContract.badge.fontSize, "10.5px", "Workspace count badges should match the established type scale");
+  assert.ok(frameworkMenuContract.description.height >= 27 && frameworkMenuContract.description.height <= 28, "Workspace card descriptions should use the established two-line treatment");
+  await page.locator("[data-budget-nav-menu-trigger]").click();
 
   const workspaceTrigger = page.locator("[data-budget-nav-menu-trigger]");
   await workspaceTrigger.focus();
@@ -645,7 +732,13 @@ try {
   await mobile.waitForSelector("[data-pdb-request-page]");
   await assertFlowShell(mobile);
   const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav], .ci-header-nav > .if-operations-topnav__secondary > button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.ok(mobileNavHeights.every((height) => height >= 43.5), `Mobile surface controls should be 44px: ${mobileNavHeights.join(", ")}`);
+  assert.ok(mobileNavHeights.filter(Boolean).every((height) => height === 31), `Mobile surface controls should match the established 31px compact tabs: ${mobileNavHeights.join(", ")}`);
+  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 92, "Mobile masthead should match the established two-row 91px component");
+  assert.equal(await mobile.locator('[data-primary-nav="trends"]:visible, [data-primary-nav="lifecycle"]:visible').count(), 0, "Mobile header should move secondary money-flow stages into More");
+  await mobile.locator("[data-mobile-more-menu-button]").click();
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 8, "Mobile More should expose all money-flow and workspace routes in grouped Control Framework cards");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
+  await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile request");
 
