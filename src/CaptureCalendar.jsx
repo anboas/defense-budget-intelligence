@@ -978,7 +978,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       </section>
 
       <Suspense fallback={<section className="capture-targeting-loading" role="status">Loading targeting visualizations…</section>}>
-        <CaptureTargeting records={filtered} asOf={asOf} onSelect={setSelectedId} onFilter={applyChartFilter} />
+        <CaptureTargeting records={filtered} asOf={asOf} selectedId={selectedId} onSelect={setSelectedId} onFilter={applyChartFilter} />
       </Suspense>
 
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}

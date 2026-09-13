@@ -2,6 +2,7 @@ import {
   hierarchy,
   linkHorizontal,
   max,
+  pack,
   scaleLinear,
   scaleOrdinal,
   scaleSqrt,
@@ -31,6 +32,10 @@ function valueOf(record) {
 
 function obligationsOf(record) {
   return Number(record.liveAward?.awardAmountDollars || record.obligatedAmount || 0);
+}
+
+function officeOf(record) {
+  return record.fundingOffice || record.contractingOffice || record.owner || "Buyer not published";
 }
 
 function daysBetween(start, end) {
@@ -117,6 +122,25 @@ export function buildTargetSignals(records, asOf) {
       nextAction: nextActionFor(record, decision, decisionDays, blocked),
     };
   }).sort((left, right) => right.attentionScore - left.attentionScore || (left.decisionDays ?? Infinity) - (right.decisionDays ?? Infinity) || right.targetValue - left.targetValue);
+}
+
+function buildAdjacencies(active, signals) {
+  if (!active) return [];
+  const candidates = [];
+  const seen = new Set([active.opportunityId]);
+  const add = (signal, relationship, basis, strength) => {
+    if (!signal || seen.has(signal.opportunityId)) return;
+    seen.add(signal.opportunityId);
+    candidates.push({ signal, relationship, basis, strength });
+  };
+  if (active.parentReference) signals.filter((signal) => signal.parentReference === active.parentReference).forEach((signal) => add(signal, "Same parent award", "exact published identifier", 4));
+  if (active.vehicle) signals.filter((signal) => signal.vehicle === active.vehicle).forEach((signal) => add(signal, "Same vehicle", "published vehicle label", 3));
+  const activeOffice = officeOf(active);
+  if (activeOffice !== "Buyer not published") signals.filter((signal) => officeOf(signal) === activeOffice).forEach((signal) => add(signal, "Same buyer", "published office context", 2));
+  signals.filter((signal) => signal.portfolio === active.portfolio).forEach((signal) => add(signal, "Same portfolio", "editorial portfolio context", 1));
+  return candidates
+    .sort((left, right) => right.strength - left.strength || right.signal.attentionScore - left.signal.attentionScore)
+    .slice(0, 12);
 }
 
 function TargetMap({ signals, onSelect }) {
@@ -228,14 +252,163 @@ function RouteMap({ signals, onSelect }) {
   );
 }
 
+function BuyerPortfolioMatrix({ signals, onFilter }) {
+  const officeTotals = new Map();
+  const portfolioTotals = new Map();
+  const cells = new Map();
+  for (const signal of signals) {
+    const office = officeOf(signal);
+    if (office === "Buyer not published") continue;
+    officeTotals.set(office, (officeTotals.get(office) || 0) + signal.attentionScore);
+    portfolioTotals.set(signal.portfolio, (portfolioTotals.get(signal.portfolio) || 0) + signal.attentionScore);
+    const key = `${office}|${signal.portfolio}`;
+    const cell = cells.get(key) || { count: 0, score: 0, value: 0 };
+    cell.count += 1;
+    cell.score += signal.attentionScore;
+    cell.value += signal.targetValue;
+    cells.set(key, cell);
+  }
+  const offices = [...officeTotals].sort((left, right) => right[1] - left[1]).slice(0, 7).map(([name]) => name);
+  const portfolios = [...portfolioTotals].sort((left, right) => right[1] - left[1]).slice(0, 6).map(([name]) => name);
+  const width = 960;
+  const left = 230;
+  const top = 82;
+  const cellWidth = (width - left - 18) / Math.max(portfolios.length, 1);
+  const cellHeight = 48;
+  const height = top + offices.length * cellHeight + 30;
+  const maximum = max([...cells.values()], (cell) => cell.score) || 1;
+  return (
+    <div className="target-d3-scroll" data-capture-chart="buyer-portfolio-matrix" data-targeting-chart="buyer-portfolio-matrix">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby="buyer-matrix-title buyer-matrix-desc">
+        <title id="buyer-matrix-title">Buyer and portfolio targeting coverage</title>
+        <desc id="buyer-matrix-desc">Top published buying offices by portfolio. Color intensity represents combined attention score. Empty cells mean no matching public rows in this dataset, not proven market whitespace. Selecting a populated cell filters the full workspace.</desc>
+        {portfolios.map((portfolio, index) => <text key={portfolio} className="target-matrix__column" transform={`translate(${left + index * cellWidth + cellWidth / 2} ${top - 10}) rotate(-34)`} textAnchor="start">{short(portfolio, 24)}</text>)}
+        {offices.map((office, rowIndex) => <g key={office}>
+          <text className="target-matrix__row" x={left - 10} y={top + rowIndex * cellHeight + cellHeight / 2 + 4} textAnchor="end">{short(office, 34)}</text>
+          {portfolios.map((portfolio, columnIndex) => {
+            const cell = cells.get(`${office}|${portfolio}`);
+            const x = left + columnIndex * cellWidth;
+            const y = top + rowIndex * cellHeight;
+            if (!cell) return <rect key={portfolio} x={x + 2} y={y + 2} width={cellWidth - 4} height={cellHeight - 4} className="target-matrix__empty" />;
+            const opacity = 0.2 + (cell.score / maximum) * 0.8;
+            return <g key={portfolio} className="target-matrix__cell" role="button" tabIndex="0" aria-label={`${office}, ${portfolio}, ${cell.count} records, combined attention ${cell.score}`} onClick={() => onFilter({ capOffice: office, capPortfolio: portfolio })} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFilter({ capOffice: office, capPortfolio: portfolio }); } }}>
+              <rect x={x + 2} y={y + 2} width={cellWidth - 4} height={cellHeight - 4} style={{ opacity }} />
+              <text x={x + cellWidth / 2} y={y + 22} textAnchor="middle">{cell.count}</text>
+              <text x={x + cellWidth / 2} y={y + 35} textAnchor="middle" className="target-matrix__score">{cell.score} attention</text>
+              <title>{`${office}\n${portfolio}\n${cell.count} records · ${cell.score} combined attention\n${money(cell.value)} reported value`}</title>
+            </g>;
+          })}
+        </g>)}
+      </svg>
+    </div>
+  );
+}
+
+function IncumbentPack({ signals, onFilter }) {
+  const grouped = new Map();
+  for (const signal of signals.filter((row) => row.party && row.targetValue > 0)) {
+    const current = grouped.get(signal.party) || { name: signal.party, value: 0, obligations: 0, records: 0, score: 0 };
+    current.value += signal.targetValue;
+    current.obligations += signal.observedObligations;
+    current.records += 1;
+    current.score += signal.attentionScore;
+    grouped.set(signal.party, current);
+  }
+  const root = hierarchy({ children: [...grouped.values()] }).sum((node) => node.value || 0).sort((left, right) => right.value - left.value);
+  pack().size([960, 400]).padding(5)(root);
+  const scoreColor = scaleLinear().domain([25, 85]).range(["#8aa5b6", "#b8322a"]).clamp(true);
+  return (
+    <div className="target-d3-scroll" data-capture-chart="incumbent-pack" data-targeting-chart="incumbent-pack">
+      <svg viewBox="0 0 960 400" role="img" aria-labelledby="incumbent-pack-title incumbent-pack-desc">
+        <title id="incumbent-pack-title">Incumbent concentration map</title>
+        <desc id="incumbent-pack-desc">Circle area represents reported potential or high value by named company. Color represents average attention score. Large circles are selectable and filter the workspace.</desc>
+        {root.leaves().map((leaf) => {
+          const row = leaf.data;
+          const average = row.score / row.records;
+          const interactive = leaf.r >= 22;
+          return <g key={row.name} transform={`translate(${leaf.x},${leaf.y})`} className={`target-pack-node${interactive ? " is-interactive" : ""}`} role={interactive ? "button" : undefined} tabIndex={interactive ? "0" : undefined} aria-label={interactive ? `${row.name}, ${row.records} records, ${money(row.value)} reported value` : undefined} onClick={interactive ? () => onFilter({ capParty: row.name }) : undefined} onKeyDown={interactive ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFilter({ capParty: row.name }); } } : undefined}>
+            <circle r={leaf.r} fill={scoreColor(average)} />
+            {leaf.r >= 34 ? <><text y="-3" textAnchor="middle">{short(row.name, Math.max(10, Math.floor(leaf.r / 3.8)))}</text><text y="12" textAnchor="middle" className="target-pack-node__value">{money(row.value)} · {row.records}</text></> : null}
+            <title>{`${row.name}\n${row.records} records · ${money(row.value)} reported value\n${money(row.obligations)} observed obligations\nAverage attention ${Math.round(average)}`}</title>
+          </g>;
+        })}
+      </svg>
+      <div className="target-chart-legend"><small>Area = reported value · color shifts toward red as average attention rises</small></div>
+    </div>
+  );
+}
+
+function AdjacencyMap({ active, signals, onSelect }) {
+  const adjacencies = buildAdjacencies(active, signals);
+  const width = 960;
+  const height = 420;
+  const center = { x: 480, y: 210 };
+  const colors = new Map([["Same parent award", "#0b6b53"], ["Same vehicle", "#0067a3"], ["Same buyer", "#7a4ca5"], ["Same portfolio", "#60798b"]]);
+  return (
+    <div className="target-d3-scroll" data-capture-chart="adjacency-map" data-targeting-chart="adjacency-map">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby="adjacency-title adjacency-desc">
+        <title id="adjacency-title">Published and contextual adjacencies for {active?.title || "the selected target"}</title>
+        <desc id="adjacency-desc">The selected target is connected to records sharing an exact parent award, published vehicle, published buyer, or editorial portfolio. Each relationship is labeled by basis.</desc>
+        {adjacencies.map((adjacency, index) => {
+          const angle = (Math.PI * 2 * index) / Math.max(adjacencies.length, 1) - Math.PI / 2;
+          const radius = index % 2 ? 164 : 142;
+          const x = center.x + Math.cos(angle) * radius;
+          const y = center.y + Math.sin(angle) * radius;
+          return <g key={adjacency.signal.opportunityId}>
+            <line x1={center.x} y1={center.y} x2={x} y2={y} stroke={colors.get(adjacency.relationship)} className="target-adjacency__link" />
+            <text x={(center.x + x) / 2} y={(center.y + y) / 2 - 5} textAnchor="middle" className="target-adjacency__edge-label">{adjacency.relationship.replace("Same ", "")}</text>
+            <g transform={`translate(${x},${y})`} className="target-adjacency__node" role="button" tabIndex="0" aria-label={`${adjacency.signal.id}, ${adjacency.signal.title}, ${adjacency.relationship}, ${adjacency.basis}`} onClick={() => onSelect(adjacency.signal.opportunityId)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(adjacency.signal.opportunityId); } }}>
+              <circle r="24" fill={colors.get(adjacency.relationship)} />
+              <text textAnchor="middle" dy="3">{adjacency.signal.id}</text>
+              <title>{`${adjacency.signal.id} · ${adjacency.signal.title}\n${adjacency.relationship} · ${adjacency.basis}\nAttention ${adjacency.signal.attentionScore}`}</title>
+            </g>
+          </g>;
+        })}
+        {active ? <g transform={`translate(${center.x},${center.y})`} className="target-adjacency__active"><circle r="43" /><text textAnchor="middle" y="-2">{active.id}</text><text textAnchor="middle" y="14">Score {active.attentionScore}</text></g> : null}
+        {!adjacencies.length ? <text x={center.x} y={center.y + 80} textAnchor="middle" className="target-axis-title">No published or contextual adjacencies in the filtered set.</text> : null}
+      </svg>
+      <div className="target-chart-legend">{[...colors].map(([name, color]) => <span key={name}><i style={{ background: color }} />{name}</span>)}</div>
+    </div>
+  );
+}
+
+function TargetBrief({ signal, adjacencies, onSelect }) {
+  if (!signal) return null;
+  const route = signal.parentReference ? `Parent ${signal.parentReference}` : signal.vehicle || "No published vehicle or parent";
+  const utilization = signal.targetValue > 0 ? Math.min((signal.observedObligations / signal.targetValue) * 100, 100) : null;
+  const evidenceAction = signal.evidenceTier === "evidence-gap" ? "Resolve the source gap before assigning pursuit resources." : "Recheck the current notice and confirm the responsible buyer.";
+  const accessAction = signal.vehicle || signal.parentReference ? `Validate eligibility and partner access through ${route}.` : "Identify the contract vehicle, parent instrument, or partner route from an official source.";
+  const fundingAction = signal.transactionSummary?.fundingActions ? `Review ${signal.transactionSummary.fundingActions} funding actions through ${signal.transactionSummary.lastSigned || "the latest published modification"} and isolate adjacent funded scope.` : "Establish a recurring funding and modification watch.";
+  return (
+    <section className="target-brief" data-capture-target-brief>
+      <header><div><span>Target execution brief</span><h3>{signal.id} · {signal.title}</h3><p>{signal.context || signal.sourceDescription || "Published scope description unavailable."}</p></div><div className={`target-brief__score target-brief__score--${signal.lane.toLowerCase().replace(" ", "-")}`}><b>{signal.attentionScore}</b><span>{signal.lane}</span></div></header>
+      <div className="target-brief__facts">
+        <article><span>Why now</span><strong>{signal.decision ? `${signal.decision.label} · ${signal.decision.date}` : "No future event published"}</strong><p>{signal.decision ? `${signal.decisionDays} days · ${signal.decision.basis}` : "Create a dated monitoring checkpoint."}</p></article>
+        <article><span>Buyer and route</span><strong>{officeOf(signal)}</strong><p>{route}</p></article>
+        <article><span>Incumbent posture</span><strong>{signal.party || "Not published"}</strong><p>{money(signal.observedObligations)} observed obligations · {money(signal.targetValue)} reported value{utilization != null ? ` · ${Math.round(utilization)}% obligated/value ratio` : ""}</p></article>
+        <article><span>Evidence gate</span><strong>{signal.evidenceTier.replaceAll("-", " ")}</strong><p>{signal.sourceRoleCount || 0} source roles · {signal.validationStatus || "validation not published"}</p></article>
+      </div>
+      <div className="target-brief__plan">
+        <article><b>1</b><div><strong>Verify the demand signal</strong><p>{evidenceAction}</p></div></article>
+        <article><b>2</b><div><strong>Qualify the access route</strong><p>{accessAction}</p></div></article>
+        <article><b>3</b><div><strong>Build the funded wedge</strong><p>{fundingAction}</p></div></article>
+      </div>
+      <div className="target-brief__adjacencies"><span>Adjacent records to inspect</span>{adjacencies.length ? adjacencies.slice(0, 6).map((adjacency) => <button type="button" key={adjacency.signal.opportunityId} onClick={() => onSelect(adjacency.signal.opportunityId)}><b>{adjacency.signal.id}</b><span>{short(adjacency.signal.title, 42)}</span><small>{adjacency.relationship} · {adjacency.basis}</small></button>) : <p>No adjacent published identifiers or contextual portfolio records in the current filtered set.</p>}</div>
+      <small className="target-brief__boundary">This brief organizes public evidence. It does not establish customer intent, available workshare, partner access, a recompete, or probability of win.</small>
+    </section>
+  );
+}
+
 function FactorBar({ factors }) {
   const rows = [["Timing", factors.timing, 30], ["Value", factors.value, 20], ["Evidence", factors.evidence, 20], ["Route", factors.route, 15], ["Momentum", factors.momentum, 15]];
   return <div className="target-factor-bar" aria-label={rows.map(([name, value, maximum]) => `${name} ${value} of ${maximum}`).join(", ")}>{rows.map(([name, value, maximum]) => <i key={name} title={`${name}: ${value}/${maximum}`} style={{ width: `${(value / maximum) * 20}%` }} data-factor={name.toLowerCase()} />)}</div>;
 }
 
-export default function CaptureTargeting({ records, asOf, onSelect, onFilter }) {
+export default function CaptureTargeting({ records, asOf, selectedId, onSelect, onFilter }) {
   const signals = buildTargetSignals(records, asOf);
   const ranked = signals.slice(0, 12);
+  const active = signals.find((signal) => signal.opportunityId === selectedId) || ranked[0] || null;
+  const adjacencies = buildAdjacencies(active, signals);
   const lanes = ["Act now", "Pursue", "Develop", "Verify", "Monitor"].map((lane) => ({ lane, count: signals.filter((signal) => signal.lane === lane).length }));
   const nearTerm = signals.filter((signal) => signal.decisionDays != null && signal.decisionDays <= 180);
   const blocked = signals.filter((signal) => signal.blocked);
@@ -261,10 +434,15 @@ export default function CaptureTargeting({ records, asOf, onSelect, onFilter }) 
         <article><span>Strongest portfolio signal</span><strong>{strongestPortfolio?.portfolio || "None"}</strong><p>Highest combined attention score in the current filtered universe, not a recommendation to pursue every record.</p></article>
       </div>
 
+      <TargetBrief signal={active} adjacencies={adjacencies} onSelect={selectRecord} />
+
       <div className="capture-targeting__visuals">
         <section><header><div><strong>Target map</strong><small>Score versus next published decision</small></div></header><TargetMap signals={signals} onSelect={selectRecord} /></section>
         <section><header><div><strong>Portfolio allocation</strong><small>Area = reported potential or high value</small></div></header><AllocationTreemap signals={signals} onFilter={onFilter} /></section>
         <section className="capture-targeting__route"><header><div><strong>Buyer and access routes</strong><small>Top targets through published office and vehicle/parent relationships</small></div></header><RouteMap signals={signals} onSelect={selectRecord} /></section>
+        <section><header><div><strong>Buyer × portfolio coverage</strong><small>Combined attention by published office and editorial portfolio; empty is not proven whitespace</small></div></header><BuyerPortfolioMatrix signals={signals} onFilter={onFilter} /></section>
+        <section><header><div><strong>Incumbent concentration</strong><small>Reported value concentration and average attention</small></div></header><IncumbentPack signals={signals} onFilter={onFilter} /></section>
+        <section className="capture-targeting__route"><header><div><strong>Target adjacencies</strong><small>Exact parent, published vehicle/buyer, and contextual portfolio links</small></div></header><AdjacencyMap active={active} signals={signals} onSelect={selectRecord} /></section>
       </div>
 
       <section className="capture-target-list" data-capture-target-list>
