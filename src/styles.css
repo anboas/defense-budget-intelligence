@@ -12001,17 +12001,13 @@ td .dot {
   }
 
   .operations-hero p {
-    display: -webkit-box;
-    overflow: hidden;
-    line-height: 1.4;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    display: none;
   }
 
   .operations-hero dl div {
     flex-basis: 96px;
-    min-height: 56px;
-    padding: 7px 9px;
+    min-height: 50px;
+    padding: 5px 9px;
   }
 
   .operations-hero dd {
@@ -12042,12 +12038,7 @@ td .dot {
   }
 
   .analytics-sources .request-hero p {
-    display: -webkit-box;
-    overflow: hidden;
-    font-size: 12px;
-    line-height: 1.45;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    display: none;
   }
 
   .analytics-sources .request-hero__facts {

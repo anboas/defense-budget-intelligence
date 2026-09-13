@@ -840,7 +840,8 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/operations", "[data-operations-hub]");
-  assert.ok(await mobile.locator(".operations-hero").evaluate((node) => node.getBoundingClientRect().height) <= 170, "Mobile Operations hero should keep the working surface above the fold");
+  const mobileOperationsHeroHeight = await mobile.locator(".operations-hero").evaluate((node) => node.getBoundingClientRect().height);
+  assert.ok(mobileOperationsHeroHeight <= 150, `Mobile Operations hero should keep the working surface above the fold, got ${mobileOperationsHeroHeight}px`);
   const mobileOperationsHeights = await mobile.locator(".operations-tabs button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileOperationsHeights.every((height) => height >= 43.5), `Mobile Operations tabs should meet the 44px contract: ${mobileOperationsHeights.join(", ")}`);
   await mobile.getByRole("button", { name: "Wallboard" }).click();
@@ -848,7 +849,8 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/operations-wallboard-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/sources", "[data-analytics-sources-page]");
-  assert.ok(await mobile.locator(".analytics-sources .request-hero").evaluate((node) => node.getBoundingClientRect().height) <= 215, "Mobile Sources should surface lineage without a tall introductory wall");
+  const mobileSourcesHeroHeight = await mobile.locator(".analytics-sources .request-hero").evaluate((node) => node.getBoundingClientRect().height);
+  assert.ok(mobileSourcesHeroHeight <= 185, `Mobile Sources should surface lineage without a tall introductory wall, got ${mobileSourcesHeroHeight}px`);
   assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 6);
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
