@@ -50,6 +50,12 @@ async function clickBudgetSurface(page, name) {
 
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  let captureTransactionRequests = 0;
+  await page.route("**/data/capture-transactions.json", async (route) => {
+    captureTransactionRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await route.continue();
+  });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
   const text = await page.locator("[data-defense-budget-app]").innerText();
@@ -463,6 +469,7 @@ try {
   assert.match((await actionDownloadPromise).suggestedFilename(), /N6600123F3509-fpds-actions\.csv$/, "Capture detail should export the exact selected-award action history");
   assert.match(new URL(page.url()).hash, /capRecord=opp_4d78f85a742aeb6f4b59/, "Capture selection should use the stable opportunity ID in the URL");
   assert.equal(await page.evaluate(() => performance.getEntriesByType("resource").filter((entry) => entry.name.endsWith("/data/capture-transactions.json")).length), 1, "Selecting a contract should load the FPDS action payload once");
+  assert.equal(captureTransactionRequests, 1, "Slow in-flight FPDS payload should be reused across selected-record changes");
   const captureDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /Export 1 rows/ }).click();
   assert.match((await captureDownloadPromise).suggestedFilename(), /capture-calendar-filtered\.csv$/, "Capture export should download the filtered rows");

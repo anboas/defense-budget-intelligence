@@ -639,6 +639,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const [actionDataset, setActionDataset] = useState(null);
   const [actionState, setActionState] = useState("idle");
   const [actionLoadAttempt, setActionLoadAttempt] = useState(0);
+  const actionRequestRef = useRef(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [comparisonIds, setComparisonIds] = useState(() => {
     const validIds = new Set((dataset.records || []).map((record) => record.opportunityId));
@@ -796,22 +797,21 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   }, [selected, selectedId]);
 
   useEffect(() => {
-    if (!selected?.transactionSummary?.actions || actionDataset) return;
-    let cancelled = false;
-    fetch(`${import.meta.env.BASE_URL}data/capture-transactions.json`)
+    if (!selected?.transactionSummary?.actions || actionDataset || actionRequestRef.current) return;
+    setActionState("loading");
+    const request = fetch(`${import.meta.env.BASE_URL}data/capture-transactions.json`)
       .then((response) => {
         if (!response.ok) throw new Error(`Transaction payload returned ${response.status}`);
         return response.json();
       })
       .then((payload) => {
         if (payload.metadata?.actionCount !== dataset.metadata.coverage.fpdsActions) throw new Error("Transaction payload coverage mismatch");
-        if (!cancelled) {
-          setActionDataset(payload);
-          setActionState("ready");
-        }
+        setActionDataset(payload);
+        setActionState("ready");
       })
-      .catch(() => { if (!cancelled) setActionState("error"); });
-    return () => { cancelled = true; };
+      .catch(() => setActionState("error"))
+      .finally(() => { actionRequestRef.current = null; });
+    actionRequestRef.current = request;
   }, [actionDataset, actionLoadAttempt, dataset.metadata.coverage.fpdsActions, selected]);
   const totals = filtered.reduce((summary, record) => ({
     obligated: summary.obligated + Number(record.liveAward?.awardAmountDollars || record.obligatedAmount || 0),
