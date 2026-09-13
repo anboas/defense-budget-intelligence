@@ -48,6 +48,43 @@ try {
   await page.getByRole("button", { name: "Close account dialog" }).click();
 
   await page.getByRole("button", { name: new RegExp(finalName) }).click();
+  await page.getByRole("menuitem", { name: "Agent access" }).click();
+  await page.getByLabel("Name").fill("Browser verifier");
+  await page.getByRole("button", { name: "Create credential" }).click();
+  await page.locator(".agent-token-once code").waitFor();
+  assert.match(await page.locator(".agent-token-once code").textContent(), /^dbi_agent_/, "Agent credential must be shown exactly once after creation");
+  await page.getByRole("button", { name: "Revoke Browser verifier" }).click();
+  await page.getByText("Revoked", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Close agent access" }).click();
+
+  const workspaceSeed = await page.evaluate(async () => {
+    const recordsResponse = await fetch("/api/v1/agent/records?limit=1");
+    const records = await recordsResponse.json();
+    const recordId = records.data[0].opportunityId;
+    const trackingResponse = await fetch(`/api/v1/agent/tracking/${encodeURIComponent(recordId)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ note: "Shared browser and agent state", reviewAt: "2026-11-15", wallboard: true }),
+    });
+    const eventResponse = await fetch("/api/v1/agent/events", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+      body: JSON.stringify({ title: "Shared D1 verification event", startsAt: "2026-11-15T14:00", recordIds: [recordId], wallboard: true }),
+    });
+    return { recordId, eventId: (await eventResponse.json()).data.id, trackingStatus: trackingResponse.status };
+  });
+  assert.equal(workspaceSeed.trackingStatus, 201);
+  await page.goto(`${BASE_URL}#/budget-spend/operations`, { waitUntil: "domcontentloaded" });
+  await page.locator(`[data-ops-watch-row="${workspaceSeed.recordId}"]`).waitFor();
+  await page.getByText("authenticated D1 workspace").waitFor();
+  await page.getByRole("button", { name: "Events", exact: true }).click();
+  await page.getByText("Shared D1 verification event").waitFor();
+  await page.evaluate(async ({ recordId, eventId }) => {
+    await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" });
+    await fetch(`/api/v1/agent/tracking/${encodeURIComponent(recordId)}`, { method: "DELETE" });
+  }, workspaceSeed);
+
+  await page.getByRole("button", { name: new RegExp(finalName) }).click();
   await page.getByRole("menuitem", { name: "Change password" }).click();
   await page.getByLabel("Current password").fill(initialPassword);
   await page.getByLabel("New password", { exact: true }).fill(nextPassword);
@@ -91,7 +128,7 @@ try {
   const box = await trigger.boundingBox();
   assert.ok(box && box.width >= 42 && box.height >= 42, "Mobile profile trigger must meet the 42px touch target");
 
-  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, profile update, password rotation, logout/login, and mobile profile UI");
+  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, profile update, one-time agent credential lifecycle, shared D1 Operations state, password rotation, logout/login, and mobile profile UI");
 } finally {
   await browser.close();
 }

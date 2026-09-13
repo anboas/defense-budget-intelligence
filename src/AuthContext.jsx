@@ -86,6 +86,9 @@ export default function AuthProvider({ children }) {
     logout: async () => { await authApi.logout(); setStatus((current) => ({ ...current, user: null })); },
     updateProfile: async (values) => { const result = await authApi.updateProfile(values); setStatus((current) => ({ ...current, user: result.user })); return result; },
     changePassword: (values) => authApi.changePassword(values),
+    listAgentKeys: () => authApi.listAgentKeys(),
+    createAgentKey: (values) => authApi.createAgentKey(values),
+    revokeAgentKey: (id) => authApi.revokeAgentKey(id),
     clearError: () => setError(""),
   }), [status, busy, error]);
 

@@ -5,10 +5,11 @@ The primary application is deployed as the `defense-budget-intelligence` Cloudfl
 ## Architecture
 
 - Cloudflare Pages serves the compiled Vite application at `/`.
-- Pages Functions handle `/api/v1/auth/*` in the same origin.
+- Pages Functions handle `/api/v1/auth/*` and `/api/v1/agent/*` in the same origin.
 - The `DBI_DB` binding points to the existing intelligence-platform D1 database also used by Opportunity Intelligence.
 - D1 tables use the `dbi_` prefix and are created idempotently on demand.
-- The static GitHub Pages fallback remains publicly readable and hides account controls because it has no account API.
+- The signed-in Operations UI and scoped agents share D1-backed tracking, events, manual records, activity, and integration status.
+- The static GitHub Pages fallback remains publicly readable, hides account controls, rejects the Agent API, and keeps Operations state browser-local.
 - The Docker and PostgreSQL stack remains a portability and release-contract target; it is not required by the Cloudflare deployment.
 
 ## Authentication boundary
@@ -23,15 +24,20 @@ The primary application is deployed as the `defense-budget-intelligence` Cloudfl
 
 After the first account is claimed and verified, set `DBI_ALLOW_FIRST_CLAIM=0` and redeploy as defense in depth. The singleton constraint remains authoritative even before that flag changes.
 
+## Agent access
+
+The Super user manages scoped, revocable credentials under **Profile → Agent access**. Tokens are displayed once and must move directly into an agent's protected Secret Store. The complete resource, scope, concurrency, audit, and immutability contract is documented in [Agent API](AGENT_API.md).
+
 ## Verification
 
 Run the complete isolated Pages contract locally:
 
 ```bash
 npm run verify:pages-auth
+npm run verify:agent-api
 ```
 
-The verifier races two claims against a fresh D1 database, tests generic login discovery, profile editing, password rotation, session revocation, logout/login, runtime restart persistence, secure cookies, and the desktop/mobile browser UI.
+The verifiers race two claims against fresh D1 databases, test generic login discovery, profile editing, password rotation, session revocation, logout/login, agent credential issuance/revocation, shared Operations state, Agent API CRUD and safety contracts, runtime restart persistence, secure cookies, and the desktop/mobile browser UI.
 
 ## Deployment
 

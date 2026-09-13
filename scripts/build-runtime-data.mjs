@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { applyProcurementChanges, assembleProcurementRecords } from "../src/procurement-taxonomy.js";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SOURCE_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
@@ -55,6 +56,20 @@ const execution = {
   coverage: strategyAnalytics.executionAnalytics?.coverage || {},
   awardDrilldown: strategyAnalytics.executionAnalytics?.awardDrilldown || {},
 };
+const agentRecords = applyProcurementChanges(
+  assembleProcurementRecords(
+    captureCalendar.records,
+    execution.awardDrilldown?.awards || [],
+    captureCalendar.metadata?.asOf,
+    JSON.parse(readFileSync(SAM_OPPORTUNITIES_FILE, "utf8")).records || [],
+    JSON.parse(readFileSync(MANUAL_PROCUREMENT_FILE, "utf8")).records || [],
+    subawards,
+  ),
+  JSON.parse(readFileSync(PROCUREMENT_DELTA_FILE, "utf8")).records || [],
+);
+if (agentRecords.length < 875 || new Set(agentRecords.map((record) => record.opportunityId)).size !== agentRecords.length) {
+  throw new Error("Agent record index must contain at least 875 unique stable records");
+}
 const core = {
   metadata: {
     ...source.metadata,
@@ -75,6 +90,18 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "capture-calendar.json"),
   JSON.stringify(captureCalendar),
+);
+writeFileSync(
+  resolve(OUT_DIR, "agent-records.json"),
+  JSON.stringify({
+    metadata: {
+      generatedAt: source.metadata?.generatedAt,
+      asOf: captureCalendar.metadata?.asOf,
+      recordCount: agentRecords.length,
+      relationship: "Stable opportunityId across the factual analytics application",
+    },
+    records: agentRecords,
+  }),
 );
 writeFileSync(
   resolve(OUT_DIR, "capture-transactions.json"),

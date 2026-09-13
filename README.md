@@ -32,9 +32,11 @@ Defense Budget & Spend Analytics uses five ordered money stages plus two factual
 The primary Cloudflare deployment uses the same platform pattern as Opportunity Intelligence:
 
 - Cloudflare Pages serves the compiled Vite application;
-- Pages Functions implement the same-origin `/api/v1/auth/*` account surface;
-- the existing intelligence-platform D1 database stores namespace-isolated `dbi_*` account, session, and login-attempt records;
+- Pages Functions implement the same-origin `/api/v1/auth/*` account surface and `/api/v1/agent/*` automation control plane;
+- the existing intelligence-platform D1 database stores namespace-isolated `dbi_*` account, session, agent-key, management, audit, idempotency, and manual-record state;
 - the next successful first-party account claim atomically becomes the sole Super user;
+- the Super user can issue narrowly scoped, revocable Agent API credentials from the top-right profile menu;
+- authenticated humans and agents share tracking, events, activity, manual records, and wallboard state while source-backed evidence remains immutable;
 - the account UI is omitted automatically on the static GitHub Pages fallback because that host has no account API.
 
 The repository also retains a production-neutral Docker and PostgreSQL stack as a portability and release-contract target:
@@ -73,7 +75,7 @@ Container health contracts:
 
 The release workflow treats both stateful implementations as gates. It proves the full first-account lifecycle against a fresh local D1 database, then builds the Docker images, starts a fresh PostgreSQL database, applies migrations, imports snapshots, and verifies the portable API before publishing the static fallback.
 
-Cloudflare deployment and first-claim operations are documented in [Cloudflare Pages and D1](docs/CLOUDFLARE_PAGES.md).
+Cloudflare deployment and first-claim operations are documented in [Cloudflare Pages and D1](docs/CLOUDFLARE_PAGES.md). The scoped R/W automation contract is documented in [Agent API](docs/AGENT_API.md).
 
 ## Data Sources
 
@@ -139,6 +141,8 @@ npm run data:build
 npm run source:health
 npm run dev
 npm run verify
+npm run verify:pages-auth
+npm run verify:agent-api
 npm run container:up
 npm run container:verify
 npm run container:down

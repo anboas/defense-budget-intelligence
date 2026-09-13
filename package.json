@@ -30,6 +30,7 @@
     "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",
     "verify:auth": "node scripts/verify-auth.mjs",
     "verify:pages-auth": "npm run build:cloudflare && node scripts/verify-pages-auth.mjs",
+    "verify:agent-api": "npm run build:cloudflare && node scripts/verify-agent-api.mjs",
     "verify:prod-interactions": "BUDGET_VERIFY_URL=https://defense-budget-intelligence.pages.dev/ node scripts/verify-site.mjs",
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",
     "pages:dev": "npm run build:cloudflare && wrangler pages dev dist",

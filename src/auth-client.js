@@ -57,6 +57,9 @@ export const authApi = {
   },
   logout: () => request("/logout", { method: "POST", body: "{}" }),
   updateProfile: (profile) => request("/profile", { method: "PATCH", body: JSON.stringify(profile) }),
+  listAgentKeys: () => request("/agent-keys", { method: "GET", headers: {} }),
+  createAgentKey: (values) => request("/agent-keys", { method: "POST", body: JSON.stringify(values) }),
+  revokeAgentKey: (id) => request(`/agent-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   async changePassword({ email, currentPassword, newPassword }) {
     const config = await request("/login-config", { method: "POST", body: JSON.stringify({ email }) });
     const currentPasswordProof = await derivePasswordProof(currentPassword, config.passwordSalt);
