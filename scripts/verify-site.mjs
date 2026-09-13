@@ -139,7 +139,7 @@ try {
   assert.equal(transactionRequests, 0, "Exact FPDS actions should remain deferred until a record opens");
   const transactionText = await page.locator("[data-transaction-analytics-page]").innerText();
   assert.match(transactionText, /198 public records/i);
-  assert.match(transactionText, /502 normalized events and 3,085 exact FPDS actions/i);
+  assert.match(transactionText, /502 events · 3,085 exact FPDS actions/i);
   assert.doesNotMatch(transactionText, FORBIDDEN_SURFACE_TEXT);
   assert.equal(await page.locator("[data-targeting-chart]").count(), 0, "Targeting charts should be removed");
   assert.equal(await page.locator("[data-capture-workboard]").count(), 0, "Analyst workboard should be removed");
@@ -147,6 +147,16 @@ try {
   assert.equal(await page.locator("[data-capture-matrix]").count(), 1, "Transactions should retain its descriptive lifecycle matrix");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 16, "Transactions should expose sixteen factual filters");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
+  const compactDesktopGeometry = await page.evaluate(() => ({
+    freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
+    flowHeight: document.querySelector("[data-money-flow-rail]")?.getBoundingClientRect().height || 0,
+    firstRowTop: document.querySelector("[data-capture-timeline] .capture-timeline__row")?.getBoundingClientRect().top || 0,
+    timelineToolsHeight: document.querySelector("[data-capture-gantt-tools]")?.getBoundingClientRect().height || 0,
+  }));
+  assert.ok(compactDesktopGeometry.freshnessHeight <= 32, `Desktop freshness should be a compact status line, got ${compactDesktopGeometry.freshnessHeight}px`);
+  assert.equal(compactDesktopGeometry.flowHeight, 0, "Transactions should not repeat the primary money-flow navigation");
+  assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
+  assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
   await page.getByRole("button", { name: "Show 12 more filters" }).click();
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 12, "Advanced factual filters should remain reachable");
   await page.getByRole("button", { name: "Show core filters" }).click();
@@ -164,6 +174,7 @@ try {
   assert.ok(barBox && barBox.height >= 20 && barBox.height <= 24, `Timeline bars should stay precisely formatted, got ${barBox?.height}px`);
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count() >= 20, "Timeline should expose quarter guides");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose the source as-of marker");
+  await page.locator("[data-capture-gantt-tools] > summary").click();
   assert.equal(await page.getByLabel("Grouping").locator("option").count(), 10, "Gantt should expose ten factual grouping modes");
   assert.equal(await page.getByLabel("Bar labels").locator("option").count(), 6, "Gantt should expose six bar-label modes");
   assert.equal(await page.locator("[data-capture-gantt-tools] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
@@ -248,6 +259,7 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
+  await page.locator("[data-capture-gantt-tools] > summary").click();
   assert.equal(await page.getByLabel("Grouping").inputValue(), "none", "Malformed grouping should canonicalize to the factual default");
   assert.match(await page.getByRole("button", { name: /^Overlays\./ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
   await page.locator("[data-capture-field-picker] summary").click();
@@ -257,7 +269,7 @@ try {
   assert.match(new URL(page.url()).hash, /capFields=none/, "Title-only field state should be shareable");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  assert.equal(await page.locator("[data-capture-field-picker] summary").innerText(), "Row fields (0)", "Title-only field state should survive reload");
+  assert.equal((await page.locator("[data-capture-field-picker] summary").textContent())?.trim(), "Row fields (0)", "Title-only field state should survive reload");
   await page.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
@@ -334,10 +346,22 @@ try {
 
   await openSurface(mobile, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced transaction filters should start collapsed on mobile");
+  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 0, "Secondary core filters should stay behind disclosure on narrow screens");
+  const compactMobileGeometry = await mobile.evaluate(() => ({
+    freshnessHeight: document.querySelector("[data-freshness-strip]")?.getBoundingClientRect().height || 0,
+    firstRowTop: document.querySelector("[data-capture-timeline] .capture-timeline__row")?.getBoundingClientRect().top || 0,
+    metricHeight: document.querySelector(".capture-metrics")?.getBoundingClientRect().height || 0,
+  }));
+  assert.ok(compactMobileGeometry.freshnessHeight <= 34, `Mobile freshness should remain one compact row, got ${compactMobileGeometry.freshnessHeight}px`);
+  assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
+  assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
   await mobile.getByRole("button", { name: "Show 12 more filters" }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 12, "All advanced filters should remain reachable");
+  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 3, "Expanded mobile filters should expose every core dimension");
+  await mobile.getByRole("button", { name: "Show core filters" }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
+  await mobile.locator("[data-capture-gantt-tools] > summary").click();
   const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] select, [data-capture-field-picker] summary, [data-capture-gantt-tools] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));

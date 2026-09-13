@@ -488,7 +488,7 @@ function QuarterOutlook({ rows, onSelect }) {
 
 function SummaryMetric({ label: metricLabel, value, helper, tone = "blue" }) {
   return (
-    <article className={`capture-metric capture-metric--${tone}`} data-capture-metric>
+    <article className={`capture-metric capture-metric--${tone}`} data-capture-metric title={`${metricLabel}: ${value}. ${helper}`}>
       <span>{metricLabel}</span>
       <strong>{value}</strong>
       <small>{helper}</small>
@@ -682,13 +682,13 @@ function ComparisonTray({ records, startYear, endYear, onOpen, onRemove, onClear
   );
 }
 
-function SavedViews({ views, onSave, onLoad, onDelete }) {
+function SavedViews({ views, onLoad, onDelete }) {
+  if (!views.length) return null;
   return (
-    <section className="capture-saved-views" data-capture-saved-views>
-      <div><Bookmark size={17} /><span><strong>Saved analytical views</strong><small>Filters, time window, density, grouping, and labels are stored in this browser.</small></span></div>
-      <button type="button" onClick={onSave}><Bookmark size={14} />Save current view</button>
-      {views.length ? <div className="capture-saved-views__list">{views.map((view) => <span key={view.id}><button type="button" onClick={() => onLoad(view)}><b>{view.name}</b><small>{view.savedAt && !Number.isNaN(Date.parse(view.savedAt)) ? new Date(view.savedAt).toLocaleString() : "Saved view"}</small></button><button type="button" onClick={() => onDelete(view.id)} aria-label={`Delete saved view ${view.name}`}><Trash2 size={14} /></button></span>)}</div> : <small>No saved views yet.</small>}
-    </section>
+    <details className="capture-saved-views" data-capture-saved-views>
+      <summary><Bookmark size={16} /><strong>Saved views</strong><span>{views.length}</span><small>Browser-local</small></summary>
+      <div className="capture-saved-views__list">{views.map((view) => <span key={view.id}><button type="button" onClick={() => onLoad(view)}><b>{view.name}</b><small>{view.savedAt && !Number.isNaN(Date.parse(view.savedAt)) ? new Date(view.savedAt).toLocaleString() : "Saved view"}</small></button><button type="button" onClick={() => onDelete(view.id)} aria-label={`Delete saved view ${view.name}`}><Trash2 size={14} /></button></span>)}</div>
+    </details>
   );
 }
 
@@ -1355,48 +1355,43 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page>
       <section className="capture-hero">
         <div>
-          <span className="eyebrow">Stage 5 · Award actions and reported performance</span>
-          <h2>Transactions</h2>
-          <p>FPDS actions, cumulative obligations, reported performance periods, published acquisition events, recipients, buyers, and evidence. Contract endpoints remain source dates, not inferred recompetes.</p>
+          <div className="capture-hero__title"><span className="eyebrow">Stage 5</span><h2>Transactions</h2></div>
+          <p>Award actions, obligations, reported performance, published acquisition events, recipients, buyers, and evidence.</p>
+          <p className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{dataset.metadata.coverage.publicRows} public records</strong><span>{dataset.metadata.coverage.normalizedEvents.toLocaleString()} events · {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions · {dataset.metadata.coverage.excludedPrivateRows} internal rows excluded</span></p>
         </div>
         <div className="capture-hero__actions">
           <button type="button" onClick={copyLink}><Copy size={15} />Copy filtered link</button>
           <button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)}><Download size={15} />Export {filtered.length.toLocaleString()} rows</button>
+          <button type="button" onClick={saveCurrentView}><Bookmark size={15} />Save view</button>
         </div>
-      </section>
-
-      <section className="capture-trust" aria-label="Transaction analytics data boundary">
-        <ShieldCheck size={18} aria-hidden="true" />
-        <span><strong>{dataset.metadata.coverage.publicRows} public records</strong> with {dataset.metadata.coverage.normalizedEvents.toLocaleString()} normalized events and {dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions across {dataset.metadata.coverage.uniqueAwards} awards. {dataset.metadata.coverage.excludedPrivateRows} internal campaign rows are excluded.</span>
       </section>
 
       <SavedViews
         views={savedViews}
-        onSave={saveCurrentView}
         onLoad={(view) => setFilters(normalizeSavedFilters(view.filters))}
         onDelete={(viewId) => setSavedViews((current) => current.filter((view) => view.id !== viewId))}
       />
 
       <section className={`capture-filters${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters>
-        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 12 more filters"}</button><button type="button" onClick={() => setFilters(FILTER_DEFAULTS)} disabled={!activeFilters}>Reset</button></div>
-        <div className="capture-quickviews" aria-label="Transaction analytical presets">
+        <div className="capture-filters__heading"><Filter size={17} /><strong>Filter transactions</strong><span>{activeFilters ? `${activeFilters} active` : "All public records"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}>{filtersExpanded ? "Show core filters" : "Show 12 more filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}</div>
+        {filtersExpanded ? <div className="capture-quickviews" aria-label="Transaction analytical presets">
           <span>Analytical presets</span>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "contract-performance", capHorizon: "active", capFrom: "2025", capTo: "2030" })}>Active terms</button>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "contract-performance", capHorizon: "ending12", capFrom: "2026", capTo: "2028" })}>Ending in 12 months</button>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "acquisition-window", capFrom: "2026", capTo: "2029" })}>Acquisition horizon</button>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capActivity: "recent", capSort: "obligations", capFrom: "2025", capTo: "2030" })}>Recent funding movement</button>
           <button type="button" onClick={() => setFilters({ ...FILTER_DEFAULTS, capValidation: "unresolved" })}>Evidence gaps</button>
-        </div>
+        </div> : null}
         <label className="capture-filter capture-filter--search"><span>Search</span><i><Search size={15} /><input value={filters.capQuery} onChange={(event) => setFilters({ capQuery: event.target.value })} placeholder="Program, company, reference, buyer" /></i></label>
-        <SearchMultiSelect title="Portfolio" allLabel="All portfolios" value={filters.capPortfolio} options={portfolios} onChange={(values) => setFilters({ capPortfolio: serializeMultiValues(values) })} />
-        <label className="capture-filter"><span>Record type</span><select value={filters.capMode} onChange={(event) => setFilters({ capMode: event.target.value })}><option value="all">All records</option><option value="contract-performance">Contract performance</option><option value="acquisition-window">Acquisition windows</option></select></label>
+        <SearchMultiSelect className="capture-filter--core-secondary" title="Portfolio" allLabel="All portfolios" value={filters.capPortfolio} options={portfolios} onChange={(values) => setFilters({ capPortfolio: serializeMultiValues(values) })} />
+        <label className="capture-filter capture-filter--core-secondary"><span>Record type</span><select value={filters.capMode} onChange={(event) => setFilters({ capMode: event.target.value })}><option value="all">All records</option><option value="contract-performance">Contract performance</option><option value="acquisition-window">Acquisition windows</option></select></label>
         <SearchMultiSelect className="capture-filter--advanced" title="Evidence" allLabel="All evidence" value={filters.capEvidence} options={evidenceTiers.map((tier) => [tier, label(tier)])} onChange={(values) => setFilters({ capEvidence: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Lifecycle" allLabel="All lifecycle states" value={filters.capLifecycle} options={lifecycleStates.map((status) => [status, label(status)])} onChange={(values) => setFilters({ capLifecycle: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Company / sponsor" allLabel="All companies and sponsors" value={filters.capParty} options={parties} onChange={(values) => setFilters({ capParty: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Funding / contracting office" allLabel="All offices" value={filters.capOffice} options={offices} onChange={(values) => setFilters({ capOffice: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Vehicle" allLabel="All published vehicles" value={filters.capVehicle} options={vehicles} onChange={(values) => setFilters({ capVehicle: serializeMultiValues(values) })} />
         <label className="capture-filter capture-filter--advanced"><span>Validation</span><select value={filters.capValidation} onChange={(event) => setFilters({ capValidation: event.target.value })}><option value="all">All validation states</option><option value="verified">Verified</option><option value="corrected">Corrected</option><option value="unresolved">Unresolved</option></select></label>
-        <label className="capture-filter"><span>Schedule horizon</span><select value={filters.capHorizon} onChange={(event) => setFilters({ capHorizon: event.target.value })}><option value="all">Any schedule posture</option><option value="active">Active reported term</option><option value="ending12">Ending within 12 months</option><option value="ending24">Ending within 24 months</option><option value="upcoming">Future starts / milestones</option><option value="past">All endpoints passed</option><option value="undated">Schedule not published</option></select></label>
+        <label className="capture-filter capture-filter--core-secondary"><span>Schedule horizon</span><select value={filters.capHorizon} onChange={(event) => setFilters({ capHorizon: event.target.value })}><option value="all">Any schedule posture</option><option value="active">Active reported term</option><option value="ending12">Ending within 12 months</option><option value="ending24">Ending within 24 months</option><option value="upcoming">Future starts / milestones</option><option value="past">All endpoints passed</option><option value="undated">Schedule not published</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>FPDS activity</span><select value={filters.capActivity} onChange={(event) => setFilters({ capActivity: event.target.value })}><option value="all">Any action posture</option><option value="recent">Action in past 12 months</option><option value="funding">Has funding actions</option><option value="deobligation">Has deobligations</option><option value="no-actions">No exact action history</option></select></label>
         <label className="capture-filter capture-filter--advanced"><span>From year</span><select value={filters.capFrom} onChange={(event) => setFilters({ capFrom: event.target.value })}>{Array.from({ length: 12 }, (_value, index) => 2023 + index).map((year) => <option key={year}>{year}</option>)}</select></label>
         <label className="capture-filter capture-filter--advanced"><span>Through year</span><select value={filters.capTo} onChange={(event) => setFilters({ capTo: event.target.value })}>{Array.from({ length: 12 }, (_value, index) => 2023 + index).map((year) => <option key={year}>{year}</option>)}</select></label>
@@ -1425,7 +1420,9 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
 
       <section className="capture-section">
         <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} exact predecessor-linked follow-on activities · hover only the time plane for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligations</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}</span></div>
-        <div className="capture-gantt-tools" data-capture-gantt-tools>
+        <details className="capture-gantt-tools" data-capture-gantt-tools>
+          <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
+          <div className="capture-gantt-tools__grid">
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
             <legend>Time</legend>
             <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
@@ -1446,7 +1443,8 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
             <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={4} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
             {parseMultiValues(filters.capFeed).includes("fpds") ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : <span className="capture-gantt-feed-status">Reported schedule remains the baseline</span>}
           </fieldset>
-        </div>
+          </div>
+        </details>
         {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>
 

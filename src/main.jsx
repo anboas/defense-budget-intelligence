@@ -361,7 +361,12 @@ function FreshnessStrip() {
       {layers.map((layer) => {
         const state = freshnessState(layer.at, layer.maxAgeDays);
         return (
-          <span key={layer.id} className={`freshness-chip freshness-chip--${state.tone}`}>
+          <span
+            key={layer.id}
+            className={`freshness-chip freshness-chip--${state.tone}`}
+            title={`${layer.label}: ${state.label} · ${layer.at ? dateTime(layer.at) : "No snapshot"}`}
+            aria-label={`${layer.label}: ${state.label} as of ${layer.at ? dateTime(layer.at) : "no snapshot"}`}
+          >
             <strong>{layer.label}</strong>
             <em>{state.label}</em>
             <small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small>
