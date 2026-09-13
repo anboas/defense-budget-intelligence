@@ -84,7 +84,8 @@ const FEED_OPTIONS = [
   ["awards", "USAspending refreshed end"],
   ["followon", "Published follow-on activity"],
   ["competition", "Competition / set-aside"],
-  ["structure", "Vehicle / contract type"],
+  ["vehicle", "Contract vehicle"],
+  ["structure", "Award / pricing type"],
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
 
@@ -350,7 +351,7 @@ function escapeCsv(value) {
 }
 
 function downloadCsv(records, metadata) {
-  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "contractType", "competitionType", "eligibility", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
+  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "awardType", "pricingType", "competitionType", "setAside", "eligibility", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
   const rows = records.map((record) => ({
     snapshotAsOf: metadata.asOf,
     viewUrl: window.location.href,
@@ -367,8 +368,10 @@ function downloadCsv(records, metadata) {
     fundingOffice: record.fundingOffice,
     contractingOffice: record.contractingOffice,
     vehicle: record.vehicle,
-    contractType: record.contractType,
+    awardType: record.awardType,
+    pricingType: record.pricingType,
     competitionType: record.competitionType,
+    setAside: record.setAside,
     eligibility: record.eligibility,
     solicitationStart: record.solicitationStart,
     solicitationEnd: record.solicitationEnd,
@@ -628,8 +631,9 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         <article><span>Funding office</span><strong>{record.fundingOffice || record.owner || "Not published"}</strong><small>Distinct from contracting office</small></article>
         <article><span>Contracting office</span><strong>{record.contractingOffice || "Not published"}</strong><small>{record.vehicle || "Vehicle not identified"}</small></article>
         {record.solicitationStart ? <article><span>Solicitation window</span><strong>{formatDate(record.solicitationStart)} to {formatDate(record.solicitationEnd)}</strong><small>{record.noticeType || "Published solicitation"}</small></article> : null}
-        {record.competitionType || record.eligibility ? <article><span>Competition / eligibility</span><strong>{record.competitionType || "Not published"}</strong><small>{record.eligibility || "Eligibility not published"}</small></article> : null}
-        {record.contractType ? <article><span>Vehicle / contract type</span><strong>{record.vehicle || "Vehicle not published"}</strong><small>{record.contractType}</small></article> : null}
+        {record.competitionType || record.setAside || record.eligibility ? <article><span>Competition / eligibility</span><strong>{record.competitionType || "Competition not published"}</strong><small>{[record.setAside, record.eligibility].filter(Boolean).join(" · ") || "Set-aside / eligibility not published"}</small></article> : null}
+        {record.vehicle ? <article><span>Contract vehicle</span><strong>{record.vehicle}</strong><small>{record.parentReference ? `Parent / predecessor ${record.parentReference}` : "Published vehicle classification"}</small></article> : null}
+        {record.awardType || record.pricingType ? <article><span>Award / pricing structure</span><strong>{record.pricingType || "Pricing not published"}</strong><small>{record.awardType || "Award instrument type not published"}</small></article> : null}
         <article><span>Source posture</span><strong>{record.sourceRoleCount} source role{record.sourceRoleCount === 1 ? "" : "s"}</strong><small>{label(record.validationStatus)} · checked {formatDate(record.validationCheckedAt?.slice(0, 10))}</small></article>
       </div>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
@@ -785,7 +789,10 @@ function TimelineHoverCard({ hover }) {
         <div><dt>Reported schedule</dt><dd>{recordDates(record).length ? `${compactDate(firstDate(record))} to ${compactDate(finalDate(record))}` : "Not published"}</dd></div>
         <div><dt>FPDS actions</dt><dd>{record.transactionSummary?.actions?.toLocaleString() || "None"}</dd></div>
         <div><dt>Latest FPDS action</dt><dd>{latestAction ? `${compactDate(latestAction.signed)} · ${signedMoney(latestAction.obligationDelta)}` : formatDate(record.transactionSummary?.lastSigned)}</dd></div>
-        <div><dt>Vehicle / parent</dt><dd>{record.parentReference || record.vehicle || "Not published"}</dd></div>
+        <div><dt>Contract vehicle</dt><dd>{record.vehicle || "Not published"}</dd></div>
+        <div><dt>Award / pricing type</dt><dd>{[record.awardType, record.pricingType].filter(Boolean).join(" · ") || "Not published"}</dd></div>
+        <div><dt>Competition / set-aside</dt><dd>{[record.competitionType, record.setAside, record.eligibility].filter(Boolean).join(" · ") || "Not published"}</dd></div>
+        <div><dt>Parent / predecessor</dt><dd>{record.parentReference || "Not published"}</dd></div>
       </dl>
       <p><b>Funding office</b>{record.fundingOffice || record.owner || "Not published"}</p>
       <p><b>Contracting office</b>{record.contractingOffice || "Not published"}</p>
@@ -874,9 +881,13 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
   const classificationVisible = classificationStart && classificationEnd && classificationEnd >= `${startYear}-01-01` && classificationStart <= `${endYear}-12-31`;
   const classificationLeft = classificationVisible ? positionFor(classificationStart, startYear, endYear) : 0;
   const classificationRight = classificationVisible ? positionFor(classificationEnd, startYear, endYear) : 0;
-  const competitionKind = /small business|8\(a\)|hubzone|sdvosb|wosb/i.test(record.competitionType || record.eligibility || "") ? "small-business" : /full and open/i.test(record.competitionType || "") ? "full-open" : "other";
-  const competitionElement = feeds.has("competition") && classificationVisible && (record.competitionType || record.eligibility) ? <i role="button" tabIndex="0" key={`competition-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--competition capture-timeline__classification--${competitionKind}`} data-competition-overlay data-timeline-context="Competition / eligibility" data-timeline-detail={`${record.competitionType || "Classification not published"}${record.eligibility ? ` · ${record.eligibility}` : ""}`} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Competition overlay: ${record.competitionType || record.eligibility}`} /> : null;
-  const structureElement = feeds.has("structure") && classificationVisible && (record.vehicle || record.contractType) ? <i role="button" tabIndex="0" key={`structure-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--structure" data-structure-overlay data-timeline-context="Vehicle / contract type" data-timeline-detail={`${record.vehicle || "Vehicle not published"}${record.contractType ? ` · ${record.contractType}` : ""}`} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Vehicle and contract type overlay: ${record.vehicle || "vehicle not published"}${record.contractType ? `, ${record.contractType}` : ""}`} /> : null;
+  const competitionText = [record.competitionType, record.setAside, record.eligibility].filter(Boolean).join(" · ");
+  const competitionKind = /small business|8\(a\)|hubzone|sdvosb|wosb/i.test(competitionText) ? "small-business" : /full and open/i.test(competitionText) ? "full-open" : "other";
+  const competitionElement = feeds.has("competition") && classificationVisible && competitionText ? <i role="button" tabIndex="0" key={`competition-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--competition capture-timeline__classification--${competitionKind}`} data-competition-overlay data-timeline-context="Competition / set-aside" data-timeline-detail={competitionText} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Competition and set-aside overlay: ${competitionText}`} /> : null;
+  const vehicleElement = feeds.has("vehicle") && classificationVisible && record.vehicle ? <i role="button" tabIndex="0" key={`vehicle-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--vehicle" data-vehicle-overlay data-timeline-context="Contract vehicle" data-timeline-detail={record.vehicle} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Contract vehicle overlay: ${record.vehicle}`} /> : null;
+  const pricingText = [record.pricingType, record.awardType].filter(Boolean).join(" · ");
+  const pricingKind = /firm fixed price|\bffp\b/i.test(record.pricingType || "") ? "pricing-fixed-price" : /cost plus|cost no fee|\bcpff\b|\bcpaf\b|\bcpif\b/i.test(record.pricingType || "") ? "pricing-cost-reimbursable" : /time and materials|\bt&m\b/i.test(record.pricingType || "") ? "pricing-time-materials" : "pricing-other";
+  const structureElement = feeds.has("structure") && classificationVisible && pricingText ? <i role="button" tabIndex="0" key={`structure-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--structure capture-timeline__classification--${pricingKind}`} data-structure-overlay data-pricing-kind={pricingKind} data-timeline-context="Award / pricing structure" data-timeline-detail={pricingText} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Award and pricing type overlay: ${pricingText}`} /> : null;
   const actionMarkers = feeds.has("fpds") ? timelineActionMarkers(actions, startYear, endYear) : [];
   const fiscalMaximum = Math.max(...record.fiscalValues.map((item) => Math.abs(Number(item.amount || 0))), 1);
   const fiscalMarkers = feeds.has("fiscal") ? record.fiscalValues.filter((item) => item.fiscalYear >= startYear && item.fiscalYear <= endYear + 1) : [];
@@ -938,12 +949,13 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
         {refreshedEndVisible ? <i className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} /> : null}
         {solicitationElement}
         {competitionElement}
+        {vehicleElement}
         {structureElement}
         {followOnElements}
       </>
     );
   }
-  return [solicitationElement, competitionElement, structureElement].filter(Boolean).concat(record.milestones.map((milestone) => {
+  return [solicitationElement, competitionElement, vehicleElement, structureElement].filter(Boolean).concat(record.milestones.map((milestone) => {
     const left = positionFor(milestone.start, startYear, endYear);
     const right = positionFor(milestone.end, startYear, endYear);
     return milestone.precision === "day" ? (
@@ -973,6 +985,8 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
       return map;
     }, new Map())].map(([groupLabel, groupRecords]) => ({ id: groupLabel, label: groupLabel, records: groupRecords }));
   const activeFields = selectedFieldIds(rowFields);
+  const activeFeeds = new Set(parseMultiValues(feedMode));
+  const hasClassificationLanes = ["competition", "vehicle", "structure"].some((feed) => activeFeeds.has(feed));
   function showHover(record, target, clientX, clientY, context = null) {
     const bounds = target.getBoundingClientRect();
     const width = Math.min(360, window.innerWidth - 16);
@@ -1012,7 +1026,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
     return () => window.cancelAnimationFrame(frame);
   }, [asOfPosition, endYear, showAsOf, startYear]);
   return (
-    <div ref={scrollerRef} className={`capture-timeline capture-timeline--${density}`} data-capture-timeline>
+    <div ref={scrollerRef} className={`capture-timeline capture-timeline--${density}${hasClassificationLanes ? " capture-timeline--has-classification-lanes" : ""}`} data-capture-timeline>
       <div className="capture-timeline__inner" style={{ "--capture-years": years.length }}>
         <div className="capture-timeline__head capture-timeline__label"><strong>Contract / acquisition</strong><span>{activeFields.map((field) => ROW_FIELD_OPTIONS.find(([id]) => id === field)?.[1]).join(" · ")}</span></div>
         <div className="capture-timeline__head capture-timeline__years">
@@ -1370,6 +1384,18 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
   const matrixPortfolios = portfolioRows.slice(0, 8).map((row) => row.id);
   const displaySettings = new Set(["capSort", "capRows", "capDensity", "capGroup", "capLabels", "capFields", "capFeed"]);
   const activeFilters = Object.entries(filters).filter(([key, value]) => !displaySettings.has(key) && value !== FILTER_DEFAULTS[key]).length;
+  const selectedFeeds = new Set(parseMultiValues(filters.capFeed));
+  const feedStatusParts = [];
+  if (selectedFeeds.has("structure")) feedStatusParts.push(`${dataset.metadata.coverage.awardsWithPricingType} pricing rows · ${dataset.metadata.coverage.awardsWithAwardType} award-instrument rows`);
+  if (selectedFeeds.has("vehicle")) feedStatusParts.push(`${dataset.metadata.coverage.rowsWithVehicle} vehicle rows`);
+  if (selectedFeeds.has("competition")) feedStatusParts.push(`${dataset.metadata.coverage.rowsWithCompetition} competition / set-aside rows`);
+  if (selectedFeeds.has("fiscal")) {
+    const fiscalAwardCount = dataset.records.filter((record) => record.fiscalValues?.length).length;
+    const fiscalObservationCount = dataset.records.reduce((sum, record) => sum + (record.fiscalValues?.length || 0), 0);
+    feedStatusParts.push(`${fiscalObservationCount} FY observations across ${fiscalAwardCount} awards`);
+  }
+  if (selectedFeeds.has("fpds")) feedStatusParts.push(actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…");
+  const feedStatusText = feedStatusParts.length ? feedStatusParts.join(" · ") : "Reported schedule remains the baseline";
 
   function scrollTimelineToToday() {
     if (asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`) return;
@@ -1450,7 +1476,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       ) : null}
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligations</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="structure" />Vehicle / type</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}</span></div>
         <details className="capture-gantt-tools" data-capture-gantt-tools>
           <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
           <div className="capture-gantt-tools__grid">
@@ -1471,8 +1497,8 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
           </fieldset>
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
             <legend>Data</legend>
-            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={6} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
-            {parseMultiValues(filters.capFeed).includes("fpds") ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : <span className="capture-gantt-feed-status">Reported schedule remains the baseline</span>}
+            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={7} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
+            <span className="capture-gantt-feed-status" role="status">{feedStatusText}</span>
           </fieldset>
           </div>
         </details>

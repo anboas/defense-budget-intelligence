@@ -143,6 +143,11 @@ try {
   const transactionText = await page.locator("[data-transaction-analytics-page]").innerText();
   assert.match(transactionText, /198 public records/i);
   assert.match(transactionText, /502 events · 3,085 exact FPDS actions/i);
+  const capturePayload = await page.evaluate(() => fetch(new URL("data/capture-calendar.json", document.baseURI)).then((response) => response.json()));
+  assert.equal(capturePayload.metadata.coverage.awardsWithPricingType, 113, "Acquisition structure should include pricing on 112 awards plus the active Application Arsenal solicitation");
+  assert.equal(capturePayload.metadata.coverage.awardsWithAwardType, 11, "Acquisition structure should retain every published award instrument type");
+  assert.equal(capturePayload.metadata.coverage.rowsWithVehicle, 60, "Vehicle overlay should retain all published vehicle labels");
+  assert.equal(capturePayload.metadata.coverage.rowsWithCompetition, 119, "Competition overlay should retain competition, set-aside, and eligibility classifications");
   assert.doesNotMatch(transactionText, FORBIDDEN_SURFACE_TEXT);
   assert.equal(await page.locator("[data-targeting-chart]").count(), 0, "Targeting charts should be removed");
   assert.equal(await page.locator("[data-capture-workboard]").count(), 0, "Analyst workboard should be removed");
@@ -224,13 +229,13 @@ try {
   assert.equal(transactionRequests, 0, "Follow-on relationships should not load the deferred FPDS action payload");
   await page.locator("[data-followon-activity]").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
-  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /exact predecessor PIID/i, "Follow-on overlay should disclose its exact join basis");
+  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /predecessor PIID/i, "Follow-on overlay should disclose its predecessor join basis");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Agency acquisition forecast/i, "Follow-on overlay should disclose its source system");
   await page.locator("[data-followon-activity]").first().click();
   await page.waitForSelector("[data-followon-modal][open]");
   const followOnModalText = await page.locator("[data-followon-modal]").innerText();
   assert.match(followOnModalText, /Published follow-on activity/i);
-  assert.match(followOnModalText, /exact predecessor PIID match/i);
+  assert.match(followOnModalText, /predecessor PIID/i);
   assert.match(followOnModalText, /Agency acquisition forecast/i);
   assert.equal(await page.locator("[data-capture-detail]").count(), 0, "Follow-on selection should open its own modal rather than the record detail modal");
   await page.screenshot({ path: `${OUT_DIR}/transactions-followon-modal-desktop.png` });
@@ -255,14 +260,25 @@ try {
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await overlayTrigger.click();
   await page.getByRole("option", { name: "Competition / set-aside" }).getByRole("checkbox").check();
-  await page.getByRole("option", { name: "Vehicle / contract type" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Contract vehicle" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Award / pricing type" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "FPDS annual obligations" }).getByRole("checkbox").check();
   await page.keyboard.press("Escape");
-  assert.equal(await page.locator("[data-competition-overlay]").count(), 1, "Known competition classification should render as an optional overlay");
-  assert.ok(await page.locator("[data-structure-overlay]").count() >= 1, "Published vehicle or contract type should render as an optional overlay");
-  await page.locator("[data-competition-overlay]").hover();
+  assert.ok(await page.locator("[data-competition-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct competition classifications");
+  assert.ok(await page.locator("[data-vehicle-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct vehicles");
+  assert.ok(await page.locator("[data-structure-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct pricing structures");
+  const applicationIncumbentRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
+  const fiscalAndStructureGeometry = await Promise.all([
+    applicationIncumbentRow.locator(".capture-timeline__fiscal-marker").first().boundingBox(),
+    page.locator("[data-structure-overlay]").first().boundingBox(),
+  ]);
+  if (fiscalAndStructureGeometry[0]) {
+    assert.ok(fiscalAndStructureGeometry[1], "Pricing overlay should have measurable geometry");
+    assert.ok(fiscalAndStructureGeometry[0].height > fiscalAndStructureGeometry[1].height * 4, `FY obligations should be a background intensity band rather than a competing structure lane: ${JSON.stringify(fiscalAndStructureGeometry)}`);
+  }
+  await page.getByRole("button", { name: /Competition and set-aside overlay: Full and open competitive procurement/i }).hover();
   await page.waitForSelector("[data-capture-hovercard]");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Full and open competitive procurement/i);
-  const applicationIncumbentRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
   assert.ok(await applicationIncumbentRow.locator("[data-followon-activity]").count() >= 1, "Application Arsenal incumbent should expose the published follow-on crosswalk");
   const applicationFollowOnWindow = applicationIncumbentRow.getByRole("button", { name: /Active solicitation window/i });
   const applicationDeadline = applicationIncumbentRow.getByRole("button", { name: /Proposals due/i });
@@ -277,6 +293,11 @@ try {
   await page.getByRole("button", { name: "Close follow-on details" }).click();
   await page.waitForSelector("[data-followon-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
+  await page.waitForFunction(() => new Set([...document.querySelectorAll("[data-pricing-kind]")].map((node) => node.dataset.pricingKind)).size >= 3);
+  const visiblePricingKinds = await page.locator("[data-pricing-kind]").evaluateAll((nodes) => [...new Set(nodes.map((node) => node.dataset.pricingKind))]);
+  assert.ok(visiblePricingKinds.includes("pricing-fixed-price"), `Pricing overlay should distinguish fixed-price rows: ${visiblePricingKinds}`);
+  assert.ok(visiblePricingKinds.includes("pricing-cost-reimbursable"), `Pricing overlay should distinguish cost-type rows: ${visiblePricingKinds}`);
+  assert.ok(visiblePricingKinds.includes("pricing-time-materials"), `Pricing overlay should distinguish T&M rows: ${visiblePricingKinds}`);
   await overlayTrigger.click();
   await page.getByRole("option", { name: "FPDS action pulses" }).getByRole("checkbox").check();
   await page.keyboard.press("Escape");

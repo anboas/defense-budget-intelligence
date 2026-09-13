@@ -14,7 +14,7 @@ The build fails when IDs are duplicated, joins disagree, an action is duplicated
 
 ## Public projection
 
-The public runtime includes source-backed opportunity identity, program, portfolio, buyer/vendor, award identifiers, scope, reported dates, normalized events, validation state, public source URLs, USAspending award values, separate FPDS public sums, and exact FPDS actions.
+The public runtime includes source-backed opportunity identity, program, portfolio, buyer/vendor, award identifiers, scope, reported dates, normalized events, validation state, public source URLs, USAspending award values, separate FPDS public sums, exact FPDS actions, and award-grain vehicle, award-instrument, pricing, competition, and set-aside classifications.
 
 The Application Arsenal solicitation `N6600126R3507` carries a narrow public augmentation from its official 31 August 2026 solicitation: the 31 August–30 September response window, full-and-open competition language, SeaPort NxG holder eligibility, CPFF level-of-effort contract type, and a curated crosswalk to predecessor task order `N6600123F3509`. The crosswalk is labeled as curated because the solicitation identifies an Application Arsenal lifecycle follow-on but does not print the predecessor PIID. It is never represented as an exact source-declared PIID join.
 
@@ -33,7 +33,9 @@ The public runtime excludes all `internal_proposal` records and does not project
 
 - Solicitation windows are separately colored published response periods and remain visible as part of the schedule baseline.
 - Competition/set-aside overlays render only when the source explicitly states the classification or eligibility.
-- Vehicle/contract-type overlays show published acquisition structure; SeaPort is treated as a vehicle and CPFF level of effort as the contract type.
+- Contract-vehicle overlays are distinct from award/pricing structure. SeaPort, GSA MAS, OASIS, IDIQs, and similar access paths are vehicles, not pricing types.
+- Award/pricing overlays retain all available award-instrument and pricing fields. Pricing colors distinguish firm-fixed-price, cost-reimbursable, time-and-materials, and other published structures. Missing pricing or award type remains blank rather than inferred.
+- FY net obligations render as a low-opacity background intensity band behind the schedule. They never share a foreground lane with competition, vehicle, or pricing classifications.
 - Follow-on activity can use an exact predecessor PIID or an explicitly labeled curated named-program crosswalk. The UI discloses the basis in the hover card and modal.
 
 ## Runtime and persistence

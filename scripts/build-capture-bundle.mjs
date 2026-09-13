@@ -6,7 +6,7 @@ const args = Object.fromEntries(process.argv.slice(2).flatMap((value, index, all
   value.startsWith("--") ? [[value.slice(2), all[index + 1]]] : []
 )));
 
-const requiredArgs = ["opportunities", "events", "transactions", "display", "sources", "targets", "exclusions", "dictionary", "method", "metadata"];
+const requiredArgs = ["opportunities", "events", "awards", "transactions", "display", "sources", "targets", "exclusions", "dictionary", "method", "metadata"];
 for (const name of requiredArgs) {
   if (!args[name]) throw new Error(`Missing --${name}`);
 }
@@ -24,7 +24,7 @@ const publicRecordAugmentations = {
     noticeType: "Negotiated RFP / SeaPort NxG fair-opportunity proposal request",
     competitionType: "Full and open competitive procurement",
     eligibility: "SeaPort NxG contract holders only",
-    contractType: "Cost Plus Fixed Fee (CPFF) Level of Effort",
+    pricingType: "Cost Plus Fixed Fee (CPFF) Level of Effort",
     sourceUrl: "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/6dc3a7786ab345f2a1686a8851067f42/download",
   },
 };
@@ -154,6 +154,7 @@ function actionDirection(value) {
 
 const opportunitiesInput = readCsv("opportunities");
 const eventsInput = readCsv("events");
+const awardsInput = readCsv("awards");
 const transactionsInput = readCsv("transactions");
 const displayInput = readCsv("display");
 const sourcesInput = readCsv("sources");
@@ -168,6 +169,7 @@ const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));
 if (metadata.schema_version !== "1.1.0") throw new Error(`Unsupported capture schema ${metadata.schema_version}`);
 if (opportunitiesInput.rows.length !== 243) throw new Error(`Expected 243 opportunities, got ${opportunitiesInput.rows.length}`);
 if (eventsInput.rows.length !== 502) throw new Error(`Expected 502 events, got ${eventsInput.rows.length}`);
+if (awardsInput.rows.length !== 130) throw new Error(`Expected 130 awards, got ${awardsInput.rows.length}`);
 if (transactionsInput.rows.length !== 3085) throw new Error(`Expected 3,085 FPDS actions, got ${transactionsInput.rows.length}`);
 if (displayInput.rows.length !== 2323) throw new Error(`Expected 2,323 display rows, got ${displayInput.rows.length}`);
 if (sourcesInput.rows.length !== 884) throw new Error(`Expected 884 opportunity-source links, got ${sourcesInput.rows.length}`);
@@ -210,6 +212,20 @@ const publicIds = new Set(publicRows.map((row) => row.opportunity_id));
 const privateRows = opportunitiesInput.rows.filter((row) => row.validation_status === privateStatus);
 if (publicRows.length !== 198 || privateRows.length !== 45) {
   throw new Error(`Publication boundary changed: ${publicRows.length} public / ${privateRows.length} private`);
+}
+
+const awardsById = new Map();
+for (const row of awardsInput.rows) {
+  if (!row.award_record_id) throw new Error("Every award must have a stable award record ID");
+  if (awardsById.has(row.award_record_id)) throw new Error(`Duplicate award record ID ${row.award_record_id}`);
+  awardsById.set(row.award_record_id, row);
+}
+const awardedPublicRows = publicRows.filter((row) => row.row_mode === "contract");
+for (const row of awardedPublicRows) {
+  const award = awardsById.get(row.award_record_id);
+  if (!award || award.canonical_gantt_row_id !== row.gantt_row_id) {
+    throw new Error(`Award contains an invalid record/Gantt join: ${row.award_record_id} / ${row.gantt_row_id}`);
+  }
 }
 
 const eventsByOpportunity = new Map();
@@ -307,6 +323,7 @@ function transactionSummary(actions) {
 
 const records = publicRows.map((row) => {
   const augmentation = publicRecordAugmentations[row.gantt_row_id] || {};
+  const award = awardsById.get(row.award_record_id) || {};
   const events = (eventsByOpportunity.get(row.opportunity_id) || []).sort((left, right) => (left.start || "9999").localeCompare(right.start || "9999") || left.eventId.localeCompare(right.eventId));
   const actions = (actionsByOpportunity.get(row.opportunity_id) || []).sort((left, right) => (left.signed || "").localeCompare(right.signed || "") || left.actionId.localeCompare(right.actionId));
   const primaryActions = actions.filter((action) => !action.supportingInstrument);
@@ -343,9 +360,11 @@ const records = publicRows.map((row) => {
     solicitationStart: augmentation.solicitationStart || null,
     solicitationEnd: augmentation.solicitationEnd || null,
     noticeType: augmentation.noticeType || null,
-    competitionType: augmentation.competitionType || null,
+    competitionType: augmentation.competitionType || award.competition || null,
+    setAside: award.set_aside || null,
     eligibility: augmentation.eligibility || null,
-    contractType: augmentation.contractType || null,
+    awardType: award.award_type || null,
+    pricingType: augmentation.pricingType || award.pricing || null,
     context: publicText(row.scope),
     sourceDescription: publicText(row.scope),
     evidenceTier: evidenceTier(row.corroboration_status),
@@ -393,7 +412,7 @@ for (const actions of actionsByOpportunity.values()) {
 
 const validationCounts = Object.fromEntries(Object.entries(metadata.validation_status_counts).filter(([key]) => key !== privateStatus));
 const sourceFiles = Object.fromEntries([
-  ["opportunities", opportunitiesInput], ["events", eventsInput], ["transactions", transactionsInput], ["display", displayInput],
+  ["opportunities", opportunitiesInput], ["events", eventsInput], ["awards", awardsInput], ["transactions", transactionsInput], ["display", displayInput],
   ["sources", sourcesInput], ["targets", targetsInput], ["exclusions", exclusionsInput],
   ["dictionary", dictionaryInput],
 ].map(([name, input]) => [name, { rows: input.rows.length, sha256: sha256(input.path) }]));
@@ -420,6 +439,10 @@ const coreOutput = {
       acquisitionRows: records.filter((record) => record.mode === "acquisition-window").length,
       normalizedEvents: eventsInput.rows.length,
       uniqueAwards: metadata.unique_award_count,
+      awardsWithPricingType: records.filter((record) => record.pricingType).length,
+      awardsWithAwardType: records.filter((record) => record.awardType).length,
+      rowsWithVehicle: records.filter((record) => record.vehicle).length,
+      rowsWithCompetition: records.filter((record) => record.competitionType || record.setAside || record.eligibility).length,
       fpdsActions: transactionsInput.rows.length,
       primaryAwardActions: primaryActionCount,
       supportingInstrumentActions: supportingActionCount,

@@ -47,6 +47,10 @@ assert.equal(captureCalendar.payload?.records?.length, 198);
 assert.equal(captureCalendar.payload?.metadata?.coverage?.excludedPrivateRows, 45);
 assert.equal(captureCalendar.payload?.metadata?.coverage?.normalizedEvents, 502);
 assert.equal(captureCalendar.payload?.metadata?.coverage?.fpdsActions, 3085);
+assert.equal(captureCalendar.payload?.metadata?.coverage?.awardsWithPricingType, 113);
+assert.equal(captureCalendar.payload?.metadata?.coverage?.awardsWithAwardType, 11);
+assert.equal(captureCalendar.payload?.metadata?.coverage?.rowsWithVehicle, 60);
+assert.equal(captureCalendar.payload?.metadata?.coverage?.rowsWithCompetition, 119);
 assert.ok(captureCalendar.payload.records.every((record) => record.opportunityId && !("statusLabel" in record) && !("note" in record) && !("targetIds" in record) && !("captureMotion" in record)), "capture snapshot should use stable IDs and exclude internal parser fields");
 
 const normalizedCapture = await (await get("api/v1/capture-calendar")).json();
@@ -67,7 +71,7 @@ assert.equal(applicationArsenalFollowOn.solicitationStart, "2026-08-31");
 assert.equal(applicationArsenalFollowOn.solicitationEnd, "2026-09-30");
 assert.match(applicationArsenalFollowOn.competitionType, /full and open/i);
 assert.match(applicationArsenalFollowOn.eligibility, /SeaPort NxG contract holders only/i);
-assert.match(applicationArsenalFollowOn.contractType, /CPFF/i);
+assert.match(applicationArsenalFollowOn.pricingType, /CPFF/i);
 
 const spine = await (await get("api/v1/account-spine")).json();
 assert.ok(spine.federal_accounts > 100, "account spine should contain Department federal accounts");

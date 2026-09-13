@@ -8559,7 +8559,10 @@ td .dot {
 .capture-legend i.followon { height: 9px; border: 1px solid #a63a78; background: #f8dceb; }
 .capture-legend i.solicitation { height: 9px; border: 1px solid #007f7b; background: #18a7a1; }
 .capture-legend i.competition { height: 5px; background: #248642; }
-.capture-legend i.structure { height: 5px; background: #bf5b17; }
+.capture-legend i.vehicle { height: 5px; background: #087f8c; }
+.capture-legend i.pricing-fixed-price { height: 5px; background: #1479a8; }
+.capture-legend i.pricing-cost-reimbursable { height: 5px; background: #bf5b17; }
+.capture-legend i.pricing-time-materials { height: 5px; background: #7651a8; }
 
 .capture-gantt-tools {
   display: block;
@@ -9123,7 +9126,7 @@ td .dot {
 .capture-timeline__action-marker {
   position: absolute;
   z-index: 5;
-  top: 44px;
+  top: 29px;
   display: grid;
   place-items: center;
   width: max(7px, calc(var(--capture-action-size) * 1px));
@@ -9148,17 +9151,18 @@ td .dot {
 .capture-timeline__fiscal-marker {
   position: absolute;
   z-index: 1;
-  bottom: 2px;
-  height: calc(3px + var(--capture-fiscal-intensity) * 7px);
+  top: 1px;
+  bottom: 1px;
+  height: auto;
   min-width: 4px;
-  border-bottom: 2px solid #167247;
-  background: rgba(22, 114, 71, calc(0.08 + var(--capture-fiscal-intensity) * 0.2));
+  border-block: 1px solid rgba(22, 114, 71, calc(0.18 + var(--capture-fiscal-intensity) * 0.3));
+  background: rgba(22, 114, 71, calc(0.025 + var(--capture-fiscal-intensity) * 0.09));
   font-style: normal;
 }
 
 .capture-timeline__fiscal-marker.is-negative {
-  border-bottom-color: #b50909;
-  background: rgba(181, 9, 9, calc(0.08 + var(--capture-fiscal-intensity) * 0.2));
+  border-block-color: rgba(181, 9, 9, calc(0.2 + var(--capture-fiscal-intensity) * 0.35));
+  background: rgba(181, 9, 9, calc(0.025 + var(--capture-fiscal-intensity) * 0.09));
 }
 
 .capture-timeline__award-marker {
@@ -9231,11 +9235,16 @@ td .dot {
   font-style: normal;
 }
 
-.capture-timeline__classification--competition { bottom: 8px; }
+.capture-timeline__classification--competition { bottom: 12px; }
 .capture-timeline__classification--full-open { background: #248642; box-shadow: 0 0 0 1px #17602d; }
 .capture-timeline__classification--small-business { background: #7651a8; box-shadow: 0 0 0 1px #55377e; }
 .capture-timeline__classification--other { background: #667b8d; box-shadow: 0 0 0 1px #435565; }
-.capture-timeline__classification--structure { bottom: 2px; background: #bf5b17; box-shadow: 0 0 0 1px #873c0b; }
+.capture-timeline__classification--vehicle { bottom: 6px; background: #087f8c; box-shadow: 0 0 0 1px #045963; }
+.capture-timeline__classification--structure { bottom: 0; }
+.capture-timeline__classification--pricing-fixed-price { background: #1479a8; box-shadow: 0 0 0 1px #0a5578; }
+.capture-timeline__classification--pricing-cost-reimbursable { background: #bf5b17; box-shadow: 0 0 0 1px #873c0b; }
+.capture-timeline__classification--pricing-time-materials { background: #7651a8; box-shadow: 0 0 0 1px #55377e; }
+.capture-timeline__classification--pricing-other { background: #667b8d; box-shadow: 0 0 0 1px #435565; }
 
 .capture-timeline-tooltip {
   position: fixed;
@@ -9308,10 +9317,13 @@ td .dot {
 }
 
 .capture-timeline--compact .capture-timeline__solicitation-window { top: 2px; }
-.capture-timeline--compact .capture-timeline__classification--competition { bottom: 7px; }
-.capture-timeline--compact .capture-timeline__classification--structure { bottom: 1px; }
+.capture-timeline--compact.capture-timeline--has-classification-lanes .capture-timeline__row { min-height: 57px; }
+.capture-timeline--compact.capture-timeline--has-classification-lanes .capture-timeline__plot { min-height: 56px; }
+.capture-timeline--compact .capture-timeline__classification--competition { bottom: 12px; }
+.capture-timeline--compact .capture-timeline__classification--vehicle { bottom: 6px; }
+.capture-timeline--compact .capture-timeline__classification--structure { bottom: 0; }
 
-.capture-timeline--compact .capture-timeline__action-marker { top: 34px; }
+.capture-timeline--compact .capture-timeline__action-marker { top: 23px; }
 
 .capture-timeline__plot > em {
   position: absolute;
