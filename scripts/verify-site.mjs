@@ -739,11 +739,22 @@ try {
   assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 8, "Mobile More should expose all money-flow and workspace routes in grouped Control Framework cards");
   assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
   await mobile.locator("[data-mobile-more-menu-button]").click();
+  assert.equal(await mobile.locator('[data-primary-nav="overview"] .ci-header-nav__label-mobile').innerText(), "PDB", "Mobile should label the first compact tab instead of leaving an empty icon-era control");
+  assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents().then((items) => items.every((item) => item.trim().length > 0)), true, "Every visible mobile route tab should have a text label");
+  const mobileRequestChrome = await mobile.evaluate(() => ({
+    filters: document.querySelector("[data-budget-filter-bar]")?.getBoundingClientRect().height || 0,
+    metrics: document.querySelector(".metrics")?.getBoundingClientRect().height || 0,
+    freshnessClipped: [...document.querySelectorAll(".freshness-chip strong, .freshness-chip em")].some((node) => node.scrollWidth > node.clientWidth + 1),
+  }));
+  assert.ok(mobileRequestChrome.filters <= 140, `Mobile request filters should use one search row and one contained control rail, got ${mobileRequestChrome.filters}px`);
+  assert.ok(mobileRequestChrome.metrics <= 115, `Mobile request KPIs should use one horizontal strip, got ${mobileRequestChrome.metrics}px`);
+  assert.equal(mobileRequestChrome.freshnessClipped, false, "Compact mobile freshness labels should not clip");
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile request");
 
   await openSurface(mobile, "#/budget-spend/trends", "[data-request-history-page]");
   assert.ok(await mobile.locator("[data-request-history-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request-history intro should stay compact");
+  assert.ok(await mobile.locator(".trend-metrics").evaluate((node) => node.getBoundingClientRect().height) <= 115, "Mobile request-history KPIs should use one compact horizontal strip");
   await assertNoPageOverflow(mobile, "Mobile request history");
 
   await openSurface(mobile, "#/budget-spend/lifecycle", "[data-account-spine-page]");
@@ -809,6 +820,14 @@ try {
 
   await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
   assert.equal(await mobile.locator("[data-d3-analytics]").count(), 6);
+  const compactAnalyticsGeometry = await mobile.evaluate(() => ({
+    hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
+    controls: document.querySelector(".analytics-commandbar")?.getBoundingClientRect().height || 0,
+    firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
+  }));
+  assert.ok(compactAnalyticsGeometry.hero <= 190, `Mobile Analytics hero should stay compact, got ${compactAnalyticsGeometry.hero}px`);
+  assert.ok(compactAnalyticsGeometry.controls <= 235, `Mobile Analytics controls should use a search row plus horizontal secondary rail, got ${compactAnalyticsGeometry.controls}px`);
+  assert.ok(compactAnalyticsGeometry.firstChartTop <= 590, `Mobile Analytics should surface a chart within the first viewport, got ${compactAnalyticsGeometry.firstChartTop}px`);
   assert.ok(await mobile.locator('.analytics-commandbar button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
   await mobile.locator("[data-analytics-manager] summary").click();
   const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
@@ -821,6 +840,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/operations", "[data-operations-hub]");
+  assert.ok(await mobile.locator(".operations-hero").evaluate((node) => node.getBoundingClientRect().height) <= 170, "Mobile Operations hero should keep the working surface above the fold");
   const mobileOperationsHeights = await mobile.locator(".operations-tabs button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileOperationsHeights.every((height) => height >= 43.5), `Mobile Operations tabs should meet the 44px contract: ${mobileOperationsHeights.join(", ")}`);
   await mobile.getByRole("button", { name: "Wallboard" }).click();
@@ -828,9 +848,22 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/operations-wallboard-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/sources", "[data-analytics-sources-page]");
+  assert.ok(await mobile.locator(".analytics-sources .request-hero").evaluate((node) => node.getBoundingClientRect().height) <= 215, "Mobile Sources should surface lineage without a tall introductory wall");
   assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 6);
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
+
+  await mobile.setViewportSize({ width: 360, height: 740 });
+  await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
+  const narrowAnalyticsGeometry = await mobile.evaluate(() => ({
+    header: document.querySelector("[data-budget-spend-header]")?.getBoundingClientRect().height || 0,
+    hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
+    firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
+  }));
+  assert.ok(narrowAnalyticsGeometry.header <= 92, `360px masthead should stay in the established two-row band, got ${narrowAnalyticsGeometry.header}px`);
+  assert.ok(narrowAnalyticsGeometry.hero <= 205, `360px Analytics hero should stay compact, got ${narrowAnalyticsGeometry.hero}px`);
+  assert.ok(narrowAnalyticsGeometry.firstChartTop <= 610, `360px Analytics should surface its first chart without a second screen of chrome, got ${narrowAnalyticsGeometry.firstChartTop}px`);
+  await assertNoPageOverflow(mobile, "360px Analytics");
 
   console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=8 money_stages=6 management_surface=operations watchlist=stable-id events=operator-local integrations=7 wallboard=responsive request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=19 focused_workspaces=4 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {

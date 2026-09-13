@@ -357,9 +357,9 @@ function freshnessState(timestamp, maxAgeDays) {
 
 function FreshnessStrip() {
   const layers = [
-    { id: "budget", label: "Budget books", at: data.metadata.generatedAt, maxAgeDays: 400 },
-    { id: "awards", label: "Award execution", at: EXECUTION_COVERAGE.cachedAt, maxAgeDays: 14 },
-    { id: "health", label: "Source health", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
+    { id: "budget", label: "Budget books", mobileLabel: "Budget", at: data.metadata.generatedAt, maxAgeDays: 400 },
+    { id: "awards", label: "Award execution", mobileLabel: "Awards", at: EXECUTION_COVERAGE.cachedAt, maxAgeDays: 14 },
+    { id: "health", label: "Source health", mobileLabel: "Sources", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
   ];
   return (
     <section className="freshness-strip" aria-label="Data freshness" data-freshness-strip>
@@ -372,7 +372,7 @@ function FreshnessStrip() {
             title={`${layer.label}: ${state.label} · ${layer.at ? dateTime(layer.at) : "No snapshot"}`}
             aria-label={`${layer.label}: ${state.label} as of ${layer.at ? dateTime(layer.at) : "no snapshot"}`}
           >
-            <strong>{layer.label}</strong>
+            <strong data-mobile-label={layer.mobileLabel}>{layer.label}</strong>
             <em>{state.label}</em>
             <small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small>
           </span>
@@ -2223,37 +2223,39 @@ function FilterShell({ filters, setFilters }) {
           onChange={(event) => setFilters({ ...filters, query: event.target.value })}
         />
       </label>
-      <label>
-        <span>Color</span>
-        <select value={filters.book} onChange={(event) => setFilters({ ...filters, book: event.target.value })}>
-          <option value="all">All colors</option>
-          {BOOKS.map((book) => <option key={book.id} value={book.id}>{book.short} · {book.color}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>Org type</span>
-        <select value={filters.group} onChange={(event) => setFilters({ ...filters, group: event.target.value })}>
-          <option value="all">All DoD</option>
-          <option value="service">Services</option>
-          <option value="fourth-estate">Fourth Estate</option>
-          <option value="other">Other / Reconciliation</option>
-        </select>
-      </label>
-      <label>
-        <span>Signal</span>
-        <select value={filters.signal} onChange={(event) => setFilters({ ...filters, signal: event.target.value })}>
-          <option value="all">All signals</option>
-          {SIGNALS.map((signal) => <option key={signal.id} value={signal.id}>{signal.label}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>Organization</span>
-        <select value={filters.org} onChange={(event) => setFilters({ ...filters, org: event.target.value })}>
-          <option value="all">All organizations</option>
-          {orgs.map((org) => <option key={org.id} value={org.id}>{org.label}</option>)}
-        </select>
-      </label>
-      <ResetFilters filters={filters} defaults={BUDGET_FILTER_DEFAULTS} onReset={() => setFilters(BUDGET_FILTER_DEFAULTS)} />
+      <div className="filters__secondary">
+        <label>
+          <span>Color</span>
+          <select value={filters.book} onChange={(event) => setFilters({ ...filters, book: event.target.value })}>
+            <option value="all">All colors</option>
+            {BOOKS.map((book) => <option key={book.id} value={book.id}>{book.short} · {book.color}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Org type</span>
+          <select value={filters.group} onChange={(event) => setFilters({ ...filters, group: event.target.value })}>
+            <option value="all">All DoD</option>
+            <option value="service">Services</option>
+            <option value="fourth-estate">Fourth Estate</option>
+            <option value="other">Other / Reconciliation</option>
+          </select>
+        </label>
+        <label>
+          <span>Signal</span>
+          <select value={filters.signal} onChange={(event) => setFilters({ ...filters, signal: event.target.value })}>
+            <option value="all">All signals</option>
+            {SIGNALS.map((signal) => <option key={signal.id} value={signal.id}>{signal.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Organization</span>
+          <select value={filters.org} onChange={(event) => setFilters({ ...filters, org: event.target.value })}>
+            <option value="all">All organizations</option>
+            {orgs.map((org) => <option key={org.id} value={org.id}>{org.label}</option>)}
+          </select>
+        </label>
+        <ResetFilters filters={filters} defaults={BUDGET_FILTER_DEFAULTS} onReset={() => setFilters(BUDGET_FILTER_DEFAULTS)} />
+      </div>
     </div>
   );
 }
@@ -2369,7 +2371,7 @@ function RequestTrends() {
         dataAttribute={{ "data-request-history-page": true }}
       />
       <section className="source-metrics trend-metrics" aria-label="Request trend summary">
-        <Metric label="Request vintages" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper={`${TREND_SUMMARY.sourceVersionCount || 0} workbook versions parsed`} />
+        <Metric label="Request vintages" value={`${DATA_INVENTORY.availableBudgetRequestYears.length} years`} helper={`${yearList(DATA_INVENTORY.availableBudgetRequestYears)} · ${TREND_SUMMARY.sourceVersionCount || 0} workbook versions`} />
         <Metric label="Historical records" value={(TREND_SUMMARY.historicalRecordCount || 0).toLocaleString()} helper="Aggregate model records across request packages" tone="purple" />
         <Metric label="Comparable set" value={`${TREND_SUMMARY.comparableBookCount || 0} books`} helper={(TREND_SUMMARY.comparableBooks || []).join(", ")} tone="green" />
         <Metric label="Comparable trend" value={pct(TREND_SUMMARY.comparableGrowth || 0)} helper={`${money(TREND_SUMMARY.comparableEarliestRequestValue)} FY${TREND_SUMMARY.comparableEarliestRequestYear} to ${money(TREND_SUMMARY.comparableCurrentRequestValue)} FY${latest?.requestYear}`} tone="orange" />

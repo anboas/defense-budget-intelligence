@@ -3,6 +3,7 @@ import ProductMark from "./ProductMark.jsx";
 import ProfileMenu from "./ProfileMenu.jsx";
 
 const WORKSPACE_IDS = new Set(["analytics", "operations", "sources"]);
+const MOBILE_PRIMARY_LABELS = { overview: "PDB", awards: "Awards", transactions: "Transactions" };
 const WORKSPACE_META = {
   analytics: { badge: "19 views", description: "Cross-filtered D3 views for schedule, spend, structure, coverage, and lineage." },
   operations: { badge: "5 tools", description: "Tracked records, operator events, integration health, activity, and wallboard display." },
@@ -106,7 +107,8 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         setMobileMoreOpen(false);
       }}
     >
-      {tab.label}
+      <span className="ci-header-nav__label-full">{tab.label}</span>
+      <span className="ci-header-nav__label-mobile" aria-hidden="true">{MOBILE_PRIMARY_LABELS[tab.id] || tab.label}</span>
     </a>
   );
 
