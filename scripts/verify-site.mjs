@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { chromium } from "playwright-core";
 
 const REMOTE_BASE_URL = process.env.BUDGET_VERIFY_URL;
 const BASE_URL = REMOTE_BASE_URL ? new URL(REMOTE_BASE_URL).href : "http://127.0.0.1:4188/";
 const OUT_DIR = "test-results";
-const FORBIDDEN_SURFACE_TEXT = /Decision Briefs|Portfolio Strategy|Pursuit Cockpit|Target execution brief|Target workboard|attention score|win probability/i;
+const FORBIDDEN_SURFACE_TEXT = /Decision Briefs|Portfolio Strategy|Pursuit Cockpit|Target execution brief|Target workboard|attention score|win probability|Response Library|Capture Playbooks|Response Assets/i;
 mkdirSync(OUT_DIR, { recursive: true });
+const compiledScripts = readdirSync("dist/assets").filter((name) => name.endsWith(".js")).map((name) => readFileSync(`dist/assets/${name}`, "utf8")).join("\n");
+assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
@@ -28,7 +30,12 @@ function resourceCount(page, filename) {
 }
 
 async function openSurface(page, route, selector) {
-  await page.locator(`[data-budget-nav="${route}"]`).click();
+  let link = page.locator(`[data-budget-nav="${route}"]`);
+  if (!await link.count()) {
+    await page.locator("[data-budget-nav-menu-trigger]").click();
+    link = page.locator(`[data-budget-nav="${route}"]`);
+  }
+  await link.click();
   await page.waitForSelector(selector);
 }
 
@@ -38,8 +45,13 @@ async function assertNoPageOverflow(page, label) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 8, "Header should expose five money stages plus analytics, operations, and sources as native links");
-  assert.equal(await page.locator("[data-budget-nav-more]").count(), 0, "Header should not expose a secondary strategy menu");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 5, "Header should preserve the five left-to-right money stages as native links");
+  assert.equal(await page.locator("[data-budget-nav-more]").count(), 1, "Header should expose one Control Framework workspace menu");
+  assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
+  await page.locator("[data-budget-nav-menu-trigger]").click();
+  assert.equal(await page.locator("[data-budget-nav-menu] a[data-budget-nav]").count(), 3, "Workspace menu should contain only Analytics, Operations, and Sources");
+  assert.match(await page.locator("[data-budget-nav-menu]").innerText(), /Analytics[\s\S]*19 views[\s\S]*Operations[\s\S]*5 tools[\s\S]*Sources[\s\S]*6 stages/i, "Workspace menu should use rich descriptive cards and factual badges");
+  await page.locator("[data-budget-nav-menu-trigger]").click();
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
   assert.equal(await page.locator("[data-money-flow-rail]").count(), 0, "Pages should not repeat the primary header navigation as a numbered phase rail");
   assert.doesNotMatch(await page.locator("[data-defense-budget-app]").innerText(), FORBIDDEN_SURFACE_TEXT, "Rendered analytics shell should not expose judgment surfaces");
@@ -82,6 +94,24 @@ try {
   assert.match(await page.title(), /^PDB Request · Defense Budget & Spend Analytics$/);
   assert.equal(await page.locator("h1").count(), 1, "Each route should expose one product H1");
   await assertFlowShell(page);
+  const productMark = page.locator(".masthead__icon");
+  assert.equal(await productMark.count(), 1, "Header should render the supplied Defense Budget Intelligence product mark");
+  const productMarkGeometry = await productMark.evaluate((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, naturalWidth: node.naturalWidth, naturalHeight: node.naturalHeight }));
+  assert.deepEqual([productMarkGeometry.naturalWidth, productMarkGeometry.naturalHeight], [192, 192], "Header should use the supplied 192px icon asset");
+  assert.ok(productMarkGeometry.width >= 31 && productMarkGeometry.width <= 35 && productMarkGeometry.height >= 31 && productMarkGeometry.height <= 35, `Header product mark should remain compact, got ${productMarkGeometry.width}×${productMarkGeometry.height}`);
+  assert.match(await page.locator('link[rel="manifest"]').getAttribute("href"), /site\.webmanifest$/, "Document should advertise install metadata");
+  assert.match(await page.locator('link[rel="icon"]').getAttribute("href"), /icon-192\.png$/, "Document favicon should use the supplied product mark");
+
+  const workspaceTrigger = page.locator("[data-budget-nav-menu-trigger]");
+  await workspaceTrigger.focus();
+  await page.keyboard.press("ArrowDown");
+  assert.equal(await workspaceTrigger.getAttribute("aria-expanded"), "true", "Arrow Down should open the workspace menu");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Analytics")), true, "Arrow Down should focus the first workspace item");
+  await page.keyboard.press("ArrowDown");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Operations")), true, "Arrow keys should move through workspace items");
+  await page.keyboard.press("Escape");
+  assert.equal(await workspaceTrigger.getAttribute("aria-expanded"), "false", "Escape should close the workspace menu");
+  assert.equal(await workspaceTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to the workspace trigger");
 
   assert.equal(await page.locator("[data-pdb-request-page]").count(), 1, "Default surface should be the source request");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Request surface should expose line-level filters");
@@ -614,7 +644,7 @@ try {
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-pdb-request-page]");
   await assertFlowShell(mobile);
-  const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav]").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav], .ci-header-nav > .if-operations-topnav__secondary > button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileNavHeights.every((height) => height >= 43.5), `Mobile surface controls should be 44px: ${mobileNavHeights.join(", ")}`);
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile request");

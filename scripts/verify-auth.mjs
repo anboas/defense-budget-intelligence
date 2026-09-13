@@ -29,6 +29,9 @@ try {
   const page = await context.newPage();
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-account-gate="setup"]');
+  const setupMark = page.locator(".account-gate__mark img");
+  assert.deepEqual(await setupMark.evaluate((node) => [node.naturalWidth, node.naturalHeight]), [192, 192], "First-account setup should use the supplied product mark");
+  assert.equal(await page.locator(".account-gate").evaluate((node) => getComputedStyle(node).backgroundImage), "none", "Authentication surface should preserve the established flat control-surface treatment");
   if (process.env.BUDGET_AUTH_SKIP_PROTECTED_API !== "1") {
     assert.equal(await page.evaluate(async () => (await fetch("/api/v1/snapshots")).status), 401, "Protected data APIs must reject anonymous requests");
   }

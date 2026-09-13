@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { BarChart3, LockKeyhole } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import { authApi } from "./auth-client.js";
+import ProductMark from "./ProductMark.jsx";
 
 const AuthContext = createContext(null);
 
@@ -20,7 +21,7 @@ function AccountGate({ mode, onSubmit, busy, error }) {
   return (
     <main className="account-gate" data-account-gate={mode}>
       <section className="account-gate__card" aria-labelledby="account-gate-title">
-        <span className="account-gate__mark" aria-hidden="true"><BarChart3 size={24} /></span>
+        <span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span>
         <p className="account-gate__eyebrow">Defense Budget & Spend Analytics</p>
         <h1 id="account-gate-title">{setup ? "Create the super-user account" : "Sign in"}</h1>
         <p>{setup ? "The first account created owns this workspace and can manage its profile and access." : "Use your workspace account to continue."}</p>
@@ -92,7 +93,7 @@ export default function AuthProvider({ children }) {
     clearError: () => setError(""),
   }), [status, busy, error]);
 
-  if (status.loading) return <main className="account-gate account-gate--loading" role="status"><BarChart3 size={28} /><h1>Loading workspace</h1></main>;
+  if (status.loading) return <main className="account-gate account-gate--loading" role="status"><span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span><h1>Loading workspace</h1></main>;
   if (status.enabled && status.required && !status.claimed) return <AccountGate mode="setup" busy={busy} error={error} onSubmit={(values) => void value.claim(values).catch(() => {})} />;
   if (status.enabled && status.required && !status.user) return <AccountGate mode="login" busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} />;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

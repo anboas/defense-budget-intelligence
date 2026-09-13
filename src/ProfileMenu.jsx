@@ -24,21 +24,21 @@ export default function ProfileMenu() {
   const user = auth.user;
 
   if (!user) return (
-    <button className="profile-trigger profile-trigger--signin" type="button" onClick={() => window.location.reload()} title="Sign in to the workspace">
+    <button className="if-account-menu profile-trigger profile-trigger--signin" type="button" onClick={() => window.location.reload()} title="Sign in to the workspace">
       <LogIn size={16} /><span>Sign in</span>
     </button>
   );
 
   return (
-    <div className="profile-menu" ref={menuRef}>
-      <button className="profile-trigger" type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <span className="profile-avatar" aria-hidden="true">{initials(user.displayName)}</span>
-        <span className="profile-trigger__copy"><strong>{user.displayName}</strong></span>
-        <ChevronDown size={15} aria-hidden="true" />
+    <div className="if-popover if-account-popover profile-menu" ref={menuRef}>
+      <button className={`if-account-menu profile-trigger${open ? " is-active" : ""}`} type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <span className="if-avatar if-profile-avatar profile-avatar" aria-hidden="true">{initials(user.displayName)}</span>
+        <span className="if-account-menu__name profile-trigger__copy"><strong>{user.displayName}</strong></span>
+        <ChevronDown className="if-account-menu__chevron" size={15} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="profile-popover" role="menu" aria-label="Account menu">
-          <div className="profile-popover__identity">
+        <div className="if-popover__panel if-account-surface profile-popover" role="menu" aria-label="Account menu">
+          <div className="if-account-surface__header profile-popover__identity">
             <span className="profile-avatar profile-avatar--large">{initials(user.displayName)}</span>
             <div><strong>{user.displayName}</strong><span>{user.role}</span><span>{user.email}</span>{user.title ? <span>{user.title}</span> : null}</div>
           </div>

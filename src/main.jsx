@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import "control-surface-ui/css";
 import {
   BarChart3,
   ArrowRight,
@@ -30,7 +31,8 @@ import sourceHealth from "./data/source-health.json";
 import refreshDelta from "./data/refresh-delta.json";
 import CaptureCalendar from "./CaptureCalendar.jsx";
 import AuthProvider from "./AuthContext.jsx";
-import ProfileMenu from "./ProfileMenu.jsx";
+import ProductMark from "./ProductMark.jsx";
+import SiteHeader from "./SiteHeader.jsx";
 import "./styles.css";
 
 const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
@@ -47,7 +49,6 @@ const TABS = [
   { id: "sources", label: "Sources", icon: Database },
 ];
 
-const PRIMARY_TABS = TABS;
 const HASH_ROUTES = {
   overview: "#/budget-spend",
   lifecycle: "#/budget-spend/lifecycle",
@@ -4748,44 +4749,7 @@ function App() {
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
-      <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
-        <div className="if-product-header__inner masthead__inner">
-          <a
-            href={HASH_ROUTES.overview}
-            className="if-brand masthead__brand if-product-header__brand"
-            data-home-link
-            aria-label="Go to PDB Request"
-            title="Go to PDB Request"
-          >
-            <span className="if-brand__mark masthead__mark" aria-hidden="true">
-              <BarChart3 size={18} strokeWidth={2.4} />
-            </span>
-            <span className="masthead__copy">
-              <span className="if-product-header__eyebrow">Defense Budget & Spend Analytics</span>
-              <h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1>
-            </span>
-          </a>
-          <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend analytics stages">
-            {PRIMARY_TABS.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <a
-                  key={tab.id}
-                  href={HASH_ROUTES[tab.id]}
-                  className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
-                  aria-current={activeTab === tab.id ? "page" : undefined}
-                  data-budget-nav={HASH_ROUTES[tab.id]}
-                  title={tab.label}
-                >
-                  <Icon size={15} aria-hidden="true" />
-                  {tab.label}
-                </a>
-              );
-            })}
-          </nav>
-          <ProfileMenu />
-        </div>
-      </header>
+      <SiteHeader tabs={TABS} routes={HASH_ROUTES} activeTab={activeTab} activeTitle={activeTitle} />
 
       <div className={`if-content if-page if-operations-workspace if-operations-workspace--compact app__content app__content--${activeTab}`} data-if-operations-workspace data-visual-density="compact">
         <p className="sr-only" role="status" aria-live="polite">
@@ -4882,7 +4846,7 @@ function RuntimeApp() {
   if (status !== "ready") {
     return (
       <main className="runtime-loading" data-runtime-loading role="status">
-        <BarChart3 size={24} aria-hidden="true" />
+        <span className="runtime-loading__mark" aria-hidden="true"><ProductMark eager /></span>
         <h1>{status === "error" ? "Budget data unavailable" : "Loading Defense Budget & Spend Analytics"}</h1>
         <p>{status === "error" ? error : "Loading the current budget request dataset."}</p>
         {status === "error" ? <button type="button" onClick={() => { setError(""); setStatus("loading"); setAttempt((value) => value + 1); }}>Retry</button> : null}
