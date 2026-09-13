@@ -114,7 +114,7 @@ const FEED_OPTIONS = [
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
 
-function parseMultiValues(value) {
+export function parseMultiValues(value) {
   if (!value || value === "all" || value === "none" || value === "schedule") return [];
   if (String(value).startsWith("[")) {
     try {
@@ -127,7 +127,7 @@ function parseMultiValues(value) {
   return [String(value)];
 }
 
-function serializeMultiValues(values, emptyValue = "all") {
+export function serializeMultiValues(values, emptyValue = "all") {
   const normalized = [...new Set((values || []).filter(Boolean))];
   return normalized.length ? JSON.stringify(normalized) : emptyValue;
 }
@@ -184,7 +184,7 @@ function label(value) {
   return LABELS[value] || value?.replaceAll("-", " ") || "Not published";
 }
 
-function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null }) {
+export function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menuGeometry, setMenuGeometry] = useState(null);

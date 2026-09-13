@@ -4,6 +4,7 @@ import {
   interpolateBlues,
   max,
   scaleBand,
+  scaleLinear,
   scaleOrdinal,
   scaleSequential,
   scaleSqrt,
@@ -26,6 +27,11 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
+import {
+  parseMultiValues,
+  SearchMultiSelect,
+  serializeMultiValues,
+} from "./CaptureCalendar.jsx";
 import {
   applyProcurementChanges,
   assembleProcurementRecords,
@@ -70,6 +76,8 @@ const DIMENSIONS = [
   { id: "provenance", label: "Ingestion provenance", value: (record) => INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || record.ingestionMethod || "Not published" },
   { id: "pricing", label: "Pricing type", value: (record) => record.pricingType || "Not published" },
   { id: "competition", label: "Competition / set-aside", value: (record) => record.setAside || record.competitionType || "Not published" },
+  { id: "vehicle", label: "Contract vehicle", value: (record) => record.vehicle || "Not published" },
+  { id: "source", label: "Source system", value: (record) => record.sourceSystem || record.ingestionLabel || "Not published" },
 ];
 
 const METRICS = [
@@ -79,6 +87,46 @@ const METRICS = [
   { id: "actions", label: "FPDS actions", value: (record) => Number(record.transactionSummary?.actions || 0), format: (value) => Math.round(value).toLocaleString() },
   { id: "subawards", label: "Reported subawards", value: (record) => Number(record.subawardSummary?.reportedCount || 0), format: (value) => Math.round(value).toLocaleString() },
 ];
+
+const VIEW_CHARTS = {
+  overview: [
+    ["dimension-explorer", "Dimension ranking"],
+    ["quarterly", "Quarterly schedule activity"],
+    ["scatter", "Obligation and value distribution"],
+    ["value-distribution", "Reported value distribution"],
+    ["treemap", "Portfolio and recipient composition"],
+    ["work-categories", "Type of work composition"],
+  ],
+  schedule: [
+    ["schedule-horizon", "Reported schedule horizon"],
+    ["endpoint-seasonality", "Endpoint seasonality"],
+    ["duration-distribution", "Reported term duration"],
+    ["quarterly", "Quarterly schedule activity"],
+    ["scatter", "Obligation and value distribution"],
+  ],
+  spend: [
+    ["dimension-explorer", "Dimension ranking"],
+    ["fiscal-trend", "Fiscal obligation trend"],
+    ["buyer-year", "Funding office by fiscal year"],
+    ["acquisition-matrix", "Pricing by competition structure"],
+    ["vehicle-pricing", "Vehicle and pricing mix"],
+    ["subawards", "Prime-to-subaward concentration"],
+  ],
+  coverage: [
+    ["field-coverage", "Field coverage"],
+    ["source-coverage", "Source-system coverage"],
+    ["provenance", "Ingestion provenance"],
+    ["money-lineage", "Money lineage and public join gaps"],
+    ["changes", "Changed since prior snapshot"],
+  ],
+};
+
+const DEFAULT_VISIBLE_CHARTS = Object.fromEntries(
+  Object.entries(VIEW_CHARTS).map(([view, charts]) => [
+    view,
+    charts.map(([id]) => id),
+  ]),
+);
 
 function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
@@ -163,8 +211,38 @@ function exportAnalyticsSlice(records, metric, context) {
 }
 
 function ChartFrame({ icon: Icon, title, note, children, testId }) {
+  const [hover, setHover] = useState(null);
+
+  function showHover(target, clientX, clientY) {
+    const mark = target.closest?.("[data-analytics-tooltip]");
+    if (!mark) {
+      setHover(null);
+      return;
+    }
+    const content = mark.getAttribute("data-analytics-tooltip");
+    if (!content) return;
+    setHover({
+      lines: content.split("\n").filter(Boolean),
+      x: Math.min(clientX + 14, window.innerWidth - 292),
+      y: Math.min(clientY + 14, window.innerHeight - 170),
+    });
+  }
+
   return (
-    <section className="transaction-viz" data-d3-analytics={testId}>
+    <section
+      className="transaction-viz"
+      data-d3-analytics={testId}
+      onPointerMove={(event) => {
+        if (event.pointerType && event.pointerType !== "mouse") return;
+        showHover(event.target, event.clientX, event.clientY);
+      }}
+      onPointerLeave={() => setHover(null)}
+      onFocusCapture={(event) => {
+        const bounds = event.target.getBoundingClientRect?.();
+        if (bounds) showHover(event.target, bounds.right, bounds.top);
+      }}
+      onBlurCapture={() => setHover(null)}
+    >
       <header>
         <Icon size={18} aria-hidden="true" />
         <span>
@@ -173,6 +251,19 @@ function ChartFrame({ icon: Icon, title, note, children, testId }) {
         </span>
       </header>
       <div className="transaction-viz__scroller">{children}</div>
+      {hover ? (
+        <aside
+          className="analytics-hovercard"
+          data-analytics-hovercard
+          style={{ left: hover.x, top: hover.y }}
+          role="status"
+        >
+          <strong>{hover.lines[0]}</strong>
+          {hover.lines.slice(1).map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </aside>
+      ) : null}
     </section>
   );
 }
@@ -237,22 +328,16 @@ function EventTimeline({ records }) {
             width={x.bandwidth() / 2}
             height={height - inset.bottom - y(row.terms)}
             fill={colors.terms}
-          >
-            <title>
-              {row.label}: {row.terms} reported term ends
-            </title>
-          </rect>
+            data-analytics-tooltip={`${row.label}\n${row.terms.toLocaleString()} reported term ends`}
+          />
           <rect
             x={x(row.label) + x.bandwidth() / 2}
             y={y(row.events)}
             width={x.bandwidth() / 2}
             height={height - inset.bottom - y(row.events)}
             fill={colors.events}
-          >
-            <title>
-              {row.label}: {row.events} published events
-            </title>
-          </rect>
+            data-analytics-tooltip={`${row.label}\n${row.events.toLocaleString()} published events`}
+          />
           {index % 4 === 0 ? (
             <text x={x(row.label)} y={height - 29}>
               {row.label.slice(0, 4)}
@@ -310,15 +395,10 @@ function ValueScatter({ records, onSelect }) {
           role="button"
           tabIndex="0"
           aria-label={`${record.id}, ${record.title}, ${money(recordObligatedAmount(record))} observed obligations`}
+          data-analytics-tooltip={`${record.id} · ${record.title}\n${money(recordObligatedAmount(record))} observed obligations\n${money(recordValue(record))} reported potential / high\n${record.transactionSummary?.actions || 0} FPDS actions`}
           onClick={() => onSelect?.(record)}
           onKeyDown={(event) => activateWithKeyboard(event, () => onSelect?.(record))}
-        >
-          <title>
-            {record.id} · {record.title}\n{money(recordObligatedAmount(record))}{" "}
-            observed obligations\n{money(recordValue(record))} potential /
-            high\n{record.transactionSummary?.actions || 0} FPDS actions
-          </title>
-        </circle>
+        />
       ))}
       <text
         x={(inset.left + width - inset.right) / 2}
@@ -343,7 +423,7 @@ function recordObligatedAmount(record) {
   return Number(record.obligatedAmount || 0);
 }
 
-function PortfolioTreemap({ records, metric }) {
+function PortfolioTreemap({ records, metric, onRecipient }) {
   const grouped = new Map();
   for (const record of records) {
     const portfolio = record.portfolio || "Portfolio not published";
@@ -387,7 +467,7 @@ function PortfolioTreemap({ records, metric }) {
           const width = leaf.x1 - leaf.x0;
           const height = leaf.y1 - leaf.y0;
           return (
-            <g key={`${portfolio}-${leaf.data.name}`}>
+            <g key={`${portfolio}-${leaf.data.name}`} role="button" tabIndex="0" data-analytics-tooltip={`${portfolio}\n${leaf.data.name}\n${metric === "records" ? `${leaf.value} records` : money(leaf.value)}\nClick to filter every view`} onClick={() => onRecipient?.(leaf.data.name)} onKeyDown={(event) => activateWithKeyboard(event, () => onRecipient?.(leaf.data.name))}>
               <rect
                 x={leaf.x0}
                 y={leaf.y0}
@@ -395,14 +475,8 @@ function PortfolioTreemap({ records, metric }) {
                 height={height}
                 fill={color(portfolio)}
                 opacity="0.78"
-              >
-                <title>
-                  {portfolio}\n{leaf.data.name}\n
-                  {metric === "records"
-                    ? `${leaf.value} records`
-                    : money(leaf.value)}
-                </title>
-              </rect>
+                data-analytics-tooltip={`${portfolio}\n${leaf.data.name}\n${metric === "records" ? `${leaf.value} records` : money(leaf.value)}`}
+              />
               {width > 90 && height > 34 ? (
                 <>
                   <text x={leaf.x0 + 6} y={leaf.y0 + 15}>
@@ -426,7 +500,7 @@ function PortfolioTreemap({ records, metric }) {
   );
 }
 
-function BuyerYearHeatmap({ records }) {
+function BuyerYearHeatmap({ records, onBuyer }) {
   const years = [
     ...new Set(
       records.flatMap((record) =>
@@ -515,20 +589,18 @@ function BuyerYearHeatmap({ records }) {
           width={x.bandwidth()}
           height={y.bandwidth()}
           fill={cell.value ? color(cell.value) : "#eef2f5"}
-        >
-          <title>
-            {cell.buyer}\nFY{cell.year}:{" "}
-            {cell.value
-              ? money(cell.value)
-              : "No reported obligations in this dataset"}
-          </title>
-        </rect>
+          role="button"
+          tabIndex="0"
+          data-analytics-tooltip={`${cell.buyer}\nFY${cell.year}\n${cell.value ? money(cell.value) : "No reported obligations in this dataset"}\nClick to filter every view by funding office`}
+          onClick={() => onBuyer?.(cell.buyer)}
+          onKeyDown={(event) => activateWithKeyboard(event, () => onBuyer?.(cell.buyer))}
+        />
       ))}
     </svg>
   );
 }
 
-function WorkCategoryTreemap({ records }) {
+function WorkCategoryTreemap({ records, onCategory }) {
   const rows = [
     ...new Set(
       records.map((record) => record.workCategory || "other-unclassified"),
@@ -561,7 +633,7 @@ function WorkCategoryTreemap({ records }) {
         const width = leaf.x1 - leaf.x0;
         const height = leaf.y1 - leaf.y0;
         return (
-          <g key={leaf.data.name}>
+          <g key={leaf.data.name} role="button" tabIndex="0" data-analytics-tooltip={`${leaf.data.name}\n${leaf.value} records\n${money(leaf.data.obligations)} observed obligations\nClick to filter every view`} onClick={() => onCategory?.(leaf.data.name)} onKeyDown={(event) => activateWithKeyboard(event, () => onCategory?.(leaf.data.name))}>
             <rect
               x={leaf.x0}
               y={leaf.y0}
@@ -569,12 +641,8 @@ function WorkCategoryTreemap({ records }) {
               height={height}
               fill={leaf.data.color}
               opacity="0.82"
-            >
-              <title>
-                {leaf.data.name}\n{leaf.value} records\n
-                {money(leaf.data.obligations)} observed obligations
-              </title>
-            </rect>
+              data-analytics-tooltip={`${leaf.data.name}\n${leaf.value} records\n${money(leaf.data.obligations)} observed obligations`}
+            />
             {width > 100 && height > 36 ? (
               <>
                 <text x={leaf.x0 + 7} y={leaf.y0 + 16}>
@@ -592,7 +660,7 @@ function WorkCategoryTreemap({ records }) {
   );
 }
 
-function ProvenanceBars({ records }) {
+function ProvenanceBars({ records, onProvenance }) {
   const rows = [
     ...new Set(
       records.map((record) => record.ingestionMethod || "source-file"),
@@ -630,7 +698,7 @@ function ProvenanceBars({ records }) {
         const barWidth =
           ((width - inset.left - inset.right) * row.records) / maximum;
         return (
-          <g key={row.method}>
+          <g key={row.method} role="button" tabIndex="0" data-analytics-tooltip={`${row.label}\n${row.records.toLocaleString()} records\n${money(row.obligations)} observed obligations\nClick to filter every view`} onClick={() => onProvenance?.(row.label)} onKeyDown={(event) => activateWithKeyboard(event, () => onProvenance?.(row.label))}>
             <text
               x={inset.left - 10}
               y={(x(row.label) || 0) + x.bandwidth() / 2 + 4}
@@ -644,12 +712,8 @@ function ProvenanceBars({ records }) {
               width={barWidth}
               height={x.bandwidth()}
               fill={row.color}
-            >
-              <title>
-                {row.label}: {row.records} records; {money(row.obligations)}{" "}
-                observed obligations
-              </title>
-            </rect>
+              data-analytics-tooltip={`${row.label}\n${row.records.toLocaleString()} records\n${money(row.obligations)} observed obligations`}
+            />
             <text
               x={inset.left + barWidth + 8}
               y={(x(row.label) || 0) + x.bandwidth() / 2 + 4}
@@ -699,11 +763,7 @@ function ChangeBars({ summary }) {
             <text x="190" y={y + 23} textAnchor="end">
               {row.label}
             </text>
-            <rect x="210" y={y} width={width} height="32" fill={row.color}>
-              <title>
-                {row.label}: {row.value}
-              </title>
-            </rect>
+            <rect x="210" y={y} width={width} height="32" fill={row.color} data-analytics-tooltip={`${row.label}\n${row.value.toLocaleString()} records`} />
             <text x={218 + width} y={y + 23}>
               {row.value.toLocaleString()}
             </text>
@@ -714,7 +774,7 @@ function ChangeBars({ summary }) {
   );
 }
 
-function SubawardConcentration({ records }) {
+function SubawardConcentration({ records, onSelect }) {
   const rows = records
     .filter((record) => record.subawardSummary?.reportedCount)
     .map((record) => ({
@@ -723,6 +783,7 @@ function SubawardConcentration({ records }) {
       amount: Number(record.subawardSummary.sampledAmount || 0),
       count: Number(record.subawardSummary.reportedCount || 0),
       partial: Boolean(record.subawardSummary.detailTruncated),
+      record,
     }))
     .sort((left, right) => right.amount - left.amount)
     .slice(0, 12);
@@ -741,7 +802,7 @@ function SubawardConcentration({ records }) {
         const barWidth =
           ((width - inset.left - inset.right) * row.amount) / maximum;
         return (
-          <g key={row.id}>
+          <g key={row.id} role="button" tabIndex="0" data-analytics-tooltip={`${row.label}\n${money(row.amount)} retained-detail sample\n${row.count.toLocaleString()} reported subawards${row.partial ? "\nRecent-detail sample; not a complete total" : ""}\nClick for factual record detail`} onClick={() => onSelect?.(row.record)} onKeyDown={(event) => activateWithKeyboard(event, () => onSelect?.(row.record))}>
             <text x={inset.left - 9} y={y + 18} textAnchor="end">
               {row.label.slice(0, 43)}
             </text>
@@ -751,13 +812,8 @@ function SubawardConcentration({ records }) {
               width={barWidth}
               height="23"
               fill={row.partial ? "#d98775" : "#d34b36"}
-            >
-              <title>
-                {row.label} · {money(row.amount)} retained-detail sample ·{" "}
-                {row.count.toLocaleString()} subawards
-                {row.partial ? " · recent-detail sample; not a complete total" : ""}
-              </title>
-            </rect>
+              data-analytics-tooltip={`${row.label}\n${money(row.amount)} retained-detail sample\n${row.count.toLocaleString()} reported subawards${row.partial ? "\nRecent-detail sample; not a complete total" : ""}`}
+            />
             <text x={inset.left + barWidth + 8} y={y + 17}>
               {money(row.amount)} · {row.count.toLocaleString()}
               {row.partial ? "+" : ""}
@@ -822,12 +878,7 @@ function FieldCoverageBars({ records }) {
             <text x="230" y={y + 21} textAnchor="end">
               {row.label}
             </text>
-            <rect x="250" y={y} width={width} height="28" fill="#147da1">
-              <title>
-                {row.label}: {row.value.toLocaleString()} of{" "}
-                {records.length.toLocaleString()} records
-              </title>
-            </rect>
+            <rect x="250" y={y} width={width} height="28" fill="#147da1" data-analytics-tooltip={`${row.label}\n${row.value.toLocaleString()} of ${records.length.toLocaleString()} records\n${Math.round((row.value / total) * 100)}% coverage`} />
             <text x={258 + width} y={y + 20}>
               {row.value.toLocaleString()} ·{" "}
               {Math.round((row.value / total) * 100)}%
@@ -997,6 +1048,250 @@ function MoneyLineageMap({ accountSpine, requestLineCount, captureCoverage }) {
   );
 }
 
+const VALUE_BANDS = [
+  { id: "under-1m", label: "Under $1M", min: 0, max: 1_000_000 },
+  { id: "1m-10m", label: "$1M–$10M", min: 1_000_000, max: 10_000_000 },
+  { id: "10m-100m", label: "$10M–$100M", min: 10_000_000, max: 100_000_000 },
+  { id: "100m-1b", label: "$100M–$1B", min: 100_000_000, max: 1_000_000_000 },
+  { id: "1b-10b", label: "$1B–$10B", min: 1_000_000_000, max: 10_000_000_000 },
+  { id: "over-10b", label: "$10B+", min: 10_000_000_000, max: Infinity },
+];
+
+const DURATION_BANDS = [
+  { id: "under-1y", label: "Under 1 year", min: 0, max: 365 },
+  { id: "1-2y", label: "1–2 years", min: 365, max: 731 },
+  { id: "2-5y", label: "2–5 years", min: 731, max: 1827 },
+  { id: "5-10y", label: "5–10 years", min: 1827, max: 3653 },
+  { id: "over-10y", label: "10+ years", min: 3653, max: Infinity },
+];
+
+function recordDurationDays(record) {
+  const start = record.start || record.solicitationStart;
+  const end = record.currentEnd || record.solicitationEnd;
+  if (!start || !end) return null;
+  const duration = (new Date(`${end}T00:00:00Z`) - new Date(`${start}T00:00:00Z`)) / 86_400_000;
+  return Number.isFinite(duration) && duration >= 0 ? duration : null;
+}
+
+function ValueDistribution({ records, activeBand, onBand }) {
+  const rows = VALUE_BANDS.map((band) => {
+    const matches = records.filter((record) => {
+      const value = recordValue(record);
+      return value >= band.min && value < band.max;
+    });
+    return {
+      ...band,
+      records: matches.length,
+      obligations: matches.reduce((sum, record) => sum + recordObligations(record), 0),
+    };
+  });
+  const width = 920;
+  const height = 310;
+  const inset = { top: 28, right: 26, bottom: 72, left: 54 };
+  const x = scaleBand().domain(rows.map((row) => row.id)).range([inset.left, width - inset.right]).padding(0.18);
+  const y = scaleLinear().domain([0, Math.max(...rows.map((row) => row.records), 1)]).range([height - inset.bottom, inset.top]);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Reported value distribution by logarithmic dollar band">
+      {rows.map((row) => {
+        const selected = row.id === activeBand;
+        const left = x(row.id) || 0;
+        return (
+          <g key={row.id} role="button" tabIndex="0" aria-pressed={selected} data-analytics-tooltip={`${row.label}\n${row.records.toLocaleString()} records\n${money(row.obligations)} observed obligations`} onClick={() => onBand(selected ? null : row.id)} onKeyDown={(event) => activateWithKeyboard(event, () => onBand(selected ? null : row.id))}>
+            <rect x={left} y={y(row.records)} width={x.bandwidth()} height={height - inset.bottom - y(row.records)} rx="4" fill={selected ? "#f0b323" : "#1678a5"} />
+            <text x={left + x.bandwidth() / 2} y={y(row.records) - 7} textAnchor="middle">{row.records}</text>
+            <text x={left + x.bandwidth() / 2} y={height - 48} textAnchor="middle">{row.label.replace("–", "-")}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function EndpointSeasonality({ records, activeMonth, onMonth }) {
+  const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const rows = labels.map((label, month) => ({
+    label,
+    month,
+    current: records.filter((record) => {
+      const date = record.currentEnd || record.solicitationEnd;
+      return date && new Date(`${date}T00:00:00Z`).getUTCMonth() === month;
+    }).length,
+    potential: records.filter((record) => record.potentialEnd && new Date(`${record.potentialEnd}T00:00:00Z`).getUTCMonth() === month).length,
+  }));
+  const width = 920;
+  const height = 310;
+  const inset = { top: 28, right: 24, bottom: 50, left: 45 };
+  const x = scaleBand().domain(rows.map((row) => row.month)).range([inset.left, width - inset.right]).padding(0.17);
+  const maximum = Math.max(...rows.map((row) => row.current + row.potential), 1);
+  const plotHeight = height - inset.top - inset.bottom;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Reported endpoint seasonality by calendar month">
+      {rows.map((row) => {
+        const currentHeight = (row.current / maximum) * plotHeight;
+        const potentialHeight = (row.potential / maximum) * plotHeight;
+        const left = x(row.month) || 0;
+        const selected = activeMonth === row.month;
+        return (
+          <g key={row.label} role="button" tabIndex="0" aria-pressed={selected} data-analytics-tooltip={`${row.label}\n${row.current.toLocaleString()} current or solicitation endpoints\n${row.potential.toLocaleString()} conditional potential endpoints`} onClick={() => onMonth(selected ? null : row.month)} onKeyDown={(event) => activateWithKeyboard(event, () => onMonth(selected ? null : row.month))}>
+            <rect x={left} y={height - inset.bottom - currentHeight} width={x.bandwidth() / 2} height={currentHeight} fill={selected ? "#f0b323" : "#1678a5"} />
+            <rect x={left + x.bandwidth() / 2} y={height - inset.bottom - potentialHeight} width={x.bandwidth() / 2} height={potentialHeight} fill="#8b6aad" />
+            <text x={left + x.bandwidth() / 2} y={height - 27} textAnchor="middle">{row.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function DurationDistribution({ records, activeBand, onBand }) {
+  const rows = DURATION_BANDS.map((band) => ({
+    ...band,
+    records: records.filter((record) => {
+      const duration = recordDurationDays(record);
+      return duration !== null && duration >= band.min && duration < band.max;
+    }).length,
+  }));
+  const width = 920;
+  const height = 300;
+  const inset = { top: 26, right: 28, bottom: 54, left: 220 };
+  const y = scaleBand().domain(rows.map((row) => row.id)).range([inset.top, height - inset.bottom]).padding(0.22);
+  const maximum = Math.max(...rows.map((row) => row.records), 1);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Reported current term duration distribution">
+      {rows.map((row) => {
+        const barWidth = ((width - inset.left - inset.right) * row.records) / maximum;
+        const selected = activeBand === row.id;
+        return (
+          <g key={row.id} role="button" tabIndex="0" aria-pressed={selected} data-analytics-tooltip={`${row.label}\n${row.records.toLocaleString()} records with published start and current end`} onClick={() => onBand(selected ? null : row.id)} onKeyDown={(event) => activateWithKeyboard(event, () => onBand(selected ? null : row.id))}>
+            <text x={inset.left - 10} y={(y(row.id) || 0) + y.bandwidth() / 2 + 4} textAnchor="end">{row.label}</text>
+            <rect x={inset.left} y={y(row.id)} width={barWidth} height={y.bandwidth()} rx="4" fill={selected ? "#f0b323" : "#1678a5"} />
+            <text x={inset.left + barWidth + 8} y={(y(row.id) || 0) + y.bandwidth() / 2 + 4}>{row.records}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function FiscalObligationTrend({ records, dimensionId, facet, onFacet }) {
+  const dimension = DIMENSIONS.find((item) => item.id === dimensionId) || DIMENSIONS[0];
+  const totalsByLabel = new Map();
+  for (const record of records) {
+    const label = dimension.value(record);
+    const value = (record.fiscalValues || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    totalsByLabel.set(label, (totalsByLabel.get(label) || 0) + value);
+  }
+  const labels = [...totalsByLabel.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label]) => label);
+  const years = [...new Set(records.flatMap((record) => (record.fiscalValues || []).map((row) => row.fiscalYear)))].sort((a, b) => a - b);
+  const rows = years.map((year) => ({
+    year,
+    values: labels.map((label) => records.filter((record) => dimension.value(record) === label).reduce((sum, record) => sum + (record.fiscalValues || []).filter((row) => row.fiscalYear === year).reduce((yearSum, row) => yearSum + Number(row.amount || 0), 0), 0)),
+  }));
+  const width = 1180;
+  const height = 360;
+  const inset = { top: 30, right: 26, bottom: 50, left: 72 };
+  const x = scaleBand().domain(years).range([inset.left, width - inset.right]).padding(0.22);
+  const maximum = Math.max(...rows.map((row) => row.values.reduce((sum, value) => sum + Math.max(value, 0), 0)), 1);
+  const color = scaleOrdinal(schemeTableau10).domain(labels);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Annual net obligations stacked by ${dimension.label}`}>
+      {rows.map((row) => {
+        let cumulative = 0;
+        return (
+          <g key={row.year}>
+            {row.values.map((value, index) => {
+              const positive = Math.max(value, 0);
+              const segmentHeight = (positive / maximum) * (height - inset.top - inset.bottom);
+              cumulative += segmentHeight;
+              const label = labels[index];
+              const selected = facet?.dimensionId === dimension.id && facet.value === label;
+              return (
+                <rect key={label} x={x(row.year)} y={height - inset.bottom - cumulative} width={x.bandwidth()} height={segmentHeight} fill={selected ? "#f0b323" : color(label)} opacity="0.86" role="button" tabIndex="0" aria-pressed={selected} data-analytics-tooltip={`FY${row.year} · ${label}\n${money(value)} net obligations\nTop five ${dimension.label.toLowerCase()} groups shown`} onClick={() => onFacet(selected ? null : { dimensionId: dimension.id, value: label })} onKeyDown={(event) => activateWithKeyboard(event, () => onFacet(selected ? null : { dimensionId: dimension.id, value: label }))} />
+              );
+            })}
+            <text x={(x(row.year) || 0) + x.bandwidth() / 2} y={height - 28} textAnchor="middle">FY{row.year}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function VehiclePricingMix({ records, onVehicle }) {
+  const groups = ["Firm fixed price", "Cost type", "Time & materials", "Other / not published"];
+  const priceGroup = (record) => {
+    const value = normalizeText(record.pricingType);
+    if (/firm fixed|fixed price|ffp/.test(value)) return groups[0];
+    if (/cost plus|cost no fee|cpff|cpaf|cpif/.test(value)) return groups[1];
+    if (/time and material|labor hour|t&m/.test(value)) return groups[2];
+    return groups[3];
+  };
+  const vehicles = [...new Set(records.map((record) => record.vehicle || "Not published"))]
+    .map((vehicle) => ({ vehicle, records: records.filter((record) => (record.vehicle || "Not published") === vehicle) }))
+    .sort((a, b) => b.records.length - a.records.length)
+    .slice(0, 10);
+  const width = 1040;
+  const height = 390;
+  const inset = { top: 28, right: 120, bottom: 30, left: 300 };
+  const y = scaleBand().domain(vehicles.map((row) => row.vehicle)).range([inset.top, height - inset.bottom]).padding(0.2);
+  const maximum = Math.max(...vehicles.map((row) => row.records.length), 1);
+  const color = scaleOrdinal().domain(groups).range(["#1678a5", "#d2742d", "#7d4e9f", "#9aabb5"]);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Top published contract vehicles by pricing mix">
+      {vehicles.map((row) => {
+        let offset = 0;
+        return (
+          <g key={row.vehicle}>
+            <text x={inset.left - 10} y={(y(row.vehicle) || 0) + y.bandwidth() / 2 + 4} textAnchor="end">{row.vehicle.slice(0, 44)}</text>
+            {groups.map((group) => {
+              const count = row.records.filter((record) => priceGroup(record) === group).length;
+              const width = ((1040 - inset.left - inset.right) * count) / maximum;
+              const left = inset.left + offset;
+              offset += width;
+              return <rect key={group} x={left} y={y(row.vehicle)} width={width} height={y.bandwidth()} fill={color(group)} role="button" tabIndex="0" data-analytics-tooltip={`${row.vehicle}\n${group}: ${count.toLocaleString()} records\n${row.records.length.toLocaleString()} total vehicle records`} onClick={() => onVehicle(row.vehicle)} onKeyDown={(event) => activateWithKeyboard(event, () => onVehicle(row.vehicle))} />;
+            })}
+            <text x={inset.left + offset + 8} y={(y(row.vehicle) || 0) + y.bandwidth() / 2 + 4}>{row.records.length}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function SourceCoverageMatrix({ records, onSource }) {
+  const fields = [
+    ["Schedule", (record) => record.start || record.currentEnd || record.solicitationStart || record.solicitationEnd],
+    ["Dollars", (record) => recordValue(record) > 0 || recordObligations(record) > 0],
+    ["Work taxonomy", (record) => record.workCategory && record.workCategory !== "other-unclassified"],
+    ["Acquisition structure", (record) => record.vehicle || record.pricingType || record.competitionType || record.setAside],
+    ["FPDS activity", (record) => record.transactionSummary?.actions],
+    ["Subawards", (record) => record.subawardSummary?.reportedCount],
+  ];
+  const sources = [...new Set(records.map((record) => record.sourceSystem || record.ingestionLabel || "Not published"))]
+    .map((source) => ({ source, records: records.filter((record) => (record.sourceSystem || record.ingestionLabel || "Not published") === source) }))
+    .sort((a, b) => b.records.length - a.records.length)
+    .slice(0, 8);
+  const cells = sources.flatMap((source) => fields.map(([field, predicate]) => ({ source: source.source, field, count: source.records.filter(predicate).length, total: source.records.length })));
+  const width = 1040;
+  const height = 390;
+  const inset = { top: 78, right: 28, bottom: 30, left: 280 };
+  const x = scaleBand().domain(fields.map(([field]) => field)).range([inset.left, width - inset.right]).padding(0.06);
+  const y = scaleBand().domain(sources.map((row) => row.source)).range([inset.top, height - inset.bottom]).padding(0.06);
+  const color = scaleSequential(interpolateBlues).domain([0, 1]);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Source system field coverage matrix">
+      {fields.map(([field]) => <text key={field} x={(x(field) || 0) + x.bandwidth() / 2} y="54" textAnchor="middle">{field}</text>)}
+      {sources.map((row) => <text key={row.source} x={inset.left - 10} y={(y(row.source) || 0) + y.bandwidth() / 2 + 4} textAnchor="end">{row.source.slice(0, 38)}</text>)}
+      {cells.map((cell) => {
+        const ratio = cell.total ? cell.count / cell.total : 0;
+        return (
+          <rect key={`${cell.source}-${cell.field}`} x={x(cell.field)} y={y(cell.source)} width={x.bandwidth()} height={y.bandwidth()} rx="3" fill={ratio ? color(ratio) : "#eef2f5"} role="button" tabIndex="0" data-analytics-tooltip={`${cell.source} · ${cell.field}\n${cell.count.toLocaleString()} of ${cell.total.toLocaleString()} records\n${Math.round(ratio * 100)}% field coverage`} onClick={() => onSource(cell.source)} onKeyDown={(event) => activateWithKeyboard(event, () => onSource(cell.source))} />
+        );
+      })}
+    </svg>
+  );
+}
+
 function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
   const dimension = DIMENSIONS.find((item) => item.id === dimensionId) || DIMENSIONS[0];
   const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
@@ -1032,13 +1327,12 @@ function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
             aria-pressed={active}
             aria-label={`${row.label}, ${metric.format(row.value)}, ${row.records} records`}
             className={active ? "is-selected" : ""}
+            data-analytics-tooltip={`${row.label}\n${metric.format(row.value)}\n${row.records.toLocaleString()} records\nClick to filter every view`}
             onClick={() => onFacet(active ? null : { dimensionId: dimension.id, value: row.label })}
             onKeyDown={(event) => activateWithKeyboard(event, () => onFacet(active ? null : { dimensionId: dimension.id, value: row.label }))}
           >
             <text x={inset.left - 12} y={y + 20} textAnchor="end">{row.label.slice(0, 48)}</text>
-            <rect x={inset.left} y={y} width={barWidth} height="25" rx="3" fill={active ? "#f0b323" : "#1678a5"}>
-              <title>{row.label}\n{metric.format(row.value)}\n{row.records.toLocaleString()} records</title>
-            </rect>
+            <rect x={inset.left} y={y} width={barWidth} height="25" rx="3" fill={active ? "#f0b323" : "#1678a5"} />
             <text x={inset.left + barWidth + 9} y={y + 19}>{metric.format(row.value)}</text>
           </g>
         );
@@ -1079,10 +1373,10 @@ function ScheduleHorizon({ records, onYear }) {
         const left = x(row.year) || 0;
         const bottom = height - inset.bottom;
         return (
-          <g key={row.year} role="button" tabIndex="0" aria-label={`Year ${row.year}, ${total} reported endpoints`} onClick={() => onYear(row.year)} onKeyDown={(event) => activateWithKeyboard(event, () => onYear(row.year))}>
-            <rect x={left} y={bottom - contractHeight} width={x.bandwidth()} height={contractHeight} fill="#1678a5"><title>{row.year}: {row.contracts} current contract ends</title></rect>
-            <rect x={left} y={bottom - contractHeight - acquisitionHeight} width={x.bandwidth()} height={acquisitionHeight} fill="#248642"><title>{row.year}: {row.acquisitions} acquisition endpoints</title></rect>
-            <rect x={left} y={bottom - barHeight} width={x.bandwidth()} height={potentialHeight} fill="#8b6aad"><title>{row.year}: {row.potential} conditional potential ends</title></rect>
+          <g key={row.year} role="button" tabIndex="0" aria-label={`Year ${row.year}, ${total} reported endpoints`} data-analytics-tooltip={`${row.year}\n${row.contracts} current contract ends\n${row.acquisitions} acquisition endpoints\n${row.potential} conditional potential ends\nClick to filter every view`} onClick={() => onYear(row.year)} onKeyDown={(event) => activateWithKeyboard(event, () => onYear(row.year))}>
+            <rect x={left} y={bottom - contractHeight} width={x.bandwidth()} height={contractHeight} fill="#1678a5" />
+            <rect x={left} y={bottom - contractHeight - acquisitionHeight} width={x.bandwidth()} height={acquisitionHeight} fill="#248642" />
+            <rect x={left} y={bottom - barHeight} width={x.bandwidth()} height={potentialHeight} fill="#8b6aad" />
             <text x={left + x.bandwidth() / 2} y={height - 28} textAnchor="middle">{row.year}</text>
             {total ? <text x={left + x.bandwidth() / 2} y={bottom - barHeight - 7} textAnchor="middle">{total}</text> : null}
           </g>
@@ -1125,9 +1419,7 @@ function AcquisitionMatrix({ records }) {
       {pricingGroups.map((label) => <text key={label} x={inset.left - 10} y={(y(label) || 0) + y.bandwidth() / 2 + 4} textAnchor="end">{label}</text>)}
       {cells.map((cell) => (
         <g key={`${cell.price}-${cell.compete}`}>
-          <rect x={x(cell.compete)} y={y(cell.price)} width={x.bandwidth()} height={y.bandwidth()} rx="4" fill={cell.records.length ? color(cell.records.length) : "#eef2f5"}>
-            <title>{cell.price}\n{cell.compete}\n{cell.records.length} records\n{money(cell.records.reduce((sum, record) => sum + recordObligations(record), 0))} observed obligations</title>
-          </rect>
+          <rect x={x(cell.compete)} y={y(cell.price)} width={x.bandwidth()} height={y.bandwidth()} rx="4" fill={cell.records.length ? color(cell.records.length) : "#eef2f5"} data-analytics-tooltip={`${cell.price}\n${cell.compete}\n${cell.records.length} records\n${money(cell.records.reduce((sum, record) => sum + recordObligations(record), 0))} observed obligations`} />
           <text x={(x(cell.compete) || 0) + x.bandwidth() / 2} y={(y(cell.price) || 0) + y.bandwidth() / 2 + 5} textAnchor="middle">{cell.records.length}</text>
         </g>
       ))}
@@ -1226,8 +1518,22 @@ export default function TransactionAnalytics({
   const [metricId, setMetricId] = useState("obligations");
   const [facet, setFacet] = useState(null);
   const [endYear, setEndYear] = useState(null);
+  const [endMonth, setEndMonth] = useState(null);
+  const [valueBand, setValueBand] = useState(null);
+  const [durationBand, setDurationBand] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [treemapMetric, setTreemapMetric] = useState("obligations");
+  const [filterValues, setFilterValues] = useState({
+    work: "all",
+    buyer: "all",
+    recipient: "all",
+    provenance: "all",
+    pricing: "all",
+    competition: "all",
+    vehicle: "all",
+    source: "all",
+  });
+  const [visibleCharts, setVisibleCharts] = useState(DEFAULT_VISIBLE_CHARTS);
   useEffect(() => {
     if (!selectedRecord) return undefined;
     const onKeyDown = (event) => {
@@ -1236,16 +1542,56 @@ export default function TransactionAnalytics({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedRecord]);
+  const filterDefinitions = useMemo(() => [
+    { id: "work", title: "Type of work", allLabel: "All work categories", value: (record) => record.workCategory || "other-unclassified", label: (value) => WORK_CATEGORY_BY_ID.get(value)?.label || "Other / unclassified" },
+    { id: "buyer", title: "Funding office", allLabel: "All funding offices", value: (record) => record.fundingOffice || record.owner || "Not published" },
+    { id: "recipient", title: "Recipient / sponsor", allLabel: "All recipients", value: (record) => record.party || "Not published" },
+    { id: "provenance", title: "Ingestion provenance", allLabel: "All ingestion methods", value: (record) => record.ingestionMethod || "source-file", label: (value) => INGESTION_METHOD_BY_ID.get(value)?.label || value },
+    { id: "pricing", title: "Pricing type", allLabel: "All pricing types", value: (record) => record.pricingType || "Not published" },
+    { id: "competition", title: "Competition / set-aside", allLabel: "All competition classes", value: (record) => record.setAside || record.competitionType || "Not published" },
+    { id: "vehicle", title: "Contract vehicle", allLabel: "All vehicles", value: (record) => record.vehicle || "Not published" },
+    { id: "source", title: "Source system", allLabel: "All source systems", value: (record) => record.sourceSystem || record.ingestionLabel || "Not published" },
+  ].map((definition) => {
+    const counts = new Map();
+    for (const record of records) {
+      const value = definition.value(record);
+      counts.set(value, (counts.get(value) || 0) + 1);
+    }
+    return {
+      ...definition,
+      options: [...counts.entries()]
+        .map(([value, count]) => ({ value, label: definition.label?.(value) || value, count }))
+        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label)),
+    };
+  }), [records]);
   const scopedRecords = useMemo(() => records.filter((record) => {
     if (!recordMatchesQuery(record, query)) return false;
     if (mode !== "all" && record.mode !== mode) return false;
     if (endYear && dateYear(record.currentEnd || record.solicitationEnd) !== endYear && dateYear(record.potentialEnd) !== endYear) return false;
+    if (endMonth !== null) {
+      const dates = [record.currentEnd || record.solicitationEnd, record.potentialEnd].filter(Boolean);
+      if (!dates.some((date) => new Date(`${date}T00:00:00Z`).getUTCMonth() === endMonth)) return false;
+    }
+    if (valueBand) {
+      const band = VALUE_BANDS.find((item) => item.id === valueBand);
+      const value = recordValue(record);
+      if (band && !(value >= band.min && value < band.max)) return false;
+    }
+    if (durationBand) {
+      const band = DURATION_BANDS.find((item) => item.id === durationBand);
+      const duration = recordDurationDays(record);
+      if (band && !(duration !== null && duration >= band.min && duration < band.max)) return false;
+    }
     if (facet) {
       const dimension = DIMENSIONS.find((item) => item.id === facet.dimensionId);
       if (dimension && dimension.value(record) !== facet.value) return false;
     }
+    for (const definition of filterDefinitions) {
+      const selected = parseMultiValues(filterValues[definition.id]);
+      if (selected.length && !selected.includes(definition.value(record))) return false;
+    }
     return true;
-  }), [endYear, facet, mode, query, records]);
+  }), [durationBand, endMonth, endYear, facet, filterDefinitions, filterValues, mode, query, records, valueBand]);
   const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
   const totals = useMemo(
     () => ({
@@ -1281,14 +1627,21 @@ export default function TransactionAnalytics({
   const samRecords = acquisitionRecords.filter((record) =>
     record.sourceUrls.some((url) => /sam\.gov/i.test(url)),
   ).length;
-  const activeFilters = Number(Boolean(query)) + Number(mode !== "all") + Number(Boolean(facet)) + Number(Boolean(endYear));
+  const activeFilters = Number(Boolean(query)) + Number(mode !== "all") + Number(Boolean(facet)) + Number(Boolean(endYear)) + Number(endMonth !== null) + Number(Boolean(valueBand)) + Number(Boolean(durationBand)) + filterDefinitions.filter((definition) => parseMultiValues(filterValues[definition.id]).length).length;
   const dimensionLabel = DIMENSIONS.find((item) => item.id === dimensionId)?.label || "Dimension";
   const clearFilters = () => {
     setQuery("");
     setMode("all");
     setFacet(null);
     setEndYear(null);
+    setEndMonth(null);
+    setValueBand(null);
+    setDurationBand(null);
+    setFilterValues({ work: "all", buyer: "all", recipient: "all", provenance: "all", pricing: "all", competition: "all", vehicle: "all", source: "all" });
   };
+  const chartOptions = VIEW_CHARTS[activeView];
+  const activeChartIds = visibleCharts[activeView] || DEFAULT_VISIBLE_CHARTS[activeView];
+  const chartVisible = (id) => activeChartIds.includes(id);
   return (
     <div className="transaction-analytics-page" data-transaction-d3-page>
       <section className="transaction-analytics-hero">
@@ -1341,35 +1694,75 @@ export default function TransactionAnalytics({
           <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
           {activeFilters ? <button type="button" className="analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
         </div>
-        {(facet || endYear) ? <div className="analytics-active-filters" aria-label="Active analytical filters">{facet ? <button type="button" onClick={() => setFacet(null)}><Filter size={13} aria-hidden="true" />{DIMENSIONS.find((item) => item.id === facet.dimensionId)?.label}: {facet.value}<X size={13} aria-hidden="true" /></button> : null}{endYear ? <button type="button" onClick={() => setEndYear(null)}><CalendarClock size={13} aria-hidden="true" />Reported endpoint: {endYear}<X size={13} aria-hidden="true" /></button> : null}</div> : null}
+        <details className="analytics-manager" data-analytics-manager>
+          <summary><Filter size={14} aria-hidden="true" /><strong>Filter data & manage charts</strong><span>{activeFilters ? `${activeFilters} active filters` : "All records"} · {activeChartIds.length} of {chartOptions.length} charts</span></summary>
+          <div className="analytics-manager__grid">
+            {filterDefinitions.map((definition) => (
+              <SearchMultiSelect
+                key={definition.id}
+                className="analytics-multiselect"
+                title={definition.title}
+                allLabel={definition.allLabel}
+                value={filterValues[definition.id]}
+                options={definition.options}
+                onChange={(values) => setFilterValues((current) => ({ ...current, [definition.id]: serializeMultiValues(values) }))}
+              />
+            ))}
+            <SearchMultiSelect
+              className="analytics-multiselect analytics-chart-manager"
+              title="Visible charts"
+              allLabel="All charts visible"
+              value={serializeMultiValues(activeChartIds)}
+              options={chartOptions}
+              onChange={(values) => setVisibleCharts((current) => ({ ...current, [activeView]: values.length ? values : DEFAULT_VISIBLE_CHARTS[activeView] }))}
+            />
+          </div>
+        </details>
+        {activeFilters ? <div className="analytics-active-filters" aria-label="Active analytical filters">
+          {facet ? <button type="button" onClick={() => setFacet(null)}><Filter size={13} aria-hidden="true" />{DIMENSIONS.find((item) => item.id === facet.dimensionId)?.label}: {facet.value}<X size={13} aria-hidden="true" /></button> : null}
+          {endYear ? <button type="button" onClick={() => setEndYear(null)}><CalendarClock size={13} aria-hidden="true" />Reported endpoint: {endYear}<X size={13} aria-hidden="true" /></button> : null}
+          {endMonth !== null ? <button type="button" onClick={() => setEndMonth(null)}><CalendarClock size={13} aria-hidden="true" />Endpoint month: {new Date(2026, endMonth, 1).toLocaleString(undefined, { month: "short" })}<X size={13} aria-hidden="true" /></button> : null}
+          {valueBand ? <button type="button" onClick={() => setValueBand(null)}><CircleDollarSign size={13} aria-hidden="true" />{VALUE_BANDS.find((item) => item.id === valueBand)?.label}<X size={13} aria-hidden="true" /></button> : null}
+          {durationBand ? <button type="button" onClick={() => setDurationBand(null)}><CalendarClock size={13} aria-hidden="true" />{DURATION_BANDS.find((item) => item.id === durationBand)?.label}<X size={13} aria-hidden="true" /></button> : null}
+          {filterDefinitions.map((definition) => {
+            const selected = parseMultiValues(filterValues[definition.id]);
+            return selected.length ? <button key={definition.id} type="button" onClick={() => setFilterValues((current) => ({ ...current, [definition.id]: "all" }))}><Filter size={13} aria-hidden="true" />{definition.title}: {selected.length}<X size={13} aria-hidden="true" /></button> : null;
+          })}
+        </div> : null}
       </section>
 
       {activeView === "overview" ? <div className="transaction-viz-grid">
-        <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div>
-        <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame>
-        <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame>
-        <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure" testId="treemap"><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} /></ChartFrame>
-        <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit" testId="work-categories"><WorkCategoryTreemap records={scopedRecords} /></ChartFrame>
+        {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
+        {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("value-distribution") ? <ChartFrame icon={CircleDollarSign} title="Reported value distribution" note="Logarithmic bands preserve the small and large award populations; click to filter" testId="value-distribution"><ValueDistribution records={scopedRecords} activeBand={valueBand} onBand={setValueBand} /></ChartFrame> : null}
+        {chartVisible("treemap") ? <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure; click a recipient to filter every view" testId="treemap"><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} onRecipient={(value) => setFacet({ dimensionId: "recipient", value })} /></ChartFrame> : null}
+        {chartVisible("work-categories") ? <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit; click to filter" testId="work-categories"><WorkCategoryTreemap records={scopedRecords} onCategory={(value) => setFacet({ dimensionId: "work", value })} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "schedule" ? <div className="transaction-viz-grid">
-        <div className="transaction-viz--wide"><ChartFrame icon={CalendarClock} title="Reported schedule horizon" note="Click a year to filter records by current, solicitation, or conditional potential endpoint" testId="schedule-horizon"><ScheduleHorizon records={scopedRecords} onYear={(year) => setEndYear(endYear === year ? null : year)} /></ChartFrame></div>
-        <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame>
-        <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame>
+        {chartVisible("schedule-horizon") ? <div className="transaction-viz--wide"><ChartFrame icon={CalendarClock} title="Reported schedule horizon" note="Click a year to filter records by current, solicitation, or conditional potential endpoint" testId="schedule-horizon"><ScheduleHorizon records={scopedRecords} onYear={(year) => setEndYear(endYear === year ? null : year)} /></ChartFrame></div> : null}
+        {chartVisible("endpoint-seasonality") ? <ChartFrame icon={CalendarClock} title="Endpoint seasonality" note="Current, solicitation, and conditional endpoints by calendar month; click to filter" testId="endpoint-seasonality"><EndpointSeasonality records={scopedRecords} activeMonth={endMonth} onMonth={setEndMonth} /></ChartFrame> : null}
+        {chartVisible("duration-distribution") ? <ChartFrame icon={BarChart3} title="Reported term duration" note="Published start-to-current-end duration; undated terms remain outside the distribution" testId="duration-distribution"><DurationDistribution records={scopedRecords} activeBand={durationBand} onBand={setDurationBand} /></ChartFrame> : null}
+        {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "spend" ? <div className="transaction-viz-grid">
-        <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div>
-        <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations in the normalized FPDS series" testId="buyer-year"><BuyerYearHeatmap records={scopedRecords} /></ChartFrame>
-        <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix"><AcquisitionMatrix records={scopedRecords} /></ChartFrame>
-        <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards"><SubawardConcentration records={scopedRecords} /></ChartFrame>
+        {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
+        {chartVisible("fiscal-trend") ? <div className="transaction-viz--wide"><ChartFrame icon={CircleDollarSign} title={`Fiscal obligation trend by ${dimensionLabel.toLowerCase()}`} note="Top five groups in the selected dimension; click a segment to filter every view" testId="fiscal-trend"><FiscalObligationTrend records={scopedRecords} dimensionId={dimensionId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
+        {chartVisible("buyer-year") ? <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations; click a cell to filter by funding office" testId="buyer-year"><BuyerYearHeatmap records={scopedRecords} onBuyer={(value) => setFacet({ dimensionId: "buyer", value })} /></ChartFrame> : null}
+        {chartVisible("acquisition-matrix") ? <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix"><AcquisitionMatrix records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("vehicle-pricing") ? <ChartFrame icon={Layers3} title="Vehicle and pricing mix" note="Top published contract vehicles split by fixed-price, cost-type, T&M, and unpublished pricing" testId="vehicle-pricing"><VehiclePricingMix records={scopedRecords} onVehicle={(vehicle) => setFacet({ dimensionId: "vehicle", value: vehicle })} /></ChartFrame> : null}
+        {chartVisible("subawards") ? <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards"><SubawardConcentration records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "coverage" ? <div className="transaction-viz-grid">
-        <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage"><FieldCoverageBars records={scopedRecords} /></ChartFrame>
-        <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct" testId="provenance"><ProvenanceBars records={scopedRecords} /></ChartFrame>
-        <ChartFrame icon={Network} title="Money lineage and public join gaps" note="Counts encode records and links, not additive dollars; relationship class is explicit" testId="money-lineage"><MoneyLineageMap accountSpine={accountSpine} requestLineCount={requestLineCount} captureCoverage={dataset.metadata.coverage} /></ChartFrame>
-        <ChartFrame icon={CalendarClock} title="Changed since prior snapshot" note="Stable identifiers distinguish added, updated, and no-longer-returned records" testId="changes"><ChangeBars summary={procurementDelta.summary} /></ChartFrame>
+        {chartVisible("field-coverage") ? <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage"><FieldCoverageBars records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("source-coverage") ? <ChartFrame icon={Grid3X3} title="Source-system coverage" note="Published field completeness by source system; click a cell to filter the active universe" testId="source-coverage"><SourceCoverageMatrix records={scopedRecords} onSource={(source) => setFacet({ dimensionId: "source", value: source })} /></ChartFrame> : null}
+        {chartVisible("provenance") ? <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct; click to filter" testId="provenance"><ProvenanceBars records={scopedRecords} onProvenance={(value) => setFacet({ dimensionId: "provenance", value })} /></ChartFrame> : null}
+        {chartVisible("money-lineage") ? <ChartFrame icon={Network} title="Money lineage and public join gaps" note="Counts encode records and links, not additive dollars; relationship class is explicit" testId="money-lineage"><MoneyLineageMap accountSpine={accountSpine} requestLineCount={requestLineCount} captureCoverage={dataset.metadata.coverage} /></ChartFrame> : null}
+        {chartVisible("changes") ? <ChartFrame icon={CalendarClock} title="Changed since prior snapshot" note="Stable identifiers distinguish added, updated, and no-longer-returned records" testId="changes"><ChangeBars summary={procurementDelta.summary} /></ChartFrame> : null}
       </div> : null}
 
       <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={setSelectedRecord} />
