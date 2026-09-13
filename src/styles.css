@@ -10434,6 +10434,16 @@ td .dot {
     padding: 8px;
   }
 
+  .capture-hero > div:first-child > p:not(.capture-hero__boundary),
+  .capture-hero__boundary span {
+    display: none;
+  }
+
+  .capture-hero__boundary {
+    flex-wrap: nowrap;
+    margin-top: 2px !important;
+  }
+
   .capture-hero__actions {
     flex-wrap: nowrap;
     overflow-x: auto;
