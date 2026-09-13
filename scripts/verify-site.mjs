@@ -28,7 +28,7 @@ function resourceCount(page, filename) {
 }
 
 async function openSurface(page, route, selector) {
-  await page.locator(`[data-budget-nav="${route}"]`).evaluate((node) => node.click());
+  await page.locator(`[data-budget-nav="${route}"]`).click();
   await page.waitForSelector(selector);
 }
 
@@ -38,7 +38,7 @@ async function assertNoPageOverflow(page, label) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > button[data-budget-nav]").count(), 7, "Header should expose five money stages plus analytics and sources");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 7, "Header should expose five money stages plus analytics and sources as native links");
   assert.equal(await page.locator("[data-budget-nav-more]").count(), 0, "Header should not expose a secondary strategy menu");
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
   assert.equal(await page.locator("[data-money-flow-rail]").count(), 0, "Pages should not repeat the primary header navigation as a numbered phase rail");
@@ -236,6 +236,42 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/transactions-followon-modal-desktop.png` });
   await page.getByRole("button", { name: "Close follow-on details" }).click();
   await page.waitForSelector("[data-followon-modal]", { state: "detached" });
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
+  await page.waitForFunction(() => document.querySelectorAll("[data-solicitation-window]").length === 1);
+  const applicationSolicitation = page.locator("[data-solicitation-window]");
+  assert.ok(await applicationSolicitation.evaluate((node) => node.classList.contains("is-active")), "Application Arsenal should expose its active solicitation window");
+  await applicationSolicitation.hover();
+  await page.waitForSelector("[data-capture-hovercard]");
+  const solicitationHover = await page.locator("[data-capture-hovercard]").innerText();
+  assert.match(solicitationHover, /Active solicitation window/i);
+  assert.match(solicitationHover, /Aug 31, 2026 to Sep 30, 2026/i);
+  await applicationSolicitation.click();
+  await page.waitForSelector("[data-capture-detail-modal][open]");
+  const applicationDetail = await page.locator("[data-capture-detail]").innerText();
+  assert.match(applicationDetail, /Full and open competitive procurement/i);
+  assert.match(applicationDetail, /SeaPort NxG contract holders only/i);
+  assert.match(applicationDetail, /Cost Plus Fixed Fee \(CPFF\) Level of Effort/i);
+  await page.getByRole("button", { name: "Close record details" }).click();
+  await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
+  await overlayTrigger.click();
+  await page.getByRole("option", { name: "Competition / set-aside" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Vehicle / contract type" }).getByRole("checkbox").check();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator("[data-competition-overlay]").count(), 1, "Known competition classification should render as an optional overlay");
+  assert.ok(await page.locator("[data-structure-overlay]").count() >= 1, "Published vehicle or contract type should render as an optional overlay");
+  await page.locator("[data-competition-overlay]").hover();
+  await page.waitForSelector("[data-capture-hovercard]");
+  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Full and open competitive procurement/i);
+  const applicationIncumbentRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
+  assert.ok(await applicationIncumbentRow.locator("[data-followon-activity]").count() >= 1, "Application Arsenal incumbent should expose the published follow-on crosswalk");
+  await applicationIncumbentRow.getByRole("button", { name: /Active solicitation window/i }).click();
+  await page.waitForSelector("[data-followon-modal][open]");
+  const applicationFollowOn = await page.locator("[data-followon-modal]").innerText();
+  assert.match(applicationFollowOn, /Application Arsenal enterprise engineering/i);
+  assert.match(applicationFollowOn, /Curated named-program predecessor crosswalk/i);
+  assert.match(applicationFollowOn, /SAM\.gov/i);
+  await page.getByRole("button", { name: "Close follow-on details" }).click();
+  await page.waitForSelector("[data-followon-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await overlayTrigger.click();
   await page.getByRole("option", { name: "FPDS action pulses" }).getByRole("checkbox").check();
@@ -337,7 +373,7 @@ try {
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-pdb-request-page]");
   await assertFlowShell(mobile);
-  const mobileNavHeights = await mobile.locator(".ci-header-nav > button[data-budget-nav]").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav]").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileNavHeights.every((height) => height >= 43.5), `Mobile surface controls should be 44px: ${mobileNavHeights.join(", ")}`);
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile request");

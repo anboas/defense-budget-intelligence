@@ -83,6 +83,8 @@ const FEED_OPTIONS = [
   ["fiscal", "FPDS annual obligations"],
   ["awards", "USAspending refreshed end"],
   ["followon", "Published follow-on activity"],
+  ["competition", "Competition / set-aside"],
+  ["structure", "Vehicle / contract type"],
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
 
@@ -252,7 +254,7 @@ function recordDates(record) {
   if (record.mode === "contract-performance") {
     return [record.start, record.currentEnd, record.potentialEnd].filter(Boolean);
   }
-  return record.milestones.flatMap((milestone) => [milestone.start, milestone.end]).filter(Boolean);
+  return [record.solicitationStart, record.solicitationEnd, ...record.milestones.flatMap((milestone) => [milestone.start, milestone.end])].filter(Boolean);
 }
 
 function firstDate(record) {
@@ -348,7 +350,7 @@ function escapeCsv(value) {
 }
 
 function downloadCsv(records, metadata) {
-  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "context", "fundingOffice", "contractingOffice", "vehicle", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
+  const fields = ["snapshotAsOf", "viewUrl", "opportunityId", "ganttAlias", "portfolio", "mode", "title", "party", "reference", "parentReference", "parentReferenceBasis", "context", "fundingOffice", "contractingOffice", "vehicle", "contractType", "competitionType", "eligibility", "solicitationStart", "solicitationEnd", "noticeType", "lifecycleStatus", "evidenceTier", "validationStatus", "validationCheckedAt", "start", "currentEnd", "potentialEnd", "obligatedAmount", "potentialAmount", "fpdsObligatedAmount", "fpdsPotentialAmount", "sourceRoleCount", "normalizedEventCount", "fpdsActionCount", "fundingActionCount", "deobligationActionCount", "lastFpdsAction", "primarySourceUrl", "fpdsSourceUrl"];
   const rows = records.map((record) => ({
     snapshotAsOf: metadata.asOf,
     viewUrl: window.location.href,
@@ -360,10 +362,17 @@ function downloadCsv(records, metadata) {
     party: record.party,
     reference: record.reference,
     parentReference: record.parentReference,
+    parentReferenceBasis: record.parentReferenceBasis,
     context: record.context,
     fundingOffice: record.fundingOffice,
     contractingOffice: record.contractingOffice,
     vehicle: record.vehicle,
+    contractType: record.contractType,
+    competitionType: record.competitionType,
+    eligibility: record.eligibility,
+    solicitationStart: record.solicitationStart,
+    solicitationEnd: record.solicitationEnd,
+    noticeType: record.noticeType,
     lifecycleStatus: record.lifecycleStatus,
     evidenceTier: record.evidenceTier,
     validationStatus: record.validationStatus,
@@ -618,6 +627,9 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         <article><span>Reported duration</span><strong>{durationDays == null ? "Not published" : `${Math.max(Math.round(durationDays / 30.44), 1)} months`}</strong><small>{label(record.lifecycleStatus)}</small></article>
         <article><span>Funding office</span><strong>{record.fundingOffice || record.owner || "Not published"}</strong><small>Distinct from contracting office</small></article>
         <article><span>Contracting office</span><strong>{record.contractingOffice || "Not published"}</strong><small>{record.vehicle || "Vehicle not identified"}</small></article>
+        {record.solicitationStart ? <article><span>Solicitation window</span><strong>{formatDate(record.solicitationStart)} to {formatDate(record.solicitationEnd)}</strong><small>{record.noticeType || "Published solicitation"}</small></article> : null}
+        {record.competitionType || record.eligibility ? <article><span>Competition / eligibility</span><strong>{record.competitionType || "Not published"}</strong><small>{record.eligibility || "Eligibility not published"}</small></article> : null}
+        {record.contractType ? <article><span>Vehicle / contract type</span><strong>{record.vehicle || "Vehicle not published"}</strong><small>{record.contractType}</small></article> : null}
         <article><span>Source posture</span><strong>{record.sourceRoleCount} source role{record.sourceRoleCount === 1 ? "" : "s"}</strong><small>{label(record.validationStatus)} · checked {formatDate(record.validationCheckedAt?.slice(0, 10))}</small></article>
       </div>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
@@ -643,7 +655,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
       {(parentRelations.length || vehicleRelations.length || followOnRelations.length) ? (
         <div className="capture-detail__relations" data-capture-relations>
           <h3>Published instrument relationships</h3>
-          {followOnRelations.length ? <section data-followon-relations><strong>Published follow-on activity</strong><small>Exact source-declared predecessor PIID match. The activity date is published evidence, not a win or recompete prediction.</small>{followOnRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{related.sourceSystem}</em></button>)}</section> : null}
+          {followOnRelations.length ? <section data-followon-relations><strong>Published follow-on activity</strong><small>Exact PIID links and explicitly labeled curated program crosswalks are distinguished in the activity modal. The activity date is published evidence, not a win or recompete prediction.</small>{followOnRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{related.sourceSystem}</em></button>)}</section> : null}
           {parentRelations.length ? <section><strong>Same parent award / IDV</strong><small>Exact published parent reference: {record.parentReference}</small>{parentRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
           {vehicleRelations.length ? <section><strong>Same published vehicle label</strong><small>{record.vehicle}; this is a route relationship, not proof of the same contract family.</small>{vehicleRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
         </div>
@@ -821,7 +833,7 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
     <ModalShell label={`${activity.title} follow-on activity details`} testId="data-followon-modal" tone="followon" onClose={onClose}>
       <section className="capture-followon-detail">
         <header>
-          <div><span>Published follow-on activity · {activity.id}</span><h2>{activity.title}</h2><p>{activity.sourceSystem} · exact predecessor PIID match</p></div>
+          <div><span>Published follow-on activity · {activity.id}</span><h2>{activity.title}</h2><p>{activity.sourceSystem} · {activity.parentReferenceBasis || "exact predecessor PIID match"}</p></div>
           <button type="button" autoFocus onClick={onClose} aria-label="Close follow-on details"><X size={19} /></button>
         </header>
         <div className="capture-followon-detail__lineage">
@@ -839,7 +851,7 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
           <div><dt>Evidence tier</dt><dd>{label(activity.evidenceTier)}</dd></div>
           <div><dt>Validation</dt><dd>{label(activity.validationStatus)}</dd></div>
         </dl>
-        <p className="capture-followon-detail__boundary"><ShieldCheck size={17} aria-hidden="true" />This is a source-declared predecessor relationship. It is published acquisition evidence, not a win prediction or an inferred recompete date.</p>
+        <p className="capture-followon-detail__boundary"><ShieldCheck size={17} aria-hidden="true" />{activity.parentReferenceBasis || "This is a source-declared predecessor relationship."} It is published acquisition evidence, not a win prediction or an inferred recompete date.</p>
         {activity.sourceDescription ? <p>{activity.sourceDescription}</p> : null}
         <div className="capture-followon-detail__actions">
           <button type="button" onClick={() => onOpenRecord(activity.opportunityId)}>Open full activity record</button>
@@ -852,17 +864,33 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
 
 function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, actions, followOnActivities, onOpenFollowOn }) {
   const feeds = new Set(parseMultiValues(feedMode));
+  const solicitationVisible = record.solicitationStart && record.solicitationEnd && record.solicitationEnd >= `${startYear}-01-01` && record.solicitationStart <= `${endYear}-12-31`;
+  const solicitationLeft = solicitationVisible ? positionFor(record.solicitationStart, startYear, endYear) : 0;
+  const solicitationRight = solicitationVisible ? positionFor(record.solicitationEnd, startYear, endYear) : 0;
+  const solicitationActive = solicitationVisible && record.solicitationStart <= asOf && record.solicitationEnd >= asOf;
+  const solicitationElement = solicitationVisible ? <i role="button" tabIndex="0" key={`solicitation-${record.opportunityId}`} className={`capture-timeline__solicitation-window${solicitationActive ? " is-active" : ""}`} data-solicitation-window data-timeline-context={solicitationActive ? "Active solicitation window" : "Published solicitation window"} data-timeline-detail={`${formatDate(record.solicitationStart)} to ${formatDate(record.solicitationEnd)} · ${record.noticeType || "published solicitation"}`} style={{ left: `${solicitationLeft}%`, width: `${Math.max(solicitationRight - solicitationLeft, 0.8)}%` }} title={`${solicitationActive ? "Active" : "Published"} solicitation · ${formatDate(record.solicitationStart)} to ${formatDate(record.solicitationEnd)}`} aria-label={`${solicitationActive ? "Active" : "Published"} solicitation window ${formatDate(record.solicitationStart)} to ${formatDate(record.solicitationEnd)}`} /> : null;
+  const classificationStart = record.solicitationStart || firstDate(record);
+  const classificationEnd = record.solicitationEnd || finalDate(record);
+  const classificationVisible = classificationStart && classificationEnd && classificationEnd >= `${startYear}-01-01` && classificationStart <= `${endYear}-12-31`;
+  const classificationLeft = classificationVisible ? positionFor(classificationStart, startYear, endYear) : 0;
+  const classificationRight = classificationVisible ? positionFor(classificationEnd, startYear, endYear) : 0;
+  const competitionKind = /small business|8\(a\)|hubzone|sdvosb|wosb/i.test(record.competitionType || record.eligibility || "") ? "small-business" : /full and open/i.test(record.competitionType || "") ? "full-open" : "other";
+  const competitionElement = feeds.has("competition") && classificationVisible && (record.competitionType || record.eligibility) ? <i role="button" tabIndex="0" key={`competition-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--competition capture-timeline__classification--${competitionKind}`} data-competition-overlay data-timeline-context="Competition / eligibility" data-timeline-detail={`${record.competitionType || "Classification not published"}${record.eligibility ? ` · ${record.eligibility}` : ""}`} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Competition overlay: ${record.competitionType || record.eligibility}`} /> : null;
+  const structureElement = feeds.has("structure") && classificationVisible && (record.vehicle || record.contractType) ? <i role="button" tabIndex="0" key={`structure-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--structure" data-structure-overlay data-timeline-context="Vehicle / contract type" data-timeline-detail={`${record.vehicle || "Vehicle not published"}${record.contractType ? ` · ${record.contractType}` : ""}`} style={{ left: `${classificationLeft}%`, width: `${Math.max(classificationRight - classificationLeft, 0.8)}%` }} aria-label={`Vehicle and contract type overlay: ${record.vehicle || "vehicle not published"}${record.contractType ? `, ${record.contractType}` : ""}`} /> : null;
   const actionMarkers = feeds.has("fpds") ? timelineActionMarkers(actions, startYear, endYear) : [];
   const fiscalMaximum = Math.max(...record.fiscalValues.map((item) => Math.abs(Number(item.amount || 0))), 1);
   const fiscalMarkers = feeds.has("fiscal") ? record.fiscalValues.filter((item) => item.fiscalYear >= startYear && item.fiscalYear <= endYear + 1) : [];
   const refreshedEnd = feeds.has("awards") ? record.liveAward?.endDate : null;
   const refreshedEndVisible = refreshedEnd && refreshedEnd >= `${startYear}-01-01` && refreshedEnd <= `${endYear}-12-31`;
-  const followOnMarkers = feeds.has("followon") ? (followOnActivities || []).flatMap((activity) => activity.milestones.map((milestone) => ({ ...milestone, activity }))).filter((marker) => marker.start && marker.end >= `${startYear}-01-01` && marker.start <= `${endYear}-12-31`) : [];
+  const followOnMarkers = feeds.has("followon") ? (followOnActivities || []).flatMap((activity) => [
+    ...(activity.solicitationStart && activity.solicitationEnd ? [{ label: activity.solicitationStart <= asOf && activity.solicitationEnd >= asOf ? "Active solicitation window" : "Published solicitation window", start: activity.solicitationStart, end: activity.solicitationEnd, precision: "range" }] : []),
+    ...activity.milestones,
+  ].map((milestone) => ({ ...milestone, activity }))).filter((marker) => marker.start && marker.end >= `${startYear}-01-01` && marker.start <= `${endYear}-12-31`) : [];
   const followOnElements = followOnMarkers.map((marker) => {
     const left = positionFor(marker.start, startYear, endYear);
     const right = positionFor(marker.end, startYear, endYear);
     const context = `Published follow-on · ${marker.activity.id}`;
-    const detail = `${marker.activity.title} · ${marker.label} · exact predecessor PIID · ${marker.activity.sourceSystem}`;
+    const detail = `${marker.activity.title} · ${marker.label} · ${marker.activity.parentReferenceBasis || "exact predecessor PIID"} · ${marker.activity.sourceSystem}`;
     const openFollowOn = (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -908,11 +936,14 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
         {fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })}
         {actionMarkers.map((marker) => <i key={marker.month} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)}
         {refreshedEndVisible ? <i className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} /> : null}
+        {solicitationElement}
+        {competitionElement}
+        {structureElement}
         {followOnElements}
       </>
     );
   }
-  return record.milestones.map((milestone) => {
+  return [solicitationElement, competitionElement, structureElement].filter(Boolean).concat(record.milestones.map((milestone) => {
     const left = positionFor(milestone.start, startYear, endYear);
     const right = positionFor(milestone.end, startYear, endYear);
     return milestone.precision === "day" ? (
@@ -922,7 +953,7 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ac
         {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "dates" ? milestone.label : timelineBarLabel(record, labelMode, milestone.start, milestone.end)}</b> : null}
       </i>
     );
-  }).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} />] : []).concat(followOnElements);
+  })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} title={`FY${marker.fiscalYear} net obligations · ${signedMoney(marker.amount)}`} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }} title={`${marker.count} FPDS action${marker.count === 1 ? "" : "s"} in ${marker.month} · ${signedMoney(marker.obligationDelta)}`}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} title={`USAspending refreshed end · ${formatDate(refreshedEnd)}`} />] : []).concat(followOnElements);
 }
 
 function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity }) {
@@ -1419,7 +1450,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
       ) : null}
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} exact predecessor-linked follow-on activities · hover only the time plane for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligations</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligations</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="structure" />Vehicle / type</> : null}</span></div>
         <details className="capture-gantt-tools" data-capture-gantt-tools>
           <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
           <div className="capture-gantt-tools__grid">
@@ -1440,7 +1471,7 @@ export default function CaptureCalendar({ dataset, awards = [] }) {
           </fieldset>
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
             <legend>Data</legend>
-            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={4} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
+            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={6} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
             {parseMultiValues(filters.capFeed).includes("fpds") ? <span className="capture-gantt-feed-status" role="status">{actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…"}</span> : <span className="capture-gantt-feed-status">Reported schedule remains the baseline</span>}
           </fieldset>
           </div>

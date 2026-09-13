@@ -60,6 +60,14 @@ assert.equal(applicationArsenal.transactionSummary.actions, 20);
 const applicationArsenalActions = await (await get("api/v1/capture-calendar/opportunities/opp_4d78f85a742aeb6f4b59/actions")).json();
 assert.equal(applicationArsenalActions.actions.length, 20, "action API should return exact Application Arsenal history");
 assert.ok(applicationArsenalActions.actions.every((action) => action.actionId && action.piid === "N6600123F3509"), "action API should preserve exact PIID lineage");
+const applicationArsenalFollowOn = await (await get("api/v1/capture-calendar/opportunities/opp_30dde3dd926e0c206843")).json();
+assert.equal(applicationArsenalFollowOn.id, "P-N24");
+assert.equal(applicationArsenalFollowOn.parentReference, "N6600123F3509", "Application Arsenal follow-on should retain its labeled predecessor crosswalk");
+assert.equal(applicationArsenalFollowOn.solicitationStart, "2026-08-31");
+assert.equal(applicationArsenalFollowOn.solicitationEnd, "2026-09-30");
+assert.match(applicationArsenalFollowOn.competitionType, /full and open/i);
+assert.match(applicationArsenalFollowOn.eligibility, /SeaPort NxG contract holders only/i);
+assert.match(applicationArsenalFollowOn.contractType, /CPFF/i);
 
 const spine = await (await get("api/v1/account-spine")).json();
 assert.ok(spine.federal_accounts > 100, "account spine should contain Department federal accounts");

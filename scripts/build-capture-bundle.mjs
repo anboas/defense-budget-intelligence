@@ -15,6 +15,19 @@ const outPath = resolve(args.out || "src/data/capture-calendar.json");
 const transactionsOutPath = resolve(args["transactions-out"] || "src/data/capture-transactions.json");
 const privateStatus = "internal_proposal";
 const projectionGeneratedAt = new Date().toISOString();
+const publicRecordAugmentations = {
+  "P-N24": {
+    parentReference: "N6600123F3509",
+    parentReferenceBasis: "Curated named-program predecessor crosswalk; the solicitation is explicitly an Application Arsenal lifecycle follow-on but does not print the predecessor PIID.",
+    solicitationStart: "2026-08-31",
+    solicitationEnd: "2026-09-30",
+    noticeType: "Negotiated RFP / SeaPort NxG fair-opportunity proposal request",
+    competitionType: "Full and open competitive procurement",
+    eligibility: "SeaPort NxG contract holders only",
+    contractType: "Cost Plus Fixed Fee (CPFF) Level of Effort",
+    sourceUrl: "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/6dc3a7786ab345f2a1686a8851067f42/download",
+  },
+};
 
 function sha256(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -293,6 +306,7 @@ function transactionSummary(actions) {
 }
 
 const records = publicRows.map((row) => {
+  const augmentation = publicRecordAugmentations[row.gantt_row_id] || {};
   const events = (eventsByOpportunity.get(row.opportunity_id) || []).sort((left, right) => (left.start || "9999").localeCompare(right.start || "9999") || left.eventId.localeCompare(right.eventId));
   const actions = (actionsByOpportunity.get(row.opportunity_id) || []).sort((left, right) => (left.signed || "").localeCompare(right.signed || "") || left.actionId.localeCompare(right.actionId));
   const primaryActions = actions.filter((action) => !action.supportingInstrument);
@@ -311,7 +325,7 @@ const records = publicRows.map((row) => {
   const milestoneEvents = row.row_mode === "contract"
     ? []
     : events.filter((event) => event.start).map((event) => ({ label: event.label, start: event.start, end: event.end || event.start, precision: event.precision }));
-  const sourceUrls = unique([row.primary_source_url, row.fpds_source_url, ...events.map((event) => event.sourceUrl)]);
+  const sourceUrls = unique([row.primary_source_url, row.fpds_source_url, augmentation.sourceUrl, ...events.map((event) => event.sourceUrl)]);
   return {
     opportunityId: row.opportunity_id,
     id: row.gantt_row_id,
@@ -323,8 +337,15 @@ const records = publicRows.map((row) => {
     fundingOffice: row.funding_office || null,
     contractingOffice: row.contracting_office || null,
     reference: row.award_piid || row.related_award_identifier || null,
-    parentReference: row.predecessor_piid || null,
+    parentReference: augmentation.parentReference || row.predecessor_piid || null,
+    parentReferenceBasis: augmentation.parentReferenceBasis || (row.predecessor_piid ? "Source-declared predecessor PIID" : null),
     vehicle: row.vehicle || null,
+    solicitationStart: augmentation.solicitationStart || null,
+    solicitationEnd: augmentation.solicitationEnd || null,
+    noticeType: augmentation.noticeType || null,
+    competitionType: augmentation.competitionType || null,
+    eligibility: augmentation.eligibility || null,
+    contractType: augmentation.contractType || null,
     context: publicText(row.scope),
     sourceDescription: publicText(row.scope),
     evidenceTier: evidenceTier(row.corroboration_status),

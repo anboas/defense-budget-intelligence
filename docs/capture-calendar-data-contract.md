@@ -16,6 +16,8 @@ The build fails when IDs are duplicated, joins disagree, an action is duplicated
 
 The public runtime includes source-backed opportunity identity, program, portfolio, buyer/vendor, award identifiers, scope, reported dates, normalized events, validation state, public source URLs, USAspending award values, separate FPDS public sums, and exact FPDS actions.
 
+The Application Arsenal solicitation `N6600126R3507` carries a narrow public augmentation from its official 31 August 2026 solicitation: the 31 August–30 September response window, full-and-open competition language, SeaPort NxG holder eligibility, CPFF level-of-effort contract type, and a curated crosswalk to predecessor task order `N6600123F3509`. The crosswalk is labeled as curated because the solicitation identifies an Application Arsenal lifecycle follow-on but does not print the predecessor PIID. It is never represented as an exact source-declared PIID join.
+
 The public runtime excludes all `internal_proposal` records and does not project target mappings, management priorities, access codes or labels, capture motions, company relationship classifications, internal status labels, or proposed work packages. A phrase and property scan runs before either runtime file is written.
 
 ## Money semantics
@@ -26,6 +28,13 @@ The public runtime excludes all `internal_proposal` records and does not project
 - Supporting-instrument actions remain explicitly marked and are excluded from the primary-award cumulative chart and fiscal net-obligation series.
 - Funding, deobligation, and non-obligation labels are derived only from the signed obligation delta.
 - Performance endpoints do not establish recompete dates.
+
+## Timeline overlays
+
+- Solicitation windows are separately colored published response periods and remain visible as part of the schedule baseline.
+- Competition/set-aside overlays render only when the source explicitly states the classification or eligibility.
+- Vehicle/contract-type overlays show published acquisition structure; SeaPort is treated as a vehicle and CPFF level of effort as the contract type.
+- Follow-on activity can use an exact predecessor PIID or an explicitly labeled curated named-program crosswalk. The UI discloses the basis in the hover card and modal.
 
 ## Runtime and persistence
 

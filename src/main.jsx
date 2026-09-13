@@ -4651,7 +4651,7 @@ function AnalyticsSources() {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useBudgetRoute();
+  const [activeTab] = useBudgetRoute();
   const [filters, setFilters] = useUrlState(BUDGET_FILTER_DEFAULTS, {
     book: (value) => value === "all" || BOOKS.some((book) => book.id === value),
     group: ["all", "service", "fourth-estate", "other"],
@@ -4715,10 +4715,6 @@ function App() {
   void accountSpineRevision;
   void captureCalendarRevision;
 
-  function openBudgetSurface(tabId) {
-    setActiveTab(tabId);
-  }
-
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
       <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
@@ -4742,18 +4738,17 @@ function App() {
             {PRIMARY_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
-                <button
+                <a
                   key={tab.id}
-                  type="button"
+                  href={HASH_ROUTES[tab.id]}
                   className={`if-operations-topnav__link${activeTab === tab.id ? " is-active active" : ""}`}
                   aria-current={activeTab === tab.id ? "page" : undefined}
                   data-budget-nav={HASH_ROUTES[tab.id]}
                   title={tab.label}
-                  onClick={() => openBudgetSurface(tab.id)}
                 >
                   <Icon size={15} aria-hidden="true" />
                   {tab.label}
-                </button>
+                </a>
               );
             })}
           </nav>
