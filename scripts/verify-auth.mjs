@@ -39,7 +39,16 @@ try {
   await page.getByLabel("Confirm password").fill(initialPassword);
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
-  await page.getByRole("button", { name: new RegExp(initialName) }).click();
+  const desktopTrigger = page.getByRole("button", { name: new RegExp(initialName) });
+  const desktopTriggerBox = await desktopTrigger.boundingBox();
+  assert.ok(desktopTriggerBox && desktopTriggerBox.height >= 34 && desktopTriggerBox.height <= 38, `Desktop profile trigger should match the compact account control, got ${desktopTriggerBox?.height}px`);
+  assert.equal(await desktopTrigger.locator("small").count(), 0, "Desktop account trigger should keep role metadata inside the menu, not in a second header line");
+  const desktopTriggerStyle = await desktopTrigger.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { backgroundColor: style.backgroundColor, color: style.color };
+  });
+  assert.equal(desktopTriggerStyle.backgroundColor, "rgb(255, 255, 255)", "Desktop profile trigger should use the shared white account-control surface");
+  await desktopTrigger.click();
   assert.ok(await page.getByText("Super user", { exact: true }).count() >= 1, "Profile menu should identify the first account as super user");
   await page.getByRole("menuitem", { name: "My profile" }).click();
   await page.getByLabel("Display name").fill(finalName);

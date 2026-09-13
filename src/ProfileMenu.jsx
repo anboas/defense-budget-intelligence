@@ -33,14 +33,14 @@ export default function ProfileMenu() {
     <div className="profile-menu" ref={menuRef}>
       <button className="profile-trigger" type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
         <span className="profile-avatar" aria-hidden="true">{initials(user.displayName)}</span>
-        <span className="profile-trigger__copy"><strong>{user.displayName}</strong><small>{user.role}</small></span>
+        <span className="profile-trigger__copy"><strong>{user.displayName}</strong></span>
         <ChevronDown size={15} aria-hidden="true" />
       </button>
       {open ? (
         <div className="profile-popover" role="menu" aria-label="Account menu">
           <div className="profile-popover__identity">
             <span className="profile-avatar profile-avatar--large">{initials(user.displayName)}</span>
-            <div><strong>{user.displayName}</strong><span>{user.email}</span>{user.title ? <span>{user.title}</span> : null}</div>
+            <div><strong>{user.displayName}</strong><span>{user.role}</span><span>{user.email}</span>{user.title ? <span>{user.title}</span> : null}</div>
           </div>
           <button type="button" role="menuitem" onClick={() => { setPanel("profile"); setOpen(false); }}><UserRound size={16} />My profile</button>
           <button type="button" role="menuitem" onClick={() => { setPanel("password"); setOpen(false); }}><KeyRound size={16} />Change password</button>
