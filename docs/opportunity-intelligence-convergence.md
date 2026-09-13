@@ -8,11 +8,11 @@ Defense Budget Intelligence is the single factual application for budget request
 
 | Opportunity Intelligence capability | Unified destination | Rule |
 | --- | --- | --- |
-| Working set / tracked items | Operations → Watchlist | Stable public record IDs only; never alters evidence |
-| Event tracking | Operations → Events | Operator-authored calendar is stored separately from published acquisition dates |
-| Connector health | Operations → Integrations | Status, cadence, yield, and failures; source facts remain in Sources |
-| Audit trail | Operations → Activity | Append-only operator changes, distinct from procurement change detection |
-| Wall Board | Operations → Wallboard | Read-only projection of tracked records, events, reviews, and source health |
+| Working set / tracked items | Admin → Watchlist | Stable public record IDs only; never alters evidence |
+| Event tracking | Admin → Events | Operator-authored calendar is stored separately from published acquisition dates |
+| Connector health | Admin → Integrations | Status, cadence, yield, and failures; source facts remain in Source Lineage |
+| Audit trail | Admin → API Log | Append-only human and agent changes, distinct from procurement change detection |
+| Wall Board | Primary → Wallboard | Read-only projection of tracked records, events, reviews, and source health |
 | Global record navigation | Watchlist, events, and wallboard links | Exact stable-ID routes into Transactions |
 
 ## Explicit exclusions
@@ -29,7 +29,7 @@ The existing normalized datasets, PostgreSQL snapshots, and public source URLs r
 
 ### Management plane
 
-The first increment stores the following in the current browser:
+The authenticated Cloudflare application stores the following in D1; the static GitHub fallback retains browser-local equivalents:
 
 - watch entry: `recordId`, starred and updated timestamps, optional review date and note, wallboard visibility
 - event: ID, title, start/end, location, status, notes, linked stable record IDs, wallboard visibility
@@ -39,8 +39,8 @@ State is bounded, sanitized, deduplicated, and pruned when a record ID leaves th
 
 ## Consolidation sequence
 
-1. **Delivered in this increment:** star/unstar from Transactions, unified Operations route, local watchlist/events/activity, integration monitor, and fullscreen rotating wallboard.
-2. **Authenticated workspace API:** move the same management schema to a private server-backed store with named users and optimistic concurrency.
+1. **Delivered:** star/unstar from Transactions, dedicated Admin routes, D1-backed watchlist/events/API log, integration monitor, and fullscreen rotating Wallboard.
+2. **Delivered:** authenticated human and agent workspace APIs with optimistic concurrency and append-only audit history.
 3. **Shared wallboard profiles:** durable layouts, rotation intervals, saved filters, and display-only access tokens.
 4. **Connector operations:** run history, retries, alerts, and source-specific diagnostics from the scheduled ingestion workflows.
 5. **Cross-surface command search:** search public records, tracked items, events, sources, accounts, awards, and transactions from one command surface.

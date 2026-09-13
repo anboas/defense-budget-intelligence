@@ -8,8 +8,8 @@ The primary application is deployed as the `defense-budget-intelligence` Cloudfl
 - Pages Functions handle `/api/v1/auth/*` and `/api/v1/agent/*` in the same origin.
 - The `DBI_DB` binding points to the existing intelligence-platform D1 database also used by Opportunity Intelligence.
 - D1 tables use the `dbi_` prefix and are created idempotently on demand.
-- The signed-in Operations UI and scoped agents share D1-backed tracking, events, manual records, activity, and integration status.
-- The static GitHub Pages fallback remains publicly readable, hides account controls, rejects the Agent API, and keeps Operations state browser-local.
+- The signed-in Admin surfaces and scoped agents share D1-backed tracking, events, manual records, API activity, and integration status.
+- The static GitHub Pages fallback remains publicly readable, hides account controls, rejects the Agent API, and keeps management state browser-local.
 - The Docker and PostgreSQL stack remains a portability and release-contract target; it is not required by the Cloudflare deployment.
 
 ## Authentication boundary
@@ -37,7 +37,7 @@ npm run verify:pages-auth
 npm run verify:agent-api
 ```
 
-The verifiers race two claims against fresh D1 databases, test generic login discovery, profile editing, password rotation, session revocation, logout/login, agent credential issuance/revocation, shared Operations state, Agent API CRUD and safety contracts, runtime restart persistence, secure cookies, and the desktop/mobile browser UI.
+The verifiers race two claims against fresh D1 databases, test generic login discovery, routed Profile/Security/Agent Access pages, password rotation, session revocation, logout/login, agent credential issuance/revocation, shared Admin state, Agent API CRUD and safety contracts, runtime restart persistence, secure cookies, and the desktop/mobile browser UI.
 
 ## Deployment
 

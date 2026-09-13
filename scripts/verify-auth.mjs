@@ -42,6 +42,11 @@ try {
   await page.getByLabel("Confirm password").fill(initialPassword);
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
+  await page.locator('[data-nav-group-trigger="admin"]').click();
+  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 5, "Authenticated Admin should add Agent Access to the four shared management routes");
+  assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Agent Access/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Admin");
+  await page.locator('[data-nav-group-trigger="admin"]').click();
   const desktopTrigger = page.getByRole("button", { name: new RegExp(initialName) });
   const desktopTriggerBox = await desktopTrigger.boundingBox();
   assert.ok(desktopTriggerBox && desktopTriggerBox.height >= 34 && desktopTriggerBox.height <= 38, `Desktop profile trigger should match the compact account control, got ${desktopTriggerBox?.height}px`);
@@ -54,20 +59,24 @@ try {
   await desktopTrigger.click();
   assert.ok(await page.getByText("Super user", { exact: true }).count() >= 1, "Profile menu should identify the first account as super user");
   await page.getByRole("menuitem", { name: "My profile" }).click();
+  await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Profile should render as a routed page, not a modal");
+  assert.match(new URL(page.url()).hash, /^#\/profile$/, "Profile menu should navigate to the canonical profile route");
+  await page.screenshot({ path: "test-results/profile-page-desktop.png", fullPage: true });
   await page.getByLabel("Display name").fill(finalName);
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByText("Profile saved.").waitFor();
-  await page.getByRole("button", { name: "Close account dialog" }).click();
 
   await page.getByRole("button", { name: new RegExp(finalName) }).click();
   await page.getByRole("menuitem", { name: "Agent access" }).click();
+  await page.waitForSelector('[data-profile-page][data-profile-section="agents"]');
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render in the routed profile workspace");
   await page.getByLabel("Name").fill("Browser verifier");
   await page.getByRole("button", { name: "Create credential" }).click();
   await page.locator(".agent-token-once code").waitFor();
   assert.match(await page.locator(".agent-token-once code").textContent(), /^dbi_agent_/, "Agent credential must be shown exactly once after creation");
   await page.getByRole("button", { name: "Revoke Browser verifier" }).click();
   await page.getByText("Revoked", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Close agent access" }).click();
 
   const workspaceSeed = await page.evaluate(async () => {
     const recordsResponse = await fetch("/api/v1/agent/records?limit=1");
@@ -86,10 +95,11 @@ try {
     return { recordId, eventId: (await eventResponse.json()).data.id, trackingStatus: trackingResponse.status };
   });
   assert.equal(workspaceSeed.trackingStatus, 201);
-  await page.goto(`${BASE_URL}#/budget-spend/operations`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
   await page.locator(`[data-ops-watch-row="${workspaceSeed.recordId}"]`).waitFor();
   await page.getByText("authenticated D1 workspace").waitFor();
-  await page.getByRole("button", { name: "Events", exact: true }).click();
+  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-ops-events]");
   await page.getByText("Shared D1 verification event").waitFor();
   await page.evaluate(async ({ recordId, eventId }) => {
     await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" });
@@ -97,13 +107,14 @@ try {
   }, workspaceSeed);
 
   await page.getByRole("button", { name: new RegExp(finalName) }).click();
-  await page.getByRole("menuitem", { name: "Change password" }).click();
+  await page.getByRole("menuitem", { name: "Security" }).click();
+  await page.waitForSelector('[data-profile-page][data-profile-section="security"]');
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Password management should render as a routed profile page");
   await page.getByLabel("Current password").fill(initialPassword);
   await page.getByLabel("New password", { exact: true }).fill(nextPassword);
   await page.getByLabel("Confirm new password").fill(nextPassword);
   await page.getByRole("button", { name: "Update password" }).click();
   await page.getByText(/Other sessions were signed out/).waitFor();
-  await page.getByRole("button", { name: "Close account dialog" }).click();
 
   const cookies = await context.cookies();
   const sessionCookie = cookies.find((cookie) => cookie.name === "dbi_session");
@@ -136,11 +147,23 @@ try {
   await page.waitForSelector("[data-defense-budget-app]");
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `Authenticated mobile shell should not overflow, got ${overflow}px`);
+  await page.locator("[data-mobile-more-menu-button]").click();
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Authenticated mobile More should retain all grouped routes including Agent Access");
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Agent Access/i);
+  await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator(".profile-trigger");
   const box = await trigger.boundingBox();
   assert.ok(box && box.width >= 42 && box.height >= 42, "Mobile profile trigger must meet the 42px touch target");
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "My profile" }).click();
+  await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
+  const profileOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(profileOverflow <= 2, `Mobile profile page should not overflow, got ${profileOverflow}px`);
+  const profileNavHeights = await page.locator(".profile-page__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(profileNavHeights.every((height) => height >= 43.5), `Mobile profile navigation should keep 44px touch targets: ${profileNavHeights.join(", ")}`);
+  await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
 
-  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, profile update, one-time agent credential lifecycle, shared D1 Operations state, password rotation, logout/login, and mobile profile UI");
+  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, routed profile/security/agent pages, one-time agent credential lifecycle, shared D1 admin state, password rotation, logout/login, and mobile profile UI");
 } finally {
   await browser.close();
 }

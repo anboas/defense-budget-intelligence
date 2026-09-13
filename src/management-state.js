@@ -75,6 +75,8 @@ function normalizeActivity(entry = {}) {
     recordId: cleanText(entry.recordId, 180),
     eventId: cleanText(entry.eventId, 180),
     detail: cleanText(entry.detail, 500),
+    actorType: cleanText(entry.actorType, 80),
+    actorId: cleanText(entry.actorId, 180),
   };
 }
 
@@ -136,6 +138,8 @@ function remoteActivity(entry = {}) {
     recordId: entry.entityType === "tracking" || entry.entityType === "manual_record" ? entry.entityId : "",
     eventId: entry.entityType === "event" ? entry.entityId : "",
     detail: detail.detail || detail.title || (detail.version ? `Version ${detail.version}` : `${entry.actorType || "workspace"} change`),
+    actorType: entry.actorType,
+    actorId: entry.actorId,
   });
 }
 

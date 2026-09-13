@@ -1,13 +1,33 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ProductMark from "./ProductMark.jsx";
 import ProfileMenu from "./ProfileMenu.jsx";
+import { useAuth } from "./AuthContext.jsx";
 
-const WORKSPACE_IDS = new Set(["analytics", "operations", "sources"]);
-const MOBILE_PRIMARY_LABELS = { overview: "PDB", awards: "Awards", transactions: "Transactions" };
-const WORKSPACE_META = {
-  analytics: { badge: "19 views", description: "Cross-filtered D3 views for schedule, spend, structure, coverage, and lineage." },
-  operations: { badge: "5 tools", description: "Tracked records, operator events, integration health, activity, and wallboard display." },
-  sources: { badge: "6 stages", description: "Freshness, coverage, methodology, and official-source lineage across the money flow." },
+const PRIMARY_IDS = ["calendar", "wallboard"];
+const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
+const ADMIN_IDS = new Set(["watchlist", "events", "integrations", "activity", "agents"]);
+
+const ANALYTICS_ITEMS = [
+  { id: "analytics-overview", tabId: "analytics", label: "Overview", href: "#/budget-spend/analytics", badge: "6 views", description: "Composition, schedule activity, value distribution, recipients, and work categories." },
+  { id: "analytics-schedule", tabId: "analytics", analyticsView: "schedule", label: "Schedule", href: "#/budget-spend/analytics?analyticsView=schedule", badge: "5 views", description: "Reported endpoints, duration, seasonality, quarterly activity, and value timing." },
+  { id: "analytics-spend", tabId: "analytics", analyticsView: "spend", label: "Spend & structure", href: "#/budget-spend/analytics?analyticsView=spend", badge: "6 views", description: "Obligations, buyers, pricing, competition, vehicles, and subaward concentration." },
+  { id: "analytics-coverage", tabId: "analytics", analyticsView: "coverage", label: "Coverage & lineage", href: "#/budget-spend/analytics?analyticsView=coverage", badge: "5 views", description: "Field coverage, sources, provenance, money lineage, and refresh changes." },
+];
+
+const MONEY_META = {
+  overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
+  trends: { badge: "4 vintages", description: "Request changes across published budget vintages and fiscal years." },
+  lifecycle: { badge: "153 accounts", description: "Exact account joins across apportionment, obligations, and award execution." },
+  awards: { badge: "689 awards", description: "Published USAspending awards, recipients, offices, and obligation detail." },
+  sources: { badge: "6 stages", description: "Freshness, methodology, join quality, and official-source lineage." },
+};
+
+const ADMIN_META = {
+  watchlist: { badge: "Track", description: "Starred records, notes, review dates, and wallboard visibility." },
+  events: { badge: "Schedule", description: "Operator events, checkpoints, linked records, and display timing." },
+  integrations: { badge: "7 feeds", description: "Connector health, refresh cadence, yields, and unavailable probes." },
+  activity: { badge: "Audit", description: "Append-only human and agent API activity across the shared workspace." },
+  agents: { badge: "Keys", description: "Issue, scope, expire, review, and revoke one-time agent credentials." },
 };
 
 function menuItems(menu) {
@@ -20,37 +40,45 @@ function focusMenuItem(menu, direction = "first") {
   (direction === "last" ? items.at(-1) : items[0]).focus();
 }
 
+function analyticsViewFromHash() {
+  if (typeof window === "undefined") return "overview";
+  const value = new URLSearchParams(window.location.hash.split("?")[1] || "").get("analyticsView");
+  return ["schedule", "spend", "coverage"].includes(value) ? value : "overview";
+}
+
 export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const workspaceRef = useRef(null);
-  const mobileMoreRef = useRef(null);
-  const workspaceTriggerRef = useRef(null);
-  const mobileTriggerRef = useRef(null);
-  const workspaceMenuRef = useRef(null);
-  const mobileMenuRef = useRef(null);
+  const auth = useAuth();
+  const [openMenu, setOpenMenu] = useState("");
+  const navRef = useRef(null);
+  const menuRefs = useRef({});
+  const triggerRefs = useRef({});
   const pendingFocusRef = useRef(null);
-  const primaryTabs = tabs.filter((tab) => !WORKSPACE_IDS.has(tab.id));
-  const workspaceTabs = tabs.filter((tab) => WORKSPACE_IDS.has(tab.id));
-  const workspaceIsActive = WORKSPACE_IDS.has(activeTab);
-  const workspaceLabel = workspaceIsActive ? tabs.find((tab) => tab.id === activeTab)?.label : "";
+  const tabById = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab])), [tabs]);
+  const primaryTabs = PRIMARY_IDS.map((id) => tabById.get(id)).filter(Boolean);
+  const moneyItems = MONEY_FLOW_IDS.map((id) => {
+    const tab = tabById.get(id);
+    return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
+  }).filter(Boolean);
+  const adminIds = ["watchlist", "events", "integrations", "activity", ...(auth?.user ? ["agents"] : [])];
+  const adminItems = adminIds.map((id) => {
+    const tab = tabById.get(id);
+    return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
+  }).filter(Boolean);
+  const groups = [
+    { id: "analytics", label: "Analytics", items: ANALYTICS_ITEMS },
+    { id: "money", label: "Money flow", items: moneyItems },
+    { id: "admin", label: "Admin", items: adminItems },
+  ];
+  const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : ADMIN_IDS.has(activeTab) ? "admin" : "";
 
   useEffect(() => {
-    const handleOutside = (event) => {
-      if (!workspaceRef.current?.contains(event.target)) setWorkspaceOpen(false);
-      if (!mobileMoreRef.current?.contains(event.target)) setMobileMoreOpen(false);
-    };
+    const handleOutside = (event) => { if (!navRef.current?.contains(event.target)) setOpenMenu(""); };
     const handleEscape = (event) => {
-      if (event.key !== "Escape") return;
-      if (workspaceOpen) workspaceTriggerRef.current?.focus();
-      if (mobileMoreOpen) mobileTriggerRef.current?.focus();
-      setWorkspaceOpen(false);
-      setMobileMoreOpen(false);
+      if (event.key !== "Escape" || !openMenu) return;
+      triggerRefs.current[openMenu]?.focus();
+      setOpenMenu("");
     };
-    const handleRoute = () => {
-      setWorkspaceOpen(false);
-      setMobileMoreOpen(false);
-    };
+    const handleRoute = () => setOpenMenu("");
     document.addEventListener("mousedown", handleOutside);
     document.addEventListener("keydown", handleEscape);
     window.addEventListener("hashchange", handleRoute);
@@ -59,24 +87,22 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
       document.removeEventListener("keydown", handleEscape);
       window.removeEventListener("hashchange", handleRoute);
     };
-  }, [mobileMoreOpen, workspaceOpen]);
+  }, [openMenu]);
 
   useEffect(() => {
     const pending = pendingFocusRef.current;
-    if (!pending) return;
-    if (pending.menu === "workspace" && workspaceOpen) focusMenuItem(workspaceMenuRef.current, pending.direction);
-    if (pending.menu === "mobile" && mobileMoreOpen) focusMenuItem(mobileMenuRef.current, pending.direction);
+    if (!pending || openMenu !== pending.menu) return;
+    focusMenuItem(menuRefs.current[pending.menu], pending.direction);
     pendingFocusRef.current = null;
-  }, [mobileMoreOpen, workspaceOpen]);
+  }, [openMenu]);
 
   function openAndFocus(menu, direction = "first") {
     pendingFocusRef.current = { menu, direction };
-    setWorkspaceOpen(menu === "workspace");
-    setMobileMoreOpen(menu === "mobile");
+    setOpenMenu(menu);
   }
 
-  function handleMenuKeyDown(event, menuRef) {
-    const items = menuItems(menuRef.current);
+  function handleMenuKeyDown(event, menu) {
+    const items = menuItems(menuRefs.current[menu]);
     const current = items.indexOf(document.activeElement);
     if (event.key === "Home") {
       event.preventDefault();
@@ -93,141 +119,50 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     }
   }
 
+  function isItemActive(item) {
+    if (item.tabId !== activeTab) return false;
+    if (item.tabId !== "analytics") return true;
+    return analyticsViewFromHash() === (item.analyticsView || "overview");
+  }
+
   const primaryLink = (tab) => (
-    <a
-      key={tab.id}
-      href={routes[tab.id]}
-      className={`if-operations-topnav__link ci-header-nav__primary-link${activeTab === tab.id ? " is-active" : ""}`}
-      aria-current={activeTab === tab.id ? "page" : undefined}
-      data-budget-nav={routes[tab.id]}
-      data-primary-nav={tab.id}
-      title={`Open ${tab.label}`}
-      onClick={() => {
-        setWorkspaceOpen(false);
-        setMobileMoreOpen(false);
-      }}
-    >
-      <span className="ci-header-nav__label-full">{tab.label}</span>
-      <span className="ci-header-nav__label-mobile" aria-hidden="true">{MOBILE_PRIMARY_LABELS[tab.id] || tab.label}</span>
+    <a key={tab.id} href={routes[tab.id]} className={`if-operations-topnav__link ci-header-nav__primary-link${activeTab === tab.id ? " is-active" : ""}`} aria-current={activeTab === tab.id ? "page" : undefined} data-budget-nav={routes[tab.id]} data-primary-nav={tab.id} onClick={() => setOpenMenu("")}>{tab.label}</a>
+  );
+
+  const richMenuItem = (item) => (
+    <a key={item.id} href={item.href} role="menuitem" className={`if-btn if-operations-topnav__menu-item${isItemActive(item) ? " is-active" : ""}`} aria-current={isItemActive(item) ? "page" : undefined} data-budget-nav={item.href} data-control-menu-item={item.id} onClick={() => setOpenMenu("")}>
+      <span className="ci-topnav-menu-copy"><span className="ci-topnav-menu-label">{item.label}</span><span className="ci-topnav-menu-description">{item.description}</span></span>
+      <span className="if-badge if-badge--info ci-semantic-badge ci-semantic-badge--count ci-topnav-menu-badge" data-visual-badge-family="count" data-visual-badge-tone="info">{item.badge}</span>
     </a>
   );
 
-  const menuItem = (tab) => {
-    const meta = WORKSPACE_META[tab.id];
-    return (
-      <a
-        key={tab.id}
-        href={routes[tab.id]}
-        role="menuitem"
-        className={`if-btn if-operations-topnav__menu-item${activeTab === tab.id ? " is-active" : ""}`}
-        aria-current={activeTab === tab.id ? "page" : undefined}
-        data-budget-nav={routes[tab.id]}
-        data-control-menu-item={tab.id}
-        onClick={() => {
-          setWorkspaceOpen(false);
-          setMobileMoreOpen(false);
-        }}
-      >
-        <span className="ci-topnav-menu-copy">
-          <span className="ci-topnav-menu-label">{tab.label}</span>
-          {meta?.description ? <span className="ci-topnav-menu-description">{meta.description}</span> : null}
-        </span>
-        {meta?.badge ? <span className="if-badge if-badge--info ci-semantic-badge ci-semantic-badge--count ci-topnav-menu-badge" data-visual-badge-family="count" data-visual-badge-tone="info">{meta.badge}</span> : null}
-      </a>
-    );
-  };
+  function desktopGroup(group) {
+    return <div key={group.id} className="if-operations-topnav__secondary ci-header-nav__desktop-menu">
+      <button ref={(node) => { triggerRefs.current[group.id] = node; }} type="button" className={`if-operations-topnav__secondary-button ci-header-nav__menu-trigger${activeGroup === group.id ? " has-active-child" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === group.id} aria-controls={`budget-${group.id}-menu`} data-nav-group-trigger={group.id} onClick={() => setOpenMenu((current) => current === group.id ? "" : group.id)} onKeyDown={(event) => {
+        if (event.key === "ArrowDown") { event.preventDefault(); openAndFocus(group.id, "first"); }
+        if (event.key === "ArrowUp") { event.preventDefault(); openAndFocus(group.id, "last"); }
+      }}><span className="ci-header-nav__menu-trigger-label">{group.label}</span><span className="ci-header-nav__menu-trigger-chevron" aria-hidden="true">{openMenu === group.id ? "▲" : "▼"}</span></button>
+      {openMenu === group.id ? <div ref={(node) => { menuRefs.current[group.id] = node; }} id={`budget-${group.id}-menu`} className="if-operations-topnav__menu" data-budget-nav-menu={group.id} role="menu" aria-label={group.label} onKeyDown={(event) => handleMenuKeyDown(event, group.id)}>{group.items.map(richMenuItem)}</div> : null}
+    </div>;
+  }
 
   return (
     <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
-        <a href={routes.overview} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to PDB Request" title="Go to PDB Request">
+        <a href={routes.calendar} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Transactions" title="Go to Transactions">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><ProductMark className="masthead__icon" eager /></span>
-          <span className="masthead__copy">
-            <span className="if-product-header__eyebrow">Defense Budget &amp; Spend Analytics</span>
-            <h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1>
-          </span>
+          <span className="masthead__copy"><span className="if-product-header__eyebrow">Defense Budget &amp; Spend Analytics</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
         </a>
 
-        <nav className="if-operations-topnav ci-header-nav" aria-label="Budget and spend analytics stages">
+        <nav ref={navRef} className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">
           {primaryTabs.map(primaryLink)}
-
-          <div ref={workspaceRef} className="if-operations-topnav__secondary ci-header-nav__desktop-menu">
-            <button
-              ref={workspaceTriggerRef}
-              type="button"
-              className={`if-operations-topnav__secondary-button ci-header-nav__menu-trigger${workspaceIsActive ? " has-active-child" : ""}`}
-              aria-haspopup="menu"
-              aria-expanded={workspaceOpen}
-              aria-controls="budget-workspace-menu"
-              title="Open analytics, operations, and source-lineage surfaces"
-              data-budget-nav-menu-trigger
-              data-budget-nav-more
-              data-nav-group-trigger="workspace"
-              data-nav-group-active-child={workspaceIsActive ? activeTab : undefined}
-              onClick={() => {
-                setMobileMoreOpen(false);
-                setWorkspaceOpen((open) => !open);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  openAndFocus("workspace", "first");
-                } else if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  openAndFocus("workspace", "last");
-                }
-              }}
-            >
-              <span className="ci-header-nav__menu-trigger-label">Workspace</span>
-              {workspaceLabel ? <span className="ci-header-nav__menu-trigger-context">{workspaceLabel}</span> : null}
-              <span className="ci-header-nav__menu-trigger-chevron" aria-hidden="true">{workspaceOpen ? "▲" : "▼"}</span>
-            </button>
-            {workspaceOpen ? (
-              <div ref={workspaceMenuRef} id="budget-workspace-menu" className="if-operations-topnav__menu" data-budget-nav-menu role="menu" aria-label="Workspace" onKeyDown={(event) => handleMenuKeyDown(event, workspaceMenuRef)}>
-                <div className="if-operations-topnav__menu-label">Workspace</div>
-                {workspaceTabs.map(menuItem)}
-              </div>
-            ) : null}
-          </div>
-
-          <div ref={mobileMoreRef} className="if-operations-topnav__secondary ci-header-nav__mobile-more">
-            <button
-              ref={mobileTriggerRef}
-              type="button"
-              className={`if-operations-topnav__secondary-button${workspaceIsActive ? " is-active" : ""}`}
-              aria-haspopup="menu"
-              aria-expanded={mobileMoreOpen}
-              aria-controls="budget-mobile-navigation-menu"
-              title="Open all budget and spend sections"
-              data-mobile-more-menu-button
-              onClick={() => {
-                setWorkspaceOpen(false);
-                setMobileMoreOpen((open) => !open);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  openAndFocus("mobile", "first");
-                } else if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  openAndFocus("mobile", "last");
-                }
-              }}
-            >
-              More {mobileMoreOpen ? "▲" : "▼"}
-            </button>
-            {mobileMoreOpen ? (
-              <div ref={mobileMenuRef} id="budget-mobile-navigation-menu" className="if-operations-topnav__menu ci-header-nav__mobile-menu" data-mobile-more-menu role="menu" aria-label="All sections" onKeyDown={(event) => handleMenuKeyDown(event, mobileMenuRef)}>
-                <div className="if-operations-topnav__menu-label">Money flow</div>
-                {primaryTabs.map((tab) => (
-                  <a key={tab.id} href={routes[tab.id]} role="menuitem" className={`if-btn if-operations-topnav__menu-item${activeTab === tab.id ? " is-active" : ""}`} aria-current={activeTab === tab.id ? "page" : undefined} data-control-menu-item={tab.id} data-budget-nav={routes[tab.id]} onClick={() => setMobileMoreOpen(false)}>
-                    <span className="ci-topnav-menu-copy"><span className="ci-topnav-menu-label">{tab.label}</span></span>
-                  </a>
-                ))}
-                <div className="if-operations-topnav__menu-label">Workspace</div>
-                {workspaceTabs.map(menuItem)}
-              </div>
-            ) : null}
+          <div className="ci-header-nav__desktop-groups">{groups.map(desktopGroup)}</div>
+          <div className="if-operations-topnav__secondary ci-header-nav__mobile-more">
+            <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`if-operations-topnav__secondary-button${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
+              if (event.key === "ArrowDown") { event.preventDefault(); openAndFocus("mobile", "first"); }
+              if (event.key === "ArrowUp") { event.preventDefault(); openAndFocus("mobile", "last"); }
+            }}>More {openMenu === "mobile" ? "▲" : "▼"}</button>
+            {openMenu === "mobile" ? <div ref={(node) => { menuRefs.current.mobile = node; }} id="budget-mobile-navigation-menu" className="if-operations-topnav__menu ci-header-nav__mobile-menu" data-mobile-more-menu role="menu" aria-label="All sections" onKeyDown={(event) => handleMenuKeyDown(event, "mobile")}>{groups.map((group) => <div key={group.id} className="ci-mobile-menu-group"><div className="if-operations-topnav__menu-label">{group.label}</div><div className="ci-mobile-menu-group__items">{group.items.map(richMenuItem)}</div></div>)}</div> : null}
           </div>
         </nav>
         <ProfileMenu />

@@ -68,6 +68,21 @@ const ANALYTICS_VIEWS = [
   { id: "coverage", label: "Coverage & lineage", icon: Database },
 ];
 
+function analyticsViewFromHash() {
+  if (typeof window === "undefined") return "overview";
+  const candidate = new URLSearchParams(window.location.hash.split("?")[1] || "").get("analyticsView") || "overview";
+  return ANALYTICS_VIEWS.some(({ id }) => id === candidate) ? candidate : "overview";
+}
+
+function updateAnalyticsView(next) {
+  const route = window.location.hash.split("?")[0] || "#/budget-spend/analytics";
+  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  if (next === "overview") params.delete("analyticsView");
+  else params.set("analyticsView", next);
+  const query = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
+}
+
 const DIMENSIONS = [
   { id: "portfolio", label: "Portfolio", value: (record) => record.portfolio || "Not published" },
   { id: "work", label: "Type of work", value: (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified" },
@@ -1511,7 +1526,7 @@ export default function TransactionAnalytics({
       subawardSnapshot,
     ],
   );
-  const [activeView, setActiveView] = useState("overview");
+  const [activeView, setActiveView] = useState(analyticsViewFromHash);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState("all");
   const [dimensionId, setDimensionId] = useState("work");
@@ -1534,6 +1549,11 @@ export default function TransactionAnalytics({
     source: "all",
   });
   const [visibleCharts, setVisibleCharts] = useState(DEFAULT_VISIBLE_CHARTS);
+  useEffect(() => {
+    const sync = () => setActiveView(analyticsViewFromHash());
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
   useEffect(() => {
     if (!selectedRecord) return undefined;
     const onKeyDown = (event) => {
@@ -1684,7 +1704,7 @@ export default function TransactionAnalytics({
       </section>
       <section className="analytics-commandbar" aria-label="Analytics controls">
         <nav aria-label="Analytics view">
-          {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => setActiveView(id)}><Icon size={15} aria-hidden="true" />{label}</button>)}
+          {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => { setActiveView(id); updateAnalyticsView(id); }}><Icon size={15} aria-hidden="true" />{label}</button>)}
         </nav>
         <div className="analytics-commandbar__controls">
           <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>

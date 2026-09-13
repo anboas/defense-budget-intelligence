@@ -21,9 +21,16 @@ const VIEWS = [
   ["watchlist", "Watchlist", Star],
   ["events", "Events", CalendarDays],
   ["integrations", "Integrations", Database],
-  ["activity", "Activity", Activity],
+  ["activity", "API Log", Activity],
   ["wallboard", "Wallboard", MonitorUp],
 ];
+
+const VIEW_COPY = {
+  watchlist: ["Management", "Watchlist", "Tracked records, private notes, review dates, and wallboard visibility."],
+  events: ["Management", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
+  integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
+  activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
+};
 
 function compactDate(value) {
   if (!value) return "Not scheduled";
@@ -64,15 +71,6 @@ function futureRecordDates(record, asOf) {
 
 function nextPublishedDate(record, asOf) {
   return futureRecordDates(record, asOf)[0] || "";
-}
-
-function updateView(next) {
-  const [route] = window.location.hash.split("?");
-  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-  if (next === "watchlist") params.delete("opsView");
-  else params.set("opsView", next);
-  const query = params.toString();
-  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
 }
 
 function EventEditor({ event, records, onSave, onClose }) {
@@ -165,7 +163,7 @@ function IntegrationsView({ dataset, samOpportunities, manualProcurement, procur
 
 function ActivityView({ activity, records, remote }) {
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
-  return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>Activity</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <ol className="ops-activity-list">{activity.map((entry) => { const record = byId.get(entry.recordId); return <li key={entry.id}><i /><time>{dateTime(entry.at)}</time><div><strong>{entry.type.replaceAll("_", " ")}</strong><span>{entry.detail}</span>{record ? <a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>{record.id} · {record.title}</a> : null}</div></li>; })}</ol> : <div className="ops-empty"><Activity size={22} /><strong>No operator activity</strong><p>Watchlist and event changes will be recorded here.</p></div>}</section>;
+  return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <ol className="ops-activity-list">{activity.map((entry) => { const record = byId.get(entry.recordId); return <li key={entry.id}><i /><time>{dateTime(entry.at)}</time><div><strong>{entry.type.replaceAll("_", " ")}</strong><span>{entry.detail}</span>{entry.actorType ? <small>{entry.actorType}{entry.actorId ? ` · ${entry.actorId}` : ""}</small> : null}{record ? <a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>{record.id} · {record.title}</a> : null}</div></li>; })}</ol> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
 function WallboardView({ records, watchlist, events, asOf, onToggleWatch }) {
@@ -204,13 +202,10 @@ function WallboardRecords({ records, asOf, onToggleWatch }) {
   return <section className="ops-wallboard__section"><header><span>Stable-ID watchlist</span><strong>Tracked records</strong></header>{records.length ? <div className="ops-wallboard__cards">{records.map((record) => <article key={record.opportunityId}><button type="button" onClick={() => onToggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={15} fill="currentColor" /></button><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><time>{nextPublishedDate(record, asOf) ? `Next published date ${compactDate(nextPublishedDate(record, asOf))}` : "No future published date"}</time><small>{record.party || "Party not published"} · {money(recordAmount(record))}</small></article>)}</div> : <p>No records are enabled for the wallboard.</p>}</section>;
 }
 
-export default function OperationsHub({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] } }) {
+export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] } }) {
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
-  const [view, setView] = useState(() => {
-    const candidate = new URLSearchParams(window.location.hash.split("?")[1] || "").get("opsView") || "watchlist";
-    return VIEWS.some(([id]) => id === candidate) ? candidate : "watchlist";
-  });
+  const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
@@ -220,17 +215,16 @@ export default function OperationsHub({ dataset, awards = [], samOpportunities =
     return horizon.toISOString().slice(0, 10);
   }, [dataset.metadata.asOf]);
   const dueReviews = state.watchlist.filter((entry) => entry.reviewAt && entry.reviewAt <= reviewHorizon).length;
-  function openView(next) { setView(next); updateView(next); }
-  return <div className="operations-hub" data-operations-hub>
-    <section className="operations-hero"><div><span>Unified management projection</span><h2>Operations</h2><p>Tracked records, operator events, connector health, activity, and wallboard visibility. Source evidence remains separate and authoritative.</p></div><dl><div><dt>Tracked</dt><dd>{state.watchlist.length}</dd></div><div><dt>Review due</dt><dd>{dueReviews}</dd></div><div><dt>Events</dt><dd>{state.events.length}</dd></div><div><dt>Sources online</dt><dd>{sourceHealth.totals?.online || 0}</dd></div></dl></section>
+  const copy = VIEW_COPY[view];
+  return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
+    {view !== "wallboard" ? <section className="operations-hero"><div><span>{copy[0]}</span><h2>{copy[1]}</h2><p>{copy[2]}</p></div><dl><div><dt>Tracked</dt><dd>{state.watchlist.length}</dd></div><div><dt>Review due</dt><dd>{dueReviews}</dd></div><div><dt>Events</dt><dd>{state.events.length}</dd></div><div><dt>Sources online</dt><dd>{sourceHealth.totals?.online || 0}</dd></div></dl></section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
-    <nav className="operations-tabs" aria-label="Operations views">{VIEWS.map(([id, text, Icon]) => <button type="button" key={id} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined} onClick={() => openView(id)}><Icon size={15} />{text}</button>)}</nav>
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
     {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} onToggleWatch={state.toggleWatch} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
-    <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section>
+    {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;
 }

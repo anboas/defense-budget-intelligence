@@ -11,17 +11,17 @@ GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
 - Services: Army, Navy / Marine Corps, Air Force / Space Force.
 - Fourth Estate: OSD / Defense-Wide, defense agencies, combatant commands, and joint organizations.
 - Colors of money: M-1, O-1, P-1, R-1, RF-1, and C-1 display books.
-- Left-to-right money stages: PDB Request, Request History, Account Flow, Awards, and Transactions. Analytics and Sources are factual utilities outside the money-stage rail.
+- Primary surfaces: Transactions and Wallboard. Analytics, Money flow, and Admin are grouped Control Framework menus rather than additional top-level tabs.
 - Drilldown levels: request vintage, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, Treasury account, award, modification, and source evidence.
 - Classifications: color of money and keyword-derived mission categories remain labeled as classifications, not recommendations.
 
 ## Analytics contract
 
-Defense Budget & Spend Analytics uses five ordered money stages plus two factual utility surfaces:
+Defense Budget & Spend Analytics uses two primary working surfaces plus three grouped menus:
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
-- A five-stage left-to-right money rail ending at the lowest published FPDS action grain; Sources remains a separate lineage utility.
-- Hash-route deep links for PDB Request, Request History, Account Flow, Awards, Transactions, Analytics, and Sources.
+- Direct Transactions and Wallboard routes; Analytics groups four query-addressable workspaces; Money flow groups PDB Request, Request History, Account Flow, Awards, and Source Lineage; Admin groups Watchlist, Events, Integrations, API Log, and authenticated agent administration.
+- Hash-route deep links for every working, analytical, money-flow, management, and account surface. Profile, Security, and Agent Access are full pages rather than dialogs.
 - Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local saved views, and deterministic snapshots.
 - CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
 - No strategy rankings, pursuit recommendations, opportunity scores, decision briefs, or target workboards in the public runtime.
