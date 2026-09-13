@@ -90,7 +90,7 @@ button {
 
 .masthead__inner {
   display: grid;
-  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 310px) minmax(0, 1fr) auto;
   gap: 7px 14px;
   align-items: center;
   width: 100%;
@@ -98,6 +98,200 @@ button {
   min-width: 0;
   margin: 0;
   padding: 0;
+}
+
+.profile-menu {
+  position: relative;
+  justify-self: end;
+}
+
+.profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  max-width: 220px;
+  padding: 4px 8px 4px 5px;
+  border: 1px solid rgba(139, 211, 255, 0.48);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.profile-trigger:hover,
+.profile-trigger:focus-visible {
+  border-color: var(--brand-light);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.profile-trigger--signin { padding-inline: 12px; }
+
+.profile-avatar {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #d9efff;
+  color: #12385c;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .03em;
+}
+
+.profile-avatar--large { width: 42px; height: 42px; flex-basis: 42px; }
+
+.profile-trigger__copy {
+  display: grid;
+  min-width: 0;
+  text-align: left;
+}
+
+.profile-trigger__copy strong,
+.profile-trigger__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-trigger__copy strong { font-size: 12px; }
+.profile-trigger__copy small { color: #c9e8fb; font-size: 10px; }
+
+.profile-popover {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: min(310px, calc(100vw - 20px));
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 16px 44px rgba(8, 24, 44, .24);
+}
+
+.profile-popover__identity {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 8px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.profile-popover__identity div { display: grid; min-width: 0; }
+.profile-popover__identity strong,
+.profile-popover__identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-popover__identity strong { font-size: 13px; }
+.profile-popover__identity span { color: var(--muted); font-size: 11px; }
+
+.profile-popover > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.profile-popover > button:hover,
+.profile-popover > button:focus-visible { background: #edf5fb; }
+
+.account-gate {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: radial-gradient(circle at top, #173e62 0, #102a43 42%, #081b2c 100%);
+  color: #fff;
+}
+
+.account-gate--loading { align-content: center; gap: 10px; }
+.account-gate--loading h1 { margin: 0; font-size: 20px; }
+
+.account-gate__card {
+  width: min(440px, 100%);
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid rgba(139, 211, 255, .38);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .97);
+  color: var(--text);
+  box-shadow: 0 26px 80px rgba(0, 0, 0, .32);
+}
+
+.account-gate__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #fff;
+}
+
+.account-gate__eyebrow { margin: 16px 0 3px; color: var(--brand); font-size: 11px; font-weight: 850; text-transform: uppercase; }
+.account-gate h1 { margin: 0; font-size: clamp(24px, 6vw, 32px); }
+.account-gate h1 + p { margin: 9px 0 22px; color: var(--muted); line-height: 1.5; }
+.account-gate form,
+.profile-dialog form { display: grid; gap: 14px; }
+.account-gate label,
+.profile-dialog label { display: grid; gap: 5px; color: #26394d; font-size: 12px; font-weight: 800; }
+.account-gate label span,
+.profile-dialog label span { color: var(--quiet); font-weight: 500; }
+.account-gate input,
+.profile-dialog input { min-height: 44px; padding: 9px 11px; border: 1px solid #9eb2c5; border-radius: 6px; background: #fff; color: var(--text); }
+.account-gate form > button,
+.profile-dialog form > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 14px; border: 0; border-radius: 7px; background: var(--brand); color: #fff; font-weight: 850; }
+.account-form__error { margin: 0; color: var(--red); font-size: 12px; font-weight: 750; }
+.account-form__message { margin: 0; color: var(--brand-dark); font-size: 12px; font-weight: 750; }
+
+.profile-dialog {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(4, 16, 28, .68);
+}
+
+.profile-dialog > section {
+  width: min(480px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .36);
+}
+
+.profile-dialog header { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.profile-dialog header p { margin: 0 0 2px; color: var(--brand); font-size: 10px; font-weight: 850; text-transform: uppercase; }
+.profile-dialog header h2 { margin: 0; font-size: 22px; }
+.profile-dialog header button { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; min-height: 42px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); }
+
+@media (max-width: 1050px) {
+  .masthead__inner { grid-template-columns: minmax(220px, 1fr) auto; }
+  .ci-header-nav { grid-column: 1 / -1; grid-row: 2; }
+  .profile-menu { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 620px) {
+  .masthead__inner { grid-template-columns: minmax(0, 1fr) auto; }
+  .profile-trigger__copy { display: none; }
+  .profile-trigger { padding-right: 5px; }
+  .account-gate { padding: 12px; }
+  .account-gate__card { padding: 24px 18px; }
 }
 
 .masthead__brand {

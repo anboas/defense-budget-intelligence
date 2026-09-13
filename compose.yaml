@@ -20,6 +20,10 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres@db:5432/budget_intelligence
       ENABLE_WRITES: "false"
+      ENABLE_AUTH: "false"
+      AUTH_REQUIRE_LOGIN: "false"
+      ALLOW_FIRST_CLAIM: "true"
+      AUTH_SECURE_COOKIE: "false"
       PORT: "8080"
     depends_on:
       db:

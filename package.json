@@ -14,6 +14,7 @@
     "container:up": "docker compose up --build -d",
     "container:down": "docker compose down",
     "container:verify": "node scripts/verify-container.mjs",
+    "container:deploy:cloudflare": "npm run build:cloudflare && wrangler deploy --config wrangler.container.toml",
     "data:build": "node scripts/build-budget-data.mjs",
     "data:runtime": "node scripts/build-runtime-data.mjs",
     "data:delta": "node scripts/build-refresh-delta.mjs",
@@ -28,6 +29,7 @@
     "source:health": "node scripts/check-source-health.mjs",
     "lint": "eslint .",
     "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",
+    "verify:auth": "node scripts/verify-auth.mjs",
     "verify:prod-interactions": "BUDGET_VERIFY_URL=https://defense-budget-intelligence.pages.dev/ node scripts/verify-site.mjs",
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",
     "pages:dev": "npm run build:cloudflare && wrangler pages dev dist",
@@ -35,6 +37,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "@fastify/static": "^10.1.3",
     "fastify": "^5.12.4",
     "pg": "^8.23.0"

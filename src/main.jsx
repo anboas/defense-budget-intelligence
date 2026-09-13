@@ -29,6 +29,8 @@ import {
 import sourceHealth from "./data/source-health.json";
 import refreshDelta from "./data/refresh-delta.json";
 import CaptureCalendar from "./CaptureCalendar.jsx";
+import AuthProvider from "./AuthContext.jsx";
+import ProfileMenu from "./ProfileMenu.jsx";
 import "./styles.css";
 
 const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
@@ -4781,6 +4783,7 @@ function App() {
               );
             })}
           </nav>
+          <ProfileMenu />
         </div>
       </header>
 
@@ -4890,4 +4893,4 @@ function RuntimeApp() {
   return <App />;
 }
 
-createRoot(document.getElementById("root")).render(<RuntimeApp />);
+createRoot(document.getElementById("root")).render(<AuthProvider><RuntimeApp /></AuthProvider>);

@@ -13,6 +13,7 @@ import {
 import { registerStateRoutes } from "./state-routes.mjs";
 import { importAccountSpine, registerAccountSpineRoutes } from "./account-spine.mjs";
 import { importCaptureCalendar, registerCaptureCalendarRoutes } from "./capture-calendar.mjs";
+import { registerAuthRoutes } from "./auth-routes.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIST_ROOT = resolve(ROOT, "dist");
@@ -34,10 +35,12 @@ app.log.info({ accountSpine }, "normalized account spine synchronized");
 const captureCalendar = await importCaptureCalendar(pool);
 app.log.info({ captureCalendar }, "normalized capture calendar synchronized");
 
-app.addHook("onSend", async (_request, reply) => {
+app.addHook("onSend", async (request, reply) => {
   reply.header("x-content-type-options", "nosniff");
   reply.header("referrer-policy", "strict-origin-when-cross-origin");
   reply.header("x-frame-options", "DENY");
+  reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  if (request.url.startsWith("/api/v1/auth/")) reply.header("cache-control", "no-store");
 });
 
 app.get("/api/healthz", async () => ({ status: "ok" }));
@@ -49,6 +52,8 @@ app.get("/api/readyz", async (_request, reply) => {
     return reply.code(503).send({ status: "unavailable" });
   }
 });
+
+await registerAuthRoutes(app, pool);
 
 app.get("/api/v1/snapshots", async () => ({ snapshots: await latestSnapshotMetadata(pool) }));
 app.get("/api/v1/snapshots/:kind/current", async (request, reply) => {
@@ -71,7 +76,6 @@ await access(resolve(DIST_ROOT, "index.html"));
 await app.register(fastifyStatic, {
   root: DIST_ROOT,
   prefix: "/",
-  wildcard: false,
 });
 
 app.setNotFoundHandler((request, reply) => {
