@@ -425,14 +425,45 @@ try {
 
   await openSurface(page, "#/budget-spend/analytics", "[data-transaction-d3-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Analytics");
-  assert.equal(await page.locator("[data-d3-analytics]").count(), 10, "Analytics should expose ten factual D3 views");
-  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 10, "Every D3 view should render its analytical SVG");
-  assert.equal(await page.locator('[data-d3-analytics="work-categories"]').count(), 1, "Analytics should include type-of-work composition");
-  assert.equal(await page.locator('[data-d3-analytics="provenance"]').count(), 1, "Analytics should include ingestion provenance");
-  assert.equal(await page.locator('[data-d3-analytics="changes"]').count(), 1, "Analytics should include refresh changes");
-  assert.equal(await page.locator('[data-d3-analytics="field-coverage"]').count(), 1, "Analytics should disclose field coverage");
-  assert.equal(await page.locator('[data-d3-analytics="money-lineage"]').count(), 1, "Analytics should disclose money lineage and unresolved join gaps");
-  assert.equal(await page.locator('[data-d3-analytics="subawards"]').count(), 1, "Analytics should disclose exactly joined prime-to-subaward concentration");
+  assert.equal(await page.locator('[data-d3-analytics="dimension-explorer"]').count(), 1, "Overview should start with the shared dimensional ranking");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Overview should expose five focused factual D3 views instead of the full chart wall");
+  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 5, "Every visible Overview view should render its analytical SVG");
+  const overviewScopeBefore = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
+  await page.locator('[data-d3-analytics="dimension-explorer"] [role="button"]').first().click();
+  assert.equal(await page.locator('.analytics-active-filters button').count(), 1, "A dimension bar should cross-filter the analytical workspace");
+  const overviewScopeAfter = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
+  assert.ok(overviewScopeAfter < overviewScopeBefore, "Chart-driven filtering should reduce the record scope");
+  await page.locator('.analytics-active-filters button').click();
+  await page.getByRole("button", { name: "Schedule" }).click();
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 3, "Schedule should expose three focused temporal views");
+  assert.equal(await page.locator('[data-d3-analytics="schedule-horizon"]').count(), 1, "Schedule should include the reported endpoint distribution");
+  const scheduleYear = page.locator('[data-d3-analytics="schedule-horizon"] [role="button"]').filter({ hasText: "2026" }).first();
+  await scheduleYear.click();
+  assert.match(await page.locator('.analytics-active-filters').innerText(), /Reported endpoint: 2026/, "Schedule-year selection should cross-filter every analytical view");
+  await page.locator('.analytics-active-filters button').click();
+  await page.getByRole("button", { name: "Spend & structure" }).click();
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 4, "Spend should expose four focused value and structure views");
+  assert.equal(await page.locator('[data-d3-analytics="acquisition-matrix"]').count(), 1, "Spend should cross published pricing and competition classifications");
+  assert.equal(await page.locator('[data-d3-analytics="subawards"]').count(), 1, "Spend should disclose exactly joined prime-to-subaward concentration");
+  await page.locator('.analytics-commandbar select').nth(1).selectOption('pricing');
+  await page.locator('.analytics-commandbar select').nth(2).selectOption('records');
+  assert.match(await page.locator('[data-d3-analytics="dimension-explorer"] header').innerText(), /Pricing type by records/i, "Dimension and measure controls should reconfigure the shared ranking");
+  await page.locator('.analytics-search input').fill('Application Arsenal');
+  assert.ok(Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Search should cross-filter the record explorer and charts");
+  assert.match(await page.locator('.analytics-export').innerText(), /Export/, "Filtered analytical slices should be exportable");
+  await page.locator('.analytics-reset').click();
+  await page.getByRole("button", { name: "Coverage & lineage" }).click();
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 4, "Coverage should expose four focused provenance and quality views");
+  assert.equal(await page.locator('[data-d3-analytics="provenance"]').count(), 1, "Coverage should include ingestion provenance");
+  assert.equal(await page.locator('[data-d3-analytics="changes"]').count(), 1, "Coverage should include refresh changes");
+  assert.equal(await page.locator('[data-d3-analytics="field-coverage"]').count(), 1, "Coverage should disclose field coverage");
+  assert.equal(await page.locator('[data-d3-analytics="money-lineage"]').count(), 1, "Coverage should disclose money lineage and unresolved join gaps");
+  await page.locator('[data-analytics-records] tbody button').first().click();
+  await page.waitForSelector('.analytics-modal [role="dialog"]');
+  assert.match(await page.locator('.analytics-modal [role="dialog"]').innerText(), /Observed obligations|Reported potential/i);
+  assert.match(await page.locator('.analytics-modal [role="dialog"] a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  await page.keyboard.press("Escape");
+  await page.waitForSelector('.analytics-modal', { state: "detached" });
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
   assert.match(await page.locator("[data-transaction-d3-page]").innerText(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
   await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
@@ -560,7 +591,8 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });
 
   await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
-  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 10);
+  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 5);
+  assert.ok(await mobile.locator('.analytics-commandbar button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
   assert.ok((await mobile.locator("[data-d3-analytics]").first().evaluate((node) => node.scrollWidth > node.clientWidth || node.querySelector(".transaction-viz__scroller")?.scrollWidth > node.querySelector(".transaction-viz__scroller")?.clientWidth)), "Mobile D3 charts should use contained horizontal scrolling");
   await assertNoPageOverflow(mobile, "Mobile D3 analytics");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
@@ -570,7 +602,7 @@ try {
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=7 money_stages=6 request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_charts=10 subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: surfaces=7 money_stages=6 request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=13 focused_workspaces=4 subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

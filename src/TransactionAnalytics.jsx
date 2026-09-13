@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   hierarchy,
   interpolateBlues,
@@ -10,7 +10,22 @@ import {
   schemeTableau10,
   treemap,
 } from "d3";
-import { BarChart3, CalendarClock, Grid3X3, Network } from "lucide-react";
+import {
+  BarChart3,
+  CalendarClock,
+  ChevronRight,
+  CircleDollarSign,
+  Database,
+  Download,
+  Filter,
+  Grid3X3,
+  Layers3,
+  Network,
+  Search,
+  SlidersHorizontal,
+  TableProperties,
+  X,
+} from "lucide-react";
 import {
   applyProcurementChanges,
   assembleProcurementRecords,
@@ -38,6 +53,113 @@ function recordValue(record) {
 
 function recordObligations(record) {
   return Number(record.obligatedAmount || 0);
+}
+
+const ANALYTICS_VIEWS = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "schedule", label: "Schedule", icon: CalendarClock },
+  { id: "spend", label: "Spend & structure", icon: CircleDollarSign },
+  { id: "coverage", label: "Coverage & lineage", icon: Database },
+];
+
+const DIMENSIONS = [
+  { id: "portfolio", label: "Portfolio", value: (record) => record.portfolio || "Not published" },
+  { id: "work", label: "Type of work", value: (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified" },
+  { id: "buyer", label: "Funding office", value: (record) => record.fundingOffice || record.owner || "Not published" },
+  { id: "recipient", label: "Recipient / sponsor", value: (record) => record.party || "Not published" },
+  { id: "provenance", label: "Ingestion provenance", value: (record) => INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || record.ingestionMethod || "Not published" },
+  { id: "pricing", label: "Pricing type", value: (record) => record.pricingType || "Not published" },
+  { id: "competition", label: "Competition / set-aside", value: (record) => record.setAside || record.competitionType || "Not published" },
+];
+
+const METRICS = [
+  { id: "records", label: "Records", value: () => 1, format: (value) => Math.round(value).toLocaleString() },
+  { id: "obligations", label: "Observed obligations", value: recordObligations, format: money },
+  { id: "potential", label: "Reported potential", value: recordValue, format: money },
+  { id: "actions", label: "FPDS actions", value: (record) => Number(record.transactionSummary?.actions || 0), format: (value) => Math.round(value).toLocaleString() },
+  { id: "subawards", label: "Reported subawards", value: (record) => Number(record.subawardSummary?.reportedCount || 0), format: (value) => Math.round(value).toLocaleString() },
+];
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function dateYear(value) {
+  if (!value) return null;
+  const year = Number(String(value).slice(0, 4));
+  return Number.isFinite(year) ? year : null;
+}
+
+function recordMatchesQuery(record, query) {
+  const needle = normalizeText(query);
+  if (!needle) return true;
+  return normalizeText([
+    record.id,
+    record.title,
+    record.party,
+    record.portfolio,
+    record.fundingOffice,
+    record.contractingOffice,
+    record.reference,
+    record.parentReference,
+    record.vehicle,
+    record.pricingType,
+    record.competitionType,
+    record.setAside,
+    record.pscCode,
+    record.naicsCode,
+    WORK_CATEGORY_BY_ID.get(record.workCategory)?.label,
+  ].filter(Boolean).join(" ")).includes(needle);
+}
+
+function activateWithKeyboard(event, callback) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    callback();
+  }
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function exportAnalyticsSlice(records, metric, context) {
+  const headers = ["snapshot", "analyticsView", "dimension", "measure", "opportunityId", "ganttAlias", "recordType", "title", "recipientOrSponsor", "portfolio", "workCategory", "fundingOffice", "contractingOffice", "reference", "vehicle", "pricingType", "competitionOrSetAside", "reportedStart", "reportedEnd", "potentialEnd", "observedObligations", "reportedPotential", "fpdsActions", "reportedSubawards", "ingestionProvenance", "primarySource"];
+  const rows = records.map((record) => [
+    context.snapshot,
+    context.view,
+    context.dimension,
+    metric.label,
+    record.opportunityId,
+    record.id,
+    record.mode,
+    record.title,
+    record.party,
+    record.portfolio,
+    WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified",
+    record.fundingOffice,
+    record.contractingOffice,
+    record.reference,
+    record.vehicle,
+    record.pricingType,
+    record.setAside || record.competitionType,
+    record.start || record.solicitationStart,
+    record.currentEnd || record.solicitationEnd,
+    record.potentialEnd,
+    recordObligations(record),
+    recordValue(record),
+    record.transactionSummary?.actions || 0,
+    record.subawardSummary?.reportedCount || 0,
+    record.ingestionLabel || record.ingestionMethod,
+    record.sourceUrls?.[0],
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  link.download = `contract-analytics-${context.view}-${context.snapshot}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function ChartFrame({ icon: Icon, title, note, children, testId }) {
@@ -142,7 +264,7 @@ function EventTimeline({ records }) {
   );
 }
 
-function ValueScatter({ records }) {
+function ValueScatter({ records, onSelect }) {
   const points = records.filter(
     (record) => recordValue(record) > 0 && recordObligations(record) > 0,
   );
@@ -185,6 +307,11 @@ function ValueScatter({ records }) {
           )}
           fill={colors(record.portfolio)}
           opacity="0.72"
+          role="button"
+          tabIndex="0"
+          aria-label={`${record.id}, ${record.title}, ${money(recordObligatedAmount(record))} observed obligations`}
+          onClick={() => onSelect?.(record)}
+          onKeyDown={(event) => activateWithKeyboard(event, () => onSelect?.(record))}
         >
           <title>
             {record.id} · {record.title}\n{money(recordObligatedAmount(record))}{" "}
@@ -870,6 +997,195 @@ function MoneyLineageMap({ accountSpine, requestLineCount, captureCoverage }) {
   );
 }
 
+function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
+  const dimension = DIMENSIONS.find((item) => item.id === dimensionId) || DIMENSIONS[0];
+  const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
+  const rows = useMemo(() => {
+    const grouped = new Map();
+    for (const record of records) {
+      const label = dimension.value(record);
+      const current = grouped.get(label) || { label, value: 0, records: 0 };
+      current.value += metric.value(record);
+      current.records += 1;
+      grouped.set(label, current);
+    }
+    return [...grouped.values()]
+      .sort((left, right) => right.value - left.value || right.records - left.records)
+      .slice(0, 14);
+  }, [dimension, metric, records]);
+  const width = 1260;
+  const height = 78 + rows.length * 34;
+  const inset = { top: 26, right: 150, bottom: 26, left: 330 };
+  const plotWidth = width - inset.left - inset.right;
+  const maximum = Math.max(...rows.map((row) => row.value), 1);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${dimension.label} ranked by ${metric.label}`}>
+      {rows.map((row, index) => {
+        const y = inset.top + index * 34;
+        const barWidth = Math.max((row.value / maximum) * plotWidth, row.value ? 2 : 0);
+        const active = facet?.dimensionId === dimension.id && facet.value === row.label;
+        return (
+          <g
+            key={row.label}
+            role="button"
+            tabIndex="0"
+            aria-pressed={active}
+            aria-label={`${row.label}, ${metric.format(row.value)}, ${row.records} records`}
+            className={active ? "is-selected" : ""}
+            onClick={() => onFacet(active ? null : { dimensionId: dimension.id, value: row.label })}
+            onKeyDown={(event) => activateWithKeyboard(event, () => onFacet(active ? null : { dimensionId: dimension.id, value: row.label }))}
+          >
+            <text x={inset.left - 12} y={y + 20} textAnchor="end">{row.label.slice(0, 48)}</text>
+            <rect x={inset.left} y={y} width={barWidth} height="25" rx="3" fill={active ? "#f0b323" : "#1678a5"}>
+              <title>{row.label}\n{metric.format(row.value)}\n{row.records.toLocaleString()} records</title>
+            </rect>
+            <text x={inset.left + barWidth + 9} y={y + 19}>{metric.format(row.value)}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ScheduleHorizon({ records, onYear }) {
+  const rows = useMemo(() => {
+    const years = new Map();
+    for (let year = 2023; year <= 2034; year += 1) years.set(year, { year, contracts: 0, acquisitions: 0, potential: 0 });
+    for (const record of records) {
+      const current = dateYear(record.currentEnd || record.solicitationEnd);
+      const potential = dateYear(record.potentialEnd);
+      if (current && years.has(current)) {
+        if (record.mode === "acquisition-window") years.get(current).acquisitions += 1;
+        else years.get(current).contracts += 1;
+      }
+      if (potential && years.has(potential) && potential !== current) years.get(potential).potential += 1;
+    }
+    return [...years.values()];
+  }, [records]);
+  const width = 1100;
+  const height = 330;
+  const inset = { top: 28, right: 20, bottom: 52, left: 48 };
+  const x = scaleBand().domain(rows.map((row) => row.year)).range([inset.left, width - inset.right]).padding(0.2);
+  const maximum = Math.max(...rows.map((row) => row.contracts + row.acquisitions + row.potential), 1);
+  const plotHeight = height - inset.top - inset.bottom;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Reported contract, acquisition, and potential end years">
+      {rows.map((row) => {
+        const total = row.contracts + row.acquisitions + row.potential;
+        const barHeight = (total / maximum) * plotHeight;
+        const contractHeight = total ? (row.contracts / total) * barHeight : 0;
+        const acquisitionHeight = total ? (row.acquisitions / total) * barHeight : 0;
+        const potentialHeight = barHeight - contractHeight - acquisitionHeight;
+        const left = x(row.year) || 0;
+        const bottom = height - inset.bottom;
+        return (
+          <g key={row.year} role="button" tabIndex="0" aria-label={`Year ${row.year}, ${total} reported endpoints`} onClick={() => onYear(row.year)} onKeyDown={(event) => activateWithKeyboard(event, () => onYear(row.year))}>
+            <rect x={left} y={bottom - contractHeight} width={x.bandwidth()} height={contractHeight} fill="#1678a5"><title>{row.year}: {row.contracts} current contract ends</title></rect>
+            <rect x={left} y={bottom - contractHeight - acquisitionHeight} width={x.bandwidth()} height={acquisitionHeight} fill="#248642"><title>{row.year}: {row.acquisitions} acquisition endpoints</title></rect>
+            <rect x={left} y={bottom - barHeight} width={x.bandwidth()} height={potentialHeight} fill="#8b6aad"><title>{row.year}: {row.potential} conditional potential ends</title></rect>
+            <text x={left + x.bandwidth() / 2} y={height - 28} textAnchor="middle">{row.year}</text>
+            {total ? <text x={left + x.bandwidth() / 2} y={bottom - barHeight - 7} textAnchor="middle">{total}</text> : null}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function AcquisitionMatrix({ records }) {
+  const pricingGroups = ["Firm fixed price", "Cost type", "Time & materials", "Other / not published"];
+  const competitionGroups = ["Full and open", "Set-aside / restricted", "Other / not published"];
+  function pricing(record) {
+    const value = normalizeText(record.pricingType);
+    if (/firm fixed|fixed price|ffp/.test(value)) return pricingGroups[0];
+    if (/cost plus|cost no fee|cpff|cpaf|cpif/.test(value)) return pricingGroups[1];
+    if (/time and material|labor hour|t&m/.test(value)) return pricingGroups[2];
+    return pricingGroups[3];
+  }
+  function competition(record) {
+    const value = normalizeText(`${record.setAside || ""} ${record.competitionType || ""} ${record.eligibility || ""}`);
+    if (/full and open/.test(value)) return competitionGroups[0];
+    if (/set.aside|small business|restricted|holders only|sole source/.test(value)) return competitionGroups[1];
+    return competitionGroups[2];
+  }
+  const cells = pricingGroups.flatMap((price) => competitionGroups.map((compete) => ({
+    price,
+    compete,
+    records: records.filter((record) => pricing(record) === price && competition(record) === compete),
+  })));
+  const width = 920;
+  const height = 330;
+  const inset = { top: 70, right: 24, bottom: 30, left: 210 };
+  const x = scaleBand().domain(competitionGroups).range([inset.left, width - inset.right]).padding(0.06);
+  const y = scaleBand().domain(pricingGroups).range([inset.top, height - inset.bottom]).padding(0.06);
+  const color = scaleSequential(interpolateBlues).domain([0, max(cells, (cell) => cell.records.length) || 1]);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Published pricing type by competition classification">
+      {competitionGroups.map((label) => <text key={label} x={(x(label) || 0) + x.bandwidth() / 2} y="42" textAnchor="middle">{label}</text>)}
+      {pricingGroups.map((label) => <text key={label} x={inset.left - 10} y={(y(label) || 0) + y.bandwidth() / 2 + 4} textAnchor="end">{label}</text>)}
+      {cells.map((cell) => (
+        <g key={`${cell.price}-${cell.compete}`}>
+          <rect x={x(cell.compete)} y={y(cell.price)} width={x.bandwidth()} height={y.bandwidth()} rx="4" fill={cell.records.length ? color(cell.records.length) : "#eef2f5"}>
+            <title>{cell.price}\n{cell.compete}\n{cell.records.length} records\n{money(cell.records.reduce((sum, record) => sum + recordObligations(record), 0))} observed obligations</title>
+          </rect>
+          <text x={(x(cell.compete) || 0) + x.bandwidth() / 2} y={(y(cell.price) || 0) + y.bandwidth() / 2 + 5} textAnchor="middle">{cell.records.length}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function RecordExplorer({ records, metricId, onSelect }) {
+  const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
+  const rows = [...records].sort((left, right) => metric.value(right) - metric.value(left)).slice(0, 20);
+  return (
+    <section className="analytics-records" data-analytics-records>
+      <header>
+        <div><TableProperties size={18} aria-hidden="true" /><span><strong>Record explorer</strong><small>Top 20 filtered records by {metric.label.toLowerCase()}</small></span></div>
+        <span>{records.length.toLocaleString()} in scope</span>
+      </header>
+      <div className="analytics-records__table-wrap">
+        <table>
+          <thead><tr><th>Record</th><th>Recipient / sponsor</th><th>Type of work</th><th>Reported end</th><th>{metric.label}</th><th><span className="sr-only">Open</span></th></tr></thead>
+          <tbody>{rows.map((record) => (
+            <tr key={record.opportunityId}>
+              <td><strong>{record.id}</strong><span>{record.title}</span></td>
+              <td>{record.party || "Not published"}</td>
+              <td>{WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified"}</td>
+              <td>{record.currentEnd || record.solicitationEnd || "Not published"}</td>
+              <td>{metric.format(metric.value(record))}</td>
+              <td><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}><ChevronRight size={17} aria-hidden="true" /></button></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function AnalyticsRecordModal({ record, onClose }) {
+  if (!record) return null;
+  return (
+    <div className="analytics-modal" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="analytics-record-title" className="analytics-modal__surface">
+        <header><div><span>{record.id} · {record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"}</span><h2 id="analytics-record-title">{record.title}</h2></div><button type="button" onClick={onClose} aria-label="Close analytical detail"><X size={19} aria-hidden="true" /></button></header>
+        <div className="analytics-modal__facts">
+          <article><span>Recipient / sponsor</span><strong>{record.party || "Not published"}</strong></article>
+          <article><span>Type of work</span><strong>{WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified"}</strong><small>{record.workCategoryBasis || "No classification basis published"}</small></article>
+          <article><span>Observed obligations</span><strong>{money(recordObligations(record))}</strong></article>
+          <article><span>Reported potential</span><strong>{money(recordValue(record))}</strong></article>
+          <article><span>Reported schedule</span><strong>{record.start || record.solicitationStart || "Unknown"} → {record.currentEnd || record.solicitationEnd || "Unknown"}</strong></article>
+          <article><span>Acquisition structure</span><strong>{[record.vehicle, record.pricingType, record.awardType].filter(Boolean).join(" · ") || "Not published"}</strong><small>{record.setAside || record.competitionType || "Competition not published"}</small></article>
+          <article><span>FPDS actions</span><strong>{Number(record.transactionSummary?.actions || 0).toLocaleString()}</strong></article>
+          <article><span>Reported subawards</span><strong>{Number(record.subawardSummary?.reportedCount || 0).toLocaleString()}</strong><small>{record.subawardSummary?.detailTruncated ? "Recent detail is sampled" : "Exact prime count where available"}</small></article>
+          <article><span>Ingestion provenance</span><strong>{record.ingestionLabel || record.ingestionMethod || "Not published"}</strong><small>{record.sourceSystem || "Source system not published"}</small></article>
+        </div>
+        <footer><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Transactions</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</footer>
+      </section>
+    </div>
+  );
+}
+
 export default function TransactionAnalytics({
   dataset,
   awards = [],
@@ -903,20 +1219,48 @@ export default function TransactionAnalytics({
       subawardSnapshot,
     ],
   );
+  const [activeView, setActiveView] = useState("overview");
+  const [query, setQuery] = useState("");
+  const [mode, setMode] = useState("all");
+  const [dimensionId, setDimensionId] = useState("work");
+  const [metricId, setMetricId] = useState("obligations");
+  const [facet, setFacet] = useState(null);
+  const [endYear, setEndYear] = useState(null);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [treemapMetric, setTreemapMetric] = useState("obligations");
+  useEffect(() => {
+    if (!selectedRecord) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setSelectedRecord(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedRecord]);
+  const scopedRecords = useMemo(() => records.filter((record) => {
+    if (!recordMatchesQuery(record, query)) return false;
+    if (mode !== "all" && record.mode !== mode) return false;
+    if (endYear && dateYear(record.currentEnd || record.solicitationEnd) !== endYear && dateYear(record.potentialEnd) !== endYear) return false;
+    if (facet) {
+      const dimension = DIMENSIONS.find((item) => item.id === facet.dimensionId);
+      if (dimension && dimension.value(record) !== facet.value) return false;
+    }
+    return true;
+  }), [endYear, facet, mode, query, records]);
+  const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
   const totals = useMemo(
     () => ({
-      obligations: records.reduce(
+      obligations: scopedRecords.reduce(
         (sum, record) => sum + recordObligations(record),
         0,
       ),
-      potential: records.reduce((sum, record) => sum + recordValue(record), 0),
-      actions: records.reduce(
+      potential: scopedRecords.reduce((sum, record) => sum + recordValue(record), 0),
+      actions: scopedRecords.reduce(
         (sum, record) => sum + Number(record.transactionSummary?.actions || 0),
         0,
       ),
+      subawards: scopedRecords.reduce((sum, record) => sum + Number(record.subawardSummary?.reportedCount || 0), 0),
     }),
-    [records],
+    [scopedRecords],
   );
   const contractRecords = records.filter(
     (record) => record.mode === "contract-performance",
@@ -937,159 +1281,102 @@ export default function TransactionAnalytics({
   const samRecords = acquisitionRecords.filter((record) =>
     record.sourceUrls.some((url) => /sam\.gov/i.test(url)),
   ).length;
+  const activeFilters = Number(Boolean(query)) + Number(mode !== "all") + Number(Boolean(facet)) + Number(Boolean(endYear));
+  const dimensionLabel = DIMENSIONS.find((item) => item.id === dimensionId)?.label || "Dimension";
+  const clearFilters = () => {
+    setQuery("");
+    setMode("all");
+    setFacet(null);
+    setEndYear(null);
+  };
   return (
     <div className="transaction-analytics-page" data-transaction-d3-page>
       <section className="transaction-analytics-hero">
         <div>
-          <span>Read-only descriptive analysis</span>
+          <span>Factual analytical workbench</span>
           <h2>Contract & Transaction Analytics</h2>
           <p>
-            D3 views of reported schedules, values, work categories, ingestion
-            provenance, recipients, offices, lineage, and FPDS activity. Areas,
-            positions, and color encode published or explicitly derived measures
-            only.
+            Cross-filter schedules, reported values, recipients, offices,
+            acquisition structure, provenance, FPDS actions, and exact
+            prime-to-subaward counts. Every visual uses published or explicitly
+            derived measures.
           </p>
         </div>
         <dl>
           <div>
-            <dt>Contracts</dt>
-            <dd>{contractRecords.length.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Acquisition records</dt>
-            <dd>{acquisitionRecords.length.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Automated imports</dt>
-            <dd>
-              {records
-                .filter((record) => record.ingestionMethod === "automated")
-                .length.toLocaleString()}
-            </dd>
-          </div>
-          <div>
-            <dt>Exact follow-on links</dt>
-            <dd>{exactFollowOns.toLocaleString()}</dd>
+            <dt>Records in scope</dt>
+            <dd>{scopedRecords.length.toLocaleString()}</dd>
           </div>
           <div>
             <dt>Observed obligations</dt>
             <dd>{money(totals.obligations)}</dd>
           </div>
           <div>
+            <dt>Reported potential</dt>
+            <dd>{money(totals.potential)}</dd>
+          </div>
+          <div>
             <dt>FPDS actions</dt>
             <dd>{totals.actions.toLocaleString()}</dd>
           </div>
+          <div>
+            <dt>Reported subawards</dt>
+            <dd>{totals.subawards.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt>Active filters</dt>
+            <dd>{activeFilters}</dd>
+          </div>
         </dl>
       </section>
-      <div className="transaction-viz-grid">
-        <ChartFrame
-          icon={CalendarClock}
-          title="Quarterly schedule activity"
-          note="Reported term ends and published acquisition events"
-          testId="quarterly"
-        >
-          <EventTimeline records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={BarChart3}
-          title="Obligation and value distribution"
-          note="Square-root scales preserve lower-value record visibility; bubble size is exact FPDS action count"
-          testId="scatter"
-        >
-          <ValueScatter records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={Network}
-          title="Portfolio and recipient composition"
-          note="Area encodes the selected factual measure"
-          testId="treemap"
-        >
-          <div
-            className="transaction-viz__segmented"
-            aria-label="Treemap measure"
-          >
-            {[
-              ["obligations", "Obligations"],
-              ["potential", "Potential"],
-              ["records", "Records"],
-            ].map(([id, text]) => (
-              <button
-                type="button"
-                className={treemapMetric === id ? "is-active" : ""}
-                key={id}
-                onClick={() => setTreemapMetric(id)}
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-          <PortfolioTreemap records={records} metric={treemapMetric} />
-        </ChartFrame>
-        <ChartFrame
-          icon={Grid3X3}
-          title="Funding office by fiscal year"
-          note="Color encodes annual net obligations reported in the normalized FPDS series"
-          testId="buyer-year"
-        >
-          <BuyerYearHeatmap records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={Network}
-          title="Type of work composition"
-          note="Area encodes record count; categories use PSC/NAICS when available and published descriptions otherwise"
-          testId="work-categories"
-        >
-          <WorkCategoryTreemap records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={BarChart3}
-          title="Ingestion provenance"
-          note="Separates automatic public feeds from normalized source-file and curated imports"
-          testId="provenance"
-        >
-          <ProvenanceBars records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={BarChart3}
-          title="Prime-to-subaward concentration"
-          note="Exact prime-award joins; bars use the retained recent-detail amount and label sampling"
-          testId="subawards"
-        >
-          <SubawardConcentration records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={BarChart3}
-          title="Field coverage"
-          note="Coverage is measured across the full assembled public record universe"
-          testId="field-coverage"
-        >
-          <FieldCoverageBars records={records} />
-        </ChartFrame>
-        <ChartFrame
-          icon={Network}
-          title="Money lineage and public join gaps"
-          note="Counts encode records and links, not additive dollars; relationship class is explicit"
-          testId="money-lineage"
-        >
-          <MoneyLineageMap
-            accountSpine={accountSpine}
-            requestLineCount={requestLineCount}
-            captureCoverage={dataset.metadata.coverage}
-          />
-        </ChartFrame>
-        <ChartFrame
-          icon={CalendarClock}
-          title="Changed since prior snapshot"
-          note="Added, updated, and no-longer-returned records are compared by stable public identifier"
-          testId="changes"
-        >
-          <ChangeBars summary={procurementDelta.summary} />
-        </ChartFrame>
-      </div>
+      <section className="analytics-commandbar" aria-label="Analytics controls">
+        <nav aria-label="Analytics view">
+          {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => setActiveView(id)}><Icon size={15} aria-hidden="true" />{label}</button>)}
+        </nav>
+        <div className="analytics-commandbar__controls">
+          <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
+          <label><span>Record type</span><select value={mode} onChange={(event) => setMode(event.target.value)}><option value="all">All records</option><option value="contract-performance">Contracts</option><option value="acquisition-window">Acquisition activity</option></select></label>
+          <label><span>Dimension</span><select value={dimensionId} onChange={(event) => { setDimensionId(event.target.value); setFacet(null); }}>{DIMENSIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          <label><span>Measure</span><select value={metricId} onChange={(event) => setMetricId(event.target.value)}>{METRICS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+          <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
+          {activeFilters ? <button type="button" className="analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
+        </div>
+        {(facet || endYear) ? <div className="analytics-active-filters" aria-label="Active analytical filters">{facet ? <button type="button" onClick={() => setFacet(null)}><Filter size={13} aria-hidden="true" />{DIMENSIONS.find((item) => item.id === facet.dimensionId)?.label}: {facet.value}<X size={13} aria-hidden="true" /></button> : null}{endYear ? <button type="button" onClick={() => setEndYear(null)}><CalendarClock size={13} aria-hidden="true" />Reported endpoint: {endYear}<X size={13} aria-hidden="true" /></button> : null}</div> : null}
+      </section>
+
+      {activeView === "overview" ? <div className="transaction-viz-grid">
+        <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div>
+        <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame>
+        <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame>
+        <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure" testId="treemap"><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} /></ChartFrame>
+        <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit" testId="work-categories"><WorkCategoryTreemap records={scopedRecords} /></ChartFrame>
+      </div> : null}
+
+      {activeView === "schedule" ? <div className="transaction-viz-grid">
+        <div className="transaction-viz--wide"><ChartFrame icon={CalendarClock} title="Reported schedule horizon" note="Click a year to filter records by current, solicitation, or conditional potential endpoint" testId="schedule-horizon"><ScheduleHorizon records={scopedRecords} onYear={(year) => setEndYear(endYear === year ? null : year)} /></ChartFrame></div>
+        <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame>
+        <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame>
+      </div> : null}
+
+      {activeView === "spend" ? <div className="transaction-viz-grid">
+        <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div>
+        <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations in the normalized FPDS series" testId="buyer-year"><BuyerYearHeatmap records={scopedRecords} /></ChartFrame>
+        <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix"><AcquisitionMatrix records={scopedRecords} /></ChartFrame>
+        <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards"><SubawardConcentration records={scopedRecords} /></ChartFrame>
+      </div> : null}
+
+      {activeView === "coverage" ? <div className="transaction-viz-grid">
+        <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage"><FieldCoverageBars records={scopedRecords} /></ChartFrame>
+        <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct" testId="provenance"><ProvenanceBars records={scopedRecords} /></ChartFrame>
+        <ChartFrame icon={Network} title="Money lineage and public join gaps" note="Counts encode records and links, not additive dollars; relationship class is explicit" testId="money-lineage"><MoneyLineageMap accountSpine={accountSpine} requestLineCount={requestLineCount} captureCoverage={dataset.metadata.coverage} /></ChartFrame>
+        <ChartFrame icon={CalendarClock} title="Changed since prior snapshot" note="Stable identifiers distinguish added, updated, and no-longer-returned records" testId="changes"><ChangeBars summary={procurementDelta.summary} /></ChartFrame>
+      </div> : null}
+
+      <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={setSelectedRecord} />
       <section className="transaction-analytics-note">
         <strong>Coverage boundary</strong>
         <p>
-          These views describe {records.length.toLocaleString()} public records:{" "}
+          These views currently show {scopedRecords.length.toLocaleString()} of {records.length.toLocaleString()} public records:{" "}
           {dataset.metadata.coverage.publicRows} normalized capture rows plus{" "}
           {records
             .filter((record) => record.ingestionMethod === "automated")
@@ -1105,6 +1392,7 @@ export default function TransactionAnalytics({
           crosswalk connects every request line, award, and action.
         </p>
       </section>
+      <AnalyticsRecordModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
     </div>
   );
 }
