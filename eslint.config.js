@@ -4,7 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   {
-    ignores: ["dist", "test-results", "src/data/budget-intelligence.json"],
+    ignores: ["dist", "test-results", ".wrangler", "src/data/budget-intelligence.json"],
   },
   js.configs.recommended,
   {
