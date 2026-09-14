@@ -87,19 +87,19 @@ export default function ProfileMenu() {
             </section>
             <section className="if-account-surface__section" aria-label="Account actions">
               <span className="if-account-surface__label">Account actions</span>
-              <a className="if-account-action" href="#/profile" data-profile-open-page>
+              <a className="if-account-action" href="#/profile" data-profile-open-page onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><UserRound size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Open Profile</strong><span className="if-account-action__meta">Identity and account details</span></span>
               </a>
-              <a className="if-account-action" href="#/profile/security">
+              <a className="if-account-action" href="#/profile/security" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><KeyRound size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Security</strong><span className="if-account-action__meta">Password and active sessions</span></span>
               </a>
-              <a className="if-account-action" href="#/profile/agents">
+              <a className="if-account-action" href="#/profile/agents" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Bot size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Agent Access</strong><span className="if-account-action__meta">Scoped API credentials</span></span>
               </a>
-              <a className="if-account-action" href="#/profile/activity">
+              <a className="if-account-action" href="#/profile/activity" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Activity size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">API Log</strong><span className="if-account-action__meta">Human and agent activity</span></span>
               </a>
