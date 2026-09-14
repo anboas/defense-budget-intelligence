@@ -472,11 +472,34 @@ try {
   await page.evaluate((recordIds) => {
     const at = "2026-09-13T12:00:00.000Z";
     localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
-    localStorage.setItem("dbi:management-events:v1", JSON.stringify(Array.from({ length: 5 }, (_, index) => ({ id: `wallboard-event-${index + 1}`, title: index === 0 ? "Portfolio evidence review" : `Conference review ${index + 2}`, startsAt: `2027-01-${String(15 + index).padStart(2, "0")}T14:00`, endsAt: "", location: index % 2 ? "Main conference room" : "Location not set", notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
+    localStorage.setItem("dbi:management-events:v1", JSON.stringify([
+      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", attendees: ["Jon VandeMark", "Adam Boas"] },
+      { id: "event-ausa-annual-meeting-2026", title: "AUSA Annual Meeting & Exposition 2026", startsAt: "2026-10-12T08:00", endsAt: "2026-10-14T17:00", location: "Walter E. Washington Convention Center, Washington, DC", attendees: [] },
+      { id: "event-eighth-annual-defense-conference-2026", title: "8th Annual Defense Conference", startsAt: "2026-10-30T08:00", endsAt: "2026-10-30T17:00", location: "Hyatt Regency Crystal City, Virginia or virtual", attendees: ["Jon VandeMark", "Adam Boas"] },
+      { id: "event-i-itsec-2026", title: "Interservice/Industry Training, Simulation and Education Conference (I/ITSEC) 2026", startsAt: "2026-11-30T08:00", endsAt: "2026-12-04T17:00", location: "Orange County Convention Center, Orlando, Florida", attendees: ["Jon VandeMark", "Adam Boas"] },
+      { id: "event-weapon-systems-software-summit-2026", title: "2026 Department of Defense Weapon Systems Software Summit", startsAt: "2026-12-08T08:00", endsAt: "2026-12-08T17:00", location: "Broward County Convention Center, Fort Lauderdale, Florida", attendees: ["Adam Boas"] },
+    ].map((event, index) => ({ ...event, notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
   }, wallboardRecordIds);
   await openSurface(page, "#/budget-spend/wallboard", "[data-ops-wallboard]");
-  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Portfolio evidence review/, "Wallboard should project scheduled operator events");
+  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Air, Space & Cyber Conference/, "The event wallboard should project imported operator events");
+  assert.doesNotMatch(await page.locator("[data-ops-wallboard]").innerText(), /AFRL Classified Industry Day/i, "The event wallboard must exclude AFRL Classified Industry Day");
+  await page.waitForFunction(() => document.querySelectorAll("[data-wallboard-event-card]").length === 5);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const eventWallboardGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
+    const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
+    const grid = node.querySelector(".ops-wallboard__event-grid");
+    const gridRect = grid.getBoundingClientRect();
+    const columns = new Set(cards.map((card) => Math.round(card.getBoundingClientRect().left))).size;
+    const rows = new Set(cards.map((card) => Math.round(card.getBoundingClientRect().top))).size;
+    return { columns, rows, lastCardBottom: cards.at(-1).getBoundingClientRect().bottom, gridBottom: gridRect.bottom, writeControls: grid.querySelectorAll("button, input, textarea, select").length };
+  });
+  assert.equal(eventWallboardGeometry.columns, 3, `Event focus should use the reference three-column scan pattern, got ${eventWallboardGeometry.columns}`);
+  assert.equal(eventWallboardGeometry.rows, 2, `Five events should occupy two dense wallboard rows, got ${eventWallboardGeometry.rows}`);
+  assert.ok(eventWallboardGeometry.lastCardBottom <= eventWallboardGeometry.gridBottom + 1, "Every focused event card should fit inside the 1080p wallboard");
+  assert.equal(eventWallboardGeometry.writeControls, 0, "Focused event cards should remain read-only");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-events-1080p.png` });
+  await page.getByRole("button", { name: "Overview" }).click();
   await page.waitForFunction(() => document.querySelectorAll(".ops-wallboard__record").length === 8 && document.querySelectorAll(".ops-wallboard__event").length === 5);
   assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+8/i, "Wallboard should project tracked-record counts");
   const wallboardBaseline = await page.locator("[data-ops-wallboard]").evaluate((node) => ({

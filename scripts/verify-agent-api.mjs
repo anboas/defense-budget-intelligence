@@ -133,6 +133,13 @@ try {
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.openapi, "3.1.0");
 
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: agentToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 5, "The shared event migration should import exactly the five approved wallboard events");
+  assert.equal(result.payload.data.some((event) => /AFRL Classified Industry Day/i.test(event.title)), false, "The excluded AFRL event must not enter the shared database");
+  assert.deepEqual(result.payload.data.find((event) => event.id === "event-air-space-cyber-conference-2026")?.attendees.sort(), ["Adam Boas", "Jon VandeMark"], "Imported attendee assignments should remain first-class event data");
+  assert.ok(result.payload.data.some((event) => event.id === "event-weapon-systems-software-summit-2026"), "The Weapon Systems Software Summit should be imported");
+
   result = await body(await request(instance.baseUrl, "/api/v1/agent/records?limit=5&sort=potentialAmount&direction=desc", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.ok(result.payload.meta.total >= 875, `Expected at least 875 factual records, received ${result.payload.meta.total}`);

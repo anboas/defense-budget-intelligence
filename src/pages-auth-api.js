@@ -111,6 +111,60 @@ const SCHEMA = Object.freeze([
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_event_attendees (
+    event_id TEXT NOT NULL,
+    attendee_name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (event_id, attendee_name)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_event_attendees_event ON dbi_event_attendees (event_id)",
+  `CREATE TABLE IF NOT EXISTS dbi_schema_migrations (
+    name TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL
+  )`,
+  `INSERT OR IGNORE INTO dbi_management_events
+    (id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+    SELECT 'event-air-space-cyber-conference-2026', 'Air, Space & Cyber Conference', '2026-09-14T08:00', '2026-09-16T17:00', 'National Harbor, Maryland, USA', '', 'scheduled', '[]', 1, 1, '2026-09-14T19:00:00.000Z', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_management_events
+    (id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+    SELECT 'event-ausa-annual-meeting-2026', 'AUSA Annual Meeting & Exposition 2026', '2026-10-12T08:00', '2026-10-14T17:00', 'Walter E. Washington Convention Center, 801 Allen Y. Lew Pl NW, Washington, DC 20001', '', 'scheduled', '[]', 1, 1, '2026-09-14T19:00:00.000Z', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_management_events
+    (id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+    SELECT 'event-eighth-annual-defense-conference-2026', '8th Annual Defense Conference', '2026-10-30T08:00', '2026-10-30T17:00', 'Hyatt Regency Crystal City, Virginia or virtual', '', 'scheduled', '[]', 1, 1, '2026-09-14T19:00:00.000Z', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_management_events
+    (id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+    SELECT 'event-i-itsec-2026', 'Interservice/Industry Training, Simulation and Education Conference (I/ITSEC) 2026', '2026-11-30T08:00', '2026-12-04T17:00', 'Orange County Convention Center, South Concourse, 9899 International Drive, Orlando, FL 32819', '', 'scheduled', '[]', 1, 1, '2026-09-14T19:00:00.000Z', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_management_events
+    (id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+    SELECT 'event-weapon-systems-software-summit-2026', '2026 Department of Defense Weapon Systems Software Summit', '2026-12-08T08:00', '2026-12-08T17:00', 'Broward County Convention Center, Fort Lauderdale, Florida, United States', '', 'scheduled', '[]', 1, 1, '2026-09-14T19:00:00.000Z', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-air-space-cyber-conference-2026', 'Jon VandeMark', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-air-space-cyber-conference-2026', 'Adam Boas', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-eighth-annual-defense-conference-2026', 'Jon VandeMark', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-eighth-annual-defense-conference-2026', 'Adam Boas', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-i-itsec-2026', 'Jon VandeMark', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-i-itsec-2026', 'Adam Boas', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_event_attendees (event_id, attendee_name, created_at)
+    SELECT 'event-weapon-systems-software-summit-2026', 'Adam Boas', '2026-09-14T19:00:00.000Z'
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
+  `INSERT OR IGNORE INTO dbi_schema_migrations (name, applied_at)
+    VALUES ('2026-09-14-event-wallboard-import', '2026-09-14T19:00:00.000Z')`,
   `CREATE TABLE IF NOT EXISTS dbi_operator_activity (
     id TEXT PRIMARY KEY,
     actor_type TEXT NOT NULL,
@@ -876,15 +930,39 @@ function recordProjection(record) {
   };
 }
 
-function eventFromRow(row) {
+function eventFromRow(row, attendees = []) {
   let recordIds = [];
   try { recordIds = JSON.parse(row.record_ids_json || "[]"); } catch { /* empty */ }
   return {
     id: row.id, title: row.title, startsAt: row.starts_at, endsAt: row.ends_at || "",
     location: row.location || "", notes: row.notes || "", status: row.status,
-    recordIds, wallboard: Boolean(row.wallboard), version: row.version,
+    recordIds, attendees, wallboard: Boolean(row.wallboard), version: row.version,
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
+}
+
+async function eventsFromRows(db, rows = []) {
+  if (!rows.length) return [];
+  const ids = rows.map((row) => row.id);
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = await db.prepare(`SELECT event_id, attendee_name FROM dbi_event_attendees WHERE event_id IN (${placeholders}) ORDER BY attendee_name`).bind(...ids).all();
+  const byEvent = new Map();
+  for (const attendee of result.results || []) {
+    const names = byEvent.get(attendee.event_id) || [];
+    names.push(attendee.attendee_name);
+    byEvent.set(attendee.event_id, names);
+  }
+  return rows.map((row) => eventFromRow(row, byEvent.get(row.id) || []));
+}
+
+async function replaceEventAttendees(db, eventId, value) {
+  const attendees = cleanStringArray(value, 30, 120);
+  await db.prepare("DELETE FROM dbi_event_attendees WHERE event_id = ?").bind(eventId).run();
+  const createdAt = new Date().toISOString();
+  for (const attendee of attendees) {
+    await db.prepare("INSERT INTO dbi_event_attendees (event_id, attendee_name, created_at) VALUES (?, ?, ?)").bind(eventId, attendee, createdAt).run();
+  }
+  return attendees;
 }
 
 function trackingFromRow(row) {
@@ -1128,10 +1206,10 @@ async function eventsResponse(request, env, db, principal, segments) {
   if (request.method === "GET") {
     if (eventId) {
       const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first();
-      return row ? agentJson(eventFromRow(row)) : agentError("event_not_found", "Event not found", 404);
+      return row ? agentJson((await eventsFromRows(db, [row]))[0]) : agentError("event_not_found", "Event not found", 404);
     }
     const result = await db.prepare("SELECT * FROM dbi_management_events ORDER BY starts_at, created_at").all();
-    return agentJson((result.results || []).map(eventFromRow), 200, { total: result.results?.length || 0 });
+    return agentJson(await eventsFromRows(db, result.results || []), 200, { total: result.results?.length || 0 });
   }
   if (request.method === "POST" && !eventId) return idempotent(db, principal, request, async () => {
     const body = await safeJson(request);
@@ -1153,9 +1231,10 @@ async function eventsResponse(request, env, db, principal, segments) {
     `).bind(id, title, startsAt, cleanDate(body?.endsAt), cleanText(body?.location, 500), cleanText(body?.notes, 4000),
       ["scheduled", "completed", "cancelled"].includes(body?.status) ? body.status : "scheduled",
       JSON.stringify(recordIds), body?.wallboard === false ? 0 : 1, now, now).run();
+    await replaceEventAttendees(db, id, body?.attendees);
     const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
-    return agentJson(eventFromRow(row), 201);
+    return agentJson((await eventsFromRows(db, [row]))[0], 201);
   });
   const existing = eventId ? await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first() : null;
   if (!existing) return agentError("event_not_found", "Event not found", 404);
@@ -1182,11 +1261,13 @@ async function eventsResponse(request, env, db, principal, segments) {
     `).bind(title, startsAt, cleanDate(next.endsAt), cleanText(next.location, 500), cleanText(next.notes, 4000),
       ["scheduled", "completed", "cancelled"].includes(next.status) ? next.status : "scheduled",
       JSON.stringify(recordIds), next.wallboard === false ? 0 : 1, now, eventId).run();
+    if (Array.isArray(body?.attendees)) await replaceEventAttendees(db, eventId, body.attendees);
     const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first();
     await recordActivity(db, principal, "event_updated", "event", eventId, { version: row.version });
-    return agentJson(eventFromRow(row));
+    return agentJson((await eventsFromRows(db, [row]))[0]);
   }
   if (request.method === "DELETE") {
+    await db.prepare("DELETE FROM dbi_event_attendees WHERE event_id = ?").bind(eventId).run();
     await db.prepare("DELETE FROM dbi_management_events WHERE id = ?").bind(eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
     return new Response(null, { status: 204 });

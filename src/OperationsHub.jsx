@@ -4,12 +4,16 @@ import {
   Activity,
   Bot,
   CalendarDays,
+  Building2,
   ChevronRight,
   Database,
+  Link2,
+  MapPin,
   Maximize2,
   Minimize2,
   MonitorUp,
   Plus,
+  ShieldCheck,
   Star,
   Trash2,
   UsersRound,
@@ -123,8 +127,10 @@ function EventEditor({ event, records, onSave, onClose }) {
     notes: "",
     status: "scheduled",
     recordIds: [],
+    attendees: [],
     wallboard: true,
   });
+  const [attendeeText, setAttendeeText] = useState(() => (event?.attendees || []).join(", "));
   const [error, setError] = useState("");
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -142,7 +148,7 @@ function EventEditor({ event, records, onSave, onClose }) {
       setError("End time must be after the start time.");
       return;
     }
-    onSave({ ...draft, updatedAt: new Date().toISOString() });
+    onSave({ ...draft, attendees: attendeeText.split(",").map((name) => name.trim()).filter(Boolean), updatedAt: new Date().toISOString() });
     onClose();
   }
   return createPortal(
@@ -156,6 +162,7 @@ function EventEditor({ event, records, onSave, onClose }) {
           <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Location / link</span><input value={draft.location} onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
           <label className="ops-field"><span>Status</span><select value={draft.status} onChange={(e) => setDraft((value) => ({ ...value, status: e.target.value }))}><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
+          <label className="ops-field ops-field--wide"><span>Attendees</span><input value={attendeeText} placeholder="Separate names with commas" onChange={(e) => setAttendeeText(e.target.value)} /></label>
           <label className="ops-field ops-field--wide"><span>Notes</span><textarea value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
           <label className="ops-check ops-field--wide"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><b>Show on wallboard</b><small>Read-only display projection</small></span></label>
           <fieldset className="ops-event-links ops-field--wide"><legend>Linked watched records</legend>{records.length ? records.map((record) => <label key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><b>{record.id}</b>{record.title}</span></label>) : <p>Star records in Transactions to link them here.</p>}</fieldset>
@@ -197,7 +204,7 @@ function EventsView({ events, records, onAdd, onEdit, onDelete }) {
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.join(" · ") || "None assigned"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
 function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -232,7 +239,7 @@ function ActivityView({ activity, records, remote }) {
 }
 
 function WallboardView({ records, watchlist, events, asOf }) {
-  const [mode, setMode] = useState("overview");
+  const [mode, setMode] = useState("events");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [clock, setClock] = useState(() => new Date().toISOString());
@@ -242,7 +249,7 @@ function WallboardView({ records, watchlist, events, asOf }) {
   const upcomingEvents = events.filter((event) => event.wallboard && event.status === "scheduled" && (event.endsAt || event.startsAt) >= clock).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   useEffect(() => {
     if (!rotate) return undefined;
-    const timer = window.setInterval(() => setMode((value) => value === "overview" ? "schedule" : value === "schedule" ? "records" : "overview"), 15000);
+    const timer = window.setInterval(() => setMode((value) => value === "overview" ? "events" : value === "events" ? "records" : "overview"), 15000);
     return () => window.clearInterval(timer);
   }, [rotate]);
   useEffect(() => {
@@ -273,7 +280,7 @@ function WallboardView({ records, watchlist, events, asOf }) {
       <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong><span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span></time><small>Data through {compactDate(asOf)}</small></div>
     </header>
     <div className="ops-wallboard__toolbar">
-      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button><button type="button" className={mode === "schedule" ? "is-active" : ""} onClick={() => setMode("schedule")}>Schedule</button></nav>
+      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button></nav>
       <div><button type="button" aria-pressed={rotate} onClick={() => setRotate((value) => !value)}>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</button><button type="button" aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</button></div>
     </div>
     <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
@@ -282,12 +289,37 @@ function WallboardView({ records, watchlist, events, asOf }) {
       <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
     </div>
-    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "schedule" ? <WallboardSchedule events={upcomingEvents.slice(0, 12)} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
 }
 
-function WallboardSchedule({ events }) {
-  return <section className="ops-wallboard__section ops-wallboard__section--schedule"><header><div><span>Operator schedule</span><strong>Upcoming events</strong></div><b>{events.length}</b></header>{events.length ? <div className="ops-wallboard__cards">{events.map((event) => {
+function eventCountdown(event, now) {
+  const startsAt = new Date(event.startsAt);
+  const endsAt = new Date(event.endsAt || event.startsAt);
+  if (now >= startsAt && now <= endsAt) return { value: "LIVE", label: "Underway now", tone: "live" };
+  const days = Math.max(0, Math.ceil((startsAt.getTime() - now.getTime()) / 86400000));
+  return { value: String(days), label: days === 1 ? "Day to go" : "Days to go", tone: days <= 14 ? "urgent" : days <= 45 ? "watch" : "steady" };
+}
+
+function WallboardEventCard({ event, index, now }) {
+  const countdown = eventCountdown(event, now);
+  const start = new Date(event.startsAt);
+  const attendees = event.attendees || [];
+  return <article className={`ops-wall-event ops-wall-event--${countdown.tone}`} data-wallboard-event-card>
+    <div className="ops-wall-event__topline"><span>{String(index + 1).padStart(2, "0")}</span><strong>{countdown.tone === "live" ? "Live" : "Tracking"}</strong><ShieldCheck size={15} aria-label="Wallboard approved" /></div>
+    <div className="ops-wall-event__countdown"><strong>{countdown.value}</strong><span>{countdown.label}</span></div>
+    <div className="ops-wall-event__body">
+      <time dateTime={event.startsAt}>{start.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</time>
+      <h3>{event.title}</h3>
+      <p><MapPin size={14} aria-hidden="true" /><span>{event.location || "Location not set"}</span></p>
+      {attendees.length ? <p className="ops-wall-event__attendees"><UsersRound size={14} aria-hidden="true" /><span>{attendees.join(" · ")}</span></p> : null}
+    </div>
+    <footer><span><Link2 size={13} aria-hidden="true" /><b>{event.recordIds?.length || 0}</b> pursuits</span><span><Building2 size={13} aria-hidden="true" /><b>0</b> organizations</span><span><UsersRound size={13} aria-hidden="true" /><b>{attendees.length}</b> attendees</span></footer>
+  </article>;
+}
+
+function WallboardSchedule({ events, focus = false, now = new Date() }) {
+  return <section className={`ops-wallboard__section ops-wallboard__section--schedule${focus ? " ops-wallboard__section--event-focus" : ""}`}><header><div><span>Operator schedule</span><strong>Upcoming events</strong></div><b>{events.length}</b></header>{events.length ? focus ? <div className="ops-wallboard__event-grid">{events.map((event, index) => <WallboardEventCard key={event.id} event={event} index={index} now={now} />)}</div> : <div className="ops-wallboard__cards">{events.map((event) => {
     const start = new Date(event.startsAt);
     return <article key={event.id} className="ops-wallboard__event"><div className="ops-wallboard__date"><span>{start.toLocaleDateString([], { month: "short" })}</span><strong>{start.getDate()}</strong></div><div><time dateTime={event.startsAt}>{start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><strong>{event.title}</strong><span>{event.location || "Location not set"}</span></div></article>;
   })}</div> : <div className="ops-wallboard__empty"><CalendarDays size={30} /><strong>No upcoming events</strong><p>Scheduled wallboard events will appear here.</p></div>}</section>;

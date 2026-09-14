@@ -60,7 +60,9 @@ function normalizeEvent(entry = {}) {
     notes: cleanText(entry.notes, 1200),
     status: ["scheduled", "completed", "cancelled"].includes(entry.status) ? entry.status : "scheduled",
     recordIds: [...new Set((Array.isArray(entry.recordIds) ? entry.recordIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 50),
+    attendees: [...new Set((Array.isArray(entry.attendees) ? entry.attendees : []).map((value) => cleanText(value, 120)).filter(Boolean))].slice(0, 30),
     wallboard: entry.wallboard !== false,
+    version: Number.isFinite(Number(entry.version)) ? Number(entry.version) : 0,
     createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),
     updatedAt: cleanDate(entry.updatedAt) || new Date().toISOString(),
   };
