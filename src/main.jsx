@@ -34,6 +34,7 @@ import AuthProvider from "./AuthContext.jsx";
 import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
 import ProfilePage from "./ProfilePage.jsx";
+import OperationalDataTable from "./OperationalDataTable.jsx";
 import "./styles.css";
 
 const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
@@ -3005,43 +3006,52 @@ function AiAutonomy({ records }) {
 
 function RecordTable({ records, compact = false }) {
   const [evidenceRecord, setEvidenceRecord] = useState(null);
+  const columns = [
+    {
+      key: "line",
+      label: "Line item",
+      required: true,
+      sticky: true,
+      minWidth: 280,
+      value: (record) => record.lineTitle || record.budgetActivityTitle || record.accountTitle,
+      searchValue: (record) => [record.lineTitle, record.budgetActivityTitle, record.accountTitle],
+      render: (record) => <><strong>{record.lineTitle || record.budgetActivityTitle || record.accountTitle}</strong>{!compact ? <small>{record.accountTitle} · {record.budgetActivityTitle}</small> : null}</>,
+    },
+    { key: "org", label: "Organization", facet: true, minWidth: 170, value: (record) => record.orgName },
+    {
+      key: "color",
+      label: "Color of money",
+      facet: true,
+      minWidth: 130,
+      value: (record) => record.colorShort,
+      render: (record) => <span className="dbi-table-color"><i className="dot" style={{ background: BOOK_COLORS[record.bookId] }} />{record.colorShort}</span>,
+    },
+    { key: "fy2025", label: "FY25", align: "right", sortValue: (record) => Number(record.fy2025 || 0), exportValue: (record) => record.fy2025, render: (record) => money(record.fy2025) },
+    { key: "fy2026", label: "FY26", align: "right", sortValue: (record) => Number(record.fy2026 || 0), exportValue: (record) => record.fy2026, render: (record) => money(record.fy2026) },
+    { key: "fy2027", label: "FY27", align: "right", sortValue: (record) => Number(record.fy2027 || 0), exportValue: (record) => record.fy2027, render: (record) => money(record.fy2027) },
+    { key: "trend", label: "Trend", sortValue: growth, exportValue: growth, render: (record) => pct(growth(record)) },
+    {
+      key: "actions",
+      label: "Actions",
+      role: "actions",
+      sortable: false,
+      required: true,
+      render: (record) => <div className="dbi-table-actions"><a href={sourceUrlForRow(record)} target="_blank" rel="noreferrer">Source<ExternalLink size={12} /></a><button type="button" onClick={() => setEvidenceRecord(record)}>Details</button></div>,
+    },
+  ];
   return (
     <>
-      <div className="table-shell" data-budget-record-table>
-        <table>
-        <thead>
-          <tr>
-            <th>Line item</th>
-            <th>Org</th>
-            <th>Color</th>
-            <th>FY25</th>
-            <th>FY26</th>
-            <th>FY27</th>
-            <th>Trend</th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((record) => (
-            <tr key={record.id}>
-              <td>
-                <strong>{record.lineTitle || record.budgetActivityTitle || record.accountTitle}</strong>
-                {!compact ? <span>{record.accountTitle} · {record.budgetActivityTitle}</span> : null}
-                <a className="record-source-link" href={sourceUrlForRow(record)} target="_blank" rel="noreferrer">
-                  Official source <ExternalLink size={12} aria-hidden="true" />
-                </a>
-                <button type="button" className="record-evidence-button" onClick={() => setEvidenceRecord(record)}>Evidence details</button>
-              </td>
-              <td>{record.orgName}</td>
-              <td><i className="dot" style={{ background: BOOK_COLORS[record.bookId] }} />{record.colorShort}</td>
-              <td>{money(record.fy2025)}</td>
-              <td>{money(record.fy2026)}</td>
-              <td>{money(record.fy2027)}</td>
-              <td>{pct(growth(record))}</td>
-            </tr>
-          ))}
-        </tbody>
-        </table>
-      </div>
+      <OperationalDataTable
+        id={compact ? "budget-records-compact" : "budget-records"}
+        label="Budget line items"
+        rows={records}
+        columns={columns}
+        rowKey={(record) => record.id}
+        defaultSort={{ key: "fy2027", direction: "desc" }}
+        searchPlaceholder="Search line items, accounts, and organizations…"
+        exportFilename="defense-budget-line-items.csv"
+        wrapperProps={{ "data-budget-record-table": true }}
+      />
       <EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} />
     </>
   );
@@ -3783,52 +3793,40 @@ function AwardRollup({ title, rows }) {
 
 function AwardTable({ awards }) {
   const [evidenceRecord, setEvidenceRecord] = useState(null);
+  const columns = [
+    {
+      key: "award",
+      label: "Award",
+      required: true,
+      sticky: true,
+      minWidth: 310,
+      value: (award) => award.awardId || award.id,
+      searchValue: (award) => [award.awardId, award.id, award.description, award.contractType],
+      render: (award) => <><strong>{award.awardId || award.id}</strong><small>{award.contractType || "Contract award"} · {award.description || "No description"}</small></>,
+    },
+    { key: "vendor", label: "Vendor", facet: true, minWidth: 180, value: (award) => award.recipient },
+    { key: "buyer", label: "Buyer", facet: true, minWidth: 200, value: (award) => award.buyerSubAgency, searchValue: (award) => [award.buyerSubAgency, award.fundingOffice, award.awardingOffice], render: (award) => <><strong>{award.buyerSubAgency}</strong><small>{award.fundingOffice || award.awardingOffice || award.awardingSubAgency}</small></> },
+    { key: "area", label: "Area", facet: true, minWidth: 150, value: (award) => (award.areas || [award.area]).slice(0, 2).join(", ") },
+    { key: "workType", label: "Work type", facet: true, minWidth: 170, value: (award) => award.pscCode || award.naicsCode || "Uncoded", searchValue: (award) => [award.pscCode, award.naicsCode, award.pscDescription, award.naicsDescription], render: (award) => <><strong>{award.pscCode || award.naicsCode || "n/a"}</strong><small>{award.pscDescription || award.naicsDescription || "Uncoded"}</small></> },
+    { key: "start", label: "Start", value: (award) => award.startDate || "Unknown" },
+    { key: "end", label: "End", value: (award) => award.endDate || "Unknown" },
+    { key: "value", label: "Award value", sortValue: (award) => Number(award.awardAmount || 0), exportValue: (award) => award.awardAmount, render: (award) => <strong>{money(award.awardAmount)}</strong> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (award) => <div className="dbi-table-actions"><a href={sourceUrlForRow(award)} target="_blank" rel="noreferrer">Source<ExternalLink size={12} /></a><button type="button" onClick={() => setEvidenceRecord(award)}>Details</button></div> },
+  ];
   return (
     <>
-      <div className="table-shell award-table-shell" data-award-record-table>
-        <table>
-        <thead>
-          <tr>
-            <th>Award</th>
-            <th>Vendor</th>
-            <th>Buyer</th>
-            <th>Area</th>
-            <th>Work type</th>
-            <th>Dates</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {awards.map((award) => (
-            <tr key={award.id}>
-              <td>
-                <strong>{award.awardId || award.id}</strong>
-                <span>{award.contractType || "Contract award"} · {award.description || "No description"}</span>
-                <a className="record-source-link" href={sourceUrlForRow(award)} target="_blank" rel="noreferrer">
-                  USAspending record <ExternalLink size={12} aria-hidden="true" />
-                </a>
-                <button type="button" className="record-evidence-button" onClick={() => setEvidenceRecord(award)}>Evidence details</button>
-              </td>
-              <td>{award.recipient}</td>
-              <td>
-                <strong>{award.buyerSubAgency}</strong>
-                <span>{award.fundingOffice || award.awardingOffice || award.awardingSubAgency}</span>
-              </td>
-              <td>{(award.areas || [award.area]).slice(0, 2).join(", ")}</td>
-              <td>
-                <strong>{award.pscCode || award.naicsCode || "n/a"}</strong>
-                <span>{award.pscDescription || award.naicsDescription || "Uncoded"}</span>
-              </td>
-              <td>
-                <strong>{award.startDate || "n/a"}</strong>
-                <span>{award.endDate ? `Ends ${award.endDate}` : "End date unknown"}</span>
-              </td>
-              <td>{money(award.awardAmount)}</td>
-            </tr>
-          ))}
-        </tbody>
-        </table>
-      </div>
+      <OperationalDataTable
+        id="award-records"
+        label="Award records"
+        rows={awards}
+        columns={columns}
+        rowKey={(award) => award.id}
+        defaultSort={{ key: "value", direction: "desc" }}
+        searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…"
+        exportFilename="defense-awards.csv"
+        defaultPageSize={25}
+        wrapperProps={{ "data-award-record-table": true }}
+      />
       <EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} />
     </>
   );

@@ -9,13 +9,13 @@ import {
   Minimize2,
   MonitorUp,
   Plus,
-  Search,
   Star,
   Trash2,
   X,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
 import ProductMark from "./ProductMark.jsx";
+import OperationalDataTable from "./OperationalDataTable.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 
@@ -149,23 +149,36 @@ function EventEditor({ event, records, onSave, onClose }) {
 }
 
 function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, updateWatch }) {
-  const filtered = rows.filter((record) => !query || [record.id, record.title, record.party, record.portfolio, record.reference].join(" ").toLowerCase().includes(query.toLowerCase()));
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
+  const columns = [
+    { key: "record", label: "Tracked record", required: true, sticky: true, minWidth: 300, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.party, record.portfolio, record.reference], render: (record) => <a className="dbi-table-record-link" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a> },
+    { key: "work", label: "Type of work", facet: true, minWidth: 150, value: (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work" },
+    { key: "date", label: "Next published date", minWidth: 130, value: (record) => nextPublishedDate(record, asOf) || "Not scheduled", render: (record) => compactDate(nextPublishedDate(record, asOf)) },
+    { key: "observed", label: "Observed", sortValue: recordAmount, exportValue: recordAmount, render: (record) => <strong>{money(recordAmount(record))}</strong> },
+    { key: "review", label: "Review", minWidth: 150, sortValue: (record) => watchById.get(record.opportunityId)?.reviewAt || "", render: (record) => { const watch = watchById.get(record.opportunityId); return <input aria-label={`Review date for ${record.title}`} type="date" value={String(watch?.reviewAt || "").slice(0, 10)} onChange={(event) => updateWatch(record.opportunityId, { reviewAt: event.target.value })} />; } },
+    { key: "wallboard", label: "Wallboard", facet: true, minWidth: 120, value: (record) => watchById.get(record.opportunityId)?.wallboard ? "Shown" : "Hidden", render: (record) => { const watch = watchById.get(record.opportunityId); return <label className="ops-switch"><input type="checkbox" checked={watch?.wallboard !== false} onChange={(event) => updateWatch(record.opportunityId, { wallboard: event.target.checked })} /><span>{watch?.wallboard !== false ? "Shown" : "Hidden"}</span></label>; } },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" className="ops-icon-button is-starred" onClick={() => toggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={17} fill="currentColor" />Untrack</button></div> },
+  ];
   return (
     <section className="ops-panel" data-ops-watchlist>
-      <header className="ops-panel__header"><div><span>Stable-ID working set</span><h2>Tracked records</h2></div><label className="ops-search"><Search size={15} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tracked records" /></label></header>
-      {filtered.length ? <div className="ops-watch-table"><table><thead><tr><th>Record</th><th>Next published date</th><th>Observed</th><th>Review</th><th>Wallboard</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filtered.map((record) => {
-        const watch = watchById.get(record.opportunityId);
-        return <tr key={record.opportunityId} data-ops-watch-row={record.opportunityId}><td><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a><details><summary>Note</summary><textarea key={watch.updatedAt} defaultValue={watch.note} placeholder="Private workspace note" onBlur={(e) => { if (e.target.value !== watch.note) updateWatch(record.opportunityId, { note: e.target.value }); }} /></details></td><td>{compactDate(nextPublishedDate(record, asOf))}</td><td>{money(recordAmount(record))}</td><td><input aria-label={`Review date for ${record.title}`} type="date" value={String(watch.reviewAt || "").slice(0, 10)} onChange={(e) => updateWatch(record.opportunityId, { reviewAt: e.target.value })} /></td><td><label className="ops-switch"><input type="checkbox" checked={watch.wallboard} onChange={(e) => updateWatch(record.opportunityId, { wallboard: e.target.checked })} /><span>{watch.wallboard ? "Shown" : "Hidden"}</span></label></td><td><button type="button" className="ops-icon-button is-starred" onClick={() => toggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={17} fill="currentColor" /></button></td></tr>;
-      })}</tbody></table></div> : <div className="ops-empty"><Star size={22} /><strong>{rows.length ? "No tracked records match" : "No tracked records yet"}</strong><p>{rows.length ? "Clear the search to restore the complete watchlist." : "Use the star on any Transactions Gantt row to build this working set."}</p><a href="#/budget-spend/transactions">Open Transactions</a></div>}
+      <header className="ops-panel__header"><div><span>Stable-ID working set</span><h2>Tracked records</h2></div></header>
+      {rows.length ? <OperationalDataTable id="watchlist" label="Tracked records" rows={rows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "date", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked records…" exportFilename="tracked-records.csv" wrapperProps={{ "data-ops-watch-table": true }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <label className="dbi-table-note"><span>Private workspace note</span><textarea key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label>; }} /> : <div className="ops-empty"><Star size={22} /><strong>No tracked records yet</strong><p>Use the star on any Transactions Gantt row to build this working set.</p><a href="#/budget-spend/transactions">Open Transactions</a></div>}
     </section>
   );
 }
 
 function EventsView({ events, records, onAdd, onEdit, onDelete }) {
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
-  const sorted = [...events].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></header>{sorted.length ? <div className="ops-event-list">{sorted.map((event) => <article key={event.id}><time>{dateTime(event.startsAt)}</time><div><span>{event.status}{event.wallboard ? " · wallboard" : ""}</span><strong>{event.title}</strong><p>{event.location || "Location not set"}</p><small>{event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records"}</small></div><div><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={15} /></button></div></article>)}</div> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p></div>}</section>;
+  const columns = [
+    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
+    { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt, render: (event) => dateTime(event.startsAt) },
+    { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt, render: (event) => dateTime(event.endsAt || event.startsAt) },
+    { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <span className={`dbi-status-badge is-${event.status || "scheduled"}`}>{event.status || "scheduled"}</span> },
+    { key: "display", label: "Wallboard", facet: true, value: (event) => event.wallboard ? "Shown" : "Hidden" },
+    { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
+  ];
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
 function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -178,12 +191,25 @@ function IntegrationsView({ dataset, samOpportunities, manualProcurement, procur
     { name: "Manual / CRM imports", status: "ready", count: `${Number(manualProcurement.records?.length || 0).toLocaleString()} records`, detail: "Stable procurement identifiers required" },
     { name: "Change detection", status: procurementDelta.metadata?.status || "baseline", count: `${Number(procurementDelta.summary?.added || 0) + Number(procurementDelta.summary?.updated || 0)} changes`, detail: "Deterministic consecutive-snapshot comparison" },
   ];
-  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><div className="ops-integration-list">{rows.map((row) => <article key={row.name}><i className={`is-${String(row.status).toLowerCase().replaceAll(" ", "-")}`} /><div><strong>{row.name}</strong><span>{row.detail}</span></div><b>{row.count}</b><em>{row.status}</em></article>)}</div></section>;
+  const columns = [
+    { key: "name", label: "Integration", required: true, sticky: true, minWidth: 230, value: (row) => row.name, render: (row) => <><strong>{row.name}</strong><small>{row.detail}</small></> },
+    { key: "status", label: "Status", facet: true, minWidth: 110, value: (row) => row.status, render: (row) => <span className={`dbi-status-badge is-${String(row.status).toLowerCase().replaceAll(" ", "-")}`}>{row.status}</span> },
+    { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
+    { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
+  ];
+  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
 }
 
 function ActivityView({ activity, records, remote }) {
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
-  return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <ol className="ops-activity-list">{activity.map((entry) => { const record = byId.get(entry.recordId); return <li key={entry.id}><i /><time>{dateTime(entry.at)}</time><div><strong>{entry.type.replaceAll("_", " ")}</strong><span>{entry.detail}</span>{entry.actorType ? <small>{entry.actorType}{entry.actorId ? ` · ${entry.actorId}` : ""}</small> : null}{record ? <a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>{record.id} · {record.title}</a> : null}</div></li>; })}</ol> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
+  const columns = [
+    { key: "at", label: "Time", required: true, sticky: true, minWidth: 170, value: (entry) => entry.at, render: (entry) => dateTime(entry.at) },
+    { key: "type", label: "Event", facet: true, minWidth: 150, value: (entry) => entry.type.replaceAll("_", " "), render: (entry) => <strong>{entry.type.replaceAll("_", " ")}</strong> },
+    { key: "detail", label: "Detail", minWidth: 280, role: "prose", value: (entry) => entry.detail },
+    { key: "actor", label: "Actor", facet: true, minWidth: 130, value: (entry) => entry.actorType || "operator", render: (entry) => <><strong>{entry.actorType || "operator"}</strong>{entry.actorId ? <small>{entry.actorId}</small> : null}</> },
+    { key: "record", label: "Record", minWidth: 210, value: (entry) => byId.get(entry.recordId)?.id || entry.recordId || "Not linked", render: (entry) => { const record = byId.get(entry.recordId); return record ? <a className="dbi-table-record-link" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}><strong>{record.id}</strong><small>{record.title}</small></a> : (entry.recordId || "Not linked"); } },
+  ];
+  return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <OperationalDataTable id="api-activity" label="API and activity log" rows={activity} columns={columns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="api-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
 function WallboardView({ records, watchlist, events, asOf }) {

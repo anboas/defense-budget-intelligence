@@ -314,7 +314,10 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
   assert.equal(await page.locator("[data-award-filter-bar] select").count(), 5, "Awards should expose factual filter dimensions");
-  assert.ok(await page.locator("[data-award-record-table] tbody tr").count() >= 100, "Awards should expose the sampled award table");
+  assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
+  assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689|records/i, "Awards should disclose the complete sampled award scope");
+  assert.equal(await page.locator("[data-award-record-table] [data-table-filters] select").count(), 4, "Awards should expose column-level facets alongside page filters");
+  assert.equal(await page.locator("[data-award-record-table] .dbi-data-table__columns").count(), 1, "Awards should expose persistent column configuration");
   assert.ok(await page.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Awards intro should remain compact");
   assert.doesNotMatch(await page.locator("[data-awards-page] .phase-intro").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
@@ -370,6 +373,34 @@ try {
   assert.equal(compactDesktopGeometry.freshnessCount, 0, "Transactions should not render source-freshness cards above the working canvas");
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
+  await page.getByRole("button", { name: "Data table" }).click();
+  await page.waitForSelector("[data-transaction-data-table]");
+  assert.match(await page.locator("[data-transaction-data-table] .dbi-data-table__status").innerText(), /875|records/i, "Transactions table should expose the entire filtered record universe");
+  assert.equal(await page.locator("[data-transaction-data-table] [data-if-table-row]").count(), 50, "Transactions should paginate at fifty rows by default");
+  assert.ok(await page.locator("[data-transaction-data-table] th").count() >= 10, "Transactions table should expose a broad operational column set");
+  assert.ok(await page.locator("[data-transaction-data-table] [data-table-filters] select").count() >= 6, "Transactions table should expose column-level facets");
+  const partyHeaderIndex = await page.locator('[data-transaction-data-table] th[data-column-key="party"]').evaluate((node) => [...node.parentElement.children].indexOf(node));
+  await page.locator("[data-transaction-data-table] .dbi-data-table__columns summary").click();
+  await page.getByRole("button", { name: "Move Recipient / sponsor left" }).click();
+  const movedPartyHeaderIndex = await page.locator('[data-transaction-data-table] th[data-column-key="party"]').evaluate((node) => [...node.parentElement.children].indexOf(node));
+  assert.equal(movedPartyHeaderIndex, partyHeaderIndex - 1, "Column order controls should reconfigure the working table");
+  await page.getByRole("button", { name: "Move Recipient / sponsor right" }).click();
+  await page.locator("[data-transaction-data-table] .dbi-data-table__columns summary").click();
+  const workWidthBefore = Number.parseFloat(await page.locator('[data-transaction-data-table] th[data-column-key="work"]').evaluate((node) => node.style.width || "0"));
+  await page.locator('[data-transaction-data-table] th[data-column-key="work"] [role="separator"]').press("ArrowRight");
+  const workWidthAfter = Number.parseFloat(await page.locator('[data-transaction-data-table] th[data-column-key="work"]').evaluate((node) => node.style.width || "0"));
+  assert.ok(workWidthAfter > workWidthBefore, `Keyboard column resizing should increase the explicit work column width: ${workWidthBefore} -> ${workWidthAfter}`);
+  await page.locator('[data-transaction-data-table] th[data-column-key="end"] .if-table__sort').click();
+  assert.equal(await page.locator('[data-transaction-data-table] th[data-column-key="end"]').getAttribute("aria-sort"), "descending", "Sortable headers should expose their active direction");
+  const transactionTableSearch = page.getByPlaceholder("Search every visible transaction field…");
+  await transactionTableSearch.fill("Application Arsenal");
+  assert.ok(await page.locator("[data-transaction-data-table] [data-if-table-row]").count() >= 2, "Transactions table should search across identifiers, titles, parties, and dimensions");
+  await transactionTableSearch.fill("");
+  await page.locator("[data-transaction-data-table] [data-if-table-row] input[type=checkbox]").first().check();
+  assert.equal(await page.locator("[data-transaction-data-table] [data-if-table-bulk]").count(), 1, "Transactions should expose bulk-selection state");
+  await page.locator("[data-transaction-data-table] [data-if-table-bulk] button").click();
+  await page.getByRole("button", { name: "Gantt" }).click();
+  await page.waitForSelector("[data-capture-timeline]");
   const wallboardRecordIds = await page.locator("[data-capture-timeline-row]").evaluateAll((nodes) => nodes.slice(0, 8).map((node) => node.dataset.recordId));
   assert.equal(wallboardRecordIds.length, 8, "Wallboard density fixture should use eight factual stable record IDs");
   const firstWatchRow = page.locator("[data-capture-timeline-row]").first();
@@ -382,12 +413,13 @@ try {
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Watchlist");
-  assert.equal(await page.locator("[data-ops-watch-row]").count(), 1, "Watchlist should project the tracked stable-ID working set");
-  assert.equal(await page.locator(`[data-ops-watch-row="${firstWatchId}"]`).count(), 1, "Watchlist should preserve the exact Gantt stable ID");
-  const watchRow = page.locator(`[data-ops-watch-row="${firstWatchId}"]`);
-  await watchRow.locator("details summary").click();
-  await watchRow.locator("textarea").fill("Verify public record details before the next review.");
-  await watchRow.locator("textarea").blur();
+  assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "Watchlist should project the tracked stable-ID working set");
+  assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "Watchlist should preserve the exact Gantt stable ID");
+  const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
+  await watchRow.click();
+  const watchNote = page.locator("[data-ops-watch-table] [data-if-table-detail] textarea");
+  await watchNote.fill("Verify public record details before the next review.");
+  await watchNote.blur();
   await watchRow.locator('input[type="date"]').fill("2026-10-01");
   await openSurface(page, "#/budget-spend/events", "[data-ops-events]");
   await page.getByRole("button", { name: "Add event" }).click();
@@ -398,10 +430,10 @@ try {
   await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
   await openSurface(page, "#/budget-spend/integrations", "[data-ops-integrations]");
-  assert.equal(await page.locator("[data-ops-integrations] .ops-integration-list article").count(), 7, "Operations should summarize each current ingestion layer");
+  assert.equal(await page.locator("[data-ops-integrations] [data-ops-integration-table] [data-if-table-row]").count(), 7, "Operations should summarize each current ingestion layer");
   assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 3, "Budget, award, and source freshness should live with Admin integration health");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
-  assert.ok(await page.locator("[data-ops-activity] .ops-activity-list li").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
+  assert.ok(await page.locator("[data-ops-activity] [data-ops-activity-table] [data-if-table-row]").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
   await page.evaluate((recordIds) => {
     const at = "2026-09-13T12:00:00.000Z";
     localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
@@ -941,6 +973,23 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-mobile.png` });
   await mobile.getByRole("button", { name: "Close record details" }).click();
   await mobile.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
+  await mobile.getByRole("button", { name: "Data table" }).click();
+  await mobile.waitForSelector("[data-transaction-data-table]");
+  const mobileTableGeometry = await mobile.locator("[data-transaction-data-table]").evaluate((node) => ({
+    headerDisplay: getComputedStyle(node.querySelector("thead")).display,
+    rowDisplay: getComputedStyle(node.querySelector("[data-if-table-row]")).display,
+    width: node.getBoundingClientRect().width,
+    viewportWidth: window.innerWidth,
+    labels: [...node.querySelectorAll("[data-if-table-row] td[data-ui-table-card-label]")].slice(0, 5).map((cell) => cell.dataset.uiTableCardLabel),
+  }));
+  assert.equal(mobileTableGeometry.headerDisplay, "none", "Mobile data tables should replace desktop headers with card labels");
+  assert.equal(mobileTableGeometry.rowDisplay, "grid", "Mobile data tables should render each record as a scan-friendly card");
+  assert.ok(mobileTableGeometry.width <= mobileTableGeometry.viewportWidth, `Mobile transaction table must remain inside the viewport: ${JSON.stringify(mobileTableGeometry)}`);
+  assert.ok(mobileTableGeometry.labels.includes("Transaction / acquisition"), "Mobile transaction cards should retain explicit field labels");
+  await assertNoPageOverflow(mobile, "Mobile transactions data table");
+  await mobile.screenshot({ path: `${OUT_DIR}/transactions-data-table-mobile.png`, fullPage: true });
+  await mobile.getByRole("button", { name: "Gantt" }).click();
+  await mobile.waitForSelector("[data-capture-timeline]");
   await assertNoPageOverflow(mobile, "Mobile transactions");
   await mobile.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });

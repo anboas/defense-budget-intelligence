@@ -111,7 +111,7 @@ try {
   });
   assert.equal(workspaceSeed.trackingStatus, 201);
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
-  await page.locator(`[data-ops-watch-row="${workspaceSeed.recordId}"]`).waitFor();
+  await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
   await page.getByText("authenticated D1 workspace").waitFor();
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");

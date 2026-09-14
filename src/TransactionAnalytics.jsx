@@ -27,6 +27,7 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
+import OperationalDataTable from "./OperationalDataTable.jsx";
 import {
   parseMultiValues,
   SearchMultiSelect,
@@ -1444,28 +1445,33 @@ function AcquisitionMatrix({ records }) {
 
 function RecordExplorer({ records, metricId, onSelect }) {
   const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
-  const rows = [...records].sort((left, right) => metric.value(right) - metric.value(left)).slice(0, 20);
+  const columns = [
+    { key: "record", label: "Record", required: true, sticky: true, minWidth: 270, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.reference], render: (record) => <><strong>{record.id}</strong><small>{record.title}</small></> },
+    { key: "party", label: "Recipient / sponsor", facet: true, minWidth: 190, value: (record) => record.party || "Not published" },
+    { key: "work", label: "Type of work", facet: true, minWidth: 170, value: (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified" },
+    { key: "end", label: "Reported end", minWidth: 120, value: (record) => record.currentEnd || record.solicitationEnd || "Not published" },
+    { key: "provenance", label: "Provenance", facet: true, minWidth: 135, value: (record) => record.ingestionLabel || record.ingestionMethod || "Not published" },
+    { key: "metric", label: metric.label, sortValue: metric.value, exportValue: metric.value, render: (record) => <strong>{metric.format(metric.value(record))}</strong> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Transactions</a></div> },
+  ];
   return (
     <section className="analytics-records" data-analytics-records>
       <header>
-        <div><TableProperties size={18} aria-hidden="true" /><span><strong>Record explorer</strong><small>Top 20 filtered records by {metric.label.toLowerCase()}</small></span></div>
+        <div><TableProperties size={18} aria-hidden="true" /><span><strong>Record explorer</strong><small>Complete filtered set ranked by {metric.label.toLowerCase()}</small></span></div>
         <span>{records.length.toLocaleString()} in scope</span>
       </header>
-      <div className="analytics-records__table-wrap">
-        <table>
-          <thead><tr><th>Record</th><th>Recipient / sponsor</th><th>Type of work</th><th>Reported end</th><th>{metric.label}</th><th><span className="sr-only">Open</span></th></tr></thead>
-          <tbody>{rows.map((record) => (
-            <tr key={record.opportunityId}>
-              <td><strong>{record.id}</strong><span>{record.title}</span></td>
-              <td>{record.party || "Not published"}</td>
-              <td>{WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified"}</td>
-              <td>{record.currentEnd || record.solicitationEnd || "Not published"}</td>
-              <td>{metric.format(metric.value(record))}</td>
-              <td><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}><ChevronRight size={17} aria-hidden="true" /></button></td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </div>
+      <OperationalDataTable
+        key={metricId}
+        id="analytics-record-explorer"
+        label="Analytics record explorer"
+        rows={records}
+        columns={columns}
+        rowKey={(record) => record.opportunityId}
+        defaultSort={{ key: "metric", direction: "desc" }}
+        searchPlaceholder="Search the current analytical scope…"
+        exportFilename="defense-analytics-records.csv"
+        defaultPageSize={25}
+      />
     </section>
   );
 }
