@@ -12233,7 +12233,8 @@ td .dot {
 .ops-wallboard__event time { color: #6f5a9e; font-size: clamp(10px, .55vw, 15px); font-weight: 900; text-transform: uppercase; }
 .ops-wallboard__event > div > strong { display: -webkit-box; overflow: hidden; color: #162536; font-size: clamp(16px, 1.15vw, 28px); line-height: 1.18; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .ops-wallboard__event > div > span { overflow: hidden; color: #5e7182; font-size: clamp(11px, .65vw, 17px); text-overflow: ellipsis; white-space: nowrap; }
-.ops-wallboard[data-wallboard-mode="events"] .ops-wallboard__metrics { display: none; }
+.ops-wallboard[data-wallboard-mode="events"] .ops-wallboard__metrics,
+.ops-wallboard[data-wallboard-mode="calendar"] .ops-wallboard__metrics { display: none; }
 .ops-wallboard__section--event-focus > header { min-height: clamp(52px, 3.2vw, 72px); }
 .ops-wallboard__event-grid {
   display: grid;
@@ -12362,6 +12363,133 @@ td .dot {
 .ops-wall-event footer span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; white-space: nowrap; }
 .ops-wall-event footer svg { flex: 0 0 auto; color: #58788e; }
 .ops-wall-event footer b { color: #173b56; }
+.ops-wallboard__section--calendar > header { min-height: clamp(60px, 3.5vw, 82px); }
+.ops-wall-calendar__controls {
+  display: flex !important;
+  grid-auto-flow: initial;
+  align-items: center;
+  gap: clamp(5px, .4vw, 9px) !important;
+}
+.ops-wall-calendar__controls button { min-width: clamp(38px, 2.2vw, 52px); padding-inline: clamp(8px, .55vw, 13px); }
+.ops-wall-calendar__controls b {
+  display: grid;
+  min-width: clamp(38px, 2.2vw, 56px);
+  min-height: clamp(38px, 2.2vw, 56px);
+  place-items: center;
+  border-radius: 999px;
+  background: #e5f1f8;
+  color: #075b96;
+  font-size: clamp(15px, .85vw, 24px);
+}
+.ops-wall-calendar__viewport {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: #edf3f7;
+}
+.ops-wall-calendar__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: clamp(30px, 2vw, 48px);
+  border-bottom: 1px solid #b9cbd9;
+  background: #dfe9f0;
+}
+.ops-wall-calendar__weekdays span {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid #c8d7e3;
+  color: #36566f;
+  font-size: clamp(10px, .55vw, 15px);
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.ops-wall-calendar__weekdays span:last-child { border-right: 0; }
+.ops-wall-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  flex: 1;
+  min-height: 0;
+}
+.ops-wall-calendar__grid > article {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #c8d7e3;
+  border-bottom: 1px solid #c8d7e3;
+  background: #fff;
+}
+.ops-wall-calendar__grid > article:nth-child(7n) { border-right: 0; }
+.ops-wall-calendar__grid > article:nth-last-child(-n + 7) { border-bottom: 0; }
+.ops-wall-calendar__grid > article.is-outside-month { background: #f2f5f7; }
+.ops-wall-calendar__grid > article.is-today { box-shadow: inset 0 0 0 3px #075b96; }
+.ops-wall-calendar__grid > article > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: clamp(27px, 1.7vw, 42px);
+  padding: clamp(4px, .32vw, 8px) clamp(6px, .45vw, 11px);
+}
+.ops-wall-calendar__grid > article > header time {
+  color: #29465d;
+  font-size: clamp(13px, .8vw, 28px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.ops-wall-calendar__grid > article.is-outside-month > header time { color: #8293a1; }
+.ops-wall-calendar__grid > article > header span {
+  color: #075b96;
+  font-size: clamp(8px, .42vw, 12px);
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.ops-wall-calendar__grid > article > div {
+  display: grid;
+  align-content: start;
+  gap: clamp(3px, .25vw, 7px);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 clamp(4px, .35vw, 9px) clamp(4px, .35vw, 9px);
+}
+.ops-wall-calendar__event {
+  display: grid;
+  min-width: 0;
+  gap: clamp(1px, .12vw, 3px);
+  overflow: hidden;
+  padding: clamp(4px, .35vw, 9px);
+  border-left: clamp(3px, .22vw, 6px) solid #66849a;
+  border-radius: 3px;
+  background: #eaf1f6;
+  color: #173b56;
+}
+.ops-wall-calendar__event.is-live { border-left-color: #16854f; background: #e7f5ed; }
+.ops-wall-calendar__event.is-urgent { border-left-color: #b94c2a; background: #faece8; }
+.ops-wall-calendar__event.is-watch { border-left-color: #c07a12; background: #fbf2df; }
+.ops-wall-calendar__event strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: clamp(10px, calc(7px + .55vw), 30px);
+  line-height: 1.18;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ops-wall-calendar__event span,
+.ops-wall-calendar__event small {
+  overflow: hidden;
+  color: #52687b;
+  font-size: clamp(8px, calc(5px + .35vw), 18px);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ops-wall-calendar__event small { color: #244d6d; font-weight: 850; }
 .ops-wallboard__empty { display: grid; flex: 1; min-height: 220px; place-content: center; justify-items: center; gap: 8px; padding: 28px; color: #627789; text-align: center; }
 .ops-wallboard__empty svg { color: #7a9bb1; }
 .ops-wallboard__empty strong { color: #24445f; font-size: clamp(17px, .9vw, 25px); }
@@ -12463,6 +12591,15 @@ td .dot {
   .ops-wallboard__event-grid { gap: 8px; padding: 8px; }
   .ops-wall-event { min-height: 238px; }
   .ops-wall-event footer { overflow-x: auto; }
+  .ops-wallboard__section--calendar > header { align-items: stretch; flex-direction: column; }
+  .ops-wall-calendar__controls { overflow-x: auto; }
+  .ops-wall-calendar__controls button,
+  .ops-wall-calendar__controls b { min-height: 44px; }
+  .ops-wall-calendar__viewport { overflow-x: auto; overflow-y: hidden; }
+  .ops-wall-calendar__weekdays,
+  .ops-wall-calendar__grid { width: 780px; min-width: 780px; }
+  .ops-wall-calendar__grid { min-height: 670px; }
+  .ops-wall-calendar__event strong { font-size: 11px; }
 }
 
 @media (min-width: 2200px) {

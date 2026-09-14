@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Building2,
   ChevronRight,
+  ChevronLeft,
   Database,
   Link2,
   MapPin,
@@ -260,13 +261,16 @@ function WallboardView({ records, watchlist, events, asOf }) {
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [clock, setClock] = useState(() => new Date().toISOString());
+  const [calendarMonth, setCalendarMonth] = useState(() => String(events.find((event) => event.wallboard && event.status === "scheduled")?.startsAt || new Date().toISOString()).slice(0, 7));
   const ref = useRef(null);
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
   const visibleRecords = records.filter((record) => watchById.get(record.opportunityId)?.wallboard).sort((a, b) => (nextPublishedDate(a, asOf) || "9999").localeCompare(nextPublishedDate(b, asOf) || "9999"));
-  const upcomingEvents = events.filter((event) => event.wallboard && event.status === "scheduled" && (event.endsAt || event.startsAt) >= clock).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const wallboardEvents = events.filter((event) => event.wallboard && event.status === "scheduled").sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const upcomingEvents = wallboardEvents.filter((event) => (event.endsAt || event.startsAt) >= clock);
   useEffect(() => {
     if (!rotate) return undefined;
-    const timer = window.setInterval(() => setMode((value) => value === "overview" ? "events" : value === "events" ? "records" : "overview"), 15000);
+    const modes = ["overview", "events", "calendar", "records"];
+    const timer = window.setInterval(() => setMode((value) => modes[(modes.indexOf(value) + 1) % modes.length]), 15000);
     return () => window.clearInterval(timer);
   }, [rotate]);
   useEffect(() => {
@@ -297,7 +301,7 @@ function WallboardView({ records, watchlist, events, asOf }) {
       <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong><span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span></time><small>Data through {compactDate(asOf)}</small></div>
     </header>
     <div className="ops-wallboard__toolbar">
-      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button></nav>
+      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button></nav>
       <div><button type="button" aria-pressed={rotate} onClick={() => setRotate((value) => !value)}>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</button><button type="button" aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</button></div>
     </div>
     <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
@@ -306,7 +310,75 @@ function WallboardView({ records, watchlist, events, asOf }) {
       <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
     </div>
-    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+  </section>;
+}
+
+function shiftMonth(month, offset) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, monthIndex - 1 + offset, 1));
+  return shifted.toISOString().slice(0, 7);
+}
+
+function monthCalendarDays(month) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  const first = new Date(Date.UTC(year, monthIndex - 1, 1));
+  const gridStart = new Date(first);
+  gridStart.setUTCDate(1 - first.getUTCDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setUTCDate(gridStart.getUTCDate() + index);
+    return {
+      key: date.toISOString().slice(0, 10),
+      day: date.getUTCDate(),
+      inMonth: date.getUTCMonth() === monthIndex - 1,
+    };
+  });
+}
+
+function eventOccursOnDay(event, day) {
+  const start = String(event.startsAt || "").slice(0, 10);
+  const end = String(event.endsAt || event.startsAt || "").slice(0, 10);
+  return start <= day && end >= day;
+}
+
+function WallboardCalendar({ events, month, onMonthChange, now }) {
+  const days = monthCalendarDays(month);
+  const today = now.toISOString().slice(0, 10);
+  const currentMonth = today.slice(0, 7);
+  const monthDate = new Date(`${month}-01T00:00:00Z`);
+  const monthLabel = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const monthStart = `${month}-01`;
+  const monthEnd = `${month}-${String(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).getUTCDate()).padStart(2, "0")}`;
+  const monthEvents = events.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
+  return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
+    <header>
+      <div><span>Operator calendar</span><strong>{monthLabel}</strong></div>
+      <div className="ops-wall-calendar__controls">
+        <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
+        <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
+        <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
+        <b aria-label={`${monthEvents.length} events in ${monthLabel}`}>{monthEvents.length}</b>
+      </div>
+    </header>
+    <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
+      <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
+      <div className="ops-wall-calendar__grid">{days.map((day) => {
+        const dayEvents = events.filter((event) => eventOccursOnDay(event, day.key));
+        return <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}${dayEvents.length ? " has-events" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
+          <header><time dateTime={day.key}>{day.day}</time>{day.key === today ? <span>Today</span> : null}</header>
+          <div>{dayEvents.map((event) => {
+            const countdown = eventCountdown(event, now);
+            const attendees = event.attendees || [];
+            return <div key={event.id} className={`ops-wall-calendar__event is-${countdown.tone}`} data-calendar-event={event.id} title={`${event.title} · ${event.location || "Location not set"}`}>
+              <strong>{event.title}</strong>
+              <span>{event.location || "Location not set"}</span>
+              {attendees.length ? <small>{attendees.map((attendee) => attendee.displayName).join(" · ")}</small> : null}
+            </div>;
+          })}</div>
+        </article>;
+      })}</div>
+    </div>
   </section>;
 }
 

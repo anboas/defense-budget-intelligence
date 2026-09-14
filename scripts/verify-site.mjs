@@ -561,6 +561,75 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/wallboard-events-mobile.png`, fullPage: true });
 
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.waitForSelector("[data-wallboard-calendar]");
+  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/, "Calendar should open on the first scheduled event month");
+  assert.equal(await page.locator("[data-calendar-day]").count(), 42, "Calendar should render a stable six-week month grid");
+  assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 3, "Multi-day events should occupy each applicable calendar date");
+  const calendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
+    const grid = node.querySelector(".ops-wall-calendar__grid");
+    const cells = [...grid.querySelectorAll("[data-calendar-day]")];
+    const rects = cells.map((cell) => cell.getBoundingClientRect());
+    return {
+      columns: new Set(rects.map((rect) => Math.round(rect.left))).size,
+      rows: new Set(rects.map((rect) => Math.round(rect.top))).size,
+      firstCellHeight: rects[0].height,
+      lastCellBottom: rects.at(-1).bottom,
+      gridBottom: grid.getBoundingClientRect().bottom,
+      eventSize: parseFloat(getComputedStyle(node.querySelector("[data-calendar-event] strong")).fontSize),
+      writeControls: node.querySelectorAll("[data-calendar-event] button, [data-calendar-event] input, [data-calendar-event] textarea, [data-calendar-event] select").length,
+    };
+  });
+  assert.equal(calendarGeometry.columns, 7, "Desktop calendar should retain seven weekday columns");
+  assert.equal(calendarGeometry.rows, 6, "Desktop calendar should retain six stable week rows");
+  assert.ok(calendarGeometry.firstCellHeight >= 100, `1080p calendar dates should remain distance-readable, got ${calendarGeometry.firstCellHeight}px cells`);
+  assert.ok(calendarGeometry.eventSize >= 12, `1080p calendar event labels should remain readable, got ${calendarGeometry.eventSize}px`);
+  assert.ok(calendarGeometry.lastCellBottom <= calendarGeometry.gridBottom + 1, "Every calendar week should fit within the 1080p wallboard");
+  assert.equal(calendarGeometry.writeControls, 0, "Calendar event entries should remain read-only");
+  await assertNoPageOverflow(page, "1080p event calendar");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-1080p.png` });
+
+  await page.getByRole("button", { name: "Next month" }).click();
+  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /October 2026/, "Calendar month navigation should advance one month");
+  assert.equal(await page.locator('[data-calendar-event="event-ausa-annual-meeting-2026"]').count(), 3, "October should show every AUSA event date");
+  assert.equal(await page.locator('[data-calendar-event="event-eighth-annual-defense-conference-2026"]').count(), 1, "October should show the defense conference date");
+  await page.getByRole("button", { name: "Next month" }).click();
+  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /November 2026/, "Calendar should support sequential month navigation");
+  assert.equal(await page.locator('[data-calendar-event="event-i-itsec-2026"]').count(), 5, "A cross-month event should remain visible through its final December date");
+  await page.getByRole("button", { name: "Previous month" }).click();
+  await page.getByRole("button", { name: "Previous month" }).click();
+
+  await page.setViewportSize({ width: 3840, height: 2160 });
+  const fourKCalendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => ({
+    monthSize: parseFloat(getComputedStyle(node.querySelector(":scope > header strong")).fontSize),
+    eventSize: parseFloat(getComputedStyle(node.querySelector("[data-calendar-event] strong")).fontSize),
+    columns: getComputedStyle(node.querySelector(".ops-wall-calendar__grid")).gridTemplateColumns.split(" ").length,
+  }));
+  assert.ok(fourKCalendarGeometry.monthSize >= 28, `4K calendar heading should scale for viewing distance, got ${fourKCalendarGeometry.monthSize}px`);
+  assert.ok(fourKCalendarGeometry.eventSize >= 17, `4K calendar event labels should scale for viewing distance, got ${fourKCalendarGeometry.eventSize}px`);
+  assert.equal(fourKCalendarGeometry.columns, 7, "4K calendar should preserve its seven-column structure");
+  await assertNoPageOverflow(page, "4K event calendar");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-4k.png` });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileCalendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
+    const viewport = node.querySelector(".ops-wall-calendar__viewport");
+    return {
+      viewportClientWidth: viewport.clientWidth,
+      viewportScrollWidth: viewport.scrollWidth,
+      viewportOverflowX: getComputedStyle(viewport).overflowX,
+      minControlHeight: Math.min(...[...node.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height)),
+      documentWidth: document.documentElement.scrollWidth,
+      windowWidth: innerWidth,
+    };
+  });
+  assert.ok(mobileCalendarGeometry.viewportScrollWidth > mobileCalendarGeometry.viewportClientWidth, "Mobile calendar should preserve the month grid inside a contained horizontal scroller");
+  assert.equal(mobileCalendarGeometry.viewportOverflowX, "auto", "Mobile calendar should expose intentional horizontal calendar scrolling");
+  assert.ok(mobileCalendarGeometry.minControlHeight >= 44, `Mobile calendar controls should retain 44px targets, got ${mobileCalendarGeometry.minControlHeight}px`);
+  assert.ok(mobileCalendarGeometry.documentWidth <= mobileCalendarGeometry.windowWidth + 1, "Mobile calendar must not overflow the document");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-mobile.png`, fullPage: true });
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "Overview" }).click();
   await page.waitForFunction(() => document.querySelectorAll(".ops-wallboard__record").length === 8 && document.querySelectorAll(".ops-wallboard__event").length === 5);
   assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+8/i, "Wallboard should project tracked-record counts");
