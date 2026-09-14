@@ -71,6 +71,10 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   ];
   const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : ADMIN_IDS.has(activeTab) ? "admin" : "";
 
+  function activeChildLabel(group) {
+    return group.items.find(isItemActive)?.label || "";
+  }
+
   useEffect(() => {
     const handleOutside = (event) => { if (!navRef.current?.contains(event.target)) setOpenMenu(""); };
     const handleEscape = (event) => {
@@ -137,11 +141,12 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   );
 
   function desktopGroup(group) {
+    const activeChild = activeGroup === group.id ? activeChildLabel(group) : "";
     return <div key={group.id} className="if-operations-topnav__secondary ci-header-nav__desktop-menu">
-      <button ref={(node) => { triggerRefs.current[group.id] = node; }} type="button" className={`if-operations-topnav__secondary-button ci-header-nav__menu-trigger${activeGroup === group.id ? " has-active-child" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === group.id} aria-controls={`budget-${group.id}-menu`} data-nav-group-trigger={group.id} onClick={() => setOpenMenu((current) => current === group.id ? "" : group.id)} onKeyDown={(event) => {
+      <button ref={(node) => { triggerRefs.current[group.id] = node; }} type="button" className={`if-operations-topnav__secondary-button ci-header-nav__menu-trigger${activeChild ? " has-active-child" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === group.id} aria-controls={`budget-${group.id}-menu`} data-nav-group-trigger={group.id} data-nav-group-active-child={activeChild || undefined} onClick={() => setOpenMenu((current) => current === group.id ? "" : group.id)} onKeyDown={(event) => {
         if (event.key === "ArrowDown") { event.preventDefault(); openAndFocus(group.id, "first"); }
         if (event.key === "ArrowUp") { event.preventDefault(); openAndFocus(group.id, "last"); }
-      }}><span className="ci-header-nav__menu-trigger-label">{group.label}</span><span className="ci-header-nav__menu-trigger-chevron" aria-hidden="true">{openMenu === group.id ? "▲" : "▼"}</span></button>
+      }}><span className="ci-header-nav__menu-trigger-label">{group.label}</span>{activeChild ? <span className="ci-header-nav__menu-trigger-context">{activeChild}</span> : null}<span className="ci-header-nav__menu-trigger-chevron" aria-hidden="true">{openMenu === group.id ? "▲" : "▼"}</span></button>
       {openMenu === group.id ? <div ref={(node) => { menuRefs.current[group.id] = node; }} id={`budget-${group.id}-menu`} className="if-operations-topnav__menu" data-budget-nav-menu={group.id} role="menu" aria-label={group.label} onKeyDown={(event) => handleMenuKeyDown(event, group.id)}>{group.items.map(richMenuItem)}</div> : null}
     </div>;
   }
@@ -156,7 +161,12 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
 
         <nav ref={navRef} className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">
           {primaryTabs.map(primaryLink)}
-          <div className="ci-header-nav__desktop-groups">{groups.map(desktopGroup)}</div>
+          <div className="ci-header-nav__desktop-groups">
+            {desktopGroup(groups[0])}
+            {desktopGroup(groups[1])}
+            <span className="if-operations-topnav__divider ci-domain-nav-separator ci-header-nav__desktop-menu" aria-hidden="true">|</span>
+            {desktopGroup(groups[2])}
+          </div>
           <div className="if-operations-topnav__secondary ci-header-nav__mobile-more">
             <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`if-operations-topnav__secondary-button${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
               if (event.key === "ArrowDown") { event.preventDefault(); openAndFocus("mobile", "first"); }

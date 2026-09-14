@@ -51,12 +51,48 @@ async function assertNoPageOverflow(page, label) {
   assert.ok(overflow <= 2, `${label} page overflow should be contained, got ${overflow}px`);
 }
 
+async function assertActiveGroupState(page, group, childLabel) {
+  const trigger = page.locator(`[data-nav-group-trigger="${group}"]`);
+  await page.waitForFunction((groupId) => document.querySelector(`[data-nav-group-trigger="${groupId}"]`)?.getAttribute("aria-expanded") === "false", group);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(160);
+  assert.equal(await trigger.getAttribute("data-nav-group-active-child"), childLabel, `${group} should name its active child in the trigger contract`);
+  assert.match(await trigger.getAttribute("class"), /has-active-child/, `${group} should use the established active-child state`);
+  const context = trigger.locator(".ci-header-nav__menu-trigger-context");
+  assert.equal(await context.innerText(), childLabel, `${group} should render the active child beside its group label`);
+  const appearance = await trigger.evaluate((node) => {
+    const triggerStyle = getComputedStyle(node);
+    const contextNode = node.querySelector(".ci-header-nav__menu-trigger-context");
+    const contextStyle = getComputedStyle(contextNode);
+    return {
+      background: triggerStyle.backgroundColor,
+      shadow: triggerStyle.boxShadow,
+      contextColor: contextStyle.color,
+      contextBorder: contextStyle.borderLeft,
+    };
+  });
+  assert.equal(appearance.background, "rgba(255, 255, 255, 0.08)", `${group} should use the established lighter active-group background`);
+  assert.match(appearance.shadow, /rgba?\(139, 211, 255(?:, 0\.52)?\)/, `${group} should use the established light-blue active indicator`);
+  assert.equal(appearance.contextColor, "rgb(183, 229, 255)", `${group} active child should use the established light-blue context label`);
+  assert.equal(appearance.contextBorder, "1px solid rgba(255, 255, 255, 0.28)", `${group} active child should retain the internal divider`);
+}
+
 async function assertFlowShell(page) {
   assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 2, "Header should expose only Transactions and Wallboard as primary links");
   assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Transactions", "Wallboard"], "Primary navigation should contain only the two working surfaces");
   assert.equal(await page.locator("[data-nav-group-trigger]").count(), 3, "Header should expose Analytics, Money flow, and Admin menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
+    const divider = page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider");
+    assert.equal(await divider.count(), 1, "Desktop navigation should separate Admin from analytical and money-flow groups");
+    assert.equal(await divider.innerText(), "|", "Admin separator should use the established vertical-bar component");
+    const dividerOrder = await page.evaluate(() => {
+      const money = document.querySelector('[data-nav-group-trigger="money"]')?.getBoundingClientRect();
+      const separator = document.querySelector(".ci-header-nav__desktop-groups > .if-operations-topnav__divider")?.getBoundingClientRect();
+      const admin = document.querySelector('[data-nav-group-trigger="admin"]')?.getBoundingClientRect();
+      return { moneyRight: money?.right, separatorLeft: separator?.left, separatorRight: separator?.right, adminLeft: admin?.left };
+    });
+    assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.adminLeft, "Admin divider should sit between Money flow and Admin");
     await page.locator('[data-nav-group-trigger="analytics"]').click();
     assert.equal(await page.locator('[data-budget-nav-menu="analytics"] a[data-budget-nav]').count(), 4, "Analytics should expose all four analytical workspaces");
     assert.match(await page.locator('[data-budget-nav-menu="analytics"]').innerText(), /Overview[\s\S]*Schedule[\s\S]*Spend & structure[\s\S]*Coverage & lineage/i);
@@ -213,6 +249,17 @@ try {
   await page.keyboard.press("Escape");
   assert.equal(await analyticsTrigger.getAttribute("aria-expanded"), "false", "Escape should close the Analytics menu");
   assert.equal(await analyticsTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to the Analytics trigger");
+
+  await openSurface(page, "#/budget-spend/analytics?analyticsView=schedule", "[data-transaction-d3-page]");
+  await assertActiveGroupState(page, "analytics", "Schedule");
+  assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
+  await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
+  await assertActiveGroupState(page, "money", "Source Lineage");
+  assert.equal(await page.locator('[data-nav-group-trigger="analytics"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Analytics should not show stale child context");
+  await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
+  await assertActiveGroupState(page, "admin", "API Log");
+  assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
+  await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
   const pdbVerificationUrl = new URL(BASE_URL);
   pdbVerificationUrl.searchParams.set("verify", "pdb");

@@ -81,6 +81,11 @@ try {
   await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /Agent Access/i }).click();
   await page.waitForSelector('[data-profile-page][data-profile-section="agents"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render in the routed profile workspace");
+  const activeAdminTrigger = page.locator('[data-nav-group-trigger="admin"]');
+  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Agent Access", "Authenticated Admin trigger should name the active routed child");
+  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Agent Access", "Authenticated Admin should render the active child in the lighter context label");
+  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").evaluate((node) => getComputedStyle(node).color), "rgb(183, 229, 255)", "Authenticated Admin active child should use the established light-blue treatment");
+  assert.equal(await page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider").innerText(), "|", "Authenticated header should retain the platform-admin divider");
   await page.getByLabel("Name").fill("Browser verifier");
   await page.getByRole("button", { name: "Create credential" }).click();
   await page.locator(".agent-token-once code").waitFor();
