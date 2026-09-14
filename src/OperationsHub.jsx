@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Database,
   Maximize2,
+  Minimize2,
   MonitorUp,
   Plus,
   Search,
@@ -14,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
+import ProductMark from "./ProductMark.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 
@@ -184,14 +186,15 @@ function ActivityView({ activity, records, remote }) {
   return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <ol className="ops-activity-list">{activity.map((entry) => { const record = byId.get(entry.recordId); return <li key={entry.id}><i /><time>{dateTime(entry.at)}</time><div><strong>{entry.type.replaceAll("_", " ")}</strong><span>{entry.detail}</span>{entry.actorType ? <small>{entry.actorType}{entry.actorId ? ` · ${entry.actorId}` : ""}</small> : null}{record ? <a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>{record.id} · {record.title}</a> : null}</div></li>; })}</ol> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
-function WallboardView({ records, watchlist, events, asOf, onToggleWatch }) {
+function WallboardView({ records, watchlist, events, asOf }) {
   const [mode, setMode] = useState("overview");
   const [rotate, setRotate] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [clock, setClock] = useState(() => new Date().toISOString());
   const ref = useRef(null);
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
   const visibleRecords = records.filter((record) => watchById.get(record.opportunityId)?.wallboard).sort((a, b) => (nextPublishedDate(a, asOf) || "9999").localeCompare(nextPublishedDate(b, asOf) || "9999"));
-  const upcomingEvents = events.filter((event) => event.wallboard && event.status === "scheduled" && event.startsAt >= new Date().toISOString()).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const upcomingEvents = events.filter((event) => event.wallboard && event.status === "scheduled" && (event.endsAt || event.startsAt) >= clock).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   useEffect(() => {
     if (!rotate) return undefined;
     const timer = window.setInterval(() => setMode((value) => value === "overview" ? "schedule" : value === "schedule" ? "records" : "overview"), 15000);
@@ -201,23 +204,56 @@ function WallboardView({ records, watchlist, events, asOf, onToggleWatch }) {
     const timer = window.setInterval(() => setClock(new Date().toISOString()), 60000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    const update = () => setIsFullscreen(document.fullscreenElement === ref.current);
+    document.addEventListener("fullscreenchange", update);
+    return () => document.removeEventListener("fullscreenchange", update);
+  }, []);
   const reviewHorizon = useMemo(() => {
     const horizon = new Date(`${asOf}T00:00:00Z`);
     horizon.setUTCDate(horizon.getUTCDate() + 30);
     return horizon.toISOString().slice(0, 10);
   }, [asOf]);
-  async function fullscreen() {
-    try { await ref.current?.requestFullscreen?.(); } catch { /* The board remains usable without browser fullscreen permission. */ }
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen?.();
+      else await ref.current?.requestFullscreen?.();
+    } catch { /* The board remains usable without browser fullscreen permission. */ }
   }
-  return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode}><header><nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "schedule" ? "is-active" : ""} onClick={() => setMode("schedule")}>Schedule</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Records</button></nav><div><button type="button" aria-pressed={rotate} onClick={() => setRotate((value) => !value)}>{rotate ? "Rotation on" : "Rotation off"}</button><button type="button" onClick={fullscreen}><Maximize2 size={15} />Kiosk</button></div></header><div className="ops-wallboard__clock"><span>Defense Budget Intelligence</span><time>{new Date(clock).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time></div>{mode === "overview" ? <><div className="ops-wallboard__metrics"><article><span>Tracked records</span><strong>{visibleRecords.length}</strong></article><article><span>Upcoming events</span><strong>{upcomingEvents.length}</strong></article><article><span>Reviews within 30 days</span><strong>{watchlist.filter((entry) => entry.reviewAt && entry.reviewAt >= asOf && entry.reviewAt <= reviewHorizon).length}</strong></article><article><span>Sources online</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong></article></div><div className="ops-wallboard__split"><WallboardSchedule events={upcomingEvents.slice(0, 5)} /><WallboardRecords records={visibleRecords.slice(0, 6)} asOf={asOf} onToggleWatch={onToggleWatch} /></div></> : mode === "schedule" ? <WallboardSchedule events={upcomingEvents.slice(0, 12)} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} onToggleWatch={onToggleWatch} />}</section>;
+  const now = new Date(clock);
+  const reviewsDue = watchlist.filter((entry) => entry.reviewAt && entry.reviewAt >= asOf && entry.reviewAt <= reviewHorizon).length;
+  return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode} data-wallboard-fullscreen={isFullscreen ? "true" : "false"}>
+    <header className="ops-wallboard__masthead">
+      <div className="ops-wallboard__brand"><ProductMark eager /><div><span>Conference room display</span><h2>Defense Budget Intelligence</h2></div></div>
+      <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong><span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span></time><small>Data through {compactDate(asOf)}</small></div>
+    </header>
+    <div className="ops-wallboard__toolbar">
+      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button><button type="button" className={mode === "schedule" ? "is-active" : ""} onClick={() => setMode("schedule")}>Schedule</button></nav>
+      <div><button type="button" aria-pressed={rotate} onClick={() => setRotate((value) => !value)}>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</button><button type="button" aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</button></div>
+    </div>
+    <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
+      <article><span>Tracked records</span><strong>{visibleRecords.length}</strong><small>Enabled for this display</small></article>
+      <article><span>Upcoming events</span><strong>{upcomingEvents.length}</strong><small>Scheduled operator activity</small></article>
+      <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
+      <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
+    </div>
+    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "schedule" ? <WallboardSchedule events={upcomingEvents.slice(0, 12)} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+  </section>;
 }
 
 function WallboardSchedule({ events }) {
-  return <section className="ops-wallboard__section"><header><span>Operator schedule</span><strong>Upcoming events</strong></header>{events.length ? <div className="ops-wallboard__cards">{events.map((event) => <article key={event.id}><time>{dateTime(event.startsAt)}</time><strong>{event.title}</strong><span>{event.location || "Location not set"}</span></article>)}</div> : <p>No upcoming wallboard events.</p>}</section>;
+  return <section className="ops-wallboard__section ops-wallboard__section--schedule"><header><div><span>Operator schedule</span><strong>Upcoming events</strong></div><b>{events.length}</b></header>{events.length ? <div className="ops-wallboard__cards">{events.map((event) => {
+    const start = new Date(event.startsAt);
+    return <article key={event.id} className="ops-wallboard__event"><div className="ops-wallboard__date"><span>{start.toLocaleDateString([], { month: "short" })}</span><strong>{start.getDate()}</strong></div><div><time dateTime={event.startsAt}>{start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><strong>{event.title}</strong><span>{event.location || "Location not set"}</span></div></article>;
+  })}</div> : <div className="ops-wallboard__empty"><CalendarDays size={30} /><strong>No upcoming events</strong><p>Scheduled wallboard events will appear here.</p></div>}</section>;
 }
 
-function WallboardRecords({ records, asOf, onToggleWatch }) {
-  return <section className="ops-wallboard__section"><header><span>Stable-ID watchlist</span><strong>Tracked records</strong></header>{records.length ? <div className="ops-wallboard__cards">{records.map((record) => <article key={record.opportunityId}><button type="button" onClick={() => onToggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={15} fill="currentColor" /></button><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><time>{nextPublishedDate(record, asOf) ? `Next published date ${compactDate(nextPublishedDate(record, asOf))}` : "No future published date"}</time><small>{record.party || "Party not published"} · {money(recordAmount(record))}</small></article>)}</div> : <p>No records are enabled for the wallboard.</p>}</section>;
+function WallboardRecords({ records, asOf, watchById }) {
+  return <section className="ops-wallboard__section ops-wallboard__section--records"><header><div><span>Stable-ID watchlist</span><strong>Tracked records</strong></div><b>{records.length}</b></header>{records.length ? <div className="ops-wallboard__cards">{records.map((record) => {
+    const nextDate = nextPublishedDate(record, asOf);
+    const reviewAt = watchById.get(record.opportunityId)?.reviewAt;
+    return <article key={record.opportunityId} className="ops-wallboard__record"><div className="ops-wallboard__record-copy"><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><small>{record.party || "Party not published"} · {money(recordAmount(record))}</small></div><div className="ops-wallboard__record-dates"><span>Next published date</span><time dateTime={nextDate}>{nextDate ? compactDate(nextDate) : "Not scheduled"}</time>{reviewAt ? <small>Review {compactDate(reviewAt)}</small> : null}</div></article>;
+  })}</div> : <div className="ops-wallboard__empty"><Star size={30} /><strong>No tracked records</strong><p>Enable wallboard visibility from the Watchlist.</p></div>}</section>;
 }
 
 export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
@@ -241,7 +277,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
     {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} onToggleWatch={state.toggleWatch} /> : null}
+    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;

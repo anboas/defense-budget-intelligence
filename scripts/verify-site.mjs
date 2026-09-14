@@ -323,6 +323,8 @@ try {
   assert.equal(compactDesktopGeometry.freshnessCount, 0, "Transactions should not render source-freshness cards above the working canvas");
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
+  const wallboardRecordIds = await page.locator("[data-capture-timeline-row]").evaluateAll((nodes) => nodes.slice(0, 8).map((node) => node.dataset.recordId));
+  assert.equal(wallboardRecordIds.length, 8, "Wallboard density fixture should use eight factual stable record IDs");
   const firstWatchRow = page.locator("[data-capture-timeline-row]").first();
   const firstWatchId = await firstWatchRow.getAttribute("data-record-id");
   const firstWatchStar = firstWatchRow.locator(".capture-timeline__star");
@@ -353,11 +355,68 @@ try {
   assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 3, "Budget, award, and source freshness should live with Admin integration health");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
   assert.ok(await page.locator("[data-ops-activity] .ops-activity-list li").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
+  await page.evaluate((recordIds) => {
+    const at = "2026-09-13T12:00:00.000Z";
+    localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
+    localStorage.setItem("dbi:management-events:v1", JSON.stringify(Array.from({ length: 5 }, (_, index) => ({ id: `wallboard-event-${index + 1}`, title: index === 0 ? "Portfolio evidence review" : `Conference review ${index + 2}`, startsAt: `2027-01-${String(15 + index).padStart(2, "0")}T14:00`, endsAt: "", location: index % 2 ? "Main conference room" : "Location not set", notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
+    window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
+  }, wallboardRecordIds);
   await openSurface(page, "#/budget-spend/wallboard", "[data-ops-wallboard]");
   assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Portfolio evidence review/, "Wallboard should project scheduled operator events");
-  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+1/i, "Wallboard should project tracked-record counts");
+  await page.waitForFunction(() => document.querySelectorAll(".ops-wallboard__record").length === 8 && document.querySelectorAll(".ops-wallboard__event").length === 5);
+  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+8/i, "Wallboard should project tracked-record counts");
+  const wallboardBaseline = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
+    background: getComputedStyle(node).backgroundColor,
+    height: node.getBoundingClientRect().height,
+    viewportHeight: window.innerHeight,
+    writeControls: node.querySelectorAll(".ops-wallboard__record button").length,
+  }));
+  assert.match(wallboardBaseline.background, /rgb\((?:23[0-9]|24[0-9]|25[0-5]), (?:23[0-9]|24[0-9]|25[0-5]), (?:23[0-9]|24[0-9]|25[0-5])\)/, `Wallboard should use a bright kiosk canvas, got ${wallboardBaseline.background}`);
+  assert.ok(wallboardBaseline.height >= wallboardBaseline.viewportHeight * 0.8, `Wallboard should fill the visible display, got ${wallboardBaseline.height}px of ${wallboardBaseline.viewportHeight}px`);
+  assert.equal(wallboardBaseline.writeControls, 0, "Wallboard should remain a read-only projection without watchlist mutation controls");
   await assertNoPageOverflow(page, "Desktop wallboard");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-desktop.png`, fullPage: true });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const conferenceGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
+    width: node.getBoundingClientRect().width,
+    height: node.getBoundingClientRect().height,
+    metricSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__metrics strong")).fontSize),
+    recordTitleSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__record-copy > strong")).fontSize),
+  }));
+  assert.ok(conferenceGeometry.width >= 1860, `1080p wallboard should use the display width, got ${conferenceGeometry.width}px`);
+  assert.ok(conferenceGeometry.height >= 960, `1080p wallboard should fill the conference display, got ${conferenceGeometry.height}px`);
+  assert.ok(conferenceGeometry.metricSize >= 40, `1080p metric values should be distance-readable, got ${conferenceGeometry.metricSize}px`);
+  assert.ok(conferenceGeometry.recordTitleSize >= 17, `1080p record titles should be distance-readable, got ${conferenceGeometry.recordTitleSize}px`);
+  const conferenceFit = await page.evaluate(() => {
+    const records = [...document.querySelectorAll(".ops-wallboard__record")];
+    const events = [...document.querySelectorAll(".ops-wallboard__event")];
+    const recordPanel = document.querySelector(".ops-wallboard__section--records").getBoundingClientRect();
+    const eventPanel = document.querySelector(".ops-wallboard__section--schedule").getBoundingClientRect();
+    return { lastRecord: records.at(-1).getBoundingClientRect().bottom, recordBottom: recordPanel.bottom, lastEvent: events.at(-1).getBoundingClientRect().bottom, eventBottom: eventPanel.bottom };
+  });
+  assert.ok(conferenceFit.lastRecord <= conferenceFit.recordBottom + 1, `1080p kiosk should show all eight tracked cards, got ${conferenceFit.lastRecord}px beyond ${conferenceFit.recordBottom}px`);
+  assert.ok(conferenceFit.lastEvent <= conferenceFit.eventBottom + 1, `1080p kiosk should show all five event cards, got ${conferenceFit.lastEvent}px beyond ${conferenceFit.eventBottom}px`);
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-1080p.png` });
+  await page.getByRole("button", { name: "Enter kiosk" }).click();
+  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "true");
+  const fullscreenGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, viewportWidth: innerWidth, viewportHeight: innerHeight }));
+  assert.ok(Math.abs(fullscreenGeometry.width - fullscreenGeometry.viewportWidth) <= 1 && Math.abs(fullscreenGeometry.height - fullscreenGeometry.viewportHeight) <= 1, `Kiosk mode should fill the viewport, got ${fullscreenGeometry.width}×${fullscreenGeometry.height}`);
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-kiosk-1080p.png` });
+  await page.getByRole("button", { name: "Exit kiosk" }).click();
+  await page.setViewportSize({ width: 3840, height: 2160 });
+  const fourKGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
+    height: node.getBoundingClientRect().height,
+    brandSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__brand h2")).fontSize),
+    metricSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__metrics strong")).fontSize),
+    recordColumns: getComputedStyle(node.querySelector(".ops-wallboard__section--records .ops-wallboard__cards")).gridTemplateColumns.split(" ").length,
+  }));
+  assert.ok(fourKGeometry.height >= 2040, `4K wallboard should fill the conference display, got ${fourKGeometry.height}px`);
+  assert.ok(fourKGeometry.brandSize >= 42, `4K wallboard title should scale for viewing distance, got ${fourKGeometry.brandSize}px`);
+  assert.ok(fourKGeometry.metricSize >= 62, `4K wallboard metrics should scale for viewing distance, got ${fourKGeometry.metricSize}px`);
+  assert.equal(fourKGeometry.recordColumns, 3, `4K overview should use three tracked-record columns, got ${fourKGeometry.recordColumns}`);
+  await assertNoPageOverflow(page, "4K wallboard");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-4k.png` });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-capture-timeline-row]").first().locator(".capture-timeline__star").getAttribute("aria-pressed"), "true", "Tracking state should persist across application surfaces");
   await page.getByRole("button", { name: "Show 16 more filters" }).click();
