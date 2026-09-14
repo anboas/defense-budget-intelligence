@@ -20,7 +20,7 @@ GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
 Defense Budget & Spend Analytics uses two primary working surfaces plus three grouped menus:
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
-- Direct Transactions and Wallboard routes; Analytics groups four query-addressable workspaces; Money flow groups PDB Request, Request History, Account Flow, Awards, and Source Lineage; Admin groups Watchlist, Events, Integrations, API Log, and authenticated agent administration.
+- Direct Transactions and Wallboard routes; Analytics groups four query-addressable workspaces; Money flow groups PDB Request, Request History, Account Flow, Awards, and Source Lineage; Admin groups Watchlist, Events, Integrations, API Log, human user management, and authenticated agent administration.
 - Hash-route deep links for every working, analytical, money-flow, management, and account surface. Profile, Security, and Agent Access are full pages rather than dialogs.
 - Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local saved views, and deterministic snapshots.
 - CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
@@ -34,8 +34,9 @@ The primary Cloudflare deployment uses the same platform pattern as Opportunity 
 - Cloudflare Pages serves the compiled Vite application;
 - Pages Functions implement the same-origin `/api/v1/auth/*` account surface and `/api/v1/agent/*` automation control plane;
 - the existing intelligence-platform D1 database stores namespace-isolated `dbi_*` account, session, agent-key, management, audit, idempotency, and manual-record state;
-- the next successful first-party account claim atomically becomes the sole Super user;
-- the Super user can issue narrowly scoped, revocable Agent API credentials from the top-right profile menu;
+- the next successful first-party account claim atomically becomes the permanent Super user;
+- the Super user and Administrators can create human accounts, assign Administrator/Analyst/Viewer roles, suspend access, revoke sessions, and reset passwords without exposing stored password material;
+- the Super user and Administrators can issue narrowly scoped, revocable Agent API credentials from the top-right profile menu;
 - authenticated humans and agents share tracking, events, activity, manual records, and wallboard state while source-backed evidence remains immutable;
 - the account UI is omitted automatically on the static GitHub Pages fallback because that host has no account API.
 

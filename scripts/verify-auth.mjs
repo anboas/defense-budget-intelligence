@@ -43,8 +43,8 @@ try {
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator('[data-nav-group-trigger="admin"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 5, "Authenticated Admin should add Agent Access to the four shared management routes");
-  assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Agent Access/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 6, "Authenticated Admin should add Users and Agent Access to the four shared management routes");
+  assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Users[\s\S]*Agent Access/i);
   assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Admin");
   await page.locator('[data-nav-group-trigger="admin"]').click();
   const desktopTrigger = page.locator("[data-profile-menu-trigger]");
@@ -63,8 +63,8 @@ try {
   const profileSurfaceBox = await profileSurface.boundingBox();
   assert.ok(profileSurfaceBox && Math.abs(profileSurfaceBox.width - 360) <= 1, `Desktop profile surface should match the 360px Opportunity Intelligence account component, got ${profileSurfaceBox?.width}px`);
   assert.equal(await profileSurface.locator(".if-account-surface__header").count(), 1, "Profile dropdown should use the shared account-surface header");
-  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 4, "Profile dropdown should use shared account-action rows for Defense Budget destinations");
-  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 4, "Every shared account-action row should render its icon glyph");
+  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 5, "Profile dropdown should expose shared account actions including Users and Agent Access");
+  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 5, "Every shared account-action row should render its icon glyph");
   assert.equal(await profileSurface.locator(".if-account-surface__footer").count(), 1, "Profile dropdown should use the shared account-surface footer");
   assert.ok(await page.getByText("Super user", { exact: true }).count() >= 1, "Profile menu should identify the first account as super user");
   await page.screenshot({ path: "test-results/profile-menu-desktop.png" });
@@ -111,7 +111,61 @@ try {
   await page.getByText("Profile saved.").waitFor();
 
   await page.locator("[data-profile-menu-trigger]").click();
-  await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /Agent Access/i }).click();
+  await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /^Users/i }).click();
+  await page.waitForSelector('[data-operations-hub][data-operations-view="users"] [data-user-management]');
+  assert.equal(await page.locator('[data-admin-workspace]').count(), 1, "Users should render inside the persistent Admin workspace");
+  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Users", "Admin workspace should retain Users as its active section");
+  await page.getByRole("button", { name: "Add user" }).click();
+  const addUser = page.locator("[data-user-create]");
+  await addUser.getByLabel("Display name").fill("Browser teammate");
+  await addUser.getByLabel("Email").fill("browser-teammate@example.test");
+  await addUser.getByLabel(/Title/).fill("Read-only reviewer");
+  await addUser.getByLabel("Role").selectOption("viewer");
+  await addUser.getByLabel("Temporary password", { exact: true }).fill("Temporary-User-2026!");
+  await addUser.getByLabel("Confirm temporary password").fill("Temporary-User-2026!");
+  await addUser.getByRole("button", { name: "Create user" }).click();
+  const teammate = page.locator("[data-user-row]", { hasText: "browser-teammate@example.test" });
+  await teammate.waitFor();
+  await page.getByText(/User created\. Share the temporary password/).waitFor();
+  assert.match(await teammate.innerText(), /Viewer[\s\S]*Active/);
+  await teammate.getByRole("button", { name: "Edit" }).click();
+  const editUser = page.locator("[data-user-edit]");
+  await editUser.getByLabel("Role").selectOption("analyst");
+  await editUser.getByRole("button", { name: "Save user" }).click();
+  await page.getByText("User updated.", { exact: true }).waitFor();
+  assert.match(await teammate.innerText(), /Analyst/);
+  await teammate.getByRole("button", { name: "Reset" }).click();
+  const resetUser = page.locator("[data-user-password-reset]");
+  await resetUser.getByLabel("Temporary password", { exact: true }).fill("Replacement-User-2026!");
+  await resetUser.getByLabel("Confirm temporary password").fill("Replacement-User-2026!");
+  await resetUser.getByRole("button", { name: "Reset password" }).click();
+  await page.getByText(/Temporary password set\. Existing sessions were revoked/).waitFor();
+  await teammate.getByRole("button", { name: "Suspend" }).click();
+  await page.getByText(/Browser teammate suspended/).waitFor();
+  await teammate.getByRole("button", { name: "Reactivate" }).click();
+  await page.getByText("Browser teammate reactivated.", { exact: true }).waitFor();
+  await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
+
+  const teammateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const teammatePage = await teammateContext.newPage();
+  await teammatePage.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  await teammatePage.waitForSelector('[data-account-gate="login"]');
+  await teammatePage.getByLabel("Email").fill("browser-teammate@example.test");
+  await teammatePage.getByLabel("Password").fill("Replacement-User-2026!");
+  await teammatePage.getByRole("button", { name: "Sign in" }).click();
+  await teammatePage.waitForSelector('[data-account-gate="password-change"]');
+  await teammatePage.getByLabel("Temporary password").fill("Replacement-User-2026!");
+  await teammatePage.getByLabel("New password", { exact: true }).fill("Teammate-Permanent-2026!");
+  await teammatePage.getByLabel("Confirm new password").fill("Teammate-Permanent-2026!");
+  await teammatePage.getByRole("button", { name: "Set password and continue" }).click();
+  await teammatePage.waitForSelector("[data-defense-budget-app]");
+  await teammatePage.locator("[data-profile-menu-trigger]").click();
+  assert.ok(await teammatePage.getByText("Analyst", { exact: true }).count() >= 1, "Managed user should enter with the assigned role after replacing the temporary password");
+  assert.equal(await teammatePage.locator('[data-profile-menu-surface] a[href="#/budget-spend/users"]').count(), 0, "Analysts must not receive user-management navigation");
+  assert.equal(await teammatePage.locator('[data-profile-menu-surface] a[href="#/budget-spend/agents"]').count(), 0, "Analysts must not receive agent-credential navigation");
+  await teammateContext.close();
+
+  await page.locator('.admin-console__nav a[href="#/budget-spend/agents"]').click();
   await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
   await page.getByText("records:read", { exact: true }).waitFor();
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render inside the persistent Admin workspace");
@@ -207,8 +261,8 @@ try {
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `Authenticated mobile shell should not overflow, got ${overflow}px`);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Authenticated mobile More should retain all grouped routes including Agent Access");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Agent Access/i);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Authenticated mobile More should retain all grouped routes including Users and Agent Access");
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Users[\s\S]*Agent Access/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();
@@ -243,7 +297,7 @@ try {
   assert.ok(mobileProfileGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Profile actions must retain 44px touch geometry: ${mobileProfileGeometry.buttonHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
 
-  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, routed profile/security pages, persistent in-place Admin/Agent/API workspace, one-time agent credential lifecycle, shared D1 admin state, password rotation, logout/login, and mobile profile UI");
+  console.log("Verified first-account Super user, routed Profile/Security/Users/Agent Access, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
 } finally {
   await browser.close();
 }

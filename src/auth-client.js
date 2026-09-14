@@ -65,6 +65,18 @@ export const authApi = {
   listAgentKeys: () => request("/agent-keys", { method: "GET", headers: {} }),
   createAgentKey: (values) => request("/agent-keys", { method: "POST", body: JSON.stringify(values) }),
   revokeAgentKey: (id) => request(`/agent-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
+  listUsers: () => request("/users", { method: "GET", headers: {} }),
+  async createUser({ email, displayName, title, role, password }) {
+    const passwordSalt = createPasswordSalt();
+    const passwordProof = await derivePasswordProof(password, passwordSalt);
+    return request("/users", { method: "POST", body: JSON.stringify({ email, displayName, title, role, passwordSalt, passwordProof }) });
+  },
+  updateUser: (id, values) => request(`/users/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(values) }),
+  async resetUserPassword(id, password) {
+    const passwordSalt = createPasswordSalt();
+    const passwordProof = await derivePasswordProof(password, passwordSalt);
+    return request(`/users/${encodeURIComponent(id)}/password`, { method: "POST", body: JSON.stringify({ passwordSalt, passwordProof }) });
+  },
   async changePassword({ email, currentPassword, newPassword }) {
     const config = await request("/login-config", { method: "POST", body: JSON.stringify({ email }) });
     const currentPasswordProof = await derivePasswordProof(currentPassword, config.passwordSalt);

@@ -44,6 +44,35 @@ function AccountGate({ mode, onSubmit, busy, error }) {
   );
 }
 
+function PasswordChangeGate({ user, onSubmit, busy, error }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const mismatch = confirm && newPassword !== confirm;
+  return (
+    <main className="account-gate" data-account-gate="password-change">
+      <section className="account-gate__card" aria-labelledby="account-gate-title">
+        <span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span>
+        <p className="account-gate__eyebrow">Defense Budget & Spend Analytics</p>
+        <h1 id="account-gate-title">Set your password</h1>
+        <p>Your administrator issued a temporary password. Replace it before entering the workspace.</p>
+        <form onSubmit={(event) => {
+          event.preventDefault();
+          if (mismatch) return;
+          onSubmit({ email: user.email, currentPassword, newPassword });
+        }}>
+          <label>Temporary password<input required minLength={12} type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+          <label>New password<input required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
+          <label>Confirm new password<input required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>
+          {mismatch ? <p className="account-form__error" role="alert">Passwords do not match.</p> : null}
+          {error ? <p className="account-form__error" role="alert">{error}</p> : null}
+          <button type="submit" disabled={busy || mismatch}><LockKeyhole size={17} />{busy ? "Updating…" : "Set password and continue"}</button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 export default function AuthProvider({ children }) {
   const [status, setStatus] = useState(() => (
     isKnownStaticHost()
@@ -91,15 +120,20 @@ export default function AuthProvider({ children }) {
     login: (values) => run(() => authApi.login(values)),
     logout: async () => { await authApi.logout(); setStatus((current) => ({ ...current, user: null })); },
     updateProfile: async (values) => { const result = await authApi.updateProfile(values); setStatus((current) => ({ ...current, user: result.user })); return result; },
-    changePassword: (values) => authApi.changePassword(values),
+    changePassword: async (values) => { const result = await authApi.changePassword(values); setStatus((current) => ({ ...current, user: result.user })); return result; },
     listAgentKeys: () => authApi.listAgentKeys(),
     createAgentKey: (values) => authApi.createAgentKey(values),
     revokeAgentKey: (id) => authApi.revokeAgentKey(id),
+    listUsers: () => authApi.listUsers(),
+    createUser: (values) => authApi.createUser(values),
+    updateUser: (id, values) => authApi.updateUser(id, values),
+    resetUserPassword: (id, password) => authApi.resetUserPassword(id, password),
     clearError: () => setError(""),
   }), [status, busy, error]);
 
   if (status.loading) return <main className="account-gate account-gate--loading" role="status"><span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span><h1>Loading workspace</h1></main>;
   if (status.enabled && status.required && !status.claimed) return <AccountGate mode="setup" busy={busy} error={error} onSubmit={(values) => void value.claim(values).catch(() => {})} />;
   if (status.enabled && status.required && !status.user) return <AccountGate mode="login" busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} />;
+  if (status.enabled && status.user?.mustChangePassword) return <PasswordChangeGate user={status.user} busy={busy} error={error} onSubmit={(values) => void run(() => authApi.changePassword(values)).catch(() => {})} />;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

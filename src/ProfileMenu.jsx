@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Bot, ChevronDown, KeyRound, LogIn, UserRound } from "lucide-react";
+import { Activity, Bot, ChevronDown, KeyRound, LogIn, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 
 function initials(name = "") {
@@ -95,10 +95,14 @@ export default function ProfileMenu() {
                 <span className="if-account-action__icon" aria-hidden="true"><KeyRound size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Security</strong><span className="if-account-action__meta">Password and active sessions</span></span>
               </a>
-              <a className="if-account-action" href="#/budget-spend/agents" onClick={() => setOpen(false)}>
+              {user.canManageUsers ? <a className="if-account-action" href="#/budget-spend/users" onClick={() => setOpen(false)}>
+                <span className="if-account-action__icon" aria-hidden="true"><UsersRound size={15} /></span>
+                <span className="if-account-action__content"><strong className="if-account-action__title">Users</strong><span className="if-account-action__meta">Human accounts and roles</span></span>
+              </a> : null}
+              {user.canManageAgents ? <a className="if-account-action" href="#/budget-spend/agents" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Bot size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Agent Access</strong><span className="if-account-action__meta">Scoped API credentials</span></span>
-              </a>
+              </a> : null}
               <a className="if-account-action" href="#/budget-spend/api-log" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Activity size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">API Log</strong><span className="if-account-action__meta">Human and agent activity</span></span>

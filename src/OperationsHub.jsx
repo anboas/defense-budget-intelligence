@@ -12,6 +12,7 @@ import {
   Plus,
   Star,
   Trash2,
+  UsersRound,
   X,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
@@ -21,12 +22,14 @@ import { AgentAccessPanel } from "./ProfilePage.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
+import UserManagement from "./UserManagement.jsx";
 
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
   ["events", "Events", CalendarDays],
   ["integrations", "Integrations", Database],
   ["activity", "API Log", Activity],
+  ["users", "Users", UsersRound],
   ["agents", "Agent Access", Bot],
   ["wallboard", "Wallboard", MonitorUp],
 ];
@@ -36,6 +39,7 @@ const VIEW_COPY = {
   events: ["Management", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
   integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
   activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
+  users: ["Administration", "Users", "Human accounts, roles, status, sessions, and password recovery."],
   agents: ["Administration", "Agent access", "Issue and govern narrowly scoped credentials for trusted agents."],
 };
 
@@ -44,6 +48,7 @@ const ADMIN_ROUTES = {
   watchlist: "#/budget-spend/watchlist",
   events: "#/budget-spend/events",
   integrations: "#/budget-spend/integrations",
+  users: "#/budget-spend/users",
   agents: "#/budget-spend/agents",
   activity: "#/budget-spend/api-log",
 };
@@ -328,7 +333,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
         <article><span>Sources online</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>last probe</small></article>
       </div>
       <nav className="admin-console__nav" aria-label="Administration sections">
-        {ADMIN_VIEWS.filter(([id]) => id !== "agents" || auth?.user).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
+        {ADMIN_VIEWS.filter(([id]) => !["users", "agents"].includes(id) || (id === "users" ? auth?.user?.canManageUsers : auth?.user?.canManageAgents)).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
       </nav>
       <div className="admin-console__context" aria-live="polite"><span>{copy[0]}</span><strong>{copy[1]}</strong><small>{copy[2]}</small></div>
     </section> : null}
@@ -337,7 +342,8 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
     {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
-    {view === "agents" ? auth?.user ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Authentication required</strong><p>Sign in as the workspace owner to issue and revoke agent credentials.</p></section> : null}
+    {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
+    {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}

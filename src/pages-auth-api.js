@@ -18,6 +18,15 @@ const AGENT_SCOPES = Object.freeze([
   "activity:read", "activity:write",
   "integrations:read",
 ]);
+const USER_ROLES = Object.freeze(["administrator", "analyst", "viewer"]);
+const USER_STATUSES = Object.freeze(["active", "suspended"]);
+const ROLE_LABELS = Object.freeze({
+  super_user: "Super user",
+  administrator: "Administrator",
+  analyst: "Analyst",
+  viewer: "Viewer",
+});
+const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read"]);
 
 const SCHEMA = Object.freeze([
   `CREATE TABLE IF NOT EXISTS dbi_super_user (
@@ -31,6 +40,26 @@ const SCHEMA = Object.freeze([
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_users (
+    user_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL CHECK (role IN ('super_user', 'administrator', 'analyst', 'viewer')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+    password_salt TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    must_change_password INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    last_login_at TEXT NOT NULL DEFAULT ''
+  )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_users_email_lower ON dbi_users (LOWER(email))",
+  `INSERT OR IGNORE INTO dbi_users
+    (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
+    SELECT user_id, email, display_name, title, 'super_user', 'active', password_salt, password_hash, 0, user_id, created_at, updated_at, ''
+    FROM dbi_super_user WHERE singleton = 1`,
   `CREATE TABLE IF NOT EXISTS dbi_sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -229,13 +258,32 @@ function publicUser(row) {
     email: row.email,
     displayName: row.display_name,
     title: row.title || "",
-    role: "Super user",
+    role: ROLE_LABELS[row.role] || "Viewer",
+    roleId: row.role || "viewer",
+    status: row.status || "active",
+    mustChangePassword: Boolean(row.must_change_password),
+    canManageUsers: ["super_user", "administrator"].includes(row.role),
+    canManageAgents: ["super_user", "administrator"].includes(row.role),
     createdAt: row.created_at,
+    lastLoginAt: row.last_login_at || null,
   } : null;
 }
 
 async function superUser(db) {
   return db.prepare("SELECT * FROM dbi_super_user WHERE singleton = 1").first();
+}
+
+async function userByEmail(db, email) {
+  return db.prepare("SELECT * FROM dbi_users WHERE email = ?").bind(email).first();
+}
+
+function canAdministerUsers(user) {
+  return Boolean(user && ["super_user", "administrator"].includes(user.role));
+}
+
+function scopesForRole(role) {
+  if (["super_user", "administrator", "analyst"].includes(role)) return [...AGENT_SCOPES];
+  return [...READ_SCOPES];
 }
 
 async function sessionUser(db, request) {
@@ -244,8 +292,8 @@ async function sessionUser(db, request) {
   const row = await db.prepare(`
     SELECT u.*, s.id AS session_id
     FROM dbi_sessions s
-    JOIN dbi_super_user u ON u.user_id = s.user_id
-    WHERE s.token_hash = ? AND s.revoked_at = '' AND s.expires_at > ?
+    JOIN dbi_users u ON u.user_id = s.user_id
+    WHERE s.token_hash = ? AND s.revoked_at = '' AND s.expires_at > ? AND u.status = 'active'
   `).bind(await hashValue(rawToken), new Date().toISOString()).first();
   if (!row) return null;
   await db.prepare("UPDATE dbi_sessions SET last_seen_at = ? WHERE id = ?")
@@ -344,12 +392,21 @@ async function claimResponse(request, db, env) {
     return json({ error: "The super-user account has already been claimed" }, 409);
   }
 
+  await db.prepare(`
+    INSERT INTO dbi_users
+      (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
+    VALUES (?, ?, ?, ?, 'super_user', 'active', ?, ?, 0, ?, ?, ?, '')
+  `).bind(userId, email, displayName, title, passwordSalt, `v1$${await hashValue(passwordProof)}`, userId, now, now).run();
+
   const session = await createSession(db, userId);
   return json({ user: publicUser({
     user_id: userId,
     email,
     display_name: displayName,
     title,
+    role: "super_user",
+    status: "active",
+    must_change_password: 0,
     created_at: now,
   }) }, 201, { "set-cookie": sessionCookie(session.rawToken, request, env) });
 }
@@ -359,11 +416,11 @@ async function loginConfigResponse(request, db) {
   if (!sameOrigin(request)) return json({ error: "Cross-origin login is not allowed" }, 403);
   const body = await safeJson(request);
   const email = normalizeEmail(body?.email);
-  const owner = await superUser(db);
-  const matches = Boolean(email && owner && email === owner.email);
+  const user = email ? await userByEmail(db, email) : null;
+  const matches = Boolean(user && user.status === "active");
   const fallbackSalt = (await hashValue(`dbi-login:${email || "unknown"}`)).slice(0, 48);
   return json({
-    passwordSalt: matches ? owner.password_salt : fallbackSalt,
+    passwordSalt: matches ? user.password_salt : fallbackSalt,
     passwordIterations: PASSWORD_ITERATIONS,
   });
 }
@@ -379,11 +436,11 @@ async function loginResponse(request, db, env) {
     return json({ error: "Too many sign-in attempts. Try again in 15 minutes." }, 429);
   }
 
-  const owner = await superUser(db);
-  const storedHash = String(owner?.password_hash || "");
+  const user = email ? await userByEmail(db, email) : null;
+  const storedHash = String(user?.password_hash || "");
   const verified = Boolean(
-    owner
-    && email === owner.email
+    user
+    && user.status === "active"
     && validPasswordProof(passwordProof)
     && storedHash.startsWith("v1$")
     && constantTimeEqual(await hashValue(passwordProof), storedHash.slice(3)),
@@ -391,8 +448,10 @@ async function loginResponse(request, db, env) {
   await recordLoginAttempt(db, client, verified);
   if (!verified) return json({ error: "Email or password is incorrect" }, 401);
 
-  const session = await createSession(db, owner.user_id);
-  return json({ user: publicUser(owner), expiresAt: session.expiresAt }, 200, {
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE dbi_users SET last_login_at = ?, updated_at = updated_at WHERE user_id = ?").bind(now, user.user_id).run();
+  const session = await createSession(db, user.user_id);
+  return json({ user: publicUser({ ...user, last_login_at: now }), expiresAt: session.expiresAt }, 200, {
     "set-cookie": sessionCookie(session.rawToken, request, env),
   });
 }
@@ -418,9 +477,14 @@ async function profileResponse(request, db) {
   const displayName = cleanText(body?.displayName, 80);
   const title = cleanText(body?.title, 80);
   if (displayName.length < 2) return json({ error: "Display name is required" }, 400);
-  await db.prepare(`
-    UPDATE dbi_super_user SET display_name = ?, title = ?, updated_at = ? WHERE singleton = 1
-  `).bind(displayName, title, new Date().toISOString()).run();
+  const now = new Date().toISOString();
+  const statements = [db.prepare(`
+    UPDATE dbi_users SET display_name = ?, title = ?, updated_at = ? WHERE user_id = ?
+  `).bind(displayName, title, now, session.user_id)];
+  if (session.role === "super_user") statements.push(db.prepare(`
+    UPDATE dbi_super_user SET display_name = ?, title = ?, updated_at = ? WHERE user_id = ?
+  `).bind(displayName, title, now, session.user_id));
+  await db.batch(statements);
   return json({ user: publicUser({ ...session, display_name: displayName, title }) });
 }
 
@@ -444,18 +508,134 @@ async function passwordResponse(request, db, env) {
   }
 
   const now = new Date().toISOString();
-  await db.batch([
+  const passwordHash = `v1$${await hashValue(newPasswordProof)}`;
+  const statements = [
     db.prepare(`
-      UPDATE dbi_super_user
-      SET password_salt = ?, password_hash = ?, updated_at = ?
-      WHERE singleton = 1
-    `).bind(newPasswordSalt, `v1$${await hashValue(newPasswordProof)}`, now),
-    db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE revoked_at = ''").bind(now),
-  ]);
+      UPDATE dbi_users
+      SET password_salt = ?, password_hash = ?, must_change_password = 0, updated_at = ?
+      WHERE user_id = ?
+    `).bind(newPasswordSalt, passwordHash, now, session.user_id),
+    db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, session.user_id),
+  ];
+  if (session.role === "super_user") statements.push(db.prepare(`
+    UPDATE dbi_super_user SET password_salt = ?, password_hash = ?, updated_at = ? WHERE user_id = ?
+  `).bind(newPasswordSalt, passwordHash, now, session.user_id));
+  await db.batch(statements);
   const nextSession = await createSession(db, session.user_id);
-  return json({ ok: true, user: publicUser(session) }, 200, {
+  return json({ ok: true, user: publicUser({ ...session, must_change_password: 0 }) }, 200, {
     "set-cookie": sessionCookie(nextSession.rawToken, request, env),
   });
+}
+
+function managedUser(row) {
+  return {
+    ...publicUser(row),
+    activeSessions: Number(row.active_sessions || 0),
+    isOwner: row.role === "super_user",
+  };
+}
+
+async function usersResponse(request, db) {
+  if (!sameOrigin(request)) return json({ error: "Cross-origin user management is not allowed" }, 403);
+  const administrator = await sessionUser(db, request);
+  if (!administrator) return json({ error: "Sign in required" }, 401);
+  if (!canAdministerUsers(administrator)) return json({ error: "Administrator access is required" }, 403);
+
+  const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+  const prefix = "/api/v1/auth/users";
+  const relative = pathname.slice(prefix.length).replace(/^\//, "");
+  const [encodedUserId = "", action = ""] = relative.split("/");
+  const userId = cleanText(decodeURIComponent(encodedUserId), 80);
+
+  if (request.method === "GET" && !userId) {
+    const now = new Date().toISOString();
+    const result = await db.prepare(`
+      SELECT u.*, COUNT(s.id) AS active_sessions
+      FROM dbi_users u
+      LEFT JOIN dbi_sessions s
+        ON s.user_id = u.user_id AND s.revoked_at = '' AND s.expires_at > ?
+      GROUP BY u.user_id
+      ORDER BY CASE u.role WHEN 'super_user' THEN 0 WHEN 'administrator' THEN 1 WHEN 'analyst' THEN 2 ELSE 3 END,
+        u.display_name COLLATE NOCASE
+    `).bind(now).all();
+    return json({ users: (result.results || []).map(managedUser), availableRoles: USER_ROLES });
+  }
+
+  if (request.method === "POST" && !userId) {
+    const body = await safeJson(request);
+    const email = normalizeEmail(body?.email);
+    const displayName = cleanText(body?.displayName, 80);
+    const title = cleanText(body?.title, 80);
+    const role = cleanText(body?.role, 32);
+    const passwordSalt = cleanText(body?.passwordSalt, 128).toLowerCase();
+    const passwordProof = cleanText(body?.passwordProof, 64).toLowerCase();
+    if (!email || displayName.length < 2 || !USER_ROLES.includes(role) || !validSalt(passwordSalt) || !validPasswordProof(passwordProof)) {
+      return json({ error: "Valid user details, role, and temporary password are required" }, 400);
+    }
+    const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_users").first();
+    if (Number(count?.count || 0) >= 50) return json({ error: "This workspace is limited to 50 human accounts" }, 409);
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const created = await db.prepare(`
+      INSERT OR IGNORE INTO dbi_users
+        (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
+      VALUES (?, ?, ?, ?, ?, 'active', ?, ?, 1, ?, ?, ?, '')
+    `).bind(id, email, displayName, title, role, passwordSalt, `v1$${await hashValue(passwordProof)}`, administrator.user_id, now, now).run();
+    if (!Number(created?.meta?.changes || 0)) return json({ error: "An account with that email already exists" }, 409);
+    await recordActivity(db, { type: "user", id: administrator.user_id }, "user_created", "user", id, { email, role });
+    const row = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(id).first();
+    return json({ user: managedUser(row) }, 201);
+  }
+
+  const target = userId ? await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(userId).first() : null;
+  if (!target) return json({ error: "User not found" }, 404);
+  if (target.role === "super_user") return json({ error: "The Super user account is immutable in user management" }, 403);
+
+  if (request.method === "PATCH" && !action) {
+    const body = await safeJson(request);
+    const email = normalizeEmail(body?.email);
+    const displayName = cleanText(body?.displayName, 80);
+    const title = cleanText(body?.title, 80);
+    const role = cleanText(body?.role, 32);
+    const status = cleanText(body?.status, 32);
+    if (!email || displayName.length < 2 || !USER_ROLES.includes(role) || !USER_STATUSES.includes(status)) {
+      return json({ error: "Valid user details, role, and status are required" }, 400);
+    }
+    const now = new Date().toISOString();
+    const changed = await db.prepare(`
+      UPDATE OR IGNORE dbi_users
+      SET email = ?, display_name = ?, title = ?, role = ?, status = ?, updated_at = ?
+      WHERE user_id = ?
+    `).bind(email, displayName, title, role, status, now, userId).run();
+    if (!Number(changed?.meta?.changes || 0)) {
+      const duplicate = await userByEmail(db, email);
+      if (duplicate && duplicate.user_id !== userId) return json({ error: "An account with that email already exists" }, 409);
+    }
+    if (status === "suspended") {
+      await db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId).run();
+    }
+    await recordActivity(db, { type: "user", id: administrator.user_id }, "user_updated", "user", userId, { email, role, status });
+    const row = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(userId).first();
+    return json({ user: managedUser(row) });
+  }
+
+  if (request.method === "POST" && action === "password") {
+    const body = await safeJson(request);
+    const passwordSalt = cleanText(body?.passwordSalt, 128).toLowerCase();
+    const passwordProof = cleanText(body?.passwordProof, 64).toLowerCase();
+    if (!validSalt(passwordSalt) || !validPasswordProof(passwordProof)) return json({ error: "A valid temporary password is required" }, 400);
+    const now = new Date().toISOString();
+    await db.batch([
+      db.prepare(`
+        UPDATE dbi_users SET password_salt = ?, password_hash = ?, must_change_password = 1, updated_at = ? WHERE user_id = ?
+      `).bind(passwordSalt, `v1$${await hashValue(passwordProof)}`, now, userId),
+      db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId),
+    ]);
+    await recordActivity(db, { type: "user", id: administrator.user_id }, "user_password_reset", "user", userId, { email: target.email });
+    return json({ ok: true });
+  }
+
+  return json({ error: "Method not allowed" }, 405);
 }
 
 function agentJson(data, status = 200, meta = {}, headers = {}) {
@@ -487,7 +667,7 @@ async function requestPrincipal(db, request) {
     type: "user",
     id: session.user_id,
     name: session.display_name,
-    scopes: [...AGENT_SCOPES],
+    scopes: session.must_change_password ? [] : scopesForRole(session.role),
   };
   const authorization = request.headers.get("authorization") || "";
   const rawToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
@@ -567,6 +747,7 @@ async function agentKeysResponse(request, db) {
   if (!sameOrigin(request)) return json({ error: "Cross-origin credential management is not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
+  if (!canAdministerUsers(session)) return json({ error: "Administrator access is required" }, 403);
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
   const prefix = "/api/v1/auth/agent-keys";
   const keyId = cleanText(decodeURIComponent(pathname.slice(prefix.length).replace(/^\//, "")), 80);
@@ -1052,7 +1233,7 @@ async function integrationsResponse(request, env, principal) {
 async function agentApiResponse(request, env, db) {
   const requestId = crypto.randomUUID();
   const principal = await requestPrincipal(db, request);
-  if (!principal) return agentError("authentication_required", "Use a valid DBI agent bearer token or signed-in Super-user session", 401, requestId);
+  if (!principal) return agentError("authentication_required", "Use a valid DBI agent bearer token or signed-in workspace session", 401, requestId);
   if (principal.type === "user" && !["GET", "HEAD"].includes(request.method) && !sameOrigin(request)) {
     return agentError("cross_origin_forbidden", "Cross-origin workspace mutations are not allowed", 403, requestId);
   }
@@ -1061,7 +1242,7 @@ async function agentApiResponse(request, env, db) {
   const relative = pathname.slice("/api/v1/agent".length).replace(/^\//, "");
   const [resource = "capabilities", ...segments] = relative.split("/").filter(Boolean);
   if (resource === "capabilities" && request.method === "GET") return agentJson({
-    principal, scopes: AGENT_SCOPES, rateLimitPerMinute: AGENT_RATE_LIMIT,
+    principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
     resources: ["records", "analytics", "tracking", "events", "activity", "integrations"],
     writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
   }, 200, { requestId });
@@ -1088,6 +1269,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/logout") return logoutResponse(request, db, env);
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
+  if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
   if (pathname === "/api/v1/auth/agent-keys" || pathname.startsWith("/api/v1/auth/agent-keys/")) return agentKeysResponse(request, db);
   if (pathname === "/api/v1/agent" || pathname.startsWith("/api/v1/agent/")) return agentApiResponse(request, env, db);
   return json({ error: "Unknown account route" }, 404);

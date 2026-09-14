@@ -96,6 +96,17 @@ function claimPayload(index) {
   };
 }
 
+function userPayload(index, role = "viewer") {
+  return {
+    email: `user-${index}@example.test`,
+    displayName: `User ${index}`,
+    title: "Budget analyst",
+    role,
+    passwordSalt: String(index + 10).padStart(2, "0").repeat(24),
+    passwordProof: String(index + 11).padStart(2, "0").repeat(32),
+  };
+}
+
 function cookieFrom(response) {
   return String(response.headers.get("set-cookie") || "").split(";")[0];
 }
@@ -165,6 +176,116 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.claimed, true);
     assert.equal(body.user.email, winner.email);
     assert.equal(body.user.role, "Super user");
+    assert.equal(body.user.roleId, "super_user");
+    assert.equal(body.user.canManageUsers, true);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/users");
+    assert.equal(response.status, 401, "Anonymous callers must not enumerate workspace users");
+
+    const viewer = userPayload(4);
+    response = await apiRequest(baseUrl, "/api/v1/auth/users", {
+      method: "POST",
+      body: viewer,
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 201, "Super user must be able to create a human account");
+    body = await response.json();
+    const viewerId = body.user.id;
+    assert.equal(body.user.role, "Viewer");
+    assert.equal(body.user.mustChangePassword, true);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.users.length, 2, "User inventory must retain owner and managed account");
+    assert.equal(body.users[0].isOwner, true, "Super user must remain the immutable owner");
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: viewer.email, passwordProof: viewer.passwordProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Managed user must authenticate with the temporary password");
+    let viewerCookie = cookieFrom(response);
+    body = await response.json();
+    assert.equal(body.user.mustChangePassword, true);
+
+    response = await apiRequest(baseUrl, "/api/v1/agent/records?limit=1", { cookie: viewerCookie });
+    assert.equal(response.status, 403, "Temporary-password sessions must not access workspace data before replacement");
+
+    const viewerPasswordSalt = "ef".repeat(24);
+    const viewerPasswordProof = "ab".repeat(32);
+    response = await apiRequest(baseUrl, "/api/v1/auth/password", {
+      method: "POST",
+      body: { currentPasswordProof: viewer.passwordProof, newPasswordSalt: viewerPasswordSalt, newPasswordProof: viewerPasswordProof },
+      cookie: viewerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Managed user must be able to replace a temporary password");
+    viewerCookie = cookieFrom(response);
+    body = await response.json();
+    assert.equal(body.user.mustChangePassword, false);
+
+    response = await apiRequest(baseUrl, "/api/v1/agent/records?limit=1", { cookie: viewerCookie });
+    assert.equal(response.status, 200, "Viewer must retain workspace read access");
+    response = await apiRequest(baseUrl, "/api/v1/agent/tracking/test-record", {
+      method: "PUT",
+      body: { note: "Viewer write attempt" },
+      cookie: viewerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Viewer writes must be rejected server-side");
+    response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: viewerCookie });
+    assert.equal(response.status, 403, "Viewer must not enumerate or manage human accounts");
+
+    response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}`, {
+      method: "PATCH",
+      body: { email: viewer.email, displayName: viewer.displayName, title: viewer.title, role: "analyst", status: "active" },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).user.role, "Analyst", "Role changes must take effect without recreating the account");
+
+    response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}`, {
+      method: "PATCH",
+      body: { email: viewer.email, displayName: viewer.displayName, title: viewer.title, role: "analyst", status: "suspended" },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: viewerCookie });
+    assert.equal((await response.json()).user, null, "Suspension must revoke existing sessions immediately");
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: viewer.email, passwordProof: viewerPasswordProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 401, "Suspended accounts must not sign in");
+
+    const resetProof = "bc".repeat(32);
+    const resetSalt = "de".repeat(24);
+    response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}`, {
+      method: "PATCH",
+      body: { email: viewer.email, displayName: viewer.displayName, title: viewer.title, role: "analyst", status: "active" },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}/password`, {
+      method: "POST",
+      body: { passwordSalt: resetSalt, passwordProof: resetProof },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Administrator must be able to reset a managed user's password");
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { email: viewer.email, passwordProof: resetProof },
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).user.mustChangePassword, true, "Administrator reset must require password replacement at next sign-in");
 
     const correctConfig = await apiRequest(baseUrl, "/api/v1/auth/login-config", {
       method: "POST",
@@ -297,7 +418,7 @@ const browserPersistPath = resolve(mkdtempSync("test-results/pages-auth-browser-
 try {
   await verifyApiLifecycle(apiPersistPath);
   await verifyBrowserLifecycle(browserPersistPath);
-  console.log("Verified Cloudflare Pages + D1 atomic first claim, persistent sessions, profile/password lifecycle, and authenticated browser UI");
+  console.log("Verified Cloudflare Pages + D1 atomic first claim, multi-user RBAC, suspension/reactivation, administrator password reset, persistent sessions, profile/password lifecycle, and authenticated browser UI");
 } finally {
   rmSync(apiPersistPath, { recursive: true, force: true });
   rmSync(browserPersistPath, { recursive: true, force: true });

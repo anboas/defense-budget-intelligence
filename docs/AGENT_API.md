@@ -1,15 +1,16 @@
 # Agent API
 
-The Cloudflare Pages deployment exposes a versioned, same-origin control plane at `/api/v1/agent`. It is designed for trusted automation clients and the signed-in Super user.
+The Cloudflare Pages deployment exposes a versioned, same-origin control plane at `/api/v1/agent`. It is designed for trusted automation clients and signed-in workspace users with role-derived scopes.
 
 ## Authentication
 
-- The Super user creates and revokes agent credentials from **Profile → Agent access**.
+- The Super user and Administrators create and revoke agent credentials from **Admin → Agent Access**.
 - A credential is displayed once. Save it directly to the agent's protected Secret Store. Never place it in chat, source files, command arguments, URLs, or logs.
 - Automation clients send the protected credential as an HTTP Bearer authorization header.
 - The server stores only a SHA-256 token hash and records last use.
 - Credentials may be revoked immediately and may carry an optional expiry.
 - Signed-in first-party browser sessions may call the same API through the secure session cookie.
+- Super users, Administrators, and Analysts receive the full human workspace scope set. Viewers receive read scopes only. A temporary-password session receives no workspace scopes until the user replaces that password.
 
 The machine-readable contract is available at `GET /api/v1/agent/openapi.json` after authentication. Capability discovery is available at `GET /api/v1/agent/capabilities`.
 

@@ -21,12 +21,22 @@ The primary application is deployed as the `defense-budget-intelligence` Cloudfl
 - Session tokens are random, stored only as hashes, and sent in `HttpOnly; Secure; SameSite=Strict` cookies.
 - Password rotation revokes every existing session before issuing the replacement session.
 - Profile and account mutations reject cross-origin requests.
+- The first account remains the immutable Super user. Super users and Administrators manage human access under **Admin → Users**.
+- New accounts receive Administrator, Analyst, or Viewer roles and must replace their temporary password before workspace data becomes accessible.
+- Suspending an account immediately revokes its sessions. Administrator password resets also revoke sessions and restore the mandatory first-login password change.
+
+Role enforcement is server-side:
+
+- **Super user:** permanent owner, full workspace access, user administration, and agent credential administration.
+- **Administrator:** full workspace access, user administration, and agent credential administration.
+- **Analyst:** workspace read/write access without user or agent credential administration.
+- **Viewer:** read-only workspace access.
 
 After the first account is claimed and verified, set `DBI_ALLOW_FIRST_CLAIM=0` and redeploy as defense in depth. The singleton constraint remains authoritative even before that flag changes.
 
 ## Agent access
 
-The Super user manages scoped, revocable credentials under **Profile → Agent access**. Tokens are displayed once and must move directly into an agent's protected Secret Store. The complete resource, scope, concurrency, audit, and immutability contract is documented in [Agent API](AGENT_API.md).
+The Super user and Administrators manage scoped, revocable credentials under **Admin → Agent Access**. Tokens are displayed once and must move directly into an agent's protected Secret Store. The complete resource, scope, concurrency, audit, and immutability contract is documented in [Agent API](AGENT_API.md).
 
 ## Verification
 
@@ -37,7 +47,7 @@ npm run verify:pages-auth
 npm run verify:agent-api
 ```
 
-The verifiers race two claims against fresh D1 databases, test generic login discovery, routed Profile/Security/Agent Access pages, password rotation, session revocation, logout/login, agent credential issuance/revocation, shared Admin state, Agent API CRUD and safety contracts, runtime restart persistence, secure cookies, and the desktop/mobile browser UI.
+The verifiers race two claims against fresh D1 databases, test generic login discovery, routed Profile/Security/Users/Agent Access pages, human account creation, RBAC, suspension/reactivation, administrator password reset, mandatory temporary-password replacement, session revocation, logout/login, agent credential issuance/revocation, shared Admin state, Agent API CRUD and safety contracts, runtime restart persistence, secure cookies, and the desktop/mobile browser UI.
 
 ## Deployment
 
