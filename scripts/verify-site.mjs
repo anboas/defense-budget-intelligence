@@ -473,12 +473,12 @@ try {
     const at = "2026-09-13T12:00:00.000Z";
     localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
     localStorage.setItem("dbi:management-events:v1", JSON.stringify([
-      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", attendees: ["Jon VandeMark", "Adam Boas"] },
+      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
       { id: "event-ausa-annual-meeting-2026", title: "AUSA Annual Meeting & Exposition 2026", startsAt: "2026-10-12T08:00", endsAt: "2026-10-14T17:00", location: "Walter E. Washington Convention Center, Washington, DC", attendees: [] },
-      { id: "event-eighth-annual-defense-conference-2026", title: "8th Annual Defense Conference", startsAt: "2026-10-30T08:00", endsAt: "2026-10-30T17:00", location: "Hyatt Regency Crystal City, Virginia or virtual", attendees: ["Jon VandeMark", "Adam Boas"] },
-      { id: "event-i-itsec-2026", title: "Interservice/Industry Training, Simulation and Education Conference (I/ITSEC) 2026", startsAt: "2026-11-30T08:00", endsAt: "2026-12-04T17:00", location: "Orange County Convention Center, Orlando, Florida", attendees: ["Jon VandeMark", "Adam Boas"] },
-      { id: "event-weapon-systems-software-summit-2026", title: "2026 Department of Defense Weapon Systems Software Summit", startsAt: "2026-12-08T08:00", endsAt: "2026-12-08T17:00", location: "Broward County Convention Center, Fort Lauderdale, Florida", attendees: ["Adam Boas"] },
-    ].map((event, index) => ({ ...event, notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
+      { id: "event-eighth-annual-defense-conference-2026", title: "8th Annual Defense Conference", startsAt: "2026-10-30T08:00", endsAt: "2026-10-30T17:00", location: "Hyatt Regency Crystal City, Virginia or virtual", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
+      { id: "event-i-itsec-2026", title: "Interservice/Industry Training, Simulation and Education Conference (I/ITSEC) 2026", startsAt: "2026-11-30T08:00", endsAt: "2026-12-04T17:00", location: "Orange County Convention Center, Orlando, Florida", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
+      { id: "event-weapon-systems-software-summit-2026", title: "2026 Department of Defense Weapon Systems Software Summit", startsAt: "2026-12-08T08:00", endsAt: "2026-12-08T17:00", location: "Broward County Convention Center, Fort Lauderdale, Florida", attendees: [{ id: "user-adam", displayName: "Adam Boas" }] },
+    ].map((event, index) => ({ ...event, attendeeIds: event.attendees.map((attendee) => attendee.id), notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
   }, wallboardRecordIds);
   await openSurface(page, "#/budget-spend/wallboard", "[data-ops-wallboard]");
@@ -490,15 +490,77 @@ try {
     const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
     const grid = node.querySelector(".ops-wallboard__event-grid");
     const gridRect = grid.getBoundingClientRect();
-    const columns = new Set(cards.map((card) => Math.round(card.getBoundingClientRect().left))).size;
-    const rows = new Set(cards.map((card) => Math.round(card.getBoundingClientRect().top))).size;
-    return { columns, rows, lastCardBottom: cards.at(-1).getBoundingClientRect().bottom, gridBottom: gridRect.bottom, writeControls: grid.querySelectorAll("button, input, textarea, select").length };
+    const rects = cards.map((card) => card.getBoundingClientRect());
+    const rowTops = [...new Set(rects.map((rect) => Math.round(rect.top)))].sort((a, b) => a - b);
+    const topRow = rects.filter((rect) => Math.round(rect.top) === rowTops[0]);
+    const bottomRow = rects.filter((rect) => Math.round(rect.top) === rowTops[1]);
+    const body = cards[0].querySelector(".ops-wall-event__body");
+    const content = [...body.children].map((child) => child.getBoundingClientRect());
+    const contentHeight = content.at(-1).bottom - content[0].top;
+    const countdown = cards[0].querySelector(".ops-wall-event__countdown").getBoundingClientRect();
+    const countdownValue = cards[0].querySelector(".ops-wall-event__countdown strong").getBoundingClientRect();
+    return { topRowCount: topRow.length, bottomRowCount: bottomRow.length, topCardWidth: topRow[0].width, bottomCardWidth: bottomRow[0].width, rows: rowTops.length, titleSize: parseFloat(getComputedStyle(cards[0].querySelector("h3")).fontSize), contentRatio: contentHeight / body.getBoundingClientRect().height, countdownFits: countdownValue.left >= countdown.left && countdownValue.right <= countdown.right, lastCardBottom: rects.at(-1).bottom, gridBottom: gridRect.bottom, writeControls: grid.querySelectorAll("button, input, textarea, select").length };
   });
-  assert.equal(eventWallboardGeometry.columns, 3, `Event focus should use the reference three-column scan pattern, got ${eventWallboardGeometry.columns}`);
+  assert.equal(eventWallboardGeometry.topRowCount, 3, `Event focus should retain three cards in its primary scan row, got ${eventWallboardGeometry.topRowCount}`);
+  assert.equal(eventWallboardGeometry.bottomRowCount, 2, `Five events should reflow into a full-width two-card final row, got ${eventWallboardGeometry.bottomRowCount}`);
+  assert.ok(eventWallboardGeometry.bottomCardWidth > eventWallboardGeometry.topCardWidth * 1.4, "The two-card row should expand to use the space formerly left blank");
   assert.equal(eventWallboardGeometry.rows, 2, `Five events should occupy two dense wallboard rows, got ${eventWallboardGeometry.rows}`);
+  assert.ok(eventWallboardGeometry.titleSize >= 28, `1080p event titles should scale with the display, got ${eventWallboardGeometry.titleSize}px`);
+  assert.ok(eventWallboardGeometry.contentRatio >= 0.4, `Event copy should occupy the card body instead of floating in dead space, got ${(eventWallboardGeometry.contentRatio * 100).toFixed(1)}%`);
+  assert.equal(eventWallboardGeometry.countdownFits, true, "Fluid countdown typography must remain inside its dedicated column");
   assert.ok(eventWallboardGeometry.lastCardBottom <= eventWallboardGeometry.gridBottom + 1, "Every focused event card should fit inside the 1080p wallboard");
   assert.equal(eventWallboardGeometry.writeControls, 0, "Focused event cards should remain read-only");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-events-1080p.png` });
+
+  await page.setViewportSize({ width: 3840, height: 2160 });
+  const fourKEventGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
+    const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
+    const rects = cards.map((card) => card.getBoundingClientRect());
+    const rowTops = [...new Set(rects.map((rect) => Math.round(rect.top)))].sort((a, b) => a - b);
+    const body = cards[0].querySelector(".ops-wall-event__body");
+    const content = [...body.children].map((child) => child.getBoundingClientRect());
+    const countdown = cards[0].querySelector(".ops-wall-event__countdown").getBoundingClientRect();
+    const countdownValue = cards[0].querySelector(".ops-wall-event__countdown strong").getBoundingClientRect();
+    return {
+      topRowCount: rects.filter((rect) => Math.round(rect.top) === rowTops[0]).length,
+      bottomRowCount: rects.filter((rect) => Math.round(rect.top) === rowTops[1]).length,
+      titleSize: parseFloat(getComputedStyle(cards[0].querySelector("h3")).fontSize),
+      dateSize: parseFloat(getComputedStyle(cards[0].querySelector("time")).fontSize),
+      contentRatio: (content.at(-1).bottom - content[0].top) / body.getBoundingClientRect().height,
+      countdownFits: countdownValue.left >= countdown.left && countdownValue.right <= countdown.right,
+      lastCardBottom: rects.at(-1).bottom,
+      gridBottom: node.querySelector(".ops-wallboard__event-grid").getBoundingClientRect().bottom,
+    };
+  });
+  assert.equal(fourKEventGeometry.topRowCount, 3, "4K event focus should retain three cards in its primary row");
+  assert.equal(fourKEventGeometry.bottomRowCount, 2, "4K event focus should retain two expanded cards in its final row");
+  assert.ok(fourKEventGeometry.titleSize >= 44, `4K event titles should scale with the display, got ${fourKEventGeometry.titleSize}px`);
+  assert.ok(fourKEventGeometry.dateSize >= 20, `4K event dates should scale with the display, got ${fourKEventGeometry.dateSize}px`);
+  assert.ok(fourKEventGeometry.contentRatio >= 0.24, `4K event copy should use the card body, got ${(fourKEventGeometry.contentRatio * 100).toFixed(1)}%`);
+  assert.equal(fourKEventGeometry.countdownFits, true, "4K countdown typography must remain inside its dedicated column");
+  assert.ok(fourKEventGeometry.lastCardBottom <= fourKEventGeometry.gridBottom + 1, "Every focused event card should fit inside the 4K wallboard");
+  await assertNoPageOverflow(page, "4K focused event wallboard");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-events-4k.png` });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileEventGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
+    const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
+    const rects = cards.map((card) => card.getBoundingClientRect());
+    return {
+      columns: new Set(rects.map((rect) => Math.round(rect.left))).size,
+      titleSize: parseFloat(getComputedStyle(cards[0].querySelector("h3")).fontSize),
+      minControlHeight: Math.min(...[...node.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height)),
+      viewportWidth: innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+  assert.equal(mobileEventGeometry.columns, 1, "Mobile event focus should stack cards in one readable column");
+  assert.ok(mobileEventGeometry.titleSize >= 18, `Mobile event titles should remain readable, got ${mobileEventGeometry.titleSize}px`);
+  assert.ok(mobileEventGeometry.minControlHeight >= 44, `Mobile wallboard controls should retain 44px targets, got ${mobileEventGeometry.minControlHeight}px`);
+  assert.ok(mobileEventGeometry.scrollWidth <= mobileEventGeometry.viewportWidth + 1, "Mobile event focus must not overflow horizontally");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-events-mobile.png`, fullPage: true });
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "Overview" }).click();
   await page.waitForFunction(() => document.querySelectorAll(".ops-wallboard__record").length === 8 && document.querySelectorAll(".ops-wallboard__event").length === 5);
   assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+8/i, "Wallboard should project tracked-record counts");

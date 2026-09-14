@@ -27,6 +27,7 @@ import { useAuth } from "./AuthContext.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 import UserManagement from "./UserManagement.jsx";
+import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
@@ -117,6 +118,7 @@ function nextPublishedDate(record, asOf) {
 }
 
 function EventEditor({ event, records, onSave, onClose }) {
+  const auth = useAuth();
   const dialogRef = useRef(null);
   const [draft, setDraft] = useState(() => event || {
     id: `event-${Date.now()}`,
@@ -128,15 +130,27 @@ function EventEditor({ event, records, onSave, onClose }) {
     status: "scheduled",
     recordIds: [],
     attendees: [],
+    attendeeIds: [],
     wallboard: true,
   });
-  const [attendeeText, setAttendeeText] = useState(() => (event?.attendees || []).join(", "));
+  const [directory, setDirectory] = useState([]);
+  const [directoryError, setDirectoryError] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
     return () => { if (dialog?.open) dialog.close(); };
   }, []);
+  useEffect(() => {
+    if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
+    let active = true;
+    void auth.listDirectory().then((result) => {
+      if (!active) return;
+      setDirectory(result.users || []);
+      setDirectoryError("");
+    }).catch((requestError) => { if (active) setDirectoryError(requestError.message); });
+    return () => { active = false; };
+  }, [auth]);
   const linked = new Set(draft.recordIds || []);
   function submit(formEvent) {
     formEvent.preventDefault();
@@ -148,7 +162,7 @@ function EventEditor({ event, records, onSave, onClose }) {
       setError("End time must be after the start time.");
       return;
     }
-    onSave({ ...draft, attendees: attendeeText.split(",").map((name) => name.trim()).filter(Boolean), updatedAt: new Date().toISOString() });
+    onSave({ ...draft, updatedAt: new Date().toISOString() });
     onClose();
   }
   return createPortal(
@@ -162,7 +176,10 @@ function EventEditor({ event, records, onSave, onClose }) {
           <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Location / link</span><input value={draft.location} onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
           <label className="ops-field"><span>Status</span><select value={draft.status} onChange={(e) => setDraft((value) => ({ ...value, status: e.target.value }))}><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
-          <label className="ops-field ops-field--wide"><span>Attendees</span><input value={attendeeText} placeholder="Separate names with commas" onChange={(e) => setAttendeeText(e.target.value)} /></label>
+          <div className="ops-attendee-picker ops-field--wide">
+            <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
+            {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
+          </div>
           <label className="ops-field ops-field--wide"><span>Notes</span><textarea value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
           <label className="ops-check ops-field--wide"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><b>Show on wallboard</b><small>Read-only display projection</small></span></label>
           <fieldset className="ops-event-links ops-field--wide"><legend>Linked watched records</legend>{records.length ? records.map((record) => <label key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><b>{record.id}</b>{record.title}</span></label>) : <p>Star records in Transactions to link them here.</p>}</fieldset>
@@ -204,7 +221,7 @@ function EventsView({ events, records, onAdd, onEdit, onDelete }) {
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.join(" · ") || "None assigned"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
 function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -312,7 +329,7 @@ function WallboardEventCard({ event, index, now }) {
       <time dateTime={event.startsAt}>{start.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</time>
       <h3>{event.title}</h3>
       <p><MapPin size={14} aria-hidden="true" /><span>{event.location || "Location not set"}</span></p>
-      {attendees.length ? <p className="ops-wall-event__attendees"><UsersRound size={14} aria-hidden="true" /><span>{attendees.join(" · ")}</span></p> : null}
+      {attendees.length ? <p className="ops-wall-event__attendees"><UsersRound size={14} aria-hidden="true" /><span>{attendees.map((attendee) => attendee.displayName).join(" · ")}</span></p> : null}
     </div>
     <footer><span><Link2 size={13} aria-hidden="true" /><b>{event.recordIds?.length || 0}</b> pursuits</span><span><Building2 size={13} aria-hidden="true" /><b>0</b> organizations</span><span><UsersRound size={13} aria-hidden="true" /><b>{attendees.length}</b> attendees</span></footer>
   </article>;

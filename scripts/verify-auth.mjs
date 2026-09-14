@@ -146,6 +146,17 @@ try {
   await page.getByText("Browser teammate reactivated.", { exact: true }).waitFor();
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
 
+  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-ops-events]");
+  await page.getByRole("button", { name: "Add event" }).click();
+  await page.waitForSelector("[data-ops-event-editor]");
+  const attendeePicker = page.getByRole("button", { name: /^Attendees\./ });
+  await attendeePicker.click();
+  await page.getByLabel("Search Attendees options").fill("Browser teammate");
+  await page.getByRole("option", { name: /Browser teammate/ }).getByRole("checkbox").check();
+  assert.match(await attendeePicker.getAttribute("aria-label"), /Attendees \(1\)/, "Event attendees should use the searchable workspace-user multiselect");
+  await page.getByRole("button", { name: "Close event editor" }).click();
+
   const teammateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const teammatePage = await teammateContext.newPage();
   await teammatePage.goto(BASE_URL, { waitUntil: "domcontentloaded" });

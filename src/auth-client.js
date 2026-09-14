@@ -66,6 +66,7 @@ export const authApi = {
   createAgentKey: (values) => request("/agent-keys", { method: "POST", body: JSON.stringify(values) }),
   revokeAgentKey: (id) => request(`/agent-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   listUsers: () => request("/users", { method: "GET", headers: {} }),
+  listDirectory: () => request("/directory", { method: "GET", headers: {} }),
   async createUser({ email, displayName, title, role, password }) {
     const passwordSalt = createPasswordSalt();
     const passwordProof = await derivePasswordProof(password, passwordSalt);

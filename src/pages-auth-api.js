@@ -118,6 +118,13 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (event_id, attendee_name)
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_attendees_event ON dbi_event_attendees (event_id)",
+  `CREATE TABLE IF NOT EXISTS dbi_event_user_attendees (
+    event_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (event_id, user_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_event_user_attendees_event ON dbi_event_user_attendees (event_id)",
   `CREATE TABLE IF NOT EXISTS dbi_schema_migrations (
     name TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL
@@ -165,6 +172,19 @@ const SCHEMA = Object.freeze([
     WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-wallboard-import')`,
   `INSERT OR IGNORE INTO dbi_schema_migrations (name, applied_at)
     VALUES ('2026-09-14-event-wallboard-import', '2026-09-14T19:00:00.000Z')`,
+  `INSERT OR IGNORE INTO dbi_event_user_attendees (event_id, user_id, created_at)
+    SELECT attendee.event_id, user.user_id, '2026-09-14T19:40:00.000Z'
+    FROM dbi_event_attendees attendee
+    JOIN dbi_users user ON user.role = 'super_user'
+    WHERE attendee.attendee_name = 'Adam Boas'
+      AND NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-user-attendees')`,
+  `INSERT OR IGNORE INTO dbi_event_user_attendees (event_id, user_id, created_at)
+    SELECT attendee.event_id, user.user_id, '2026-09-14T19:40:00.000Z'
+    FROM dbi_event_attendees attendee
+    JOIN dbi_users user ON LOWER(user.display_name) = LOWER(attendee.attendee_name)
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-event-user-attendees')`,
+  `INSERT OR IGNORE INTO dbi_schema_migrations (name, applied_at)
+    VALUES ('2026-09-14-event-user-attendees', '2026-09-14T19:40:00.000Z')`,
   `CREATE TABLE IF NOT EXISTS dbi_operator_activity (
     id TEXT PRIMARY KEY,
     actor_type TEXT NOT NULL,
@@ -692,6 +712,23 @@ async function usersResponse(request, db) {
   return json({ error: "Method not allowed" }, 405);
 }
 
+async function directoryResponse(request, db) {
+  if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+  const user = await sessionUser(db, request);
+  if (!user) return json({ error: "Sign in required" }, 401);
+  const result = await db.prepare(`
+    SELECT user_id, display_name, title
+    FROM dbi_users
+    WHERE status = 'active'
+    ORDER BY display_name COLLATE NOCASE
+  `).all();
+  return json({ users: (result.results || []).map((entry) => ({
+    id: entry.user_id,
+    displayName: entry.display_name,
+    title: entry.title || "",
+  })) });
+}
+
 function agentJson(data, status = 200, meta = {}, headers = {}) {
   return Response.json({ apiVersion: AGENT_API_VERSION, data, meta }, {
     status,
@@ -936,7 +973,7 @@ function eventFromRow(row, attendees = []) {
   return {
     id: row.id, title: row.title, startsAt: row.starts_at, endsAt: row.ends_at || "",
     location: row.location || "", notes: row.notes || "", status: row.status,
-    recordIds, attendees, wallboard: Boolean(row.wallboard), version: row.version,
+    recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), wallboard: Boolean(row.wallboard), version: row.version,
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -945,24 +982,38 @@ async function eventsFromRows(db, rows = []) {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const result = await db.prepare(`SELECT event_id, attendee_name FROM dbi_event_attendees WHERE event_id IN (${placeholders}) ORDER BY attendee_name`).bind(...ids).all();
+  const result = await db.prepare(`
+    SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status
+    FROM dbi_event_user_attendees attendee
+    JOIN dbi_users user ON user.user_id = attendee.user_id
+    WHERE attendee.event_id IN (${placeholders})
+    ORDER BY user.display_name COLLATE NOCASE
+  `).bind(...ids).all();
   const byEvent = new Map();
   for (const attendee of result.results || []) {
-    const names = byEvent.get(attendee.event_id) || [];
-    names.push(attendee.attendee_name);
-    byEvent.set(attendee.event_id, names);
+    const people = byEvent.get(attendee.event_id) || [];
+    people.push({ id: attendee.user_id, displayName: attendee.display_name, title: attendee.title || "", status: attendee.status });
+    byEvent.set(attendee.event_id, people);
   }
   return rows.map((row) => eventFromRow(row, byEvent.get(row.id) || []));
 }
 
-async function replaceEventAttendees(db, eventId, value) {
-  const attendees = cleanStringArray(value, 30, 120);
+async function activeEventAttendeeIds(db, value) {
+  const ids = cleanStringArray(value, 30, 80);
+  if (!ids.length) return { ids: [], valid: true };
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = await db.prepare(`SELECT user_id FROM dbi_users WHERE status = 'active' AND user_id IN (${placeholders})`).bind(...ids).all();
+  const active = new Set((result.results || []).map((row) => row.user_id));
+  return { ids: ids.filter((id) => active.has(id)), valid: active.size === ids.length };
+}
+
+async function replaceEventAttendees(db, eventId, attendeeIds) {
+  await db.prepare("DELETE FROM dbi_event_user_attendees WHERE event_id = ?").bind(eventId).run();
   await db.prepare("DELETE FROM dbi_event_attendees WHERE event_id = ?").bind(eventId).run();
   const createdAt = new Date().toISOString();
-  for (const attendee of attendees) {
-    await db.prepare("INSERT INTO dbi_event_attendees (event_id, attendee_name, created_at) VALUES (?, ?, ?)").bind(eventId, attendee, createdAt).run();
+  for (const userId of attendeeIds) {
+    await db.prepare("INSERT INTO dbi_event_user_attendees (event_id, user_id, created_at) VALUES (?, ?, ?)").bind(eventId, userId, createdAt).run();
   }
-  return attendees;
 }
 
 function trackingFromRow(row) {
@@ -1217,6 +1268,8 @@ async function eventsResponse(request, env, db, principal, segments) {
     const startsAt = cleanDate(body?.startsAt);
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
     const recordIds = cleanStringArray(body?.recordIds);
+    const attendeeSelection = await activeEventAttendeeIds(db, body?.attendeeIds);
+    if (!attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -1231,7 +1284,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     `).bind(id, title, startsAt, cleanDate(body?.endsAt), cleanText(body?.location, 500), cleanText(body?.notes, 4000),
       ["scheduled", "completed", "cancelled"].includes(body?.status) ? body.status : "scheduled",
       JSON.stringify(recordIds), body?.wallboard === false ? 0 : 1, now, now).run();
-    await replaceEventAttendees(db, id, body?.attendees);
+    await replaceEventAttendees(db, id, attendeeSelection.ids);
     const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
     return agentJson((await eventsFromRows(db, [row]))[0], 201);
@@ -1249,6 +1302,8 @@ async function eventsResponse(request, env, db, principal, segments) {
     const startsAt = cleanDate(next.startsAt);
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
     const recordIds = cleanStringArray(next.recordIds);
+    const attendeeSelection = Array.isArray(body?.attendeeIds) ? await activeEventAttendeeIds(db, body.attendeeIds) : null;
+    if (attendeeSelection && !attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -1261,12 +1316,13 @@ async function eventsResponse(request, env, db, principal, segments) {
     `).bind(title, startsAt, cleanDate(next.endsAt), cleanText(next.location, 500), cleanText(next.notes, 4000),
       ["scheduled", "completed", "cancelled"].includes(next.status) ? next.status : "scheduled",
       JSON.stringify(recordIds), next.wallboard === false ? 0 : 1, now, eventId).run();
-    if (Array.isArray(body?.attendees)) await replaceEventAttendees(db, eventId, body.attendees);
+    if (attendeeSelection) await replaceEventAttendees(db, eventId, attendeeSelection.ids);
     const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first();
     await recordActivity(db, principal, "event_updated", "event", eventId, { version: row.version });
     return agentJson((await eventsFromRows(db, [row]))[0]);
   }
   if (request.method === "DELETE") {
+    await db.prepare("DELETE FROM dbi_event_user_attendees WHERE event_id = ?").bind(eventId).run();
     await db.prepare("DELETE FROM dbi_event_attendees WHERE event_id = ?").bind(eventId).run();
     await db.prepare("DELETE FROM dbi_management_events WHERE id = ?").bind(eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
@@ -1350,6 +1406,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/logout") return logoutResponse(request, db, env);
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
+  if (pathname === "/api/v1/auth/directory") return directoryResponse(request, db);
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
   if (pathname === "/api/v1/auth/agent-keys" || pathname.startsWith("/api/v1/auth/agent-keys/")) return agentKeysResponse(request, db);
   if (pathname === "/api/v1/agent" || pathname.startsWith("/api/v1/agent/")) return agentApiResponse(request, env, db);

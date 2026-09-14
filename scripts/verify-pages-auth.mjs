@@ -179,6 +179,10 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.user.roleId, "super_user");
     assert.equal(body.user.canManageUsers, true);
 
+    response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
+    body = await response.json();
+    assert.deepEqual(body.users.map((user) => user.displayName), [winner.displayName], "The attendee directory should initially contain the active owner only");
+
     response = await apiRequest(baseUrl, "/api/v1/auth/users");
     assert.equal(response.status, 401, "Anonymous callers must not enumerate workspace users");
 
@@ -194,6 +198,10 @@ async function verifyApiLifecycle(persistPath) {
     const viewerId = body.user.id;
     assert.equal(body.user.role, "Viewer");
     assert.equal(body.user.mustChangePassword, true);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.users.length, 2, "The attendee directory should include newly created active users");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: ownerCookie });
     body = await response.json();
@@ -237,6 +245,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 403, "Viewer writes must be rejected server-side");
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: viewerCookie });
     assert.equal(response.status, 403, "Viewer must not enumerate or manage human accounts");
+    response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: viewerCookie });
+    assert.equal(response.status, 200, "Signed-in viewers may read the minimal active-user directory used by event filters");
 
     response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}`, {
       method: "PATCH",
@@ -256,6 +266,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200);
     response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: viewerCookie });
     assert.equal((await response.json()).user, null, "Suspension must revoke existing sessions immediately");
+    response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
+    assert.equal((await response.json()).users.some((user) => user.id === viewerId), false, "Suspended users must disappear from attendee choices");
     response = await apiRequest(baseUrl, "/api/v1/auth/login", {
       method: "POST",
       body: { email: viewer.email, passwordProof: viewerPasswordProof },

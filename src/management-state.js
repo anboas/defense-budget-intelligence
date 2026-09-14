@@ -51,6 +51,11 @@ function normalizeEvent(entry = {}) {
   const title = cleanText(entry.title, 180);
   const startsAt = cleanDate(entry.startsAt);
   if (!title || !startsAt) return null;
+  const attendees = (Array.isArray(entry.attendees) ? entry.attendees : []).map((attendee) => {
+    if (typeof attendee === "string") return { id: "", displayName: cleanText(attendee, 120), title: "", status: "legacy" };
+    return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active" };
+  }).filter((attendee) => attendee.displayName);
+  const attendeeIds = [...new Set((Array.isArray(entry.attendeeIds) ? entry.attendeeIds : attendees.map((attendee) => attendee.id)).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 30);
   return {
     id,
     title,
@@ -60,7 +65,8 @@ function normalizeEvent(entry = {}) {
     notes: cleanText(entry.notes, 1200),
     status: ["scheduled", "completed", "cancelled"].includes(entry.status) ? entry.status : "scheduled",
     recordIds: [...new Set((Array.isArray(entry.recordIds) ? entry.recordIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 50),
-    attendees: [...new Set((Array.isArray(entry.attendees) ? entry.attendees : []).map((value) => cleanText(value, 120)).filter(Boolean))].slice(0, 30),
+    attendees: attendees.slice(0, 30),
+    attendeeIds,
     wallboard: entry.wallboard !== false,
     version: Number.isFinite(Number(entry.version)) ? Number(entry.version) : 0,
     createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),

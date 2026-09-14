@@ -12009,6 +12009,9 @@ td .dot {
 .ops-field select,
 .ops-field textarea { width: 100%; min-height: 34px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; color: var(--text); }
 .ops-field textarea { min-height: 80px; resize: vertical; }
+.ops-attendee-picker { display: grid; gap: 4px; }
+.ops-attendee-picker > .capture-filter { width: 100%; }
+.ops-attendee-picker > small { color: var(--muted); font-size: 9px; font-weight: 600; }
 .ops-check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 10px; }
 .ops-check span { display: grid; }
 .ops-check small { color: var(--muted); font-size: 9px; font-weight: 500; }
@@ -12242,9 +12245,12 @@ td .dot {
   padding: clamp(10px, .8vw, 18px);
   background: #edf3f7;
 }
+.ops-wallboard__event-grid:has(> .ops-wall-event:nth-child(5):last-child) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.ops-wallboard__event-grid:has(> .ops-wall-event:nth-child(5):last-child) > .ops-wall-event { grid-column: span 2; }
+.ops-wallboard__event-grid:has(> .ops-wall-event:nth-child(5):last-child) > .ops-wall-event:nth-child(n + 4) { grid-column: span 3; }
 .ops-wall-event {
   display: grid;
-  grid-template-columns: clamp(82px, 6.4vw, 122px) minmax(0, 1fr);
+  grid-template-columns: clamp(82px, 6.4vw, 210px) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
@@ -12267,7 +12273,7 @@ td .dot {
   border-bottom: 1px solid #c8d7e3;
   background: #eaf1f6;
   color: #506579;
-  font-size: clamp(9px, .48vw, 13px);
+  font-size: clamp(10px, calc(7px + .5vw), 24px);
   font-weight: 900;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -12287,41 +12293,42 @@ td .dot {
 .ops-wall-event__countdown strong {
   color: #102a43;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: clamp(28px, 2.55vw, 52px);
+  font-size: clamp(42px, calc(24px + 2.2vw), 108px);
   font-variant-numeric: tabular-nums;
   line-height: .92;
 }
 .ops-wall-event--live .ops-wall-event__countdown strong { color: #146c43; }
+.ops-wall-event--live .ops-wall-event__countdown strong { font-size: clamp(36px, calc(20px + 1.45vw), 78px); }
 .ops-wall-event--urgent .ops-wall-event__countdown strong { color: #a63d22; }
 .ops-wall-event--watch .ops-wall-event__countdown strong { color: #9a5d08; }
 .ops-wall-event__countdown span {
   margin-top: 8px;
   color: #5a6f81;
-  font-size: clamp(8px, .43vw, 11px);
+  font-size: clamp(9px, calc(6px + .43vw), 22px);
   font-weight: 900;
   letter-spacing: .04em;
   text-transform: uppercase;
 }
 .ops-wall-event__body {
-  display: flex;
+  display: grid;
   min-width: 0;
-  flex-direction: column;
-  justify-content: center;
+  align-content: center;
+  gap: clamp(7px, .9vh, 24px);
   padding: clamp(11px, .8vw, 18px);
 }
 .ops-wall-event__body time {
   color: #075b96;
-  font-size: clamp(9px, .48vw, 13px);
+  font-size: clamp(11px, calc(7px + .6vw), 30px);
   font-weight: 900;
   text-transform: uppercase;
 }
 .ops-wall-event__body h3 {
   display: -webkit-box;
   overflow: hidden;
-  margin: clamp(5px, .38vw, 8px) 0 clamp(7px, .5vw, 11px);
+  margin: 0;
   color: #102a43;
-  font-size: clamp(14px, 1vw, 21px);
-  line-height: 1.15;
+  font-size: clamp(18px, calc(10px + 1.22vw), 64px);
+  line-height: 1.1;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -12332,13 +12339,13 @@ td .dot {
   gap: 5px;
   margin: 0;
   color: #52687b;
-  font-size: clamp(9px, .52vw, 13px);
+  font-size: clamp(11px, calc(6px + .56vw), 30px);
   font-weight: 650;
   line-height: 1.3;
 }
 .ops-wall-event__body p svg { flex: 0 0 auto; margin-top: 1px; color: #55778f; }
 .ops-wall-event__body p span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.ops-wall-event__body .ops-wall-event__attendees { margin-top: 8px; color: #244d6d; font-weight: 800; }
+.ops-wall-event__body .ops-wall-event__attendees { color: #244d6d; font-weight: 800; }
 .ops-wall-event footer {
   display: flex;
   grid-column: 1 / -1;
@@ -12349,7 +12356,7 @@ td .dot {
   border-top: 1px solid #c8d7e3;
   background: #eaf1f6;
   color: #506579;
-  font-size: clamp(8px, .43vw, 11px);
+  font-size: clamp(9px, calc(6px + .44vw), 24px);
   font-weight: 800;
 }
 .ops-wall-event footer span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; white-space: nowrap; }
@@ -12371,7 +12378,10 @@ td .dot {
   .ops-wallboard__split { grid-template-columns: 1fr; }
   .ops-wallboard__section--records .ops-wallboard__cards,
   .ops-wallboard > .ops-wallboard__section .ops-wallboard__cards { grid-template-columns: 1fr; }
-  .ops-wallboard__event-grid { grid-template-columns: 1fr; grid-template-rows: none; }
+  .ops-wallboard__event-grid,
+  .ops-wallboard__event-grid:has(> .ops-wall-event:nth-child(5):last-child) { grid-template-columns: 1fr; grid-template-rows: none; }
+  .ops-wallboard__event-grid:has(> .ops-wall-event:nth-child(5):last-child) > .ops-wall-event,
+  .ops-wallboard__event-grid:has(> .ops-wall-event:nth-child(5):last-child) > .ops-wall-event:nth-child(n + 4) { grid-column: auto; }
   .ops-wallboard__section--records .ops-wallboard__record:nth-child(odd),
   .ops-wallboard > .ops-wallboard__section .ops-wallboard__record:nth-child(3n + 1),
   .ops-wallboard > .ops-wallboard__section .ops-wallboard__record:nth-child(3n + 2) { border-right: 0; }

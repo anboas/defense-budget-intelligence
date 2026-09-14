@@ -125,6 +125,7 @@ export default function AuthProvider({ children }) {
     createAgentKey: (values) => authApi.createAgentKey(values),
     revokeAgentKey: (id) => authApi.revokeAgentKey(id),
     listUsers: () => authApi.listUsers(),
+    listDirectory: () => authApi.listDirectory(),
     createUser: (values) => authApi.createUser(values),
     updateUser: (id, values) => authApi.updateUser(id, values),
     resetUserPassword: (id, password) => authApi.resetUserPassword(id, password),

@@ -188,7 +188,7 @@ function label(value) {
   return LABELS[value] || value?.replaceAll("-", " ") || "Not published";
 }
 
-export function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null }) {
+export function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null, portalTarget = null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menuGeometry, setMenuGeometry] = useState(null);
@@ -258,7 +258,7 @@ export function SearchMultiSelect({ className = "", title, allLabel, value, opti
         }) : <p>No matching options</p>}
       </div>
     </div>,
-    document.body,
+    portalTarget?.current || document.body,
   ) : null;
 
   return <div ref={rootRef} className={`capture-filter capture-multiselect ${className}`.trim()}><span>{title}</span><button type="button" className="capture-multiselect__trigger" aria-label={`${title}. ${buttonLabel}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)} title={selected.length ? selected.join(", ") : allLabel}><span>{buttonLabel}</span><ChevronDown size={14} aria-hidden="true" /></button>{menu}</div>;

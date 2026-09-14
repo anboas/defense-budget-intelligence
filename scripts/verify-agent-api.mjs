@@ -101,6 +101,7 @@ try {
   };
   result = await body(await request(instance.baseUrl, "/api/v1/auth/claim", { method: "POST", body: owner }));
   assert.equal(result.response.status, 201);
+  const ownerId = result.payload.user.id;
   let ownerCookie = cookieFrom(result.response);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tracking/not-a-record", {
@@ -137,7 +138,7 @@ try {
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.meta.total, 5, "The shared event migration should import exactly the five approved wallboard events");
   assert.equal(result.payload.data.some((event) => /AFRL Classified Industry Day/i.test(event.title)), false, "The excluded AFRL event must not enter the shared database");
-  assert.deepEqual(result.payload.data.find((event) => event.id === "event-air-space-cyber-conference-2026")?.attendees.sort(), ["Adam Boas", "Jon VandeMark"], "Imported attendee assignments should remain first-class event data");
+  assert.deepEqual(result.payload.data.find((event) => event.id === "event-air-space-cyber-conference-2026")?.attendees, [], "Imported free-text names must not masquerade as workspace-user attendees");
   assert.ok(result.payload.data.some((event) => event.id === "event-weapon-systems-software-summit-2026"), "The Weapon Systems Software Summit should be imported");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/records?limit=5&sort=potentialAmount&direction=desc", { token: agentToken }));
@@ -201,12 +202,14 @@ try {
   assert.equal(result.response.status, 200);
 
   const eventKey = crypto.randomUUID();
-  const eventInput = { title: "Agent coordination review", startsAt: "2026-11-20T14:00", status: "scheduled", recordIds: [factualRecordId], wallboard: true };
+  const eventInput = { title: "Agent coordination review", startsAt: "2026-11-20T14:00", status: "scheduled", recordIds: [factualRecordId], attendeeIds: [ownerId], wallboard: true };
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
     method: "POST", token: agentToken, headers: { "idempotency-key": eventKey }, body: eventInput,
   }));
   assert.equal(result.response.status, 201);
   const event = result.payload.data;
+  assert.deepEqual(event.attendeeIds, [ownerId], "Event attendees must persist as stable workspace-user IDs");
+  assert.equal(event.attendees[0].displayName, owner.displayName, "Event reads should resolve the current workspace-user display name");
   result = await body(await request(instance.baseUrl, `/api/v1/agent/events/${event.id}`, {
     method: "PATCH", token: agentToken, headers: { "if-match": String(event.version) }, body: { notes: "Validated through the Agent API" },
   }));
