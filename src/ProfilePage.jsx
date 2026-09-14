@@ -25,15 +25,35 @@ function AccountPanel({ auth, user }) {
     finally { setBusy(false); }
   }
 
-  return <section className="profile-page__panel" data-profile-account aria-labelledby="profile-account-title">
-    <header><span>Account identity</span><h2 id="profile-account-title">Profile</h2><p>This identity appears in the application header and shared workspace activity.</p></header>
-    <form className="profile-page__form" onSubmit={save}>
-      <label>Display name<input required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-      <label>Title <span>(optional)</span><input autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} /></label>
-      <label>Email<input value={user.email} disabled /></label>
-      <label>Role<input value={user.role} disabled /></label>
-      {message ? <p className="account-form__message" role="status">{message}</p> : null}
-      <button type="submit" disabled={busy}><Save size={16} />{busy ? "Saving…" : "Save profile"}</button>
+  return <section className="if-panel profile-page__panel" data-profile-account aria-labelledby="profile-account-title">
+    <header className="if-panel__header profile-page__panel-header">
+      <div>
+        <h2 className="if-panel__title" id="profile-account-title">Identity</h2>
+        <p className="if-panel__subtitle">Used in the header and shared workspace activity.</p>
+      </div>
+    </header>
+    <form className="profile-page__form account-settings-form" onSubmit={save}>
+      <div className="if-panel__body profile-page__panel-body">
+        <div className="if-form-grid profile-page__form-grid">
+          <label className="if-field">
+            <span className="if-field__label">Display name</span>
+            <input className="if-input" required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </label>
+          <label className="if-field">
+            <span className="if-field__label">Title <span className="if-field__hint">Optional</span></span>
+            <input className="if-input" autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          </label>
+        </div>
+        <div className="if-form-section-label">Account</div>
+        <dl className="if-meta-grid if-meta-grid--dense profile-page__account-meta" data-profile-account-meta>
+          <div className="if-kv"><dt>Email</dt><dd>{user.email}</dd></div>
+          <div className="if-kv"><dt>Role</dt><dd>{user.role}</dd></div>
+        </dl>
+        {message ? <p className="account-form__message" role="status">{message}</p> : null}
+      </div>
+      <footer className="if-panel__footer profile-page__panel-footer">
+        <button className="if-btn if-btn--primary if-btn--sm" type="submit" disabled={busy}><Save size={15} />{busy ? "Saving…" : "Save profile"}</button>
+      </footer>
     </form>
   </section>;
 }
@@ -60,14 +80,34 @@ function SecurityPanel({ auth, user }) {
     finally { setBusy(false); }
   }
 
-  return <section className="profile-page__panel" data-profile-security aria-labelledby="profile-security-title">
-    <header><span>Account security</span><h2 id="profile-security-title">Security</h2><p>Changing the password immediately revokes every other active session.</p></header>
-    <form className="profile-page__form" onSubmit={save}>
-      <label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
-      <label>New password<input required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
-      <label>Confirm new password<input required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>
-      {message ? <p className="account-form__message" role="status">{message}</p> : null}
-      <button type="submit" disabled={busy}><KeyRound size={16} />{busy ? "Updating…" : "Update password"}</button>
+  return <section className="if-panel profile-page__panel" data-profile-security aria-labelledby="profile-security-title">
+    <header className="if-panel__header profile-page__panel-header">
+      <div>
+        <h2 className="if-panel__title" id="profile-security-title">Password</h2>
+        <p className="if-panel__subtitle">Changing it revokes every other active session.</p>
+      </div>
+    </header>
+    <form className="profile-page__form account-settings-form" onSubmit={save}>
+      <div className="if-panel__body profile-page__panel-body">
+        <div className="if-form-grid profile-page__form-grid profile-page__form-grid--security">
+          <label className="if-field if-field--full">
+            <span className="if-field__label">Current password</span>
+            <input className="if-input" required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+          </label>
+          <label className="if-field">
+            <span className="if-field__label">New password</span>
+            <input className="if-input" required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+          </label>
+          <label className="if-field">
+            <span className="if-field__label">Confirm new password</span>
+            <input className="if-input" required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
+          </label>
+        </div>
+        {message ? <p className="account-form__message" role="status">{message}</p> : null}
+      </div>
+      <footer className="if-panel__footer profile-page__panel-footer">
+        <button className="if-btn if-btn--primary if-btn--sm" type="submit" disabled={busy}><KeyRound size={15} />{busy ? "Updating…" : "Update password"}</button>
+      </footer>
     </form>
   </section>;
 }
@@ -137,16 +177,24 @@ export default function ProfilePage({ section = "profile" }) {
   const user = auth?.user;
   if (!auth || auth.staticHost || !auth.enabled || !user) return <section className="profile-page profile-page--unavailable" data-profile-page><ShieldCheck size={28} /><h2>Account service unavailable</h2><p>Profile and agent administration are available on the authenticated Cloudflare application.</p></section>;
 
-  return <div className="profile-page" data-profile-page data-profile-section={section}>
-    <section className="profile-page__hero">
-      <span className="profile-avatar profile-avatar--page" aria-hidden="true">{initials(user.displayName)}</span>
-      <div><span>Workspace account</span><h2>{user.displayName}</h2><p>{user.title || "No title set"} · {user.role}</p></div>
-    </section>
-    <div className="profile-page__layout">
-      <nav className="profile-page__nav" aria-label="Profile sections">
-        <a href="#/profile" className={section === "profile" ? "is-active" : ""} aria-current={section === "profile" ? "page" : undefined}><UserRound size={16} />Profile</a>
-        <a href="#/profile/security" className={section === "security" ? "is-active" : ""} aria-current={section === "security" ? "page" : undefined}><KeyRound size={16} />Security</a>
-      </nav>
+  return <div className="profile-page" data-profile-page data-profile-section={section} data-density="compact">
+    <header className="profile-page__header">
+      <div className="profile-page__heading">
+        <span className="profile-page__eyebrow">Account settings</span>
+        <h2>{section === "security" ? "Security" : "Profile"}</h2>
+        <p>{section === "security" ? "Manage the password for this workspace account." : "Manage the identity shown across the workspace."}</p>
+      </div>
+      <div className="profile-page__identity" aria-label="Current account">
+        <span className="profile-avatar profile-avatar--page" aria-hidden="true">{initials(user.displayName)}</span>
+        <span className="profile-page__identity-copy"><strong>{user.displayName}</strong><small>{user.email}</small></span>
+        <span className="if-badge if-badge--info if-badge--sm">{user.role}</span>
+      </div>
+    </header>
+    <nav className="if-tabs__list profile-page__nav" aria-label="Profile sections">
+      <a role="tab" href="#/profile" className={`if-tab${section === "profile" ? " is-active" : ""}`} aria-selected={section === "profile"} aria-current={section === "profile" ? "page" : undefined}><UserRound size={14} />Profile</a>
+      <a role="tab" href="#/profile/security" className={`if-tab${section === "security" ? " is-active" : ""}`} aria-selected={section === "security"} aria-current={section === "security" ? "page" : undefined}><KeyRound size={14} />Security</a>
+    </nav>
+    <div className="profile-page__content">
       {section === "security" ? <SecurityPanel auth={auth} user={user} /> : <AccountPanel auth={auth} user={user} />}
     </div>
   </div>;

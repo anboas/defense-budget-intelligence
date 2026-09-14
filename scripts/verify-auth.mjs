@@ -74,6 +74,37 @@ try {
   assert.match(new URL(page.url()).hash, /^#\/profile$/, "Profile menu should navigate to the canonical profile route");
   assert.equal(await page.locator(".profile-page__nav a").count(), 2, "Profile workspace should contain only identity and security");
   assert.equal(await page.locator('.profile-page__nav a:has-text("Agent access"), .profile-page__nav a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into the account settings rail");
+  assert.equal(await page.locator('[data-profile-account] input:disabled').count(), 0, "Immutable account metadata should use compact key/value rows instead of oversized disabled inputs");
+  assert.equal(await page.locator('[data-profile-account-meta] .if-kv').count(), 2, "Profile should expose email and role through the framework metadata primitive");
+  const desktopProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
+    const panel = node.querySelector(".profile-page__panel");
+    const pageHeader = node.querySelector(".profile-page__header");
+    const heading = node.querySelector(".profile-page__heading h2");
+    const panelTitle = node.querySelector(".profile-page__panel .if-panel__title");
+    const input = node.querySelector(".profile-page__panel .if-input");
+    const content = node.querySelector(".profile-page__content");
+    const panelStyle = getComputedStyle(panel);
+    return {
+      pageHeaderHeight: pageHeader.getBoundingClientRect().height,
+      pageHeaderBackground: getComputedStyle(pageHeader).backgroundImage,
+      headingSize: parseFloat(getComputedStyle(heading).fontSize),
+      panelRadius: parseFloat(panelStyle.borderRadius),
+      panelShadow: panelStyle.boxShadow,
+      panelTitleSize: parseFloat(getComputedStyle(panelTitle).fontSize),
+      inputHeight: input.getBoundingClientRect().height,
+      contentWidth: content.getBoundingClientRect().width,
+      panelBottom: panel.getBoundingClientRect().bottom,
+    };
+  });
+  assert.equal(desktopProfileGeometry.pageHeaderBackground, "none", "Profile header should be flat, never a decorative gradient hero");
+  assert.ok(desktopProfileGeometry.pageHeaderHeight <= 64, `Profile header should stay operationally compact, got ${desktopProfileGeometry.pageHeaderHeight}px`);
+  assert.ok(desktopProfileGeometry.headingSize <= 20, `Profile route heading should use framework scale, got ${desktopProfileGeometry.headingSize}px`);
+  assert.ok(desktopProfileGeometry.panelRadius <= 4, `Profile panel should use the framework's restrained radius, got ${desktopProfileGeometry.panelRadius}px`);
+  assert.equal(desktopProfileGeometry.panelShadow, "none", "Profile panel should remain flat rather than float like a marketing card");
+  assert.ok(desktopProfileGeometry.panelTitleSize <= 15, `Profile panel title should remain compact, got ${desktopProfileGeometry.panelTitleSize}px`);
+  assert.ok(desktopProfileGeometry.inputHeight >= 29.5 && desktopProfileGeometry.inputHeight <= 34.5, `Desktop profile inputs should use compact framework controls, got ${desktopProfileGeometry.inputHeight}px`);
+  assert.ok(desktopProfileGeometry.contentWidth <= 761, `Profile form should preserve a readable utility width, got ${desktopProfileGeometry.contentWidth}px`);
+  assert.ok(desktopProfileGeometry.panelBottom <= 540, `Profile's primary task should fit high in a 1000px viewport, ending at ${desktopProfileGeometry.panelBottom}px`);
   await page.screenshot({ path: "test-results/profile-page-desktop.png", fullPage: true });
   await page.getByLabel("Display name").fill(finalName);
   await page.getByRole("button", { name: "Save profile" }).click();
@@ -193,6 +224,23 @@ try {
   assert.ok(profileOverflow <= 2, `Mobile profile page should not overflow, got ${profileOverflow}px`);
   const profileNavHeights = await page.locator(".profile-page__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(profileNavHeights.every((height) => height >= 43.5), `Mobile profile navigation should keep 44px touch targets: ${profileNavHeights.join(", ")}`);
+  const mobileProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
+    const panel = node.querySelector(".profile-page__panel");
+    const inputs = [...node.querySelectorAll(".profile-page__panel .if-input")];
+    const buttons = [...node.querySelectorAll(".profile-page__panel .if-btn")];
+    return {
+      panelHeight: panel.getBoundingClientRect().height,
+      panelRadius: parseFloat(getComputedStyle(panel).borderRadius),
+      identityCopyDisplay: getComputedStyle(node.querySelector(".profile-page__identity-copy")).display,
+      inputHeights: inputs.map((input) => input.getBoundingClientRect().height),
+      buttonHeights: buttons.map((button) => button.getBoundingClientRect().height),
+    };
+  });
+  assert.ok(mobileProfileGeometry.panelHeight <= 440, `Mobile Profile should remain a compact settings task, got ${mobileProfileGeometry.panelHeight}px`);
+  assert.ok(mobileProfileGeometry.panelRadius <= 4, `Mobile Profile should retain the framework radius, got ${mobileProfileGeometry.panelRadius}px`);
+  assert.equal(mobileProfileGeometry.identityCopyDisplay, "none", "Mobile Profile should avoid duplicating full account metadata in the route header");
+  assert.ok(mobileProfileGeometry.inputHeights.every((height) => height >= 43.5), `Mobile Profile inputs must retain 44px touch geometry: ${mobileProfileGeometry.inputHeights.join(", ")}`);
+  assert.ok(mobileProfileGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Profile actions must retain 44px touch geometry: ${mobileProfileGeometry.buttonHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
 
   console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, routed profile/security pages, persistent in-place Admin/Agent/API workspace, one-time agent credential lifecycle, shared D1 admin state, password rotation, logout/login, and mobile profile UI");
