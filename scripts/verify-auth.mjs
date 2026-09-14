@@ -204,6 +204,11 @@ try {
   await page.getByLabel("Search Attendees options").fill("Browser teammate");
   await page.getByRole("option", { name: /Browser teammate/ }).getByRole("checkbox").check();
   assert.match(await attendeePicker.getAttribute("aria-label"), /Attendees \(1\)/, "Event attendees should use the searchable workspace-user multiselect");
+  await page.getByRole("button", { name: "Add deadline or milestone" }).click();
+  await page.getByLabel("Milestone 1 type").selectOption("refund_deadline");
+  await page.getByLabel("Milestone 1 date").fill("2026-10-01");
+  await page.getByLabel("Milestone 1 label").fill("Last day for refunds");
+  assert.equal(await page.locator(".ops-event-milestone-row").count(), 1, "Event editor should support typed, optional deadline overlays");
   await page.getByRole("button", { name: "Close event editor" }).click();
 
   const teammateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });

@@ -59,7 +59,7 @@ The analytical query resource returns bounded aggregates over the same factual/m
 - `PATCH /api/v1/agent/events/{eventId}`
 - `DELETE /api/v1/agent/events/{eventId}`
 
-Events support status, start/end time, location or link, notes, associated record IDs, wallboard visibility, timestamps, and a version.
+Events support status, start/end time, location or link, notes, associated record IDs, active workspace-user attendees, wallboard visibility, timestamps, and a version. The optional `milestones` array accepts up to 24 typed, date-backed overlays using `registration_deadline`, `refund_deadline`, `hotel_deadline`, `exhibitor_deadline`, `submission_deadline`, or `other`. Each item has a unique `id`, `occursAt`, optional `label` and `notes`; `other` requires a label. Undated milestones are rejected rather than inferred.
 
 ### Activity and integrations
 

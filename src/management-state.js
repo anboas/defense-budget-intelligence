@@ -9,6 +9,15 @@ export const MANAGEMENT_STATE_EVENT = "dbi:management-state-changed";
 const WATCHLIST_LIMIT = 250;
 const EVENT_LIMIT = 200;
 const ACTIVITY_LIMIT = 500;
+const EVENT_MILESTONE_LIMIT = 24;
+const EVENT_MILESTONE_TYPES = new Set([
+  "registration_deadline",
+  "refund_deadline",
+  "hotel_deadline",
+  "exhibitor_deadline",
+  "submission_deadline",
+  "other",
+]);
 
 function cleanText(value, limit = 500) {
   return Array.from(String(value ?? ""), (character) => {
@@ -56,6 +65,22 @@ function normalizeEvent(entry = {}) {
     return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active" };
   }).filter((attendee) => attendee.displayName);
   const attendeeIds = [...new Set((Array.isArray(entry.attendeeIds) ? entry.attendeeIds : attendees.map((attendee) => attendee.id)).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 30);
+  const milestoneIds = new Set();
+  const milestones = (Array.isArray(entry.milestones) ? entry.milestones : []).map((milestone, index) => {
+    const occursAt = cleanDate(milestone?.occursAt || milestone?.date);
+    const type = EVENT_MILESTONE_TYPES.has(milestone?.type) ? milestone.type : "other";
+    const id = cleanText(milestone?.id, 100) || `milestone-${Date.now()}-${index}`;
+    const label = cleanText(milestone?.label, 120);
+    if (!occursAt || milestoneIds.has(id) || (type === "other" && !label)) return null;
+    milestoneIds.add(id);
+    return {
+      id,
+      type,
+      label,
+      occursAt,
+      notes: cleanText(milestone?.notes, 500),
+    };
+  }).filter(Boolean).slice(0, EVENT_MILESTONE_LIMIT);
   return {
     id,
     title,
@@ -67,6 +92,7 @@ function normalizeEvent(entry = {}) {
     recordIds: [...new Set((Array.isArray(entry.recordIds) ? entry.recordIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 50),
     attendees: attendees.slice(0, 30),
     attendeeIds,
+    milestones,
     wallboard: entry.wallboard !== false,
     version: Number.isFinite(Number(entry.version)) ? Number(entry.version) : 0,
     createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),

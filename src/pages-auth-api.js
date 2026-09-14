@@ -312,6 +312,19 @@ const SCHEMA = Object.freeze([
     created_at TEXT NOT NULL,
     PRIMARY KEY (workspace_id, event_id, user_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_milestones (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    milestone_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    occurs_at TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id, milestone_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_event_milestones_date ON dbi_workspace_event_milestones (workspace_id, occurs_at)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_activity (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -1475,13 +1488,13 @@ function recordProjection(record) {
   };
 }
 
-function eventFromRow(row, attendees = []) {
+function eventFromRow(row, attendees = [], milestones = []) {
   let recordIds = [];
   try { recordIds = JSON.parse(row.record_ids_json || "[]"); } catch { /* empty */ }
   return {
     id: row.id, title: row.title, startsAt: row.starts_at, endsAt: row.ends_at || "",
     location: row.location || "", notes: row.notes || "", status: row.status,
-    recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), wallboard: Boolean(row.wallboard), version: row.version,
+    recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), milestones, wallboard: Boolean(row.wallboard), version: row.version,
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -1490,7 +1503,7 @@ async function eventsFromRows(db, workspaceId, rows = []) {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const result = await db.prepare(`
+  const attendeeResult = await db.prepare(`
     SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status, profile.avatar_data_url
     FROM dbi_workspace_event_attendees attendee
     JOIN dbi_users user ON user.user_id = attendee.user_id
@@ -1498,13 +1511,44 @@ async function eventsFromRows(db, workspaceId, rows = []) {
     WHERE attendee.workspace_id = ? AND attendee.event_id IN (${placeholders})
     ORDER BY user.display_name COLLATE NOCASE
   `).bind(workspaceId, ...ids).all();
-  const byEvent = new Map();
-  for (const attendee of result.results || []) {
-    const people = byEvent.get(attendee.event_id) || [];
+  const milestoneResult = await db.prepare(`
+    SELECT event_id, milestone_id, type, label, occurs_at, notes
+    FROM dbi_workspace_event_milestones
+    WHERE workspace_id = ? AND event_id IN (${placeholders})
+    ORDER BY occurs_at, milestone_id
+  `).bind(workspaceId, ...ids).all();
+  const attendeesByEvent = new Map();
+  for (const attendee of attendeeResult.results || []) {
+    const people = attendeesByEvent.get(attendee.event_id) || [];
     people.push({ id: attendee.user_id, displayName: attendee.display_name, title: attendee.title || "", status: attendee.status, avatarDataUrl: attendee.avatar_data_url || "" });
-    byEvent.set(attendee.event_id, people);
+    attendeesByEvent.set(attendee.event_id, people);
   }
-  return rows.map((row) => eventFromRow(row, byEvent.get(row.id) || []));
+  const milestonesByEvent = new Map();
+  for (const milestone of milestoneResult.results || []) {
+    const items = milestonesByEvent.get(milestone.event_id) || [];
+    items.push({ id: milestone.milestone_id, type: milestone.type, label: milestone.label || "", occursAt: milestone.occurs_at, notes: milestone.notes || "" });
+    milestonesByEvent.set(milestone.event_id, items);
+  }
+  return rows.map((row) => eventFromRow(row, attendeesByEvent.get(row.id) || [], milestonesByEvent.get(row.id) || []));
+}
+
+const EVENT_MILESTONE_TYPES = new Set(["registration_deadline", "refund_deadline", "hotel_deadline", "exhibitor_deadline", "submission_deadline", "other"]);
+
+function cleanEventMilestones(value) {
+  if (!Array.isArray(value)) return { milestones: [], valid: false };
+  const ids = new Set();
+  const milestones = [];
+  for (const [index, candidate] of value.slice(0, 24).entries()) {
+    const id = cleanText(candidate?.id, 100) || `milestone-${index + 1}`;
+    const type = EVENT_MILESTONE_TYPES.has(candidate?.type) ? candidate.type : "other";
+    const label = cleanText(candidate?.label, 120);
+    const occursAt = cleanDate(candidate?.occursAt || candidate?.date);
+    const notes = cleanText(candidate?.notes, 500);
+    if (!occursAt || ids.has(id) || (type === "other" && !label)) return { milestones: [], valid: false };
+    ids.add(id);
+    milestones.push({ id, type, label, occursAt, notes });
+  }
+  return { milestones, valid: value.length <= 24 };
 }
 
 async function activeEventAttendeeIds(db, workspaceId, value) {
@@ -1525,6 +1569,17 @@ async function replaceEventAttendees(db, workspaceId, eventId, attendeeIds) {
   const createdAt = new Date().toISOString();
   for (const userId of attendeeIds) {
     await db.prepare("INSERT INTO dbi_workspace_event_attendees (workspace_id, event_id, user_id, created_at) VALUES (?, ?, ?, ?)").bind(workspaceId, eventId, userId, createdAt).run();
+  }
+}
+
+async function replaceEventMilestones(db, workspaceId, eventId, milestones) {
+  await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
+  const now = new Date().toISOString();
+  for (const milestone of milestones) {
+    await db.prepare(`INSERT INTO dbi_workspace_event_milestones
+      (workspace_id, event_id, milestone_id, type, label, occurs_at, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(workspaceId, eventId, milestone.id, milestone.type, milestone.label, milestone.occursAt, milestone.notes, now, now).run();
   }
 }
 
@@ -1782,7 +1837,9 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
     const recordIds = cleanStringArray(body?.recordIds);
     const attendeeSelection = await activeEventAttendeeIds(db, principal.workspaceId, body?.attendeeIds);
+    const milestoneSelection = cleanEventMilestones(body?.milestones || []);
     if (!attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
+    if (!milestoneSelection.valid) return agentError("invalid_event_milestones", "Milestones require a unique ID, supported type, and valid date; custom milestones also require a label", 400);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -1798,6 +1855,7 @@ async function eventsResponse(request, env, db, principal, segments) {
       ["scheduled", "completed", "cancelled"].includes(body?.status) ? body.status : "scheduled",
       JSON.stringify(recordIds), body?.wallboard === false ? 0 : 1, now, now).run();
     await replaceEventAttendees(db, principal.workspaceId, id, attendeeSelection.ids);
+    await replaceEventMilestones(db, principal.workspaceId, id, milestoneSelection.milestones);
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0], 201);
@@ -1816,7 +1874,9 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
     const recordIds = cleanStringArray(next.recordIds);
     const attendeeSelection = Array.isArray(body?.attendeeIds) ? await activeEventAttendeeIds(db, principal.workspaceId, body.attendeeIds) : null;
+    const milestoneSelection = Array.isArray(body?.milestones) ? cleanEventMilestones(body.milestones) : null;
     if (attendeeSelection && !attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
+    if (milestoneSelection && !milestoneSelection.valid) return agentError("invalid_event_milestones", "Milestones require a unique ID, supported type, and valid date; custom milestones also require a label", 400);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -1830,12 +1890,14 @@ async function eventsResponse(request, env, db, principal, segments) {
       ["scheduled", "completed", "cancelled"].includes(next.status) ? next.status : "scheduled",
       JSON.stringify(recordIds), next.wallboard === false ? 0 : 1, now, eventId, principal.workspaceId).run();
     if (attendeeSelection) await replaceEventAttendees(db, principal.workspaceId, eventId, attendeeSelection.ids);
+    if (milestoneSelection) await replaceEventMilestones(db, principal.workspaceId, eventId, milestoneSelection.milestones);
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first();
     await recordActivity(db, principal, "event_updated", "event", eventId, { version: row.version });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]);
   }
   if (request.method === "DELETE") {
     await db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
+    await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
     return new Response(null, { status: 204 });

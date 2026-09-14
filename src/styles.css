@@ -12088,6 +12088,34 @@ td .dot {
 .ops-event-links label { display: flex; align-items: flex-start; gap: 6px; padding: 5px; color: var(--muted); font-size: 9px; }
 .ops-event-links label span { display: grid; }
 .ops-event-links label b { color: var(--brand); }
+.ops-event-milestones {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+.ops-event-milestones legend { color: var(--brand-dark); font-size: 10px; font-weight: 850; }
+.ops-event-milestones > p { margin: 0; color: var(--muted); font-size: 9px; font-weight: 650; line-height: 1.4; }
+.ops-event-milestones__list { display: grid; gap: 7px; }
+.ops-event-milestone-row {
+  display: grid;
+  grid-template-columns: minmax(135px, .8fr) 145px minmax(150px, 1fr) minmax(180px, 1.25fr) 34px;
+  gap: 7px;
+  align-items: end;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--brand);
+  border-radius: 4px;
+  background: var(--surface);
+}
+.ops-event-milestone-row label { display: grid; min-width: 0; gap: 4px; color: var(--quiet); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.ops-event-milestone-row input,
+.ops-event-milestone-row select { width: 100%; min-width: 0; min-height: 34px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: var(--text); font: inherit; text-transform: none; }
+.ops-event-milestone-row > button { min-width: 34px; padding: 0; color: var(--red); }
+.ops-event-milestones__add { justify-self: start; }
 .ops-alert { grid-column: 1 / -1; margin: 0; padding: 8px; background: #fff1f0; color: #8b1e17; font-size: 10px; }
 .ops-integration-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border-soft); }
 .ops-integration-summary article { display: grid; padding: 12px 14px; border-right: 1px solid var(--border-soft); }
@@ -12449,6 +12477,7 @@ td .dot {
   color: #075b96;
   font-size: clamp(15px, .85vw, 24px);
 }
+.ops-wall-calendar__controls b small { margin-left: 2px; color: #526f84; font-size: .55em; font-weight: 850; }
 .ops-wall-calendar__viewport {
   display: flex;
   flex: 1;
@@ -12542,16 +12571,48 @@ td .dot {
   border: 1px solid #4f7898;
   border-left: clamp(4px, .28vw, 7px) solid #31688f;
   border-radius: 3px;
-  background: linear-gradient(90deg, #dcebf5, #edf5fa);
+  background: #e3eff7;
   color: #123d5c;
   box-shadow: 0 1px 2px rgba(18, 61, 92, .12);
   pointer-events: auto;
 }
+.ops-wall-calendar__bar:hover,
+.ops-wall-calendar__bar:focus-visible {
+  outline: 0;
+  background: #d6e9f5;
+  box-shadow: inset 0 0 0 2px #075b96;
+}
 .ops-wall-calendar__bar.continues-before { border-left-width: 1px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .ops-wall-calendar__bar.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.ops-wall-calendar__bar.is-live { border-color: #16854f; border-left-color: #075e3a; background: linear-gradient(90deg, #cdebd9, #e9f7ef); }
-.ops-wall-calendar__bar.is-urgent { border-color: #b94c2a; border-left-color: #8d3218; background: linear-gradient(90deg, #f6dcd3, #fcedea); }
-.ops-wall-calendar__bar.is-watch { border-color: #a96b0d; border-left-color: #7f4f07; background: linear-gradient(90deg, #f4e4bb, #fbf3df); }
+.ops-wall-calendar__bar.is-live { border-color: #16854f; border-left-color: #075e3a; background: #dff2e7; }
+.ops-wall-calendar__bar.is-urgent { border-color: #b94c2a; border-left-color: #8d3218; background: #f8e5df; }
+.ops-wall-calendar__bar.is-watch { border-color: #a96b0d; border-left-color: #7f4f07; background: #f8edcf; }
+.ops-wall-calendar__bar.is-live:hover,
+.ops-wall-calendar__bar.is-live:focus-visible { background: #d1ecdc; box-shadow: inset 0 0 0 2px #075e3a; }
+.ops-wall-calendar__bar.is-urgent:hover,
+.ops-wall-calendar__bar.is-urgent:focus-visible { background: #f4d8ce; box-shadow: inset 0 0 0 2px #8d3218; }
+.ops-wall-calendar__bar.is-watch:hover,
+.ops-wall-calendar__bar.is-watch:focus-visible { background: #f3e3b8; box-shadow: inset 0 0 0 2px #7f4f07; }
+.ops-wall-calendar__bar--milestone {
+  border-color: #6b61a8;
+  border-left-color: #493d8c;
+  background: #ebe8f7;
+  color: #3e347d;
+}
+.ops-wall-calendar__bar--milestone > i {
+  width: 7px;
+  height: 7px;
+  flex-basis: 7px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+.ops-wall-calendar__bar--milestone.is-registration-deadline { border-color: #1479a8; border-left-color: #075b96; background: #e1eff8; color: #075b96; }
+.ops-wall-calendar__bar--milestone.is-refund-deadline { border-color: #ba5d22; border-left-color: #8c3d0e; background: #f8e8dc; color: #8c3d0e; }
+.ops-wall-calendar__bar--milestone.is-hotel-deadline { border-color: #087f8c; border-left-color: #045963; background: #dff1f2; color: #045963; }
+.ops-wall-calendar__bar--milestone.is-exhibitor-deadline { border-color: #7651a8; border-left-color: #55377e; background: #ece5f5; color: #55377e; }
+.ops-wall-calendar__bar--milestone.is-submission-deadline { border-color: #a96b0d; border-left-color: #7f4f07; background: #f7edcf; color: #7f4f07; }
+.ops-wall-calendar__bar--milestone:hover,
+.ops-wall-calendar__bar--milestone:focus-visible { background: #ddd8f1; box-shadow: inset 0 0 0 2px currentColor; }
 .ops-wall-calendar__bar > i { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: currentColor; }
 .ops-wall-calendar__bar strong {
   overflow: hidden;
@@ -12572,6 +12633,10 @@ td .dot {
 }
 .ops-wall-calendar__bar span { flex: 1 1 auto; }
 .ops-wall-calendar__bar small { flex: 0 1 auto; color: #244d6d; font-weight: 850; }
+.ops-wall-calendar-tooltip { width: min(380px, calc(100vw - 16px)); border-top-color: #075b96; }
+.ops-wall-calendar-tooltip[data-kind="milestone"] { border-top-color: #5c4d9b; }
+.ops-wall-calendar-tooltip dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ops-wall-calendar-tooltip dd { white-space: normal; overflow-wrap: anywhere; }
 .ops-wallboard__empty { display: grid; flex: 1; min-height: 220px; place-content: center; justify-items: center; gap: 8px; padding: 28px; color: #627789; text-align: center; }
 .ops-wallboard__empty svg { color: #7a9bb1; }
 .ops-wallboard__empty strong { color: #24445f; font-size: clamp(17px, .9vw, 25px); }
@@ -12633,6 +12698,10 @@ td .dot {
   .ops-event-form { grid-template-columns: 1fr; }
   .ops-field--wide { grid-column: auto; }
   .ops-event-links { grid-template-columns: 1fr; }
+  .ops-event-milestone-row { grid-template-columns: 1fr 1fr 44px; }
+  .ops-event-milestone-row__label,
+  .ops-event-milestone-row__notes { grid-column: 1 / -1; }
+  .ops-event-milestone-row > button { grid-column: 3; grid-row: 1; min-width: 44px; min-height: 44px; }
   .ops-integration-summary { display: flex; overflow-x: auto; }
   .ops-integration-summary article { flex: 0 0 150px; }
   .ops-integration-list article { grid-template-columns: 8px minmax(0, 1fr); }

@@ -63,6 +63,23 @@ const ADMIN_ROUTES = {
   activity: "#/budget-spend/api-log",
 };
 
+const EVENT_MILESTONE_TYPES = [
+  ["registration_deadline", "Registration closes"],
+  ["refund_deadline", "Refund deadline"],
+  ["hotel_deadline", "Hotel cutoff"],
+  ["exhibitor_deadline", "Exhibitor deadline"],
+  ["submission_deadline", "Submission deadline"],
+  ["other", "Other milestone"],
+];
+
+function milestoneTypeLabel(type) {
+  return EVENT_MILESTONE_TYPES.find(([id]) => id === type)?.[1] || "Event milestone";
+}
+
+function milestoneLabel(milestone) {
+  return milestone?.label || milestoneTypeLabel(milestone?.type);
+}
+
 function compactDate(value) {
   if (!value) return "Not scheduled";
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
@@ -136,6 +153,7 @@ function EventEditor({ event, records, onSave, onClose }) {
     recordIds: [],
     attendees: [],
     attendeeIds: [],
+    milestones: [],
     wallboard: true,
   });
   const [directory, setDirectory] = useState([]);
@@ -167,6 +185,10 @@ function EventEditor({ event, records, onSave, onClose }) {
       setError("End time must be after the start time.");
       return;
     }
+    if ((draft.milestones || []).some((milestone) => !milestone.occursAt || (milestone.type === "other" && !String(milestone.label || "").trim()))) {
+      setError("Every milestone needs a date, and custom milestones also need a label.");
+      return;
+    }
     onSave({ ...draft, updatedAt: new Date().toISOString() });
     onClose();
   }
@@ -186,6 +208,18 @@ function EventEditor({ event, records, onSave, onClose }) {
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
           </div>
           <label className="ops-field ops-field--wide"><span>Notes</span><textarea value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
+          <fieldset className="ops-event-milestones ops-field--wide">
+            <legend>Deadlines &amp; milestones</legend>
+            <p>Add only published or operator-confirmed dates. Missing dates stay absent from the calendar.</p>
+            <div className="ops-event-milestones__list">{(draft.milestones || []).map((milestone, index) => <div className="ops-event-milestone-row" key={milestone.id}>
+              <label><span>Type</span><select aria-label={`Milestone ${index + 1} type`} value={milestone.type} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type: e.target.value } : item) }))}>{EVENT_MILESTONE_TYPES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+              <label><span>Date</span><input aria-label={`Milestone ${index + 1} date`} type="date" value={String(milestone.occursAt || "").slice(0, 10)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, occursAt: e.target.value } : item) }))} /></label>
+              <label className="ops-event-milestone-row__label"><span>Display label</span><input aria-label={`Milestone ${index + 1} label`} value={milestone.label || ""} placeholder={milestoneTypeLabel(milestone.type)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, label: e.target.value } : item) }))} /></label>
+              <label className="ops-event-milestone-row__notes"><span>Context</span><input aria-label={`Milestone ${index + 1} context`} value={milestone.notes || ""} placeholder="Optional source or policy note" onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, notes: e.target.value } : item) }))} /></label>
+              <button type="button" aria-label={`Remove milestone ${index + 1}`} onClick={() => setDraft((value) => ({ ...value, milestones: value.milestones.filter((item) => item.id !== milestone.id) }))}><Trash2 size={15} aria-hidden="true" /></button>
+            </div>)}</div>
+            <button type="button" className="ops-event-milestones__add" onClick={() => setDraft((value) => ({ ...value, milestones: [...(value.milestones || []), { id: `milestone-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "registration_deadline", label: "", occursAt: "", notes: "" }] }))}><Plus size={15} aria-hidden="true" />Add deadline or milestone</button>
+          </fieldset>
           <label className="ops-check ops-field--wide"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><b>Show on wallboard</b><small>Read-only display projection</small></span></label>
           <fieldset className="ops-event-links ops-field--wide"><legend>Linked watched records</legend>{records.length ? records.map((record) => <label key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><b>{record.id}</b>{record.title}</span></label>) : <p>Star records in Transactions to link them here.</p>}</fieldset>
         </div>
@@ -218,15 +252,16 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
 function EventsView({ events, records, onAdd, onEdit, onDelete }) {
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
-    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
+    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
     { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt, render: (event) => dateTime(event.startsAt) },
     { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt, render: (event) => dateTime(event.endsAt || event.startsAt) },
     { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <span className={`dbi-status-badge is-${event.status || "scheduled"}`}>{event.status || "scheduled"}</span> },
     { key: "display", label: "Wallboard", facet: true, value: (event) => event.wallboard ? "Shown" : "Hidden" },
+    { key: "milestones", label: "Milestones", minWidth: 120, sortValue: (event) => event.milestones?.length || 0, value: (event) => `${event.milestones?.length || 0}`, render: (event) => <strong>{event.milestones?.length || 0}</strong> },
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
 function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -344,22 +379,62 @@ function calendarWeekSegments(events, week) {
   const first = week[0].key;
   const last = week[6].key;
   const lanes = [];
-  return events
-    .filter((event) => String(event.startsAt || "").slice(0, 10) <= last && String(event.endsAt || event.startsAt || "").slice(0, 10) >= first)
-    .sort((left, right) => String(left.startsAt).localeCompare(String(right.startsAt)) || String(right.endsAt || right.startsAt).localeCompare(String(left.endsAt || left.startsAt)))
-    .map((event) => {
-      const start = String(event.startsAt || "").slice(0, 10);
-      const end = String(event.endsAt || event.startsAt || "").slice(0, 10);
+  const calendarItems = events.flatMap((event) => [
+    { id: `event-${event.id}`, kind: "event", event, start: String(event.startsAt || "").slice(0, 10), end: String(event.endsAt || event.startsAt || "").slice(0, 10) },
+    ...(event.milestones || []).map((milestone) => ({ id: `milestone-${event.id}-${milestone.id}`, kind: "milestone", event, milestone, start: String(milestone.occursAt || "").slice(0, 10), end: String(milestone.occursAt || "").slice(0, 10) })),
+  ]);
+  return calendarItems
+    .filter((item) => item.start <= last && item.end >= first)
+    .sort((left, right) => left.start.localeCompare(right.start) || Number(left.kind === "milestone") - Number(right.kind === "milestone") || right.end.localeCompare(left.end))
+    .map((item) => {
+      const { start, end } = item;
       const startColumn = Math.max(0, week.findIndex((day) => day.key >= start));
       const endColumn = Math.max(startColumn, week.findLastIndex((day) => day.key <= end));
       let lane = lanes.findIndex((occupiedThrough) => startColumn > occupiedThrough);
       if (lane < 0) lane = lanes.length;
       lanes[lane] = endColumn;
-      return { event, startColumn, endColumn, lane, startsBefore: start < first, endsAfter: end > last };
+      return { ...item, startColumn, endColumn, lane, startsBefore: start < first, endsAfter: end > last };
     });
 }
 
+function daysBetween(left, right) {
+  const leftDate = Date.parse(`${String(left).slice(0, 10)}T00:00:00Z`);
+  const rightDate = Date.parse(`${String(right).slice(0, 10)}T00:00:00Z`);
+  return Number.isFinite(leftDate) && Number.isFinite(rightDate) ? Math.round((rightDate - leftDate) / 86400000) : null;
+}
+
+function CalendarHoverCard({ hover }) {
+  if (!hover) return null;
+  const { item, left, top } = hover;
+  const { event, milestone } = item;
+  const attendees = event.attendees || [];
+  const deadlineLead = milestone ? daysBetween(milestone.occursAt, event.startsAt) : null;
+  return createPortal(<aside id="ops-wall-calendar-tooltip" className="capture-timeline-tooltip ops-wall-calendar-tooltip" role="tooltip" style={{ left, top }} data-calendar-hovercard data-kind={item.kind}>
+    <header><span>{milestone ? milestoneTypeLabel(milestone.type) : "Event schedule"}</span><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><small>{milestone ? event.title : `${event.status || "scheduled"} · ${event.milestones?.length || 0} milestone${event.milestones?.length === 1 ? "" : "s"}`}</small></header>
+    <dl>{milestone ? <>
+      <div><dt>Deadline</dt><dd>{compactDate(milestone.occursAt)}</dd></div>
+      <div><dt>Lead time</dt><dd>{deadlineLead === null ? "Unavailable" : deadlineLead < 0 ? `${Math.abs(deadlineLead)} days after start` : deadlineLead === 0 ? "Event start day" : `${deadlineLead} days before start`}</dd></div>
+      <div><dt>Event begins</dt><dd>{dateTime(event.startsAt)}</dd></div>
+      <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
+      <div><dt>Location</dt><dd>{event.location || "Not set"}</dd></div>
+      <div><dt>Attendees</dt><dd>{attendees.length || "None"}</dd></div>
+    </> : <>
+      <div><dt>Starts</dt><dd>{dateTime(event.startsAt)}</dd></div>
+      <div><dt>Ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
+      <div><dt>Status</dt><dd>{event.status || "scheduled"}</dd></div>
+      <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
+      <div><dt>Attendees</dt><dd>{attendees.length || "None"}</dd></div>
+      <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
+    </>}</dl>
+    <p><b>Location</b>{event.location || "Location not set"}</p>
+    {attendees.length ? <p><b>Attending</b>{attendees.map((attendee) => attendee.displayName).join(" · ")}</p> : null}
+    {(milestone?.notes || (!milestone && event.notes)) ? <p><b>Context</b>{milestone?.notes || event.notes}</p> : null}
+    <footer>Workspace event calendar · hover or keyboard focus for context</footer>
+  </aside>, document.body);
+}
+
 function WallboardCalendar({ events, month, onMonthChange, now }) {
+  const [hover, setHover] = useState(null);
   const days = monthCalendarDays(month);
   const today = now.toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
@@ -368,7 +443,15 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
   const monthStart = `${month}-01`;
   const monthEnd = `${month}-${String(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).getUTCDate()).padStart(2, "0")}`;
   const monthEvents = events.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
+  const monthMilestones = events.flatMap((event) => (event.milestones || []).filter((milestone) => String(milestone.occursAt || "").slice(0, 10) >= monthStart && String(milestone.occursAt || "").slice(0, 10) <= monthEnd));
   const weeks = Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
+  function showHover(item, target, clientX, clientY) {
+    const bounds = target.getBoundingClientRect();
+    const width = Math.min(380, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(clientX || bounds.right + 12, window.innerWidth - width - 8));
+    const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 360));
+    setHover({ item, left, top });
+  }
   return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
     <header>
       <div><span>Operator calendar</span><strong>{monthLabel}</strong></div>
@@ -376,7 +459,7 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
         <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
         <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
         <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
-        <b aria-label={`${monthEvents.length} events in ${monthLabel}`}>{monthEvents.length}</b>
+        <b aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}>{monthEvents.length}<small>+{monthMilestones.length}</small></b>
       </div>
     </header>
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
@@ -388,16 +471,19 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
           <div className="ops-wall-calendar__days">{week.map((day) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
             <header><time dateTime={day.key}>{day.day}</time>{day.key === today ? <span>Today</span> : null}</header>
           </article>)}</div>
-          <div className="ops-wall-calendar__bars">{segments.map(({ event, startColumn, endColumn, lane, startsBefore, endsAfter }) => {
+          <div className="ops-wall-calendar__bars">{segments.map((item) => {
+            const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
             const countdown = eventCountdown(event, now);
             const attendees = event.attendees || [];
-            return <div key={event.id} className={`ops-wall-calendar__bar is-${countdown.tone}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} data-calendar-event={event.id} title={`${event.title} · ${event.location || "Location not set"}`}>
-              <i aria-hidden="true" /><strong>{event.title}</strong><span>{event.location || "Location not set"}</span>{attendees.length ? <small>{attendees.map((attendee) => attendee.displayName).join(" · ")}</small> : null}
+            const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
+            return <div key={item.id} role="button" tabIndex="0" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
+              <i aria-hidden="true" /><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span>{!milestone && attendees.length ? <small>{attendees.map((attendee) => attendee.displayName).join(" · ")}</small> : null}
             </div>;
           })}</div>
         </section>;
       })}</div>
     </div>
+    <CalendarHoverCard hover={hover} />
   </section>;
 }
 

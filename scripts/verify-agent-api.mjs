@@ -202,7 +202,10 @@ try {
   assert.equal(result.response.status, 200);
 
   const eventKey = crypto.randomUUID();
-  const eventInput = { title: "Agent coordination review", startsAt: "2026-11-20T14:00", status: "scheduled", recordIds: [factualRecordId], attendeeIds: [ownerId], wallboard: true };
+  const eventInput = { title: "Agent coordination review", startsAt: "2026-11-20T14:00", status: "scheduled", recordIds: [factualRecordId], attendeeIds: [ownerId], milestones: [
+    { id: "registration", type: "registration_deadline", label: "Registration closes", occursAt: "2026-11-10", notes: "Published cutoff" },
+    { id: "refund", type: "refund_deadline", label: "Last day for refunds", occursAt: "2026-11-12", notes: "Published refund policy" },
+  ], wallboard: true };
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
     method: "POST", token: agentToken, headers: { "idempotency-key": eventKey }, body: eventInput,
   }));
@@ -210,6 +213,11 @@ try {
   const event = result.payload.data;
   assert.deepEqual(event.attendeeIds, [ownerId], "Event attendees must persist as stable workspace-user IDs");
   assert.equal(event.attendees[0].displayName, owner.displayName, "Event reads should resolve the current workspace-user display name");
+  assert.deepEqual(event.milestones.map((milestone) => milestone.type), ["registration_deadline", "refund_deadline"], "Event milestones must persist as typed, date-backed overlays");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { title: "Invalid milestone", startsAt: "2026-11-20", milestones: [{ id: "custom", type: "other", occursAt: "" }] },
+  }));
+  assert.equal(result.response.status, 400, "Undated event milestones must be rejected rather than inferred");
   result = await body(await request(instance.baseUrl, `/api/v1/agent/events/${event.id}`, {
     method: "PATCH", token: agentToken, headers: { "if-match": String(event.version) }, body: { notes: "Validated through the Agent API" },
   }));
@@ -239,7 +247,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tracking", { token: restartToken }));
   assert.ok(result.payload.data.some((entry) => entry.recordId === factualRecordId && entry.note === "Updated shared note"), "Tracking state must survive restart");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: restartToken }));
-  assert.ok(result.payload.data.some((entry) => entry.id === event.id && entry.notes === "Validated through the Agent API"), "Event state must survive restart");
+  assert.ok(result.payload.data.some((entry) => entry.id === event.id && entry.notes === "Validated through the Agent API" && entry.milestones?.length === 2), "Event milestones must survive restart with the event state");
 
   await request(instance.baseUrl, `/api/v1/agent/events/${event.id}`, { method: "DELETE", token: restartToken });
   await request(instance.baseUrl, `/api/v1/agent/tracking/${encodeURIComponent(factualRecordId)}`, { method: "DELETE", token: restartToken });

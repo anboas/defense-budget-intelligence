@@ -473,8 +473,8 @@ try {
     const at = "2026-09-13T12:00:00.000Z";
     localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
     localStorage.setItem("dbi:management-events:v1", JSON.stringify([
-      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
-      { id: "event-ausa-annual-meeting-2026", title: "AUSA Annual Meeting & Exposition 2026", startsAt: "2026-10-12T08:00", endsAt: "2026-10-14T17:00", location: "Walter E. Washington Convention Center, Washington, DC", attendees: [] },
+      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }], milestones: [{ id: "registration", type: "registration_deadline", label: "Registration closes", occursAt: "2026-09-10", notes: "Published registration cutoff" }, { id: "refund", type: "refund_deadline", label: "Last day for refunds", occursAt: "2026-09-11", notes: "Published refund policy" }] },
+      { id: "event-ausa-annual-meeting-2026", title: "AUSA Annual Meeting & Exposition 2026", startsAt: "2026-10-12T08:00", endsAt: "2026-10-14T17:00", location: "Walter E. Washington Convention Center, Washington, DC", attendees: [], milestones: [{ id: "hotel", type: "hotel_deadline", label: "Hotel block cutoff", occursAt: "2026-10-01", notes: "Published room-block cutoff" }] },
       { id: "event-eighth-annual-defense-conference-2026", title: "8th Annual Defense Conference", startsAt: "2026-10-30T08:00", endsAt: "2026-10-30T17:00", location: "Hyatt Regency Crystal City, Virginia or virtual", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
       { id: "event-i-itsec-2026", title: "Interservice/Industry Training, Simulation and Education Conference (I/ITSEC) 2026", startsAt: "2026-11-30T08:00", endsAt: "2026-12-04T17:00", location: "Orange County Convention Center, Orlando, Florida", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
       { id: "event-weapon-systems-software-summit-2026", title: "2026 Department of Defense Weapon Systems Software Summit", startsAt: "2026-12-08T08:00", endsAt: "2026-12-08T17:00", location: "Broward County Convention Center, Fort Lauderdale, Florida", attendees: [{ id: "user-adam", displayName: "Adam Boas" }] },
@@ -566,6 +566,25 @@ try {
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/, "Calendar should open on the first scheduled event month");
   assert.equal(await page.locator("[data-calendar-day]").count(), 42, "Calendar should render a stable six-week month grid");
   assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 1, "A multi-day event should render as one continuous Gantt-style weekly bar");
+  assert.equal(await page.locator('[data-calendar-milestone][data-parent-event="event-air-space-cyber-conference-2026"]').count(), 2, "Published event deadlines should render as linked Gantt overlays");
+  const registrationMilestone = page.locator('[data-calendar-milestone="registration"]');
+  const registrationDatePlacement = await registrationMilestone.evaluate((node) => {
+    const milestone = node.getBoundingClientRect();
+    const date = document.querySelector('[data-calendar-day="2026-09-10"]').getBoundingClientRect();
+    return { insideDateColumn: milestone.left >= date.left - 1 && milestone.right <= date.right + 1 };
+  });
+  assert.equal(registrationDatePlacement.insideDateColumn, true, "Registration cutoff overlay should occupy its exact calendar date column");
+  await registrationMilestone.hover();
+  await page.waitForSelector("[data-calendar-hovercard]");
+  assert.match(await page.locator("[data-calendar-hovercard]").innerText(), /Registration closes[\s\S]*Air, Space & Cyber Conference[\s\S]*4 days before start/, "Milestone hover should explain its parent event, date, and lead time");
+  const milestoneHoverGeometry = await page.locator("[data-calendar-hovercard]").evaluate((node) => { const rect = node.getBoundingClientRect(); return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: innerWidth, height: innerHeight }; });
+  assert.ok(milestoneHoverGeometry.left >= 0 && milestoneHoverGeometry.top >= 0 && milestoneHoverGeometry.right <= milestoneHoverGeometry.width && milestoneHoverGeometry.bottom <= milestoneHoverGeometry.height, "Calendar hover cards should remain contained within the viewport");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-hover-1080p.png` });
+  await page.mouse.move(2, 2);
+  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').focus();
+  await page.waitForSelector('[data-calendar-hovercard][data-kind="event"]');
+  assert.match(await page.locator('[data-calendar-hovercard][data-kind="event"]').innerText(), /Event schedule[\s\S]*2 milestones[\s\S]*National Harbor/i, "Keyboard focus should expose the rich event hover card");
+  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').blur();
   const calendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
     const grid = node.querySelector(".ops-wall-calendar__weeks");
     const cells = [...grid.querySelectorAll("[data-calendar-day]")];
