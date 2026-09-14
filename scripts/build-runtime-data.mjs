@@ -81,6 +81,13 @@ const core = {
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(resolve(OUT_DIR, "budget-core.json"), JSON.stringify(core));
+writeFileSync(resolve(OUT_DIR, "runtime-manifest.json"), JSON.stringify({
+  metadata: {
+    generatedAt: source.metadata?.generatedAt,
+    methodology: source.metadata?.methodology,
+    recordCount: core.records.length,
+  },
+}));
 rmSync(resolve(OUT_DIR, "budget-strategy.json"), { force: true });
 writeFileSync(resolve(OUT_DIR, "budget-execution.json"), JSON.stringify(execution));
 writeFileSync(

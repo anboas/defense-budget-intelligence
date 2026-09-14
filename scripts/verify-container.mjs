@@ -25,7 +25,13 @@ async function get(path) {
 }
 
 await waitForHealth();
-const health = await (await get("api/healthz")).json();
+const healthResponse = await get("api/healthz");
+assert.match(healthResponse.headers.get("content-security-policy") || "", /frame-ancestors 'none'/);
+assert.equal(healthResponse.headers.get("x-frame-options"), "DENY");
+assert.match(healthResponse.headers.get("strict-transport-security") || "", /max-age=63072000/);
+assert.match(healthResponse.headers.get("permissions-policy") || "", /camera=\(\)/);
+assert.equal(healthResponse.headers.get("x-content-type-options"), "nosniff");
+const health = await healthResponse.json();
 assert.equal(health.status, "ok");
 
 const readiness = await (await get("api/readyz")).json();

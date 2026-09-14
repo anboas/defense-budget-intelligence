@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { LockKeyhole } from "lucide-react";
-import { authApi } from "./auth-client.js";
+import { authApi, isKnownStaticHost } from "./auth-client.js";
 import ProductMark from "./ProductMark.jsx";
 
 const AuthContext = createContext(null);
@@ -45,11 +45,16 @@ function AccountGate({ mode, onSubmit, busy, error }) {
 }
 
 export default function AuthProvider({ children }) {
-  const [status, setStatus] = useState({ loading: true, staticHost: false, enabled: false, required: false, claimed: false, user: null });
+  const [status, setStatus] = useState(() => (
+    isKnownStaticHost()
+      ? { loading: false, staticHost: true, enabled: false, required: false, claimed: false, user: null }
+      : { loading: true, staticHost: false, enabled: false, required: false, claimed: false, user: null }
+  ));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (isKnownStaticHost()) return undefined;
     let active = true;
     authApi.status().then((next) => { if (active) setStatus({ loading: false, staticHost: false, ...next }); })
       .catch((requestError) => {

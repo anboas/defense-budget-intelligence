@@ -36,10 +36,13 @@ const captureCalendar = await importCaptureCalendar(pool);
 app.log.info({ captureCalendar }, "normalized capture calendar synchronized");
 
 app.addHook("onSend", async (request, reply) => {
+  reply.header("content-security-policy", "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https:; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'");
   reply.header("x-content-type-options", "nosniff");
   reply.header("referrer-policy", "strict-origin-when-cross-origin");
   reply.header("x-frame-options", "DENY");
-  reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  reply.header("permissions-policy", "camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), usb=()");
+  reply.header("strict-transport-security", "max-age=63072000; includeSubDomains; preload");
+  reply.header("x-xss-protection", "0");
   if (request.url.startsWith("/api/v1/auth/")) reply.header("cache-control", "no-store");
 });
 

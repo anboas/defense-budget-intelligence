@@ -117,6 +117,11 @@ async function verifyApiLifecycle(persistPath) {
   const { baseUrl } = instance;
   try {
     let response = await apiRequest(baseUrl, "/api/v1/auth/status");
+    assert.match(response.headers.get("content-security-policy") || "", /frame-ancestors 'none'/, "Pages responses must prevent framing through CSP");
+    assert.equal(response.headers.get("x-frame-options"), "DENY", "Pages responses must prevent legacy framing");
+    assert.match(response.headers.get("strict-transport-security") || "", /max-age=63072000/, "Pages responses must advertise long-lived HTTPS transport security");
+    assert.match(response.headers.get("permissions-policy") || "", /camera=\(\)/, "Pages responses must disable unnecessary browser capabilities");
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff", "Pages responses must disable MIME sniffing");
     assert.deepEqual(await response.json(), {
       authVersion: "dbi-pages-auth-v1",
       enabled: true,

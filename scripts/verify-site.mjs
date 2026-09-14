@@ -9,7 +9,11 @@ const OUT_DIR = "test-results";
 const FORBIDDEN_SURFACE_TEXT = /Decision Briefs|Portfolio Strategy|Pursuit Cockpit|Target execution brief|Target workboard|attention score|win probability|Response Library|Capture Playbooks|Response Assets/i;
 mkdirSync(OUT_DIR, { recursive: true });
 const compiledScripts = readdirSync("dist/assets").filter((name) => name.endsWith(".js")).map((name) => readFileSync(`dist/assets/${name}`, "utf8")).join("\n");
+const builtAssets = readdirSync("dist/assets");
+const compiledStyleBytes = builtAssets.filter((name) => name.endsWith(".css")).reduce((total, name) => total + readFileSync(`dist/assets/${name}`).byteLength, 0);
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
+assert.ok(compiledStyleBytes <= 350_000, `Scoped application CSS must stay below 350 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
@@ -150,6 +154,12 @@ try {
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
   await page.waitForSelector("[data-transaction-analytics-page]");
+  assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Transactions should load the compact runtime manifest once");
+  assert.equal(await resourceCount(page, "budget-core.json"), 0, "Transactions should defer the detailed budget request dataset");
+  const initialDecodedDataBytes = await page.evaluate(() => performance.getEntriesByType("resource")
+    .filter((entry) => entry.name.includes("/data/"))
+    .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
+  assert.ok(initialDecodedDataBytes <= 2_000_000, `Transactions should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Transactions");
   assert.match(await page.title(), /^Transactions · Defense Budget & Spend Analytics$/);
   assert.equal(await page.locator("h1").count(), 1, "Each route should expose one product H1");
@@ -358,6 +368,23 @@ try {
   });
   assert.ok(awardSearchGeometry.iconRight + 5 <= awardSearchGeometry.textStart, `Award search icon must not overlap its text lane: ${JSON.stringify(awardSearchGeometry)}`);
 
+  const tablet = await browser.newPage({ viewport: { width: 768, height: 900 } });
+  await tablet.goto(`${BASE_URL}#/budget-spend/awards`, { waitUntil: "domcontentloaded" });
+  await tablet.waitForSelector("[data-awards-page]");
+  await tablet.waitForFunction(() => document.querySelector("[data-award-record-table]")?.getAttribute("data-table-layout") === "cards");
+  const tabletAwards = await tablet.evaluate(() => ({
+    height: document.documentElement.scrollHeight,
+    layout: document.querySelector("[data-award-record-table]")?.getAttribute("data-table-layout"),
+    rows: document.querySelectorAll("[data-award-record-table] [data-if-table-row]").length,
+  }));
+  assert.equal(tabletAwards.layout, "cards", `The 768px Awards table should synchronize pagination with its card layout: ${JSON.stringify(tabletAwards)}`);
+  assert.ok(tabletAwards.rows <= 5, `The 768px card layout must not render the 25-row desktop page: ${JSON.stringify(tabletAwards)}`);
+  assert.ok(tabletAwards.height <= 5_500, `The 768px Awards route must stay bounded instead of expanding beyond 11,000px: ${JSON.stringify(tabletAwards)}`);
+  await tablet.setViewportSize({ width: 769, height: 900 });
+  await tablet.waitForFunction(() => document.querySelector("[data-award-record-table]")?.getAttribute("data-table-layout") === "table");
+  assert.ok(await tablet.evaluate(() => document.documentElement.scrollHeight <= 5_500), "The 769px Awards route should remain bounded after switching to its table layout");
+  await tablet.close();
+
   await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Transactions");
   assert.equal(await resourceCount(page, "capture-calendar.json"), 1, "Transactions should load the public event payload once");
@@ -472,6 +499,7 @@ try {
   }));
   assert.ok(conferenceGeometry.width >= 1860, `1080p wallboard should use the display width, got ${conferenceGeometry.width}px`);
   assert.ok(conferenceGeometry.height >= 960, `1080p wallboard should fill the conference display, got ${conferenceGeometry.height}px`);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2), "Routed 1080p wallboard should fit the viewport without document scrolling");
   assert.ok(conferenceGeometry.metricSize >= 40, `1080p metric values should be distance-readable, got ${conferenceGeometry.metricSize}px`);
   assert.ok(conferenceGeometry.recordTitleSize >= 17, `1080p record titles should be distance-readable, got ${conferenceGeometry.recordTitleSize}px`);
   const conferenceFit = await page.evaluate(() => {
@@ -748,14 +776,33 @@ try {
   assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Overview should expose six focused factual D3 views");
   assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 6, "Every visible Overview view should render its analytical SVG");
   assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 1, "Overview should include a logarithmic reported-value distribution");
+  const analyticsAccessibility = await page.evaluate(() => [...document.querySelectorAll("[data-d3-analytics]")].map((chart) => {
+    const interactive = [...chart.querySelectorAll('[role="button"]')];
+    const marks = [...chart.querySelectorAll('[role="button"][data-analytics-mark]')];
+    return {
+      interactive: interactive.length,
+      unnamedInteractive: interactive.filter((mark) => !mark.getAttribute("aria-label")?.trim() && !mark.textContent?.trim()).length,
+      marks: marks.length,
+      unnamed: marks.filter((mark) => !mark.getAttribute("aria-label")?.trim()).length,
+      tabbable: marks.filter((mark) => mark.getAttribute("tabindex") === "0").length,
+    };
+  }));
+  assert.ok(analyticsAccessibility.some((chart) => chart.marks > 0), "Analytics should retain interactive chart marks");
+  assert.ok(analyticsAccessibility.every((chart) => chart.unnamedInteractive === 0), `Every analytical control needs an accessible name: ${JSON.stringify(analyticsAccessibility)}`);
+  assert.ok(analyticsAccessibility.every((chart) => chart.unnamed === 0), `Every interactive chart mark needs an accessible name: ${JSON.stringify(analyticsAccessibility)}`);
+  assert.ok(analyticsAccessibility.every((chart) => chart.marks === 0 || chart.tabbable === 1), `Each chart should expose one roving tab stop instead of hundreds: ${JSON.stringify(analyticsAccessibility)}`);
   await page.locator('[data-d3-analytics="dimension-explorer"] [role="button"]').first().hover();
   await page.waitForSelector("[data-analytics-hovercard]");
   assert.match(await page.locator("[data-analytics-hovercard]").innerText(), /records/i, "D3 marks should expose immediate contextual hover detail");
   await page.locator('[data-d3-analytics="dimension-explorer"] header').hover();
   await page.waitForSelector("[data-analytics-hovercard]", { state: "detached" });
-  await page.locator('[data-d3-analytics="dimension-explorer"] [role="button"]').first().focus();
+  const firstDimensionMark = page.locator('[data-d3-analytics="dimension-explorer"] [data-analytics-mark]').first();
+  await firstDimensionMark.focus();
   await page.waitForSelector("[data-analytics-hovercard]");
   assert.match(await page.locator("[data-analytics-hovercard]").innerText(), /records/i, "Keyboard focus should expose the same contextual chart detail as pointer hover");
+  const firstDimensionLabel = await firstDimensionMark.getAttribute("aria-label");
+  await page.keyboard.press("ArrowDown");
+  assert.notEqual(await page.evaluate(() => document.activeElement?.getAttribute("aria-label")), firstDimensionLabel, "Arrow keys should move through chart marks using one roving tab stop");
   await page.locator(".analytics-search input").focus();
   await page.waitForSelector("[data-analytics-hovercard]", { state: "detached" });
   await page.locator("[data-analytics-manager] summary").click();
@@ -822,15 +869,27 @@ try {
   await page.locator('[data-d3-analytics="source-coverage"] [role="button"]').first().click();
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Source system:/, "Coverage cells should filter the record universe by source system");
   await page.locator('.analytics-active-filters button').click();
-  await page.locator('[data-analytics-records] tbody button').first().click();
+  const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
+  await analyticalDetailTrigger.click();
   await page.waitForSelector('.analytics-modal [role="dialog"]');
   assert.match(await page.locator('.analytics-modal [role="dialog"]').innerText(), /Observed obligations|Reported potential/i);
   assert.match(await page.locator('.analytics-modal [role="dialog"] a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  assert.equal(await page.locator('.analytics-modal [role="dialog"] header button').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(await page.locator('.analytics-modal [role="dialog"]').evaluate((dialog) => dialog.contains(document.activeElement)), true, "Shift+Tab must wrap within analytical detail");
+  await page.keyboard.press("Tab");
+  assert.equal(await page.locator('.analytics-modal [role="dialog"] header button').evaluate((node) => node === document.activeElement), true, "Tab must wrap back to the first analytical-detail control");
   await page.keyboard.press("Escape");
   await page.waitForSelector('.analytics-modal', { state: "detached" });
+  assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
   assert.match(await page.locator("[data-transaction-d3-page]").innerText(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
   await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
+
+  await page.goto(`${BASE_URL}#/budget-spend/analytics?analyticsView=bogus`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-transaction-d3-page]");
+  await page.waitForFunction(() => !window.location.hash.includes("analyticsView=bogus"));
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/analytics", "Unknown Analytics workspace values should canonicalize to Overview");
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
@@ -843,6 +902,9 @@ try {
   await page.waitForSelector("[data-pdb-request-page]");
   assert.equal(new URL(page.url()).hash, "#/budget-spend", "Legacy strategy URLs should canonicalize to the request analytics surface");
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
+  await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-transaction-analytics-page]");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/transactions", "Unknown routes should canonicalize to the flagship Transactions surface");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -898,8 +960,8 @@ try {
   await mobile.waitForSelector("[data-transaction-analytics-page]");
   await assertFlowShell(mobile);
   const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav], .ci-header-nav > .if-operations-topnav__secondary > button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.ok(mobileNavHeights.filter(Boolean).every((height) => height === 31), `Mobile surface controls should match the established 31px compact tabs: ${mobileNavHeights.join(", ")}`);
-  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 92, "Mobile masthead should match the established two-row 91px component");
+  assert.ok(mobileNavHeights.filter(Boolean).every((height) => height >= 43.5), `Mobile navigation controls should preserve 44px touch targets: ${mobileNavHeights.join(", ")}`);
+  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 108, "Mobile masthead should remain compact while preserving 44px navigation targets");
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose every Analytics, Money flow, and Admin route in grouped Control Framework cards");
   assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin/i, "Mobile More should use the established grouped menu pattern");
@@ -1038,7 +1100,7 @@ try {
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
-  assert.ok(narrowAnalyticsGeometry.header <= 92, `360px masthead should stay in the established two-row band, got ${narrowAnalyticsGeometry.header}px`);
+  assert.ok(narrowAnalyticsGeometry.header <= 108, `360px masthead should stay compact while preserving 44px navigation targets, got ${narrowAnalyticsGeometry.header}px`);
   assert.ok(narrowAnalyticsGeometry.hero <= 205, `360px Analytics hero should stay compact, got ${narrowAnalyticsGeometry.hero}px`);
   assert.ok(narrowAnalyticsGeometry.firstChartTop <= 610, `360px Analytics should surface its first chart without a second screen of chrome, got ${narrowAnalyticsGeometry.firstChartTop}px`);
   await assertNoPageOverflow(mobile, "360px Analytics");

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import "control-surface-ui/css";
+import "./control-surface.css";
 import {
   BarChart3,
   ArrowRight,
@@ -100,7 +100,7 @@ const LEGACY_ROUTE_TABS = {
 function tabFromHash(hash = "") {
   const normalized = hash || HASH_ROUTES.calendar;
   const routePath = normalized.split("?")[0];
-  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || LEGACY_ROUTE_TABS[routePath] || "overview";
+  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || LEGACY_ROUTE_TABS[routePath] || "calendar";
 }
 
 function hashParams() {
@@ -183,10 +183,11 @@ function useBudgetRoute() {
     function handleRouteChange() {
       const nextTab = tabFromHash(window.location.hash);
       const routePath = (window.location.hash || HASH_ROUTES.calendar).split("?")[0];
+      const knownRoute = Object.values(HASH_ROUTES).includes(routePath);
       if (!window.location.hash) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES.calendar}`);
       }
-      if (LEGACY_ROUTE_TABS[routePath]) {
+      if (LEGACY_ROUTE_TABS[routePath] || (!knownRoute && routePath)) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES[nextTab]}`);
       }
       setActiveTab(nextTab);
@@ -404,6 +405,7 @@ let DECISION_BRIEFS = { summary: {}, items: [] };
 let VISUAL_ANALYTICS = { summary: {}, clusters: [], timingBands: [], heatmapColumns: [], heatmapRows: [] };
 let HYPOTHESES = { summary: {}, items: [] };
 let executionReady = false;
+let coreReady = false;
 let ACCOUNT_SPINE = null;
 let accountSpineReady = false;
 let CAPTURE_CALENDAR = null;
@@ -416,6 +418,7 @@ let captureCalendarReady = false;
 const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "agents"]);
 const OPERATIONS_TAB_IDS = new Set(["wallboard", ...ADMINISTRATION_TAB_IDS]);
 const PROFILE_TAB_IDS = new Set(["profile", "security"]);
+const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
 const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics", ...OPERATIONS_TAB_IDS]);
 
 function hydrateCore(nextData) {
@@ -428,6 +431,21 @@ function hydrateCore(nextData) {
   ANALYTICS = DATA_INVENTORY.analyticsReadouts || {};
   JUSTIFICATION_COVERAGE = DATA_INVENTORY.justificationCoverage || {};
   EXECUTION_COVERAGE = DATA_INVENTORY.executionCoverage || {};
+  coreReady = true;
+}
+
+function hydrateManifest(nextManifest) {
+  data = {
+    metadata: {
+      generatedAt: nextManifest.metadata?.generatedAt || "",
+      methodology: nextManifest.metadata?.methodology || "",
+      recordCount: Number(nextManifest.metadata?.recordCount || 0),
+      sources: [],
+      dataInventory: {},
+    },
+    signals: [],
+    records: [],
+  };
 }
 
 function hydrateExecution(nextExecution) {
@@ -445,6 +463,13 @@ async function fetchRuntimeData(filename) {
   const response = await fetch(runtimeDataUrl(filename));
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.json();
+}
+
+let corePromise = null;
+function ensureCoreData() {
+  if (coreReady) return Promise.resolve();
+  if (!corePromise) corePromise = fetchRuntimeData("budget-core.json").then(hydrateCore);
+  return corePromise;
 }
 
 let executionPromise = null;
@@ -4690,6 +4715,9 @@ function App() {
   const [captureCalendarRevision, setCaptureCalendarRevision] = useState(0);
   const [captureCalendarLoadAttempt, setCaptureCalendarLoadAttempt] = useState(0);
   const [captureCalendarError, setCaptureCalendarError] = useState("");
+  const [coreRevision, setCoreRevision] = useState(0);
+  const [coreLoadAttempt, setCoreLoadAttempt] = useState(0);
+  const [coreError, setCoreError] = useState("");
   const records = useFilteredRecords(filters);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
@@ -4697,7 +4725,8 @@ function App() {
   const evidenceRecords = records.filter((record) => record.justificationEvidence);
   const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
   const activeTitle = ADMINISTRATION_TAB_IDS.has(activeTab) ? "Administration" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
-  const showBudgetControls = activeTab === "overview";
+  const needsCore = CORE_TAB_IDS.has(activeTab);
+  const showBudgetControls = activeTab === "overview" && coreReady;
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || activeTab === "analytics" || activeTab === "sources";
   const needsCaptureCalendar = activeTab === "calendar" || activeTab === "analytics" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
@@ -4706,6 +4735,15 @@ function App() {
     document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [activeTitle]);
+
+  useEffect(() => {
+    if (!needsCore || coreReady) return;
+    let cancelled = false;
+    ensureCoreData()
+      .then(() => { if (!cancelled) { setCoreError(""); setCoreRevision((value) => value + 1); } })
+      .catch((error) => { if (!cancelled) { corePromise = null; setCoreError(error.message); } });
+    return () => { cancelled = true; };
+  }, [needsCore, coreLoadAttempt]);
 
   useEffect(() => {
     if (!needsExecution || executionReady) return;
@@ -4734,6 +4772,7 @@ function App() {
     return () => { cancelled = true; };
   }, [needsCaptureCalendar, captureCalendarLoadAttempt]);
 
+  void coreRevision;
   void executionRevision;
   void accountSpineRevision;
   void captureCalendarRevision;
@@ -4746,6 +4785,16 @@ function App() {
         <p className="sr-only" role="status" aria-live="polite">
           {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
         </p>
+        {needsCore && !coreReady ? (
+          <section className="runtime-state" data-budget-core-loading role="status">
+            <RefreshCcw size={18} aria-hidden="true" />
+            <div>
+              <strong>{coreError ? "Budget request data unavailable" : "Loading budget request data"}</strong>
+              <p>{coreError || "The detailed budget request dataset is loading for this workspace."}</p>
+              {coreError ? <button type="button" onClick={() => { setCoreError(""); setCoreLoadAttempt((value) => value + 1); }}>Retry</button> : null}
+            </div>
+          </section>
+        ) : null}
         {showBudgetControls ? (
           <>
             <FilterShell filters={filters} setFilters={setFilters} />
@@ -4799,14 +4848,14 @@ function App() {
           </section>
         ) : null}
 
-        {activeTab === "overview" ? <Overview records={records} /> : null}
-        {accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
-        {activeTab === "trends" ? <RequestTrends /> : null}
+        {coreReady && activeTab === "overview" ? <Overview records={records} /> : null}
+        {coreReady && accountSpineReady && activeTab === "lifecycle" ? <AccountLifecycle /> : null}
+        {coreReady && activeTab === "trends" ? <RequestTrends /> : null}
         {executionReady && activeTab === "awards" ? <Awards /> : null}
         {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /> : null}
-        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.records?.length || 0} /></Suspense> : null}
+        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading {activeTitle.toLowerCase()}</strong><p>The shared management workspace is loading.</p></div></section>}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
-        {executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
+        {coreReady && executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
         {PROFILE_TAB_IDS.has(activeTab) ? <ProfilePage section={activeTab} /> : null}
       </div>
     </main>
@@ -4820,10 +4869,13 @@ function RuntimeApp() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchRuntimeData("budget-core.json")
+    const initialTab = tabFromHash(typeof window === "undefined" ? "" : window.location.hash);
+    const initialPayload = CORE_TAB_IDS.has(initialTab) ? "budget-core.json" : "runtime-manifest.json";
+    fetchRuntimeData(initialPayload)
       .then((nextData) => {
         if (cancelled) return;
-        hydrateCore(nextData);
+        if (initialPayload === "budget-core.json") hydrateCore(nextData);
+        else hydrateManifest(nextData);
         setStatus("ready");
       })
       .catch((runtimeError) => {

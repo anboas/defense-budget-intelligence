@@ -17,17 +17,20 @@ function readPreferences(key, defaults) {
   }
 }
 
-function useCompactTable(recordListAt) {
-  const query = `(max-width: ${recordListAt}px)`;
-  const [compact, setCompact] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+function useCompactTable(recordListAt, tableRef) {
+  const [compact, setCompact] = useState(false);
 
   useEffect(() => {
-    const media = window.matchMedia(query);
-    const update = () => setCompact(media.matches);
+    const table = tableRef.current;
+    if (!table) return undefined;
+    // Container queries evaluate the content box. clientWidth matches that box,
+    // while getBoundingClientRect() also includes the table shell's borders.
+    const update = () => setCompact(table.clientWidth <= recordListAt);
     update();
-    media.addEventListener?.("change", update);
-    return () => media.removeEventListener?.("change", update);
-  }, [query]);
+    const observer = new ResizeObserver(update);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [recordListAt, tableRef]);
 
   return compact;
 }
@@ -88,7 +91,8 @@ export default function OperationalDataTable({
   showSearch = true,
   showFacets = true,
 }) {
-  const compactTable = useCompactTable(recordListAt);
+  const tableRef = useRef(null);
+  const compactTable = useCompactTable(recordListAt, tableRef);
   const columnKeys = useMemo(() => columns.map((column) => column.key), [columns]);
   const defaults = useMemo(() => ({
     density: "compact",
@@ -307,11 +311,13 @@ export default function OperationalDataTable({
   return (
     <section
       {...wrapperProps}
+      ref={tableRef}
       className={`if-data-table dbi-data-table ${className}`.trim()}
       data-if-data-table
       data-dbi-data-table={id}
       data-if-table-density={density}
       data-if-table-selectable={selectable ? "true" : "false"}
+      data-table-layout={compactTable ? "cards" : "table"}
       style={{ "--dbi-table-card-breakpoint": `${recordListAt}px` }}
     >
       <div className="if-table-toolbar dbi-data-table__toolbar">

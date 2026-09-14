@@ -48,10 +48,28 @@ jobs:
           PREVIOUS_BUDGET_FILE: ${{ runner.temp }}/previous-budget-intelligence.json
           PREVIOUS_SAM_FILE: ${{ runner.temp }}/previous-sam-opportunities.json
         run: npm run data:procurement-delta
-      - name: Verify generated site
+      - name: Audit dependency graph
+        run: npm audit --audit-level=high
+      - name: Install browser contract runtime
+        run: npx playwright-core install --with-deps chromium
+      - name: Verify Cloudflare Pages and D1 account lifecycle
+        run: npm run verify:pages-auth
+      - name: Verify authenticated Agent API and D1 management lifecycle
+        run: npm run verify:agent-api
+      - name: Verify complete site and responsive browser contract
         env:
           BUDGET_SOURCE_DIR: ${{ runner.temp }}/defense-budget-intelligence/budget
-        run: npm run lint && npm run build
+        run: npm run verify
+      - name: Build and start fresh PostgreSQL container stack
+        run: docker compose up --build --detach --wait
+      - name: Verify stateful PostgreSQL API and browser contract
+        run: node scripts/verify-container.mjs
+      - name: Inspect container state
+        if: always()
+        run: docker compose ps && docker compose logs --no-color --tail=200 app
+      - name: Stop fresh container stack
+        if: always()
+        run: docker compose down --volumes
       - name: Commit changed snapshots
         run: |
           if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json; then

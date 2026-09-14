@@ -117,13 +117,24 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (principal_id, minute_bucket)
   )`,
 ]);
+const schemaInitialization = new WeakMap();
 
 function databaseFromEnv(env = {}) {
   return env.DBI_DB?.prepare ? env.DBI_DB : null;
 }
 
 async function ensureSchema(db) {
-  for (const statement of SCHEMA) await db.prepare(statement).run();
+  let initialization = schemaInitialization.get(db);
+  if (!initialization) {
+    initialization = (async () => {
+      for (const statement of SCHEMA) await db.prepare(statement).run();
+    })().catch((error) => {
+      schemaInitialization.delete(db);
+      throw error;
+    });
+    schemaInitialization.set(db, initialization);
+  }
+  await initialization;
 }
 
 function json(payload, status = 200, headers = {}) {

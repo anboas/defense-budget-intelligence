@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   hierarchy,
   interpolateBlues,
@@ -69,10 +69,18 @@ const ANALYTICS_VIEWS = [
   { id: "coverage", label: "Coverage & lineage", icon: Database },
 ];
 
-function analyticsViewFromHash() {
+function analyticsViewFromHash({ canonicalize = false } = {}) {
   if (typeof window === "undefined") return "overview";
-  const candidate = new URLSearchParams(window.location.hash.split("?")[1] || "").get("analyticsView") || "overview";
-  return ANALYTICS_VIEWS.some(({ id }) => id === candidate) ? candidate : "overview";
+  const route = window.location.hash.split("?")[0] || "#/budget-spend/analytics";
+  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const candidate = params.get("analyticsView") || "overview";
+  if (ANALYTICS_VIEWS.some(({ id }) => id === candidate)) return candidate;
+  if (canonicalize) {
+    params.delete("analyticsView");
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
+  }
+  return "overview";
 }
 
 function updateAnalyticsView(next) {
@@ -228,6 +236,35 @@ function exportAnalyticsSlice(records, metric, context) {
 
 function ChartFrame({ icon: Icon, title, note, children, testId }) {
   const [hover, setHover] = useState(null);
+  const frameRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const marks = [...(frameRef.current?.querySelectorAll('[role="button"][data-analytics-tooltip]') || [])];
+    marks.forEach((mark, index) => {
+      const tooltip = mark.getAttribute("data-analytics-tooltip") || "Analytical chart mark";
+      if (!mark.getAttribute("aria-label")) mark.setAttribute("aria-label", tooltip.split("\n").filter(Boolean).join(", "));
+      mark.setAttribute("data-analytics-mark", "");
+      mark.setAttribute("tabindex", index === 0 ? "0" : "-1");
+    });
+  }, [children]);
+
+  function moveMarkFocus(event) {
+    if (!event.target.matches?.('[data-analytics-mark]')) return;
+    if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const marks = [...(frameRef.current?.querySelectorAll("[data-analytics-mark]") || [])];
+    const current = marks.indexOf(event.target);
+    if (current < 0 || !marks.length) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? marks.length - 1
+        : event.key === "ArrowRight" || event.key === "ArrowDown"
+          ? (current + 1) % marks.length
+          : (current - 1 + marks.length) % marks.length;
+    marks.forEach((mark, index) => mark.setAttribute("tabindex", index === nextIndex ? "0" : "-1"));
+    marks[nextIndex].focus();
+  }
 
   function showHover(target, clientX, clientY) {
     const mark = target.closest?.("[data-analytics-tooltip]");
@@ -246,8 +283,10 @@ function ChartFrame({ icon: Icon, title, note, children, testId }) {
 
   return (
     <section
+      ref={frameRef}
       className="transaction-viz"
       data-d3-analytics={testId}
+      onKeyDownCapture={moveMarkFocus}
       onPointerMove={(event) => {
         if (event.pointerType && event.pointerType !== "mouse") return;
         showHover(event.target, event.clientX, event.clientY);
@@ -1477,10 +1516,56 @@ function RecordExplorer({ records, metricId, onSelect }) {
 }
 
 function AnalyticsRecordModal({ record, onClose }) {
+  const dialogRef = useRef(null);
+  const previousFocusRef = useRef(null);
+  const closeRef = useRef(onClose);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!record) return undefined;
+    previousFocusRef.current = document.activeElement;
+    const dialog = dialogRef.current;
+    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusables = () => [...(dialog?.querySelectorAll(focusableSelector) || [])].filter((node) => !node.hidden);
+    const initial = focusables()[0] || dialog;
+    initial?.focus();
+    const containFocus = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const nodes = focusables();
+      if (!nodes.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = nodes[0];
+      const last = nodes.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", containFocus);
+    return () => {
+      document.removeEventListener("keydown", containFocus);
+      previousFocusRef.current?.focus?.();
+    };
+  }, [record]);
+
   if (!record) return null;
   return (
     <div className="analytics-modal" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="analytics-record-title" className="analytics-modal__surface">
+      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="analytics-record-title" className="analytics-modal__surface" tabIndex={-1}>
         <header><div><span>{record.id} · {record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"}</span><h2 id="analytics-record-title">{record.title}</h2></div><button type="button" onClick={onClose} aria-label="Close analytical detail"><X size={19} aria-hidden="true" /></button></header>
         <div className="analytics-modal__facts">
           <article><span>Recipient / sponsor</span><strong>{record.party || "Not published"}</strong></article>
@@ -1556,18 +1641,11 @@ export default function TransactionAnalytics({
   });
   const [visibleCharts, setVisibleCharts] = useState(DEFAULT_VISIBLE_CHARTS);
   useEffect(() => {
-    const sync = () => setActiveView(analyticsViewFromHash());
+    const sync = () => setActiveView(analyticsViewFromHash({ canonicalize: true }));
+    sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
-  useEffect(() => {
-    if (!selectedRecord) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") setSelectedRecord(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedRecord]);
   const filterDefinitions = useMemo(() => [
     { id: "work", title: "Type of work", allLabel: "All work categories", value: (record) => record.workCategory || "other-unclassified", label: (value) => WORK_CATEGORY_BY_ID.get(value)?.label || "Other / unclassified" },
     { id: "buyer", title: "Funding office", allLabel: "All funding offices", value: (record) => record.fundingOffice || record.owner || "Not published" },

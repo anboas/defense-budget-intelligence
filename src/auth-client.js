@@ -1,6 +1,11 @@
 const AUTH_ROOT = "/api/v1/auth";
 const PBKDF2_ITERATIONS = 310_000;
 
+export function isKnownStaticHost() {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname.endsWith(".github.io");
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${AUTH_ROOT}${path}`, {
     credentials: "same-origin",

@@ -11984,7 +11984,8 @@ td .dot {
   --wallboard-blue: #075b96;
   display: flex;
   flex-direction: column;
-  min-height: max(720px, calc(100dvh - 76px));
+  height: max(640px, calc(100dvh - 106px));
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--wallboard-line);
   border-radius: 10px;
@@ -12230,7 +12231,7 @@ td .dot {
   .ops-integration-list em { grid-column: 2; }
   .ops-activity-list li { grid-template-columns: 10px minmax(0, 1fr); }
   .ops-activity-list time { grid-column: 2; }
-  .ops-wallboard { min-height: 640px; border-radius: 7px; }
+  .ops-wallboard { height: auto; min-height: 640px; border-radius: 7px; }
   .ops-wallboard__masthead { min-height: 76px; padding: 11px 12px; border-bottom-width: 3px; }
   .ops-wallboard__brand { gap: 9px; }
   .ops-wallboard__brand > img { width: 42px; height: 42px; border-radius: 7px; }
@@ -12582,7 +12583,7 @@ td .dot {
 
   .masthead .if-operations-topnav__link,
   .masthead .if-operations-topnav__secondary-button {
-    min-height: 31px;
+    min-height: 44px;
     padding: 5px 7px;
     font-size: 11.5px;
   }

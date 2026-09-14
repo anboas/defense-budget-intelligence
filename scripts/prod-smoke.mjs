@@ -60,6 +60,10 @@ function extractAssets(html, baseUrl) {
 const baseUrl = normalizeBaseUrl(argValue("--url"));
 const homeResponse = await fetchWithCheck(baseUrl);
 assert.equal(homeResponse.status, 200, `Homepage should return 200, got ${statusText(homeResponse)}`);
+assert.match(homeResponse.headers.get("content-security-policy") || "", /frame-ancestors 'none'/, "Production must prevent framing through CSP");
+assert.equal(homeResponse.headers.get("x-frame-options"), "DENY", "Production must prevent legacy framing");
+assert.match(homeResponse.headers.get("strict-transport-security") || "", /max-age=63072000/, "Production must advertise long-lived HTTPS transport security");
+assert.equal(homeResponse.headers.get("x-content-type-options"), "nosniff", "Production must disable MIME sniffing");
 
 const html = await homeResponse.text();
 assert.match(html, /Defense Budget & Spend Analytics/, "Homepage should identify the app");
@@ -76,6 +80,18 @@ const scriptResponse = await fetchWithCheck(assets.scripts[0]);
 assert.equal(scriptResponse.status, 200, `JavaScript bundle should return 200, got ${statusText(scriptResponse)}`);
 const scriptBytes = (await scriptResponse.arrayBuffer()).byteLength;
 assert.ok(scriptBytes < 500000, `Initial JavaScript bundle should stay below 500KB, got ${scriptBytes}`);
+let styleBytes = 0;
+for (const stylesheetUrl of assets.stylesheets) {
+  const styleResponse = await fetchWithCheck(stylesheetUrl);
+  assert.equal(styleResponse.status, 200, `Stylesheet should return 200: ${stylesheetUrl}`);
+  styleBytes += (await styleResponse.arrayBuffer()).byteLength;
+}
+assert.ok(styleBytes <= 350000, `Production CSS should stay below 350KB, got ${styleBytes}`);
+
+const manifestResponse = await fetchWithCheck(new URL("data/runtime-manifest.json", baseUrl));
+assert.equal(manifestResponse.status, 200, `Runtime manifest should return 200, got ${statusText(manifestResponse)}`);
+const manifest = await manifestResponse.json();
+assert.ok(manifest.metadata?.recordCount > 3000, "Runtime manifest should expose the request-line count without loading the detailed corpus");
 
 const coreResponse = await fetchWithCheck(new URL("data/budget-core.json", baseUrl));
 assert.equal(coreResponse.status, 200, `Core runtime data should return 200, got ${statusText(coreResponse)}`);
@@ -104,6 +120,7 @@ console.log(
     `js_assets=${assets.scripts.length}`,
     `css_assets=${assets.stylesheets.length}`,
     `js_bytes=${scriptBytes}`,
+    `css_bytes=${styleBytes}`,
     `budget_records=${core.records.length}`,
     `awards=${execution.awardDrilldown.summary.awards}`,
     `federal_accounts=${accountSpine.accounts.length}`,
