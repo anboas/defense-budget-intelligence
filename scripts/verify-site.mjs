@@ -373,34 +373,12 @@ try {
   assert.equal(compactDesktopGeometry.freshnessCount, 0, "Transactions should not render source-freshness cards above the working canvas");
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
   assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
-  await page.getByRole("button", { name: "Data table" }).click();
-  await page.waitForSelector("[data-transaction-data-table]");
-  assert.match(await page.locator("[data-transaction-data-table] .dbi-data-table__status").innerText(), /875|records/i, "Transactions table should expose the entire filtered record universe");
-  assert.equal(await page.locator("[data-transaction-data-table] [data-if-table-row]").count(), 50, "Transactions should paginate at fifty rows by default");
-  assert.ok(await page.locator("[data-transaction-data-table] th").count() >= 10, "Transactions table should expose a broad operational column set");
-  assert.ok(await page.locator("[data-transaction-data-table] [data-table-filters] select").count() >= 6, "Transactions table should expose column-level facets");
-  const partyHeaderIndex = await page.locator('[data-transaction-data-table] th[data-column-key="party"]').evaluate((node) => [...node.parentElement.children].indexOf(node));
-  await page.locator("[data-transaction-data-table] .dbi-data-table__columns summary").click();
-  await page.getByRole("button", { name: "Move Recipient / sponsor left" }).click();
-  const movedPartyHeaderIndex = await page.locator('[data-transaction-data-table] th[data-column-key="party"]').evaluate((node) => [...node.parentElement.children].indexOf(node));
-  assert.equal(movedPartyHeaderIndex, partyHeaderIndex - 1, "Column order controls should reconfigure the working table");
-  await page.getByRole("button", { name: "Move Recipient / sponsor right" }).click();
-  await page.locator("[data-transaction-data-table] .dbi-data-table__columns summary").click();
-  const workWidthBefore = Number.parseFloat(await page.locator('[data-transaction-data-table] th[data-column-key="work"]').evaluate((node) => node.style.width || "0"));
-  await page.locator('[data-transaction-data-table] th[data-column-key="work"] [role="separator"]').press("ArrowRight");
-  const workWidthAfter = Number.parseFloat(await page.locator('[data-transaction-data-table] th[data-column-key="work"]').evaluate((node) => node.style.width || "0"));
-  assert.ok(workWidthAfter > workWidthBefore, `Keyboard column resizing should increase the explicit work column width: ${workWidthBefore} -> ${workWidthAfter}`);
-  await page.locator('[data-transaction-data-table] th[data-column-key="end"] .if-table__sort').click();
-  assert.equal(await page.locator('[data-transaction-data-table] th[data-column-key="end"]').getAttribute("aria-sort"), "descending", "Sortable headers should expose their active direction");
-  const transactionTableSearch = page.getByPlaceholder("Search every visible transaction field…");
-  await transactionTableSearch.fill("Application Arsenal");
-  assert.ok(await page.locator("[data-transaction-data-table] [data-if-table-row]").count() >= 2, "Transactions table should search across identifiers, titles, parties, and dimensions");
-  await transactionTableSearch.fill("");
-  await page.locator("[data-transaction-data-table] [data-if-table-row] input[type=checkbox]").first().check();
-  assert.equal(await page.locator("[data-transaction-data-table] [data-if-table-bulk]").count(), 1, "Transactions should expose bulk-selection state");
-  await page.locator("[data-transaction-data-table] [data-if-table-bulk] button").click();
-  await page.getByRole("button", { name: "Gantt" }).click();
+  assert.equal(await page.getByRole("button", { name: "Data table" }).count(), 0, "Transactions must remain a Gantt-only workspace");
+  assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Transactions must not render the shared DataTable");
+  await page.evaluate(() => { window.location.hash = "#/budget-spend/transactions?capView=table"; });
+  await page.waitForFunction(() => !window.location.hash.includes("capView"));
   await page.waitForSelector("[data-capture-timeline]");
+  assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Legacy table links must canonicalize back to the Gantt");
   const wallboardRecordIds = await page.locator("[data-capture-timeline-row]").evaluateAll((nodes) => nodes.slice(0, 8).map((node) => node.dataset.recordId));
   assert.equal(wallboardRecordIds.length, 8, "Wallboard density fixture should use eight factual stable record IDs");
   const firstWatchRow = page.locator("[data-capture-timeline-row]").first();
@@ -973,23 +951,8 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-mobile.png` });
   await mobile.getByRole("button", { name: "Close record details" }).click();
   await mobile.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
-  await mobile.getByRole("button", { name: "Data table" }).click();
-  await mobile.waitForSelector("[data-transaction-data-table]");
-  const mobileTableGeometry = await mobile.locator("[data-transaction-data-table]").evaluate((node) => ({
-    headerDisplay: getComputedStyle(node.querySelector("thead")).display,
-    rowDisplay: getComputedStyle(node.querySelector("[data-if-table-row]")).display,
-    width: node.getBoundingClientRect().width,
-    viewportWidth: window.innerWidth,
-    labels: [...node.querySelectorAll("[data-if-table-row] td[data-ui-table-card-label]")].slice(0, 5).map((cell) => cell.dataset.uiTableCardLabel),
-  }));
-  assert.equal(mobileTableGeometry.headerDisplay, "none", "Mobile data tables should replace desktop headers with card labels");
-  assert.equal(mobileTableGeometry.rowDisplay, "grid", "Mobile data tables should render each record as a scan-friendly card");
-  assert.ok(mobileTableGeometry.width <= mobileTableGeometry.viewportWidth, `Mobile transaction table must remain inside the viewport: ${JSON.stringify(mobileTableGeometry)}`);
-  assert.ok(mobileTableGeometry.labels.includes("Transaction / acquisition"), "Mobile transaction cards should retain explicit field labels");
-  await assertNoPageOverflow(mobile, "Mobile transactions data table");
-  await mobile.screenshot({ path: `${OUT_DIR}/transactions-data-table-mobile.png`, fullPage: true });
-  await mobile.getByRole("button", { name: "Gantt" }).click();
-  await mobile.waitForSelector("[data-capture-timeline]");
+  assert.equal(await mobile.getByRole("button", { name: "Data table" }).count(), 0, "Mobile Transactions must remain Gantt-only");
+  assert.equal(await mobile.locator("[data-transaction-data-table]").count(), 0, "Mobile Transactions must not render a DataTable card view");
   await assertNoPageOverflow(mobile, "Mobile transactions");
   await mobile.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });

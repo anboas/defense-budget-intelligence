@@ -60,7 +60,6 @@ const FILTER_DEFAULTS = {
   capLabels: "dates",
   capFields: "party,reference,value",
   capFeed: "none",
-  capView: "gantt",
 };
 
 const MULTI_FILTER_KEYS = ["capPortfolio", "capEvidence", "capLifecycle", "capParty", "capOffice", "capVehicle", "capWork", "capOrigin"];
@@ -338,7 +337,6 @@ function parseHashFilters() {
   if (!new Set(["all", "tracked"]).has(parsed.capTracked)) parsed.capTracked = FILTER_DEFAULTS.capTracked;
   if (!new Set(["all", "added", "updated", "unchanged"]).has(parsed.capChange)) parsed.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(parsed.capDensity)) parsed.capDensity = FILTER_DEFAULTS.capDensity;
-  if (!new Set(["gantt", "table"]).has(parsed.capView)) parsed.capView = FILTER_DEFAULTS.capView;
   if (!GROUP_BY_IDS.has(parsed.capGroup)) parsed.capGroup = FILTER_DEFAULTS.capGroup;
   if (!BAR_LABEL_IDS.has(parsed.capLabels)) parsed.capLabels = FILTER_DEFAULTS.capLabels;
   parsed.capFields = normalizeFieldIds(parsed.capFields);
@@ -357,7 +355,8 @@ function useCaptureFilters() {
   useEffect(() => {
     const [route] = window.location.hash.split("?");
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-    let changed = false;
+    let changed = params.has("capView");
+    params.delete("capView");
     for (const [key, value] of Object.entries(filters)) {
       const canonical = value === FILTER_DEFAULTS[key] || !value ? null : value;
       if (params.get(key) === canonical) continue;
@@ -375,6 +374,7 @@ function useCaptureFilters() {
       const resolved = typeof next === "function" ? next(current) : { ...current, ...next };
       const [route] = window.location.hash.split("?");
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+      params.delete("capView");
       for (const [key, value] of Object.entries(resolved)) {
         if (value === FILTER_DEFAULTS[key] || !value) params.delete(key);
         else params.set(key, value);
@@ -497,7 +497,6 @@ function normalizeSavedFilters(candidate) {
   if (!new Set(["all", "tracked"]).has(filters.capTracked)) filters.capTracked = FILTER_DEFAULTS.capTracked;
   if (!new Set(["all", "added", "updated", "unchanged"]).has(filters.capChange)) filters.capChange = FILTER_DEFAULTS.capChange;
   if (!new Set(["comfortable", "compact"]).has(filters.capDensity)) filters.capDensity = FILTER_DEFAULTS.capDensity;
-  if (!new Set(["gantt", "table"]).has(filters.capView)) filters.capView = FILTER_DEFAULTS.capView;
   if (!GROUP_BY_IDS.has(filters.capGroup)) filters.capGroup = FILTER_DEFAULTS.capGroup;
   if (!BAR_LABEL_IDS.has(filters.capLabels)) filters.capLabels = FILTER_DEFAULTS.capLabels;
   filters.capFields = normalizeFieldIds(filters.capFields);
@@ -1179,66 +1178,6 @@ function LifecycleMatrix({ records, portfolios, onSelect }) {
   );
 }
 
-function TransactionRecordTable({ records, watchedIds, onToggleWatch, onSelect }) {
-  const columns = [
-    {
-      key: "record",
-      label: "Transaction / acquisition",
-      required: true,
-      sticky: true,
-      minWidth: 290,
-      value: (record) => `${record.id} ${record.title}`,
-      render: (record) => <span className="dbi-table-primary"><strong>{record.title}</strong><small>{record.id} · {record.reference || "No published reference"}</small></span>,
-    },
-    {
-      key: "tracked",
-      label: "Tracked",
-      width: 86,
-      facet: true,
-      value: (record) => watchedIds.has(record.opportunityId) ? "Tracked" : "Not tracked",
-      render: (record) => <button type="button" className={`dbi-table-icon-button${watchedIds.has(record.opportunityId) ? " is-active" : ""}`} aria-pressed={watchedIds.has(record.opportunityId)} onClick={() => onToggleWatch(record.opportunityId)} aria-label={watchedIds.has(record.opportunityId) ? `Stop tracking ${record.title}` : `Track ${record.title}`}><Star size={16} fill={watchedIds.has(record.opportunityId) ? "currentColor" : "none"} /></button>,
-    },
-    { key: "recordType", label: "Record type", facet: true, value: (record) => record.mode === "contract-performance" ? "Contract performance" : "Acquisition window" },
-    { key: "work", label: "Type of work", facet: true, minWidth: 180, value: (record) => (record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || category).join(" · ") || "Other / unclassified" },
-    { key: "party", label: "Recipient / sponsor", facet: true, minWidth: 170, value: (record) => record.party || "Not published" },
-    { key: "office", label: "Buying office", facet: true, minWidth: 190, value: (record) => record.contractingOffice || record.fundingOffice || record.owner || "Not published" },
-    { key: "start", label: "Start", width: 108, value: (record) => firstDate(record) === "9999-12-31" ? "Undated" : firstDate(record) },
-    { key: "end", label: "Current end", width: 108, value: (record) => { const end = record.currentEnd || finalDate(record); return end === "0000-01-01" ? "Undated" : end; } },
-    { key: "obligations", label: "Obligations", width: 118, value: recordObligations, exportValue: recordObligations, render: (record) => formatMoney(recordObligations(record)) },
-    { key: "potential", label: "Potential / high", width: 128, value: recordValue, exportValue: recordValue, render: (record) => formatMoney(recordValue(record)) },
-    { key: "pricing", label: "Pricing type", facet: true, minWidth: 150, value: (record) => record.pricingType || record.contractType || "Not published" },
-    { key: "vehicle", label: "Vehicle / parent", facet: true, minWidth: 170, value: (record) => record.vehicle || record.parentReference || "Not published" },
-    { key: "provenance", label: "Import provenance", facet: true, minWidth: 150, value: (record) => record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || label(record.ingestionMethod) },
-    { key: "actions", label: "FPDS actions", width: 100, value: (record) => Number(record.transactionSummary?.actions || 0) },
-    { key: "subawards", label: "Subawards", width: 100, value: (record) => Number(record.subawardSummary?.reportedCount || 0) },
-    {
-      key: "open",
-      label: "Actions",
-      role: "actions",
-      required: true,
-      sortable: false,
-      width: 108,
-      render: (record) => <button type="button" className="if-btn if-btn--secondary dbi-table-open" onClick={() => onSelect(record.opportunityId)}>Details <ChevronRight size={14} /></button>,
-    },
-  ];
-  return (
-    <OperationalDataTable
-      id="transactions"
-      label="Transactions and acquisition records"
-      rows={records}
-      columns={columns}
-      rowKey={(record) => record.opportunityId}
-      defaultSort={{ key: "end", direction: "asc" }}
-      defaultPageSize={50}
-      pageSizeOptions={[25, 50, 100]}
-      searchPlaceholder="Search every visible transaction field…"
-      exportFilename="transactions-filtered.csv"
-      renderDetail={(record) => <div className="dbi-table-detail-grid"><div><span>Schedule</span><strong>{firstDate(record) === "9999-12-31" ? "Undated" : formatDate(firstDate(record))} to {finalDate(record) === "0000-01-01" ? "undated" : formatDate(finalDate(record))}</strong></div><div><span>Evidence</span><strong>{label(record.evidenceTier)} · {label(record.validationStatus)}</strong></div><div><span>Competition</span><strong>{record.competitionDescription || record.setAsideDescription || record.competitionType || "Not published"}</strong></div><div><span>Source</span><strong>{record.sourceSystem || "Not published"}</strong></div></div>}
-      wrapperProps={{ "data-transaction-data-table": true }}
-    />
-  );
-}
-
 export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] } }) {
   const [filters, setFilters] = useCaptureFilters();
   const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
@@ -1584,7 +1523,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     return { id: `${year}-Q${quarter + 1}`, label: `Q${quarter + 1} ${year}`, ends: endingRecords.length, milestones: milestoneCount, total: endingRecords.length + milestoneCount };
   });
   const matrixPortfolios = portfolioRows.slice(0, 8).map((row) => row.id);
-  const displaySettings = new Set(["capSort", "capRows", "capDensity", "capGroup", "capLabels", "capFields", "capFeed", "capView"]);
+  const displaySettings = new Set(["capSort", "capRows", "capDensity", "capGroup", "capLabels", "capFields", "capFeed"]);
   const activeFilters = Object.entries(filters).filter(([key, value]) => !displaySettings.has(key) && value !== FILTER_DEFAULTS[key]).length;
   const selectedFeeds = new Set(parseMultiValues(filters.capFeed));
   const feedStatusParts = [];
@@ -1688,8 +1627,8 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       ) : null}
 
       <section className="capture-section">
-        <div className="capture-section__heading capture-gantt-heading"><div>{filters.capView === "gantt" ? <CalendarClock size={18} /> : <BarChart3 size={18} />}<span><strong>{filters.capView === "gantt" ? "Award performance, acquisition events, and transaction overlays" : "Transaction data table"}</strong><small>{filters.capView === "gantt" ? `${visible.length.toLocaleString()} of ${filtered.length.toLocaleString()} filtered rows · ${followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence` : `${filtered.length.toLocaleString()} filtered rows · sort, filter, select, configure columns, expand evidence, and export the active set`}</small></span></div><div className="capture-view-controls"><div className="capture-view-switch" role="group" aria-label="Transaction view"><button type="button" className={filters.capView === "gantt" ? "is-active" : ""} aria-pressed={filters.capView === "gantt"} onClick={() => setFilters({ capView: "gantt" })}><CalendarClock size={14} />Gantt</button><button type="button" className={filters.capView === "table" ? "is-active" : ""} aria-pressed={filters.capView === "table"} onClick={() => setFilters({ capView: "table" })}><BarChart3 size={14} />Data table</button></div>{filters.capView === "gantt" ? <span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span> : null}</div></div>
-        {filters.capView === "gantt" ? <><details className="capture-gantt-tools" data-capture-gantt-tools>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
+        <details className="capture-gantt-tools" data-capture-gantt-tools>
           <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
           <div className="capture-gantt-tools__grid">
           <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
@@ -1714,7 +1653,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
           </fieldset>
           </div>
         </details>
-        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} /> : <p className="capture-empty">No public records match these filters.</p>}</> : <TransactionRecordTable records={filtered} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} onSelect={setSelectedId} />}
+        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>
 
       <details className="capture-analytics-disclosure" data-capture-analytics-disclosure>

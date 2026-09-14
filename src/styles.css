@@ -10700,10 +10700,6 @@ td .dot {
 .dbi-table-detail-grid > div { display: grid; align-content: start; gap: 4px; min-height: 72px; padding: 10px; background: #fff; }
 .dbi-table-detail-grid span { color: #71767a; font-size: 10px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }
 .dbi-table-detail-grid strong { color: #1b1b1b; font-size: 12px; }
-.capture-view-controls { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 10px; }
-.capture-view-switch { display: inline-flex; flex: 0 0 auto; padding: 2px; border: 1px solid #a9b7c6; border-radius: 4px; background: #eef1f4; }
-.capture-view-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 4px 9px; border: 0; border-radius: 2px; background: transparent; color: #3d4551; font-size: 11px; font-weight: 900; cursor: pointer; }
-.capture-view-switch button.is-active { background: #fff; color: #005ea8; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16), inset 0 -2px #00bde3; }
 
 @container (max-width: 720px) {
   .dbi-data-table__toolbar { grid-template-columns: minmax(0, 1fr) auto; }
@@ -10798,9 +10794,6 @@ td .dot {
 
 @media (max-width: 760px) {
   .capture-gantt-heading { align-items: stretch; }
-  .capture-view-controls { align-items: stretch; flex-direction: column; }
-  .capture-view-switch { align-self: stretch; }
-  .capture-view-switch button { flex: 1; min-height: 44px; }
 
   .capture-modal {
     width: calc(100vw - 12px);
