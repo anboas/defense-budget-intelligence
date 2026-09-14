@@ -3187,15 +3187,15 @@ function Awards() {
 
       <AnalysisActions rows={filteredAwards} filename="filtered-awards" />
 
+      <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · showing ${visibleAwards.length.toLocaleString()}`} icon={FileSpreadsheet}>
+        <AwardTable awards={visibleAwards} />
+      </Section>
+
       <div className="grid grid--sources">
         <AwardRollup title="Top Buyers" rows={topBuyer} />
         <AwardRollup title="Top Vendors" rows={topVendor} />
         <AwardRollup title="Top Work Types" rows={topWork} />
       </div>
-
-      <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · showing ${visibleAwards.length.toLocaleString()}`} icon={FileSpreadsheet}>
-        <AwardTable awards={visibleAwards} />
-      </Section>
     </div>
   );
 }
@@ -3825,6 +3825,8 @@ function AwardTable({ awards }) {
         searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…"
         exportFilename="defense-awards.csv"
         defaultPageSize={25}
+        showSearch={false}
+        showFacets={false}
         wrapperProps={{ "data-award-record-table": true }}
       />
       <EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} />

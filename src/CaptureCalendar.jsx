@@ -635,7 +635,7 @@ function AwardActionHistory({ record, actions, state, onRetry }) {
       {record.corroborationStatus === "newer_fpds_action" ? (
         <p className="capture-action-discrepancy"><strong>Newer FPDS action:</strong> FPDS includes a later public modification than the current USAspending transaction set. USAspending values above remain primary; the FPDS totals are shown separately.</p>
       ) : null}
-      <OperationalDataTable id={`fpds-actions-${record.opportunityId}`} label={`FPDS actions for ${record.title}`} rows={actions} columns={columns} rowKey={(action) => action.actionId} defaultSort={{ key: "signed", direction: "desc" }} defaultPageSize={10} pageSizeOptions={[10, 25, 50]} searchPlaceholder="Search PIID, modification, action, or description…" exportFilename={`fpds-actions-${record.id}.csv`} selectable={false} wrapperProps={{ "data-capture-action-table": true }} />
+      <OperationalDataTable id={`fpds-actions-${record.opportunityId}`} label={`FPDS actions for ${record.title}`} rows={actions} columns={columns} rowKey={(action) => action.actionId} defaultSort={{ key: "signed", direction: "desc" }} defaultPageSize={10} pageSizeOptions={[5, 10, 25, 50]} searchPlaceholder="Search PIID, modification, action, or description…" exportFilename={`fpds-actions-${record.id}.csv`} selectable={false} wrapperProps={{ "data-capture-action-table": true }} />
       <small className="capture-action-history__limit">The chart and table use every exact primary-award action. Supporting-instrument actions remain explicitly labeled.</small>
     </section>
   );

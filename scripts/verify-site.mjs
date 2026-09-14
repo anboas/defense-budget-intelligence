@@ -316,8 +316,36 @@ try {
   assert.equal(await page.locator("[data-award-filter-bar] select").count(), 5, "Awards should expose factual filter dimensions");
   assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
   assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689|records/i, "Awards should disclose the complete sampled award scope");
-  assert.equal(await page.locator("[data-award-record-table] [data-table-filters] select").count(), 4, "Awards should expose column-level facets alongside page filters");
+  assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
   assert.equal(await page.locator("[data-award-record-table] .dbi-data-table__columns").count(), 1, "Awards should expose persistent column configuration");
+  const awardColumnManager = page.locator("[data-award-record-table] .dbi-data-table__columns");
+  const awardColumnTrigger = awardColumnManager.locator("summary").first();
+  await awardColumnTrigger.click();
+  assert.equal(await page.locator("[data-award-record-table]").getByRole("button", { name: "Reset", exact: true }).count(), 1, "DataTable column management should expose a one-step layout reset");
+  await page.keyboard.press("Escape");
+  assert.equal(await awardColumnManager.getAttribute("open"), null, "Escape should close the DataTable column manager");
+  assert.equal(await awardColumnTrigger.evaluate((node) => node === document.activeElement), true, "Closing the DataTable column manager should restore focus to its trigger");
+  const awardStickyGeometry = await page.locator("[data-award-record-table] .dbi-data-table__wrap").evaluate((wrap) => {
+    const identity = wrap.querySelector("th[data-column-key='award']");
+    const actions = wrap.querySelector("th[data-table-column-role='actions']");
+    const before = { identity: identity?.getBoundingClientRect().left || 0, actions: actions?.getBoundingClientRect().right || 0 };
+    wrap.scrollLeft = wrap.scrollWidth;
+    const after = { identity: identity?.getBoundingClientRect().left || 0, actions: actions?.getBoundingClientRect().right || 0 };
+    return { before, after, clientWidth: wrap.clientWidth, scrollWidth: wrap.scrollWidth };
+  });
+  assert.ok(awardStickyGeometry.scrollWidth > awardStickyGeometry.clientWidth, "Wide award records should scroll inside the DataTable rather than the document");
+  assert.ok(Math.abs(awardStickyGeometry.before.identity - awardStickyGeometry.after.identity) <= 1, `The identity column should remain pinned during horizontal scroll: ${JSON.stringify(awardStickyGeometry)}`);
+  assert.ok(Math.abs(awardStickyGeometry.before.actions - awardStickyGeometry.after.actions) <= 5, `The action column should remain pinned within the table border during horizontal scroll: ${JSON.stringify(awardStickyGeometry)}`);
+  const awardContentOrder = await page.evaluate(() => ({
+    records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
+    rollups: document.querySelector(".awards-page > .grid--sources")?.getBoundingClientRect().top || 0,
+    filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] select, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
+    metricTops: [...document.querySelectorAll(".awards-page > .source-metrics > .metric")].map((node) => Math.round(node.getBoundingClientRect().top)),
+  }));
+  assert.ok(awardContentOrder.records < awardContentOrder.rollups, `Award records should precede secondary rollups: ${JSON.stringify(awardContentOrder)}`);
+  assert.equal(new Set(awardContentOrder.filterBottoms).size, 1, `Desktop award controls should occupy one aligned Control Framework command row: ${JSON.stringify(awardContentOrder)}`);
+  assert.equal(new Set(awardContentOrder.metricTops).size, 1, `Desktop award KPIs should occupy one aligned row: ${JSON.stringify(awardContentOrder)}`);
+  assert.ok(awardContentOrder.records <= 560, `Award records should remain visible in the first desktop viewport: ${JSON.stringify(awardContentOrder)}`);
   assert.ok(await page.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Awards intro should remain compact");
   assert.doesNotMatch(await page.locator("[data-awards-page] .phase-intro").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
@@ -902,6 +930,10 @@ try {
 
   await openSurface(mobile, "#/budget-spend/awards", "[data-awards-page]");
   assert.ok(await mobile.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile awards intro should stay compact");
+  assert.equal(await mobile.locator("[data-award-record-table] [data-if-table-row]").count(), 5, "Mobile DataTables should default to five readable record cards instead of a 25-card wall");
+  const mobileAwardTableControls = await mobile.locator("[data-award-record-table] .dbi-data-table__tools .if-btn, [data-award-record-table] .dbi-data-table__columns > summary, [data-award-record-table] .dbi-data-table__footer .if-page-btn, [data-award-record-table] .dbi-data-table__footer .if-select").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileAwardTableControls.every((height) => height >= 43.5), `Mobile DataTable controls should preserve 44px touch targets: ${mobileAwardTableControls.join(", ")}`);
+  assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 4600, "Mobile Awards should stay within a bounded five-card working surface");
   await assertNoPageOverflow(mobile, "Mobile awards");
 
   await openSurface(mobile, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
