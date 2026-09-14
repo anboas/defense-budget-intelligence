@@ -1,16 +1,44 @@
 import { useEffect, useState } from "react";
-import { Check, Clipboard, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { Check, Clipboard, ImagePlus, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
+import UserAvatar from "./UserAvatar.jsx";
 
 const DEFAULT_AGENT_SCOPES = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "integrations:read"];
 
-function initials(name = "") {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "U";
+async function squareAvatar(file) {
+  if (!file?.type?.startsWith("image/") || file.size > 8_000_000) throw new Error("Choose a PNG, JPEG, or WebP image under 8 MB.");
+  const sourceDataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("That image could not be opened."));
+    reader.readAsDataURL(file);
+  });
+  const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("That image could not be opened."));
+      element.src = sourceDataUrl;
+  });
+  const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+  const sourceX = Math.floor((image.naturalWidth - sourceSize) / 2);
+  const sourceY = Math.floor((image.naturalHeight - sourceSize) / 2);
+  for (const size of [112, 96, 80, 64]) {
+    for (const quality of [0.76, 0.62, 0.48]) {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      canvas.getContext("2d").drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+      const dataUrl = canvas.toDataURL("image/webp", quality);
+      if (dataUrl.length <= 13_500) return dataUrl;
+    }
+  }
+  throw new Error("That image is too complex. Try a simpler crop.");
 }
 
 function AccountPanel({ auth, user }) {
   const [displayName, setDisplayName] = useState(user.displayName);
   const [title, setTitle] = useState(user.title || "");
+  const [avatarDataUrl, setAvatarDataUrl] = useState(user.avatarDataUrl || "");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -19,7 +47,7 @@ function AccountPanel({ auth, user }) {
     setBusy(true);
     setMessage("");
     try {
-      await auth.updateProfile({ displayName, title });
+      await auth.updateProfile({ displayName, title, avatarDataUrl });
       setMessage("Profile saved.");
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
@@ -34,6 +62,14 @@ function AccountPanel({ auth, user }) {
     </header>
     <form className="profile-page__form account-settings-form" onSubmit={save}>
       <div className="if-panel__body profile-page__panel-body">
+        <div className="profile-photo-manager">
+          <UserAvatar user={{ ...user, displayName, avatarDataUrl }} className="profile-avatar profile-avatar--editor" />
+          <div><strong>Profile picture</strong><small>Square crop, optimized in your browser before upload.</small><span>
+            <label className="if-btn if-btn--sm" htmlFor="profile-avatar-file"><ImagePlus size={15} />{avatarDataUrl ? "Replace" : "Choose image"}</label>
+            <input id="profile-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void squareAvatar(event.target.files?.[0]).then(setAvatarDataUrl).catch((imageError) => setMessage(imageError.message))} />
+            {avatarDataUrl ? <button className="if-btn if-btn--sm" type="button" onClick={() => setAvatarDataUrl("")}><Trash2 size={15} />Remove</button> : null}
+          </span></div>
+        </div>
         <div className="if-form-grid profile-page__form-grid">
           <label className="if-field">
             <span className="if-field__label">Display name</span>
@@ -185,7 +221,7 @@ export default function ProfilePage({ section = "profile" }) {
         <p>{section === "security" ? "Manage the password for this workspace account." : "Manage the identity shown across the workspace."}</p>
       </div>
       <div className="profile-page__identity" aria-label="Current account">
-        <span className="profile-avatar profile-avatar--page" aria-hidden="true">{initials(user.displayName)}</span>
+        <UserAvatar user={user} className="profile-avatar profile-avatar--page" />
         <span className="profile-page__identity-copy"><strong>{user.displayName}</strong><small>{user.email}</small></span>
         <span className="if-badge if-badge--info if-badge--sm">{user.role}</span>
       </div>

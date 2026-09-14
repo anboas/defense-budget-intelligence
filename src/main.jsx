@@ -53,6 +53,7 @@ const TABS = [
   { id: "integrations", label: "Integrations", icon: Database },
   { id: "activity", label: "API Log", icon: ListChecks },
   { id: "users", label: "Users", icon: Building2 },
+  { id: "workspaces", label: "Workspaces", icon: Building2 },
   { id: "sources", label: "Source Lineage", icon: Database },
   { id: "profile", label: "Profile", icon: Building2 },
   { id: "security", label: "Security", icon: Building2 },
@@ -72,6 +73,7 @@ const HASH_ROUTES = {
   integrations: "#/budget-spend/integrations",
   activity: "#/budget-spend/api-log",
   users: "#/budget-spend/users",
+  workspaces: "#/budget-spend/workspaces",
   sources: "#/budget-spend/sources",
   profile: "#/profile",
   security: "#/profile/security",
@@ -417,7 +419,7 @@ let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0,
 let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
-const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "agents"]);
+const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspaces", "agents"]);
 const OPERATIONS_TAB_IDS = new Set(["wallboard", ...ADMINISTRATION_TAB_IDS]);
 const PROFILE_TAB_IDS = new Set(["profile", "security"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);

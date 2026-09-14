@@ -43,8 +43,8 @@ try {
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator('[data-nav-group-trigger="admin"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 6, "Authenticated Admin should add Users and Agent Access to the four shared management routes");
-  assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Users[\s\S]*Agent Access/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 7, "The Super user should receive workspace, user, and agent administration routes");
+  assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Users[\s\S]*Workspaces[\s\S]*Agent Access/i);
   assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Admin");
   await page.locator('[data-nav-group-trigger="admin"]').click();
   const desktopTrigger = page.locator("[data-profile-menu-trigger]");
@@ -63,8 +63,8 @@ try {
   const profileSurfaceBox = await profileSurface.boundingBox();
   assert.ok(profileSurfaceBox && Math.abs(profileSurfaceBox.width - 360) <= 1, `Desktop profile surface should match the 360px Opportunity Intelligence account component, got ${profileSurfaceBox?.width}px`);
   assert.equal(await profileSurface.locator(".if-account-surface__header").count(), 1, "Profile dropdown should use the shared account-surface header");
-  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 5, "Profile dropdown should expose shared account actions including Users and Agent Access");
-  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 5, "Every shared account-action row should render its icon glyph");
+  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 6, "Profile dropdown should expose workspace, user, and agent administration actions");
+  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 6, "Every shared account-action row should render its icon glyph");
   assert.equal(await profileSurface.locator(".if-account-surface__footer").count(), 1, "Profile dropdown should use the shared account-surface footer");
   assert.ok(await page.getByText("Super user", { exact: true }).count() >= 1, "Profile menu should identify the first account as super user");
   await page.screenshot({ path: "test-results/profile-menu-desktop.png" });
@@ -76,6 +76,7 @@ try {
   assert.equal(await page.locator('.profile-page__nav a:has-text("Agent access"), .profile-page__nav a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into the account settings rail");
   assert.equal(await page.locator('[data-profile-account] input:disabled').count(), 0, "Immutable account metadata should use compact key/value rows instead of oversized disabled inputs");
   assert.equal(await page.locator('[data-profile-account-meta] .if-kv').count(), 2, "Profile should expose email and role through the framework metadata primitive");
+  assert.equal(await page.locator(".profile-photo-manager").count(), 1, "Profile should expose picture selection, replacement, and removal controls");
   const desktopProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
     const panel = node.querySelector(".profile-page__panel");
     const pageHeader = node.querySelector(".profile-page__header");
@@ -104,11 +105,15 @@ try {
   assert.ok(desktopProfileGeometry.panelTitleSize <= 15, `Profile panel title should remain compact, got ${desktopProfileGeometry.panelTitleSize}px`);
   assert.ok(desktopProfileGeometry.inputHeight >= 29.5 && desktopProfileGeometry.inputHeight <= 34.5, `Desktop profile inputs should use compact framework controls, got ${desktopProfileGeometry.inputHeight}px`);
   assert.ok(desktopProfileGeometry.contentWidth <= 761, `Profile form should preserve a readable utility width, got ${desktopProfileGeometry.contentWidth}px`);
-  assert.ok(desktopProfileGeometry.panelBottom <= 540, `Profile's primary task should fit high in a 1000px viewport, ending at ${desktopProfileGeometry.panelBottom}px`);
+  assert.ok(desktopProfileGeometry.panelBottom <= 620, `Profile picture and identity controls should fit high in a 1000px viewport, ending at ${desktopProfileGeometry.panelBottom}px`);
   await page.screenshot({ path: "test-results/profile-page-desktop.png", fullPage: true });
+  await page.locator("#profile-avatar-file").setInputFiles("public/icon-192.png");
+  await page.locator(".profile-photo-manager .user-avatar img").waitFor();
   await page.getByLabel("Display name").fill(finalName);
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByText("Profile saved.").waitFor();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator(".profile-photo-manager .user-avatar img").waitFor();
 
   await page.locator("[data-profile-menu-trigger]").click();
   await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /^Users/i }).click();
@@ -145,6 +150,50 @@ try {
   await teammate.getByRole("button", { name: "Reactivate" }).click();
   await page.getByText("Browser teammate reactivated.", { exact: true }).waitFor();
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
+
+  await page.locator('.admin-console__nav a[href="#/budget-spend/workspaces"]').click();
+  await page.waitForSelector("[data-workspace-management]");
+  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Workspaces", "Workspace administration should remain inside the Admin control center");
+  const workspaceAdmin = page.locator("[data-workspace-management]");
+  await workspaceAdmin.getByLabel("Name").fill("Browser verification");
+  await workspaceAdmin.getByLabel("Description").fill("Browser-tested isolated workspace");
+  await workspaceAdmin.getByRole("button", { name: "Create workspace" }).click();
+  const createdWorkspace = workspaceAdmin.locator('[data-workspace]', { hasText: "Browser verification" });
+  await createdWorkspace.waitFor();
+  const candidateValue = await createdWorkspace.locator('select[aria-label^="User to add"] option', { hasText: "Browser teammate" }).getAttribute("value");
+  await createdWorkspace.getByLabel(/User to add/).selectOption(candidateValue);
+  await createdWorkspace.getByLabel("Workspace role").selectOption("viewer");
+  await createdWorkspace.getByRole("button", { name: "Add" }).click();
+  await createdWorkspace.getByText("Browser teammate", { exact: true }).waitFor();
+  await createdWorkspace.getByRole("button", { name: /Remove Browser teammate/ }).click();
+  await page.getByText(/removed from Browser verification/).waitFor();
+  await page.screenshot({ path: "test-results/admin-workspaces-desktop.png", fullPage: true });
+
+  const signupContext = await browser.newContext({ viewport: { width: 1080, height: 900 } });
+  const signupPage = await signupContext.newPage();
+  await signupPage.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  await signupPage.waitForSelector('[data-account-gate="login"]');
+  await signupPage.getByRole("button", { name: "New here? Create an account" }).click();
+  await signupPage.waitForSelector('[data-account-gate="register"]');
+  await signupPage.getByLabel("Display name").fill("Self Signup User");
+  await signupPage.getByLabel("Email").fill("self-signup@example.test");
+  await signupPage.getByLabel(/Title/).fill("Workspace requestor");
+  await signupPage.getByLabel("Password", { exact: true }).fill("Self-Signup-2026!");
+  await signupPage.getByLabel("Confirm password").fill("Self-Signup-2026!");
+  await signupPage.getByRole("button", { name: "Create account" }).click();
+  await signupPage.waitForSelector('[data-account-gate="workspace-access"]');
+  await signupPage.getByRole("button", { name: "Request access" }).first().click();
+  await signupPage.getByText(/Access request sent/).waitFor();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const requestRow = page.locator("[data-workspace-request]", { hasText: "Self Signup User" });
+  await requestRow.waitFor();
+  await requestRow.getByLabel(/Role for Self Signup User/).selectOption("viewer");
+  await requestRow.getByRole("button", { name: "Approve" }).click();
+  await page.getByText("Self Signup User approved.", { exact: true }).waitFor();
+  await signupPage.reload({ waitUntil: "domcontentloaded" });
+  await signupPage.waitForSelector("[data-defense-budget-app]");
+  await signupContext.close();
 
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
@@ -272,8 +321,8 @@ try {
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `Authenticated mobile shell should not overflow, got ${overflow}px`);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Authenticated mobile More should retain all grouped routes including Users and Agent Access");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Users[\s\S]*Agent Access/i);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Authenticated mobile More should retain all grouped routes including workspace administration");
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Users[\s\S]*Workspaces[\s\S]*Agent Access/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();
@@ -301,14 +350,14 @@ try {
       buttonHeights: buttons.map((button) => button.getBoundingClientRect().height),
     };
   });
-  assert.ok(mobileProfileGeometry.panelHeight <= 440, `Mobile Profile should remain a compact settings task, got ${mobileProfileGeometry.panelHeight}px`);
+  assert.ok(mobileProfileGeometry.panelHeight <= 620, `Mobile Profile picture and identity controls should fit within one screen, got ${mobileProfileGeometry.panelHeight}px`);
   assert.ok(mobileProfileGeometry.panelRadius <= 4, `Mobile Profile should retain the framework radius, got ${mobileProfileGeometry.panelRadius}px`);
   assert.equal(mobileProfileGeometry.identityCopyDisplay, "none", "Mobile Profile should avoid duplicating full account metadata in the route header");
   assert.ok(mobileProfileGeometry.inputHeights.every((height) => height >= 43.5), `Mobile Profile inputs must retain 44px touch geometry: ${mobileProfileGeometry.inputHeights.join(", ")}`);
   assert.ok(mobileProfileGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Profile actions must retain 44px touch geometry: ${mobileProfileGeometry.buttonHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
 
-  console.log("Verified first-account Super user, routed Profile/Security/Users/Agent Access, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
+  console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
 } finally {
   await browser.close();
 }

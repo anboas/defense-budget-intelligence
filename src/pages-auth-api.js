@@ -20,6 +20,7 @@ const AGENT_SCOPES = Object.freeze([
 ]);
 const USER_ROLES = Object.freeze(["administrator", "analyst", "viewer"]);
 const USER_STATUSES = Object.freeze(["active", "suspended"]);
+const DEFAULT_WORKSPACE_ID = "workspace-defense-budget";
 const ROLE_LABELS = Object.freeze({
   super_user: "Super user",
   administrator: "Administrator",
@@ -219,6 +220,158 @@ const SCHEMA = Object.freeze([
     request_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (principal_id, minute_bucket)
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspaces (
+    workspace_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `INSERT OR IGNORE INTO dbi_workspaces
+    (workspace_id, name, slug, description, status, owner_user_id, created_at, updated_at)
+    VALUES ('workspace-defense-budget', 'Defense budget', 'defense-budget', 'Defense Budget Intelligence shared workspace', 'active', '', '2026-09-14T20:20:00.000Z', '2026-09-14T20:20:00.000Z')`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_memberships (
+    workspace_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('super_user', 'administrator', 'analyst', 'viewer')),
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, user_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_memberships_user ON dbi_workspace_memberships (user_id, workspace_id)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_access_requests (
+    request_id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+    resolved_by TEXT NOT NULL DEFAULT '',
+    resolved_at TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_workspace_request_pending ON dbi_workspace_access_requests (workspace_id, user_id) WHERE status = 'pending'",
+  `CREATE TABLE IF NOT EXISTS dbi_session_workspaces (
+    session_id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS dbi_user_profiles (
+    user_id TEXT PRIMARY KEY,
+    avatar_data_url TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_agent_keys (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    scopes_json TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT NOT NULL DEFAULT '',
+    expires_at TEXT NOT NULL DEFAULT '',
+    revoked_at TEXT NOT NULL DEFAULT ''
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_agent_keys_workspace ON dbi_workspace_agent_keys (workspace_id, created_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_watchlist (
+    workspace_id TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    review_at TEXT NOT NULL DEFAULT '',
+    wallboard INTEGER NOT NULL DEFAULT 1,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, record_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_events (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL DEFAULT '',
+    location TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'scheduled',
+    record_ids_json TEXT NOT NULL DEFAULT '[]',
+    wallboard INTEGER NOT NULL DEFAULT 1,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_events_workspace ON dbi_workspace_events (workspace_id, starts_at)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_attendees (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id, user_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_activity (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    actor_type TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL DEFAULT '',
+    detail_json TEXT NOT NULL DEFAULT '{}',
+    occurred_at TEXT NOT NULL
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_activity_workspace ON dbi_workspace_activity (workspace_id, occurred_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_manual_records (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT NOT NULL DEFAULT ''
+  )`,
+  `UPDATE dbi_workspaces SET owner_user_id = COALESCE((SELECT user_id FROM dbi_super_user WHERE singleton = 1), owner_user_id)
+    WHERE workspace_id = 'workspace-defense-budget' AND owner_user_id = ''`,
+  `INSERT OR IGNORE INTO dbi_workspace_memberships (workspace_id, user_id, role, created_by, created_at, updated_at)
+    SELECT 'workspace-defense-budget', user_id, role, COALESCE(NULLIF(created_by, ''), user_id), created_at, updated_at
+    FROM dbi_users
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_session_workspaces (session_id, workspace_id, updated_at)
+    SELECT id, 'workspace-defense-budget', '2026-09-14T20:20:00.000Z' FROM dbi_sessions
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_agent_keys
+    (id, workspace_id, name, token_hash, scopes_json, created_by, created_at, last_used_at, expires_at, revoked_at)
+    SELECT id, 'workspace-defense-budget', name, token_hash, scopes_json, created_by, created_at, last_used_at, expires_at, revoked_at
+    FROM dbi_agent_keys
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_watchlist
+    (workspace_id, record_id, note, review_at, wallboard, version, created_at, updated_at)
+    SELECT 'workspace-defense-budget', record_id, note, review_at, wallboard, version, created_at, updated_at
+    FROM dbi_watchlist
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_events
+    (id, workspace_id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+    SELECT id, 'workspace-defense-budget', title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at
+    FROM dbi_management_events
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_attendees (workspace_id, event_id, user_id, created_at)
+    SELECT 'workspace-defense-budget', event_id, user_id, created_at FROM dbi_event_user_attendees
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_activity
+    (id, workspace_id, actor_type, actor_id, action, entity_type, entity_id, detail_json, occurred_at)
+    SELECT id, 'workspace-defense-budget', actor_type, actor_id, action, entity_type, entity_id, detail_json, occurred_at
+    FROM dbi_operator_activity
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_manual_records
+    (id, workspace_id, payload_json, version, created_at, updated_at, deleted_at)
+    SELECT id, 'workspace-defense-budget', payload_json, version, created_at, updated_at, deleted_at
+    FROM dbi_manual_records
+    WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_schema_migrations (name, applied_at)
+    VALUES ('2026-09-14-multi-workspace-v1', '2026-09-14T20:20:00.000Z')`,
 ]);
 const schemaInitialization = new WeakMap();
 
@@ -327,20 +480,61 @@ async function safeJson(request, maxBytes = MAX_BODY_BYTES) {
 }
 
 function publicUser(row) {
+  const roleId = row?.role === "super_user" ? "super_user" : row?.membership_role || row?.role || "viewer";
   return row ? {
     id: row.user_id,
     email: row.email,
     displayName: row.display_name,
     title: row.title || "",
-    role: ROLE_LABELS[row.role] || "Viewer",
-    roleId: row.role || "viewer",
+    avatarDataUrl: row.avatar_data_url || "",
+    role: ROLE_LABELS[roleId] || "Viewer",
+    roleId,
     status: row.status || "active",
     mustChangePassword: Boolean(row.must_change_password),
-    canManageUsers: ["super_user", "administrator"].includes(row.role),
-    canManageAgents: ["super_user", "administrator"].includes(row.role),
+    canManageUsers: ["super_user", "administrator"].includes(roleId),
+    canManageAgents: ["super_user", "administrator"].includes(roleId),
+    canManageWorkspaces: row.role === "super_user",
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
   } : null;
+}
+
+function validAvatarDataUrl(value) {
+  const avatar = cleanText(value, 14_000);
+  return !avatar || /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/]+=*$/i.test(avatar) ? avatar : null;
+}
+
+async function workspacesForUser(db, userId) {
+  const result = await db.prepare(`
+    SELECT workspace.workspace_id, workspace.name, workspace.slug, workspace.description, membership.role
+    FROM dbi_workspace_memberships membership
+    JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id
+    WHERE membership.user_id = ? AND workspace.status = 'active'
+    ORDER BY workspace.name COLLATE NOCASE
+  `).bind(userId).all();
+  return (result.results || []).map((workspace) => ({
+    id: workspace.workspace_id,
+    name: workspace.name,
+    slug: workspace.slug,
+    description: workspace.description || "",
+    roleId: workspace.role,
+    role: ROLE_LABELS[workspace.role] || "Viewer",
+  }));
+}
+
+async function publicSessionUser(db, row) {
+  if (!row) return null;
+  const workspaces = await workspacesForUser(db, row.user_id);
+  const activeWorkspace = workspaces.find((workspace) => workspace.id === row.active_workspace_id) || null;
+  const profile = row.avatar_data_url === undefined
+    ? await db.prepare("SELECT avatar_data_url FROM dbi_user_profiles WHERE user_id = ?").bind(row.user_id).first()
+    : null;
+  const hydrated = {
+    ...row,
+    membership_role: activeWorkspace?.roleId || row.membership_role,
+    avatar_data_url: row.avatar_data_url ?? profile?.avatar_data_url ?? "",
+  };
+  return { ...publicUser(hydrated), workspaces, activeWorkspace, hasWorkspaceAccess: Boolean(activeWorkspace) };
 }
 
 async function superUser(db) {
@@ -352,7 +546,11 @@ async function userByEmail(db, email) {
 }
 
 function canAdministerUsers(user) {
-  return Boolean(user && ["super_user", "administrator"].includes(user.role));
+  return Boolean(user && (user.role === "super_user" || user.membership_role === "administrator"));
+}
+
+function canAdministerWorkspaces(user) {
+  return Boolean(user && user.role === "super_user");
 }
 
 function scopesForRole(role) {
@@ -364,9 +562,19 @@ async function sessionUser(db, request) {
   const rawToken = cookies(request)[SESSION_COOKIE] || "";
   if (!rawToken) return null;
   const row = await db.prepare(`
-    SELECT u.*, s.id AS session_id
+    SELECT u.*, profile.avatar_data_url, s.id AS session_id,
+      session_workspace.workspace_id AS active_workspace_id,
+      membership.role AS membership_role,
+      workspace.name AS active_workspace_name,
+      workspace.slug AS active_workspace_slug
     FROM dbi_sessions s
     JOIN dbi_users u ON u.user_id = s.user_id
+    LEFT JOIN dbi_user_profiles profile ON profile.user_id = u.user_id
+    LEFT JOIN dbi_session_workspaces session_workspace ON session_workspace.session_id = s.id
+    LEFT JOIN dbi_workspace_memberships membership
+      ON membership.workspace_id = session_workspace.workspace_id AND membership.user_id = u.user_id
+    LEFT JOIN dbi_workspaces workspace
+      ON workspace.workspace_id = membership.workspace_id AND workspace.status = 'active'
     WHERE s.token_hash = ? AND s.revoked_at = '' AND s.expires_at > ? AND u.status = 'active'
   `).bind(await hashValue(rawToken), new Date().toISOString()).first();
   if (!row) return null;
@@ -376,23 +584,39 @@ async function sessionUser(db, request) {
   return row;
 }
 
-async function createSession(db, userId) {
+async function createSession(db, userId, preferredWorkspaceId = "") {
   const rawToken = randomHex(32);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
+  const preferred = preferredWorkspaceId ? await db.prepare(`
+    SELECT membership.workspace_id FROM dbi_workspace_memberships membership
+    JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id
+    WHERE membership.user_id = ? AND membership.workspace_id = ? AND workspace.status = 'active'
+  `).bind(userId, preferredWorkspaceId).first() : null;
+  const fallback = preferred || await db.prepare(`
+    SELECT membership.workspace_id FROM dbi_workspace_memberships membership
+    JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id
+    WHERE membership.user_id = ? AND workspace.status = 'active'
+    ORDER BY CASE membership.role WHEN 'super_user' THEN 0 WHEN 'administrator' THEN 1 WHEN 'analyst' THEN 2 ELSE 3 END,
+      workspace.name COLLATE NOCASE LIMIT 1
+  `).bind(userId).first();
+  const sessionId = crypto.randomUUID();
   await db.prepare(`
     INSERT INTO dbi_sessions
       (id, user_id, token_hash, expires_at, revoked_at, created_at, last_seen_at)
     VALUES (?, ?, ?, ?, '', ?, ?)
   `).bind(
-    crypto.randomUUID(),
+    sessionId,
     userId,
     await hashValue(rawToken),
     expiresAt,
     now.toISOString(),
     now.toISOString(),
   ).run();
-  return { rawToken, expiresAt };
+  if (fallback?.workspace_id) await db.prepare(`
+    INSERT OR REPLACE INTO dbi_session_workspaces (session_id, workspace_id, updated_at) VALUES (?, ?, ?)
+  `).bind(sessionId, fallback.workspace_id, now.toISOString()).run();
+  return { rawToken, expiresAt, sessionId, workspaceId: fallback?.workspace_id || "" };
 }
 
 async function clientHash(request, email) {
@@ -426,7 +650,8 @@ async function statusResponse(request, db, env) {
     enabled: true,
     required: env.DBI_AUTH_REQUIRED !== "0",
     claimed: Boolean(owner),
-    user: publicUser(session),
+    registrationEnabled: Boolean(owner),
+    user: await publicSessionUser(db, session),
   });
 }
 
@@ -472,8 +697,16 @@ async function claimResponse(request, db, env) {
     VALUES (?, ?, ?, ?, 'super_user', 'active', ?, ?, 0, ?, ?, ?, '')
   `).bind(userId, email, displayName, title, passwordSalt, `v1$${await hashValue(passwordProof)}`, userId, now, now).run();
 
-  const session = await createSession(db, userId);
-  return json({ user: publicUser({
+  await db.batch([
+    db.prepare("UPDATE dbi_workspaces SET owner_user_id = ?, updated_at = ? WHERE workspace_id = ?")
+      .bind(userId, now, DEFAULT_WORKSPACE_ID),
+    db.prepare(`INSERT OR REPLACE INTO dbi_workspace_memberships
+      (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, 'super_user', ?, ?, ?)`)
+      .bind(DEFAULT_WORKSPACE_ID, userId, userId, now, now),
+  ]);
+
+  const session = await createSession(db, userId, DEFAULT_WORKSPACE_ID);
+  const claimedUser = {
     user_id: userId,
     email,
     display_name: displayName,
@@ -482,7 +715,40 @@ async function claimResponse(request, db, env) {
     status: "active",
     must_change_password: 0,
     created_at: now,
-  }) }, 201, { "set-cookie": sessionCookie(session.rawToken, request, env) });
+    active_workspace_id: DEFAULT_WORKSPACE_ID,
+    membership_role: "super_user",
+  };
+  return json({ user: await publicSessionUser(db, claimedUser) }, 201, { "set-cookie": sessionCookie(session.rawToken, request, env) });
+}
+
+async function registrationResponse(request, db, env) {
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (!sameOrigin(request)) return json({ error: "Cross-origin registration is not allowed" }, 403);
+  if (!await superUser(db)) return json({ error: "The Super user must claim the service before registration opens" }, 409);
+  const body = await safeJson(request);
+  const email = normalizeEmail(body?.email);
+  const displayName = cleanText(body?.displayName, 80);
+  const title = cleanText(body?.title, 80);
+  const passwordSalt = cleanText(body?.passwordSalt, 128).toLowerCase();
+  const passwordProof = cleanText(body?.passwordProof, 64).toLowerCase();
+  if (!email || displayName.length < 2 || !validSalt(passwordSalt) || !validPasswordProof(passwordProof)) {
+    return json({ error: "Valid account details are required" }, 400);
+  }
+  const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_users").first();
+  if (Number(count?.count || 0) >= 250) return json({ error: "Account registration is temporarily full" }, 409);
+  const userId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const created = await db.prepare(`
+    INSERT OR IGNORE INTO dbi_users
+      (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
+    VALUES (?, ?, ?, ?, 'viewer', 'active', ?, ?, 0, ?, ?, ?, ?)
+  `).bind(userId, email, displayName, title, passwordSalt, `v1$${await hashValue(passwordProof)}`, userId, now, now, now).run();
+  if (!Number(created?.meta?.changes || 0)) return json({ error: "An account with that email already exists" }, 409);
+  const session = await createSession(db, userId);
+  const row = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(userId).first();
+  return json({ user: await publicSessionUser(db, row), expiresAt: session.expiresAt }, 201, {
+    "set-cookie": sessionCookie(session.rawToken, request, env),
+  });
 }
 
 async function loginConfigResponse(request, db) {
@@ -525,7 +791,7 @@ async function loginResponse(request, db, env) {
   const now = new Date().toISOString();
   await db.prepare("UPDATE dbi_users SET last_login_at = ?, updated_at = updated_at WHERE user_id = ?").bind(now, user.user_id).run();
   const session = await createSession(db, user.user_id);
-  return json({ user: publicUser({ ...user, last_login_at: now }), expiresAt: session.expiresAt }, 200, {
+  return json({ user: await publicSessionUser(db, { ...user, last_login_at: now, active_workspace_id: session.workspaceId }), expiresAt: session.expiresAt }, 200, {
     "set-cookie": sessionCookie(session.rawToken, request, env),
   });
 }
@@ -547,19 +813,24 @@ async function profileResponse(request, db) {
   if (!sameOrigin(request)) return json({ error: "Cross-origin profile changes are not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
-  const body = await safeJson(request);
+  const body = await safeJson(request, 16_384);
   const displayName = cleanText(body?.displayName, 80);
   const title = cleanText(body?.title, 80);
+  const avatarDataUrl = validAvatarDataUrl(body?.avatarDataUrl);
   if (displayName.length < 2) return json({ error: "Display name is required" }, 400);
+  if (avatarDataUrl === null) return json({ error: "Profile picture must be a small PNG, JPEG, or WebP image" }, 400);
   const now = new Date().toISOString();
   const statements = [db.prepare(`
     UPDATE dbi_users SET display_name = ?, title = ?, updated_at = ? WHERE user_id = ?
-  `).bind(displayName, title, now, session.user_id)];
+  `).bind(displayName, title, now, session.user_id), db.prepare(`
+    INSERT INTO dbi_user_profiles (user_id, avatar_data_url, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET avatar_data_url = excluded.avatar_data_url, updated_at = excluded.updated_at
+  `).bind(session.user_id, avatarDataUrl, now)];
   if (session.role === "super_user") statements.push(db.prepare(`
     UPDATE dbi_super_user SET display_name = ?, title = ?, updated_at = ? WHERE user_id = ?
   `).bind(displayName, title, now, session.user_id));
   await db.batch(statements);
-  return json({ user: publicUser({ ...session, display_name: displayName, title }) });
+  return json({ user: await publicSessionUser(db, { ...session, display_name: displayName, title, avatar_data_url: avatarDataUrl }) });
 }
 
 async function passwordResponse(request, db, env) {
@@ -596,7 +867,7 @@ async function passwordResponse(request, db, env) {
   `).bind(newPasswordSalt, passwordHash, now, session.user_id));
   await db.batch(statements);
   const nextSession = await createSession(db, session.user_id);
-  return json({ ok: true, user: publicUser({ ...session, must_change_password: 0 }) }, 200, {
+  return json({ ok: true, user: await publicSessionUser(db, { ...session, must_change_password: 0, active_workspace_id: nextSession.workspaceId || session.active_workspace_id }) }, 200, {
     "set-cookie": sessionCookie(nextSession.rawToken, request, env),
   });
 }
@@ -614,6 +885,8 @@ async function usersResponse(request, db) {
   const administrator = await sessionUser(db, request);
   if (!administrator) return json({ error: "Sign in required" }, 401);
   if (!canAdministerUsers(administrator)) return json({ error: "Administrator access is required" }, 403);
+  const workspaceId = administrator.active_workspace_id;
+  if (!workspaceId) return json({ error: "Select a workspace before managing users" }, 409);
 
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
   const prefix = "/api/v1/auth/users";
@@ -624,14 +897,17 @@ async function usersResponse(request, db) {
   if (request.method === "GET" && !userId) {
     const now = new Date().toISOString();
     const result = await db.prepare(`
-      SELECT u.*, COUNT(s.id) AS active_sessions
-      FROM dbi_users u
+      SELECT u.*, membership.role AS membership_role, profile.avatar_data_url, COUNT(s.id) AS active_sessions
+      FROM dbi_workspace_memberships membership
+      JOIN dbi_users u ON u.user_id = membership.user_id
+      LEFT JOIN dbi_user_profiles profile ON profile.user_id = u.user_id
       LEFT JOIN dbi_sessions s
         ON s.user_id = u.user_id AND s.revoked_at = '' AND s.expires_at > ?
+      WHERE membership.workspace_id = ?
       GROUP BY u.user_id
-      ORDER BY CASE u.role WHEN 'super_user' THEN 0 WHEN 'administrator' THEN 1 WHEN 'analyst' THEN 2 ELSE 3 END,
+      ORDER BY CASE membership.role WHEN 'super_user' THEN 0 WHEN 'administrator' THEN 1 WHEN 'analyst' THEN 2 ELSE 3 END,
         u.display_name COLLATE NOCASE
-    `).bind(now).all();
+    `).bind(now, workspaceId).all();
     return json({ users: (result.results || []).map(managedUser), availableRoles: USER_ROLES });
   }
 
@@ -646,7 +922,7 @@ async function usersResponse(request, db) {
     if (!email || displayName.length < 2 || !USER_ROLES.includes(role) || !validSalt(passwordSalt) || !validPasswordProof(passwordProof)) {
       return json({ error: "Valid user details, role, and temporary password are required" }, 400);
     }
-    const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_users").first();
+    const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_workspace_memberships WHERE workspace_id = ?").bind(workspaceId).first();
     if (Number(count?.count || 0) >= 50) return json({ error: "This workspace is limited to 50 human accounts" }, 409);
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -656,12 +932,21 @@ async function usersResponse(request, db) {
       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, 1, ?, ?, ?, '')
     `).bind(id, email, displayName, title, role, passwordSalt, `v1$${await hashValue(passwordProof)}`, administrator.user_id, now, now).run();
     if (!Number(created?.meta?.changes || 0)) return json({ error: "An account with that email already exists" }, 409);
-    await recordActivity(db, { type: "user", id: administrator.user_id }, "user_created", "user", id, { email, role });
-    const row = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(id).first();
+    await db.prepare(`INSERT INTO dbi_workspace_memberships
+      (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(workspaceId, id, role, administrator.user_id, now, now).run();
+    await recordActivity(db, { type: "user", id: administrator.user_id, workspaceId }, "user_created", "user", id, { email, role });
+    const row = await db.prepare("SELECT *, ? AS membership_role FROM dbi_users WHERE user_id = ?").bind(role, id).first();
     return json({ user: managedUser(row) }, 201);
   }
 
-  const target = userId ? await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(userId).first() : null;
+  const target = userId ? await db.prepare(`
+    SELECT user.*, membership.role AS membership_role, profile.avatar_data_url
+    FROM dbi_workspace_memberships membership
+    JOIN dbi_users user ON user.user_id = membership.user_id
+    LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
+    WHERE membership.workspace_id = ? AND membership.user_id = ?
+  `).bind(workspaceId, userId).first() : null;
   if (!target) return json({ error: "User not found" }, 404);
   if (target.role === "super_user") return json({ error: "The Super user account is immutable in user management" }, 403);
 
@@ -678,9 +963,9 @@ async function usersResponse(request, db) {
     const now = new Date().toISOString();
     const changed = await db.prepare(`
       UPDATE OR IGNORE dbi_users
-      SET email = ?, display_name = ?, title = ?, role = ?, status = ?, updated_at = ?
+      SET email = ?, display_name = ?, title = ?, status = ?, updated_at = ?
       WHERE user_id = ?
-    `).bind(email, displayName, title, role, status, now, userId).run();
+    `).bind(email, displayName, title, status, now, userId).run();
     if (!Number(changed?.meta?.changes || 0)) {
       const duplicate = await userByEmail(db, email);
       if (duplicate && duplicate.user_id !== userId) return json({ error: "An account with that email already exists" }, 409);
@@ -688,8 +973,10 @@ async function usersResponse(request, db) {
     if (status === "suspended") {
       await db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId).run();
     }
-    await recordActivity(db, { type: "user", id: administrator.user_id }, "user_updated", "user", userId, { email, role, status });
-    const row = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(userId).first();
+    await db.prepare("UPDATE dbi_workspace_memberships SET role = ?, updated_at = ? WHERE workspace_id = ? AND user_id = ?")
+      .bind(role, now, workspaceId, userId).run();
+    await recordActivity(db, { type: "user", id: administrator.user_id, workspaceId }, "user_updated", "user", userId, { email, role, status });
+    const row = await db.prepare("SELECT *, ? AS membership_role FROM dbi_users WHERE user_id = ?").bind(role, userId).first();
     return json({ user: managedUser(row) });
   }
 
@@ -705,7 +992,7 @@ async function usersResponse(request, db) {
       `).bind(passwordSalt, `v1$${await hashValue(passwordProof)}`, now, userId),
       db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId),
     ]);
-    await recordActivity(db, { type: "user", id: administrator.user_id }, "user_password_reset", "user", userId, { email: target.email });
+    await recordActivity(db, { type: "user", id: administrator.user_id, workspaceId }, "user_password_reset", "user", userId, { email: target.email });
     return json({ ok: true });
   }
 
@@ -717,16 +1004,231 @@ async function directoryResponse(request, db) {
   const user = await sessionUser(db, request);
   if (!user) return json({ error: "Sign in required" }, 401);
   const result = await db.prepare(`
-    SELECT user_id, display_name, title
-    FROM dbi_users
-    WHERE status = 'active'
-    ORDER BY display_name COLLATE NOCASE
-  `).all();
+    SELECT user.user_id, user.display_name, user.title, profile.avatar_data_url
+    FROM dbi_workspace_memberships membership
+    JOIN dbi_users user ON user.user_id = membership.user_id
+    LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
+    WHERE membership.workspace_id = ? AND user.status = 'active'
+    ORDER BY user.display_name COLLATE NOCASE
+  `).bind(user.active_workspace_id).all();
   return json({ users: (result.results || []).map((entry) => ({
     id: entry.user_id,
     displayName: entry.display_name,
     title: entry.title || "",
+    avatarDataUrl: entry.avatar_data_url || "",
   })) });
+}
+
+function workspaceSummary(row, membership = null, request = null) {
+  return {
+    id: row.workspace_id,
+    name: row.name,
+    slug: row.slug,
+    description: row.description || "",
+    status: row.status,
+    ownerUserId: row.owner_user_id || "",
+    roleId: membership?.role || null,
+    role: membership?.role ? ROLE_LABELS[membership.role] || "Viewer" : null,
+    requestStatus: request?.status || null,
+    createdAt: row.created_at,
+  };
+}
+
+async function workspacesResponse(request, db) {
+  if (!sameOrigin(request)) return json({ error: "Cross-origin workspace access is not allowed" }, 403);
+  const user = await sessionUser(db, request);
+  if (!user) return json({ error: "Sign in required" }, 401);
+  const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+  const relative = pathname.slice("/api/v1/auth/workspaces".length).replace(/^\//, "");
+  const [encodedWorkspaceId = "", action = ""] = relative.split("/");
+  const workspaceId = cleanText(decodeURIComponent(encodedWorkspaceId), 80);
+
+  if (request.method === "GET" && !workspaceId) {
+    const [workspaceResult, membershipResult, requestResult] = await Promise.all([
+      db.prepare("SELECT * FROM dbi_workspaces WHERE status = 'active' ORDER BY name COLLATE NOCASE").all(),
+      db.prepare("SELECT workspace_id, role FROM dbi_workspace_memberships WHERE user_id = ?").bind(user.user_id).all(),
+      db.prepare("SELECT workspace_id, status FROM dbi_workspace_access_requests WHERE user_id = ? ORDER BY created_at DESC").bind(user.user_id).all(),
+    ]);
+    const memberships = new Map((membershipResult.results || []).map((entry) => [entry.workspace_id, entry]));
+    const requests = new Map();
+    for (const entry of requestResult.results || []) if (!requests.has(entry.workspace_id)) requests.set(entry.workspace_id, entry);
+    return json({
+      workspaces: (workspaceResult.results || []).map((workspace) => workspaceSummary(workspace, memberships.get(workspace.workspace_id), requests.get(workspace.workspace_id))),
+      activeWorkspaceId: user.active_workspace_id || null,
+    });
+  }
+
+  const workspace = workspaceId ? await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ? AND status = 'active'").bind(workspaceId).first() : null;
+  if (!workspace) return json({ error: "Workspace not found" }, 404);
+
+  if (request.method === "POST" && action === "request") {
+    const existingMembership = await db.prepare("SELECT 1 AS found FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?")
+      .bind(workspaceId, user.user_id).first();
+    if (existingMembership) return json({ error: "You already have access to this workspace" }, 409);
+    const pending = await db.prepare("SELECT request_id FROM dbi_workspace_access_requests WHERE workspace_id = ? AND user_id = ? AND status = 'pending'")
+      .bind(workspaceId, user.user_id).first();
+    if (pending) return json({ error: "An access request is already pending" }, 409);
+    const body = await safeJson(request);
+    const now = new Date().toISOString();
+    const requestId = crypto.randomUUID();
+    await db.prepare(`INSERT INTO dbi_workspace_access_requests
+      (request_id, workspace_id, user_id, note, status, resolved_by, resolved_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'pending', '', '', ?, ?)`)
+      .bind(requestId, workspaceId, user.user_id, cleanText(body?.note, 500), now, now).run();
+    return json({ request: { id: requestId, workspaceId, status: "pending", createdAt: now } }, 201);
+  }
+
+  if (request.method === "POST" && action === "switch") {
+    const membership = await db.prepare("SELECT role FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?")
+      .bind(workspaceId, user.user_id).first();
+    if (!membership) return json({ error: "Workspace access is required" }, 403);
+    const now = new Date().toISOString();
+    await db.prepare(`INSERT INTO dbi_session_workspaces (session_id, workspace_id, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(session_id) DO UPDATE SET workspace_id = excluded.workspace_id, updated_at = excluded.updated_at`)
+      .bind(user.session_id, workspaceId, now).run();
+    return json({ user: await publicSessionUser(db, { ...user, active_workspace_id: workspaceId, membership_role: membership.role }) });
+  }
+
+  return json({ error: "Method not allowed" }, 405);
+}
+
+async function workspaceAdminResponse(request, db) {
+  if (!sameOrigin(request)) return json({ error: "Cross-origin workspace administration is not allowed" }, 403);
+  const owner = await sessionUser(db, request);
+  if (!owner) return json({ error: "Sign in required" }, 401);
+  if (!canAdministerWorkspaces(owner)) return json({ error: "Super user access is required" }, 403);
+  const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+  const relative = pathname.slice("/api/v1/auth/workspace-admin".length).replace(/^\//, "");
+  const segments = relative.split("/").filter(Boolean).map((value) => cleanText(decodeURIComponent(value), 80));
+
+  if (request.method === "GET" && !segments.length) {
+    const [workspaceResult, membershipResult, requestResult, userResult] = await Promise.all([
+      db.prepare("SELECT * FROM dbi_workspaces ORDER BY status, name COLLATE NOCASE").all(),
+      db.prepare(`SELECT membership.*, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
+        FROM dbi_workspace_memberships membership JOIN dbi_users user ON user.user_id = membership.user_id
+        LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
+        ORDER BY user.display_name COLLATE NOCASE`).all(),
+      db.prepare(`SELECT access_request.*, user.email, user.display_name, user.title, workspace.name AS workspace_name
+        FROM dbi_workspace_access_requests access_request
+        JOIN dbi_users user ON user.user_id = access_request.user_id
+        JOIN dbi_workspaces workspace ON workspace.workspace_id = access_request.workspace_id
+        ORDER BY CASE access_request.status WHEN 'pending' THEN 0 ELSE 1 END, access_request.created_at DESC`).all(),
+      db.prepare(`SELECT user.user_id, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
+        FROM dbi_users user LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
+        WHERE user.status = 'active' ORDER BY user.display_name COLLATE NOCASE`).all(),
+    ]);
+    const memberships = membershipResult.results || [];
+    return json({
+      workspaces: (workspaceResult.results || []).map((workspace) => ({
+        ...workspaceSummary(workspace),
+        members: memberships.filter((entry) => entry.workspace_id === workspace.workspace_id).map((entry) => ({
+          id: entry.user_id, email: entry.email, displayName: entry.display_name, title: entry.title || "",
+          avatarDataUrl: entry.avatar_data_url || "", status: entry.status, roleId: entry.role, role: ROLE_LABELS[entry.role] || "Viewer",
+        })),
+      })),
+      requests: (requestResult.results || []).map((entry) => ({
+        id: entry.request_id, workspaceId: entry.workspace_id, workspaceName: entry.workspace_name,
+        userId: entry.user_id, email: entry.email, displayName: entry.display_name, title: entry.title || "",
+        note: entry.note || "", status: entry.status, createdAt: entry.created_at, resolvedAt: entry.resolved_at || null,
+      })),
+      users: (userResult.results || []).map((entry) => ({
+        id: entry.user_id, email: entry.email, displayName: entry.display_name, title: entry.title || "",
+        avatarDataUrl: entry.avatar_data_url || "", status: entry.status,
+      })),
+      availableRoles: USER_ROLES,
+    });
+  }
+
+  if (request.method === "POST" && segments[0] === "workspaces" && segments.length === 1) {
+    const body = await safeJson(request);
+    const name = cleanText(body?.name, 80);
+    const description = cleanText(body?.description, 240);
+    const slug = cleanText(body?.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), 80).toLowerCase();
+    if (name.length < 2 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return json({ error: "A valid workspace name is required" }, 400);
+    const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_workspaces WHERE status = 'active'").first();
+    if (Number(count?.count || 0) >= 25) return json({ error: "Archive a workspace before creating another" }, 409);
+    const workspaceId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const created = await db.prepare(`INSERT OR IGNORE INTO dbi_workspaces
+      (workspace_id, name, slug, description, status, owner_user_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`)
+      .bind(workspaceId, name, slug, description, owner.user_id, now, now).run();
+    if (!Number(created?.meta?.changes || 0)) return json({ error: "A workspace with that name already exists" }, 409);
+    await db.prepare(`INSERT INTO dbi_workspace_memberships
+      (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, 'super_user', ?, ?, ?)`)
+      .bind(workspaceId, owner.user_id, owner.user_id, now, now).run();
+    await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_created", "workspace", workspaceId, { name });
+    const row = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
+    return json({ workspace: workspaceSummary(row, { role: "super_user" }) }, 201);
+  }
+
+  if (request.method === "POST" && segments[0] === "requests" && segments[1]) {
+    const accessRequest = await db.prepare("SELECT * FROM dbi_workspace_access_requests WHERE request_id = ?").bind(segments[1]).first();
+    if (!accessRequest) return json({ error: "Access request not found" }, 404);
+    if (accessRequest.status !== "pending") return json({ error: "Access request is already resolved" }, 409);
+    const body = await safeJson(request);
+    const decision = cleanText(body?.decision, 20);
+    const role = cleanText(body?.role, 32) || "viewer";
+    if (!["approved", "denied"].includes(decision) || (decision === "approved" && !USER_ROLES.includes(role))) {
+      return json({ error: "A valid approval decision and role are required" }, 400);
+    }
+    const now = new Date().toISOString();
+    const statements = [db.prepare(`UPDATE dbi_workspace_access_requests
+      SET status = ?, resolved_by = ?, resolved_at = ?, updated_at = ? WHERE request_id = ?`)
+      .bind(decision, owner.user_id, now, now, accessRequest.request_id)];
+    if (decision === "approved") {
+      statements.push(db.prepare(`INSERT INTO dbi_workspace_memberships
+        (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at`)
+        .bind(accessRequest.workspace_id, accessRequest.user_id, role, owner.user_id, now, now));
+      statements.push(db.prepare(`INSERT OR IGNORE INTO dbi_session_workspaces (session_id, workspace_id, updated_at)
+        SELECT session.id, ?, ? FROM dbi_sessions session
+        LEFT JOIN dbi_session_workspaces active ON active.session_id = session.id
+        WHERE session.user_id = ? AND active.session_id IS NULL`).bind(accessRequest.workspace_id, now, accessRequest.user_id));
+    }
+    await db.batch(statements);
+    await recordActivity(db, { type: "user", id: owner.user_id, workspaceId: accessRequest.workspace_id }, `workspace_request_${decision}`, "workspace_request", accessRequest.request_id, { userId: accessRequest.user_id, role });
+    return json({ ok: true, status: decision });
+  }
+
+  if (segments[0] === "workspaces" && segments[1] && segments[2] === "members") {
+    const workspaceId = segments[1];
+    const workspace = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ? AND status = 'active'").bind(workspaceId).first();
+    if (!workspace) return json({ error: "Workspace not found" }, 404);
+    if (request.method === "POST" && segments.length === 3) {
+      const body = await safeJson(request);
+      const userId = cleanText(body?.userId, 80);
+      const role = cleanText(body?.role, 32);
+      const target = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ? AND status = 'active'").bind(userId).first();
+      if (!target || !USER_ROLES.includes(role)) return json({ error: "An active user and valid role are required" }, 400);
+      if (target.role === "super_user") return json({ error: "The Super user membership is immutable" }, 403);
+      const now = new Date().toISOString();
+      await db.prepare(`INSERT INTO dbi_workspace_memberships
+        (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at`)
+        .bind(workspaceId, userId, role, owner.user_id, now, now).run();
+      await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_member_added", "user", userId, { role });
+      return json({ ok: true }, 201);
+    }
+    if (request.method === "DELETE" && segments[3]) {
+      const userId = segments[3];
+      const membership = await db.prepare("SELECT role FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId).first();
+      if (!membership) return json({ error: "Workspace member not found" }, 404);
+      if (membership.role === "super_user") return json({ error: "The Super user cannot be removed from a workspace" }, 403);
+      const now = new Date().toISOString();
+      await db.batch([
+        db.prepare("DELETE FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId),
+        db.prepare(`DELETE FROM dbi_session_workspaces WHERE workspace_id = ? AND session_id IN
+          (SELECT id FROM dbi_sessions WHERE user_id = ?)` ).bind(workspaceId, userId),
+        db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId),
+        db.prepare("UPDATE dbi_workspace_agent_keys SET revoked_at = ? WHERE workspace_id = ? AND created_by = ? AND revoked_at = ''").bind(now, workspaceId, userId),
+      ]);
+      await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_member_removed", "user", userId);
+      return json({ ok: true });
+    }
+  }
+
+  return json({ error: "Method not allowed" }, 405);
 }
 
 function agentJson(data, status = 200, meta = {}, headers = {}) {
@@ -758,19 +1260,22 @@ async function requestPrincipal(db, request) {
     type: "user",
     id: session.user_id,
     name: session.display_name,
-    scopes: session.must_change_password ? [] : scopesForRole(session.role),
+    workspaceId: session.active_workspace_id || "",
+    scopes: session.must_change_password || !session.active_workspace_id
+      ? []
+      : scopesForRole(session.role === "super_user" ? "super_user" : session.membership_role),
   };
   const authorization = request.headers.get("authorization") || "";
   const rawToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!rawToken.startsWith(AGENT_TOKEN_PREFIX) || rawToken.length < 72) return null;
   const now = new Date().toISOString();
   const row = await db.prepare(`
-    SELECT * FROM dbi_agent_keys
+    SELECT * FROM dbi_workspace_agent_keys
     WHERE token_hash = ? AND revoked_at = '' AND (expires_at = '' OR expires_at > ?)
   `).bind(await hashValue(rawToken), now).first();
   if (!row) return null;
-  await db.prepare("UPDATE dbi_agent_keys SET last_used_at = ? WHERE id = ?").bind(now, row.id).run();
-  return { type: "agent", id: row.id, name: row.name, scopes: parsedScopes(row.scopes_json) };
+  await db.prepare("UPDATE dbi_workspace_agent_keys SET last_used_at = ? WHERE id = ?").bind(now, row.id).run();
+  return { type: "agent", id: row.id, name: row.name, workspaceId: row.workspace_id, scopes: parsedScopes(row.scopes_json) };
 }
 
 function hasScope(principal, scope) {
@@ -797,12 +1302,13 @@ async function rateLimited(db, principal) {
 }
 
 async function recordActivity(db, principal, action, entityType, entityId = "", detail = {}) {
+  if (!principal.workspaceId) return;
   await db.prepare(`
-    INSERT INTO dbi_operator_activity
-      (id, actor_type, actor_id, action, entity_type, entity_id, detail_json, occurred_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO dbi_workspace_activity
+      (id, workspace_id, actor_type, actor_id, action, entity_type, entity_id, detail_json, occurred_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    crypto.randomUUID(), principal.type, principal.id, cleanText(action, 80), cleanText(entityType, 80),
+    crypto.randomUUID(), principal.workspaceId, principal.type, principal.id, cleanText(action, 80), cleanText(entityType, 80),
     cleanText(entityId, 180), JSON.stringify(detail || {}).slice(0, 8_000), new Date().toISOString(),
   ).run();
 }
@@ -839,11 +1345,13 @@ async function agentKeysResponse(request, db) {
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
   if (!canAdministerUsers(session)) return json({ error: "Administrator access is required" }, 403);
+  if (!session.active_workspace_id) return json({ error: "Select a workspace before managing agent credentials" }, 409);
+  const workspaceId = session.active_workspace_id;
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
   const prefix = "/api/v1/auth/agent-keys";
   const keyId = cleanText(decodeURIComponent(pathname.slice(prefix.length).replace(/^\//, "")), 80);
   if (request.method === "GET" && !keyId) {
-    const result = await db.prepare("SELECT * FROM dbi_agent_keys ORDER BY created_at DESC").all();
+    const result = await db.prepare("SELECT * FROM dbi_workspace_agent_keys WHERE workspace_id = ? ORDER BY created_at DESC").bind(workspaceId).all();
     return json({ keys: (result.results || []).map(publicAgentKey), availableScopes: AGENT_SCOPES });
   }
   if (request.method === "POST" && !keyId) {
@@ -855,25 +1363,25 @@ async function agentKeysResponse(request, db) {
     const expiresAt = expiresDate && !Number.isNaN(expiresDate.getTime()) ? expiresDate.toISOString() : "";
     if (name.length < 2 || !scopes.length) return json({ error: "A name and at least one valid scope are required" }, 400);
     if (expiresInput && (!expiresAt || expiresDate.getTime() <= Date.now())) return json({ error: "Expiration must be a valid future date and time" }, 400);
-    const active = await db.prepare("SELECT COUNT(*) AS count FROM dbi_agent_keys WHERE revoked_at = '' AND (expires_at = '' OR expires_at > ?)").bind(new Date().toISOString()).first();
+    const active = await db.prepare("SELECT COUNT(*) AS count FROM dbi_workspace_agent_keys WHERE workspace_id = ? AND revoked_at = '' AND (expires_at = '' OR expires_at > ?)").bind(workspaceId, new Date().toISOString()).first();
     if (Number(active?.count || 0) >= 25) return json({ error: "Revoke an existing agent credential before creating another" }, 409);
     const id = crypto.randomUUID();
     const token = `${AGENT_TOKEN_PREFIX}${id}.${randomHex(32)}`;
     const now = new Date().toISOString();
     await db.prepare(`
-      INSERT INTO dbi_agent_keys
-        (id, name, token_hash, scopes_json, created_by, created_at, last_used_at, expires_at, revoked_at)
-      VALUES (?, ?, ?, ?, ?, ?, '', ?, '')
-    `).bind(id, name, await hashValue(token), JSON.stringify(scopes), session.user_id, now, expiresAt).run();
-    await recordActivity(db, { type: "user", id: session.user_id }, "agent_key_created", "agent_key", id, { name, scopes });
+      INSERT INTO dbi_workspace_agent_keys
+        (id, workspace_id, name, token_hash, scopes_json, created_by, created_at, last_used_at, expires_at, revoked_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, '')
+    `).bind(id, workspaceId, name, await hashValue(token), JSON.stringify(scopes), session.user_id, now, expiresAt).run();
+    await recordActivity(db, { type: "user", id: session.user_id, workspaceId }, "agent_key_created", "agent_key", id, { name, scopes });
     return json({ key: { id, name, scopes, createdAt: now, expiresAt: expiresAt || null }, token }, 201);
   }
   if (request.method === "DELETE" && keyId) {
     const now = new Date().toISOString();
-    const changed = await db.prepare("UPDATE dbi_agent_keys SET revoked_at = ? WHERE id = ? AND revoked_at = ''")
-      .bind(now, keyId).run();
+    const changed = await db.prepare("UPDATE dbi_workspace_agent_keys SET revoked_at = ? WHERE id = ? AND workspace_id = ? AND revoked_at = ''")
+      .bind(now, keyId, workspaceId).run();
     if (!Number(changed?.meta?.changes || 0)) return json({ error: "Agent credential not found or already revoked" }, 404);
-    await recordActivity(db, { type: "user", id: session.user_id }, "agent_key_revoked", "agent_key", keyId);
+    await recordActivity(db, { type: "user", id: session.user_id, workspaceId }, "agent_key_revoked", "agent_key", keyId);
     return json({ ok: true });
   }
   return json({ error: "Method not allowed" }, 405);
@@ -928,9 +1436,9 @@ function manualRecordPayload(body, id, version, createdAt, updatedAt) {
   };
 }
 
-async function allAgentRecords(request, env, db) {
+async function allAgentRecords(request, env, db, workspaceId) {
   const source = await assetJson(request, env, "/data/agent-records.json");
-  const stored = await db.prepare("SELECT * FROM dbi_manual_records WHERE deleted_at = '' ORDER BY created_at").all();
+  const stored = await db.prepare("SELECT * FROM dbi_workspace_manual_records WHERE workspace_id = ? AND deleted_at = '' ORDER BY created_at").bind(workspaceId).all();
   const manual = (stored.results || []).flatMap((row) => {
     try { return [{ ...JSON.parse(row.payload_json), version: row.version, createdAt: row.created_at, updatedAt: row.updated_at, manual: true }]; }
     catch { return []; }
@@ -978,41 +1486,45 @@ function eventFromRow(row, attendees = []) {
   };
 }
 
-async function eventsFromRows(db, rows = []) {
+async function eventsFromRows(db, workspaceId, rows = []) {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const placeholders = ids.map(() => "?").join(", ");
   const result = await db.prepare(`
-    SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status
-    FROM dbi_event_user_attendees attendee
+    SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status, profile.avatar_data_url
+    FROM dbi_workspace_event_attendees attendee
     JOIN dbi_users user ON user.user_id = attendee.user_id
-    WHERE attendee.event_id IN (${placeholders})
+    LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
+    WHERE attendee.workspace_id = ? AND attendee.event_id IN (${placeholders})
     ORDER BY user.display_name COLLATE NOCASE
-  `).bind(...ids).all();
+  `).bind(workspaceId, ...ids).all();
   const byEvent = new Map();
   for (const attendee of result.results || []) {
     const people = byEvent.get(attendee.event_id) || [];
-    people.push({ id: attendee.user_id, displayName: attendee.display_name, title: attendee.title || "", status: attendee.status });
+    people.push({ id: attendee.user_id, displayName: attendee.display_name, title: attendee.title || "", status: attendee.status, avatarDataUrl: attendee.avatar_data_url || "" });
     byEvent.set(attendee.event_id, people);
   }
   return rows.map((row) => eventFromRow(row, byEvent.get(row.id) || []));
 }
 
-async function activeEventAttendeeIds(db, value) {
+async function activeEventAttendeeIds(db, workspaceId, value) {
   const ids = cleanStringArray(value, 30, 80);
   if (!ids.length) return { ids: [], valid: true };
   const placeholders = ids.map(() => "?").join(", ");
-  const result = await db.prepare(`SELECT user_id FROM dbi_users WHERE status = 'active' AND user_id IN (${placeholders})`).bind(...ids).all();
+  const result = await db.prepare(`
+    SELECT user.user_id FROM dbi_users user
+    JOIN dbi_workspace_memberships membership ON membership.user_id = user.user_id
+    WHERE membership.workspace_id = ? AND user.status = 'active' AND user.user_id IN (${placeholders})
+  `).bind(workspaceId, ...ids).all();
   const active = new Set((result.results || []).map((row) => row.user_id));
   return { ids: ids.filter((id) => active.has(id)), valid: active.size === ids.length };
 }
 
-async function replaceEventAttendees(db, eventId, attendeeIds) {
-  await db.prepare("DELETE FROM dbi_event_user_attendees WHERE event_id = ?").bind(eventId).run();
-  await db.prepare("DELETE FROM dbi_event_attendees WHERE event_id = ?").bind(eventId).run();
+async function replaceEventAttendees(db, workspaceId, eventId, attendeeIds) {
+  await db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
   const createdAt = new Date().toISOString();
   for (const userId of attendeeIds) {
-    await db.prepare("INSERT INTO dbi_event_user_attendees (event_id, user_id, created_at) VALUES (?, ?, ?)").bind(eventId, userId, createdAt).run();
+    await db.prepare("INSERT INTO dbi_workspace_event_attendees (workspace_id, event_id, user_id, created_at) VALUES (?, ?, ?, ?)").bind(workspaceId, eventId, userId, createdAt).run();
   }
 }
 
@@ -1034,9 +1546,10 @@ async function idempotent(db, principal, request, handler) {
   const key = cleanText(request.headers.get("idempotency-key"), 180);
   if (!key) return agentError("idempotency_key_required", "Idempotency-Key is required for this operation", 400);
   const fingerprint = await hashValue(`${request.method}|${new URL(request.url).pathname}|${await request.clone().text()}`);
+  const principalKey = `${principal.workspaceId}:${principal.id}`;
   const existing = await db.prepare(`
     SELECT * FROM dbi_agent_idempotency WHERE principal_id = ? AND idempotency_key = ?
-  `).bind(principal.id, key).first();
+  `).bind(principalKey, key).first();
   if (existing) {
     if (existing.request_fingerprint !== fingerprint) return agentError("idempotency_conflict", "This idempotency key was used for a different request", 409);
     return new Response(existing.response_body, { status: existing.response_status, headers: { "content-type": "application/json", "cache-control": "no-store", "idempotent-replay": "true" } });
@@ -1047,7 +1560,7 @@ async function idempotent(db, principal, request, handler) {
       INSERT INTO dbi_agent_idempotency
         (principal_id, idempotency_key, request_fingerprint, response_status, response_body, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(principal.id, key, fingerprint, response.status, await response.clone().text(), new Date().toISOString()).run();
+    `).bind(principalKey, key, fingerprint, response.status, await response.clone().text(), new Date().toISOString()).run();
   }
   return response;
 }
@@ -1097,9 +1610,9 @@ async function analyticsResponse(request, env, db, principal) {
   const source = cleanText(params.get("sourceSystem"), 120).toLowerCase();
   const lifecycle = cleanText(params.get("lifecycleStatus"), 100);
   const trackedOnly = params.get("tracked") === "true";
-  const trackedRows = trackedOnly ? await db.prepare("SELECT record_id FROM dbi_watchlist").all() : { results: [] };
+  const trackedRows = trackedOnly ? await db.prepare("SELECT record_id FROM dbi_workspace_watchlist WHERE workspace_id = ?").bind(principal.workspaceId).all() : { results: [] };
   const tracked = new Set((trackedRows.results || []).map((row) => row.record_id));
-  const universe = await allAgentRecords(request, env, db);
+  const universe = await allAgentRecords(request, env, db, principal.workspaceId);
   const records = universe.records.filter((record) => {
     if (query && ![record.id, record.title, record.party, record.owner, record.reference, record.portfolio].join(" ").toLowerCase().includes(query)) return false;
     if (category && record.workCategory !== category && !(record.workCategories || []).includes(category)) return false;
@@ -1136,7 +1649,7 @@ async function recordsResponse(request, env, db, principal, segments) {
   const scope = request.method === "GET" ? "records:read" : "records:write";
   if (!hasScope(principal, scope)) return agentError("insufficient_scope", `Scope ${scope} is required`, 403);
   const recordId = cleanText(decodeURIComponent(segments[0] || ""), 180);
-  const universe = await allAgentRecords(request, env, db);
+  const universe = await allAgentRecords(request, env, db, principal.workspaceId);
   if (request.method === "GET" && recordId) {
     const record = universe.records.find((item) => item.opportunityId === recordId);
     return record ? agentJson(record) : agentError("record_not_found", "Record not found", 404);
@@ -1148,7 +1661,7 @@ async function recordsResponse(request, env, db, principal, segments) {
     const source = cleanText(params.get("sourceSystem"), 120).toLowerCase();
     const lifecycle = cleanText(params.get("lifecycleStatus"), 100);
     const trackedOnly = params.get("tracked") === "true";
-    const trackedRows = trackedOnly ? await db.prepare("SELECT record_id FROM dbi_watchlist").all() : { results: [] };
+    const trackedRows = trackedOnly ? await db.prepare("SELECT record_id FROM dbi_workspace_watchlist WHERE workspace_id = ?").bind(principal.workspaceId).all() : { results: [] };
     const tracked = new Set((trackedRows.results || []).map((row) => row.record_id));
     let rows = universe.records.filter((record) => {
       if (query && ![record.id, record.title, record.party, record.owner, record.reference, record.portfolio].join(" ").toLowerCase().includes(query)) return false;
@@ -1176,12 +1689,12 @@ async function recordsResponse(request, env, db, principal, segments) {
     const id = `manual_agent_${crypto.randomUUID()}`;
     const payload = manualRecordPayload(body, id, 1, now, now);
     if (!payload) return agentError("invalid_record", "A title of at least three characters is required", 400);
-    await db.prepare(`INSERT INTO dbi_manual_records (id, payload_json, version, created_at, updated_at, deleted_at) VALUES (?, ?, 1, ?, ?, '')`)
-      .bind(id, JSON.stringify(payload), now, now).run();
+    await db.prepare(`INSERT INTO dbi_workspace_manual_records (id, workspace_id, payload_json, version, created_at, updated_at, deleted_at) VALUES (?, ?, ?, 1, ?, ?, '')`)
+      .bind(id, principal.workspaceId, JSON.stringify(payload), now, now).run();
     await recordActivity(db, principal, "record_created", "manual_record", id, { title: payload.title });
     return agentJson(payload, 201);
   });
-  const stored = recordId ? await db.prepare("SELECT * FROM dbi_manual_records WHERE id = ? AND deleted_at = ''").bind(recordId).first() : null;
+  const stored = recordId ? await db.prepare("SELECT * FROM dbi_workspace_manual_records WHERE id = ? AND workspace_id = ? AND deleted_at = ''").bind(recordId, principal.workspaceId).first() : null;
   if (!stored) return agentError("source_record_immutable", "Only manual Agent API records can be changed; source-backed evidence is read-only", 409);
   if (request.method === "PATCH") {
     const body = await safeJson(request, 131_072);
@@ -1192,15 +1705,15 @@ async function recordsResponse(request, env, db, principal, segments) {
     const now = new Date().toISOString();
     const payload = manualRecordPayload({ ...current, ...body }, recordId, Number(stored.version) + 1, stored.created_at, now);
     if (!payload) return agentError("invalid_record", "A title of at least three characters is required", 400);
-    await db.prepare("UPDATE dbi_manual_records SET payload_json = ?, version = version + 1, updated_at = ? WHERE id = ?")
-      .bind(JSON.stringify(payload), now, recordId).run();
+    await db.prepare("UPDATE dbi_workspace_manual_records SET payload_json = ?, version = version + 1, updated_at = ? WHERE id = ? AND workspace_id = ?")
+      .bind(JSON.stringify(payload), now, recordId, principal.workspaceId).run();
     await recordActivity(db, principal, "record_updated", "manual_record", recordId, { version: payload.version });
     return agentJson(payload);
   }
   if (request.method === "DELETE") {
     const now = new Date().toISOString();
-    await db.prepare("UPDATE dbi_manual_records SET deleted_at = ?, updated_at = ?, version = version + 1 WHERE id = ?")
-      .bind(now, now, recordId).run();
+    await db.prepare("UPDATE dbi_workspace_manual_records SET deleted_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND workspace_id = ?")
+      .bind(now, now, recordId, principal.workspaceId).run();
     await recordActivity(db, principal, "record_deleted", "manual_record", recordId);
     return new Response(null, { status: 204 });
   }
@@ -1212,19 +1725,19 @@ async function trackingResponse(request, env, db, principal, segments) {
   if (!hasScope(principal, scope)) return agentError("insufficient_scope", `Scope ${scope} is required`, 403);
   const recordId = cleanText(decodeURIComponent(segments[0] || ""), 180);
   if (request.method === "GET" && !recordId) {
-    const result = await db.prepare("SELECT * FROM dbi_watchlist ORDER BY updated_at DESC").all();
+    const result = await db.prepare("SELECT * FROM dbi_workspace_watchlist WHERE workspace_id = ? ORDER BY updated_at DESC").bind(principal.workspaceId).all();
     return agentJson((result.results || []).map(trackingFromRow), 200, { total: result.results?.length || 0 });
   }
   if (!recordId) return agentError("record_id_required", "A stable record ID is required", 400);
   if (request.method === "GET") {
-    const row = await db.prepare("SELECT * FROM dbi_watchlist WHERE record_id = ?").bind(recordId).first();
+    const row = await db.prepare("SELECT * FROM dbi_workspace_watchlist WHERE workspace_id = ? AND record_id = ?").bind(principal.workspaceId, recordId).first();
     return row ? agentJson(trackingFromRow(row)) : agentError("tracking_not_found", "Tracked record not found", 404);
   }
   if (request.method === "PUT") {
     const body = await safeJson(request);
-    const existing = await db.prepare("SELECT * FROM dbi_watchlist WHERE record_id = ?").bind(recordId).first();
+    const existing = await db.prepare("SELECT * FROM dbi_workspace_watchlist WHERE workspace_id = ? AND record_id = ?").bind(principal.workspaceId, recordId).first();
     if (!existing) {
-      const universe = await allAgentRecords(request, env, db);
+      const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       if (!universe.records.some((record) => record.opportunityId === recordId)) return agentError("record_not_found", "Only an existing stable record ID can be tracked", 404);
     }
     const version = expectedVersion(request, body);
@@ -1232,17 +1745,17 @@ async function trackingResponse(request, env, db, principal, segments) {
     if (existing && version !== null && version !== Number(existing.version)) return agentError("version_conflict", "Tracking state changed since the supplied version", 409, undefined, { currentVersion: existing.version });
     const now = new Date().toISOString();
     await db.prepare(`
-      INSERT INTO dbi_watchlist (record_id, note, review_at, wallboard, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 1, ?, ?)
-      ON CONFLICT(record_id) DO UPDATE SET note = excluded.note, review_at = excluded.review_at,
-        wallboard = excluded.wallboard, version = dbi_watchlist.version + 1, updated_at = excluded.updated_at
-    `).bind(recordId, cleanText(body?.note, 4000), cleanDate(body?.reviewAt), body?.wallboard === false ? 0 : 1, existing?.created_at || now, now).run();
-    const row = await db.prepare("SELECT * FROM dbi_watchlist WHERE record_id = ?").bind(recordId).first();
+      INSERT INTO dbi_workspace_watchlist (workspace_id, record_id, note, review_at, wallboard, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(workspace_id, record_id) DO UPDATE SET note = excluded.note, review_at = excluded.review_at,
+        wallboard = excluded.wallboard, version = dbi_workspace_watchlist.version + 1, updated_at = excluded.updated_at
+    `).bind(principal.workspaceId, recordId, cleanText(body?.note, 4000), cleanDate(body?.reviewAt), body?.wallboard === false ? 0 : 1, existing?.created_at || now, now).run();
+    const row = await db.prepare("SELECT * FROM dbi_workspace_watchlist WHERE workspace_id = ? AND record_id = ?").bind(principal.workspaceId, recordId).first();
     await recordActivity(db, principal, existing ? "tracking_updated" : "tracking_added", "tracking", recordId);
     return agentJson(trackingFromRow(row), existing ? 200 : 201);
   }
   if (request.method === "DELETE") {
-    const changed = await db.prepare("DELETE FROM dbi_watchlist WHERE record_id = ?").bind(recordId).run();
+    const changed = await db.prepare("DELETE FROM dbi_workspace_watchlist WHERE workspace_id = ? AND record_id = ?").bind(principal.workspaceId, recordId).run();
     if (!Number(changed?.meta?.changes || 0)) return agentError("tracking_not_found", "Tracked record not found", 404);
     await recordActivity(db, principal, "tracking_removed", "tracking", recordId);
     return new Response(null, { status: 204 });
@@ -1256,11 +1769,11 @@ async function eventsResponse(request, env, db, principal, segments) {
   const eventId = cleanText(decodeURIComponent(segments[0] || ""), 180);
   if (request.method === "GET") {
     if (eventId) {
-      const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first();
-      return row ? agentJson((await eventsFromRows(db, [row]))[0]) : agentError("event_not_found", "Event not found", 404);
+      const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first();
+      return row ? agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]) : agentError("event_not_found", "Event not found", 404);
     }
-    const result = await db.prepare("SELECT * FROM dbi_management_events ORDER BY starts_at, created_at").all();
-    return agentJson(await eventsFromRows(db, result.results || []), 200, { total: result.results?.length || 0 });
+    const result = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? ORDER BY starts_at, created_at").bind(principal.workspaceId).all();
+    return agentJson(await eventsFromRows(db, principal.workspaceId, result.results || []), 200, { total: result.results?.length || 0 });
   }
   if (request.method === "POST" && !eventId) return idempotent(db, principal, request, async () => {
     const body = await safeJson(request);
@@ -1268,28 +1781,28 @@ async function eventsResponse(request, env, db, principal, segments) {
     const startsAt = cleanDate(body?.startsAt);
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
     const recordIds = cleanStringArray(body?.recordIds);
-    const attendeeSelection = await activeEventAttendeeIds(db, body?.attendeeIds);
+    const attendeeSelection = await activeEventAttendeeIds(db, principal.workspaceId, body?.attendeeIds);
     if (!attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (recordIds.length) {
-      const universe = await allAgentRecords(request, env, db);
+      const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
       if (recordIds.some((recordId) => !known.has(recordId))) return agentError("record_not_found", "Every linked record must use an existing stable record ID", 404);
     }
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await db.prepare(`
-      INSERT INTO dbi_management_events
-        (id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `).bind(id, title, startsAt, cleanDate(body?.endsAt), cleanText(body?.location, 500), cleanText(body?.notes, 4000),
+      INSERT INTO dbi_workspace_events
+        (id, workspace_id, title, starts_at, ends_at, location, notes, status, record_ids_json, wallboard, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `).bind(id, principal.workspaceId, title, startsAt, cleanDate(body?.endsAt), cleanText(body?.location, 500), cleanText(body?.notes, 4000),
       ["scheduled", "completed", "cancelled"].includes(body?.status) ? body.status : "scheduled",
       JSON.stringify(recordIds), body?.wallboard === false ? 0 : 1, now, now).run();
-    await replaceEventAttendees(db, id, attendeeSelection.ids);
-    const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(id).first();
+    await replaceEventAttendees(db, principal.workspaceId, id, attendeeSelection.ids);
+    const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
-    return agentJson((await eventsFromRows(db, [row]))[0], 201);
+    return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0], 201);
   });
-  const existing = eventId ? await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first() : null;
+  const existing = eventId ? await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first() : null;
   if (!existing) return agentError("event_not_found", "Event not found", 404);
   if (request.method === "PATCH") {
     const body = await safeJson(request);
@@ -1302,29 +1815,28 @@ async function eventsResponse(request, env, db, principal, segments) {
     const startsAt = cleanDate(next.startsAt);
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
     const recordIds = cleanStringArray(next.recordIds);
-    const attendeeSelection = Array.isArray(body?.attendeeIds) ? await activeEventAttendeeIds(db, body.attendeeIds) : null;
+    const attendeeSelection = Array.isArray(body?.attendeeIds) ? await activeEventAttendeeIds(db, principal.workspaceId, body.attendeeIds) : null;
     if (attendeeSelection && !attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (recordIds.length) {
-      const universe = await allAgentRecords(request, env, db);
+      const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
       if (recordIds.some((recordId) => !known.has(recordId))) return agentError("record_not_found", "Every linked record must use an existing stable record ID", 404);
     }
     const now = new Date().toISOString();
     await db.prepare(`
-      UPDATE dbi_management_events SET title = ?, starts_at = ?, ends_at = ?, location = ?, notes = ?, status = ?,
-        record_ids_json = ?, wallboard = ?, version = version + 1, updated_at = ? WHERE id = ?
+      UPDATE dbi_workspace_events SET title = ?, starts_at = ?, ends_at = ?, location = ?, notes = ?, status = ?,
+        record_ids_json = ?, wallboard = ?, version = version + 1, updated_at = ? WHERE id = ? AND workspace_id = ?
     `).bind(title, startsAt, cleanDate(next.endsAt), cleanText(next.location, 500), cleanText(next.notes, 4000),
       ["scheduled", "completed", "cancelled"].includes(next.status) ? next.status : "scheduled",
-      JSON.stringify(recordIds), next.wallboard === false ? 0 : 1, now, eventId).run();
-    if (attendeeSelection) await replaceEventAttendees(db, eventId, attendeeSelection.ids);
-    const row = await db.prepare("SELECT * FROM dbi_management_events WHERE id = ?").bind(eventId).first();
+      JSON.stringify(recordIds), next.wallboard === false ? 0 : 1, now, eventId, principal.workspaceId).run();
+    if (attendeeSelection) await replaceEventAttendees(db, principal.workspaceId, eventId, attendeeSelection.ids);
+    const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first();
     await recordActivity(db, principal, "event_updated", "event", eventId, { version: row.version });
-    return agentJson((await eventsFromRows(db, [row]))[0]);
+    return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]);
   }
   if (request.method === "DELETE") {
-    await db.prepare("DELETE FROM dbi_event_user_attendees WHERE event_id = ?").bind(eventId).run();
-    await db.prepare("DELETE FROM dbi_event_attendees WHERE event_id = ?").bind(eventId).run();
-    await db.prepare("DELETE FROM dbi_management_events WHERE id = ?").bind(eventId).run();
+    await db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
+    await db.prepare("DELETE FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
     return new Response(null, { status: 204 });
   }
@@ -1337,7 +1849,7 @@ async function activityResponse(request, db, principal) {
   if (request.method === "GET") {
     const params = new URL(request.url).searchParams;
     const limit = boundedInteger(params.get("limit"), 100, 1, 200);
-    const result = await db.prepare("SELECT * FROM dbi_operator_activity ORDER BY occurred_at DESC LIMIT ?").bind(limit).all();
+    const result = await db.prepare("SELECT * FROM dbi_workspace_activity WHERE workspace_id = ? ORDER BY occurred_at DESC LIMIT ?").bind(principal.workspaceId, limit).all();
     return agentJson((result.results || []).map((row) => ({
       id: row.id, actorType: row.actor_type, actorId: row.actor_id, action: row.action,
       entityType: row.entity_type, entityId: row.entity_id, detail: JSON.parse(row.detail_json || "{}"), occurredAt: row.occurred_at,
@@ -1401,12 +1913,15 @@ export async function pagesAuthApiResponse(request, env = {}) {
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
   if (pathname === "/api/v1/auth/status") return statusResponse(request, db, env);
   if (pathname === "/api/v1/auth/claim") return claimResponse(request, db, env);
+  if (pathname === "/api/v1/auth/register") return registrationResponse(request, db, env);
   if (pathname === "/api/v1/auth/login-config") return loginConfigResponse(request, db);
   if (pathname === "/api/v1/auth/login") return loginResponse(request, db, env);
   if (pathname === "/api/v1/auth/logout") return logoutResponse(request, db, env);
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
   if (pathname === "/api/v1/auth/directory") return directoryResponse(request, db);
+  if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);
+  if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
   if (pathname === "/api/v1/auth/agent-keys" || pathname.startsWith("/api/v1/auth/agent-keys/")) return agentKeysResponse(request, db);
   if (pathname === "/api/v1/agent" || pathname.startsWith("/api/v1/agent/")) return agentApiResponse(request, env, db);

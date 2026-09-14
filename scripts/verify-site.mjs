@@ -565,9 +565,9 @@ try {
   await page.waitForSelector("[data-wallboard-calendar]");
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/, "Calendar should open on the first scheduled event month");
   assert.equal(await page.locator("[data-calendar-day]").count(), 42, "Calendar should render a stable six-week month grid");
-  assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 3, "Multi-day events should occupy each applicable calendar date");
+  assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 1, "A multi-day event should render as one continuous Gantt-style weekly bar");
   const calendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
-    const grid = node.querySelector(".ops-wall-calendar__grid");
+    const grid = node.querySelector(".ops-wall-calendar__weeks");
     const cells = [...grid.querySelectorAll("[data-calendar-day]")];
     const rects = cells.map((cell) => cell.getBoundingClientRect());
     return {
@@ -591,11 +591,11 @@ try {
 
   await page.getByRole("button", { name: "Next month" }).click();
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /October 2026/, "Calendar month navigation should advance one month");
-  assert.equal(await page.locator('[data-calendar-event="event-ausa-annual-meeting-2026"]').count(), 3, "October should show every AUSA event date");
+  assert.equal(await page.locator('[data-calendar-event="event-ausa-annual-meeting-2026"]').count(), 1, "October should show AUSA as one multi-day bar");
   assert.equal(await page.locator('[data-calendar-event="event-eighth-annual-defense-conference-2026"]').count(), 1, "October should show the defense conference date");
   await page.getByRole("button", { name: "Next month" }).click();
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /November 2026/, "Calendar should support sequential month navigation");
-  assert.equal(await page.locator('[data-calendar-event="event-i-itsec-2026"]').count(), 5, "A cross-month event should remain visible through its final December date");
+  assert.equal(await page.locator('[data-calendar-event="event-i-itsec-2026"]').count(), 1, "A cross-month event should remain one continuous weekly bar through its final December date");
   await page.getByRole("button", { name: "Previous month" }).click();
   await page.getByRole("button", { name: "Previous month" }).click();
 
@@ -603,7 +603,7 @@ try {
   const fourKCalendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => ({
     monthSize: parseFloat(getComputedStyle(node.querySelector(":scope > header strong")).fontSize),
     eventSize: parseFloat(getComputedStyle(node.querySelector("[data-calendar-event] strong")).fontSize),
-    columns: getComputedStyle(node.querySelector(".ops-wall-calendar__grid")).gridTemplateColumns.split(" ").length,
+    columns: getComputedStyle(node.querySelector(".ops-wall-calendar__days")).gridTemplateColumns.split(" ").length,
   }));
   assert.ok(fourKCalendarGeometry.monthSize >= 28, `4K calendar heading should scale for viewing distance, got ${fourKCalendarGeometry.monthSize}px`);
   assert.ok(fourKCalendarGeometry.eventSize >= 17, `4K calendar event labels should scale for viewing distance, got ${fourKCalendarGeometry.eventSize}px`);

@@ -22,12 +22,18 @@ jobs:
         run: docker compose up --build --detach --wait
       - name: Verify stateful API contract
         run: node scripts/verify-container.mjs
+      - name: Start PostgreSQL authentication contract
+        run: docker compose run --rm --detach --name dbi-auth-contract -e ENABLE_AUTH=true -e AUTH_REQUIRE_LOGIN=true -e AUTH_SECURE_COOKIE=false -e PORT=8081 -p 18081:8081 app
+      - name: Verify PostgreSQL workspace and account lifecycle
+        run: npm run verify:postgres-auth
       - name: Inspect container state
         if: always()
         run: docker compose ps && docker compose logs --no-color --tail=200 app
       - name: Stop container stack
         if: always()
-        run: docker compose down --volumes
+        run: |
+          docker rm --force dbi-auth-contract 2>/dev/null || true
+          docker compose down --volumes
 
   deploy:
     needs: container-contract

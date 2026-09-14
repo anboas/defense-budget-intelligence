@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX, X } from "lucide-react";
+import UserAvatar from "./UserAvatar.jsx";
 
 const ROLE_LABELS = {
   administrator: "Administrator",
@@ -185,7 +186,7 @@ export default function UserManagement({ auth }) {
 
     <div className="user-management__list" aria-label="Workspace users">
       {busy && !users.length ? <p className="ops-empty">Loading users…</p> : users.map((user) => <article key={user.id} className={`user-management__row${user.status === "suspended" ? " is-suspended" : ""}`} data-user-row={user.id}>
-        <span className="user-management__avatar" aria-hidden="true">{user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>
+        <UserAvatar user={user} className="user-management__avatar" />
         <div className="user-management__identity"><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.title || "No title"}</small></div>
         <div className="user-management__role"><span className="if-badge if-badge--info if-badge--sm">{user.role}</span><small>{roleDescription(user.roleId)}</small></div>
         <div className="user-management__access"><strong>{user.status === "active" ? "Active" : "Suspended"}</strong><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>

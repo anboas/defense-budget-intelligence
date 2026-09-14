@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Bot, ChevronDown, KeyRound, LogIn, UserRound, UsersRound } from "lucide-react";
+import { Activity, Bot, Building2, ChevronDown, KeyRound, LogIn, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
-
-function initials(name = "") {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "U";
-}
+import UserAvatar from "./UserAvatar.jsx";
 
 export default function ProfileMenu() {
   const auth = useAuth();
@@ -56,7 +53,7 @@ export default function ProfileMenu() {
           color: "#1b1b1b",
         }}
       >
-        <span className="if-avatar if-profile-avatar" data-profile-avatar aria-hidden="true" style={{ width: 28, height: 28, fontSize: 11, overflow: "hidden" }}>{initials(user.displayName)}</span>
+        <UserAvatar user={user} className="if-avatar if-profile-avatar" size={28} />
         <span className="if-account-menu__name if-desktop-only" data-profile-menu-name>{user.displayName}</span>
         <ChevronDown className="if-icon-slot if-account-menu__chevron" size={15} aria-hidden="true" />
       </button>
@@ -70,7 +67,7 @@ export default function ProfileMenu() {
           style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: "min(360px, calc(100vw - 24px))", zIndex: 210 }}
         >
           <header className="if-account-surface__header">
-            <span className="if-account-surface__avatar if-profile-avatar if-profile-avatar--large" aria-hidden="true">{initials(user.displayName)}</span>
+            <UserAvatar user={user} className="if-account-surface__avatar if-profile-avatar if-profile-avatar--large" />
             <span className="if-account-surface__identity">
               <strong data-profile-active-name>{user.displayName}</strong>
               <span>{user.title || "Account owner"}</span>
@@ -82,7 +79,7 @@ export default function ProfileMenu() {
               <span className="if-account-surface__label">Account</span>
               <div className="if-account-surface__controls">
                 <div className="if-account-surface__control"><span>Role</span><strong>{user.role}</strong></div>
-                <div className="if-account-surface__control"><span>Workspace</span><strong>Defense budget</strong></div>
+                <label className="if-account-surface__control profile-workspace-switcher"><span>Workspace</span><select aria-label="Active workspace" value={user.activeWorkspace?.id || ""} onChange={(event) => void auth.switchWorkspace(event.target.value)}>{(user.workspaces || []).map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></label>
               </div>
             </section>
             <section className="if-account-surface__section" aria-label="Account actions">
@@ -98,6 +95,10 @@ export default function ProfileMenu() {
               {user.canManageUsers ? <a className="if-account-action" href="#/budget-spend/users" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><UsersRound size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Users</strong><span className="if-account-action__meta">Human accounts and roles</span></span>
+              </a> : null}
+              {user.canManageWorkspaces ? <a className="if-account-action" href="#/budget-spend/workspaces" onClick={() => setOpen(false)}>
+                <span className="if-account-action__icon" aria-hidden="true"><Building2 size={15} /></span>
+                <span className="if-account-action__content"><strong className="if-account-action__title">Workspaces</strong><span className="if-account-action__meta">Memberships and access requests</span></span>
               </a> : null}
               {user.canManageAgents ? <a className="if-account-action" href="#/budget-spend/agents" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Bot size={15} /></span>

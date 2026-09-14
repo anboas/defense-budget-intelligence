@@ -5,7 +5,7 @@ import { useAuth } from "./AuthContext.jsx";
 
 const PRIMARY_IDS = ["calendar", "wallboard"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
-const ADMIN_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "agents"]);
+const ADMIN_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspaces", "agents"]);
 
 const ANALYTICS_ITEMS = [
   { id: "analytics-overview", tabId: "analytics", label: "Overview", href: "#/budget-spend/analytics", badge: "6 views", description: "Composition, schedule activity, value distribution, recipients, and work categories." },
@@ -28,6 +28,7 @@ const ADMIN_META = {
   integrations: { badge: "7 feeds", description: "Connector health, refresh cadence, yields, and unavailable probes." },
   activity: { badge: "Audit", description: "Append-only human and agent API activity across the shared workspace." },
   users: { badge: "RBAC", description: "Create human accounts, assign roles, suspend access, and reset passwords." },
+  workspaces: { badge: "Access", description: "Create workspaces, review access requests, and control membership." },
   agents: { badge: "Keys", description: "Issue, scope, expire, review, and revoke one-time agent credentials." },
 };
 
@@ -60,7 +61,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const adminIds = ["watchlist", "events", "integrations", "activity", ...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])];
+  const adminIds = ["watchlist", "events", "integrations", "activity", ...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.canManageWorkspaces ? ["workspaces"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])];
   const adminItems = adminIds.map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;

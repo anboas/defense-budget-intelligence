@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { LockKeyhole } from "lucide-react";
+import { Building2, LockKeyhole, UserPlus } from "lucide-react";
 import { authApi, isKnownStaticHost } from "./auth-client.js";
 import ProductMark from "./ProductMark.jsx";
 
@@ -9,39 +9,79 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-function AccountGate({ mode, onSubmit, busy, error }) {
-  const setup = mode === "setup";
+function AccountGate({ mode, onSubmit, onRegister, registrationEnabled, busy, error }) {
+  const [screen, setScreen] = useState(mode);
+  const setup = screen === "setup";
+  const register = screen === "register";
+  const identity = setup || register;
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [title, setTitle] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const mismatch = setup && confirm && password !== confirm;
+  const mismatch = identity && confirm && password !== confirm;
 
   return (
-    <main className="account-gate" data-account-gate={mode}>
+    <main className="account-gate" data-account-gate={screen}>
       <section className="account-gate__card" aria-labelledby="account-gate-title">
         <span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span>
         <p className="account-gate__eyebrow">Defense Budget & Spend Analytics</p>
-        <h1 id="account-gate-title">{setup ? "Create the super-user account" : "Sign in"}</h1>
-        <p>{setup ? "The first account created owns this workspace and can manage its profile and access." : "Use your workspace account to continue."}</p>
+        <h1 id="account-gate-title">{setup ? "Create the super-user account" : register ? "Create your account" : "Sign in"}</h1>
+        <p>{setup ? "The first account created owns this workspace and can manage its profile and access." : register ? "Create an account, then request access to the workspace you need." : "Use your account to continue."}</p>
         <form onSubmit={(event) => {
           event.preventDefault();
           if (mismatch) return;
-          onSubmit({ email, displayName, title, password });
+          (register ? onRegister : onSubmit)({ email, displayName, title, password });
         }}>
-          {setup ? <label>Display name<input required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label> : null}
+          {identity ? <label>Display name<input required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label> : null}
           <label>Email<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          {setup ? <label>Title <span>(optional)</span><input autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} /></label> : null}
-          <label>Password<input required minLength={12} type="password" autoComplete={setup ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-          {setup ? <label>Confirm password<input required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label> : null}
+          {identity ? <label>Title <span>(optional)</span><input autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} /></label> : null}
+          <label>Password<input required minLength={12} type="password" autoComplete={identity ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          {identity ? <label>Confirm password<input required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label> : null}
           {mismatch ? <p className="account-form__error" role="alert">Passwords do not match.</p> : null}
           {error ? <p className="account-form__error" role="alert">{error}</p> : null}
-          <button type="submit" disabled={busy || mismatch}><LockKeyhole size={17} />{busy ? "Working…" : setup ? "Create super-user account" : "Sign in"}</button>
+          <button type="submit" disabled={busy || mismatch}>{register ? <UserPlus size={17} /> : <LockKeyhole size={17} />}{busy ? "Working…" : setup ? "Create super-user account" : register ? "Create account" : "Sign in"}</button>
+          {!setup && registrationEnabled ? <button className="account-gate__alternate" type="button" onClick={() => { setScreen(register ? "login" : "register"); setPassword(""); setConfirm(""); }} disabled={busy}>{register ? "Already have an account? Sign in" : "New here? Create an account"}</button> : null}
         </form>
       </section>
     </main>
   );
+}
+
+function WorkspaceAccessGate({ auth }) {
+  const [workspaces, setWorkspaces] = useState([]);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    auth.listWorkspaces().then((result) => { if (active) setWorkspaces(result.workspaces || []); })
+      .catch((requestError) => { if (active) setMessage(requestError.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [auth]);
+  async function requestAccess(workspace) {
+    setMessage("");
+    try {
+      await auth.requestWorkspaceAccess(workspace.id);
+      setWorkspaces((current) => current.map((item) => item.id === workspace.id ? { ...item, requestStatus: "pending" } : item));
+      setMessage(`Access request sent to ${workspace.name}.`);
+    } catch (requestError) { setMessage(requestError.message); }
+  }
+  return <main className="account-gate" data-account-gate="workspace-access">
+    <section className="account-gate__card account-gate__card--workspace" aria-labelledby="workspace-access-title">
+      <span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span>
+      <p className="account-gate__eyebrow">Workspace access</p>
+      <h1 id="workspace-access-title">Choose a workspace</h1>
+      <p>Your account is ready. Request access below and the Super user will review it.</p>
+      <div className="workspace-access-list">{loading ? <p>Loading workspaces…</p> : workspaces.map((workspace) => <article key={workspace.id}>
+        <span><Building2 size={18} aria-hidden="true" /></span>
+        <div><strong>{workspace.name}</strong><small>{workspace.description || "Shared intelligence workspace"}</small></div>
+        {workspace.roleId ? <button type="button" onClick={() => void auth.switchWorkspace(workspace.id)}>Open</button> : workspace.requestStatus === "pending" ? <b>Pending</b> : <button type="button" onClick={() => void requestAccess(workspace)}>Request access</button>}
+      </article>)}</div>
+      {message ? <p className="account-form__message" role="status">{message}</p> : null}
+      <div className="workspace-access-actions"><button type="button" onClick={() => void auth.listWorkspaces().then((result) => { setWorkspaces(result.workspaces || []); setMessage("Access status refreshed."); }).catch((requestError) => setMessage(requestError.message))}>Refresh access</button><button className="account-gate__alternate" type="button" onClick={() => void auth.logout()}>Sign out</button></div>
+    </section>
+  </main>;
 }
 
 function PasswordChangeGate({ user, onSubmit, busy, error }) {
@@ -117,6 +157,7 @@ export default function AuthProvider({ children }) {
     busy,
     error,
     claim: (values) => run(() => authApi.claim(values)),
+    register: (values) => run(() => authApi.register(values)),
     login: (values) => run(() => authApi.login(values)),
     logout: async () => { await authApi.logout(); setStatus((current) => ({ ...current, user: null })); },
     updateProfile: async (values) => { const result = await authApi.updateProfile(values); setStatus((current) => ({ ...current, user: result.user })); return result; },
@@ -126,6 +167,14 @@ export default function AuthProvider({ children }) {
     revokeAgentKey: (id) => authApi.revokeAgentKey(id),
     listUsers: () => authApi.listUsers(),
     listDirectory: () => authApi.listDirectory(),
+    listWorkspaces: () => authApi.listWorkspaces(),
+    requestWorkspaceAccess: (workspaceId, note) => authApi.requestWorkspaceAccess(workspaceId, note),
+    switchWorkspace: async (workspaceId) => { const result = await authApi.switchWorkspace(workspaceId); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
+    getWorkspaceAdmin: () => authApi.getWorkspaceAdmin(),
+    createWorkspace: (values) => authApi.createWorkspace(values),
+    resolveWorkspaceRequest: (requestId, values) => authApi.resolveWorkspaceRequest(requestId, values),
+    addWorkspaceMember: (workspaceId, values) => authApi.addWorkspaceMember(workspaceId, values),
+    removeWorkspaceMember: (workspaceId, userId) => authApi.removeWorkspaceMember(workspaceId, userId),
     createUser: (values) => authApi.createUser(values),
     updateUser: (id, values) => authApi.updateUser(id, values),
     resetUserPassword: (id, password) => authApi.resetUserPassword(id, password),
@@ -134,7 +183,8 @@ export default function AuthProvider({ children }) {
 
   if (status.loading) return <main className="account-gate account-gate--loading" role="status"><span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span><h1>Loading workspace</h1></main>;
   if (status.enabled && status.required && !status.claimed) return <AccountGate mode="setup" busy={busy} error={error} onSubmit={(values) => void value.claim(values).catch(() => {})} />;
-  if (status.enabled && status.required && !status.user) return <AccountGate mode="login" busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} />;
+  if (status.enabled && status.required && !status.user) return <AccountGate mode="login" registrationEnabled={status.registrationEnabled} busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} onRegister={(values) => void value.register(values).catch(() => {})} />;
   if (status.enabled && status.user?.mustChangePassword) return <PasswordChangeGate user={status.user} busy={busy} error={error} onSubmit={(values) => void run(() => authApi.changePassword(values)).catch(() => {})} />;
+  if (status.enabled && status.required && status.user && !status.user.hasWorkspaceAccess) return <AuthContext.Provider value={value}><WorkspaceAccessGate auth={value} /></AuthContext.Provider>;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

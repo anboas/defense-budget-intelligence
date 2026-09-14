@@ -55,6 +55,11 @@ export const authApi = {
     const passwordProof = await derivePasswordProof(password, passwordSalt);
     return request("/claim", { method: "POST", body: JSON.stringify({ email, displayName, title, passwordSalt, passwordProof }) });
   },
+  async register({ email, displayName, title, password }) {
+    const passwordSalt = createPasswordSalt();
+    const passwordProof = await derivePasswordProof(password, passwordSalt);
+    return request("/register", { method: "POST", body: JSON.stringify({ email, displayName, title, passwordSalt, passwordProof }) });
+  },
   async login({ email, password }) {
     const config = await request("/login-config", { method: "POST", body: JSON.stringify({ email }) });
     const passwordProof = await derivePasswordProof(password, config.passwordSalt);
@@ -67,6 +72,14 @@ export const authApi = {
   revokeAgentKey: (id) => request(`/agent-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   listUsers: () => request("/users", { method: "GET", headers: {} }),
   listDirectory: () => request("/directory", { method: "GET", headers: {} }),
+  listWorkspaces: () => request("/workspaces", { method: "GET", headers: {} }),
+  requestWorkspaceAccess: (workspaceId, note = "") => request(`/workspaces/${encodeURIComponent(workspaceId)}/request`, { method: "POST", body: JSON.stringify({ note }) }),
+  switchWorkspace: (workspaceId) => request(`/workspaces/${encodeURIComponent(workspaceId)}/switch`, { method: "POST", body: "{}" }),
+  getWorkspaceAdmin: () => request("/workspace-admin", { method: "GET", headers: {} }),
+  createWorkspace: (values) => request("/workspace-admin/workspaces", { method: "POST", body: JSON.stringify(values) }),
+  resolveWorkspaceRequest: (requestId, values) => request(`/workspace-admin/requests/${encodeURIComponent(requestId)}`, { method: "POST", body: JSON.stringify(values) }),
+  addWorkspaceMember: (workspaceId, values) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: "POST", body: JSON.stringify(values) }),
+  removeWorkspaceMember: (workspaceId, userId) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`, { method: "DELETE", body: "{}" }),
   async createUser({ email, displayName, title, role, password }) {
     const passwordSalt = createPasswordSalt();
     const passwordProof = await derivePasswordProof(password, passwordSalt);

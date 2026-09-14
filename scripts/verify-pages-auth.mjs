@@ -111,8 +111,8 @@ function cookieFrom(response) {
   return String(response.headers.get("set-cookie") || "").split(";")[0];
 }
 
-async function apiRequest(baseUrl, path, { method = "GET", body, cookie = "", origin } = {}) {
-  const headers = {};
+async function apiRequest(baseUrl, path, { method = "GET", body, cookie = "", origin, headers: suppliedHeaders = {} } = {}) {
+  const headers = { ...suppliedHeaders };
   if (body !== undefined) headers["content-type"] = "application/json";
   if (cookie) headers.cookie = cookie;
   if (origin) headers.origin = origin;
@@ -138,6 +138,7 @@ async function verifyApiLifecycle(persistPath) {
       enabled: true,
       required: true,
       claimed: false,
+      registrationEnabled: false,
       user: null,
     });
 
@@ -178,6 +179,9 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.user.role, "Super user");
     assert.equal(body.user.roleId, "super_user");
     assert.equal(body.user.canManageUsers, true);
+    assert.equal(body.user.canManageWorkspaces, true);
+    assert.equal(body.user.activeWorkspace.name, "Defense budget");
+    const defaultWorkspaceId = body.user.activeWorkspace.id;
 
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
     body = await response.json();
@@ -339,6 +343,68 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.user.displayName, "D1 Workspace Owner");
     assert.equal(body.user.title, "Analytics administrator");
+
+    const avatarDataUrl = "data:image/png;base64,iVBORw0KGgo=";
+    response = await apiRequest(baseUrl, "/api/v1/auth/profile", {
+      method: "PATCH",
+      body: { displayName: "D1 Workspace Owner", title: "Analytics administrator", avatarDataUrl },
+      cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).user.avatarDataUrl, avatarDataUrl, "Profile pictures must persist through the account API");
+
+    const selfSignup = userPayload(20);
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", {
+      method: "POST",
+      body: selfSignup,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 201, "Public self-signup must create an account after the service is claimed");
+    const selfCookie = cookieFrom(response);
+    body = await response.json();
+    assert.equal(body.user.hasWorkspaceAccess, false, "Self-signups must begin without implicit workspace access");
+    const selfUserId = body.user.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${defaultWorkspaceId}/request`, {
+      method: "POST", body: { note: "Need budget access" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 201, "A self-signed-up user must be able to request workspace access");
+    const accessRequestId = (await response.json()).request.id;
+    response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.requests.some((item) => item.id === accessRequestId && item.status === "pending"), true, "Super user must see pending access requests");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/requests/${accessRequestId}`, {
+      method: "POST", body: { decision: "approved", role: "analyst" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Super user must be able to approve access with a workspace role");
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
+    body = await response.json();
+    assert.equal(body.user.activeWorkspace.id, defaultWorkspaceId, "Approval must activate the first granted workspace for an existing session");
+    assert.equal(body.user.role, "Analyst");
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin/workspaces", {
+      method: "POST", body: { name: "Mission Delta", description: "Isolation verification workspace" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 201, "Super user must be able to create another workspace");
+    const isolatedWorkspaceId = (await response.json()).workspace.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${isolatedWorkspaceId}/switch`, { method: "POST", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 200);
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", {
+      method: "POST", body: { title: "Isolated workspace event", startsAt: "2027-01-05T09:00", endsAt: "2027-01-06T17:00" }, cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1), headers: { "idempotency-key": "workspace-isolation-event" },
+    });
+    assert.equal(response.status, 201, "The second workspace must accept its own management state");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${defaultWorkspaceId}/switch`, { method: "POST", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 200);
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.data.some((event) => event.title === "Isolated workspace event"), false, "Workspace-scoped events must not leak into the original workspace");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members/${selfUserId}`, {
+      method: "DELETE", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Super user must be able to remove non-owner workspace members");
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
+    assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removed members must immediately lose the selected workspace boundary");
 
     const nextSalt = "ab".repeat(24);
     const nextProof = "cd".repeat(32);

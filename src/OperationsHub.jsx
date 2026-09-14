@@ -28,6 +28,7 @@ import { useAuth } from "./AuthContext.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 import UserManagement from "./UserManagement.jsx";
+import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 
 const VIEWS = [
@@ -36,6 +37,7 @@ const VIEWS = [
   ["integrations", "Integrations", Database],
   ["activity", "API Log", Activity],
   ["users", "Users", UsersRound],
+  ["workspaces", "Workspaces", Building2],
   ["agents", "Agent Access", Bot],
   ["wallboard", "Wallboard", MonitorUp],
 ];
@@ -46,6 +48,7 @@ const VIEW_COPY = {
   integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
   activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
   users: ["Administration", "Users", "Human accounts, roles, status, sessions, and password recovery."],
+  workspaces: ["Administration", "Workspaces", "Isolated data boundaries, membership, and access-request decisions."],
   agents: ["Administration", "Agent access", "Issue and govern narrowly scoped credentials for trusted agents."],
 };
 
@@ -55,6 +58,7 @@ const ADMIN_ROUTES = {
   events: "#/budget-spend/events",
   integrations: "#/budget-spend/integrations",
   users: "#/budget-spend/users",
+  workspaces: "#/budget-spend/workspaces",
   agents: "#/budget-spend/agents",
   activity: "#/budget-spend/api-log",
 };
@@ -336,10 +340,23 @@ function monthCalendarDays(month) {
   });
 }
 
-function eventOccursOnDay(event, day) {
-  const start = String(event.startsAt || "").slice(0, 10);
-  const end = String(event.endsAt || event.startsAt || "").slice(0, 10);
-  return start <= day && end >= day;
+function calendarWeekSegments(events, week) {
+  const first = week[0].key;
+  const last = week[6].key;
+  const lanes = [];
+  return events
+    .filter((event) => String(event.startsAt || "").slice(0, 10) <= last && String(event.endsAt || event.startsAt || "").slice(0, 10) >= first)
+    .sort((left, right) => String(left.startsAt).localeCompare(String(right.startsAt)) || String(right.endsAt || right.startsAt).localeCompare(String(left.endsAt || left.startsAt)))
+    .map((event) => {
+      const start = String(event.startsAt || "").slice(0, 10);
+      const end = String(event.endsAt || event.startsAt || "").slice(0, 10);
+      const startColumn = Math.max(0, week.findIndex((day) => day.key >= start));
+      const endColumn = Math.max(startColumn, week.findLastIndex((day) => day.key <= end));
+      let lane = lanes.findIndex((occupiedThrough) => startColumn > occupiedThrough);
+      if (lane < 0) lane = lanes.length;
+      lanes[lane] = endColumn;
+      return { event, startColumn, endColumn, lane, startsBefore: start < first, endsAfter: end > last };
+    });
 }
 
 function WallboardCalendar({ events, month, onMonthChange, now }) {
@@ -351,6 +368,7 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
   const monthStart = `${month}-01`;
   const monthEnd = `${month}-${String(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).getUTCDate()).padStart(2, "0")}`;
   const monthEvents = events.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
+  const weeks = Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
   return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
     <header>
       <div><span>Operator calendar</span><strong>{monthLabel}</strong></div>
@@ -363,20 +381,21 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
     </header>
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
       <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="ops-wall-calendar__grid">{days.map((day) => {
-        const dayEvents = events.filter((event) => eventOccursOnDay(event, day.key));
-        return <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}${dayEvents.length ? " has-events" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
-          <header><time dateTime={day.key}>{day.day}</time>{day.key === today ? <span>Today</span> : null}</header>
-          <div>{dayEvents.map((event) => {
+      <div className="ops-wall-calendar__weeks">{weeks.map((week) => {
+        const segments = calendarWeekSegments(events, week);
+        const laneCount = Math.max(1, ...segments.map((segment) => segment.lane + 1));
+        return <section className="ops-wall-calendar__week" key={week[0].key} style={{ "--calendar-lanes": laneCount }}>
+          <div className="ops-wall-calendar__days">{week.map((day) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
+            <header><time dateTime={day.key}>{day.day}</time>{day.key === today ? <span>Today</span> : null}</header>
+          </article>)}</div>
+          <div className="ops-wall-calendar__bars">{segments.map(({ event, startColumn, endColumn, lane, startsBefore, endsAfter }) => {
             const countdown = eventCountdown(event, now);
             const attendees = event.attendees || [];
-            return <div key={event.id} className={`ops-wall-calendar__event is-${countdown.tone}`} data-calendar-event={event.id} title={`${event.title} · ${event.location || "Location not set"}`}>
-              <strong>{event.title}</strong>
-              <span>{event.location || "Location not set"}</span>
-              {attendees.length ? <small>{attendees.map((attendee) => attendee.displayName).join(" · ")}</small> : null}
+            return <div key={event.id} className={`ops-wall-calendar__bar is-${countdown.tone}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} data-calendar-event={event.id} title={`${event.title} · ${event.location || "Location not set"}`}>
+              <i aria-hidden="true" /><strong>{event.title}</strong><span>{event.location || "Location not set"}</span>{attendees.length ? <small>{attendees.map((attendee) => attendee.displayName).join(" · ")}</small> : null}
             </div>;
           })}</div>
-        </article>;
+        </section>;
       })}</div>
     </div>
   </section>;
@@ -454,7 +473,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
         <article><span>Sources online</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>last probe</small></article>
       </div>
       <nav className="admin-console__nav" aria-label="Administration sections">
-        {ADMIN_VIEWS.filter(([id]) => !["users", "agents"].includes(id) || (id === "users" ? auth?.user?.canManageUsers : auth?.user?.canManageAgents)).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
+        {ADMIN_VIEWS.filter(([id]) => !["users", "workspaces", "agents"].includes(id) || (id === "users" ? auth?.user?.canManageUsers : id === "workspaces" ? auth?.user?.canManageWorkspaces : auth?.user?.canManageAgents)).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
       </nav>
       <div className="admin-console__context" aria-live="polite"><span>{copy[0]}</span><strong>{copy[1]}</strong><small>{copy[2]}</small></div>
     </section> : null}
@@ -464,6 +483,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
+    {view === "workspaces" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Only the Super user can manage workspace membership and requests.</p></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
