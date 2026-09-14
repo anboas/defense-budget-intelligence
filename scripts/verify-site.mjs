@@ -258,6 +258,8 @@ try {
   assert.equal(await page.locator('[data-nav-group-trigger="analytics"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Analytics should not show stale child context");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
   await assertActiveGroupState(page, "admin", "API Log");
+  assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "API Log should render inside the persistent Admin control-center shell");
+  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "API Log", "Admin shell should identify API Log as its active in-place section");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
@@ -418,7 +420,7 @@ try {
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Watchlist");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Administration", "Every Admin section should retain one stable workspace title");
   assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "Watchlist should project the tracked stable-ID working set");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "Watchlist should preserve the exact Gantt stable ID");
   const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
@@ -1011,9 +1013,13 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
-  const mobileOperationsHeroHeight = await mobile.locator(".operations-hero").evaluate((node) => node.getBoundingClientRect().height);
-  assert.ok(mobileOperationsHeroHeight <= 150, `Mobile Operations hero should keep the working surface above the fold, got ${mobileOperationsHeroHeight}px`);
+  const mobileAdminShellHeight = await mobile.locator("[data-admin-workspace]").evaluate((node) => node.getBoundingClientRect().height);
+  assert.ok(mobileAdminShellHeight <= 360, `Mobile Admin control center should stay compact enough to expose working content, got ${mobileAdminShellHeight}px`);
+  assert.equal(await mobile.locator(".admin-console__nav a").count(), 4, "Static mobile Admin should keep every browser-local management section in one shell");
+  const mobileAdminTargetHeights = await mobile.locator(".admin-console__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileAdminTargetHeights.every((height) => height >= 43.5), `Mobile Admin sections should keep 44px touch targets: ${mobileAdminTargetHeights.join(", ")}`);
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
+  await assertNoPageOverflow(mobile, "Mobile Admin control center");
   await openSurface(mobile, "#/budget-spend/wallboard", "[data-ops-wallboard]");
   await assertNoPageOverflow(mobile, "Mobile wallboard");
   await mobile.screenshot({ path: `${OUT_DIR}/wallboard-mobile.png`, fullPage: true });

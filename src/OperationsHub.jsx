@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Activity,
+  Bot,
   CalendarDays,
   ChevronRight,
   Database,
@@ -16,6 +17,8 @@ import {
 import sourceHealth from "./data/source-health.json";
 import ProductMark from "./ProductMark.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
+import { AgentAccessPanel } from "./ProfilePage.jsx";
+import { useAuth } from "./AuthContext.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 
@@ -24,6 +27,7 @@ const VIEWS = [
   ["events", "Events", CalendarDays],
   ["integrations", "Integrations", Database],
   ["activity", "API Log", Activity],
+  ["agents", "Agent Access", Bot],
   ["wallboard", "Wallboard", MonitorUp],
 ];
 
@@ -32,6 +36,16 @@ const VIEW_COPY = {
   events: ["Management", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
   integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
   activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
+  agents: ["Administration", "Agent access", "Issue and govern narrowly scoped credentials for trusted agents."],
+};
+
+const ADMIN_VIEWS = VIEWS.filter(([id]) => id !== "wallboard");
+const ADMIN_ROUTES = {
+  watchlist: "#/budget-spend/watchlist",
+  events: "#/budget-spend/events",
+  integrations: "#/budget-spend/integrations",
+  agents: "#/budget-spend/agents",
+  activity: "#/budget-spend/api-log",
 };
 
 function compactDate(value) {
@@ -283,6 +297,7 @@ function WallboardRecords({ records, asOf, watchById }) {
 }
 
 export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
+  const auth = useAuth();
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
   const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
@@ -297,12 +312,32 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const dueReviews = state.watchlist.filter((entry) => entry.reviewAt && entry.reviewAt <= reviewHorizon).length;
   const copy = VIEW_COPY[view];
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
-    {view !== "wallboard" ? <section className="operations-hero"><div><span>{copy[0]}</span><h2>{copy[1]}</h2><p>{copy[2]}</p></div><dl><div><dt>Tracked</dt><dd>{state.watchlist.length}</dd></div><div><dt>Review due</dt><dd>{dueReviews}</dd></div><div><dt>Events</dt><dd>{state.events.length}</dd></div><div><dt>Sources online</dt><dd>{sourceHealth.totals?.online || 0}</dd></div></dl></section> : null}
+    {view !== "wallboard" ? <section className="if-admin-control-surface admin-console" data-admin-control-surface data-admin-workspace>
+      <header className="admin-console__header">
+        <div>
+          <span>Admin control center</span>
+          <h2>Workspace administration</h2>
+          <p>One place for tracked work, operator events, source health, agent credentials, and the shared audit trail.</p>
+        </div>
+        <span className={`admin-console__status ${state.remote ? "is-connected" : "is-local"}`}><i aria-hidden="true" />{state.remote ? "D1 workspace" : "Browser-local fallback"}</span>
+      </header>
+      <div className="admin-console__metrics" aria-label="Administration summary">
+        <article><span>Tracked</span><strong>{state.watchlist.length}</strong><small>records</small></article>
+        <article><span>Reviews due</span><strong>{dueReviews}</strong><small>within 30 days</small></article>
+        <article><span>Events</span><strong>{state.events.length}</strong><small>scheduled</small></article>
+        <article><span>Sources online</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>last probe</small></article>
+      </div>
+      <nav className="admin-console__nav" aria-label="Administration sections">
+        {ADMIN_VIEWS.filter(([id]) => id !== "agents" || auth?.user).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
+      </nav>
+      <div className="admin-console__context" aria-live="polite"><span>{copy[0]}</span><strong>{copy[1]}</strong><small>{copy[2]}</small></div>
+    </section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
     {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
+    {view === "agents" ? auth?.user ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Authentication required</strong><p>Sign in as the workspace owner to issue and revoke agent credentials.</p></section> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}

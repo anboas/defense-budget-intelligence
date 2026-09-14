@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bot, Check, Clipboard, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { Check, Clipboard, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 
 const DEFAULT_AGENT_SCOPES = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "integrations:read"];
@@ -72,7 +72,7 @@ function SecurityPanel({ auth, user }) {
   </section>;
 }
 
-function AgentAccessPanel({ auth }) {
+export function AgentAccessPanel({ auth, embedded = false }) {
   const [keys, setKeys] = useState([]);
   const [scopes, setScopes] = useState([]);
   const [name, setName] = useState("");
@@ -117,8 +117,8 @@ function AgentAccessPanel({ auth }) {
     finally { setBusy(false); }
   }
 
-  return <section className="profile-page__panel profile-page__panel--wide" data-profile-agents aria-labelledby="profile-agents-title">
-    <header><span>Agent control plane</span><h2 id="profile-agents-title">Agent access</h2><p>Create narrowly scoped credentials for trusted agents. Tokens are displayed once; the server stores only a SHA-256 hash.</p></header>
+  return <section className={`${embedded ? "ops-panel admin-console__agent-panel" : "profile-page__panel profile-page__panel--wide"}`} data-profile-agents aria-labelledby="profile-agents-title">
+    {embedded ? <header className="ops-panel__header"><div><span>Agent control plane</span><h2 id="profile-agents-title">Agent access</h2><p>Create narrowly scoped credentials for trusted agents. Tokens are displayed once; the server stores only a SHA-256 hash.</p></div></header> : <header><span>Agent control plane</span><h2 id="profile-agents-title">Agent access</h2><p>Create narrowly scoped credentials for trusted agents. Tokens are displayed once; the server stores only a SHA-256 hash.</p></header>}
     <div className="agent-access-body">
       {createdToken ? <section className="agent-token-once" role="status"><strong>Copy this token now</strong><p>It cannot be retrieved again. Save it directly in the agent’s protected Secret Store, never in chat or source files.</p><code>{createdToken}</code><button type="button" onClick={() => void navigator.clipboard.writeText(createdToken).then(() => setCopied(true))}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied" : "Copy token"}</button></section> : null}
       <form className="profile-page__form agent-key-form" onSubmit={create}>
@@ -146,10 +146,8 @@ export default function ProfilePage({ section = "profile" }) {
       <nav className="profile-page__nav" aria-label="Profile sections">
         <a href="#/profile" className={section === "profile" ? "is-active" : ""} aria-current={section === "profile" ? "page" : undefined}><UserRound size={16} />Profile</a>
         <a href="#/profile/security" className={section === "security" ? "is-active" : ""} aria-current={section === "security" ? "page" : undefined}><KeyRound size={16} />Security</a>
-        <a href="#/profile/agents" className={section === "agents" ? "is-active" : ""} aria-current={section === "agents" ? "page" : undefined}><Bot size={16} />Agent access</a>
-        <a href="#/budget-spend/api-log"><ShieldCheck size={16} />API log</a>
       </nav>
-      {section === "security" ? <SecurityPanel auth={auth} user={user} /> : section === "agents" ? <AgentAccessPanel auth={auth} /> : <AccountPanel auth={auth} user={user} />}
+      {section === "security" ? <SecurityPanel auth={auth} user={user} /> : <AccountPanel auth={auth} user={user} />}
     </div>
   </div>;
 }

@@ -72,6 +72,8 @@ try {
   await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Profile should render as a routed page, not a modal");
   assert.match(new URL(page.url()).hash, /^#\/profile$/, "Profile menu should navigate to the canonical profile route");
+  assert.equal(await page.locator(".profile-page__nav a").count(), 2, "Profile workspace should contain only identity and security");
+  assert.equal(await page.locator('.profile-page__nav a:has-text("Agent access"), .profile-page__nav a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into the account settings rail");
   await page.screenshot({ path: "test-results/profile-page-desktop.png", fullPage: true });
   await page.getByLabel("Display name").fill(finalName);
   await page.getByRole("button", { name: "Save profile" }).click();
@@ -79,8 +81,19 @@ try {
 
   await page.locator("[data-profile-menu-trigger]").click();
   await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /Agent Access/i }).click();
-  await page.waitForSelector('[data-profile-page][data-profile-section="agents"]');
-  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render in the routed profile workspace");
+  await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
+  await page.getByText("records:read", { exact: true }).waitFor();
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render inside the persistent Admin workspace");
+  assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "Agent access should use the shared Admin control-center shell");
+  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Agent Access", "Admin workspace should retain its active section in place");
+  await page.screenshot({ path: "test-results/admin-agent-access-desktop.png", fullPage: true });
+  await page.locator('.admin-console__nav a[href="#/budget-spend/api-log"]').click();
+  await page.waitForSelector('[data-operations-hub][data-operations-view="activity"] [data-ops-activity]');
+  assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "API Log should remain inside the same Admin control-center shell");
+  assert.equal(await page.locator("[data-profile-page]").count(), 0, "API Log should not jump into or out of the account-settings page");
+  await page.screenshot({ path: "test-results/admin-api-log-desktop.png", fullPage: true });
+  await page.locator('.admin-console__nav a[href="#/budget-spend/agents"]').click();
+  await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
   const activeAdminTrigger = page.locator('[data-nav-group-trigger="admin"]');
   assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Agent Access", "Authenticated Admin trigger should name the active routed child");
   assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Agent Access", "Authenticated Admin should render the active child in the lighter context label");
@@ -182,7 +195,7 @@ try {
   assert.ok(profileNavHeights.every((height) => height >= 43.5), `Mobile profile navigation should keep 44px touch targets: ${profileNavHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
 
-  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, routed profile/security/agent pages, one-time agent credential lifecycle, shared D1 admin state, password rotation, logout/login, and mobile profile UI");
+  console.log("Verified first-account super-user claim, atomic singleton ownership, secure session cookie, routed profile/security pages, persistent in-place Admin/Agent/API workspace, one-time agent credential lifecycle, shared D1 admin state, password rotation, logout/login, and mobile profile UI");
 } finally {
   await browser.close();
 }

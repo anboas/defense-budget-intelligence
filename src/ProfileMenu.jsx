@@ -95,11 +95,11 @@ export default function ProfileMenu() {
                 <span className="if-account-action__icon" aria-hidden="true"><KeyRound size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Security</strong><span className="if-account-action__meta">Password and active sessions</span></span>
               </a>
-              <a className="if-account-action" href="#/profile/agents" onClick={() => setOpen(false)}>
+              <a className="if-account-action" href="#/budget-spend/agents" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Bot size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Agent Access</strong><span className="if-account-action__meta">Scoped API credentials</span></span>
               </a>
-              <a className="if-account-action" href="#/profile/activity" onClick={() => setOpen(false)}>
+              <a className="if-account-action" href="#/budget-spend/api-log" onClick={() => setOpen(false)}>
                 <span className="if-account-action__icon" aria-hidden="true"><Activity size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">API Log</strong><span className="if-account-action__meta">Human and agent activity</span></span>
               </a>

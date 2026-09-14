@@ -73,7 +73,7 @@ const HASH_ROUTES = {
   sources: "#/budget-spend/sources",
   profile: "#/profile",
   security: "#/profile/security",
-  agents: "#/profile/agents",
+  agents: "#/budget-spend/agents",
 };
 
 const LEGACY_ROUTE_TABS = {
@@ -93,6 +93,8 @@ const LEGACY_ROUTE_TABS = {
   "#/budget-spend/drilldown": "overview",
   "#/budget-spend/changes": "sources",
   "#/budget-spend/operations": "watchlist",
+  "#/profile/agents": "agents",
+  "#/profile/activity": "activity",
 };
 
 function tabFromHash(hash = "") {
@@ -411,8 +413,9 @@ let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0,
 let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
-const OPERATIONS_TAB_IDS = new Set(["wallboard", "watchlist", "events", "integrations", "activity"]);
-const PROFILE_TAB_IDS = new Set(["profile", "security", "agents"]);
+const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "agents"]);
+const OPERATIONS_TAB_IDS = new Set(["wallboard", ...ADMINISTRATION_TAB_IDS]);
+const PROFILE_TAB_IDS = new Set(["profile", "security"]);
 const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics", ...OPERATIONS_TAB_IDS]);
 
 function hydrateCore(nextData) {
@@ -4693,7 +4696,7 @@ function App() {
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const evidenceRecords = records.filter((record) => record.justificationEvidence);
   const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
-  const activeTitle = TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
+  const activeTitle = ADMINISTRATION_TAB_IDS.has(activeTab) ? "Administration" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const showBudgetControls = activeTab === "overview";
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || activeTab === "analytics" || activeTab === "sources";
