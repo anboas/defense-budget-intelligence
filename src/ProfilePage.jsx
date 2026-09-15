@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Clipboard, ImagePlus, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
+import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 
 const DEFAULT_AGENT_SCOPES = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "integrations:read"];
 
@@ -217,8 +218,8 @@ export default function ProfilePage({ section = "profile" }) {
     <header className="profile-page__header">
       <div className="profile-page__heading">
         <span className="profile-page__eyebrow">Account settings</span>
-        <h2>{section === "security" ? "Security" : "Profile"}</h2>
-        <p>{section === "security" ? "Manage the password for this workspace account." : "Manage the identity shown across the workspace."}</p>
+        <h2>{section === "security" ? "Security" : section === "personal-ai" ? "Personal OpenAI keys" : "Profile"}</h2>
+        <p>{section === "security" ? "Manage the password for this workspace account." : section === "personal-ai" ? "Manage credentials available only to requests you initiate." : "Manage the identity shown across the workspace."}</p>
       </div>
       <div className="profile-page__identity" aria-label="Current account">
         <UserAvatar user={user} className="profile-avatar profile-avatar--page" />
@@ -229,9 +230,10 @@ export default function ProfilePage({ section = "profile" }) {
     <nav className="if-tabs__list profile-page__nav" aria-label="Profile sections">
       <a role="tab" href="#/profile" className={`if-tab${section === "profile" ? " is-active" : ""}`} aria-selected={section === "profile"} aria-current={section === "profile" ? "page" : undefined}><UserRound size={14} />Profile</a>
       <a role="tab" href="#/profile/security" className={`if-tab${section === "security" ? " is-active" : ""}`} aria-selected={section === "security"} aria-current={section === "security" ? "page" : undefined}><KeyRound size={14} />Security</a>
+      <a role="tab" href="#/profile/openai" className={`if-tab${section === "personal-ai" ? " is-active" : ""}`} aria-selected={section === "personal-ai"} aria-current={section === "personal-ai" ? "page" : undefined}><KeyRound size={14} />OpenAI keys</a>
     </nav>
     <div className="profile-page__content">
-      {section === "security" ? <SecurityPanel auth={auth} user={user} /> : <AccountPanel auth={auth} user={user} />}
+      {section === "security" ? <SecurityPanel auth={auth} user={user} /> : section === "personal-ai" ? <OpenAiKeyManagement auth={auth} scope="user" /> : <AccountPanel auth={auth} user={user} />}
     </div>
   </div>;
 }

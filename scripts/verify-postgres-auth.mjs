@@ -48,6 +48,37 @@ response = await request("/api/v1/auth/profile", { method: "PATCH", cookie: owne
 assert.equal(response.status, 200);
 assert.equal((await response.json()).user.avatarDataUrl, avatarDataUrl, "PostgreSQL must persist profile pictures");
 
+const personalOpenAiKey = "sk-postgres_personal_verification_0001";
+const workspaceOpenAiKey = "sk-postgres_workspace_verification_0002";
+response = await request("/api/v1/auth/openai-keys", { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.capability.encryptionReady, true, "PostgreSQL must advertise the configured credential vault");
+assert.equal(body.capability.queryRuntimeEnabled, false, "OpenAI query execution must remain disabled in the management-only release");
+response = await request("/api/v1/auth/openai-keys", { method: "POST", cookie: ownerCookie,
+  body: { scope: "user", label: "PostgreSQL personal", apiKey: personalOpenAiKey, isDefault: true } });
+assert.equal(response.status, 201, "PostgreSQL must store personal OpenAI credentials");
+body = await response.json();
+const personalOpenAiKeyId = body.key.id;
+assert.equal(body.key.lastFour, "0001");
+assert.doesNotMatch(JSON.stringify(body), new RegExp(personalOpenAiKey));
+response = await request("/api/v1/auth/openai-keys", { method: "POST", cookie: ownerCookie,
+  body: { scope: "workspace", label: "PostgreSQL workspace", apiKey: workspaceOpenAiKey, isDefault: true } });
+assert.equal(response.status, 201, "PostgreSQL must store workspace OpenAI credentials");
+body = await response.json();
+const workspaceOpenAiKeyId = body.key.id;
+assert.equal(body.key.lastFour, "0002");
+assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey));
+response = await request(`/api/v1/auth/openai-keys/${personalOpenAiKeyId}`, { method: "PATCH", cookie: ownerCookie,
+  body: { label: "PostgreSQL personal renamed" } });
+assert.equal(response.status, 200);
+response = await request(`/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, { method: "DELETE", cookie: ownerCookie });
+assert.equal(response.status, 200);
+response = await request("/api/v1/auth/openai-keys", { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.personalKeys[0].label, "PostgreSQL personal renamed");
+assert.equal(body.workspaceKeys[0].status, "revoked");
+assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "PostgreSQL credential listings must expose metadata only");
+
 const signup = identity("Signup");
 response = await request("/api/v1/auth/register", { method: "POST", body: signup });
 assert.equal(response.status, 201, "PostgreSQL must support public self-signup");
@@ -112,4 +143,4 @@ assert.equal(response.status, 200, "Super user must remove non-owner workspace m
 response = await request("/api/v1/auth/status", { cookie: signupCookie });
 assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removing the selected membership must clear that session's workspace boundary");
 
-console.log("Verified PostgreSQL profile pictures, self-signup, workspace branding, scoped workspace managers, role assignment, switching, and removal");
+console.log("Verified PostgreSQL profile pictures, OpenAI credential vaults, self-signup, workspace branding, scoped workspace managers, role assignment, switching, and removal");

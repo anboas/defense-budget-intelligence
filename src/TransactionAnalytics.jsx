@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
+import ControlSelect from "./ControlSelect.jsx";
 import {
   parseMultiValues,
   SearchMultiSelect,
@@ -1793,9 +1794,9 @@ export default function TransactionAnalytics({
         <div className="analytics-commandbar__controls">
           <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
           <div className="analytics-commandbar__secondary">
-            <label><span>Record type</span><select value={mode} onChange={(event) => setMode(event.target.value)}><option value="all">All records</option><option value="contract-performance">Contracts</option><option value="acquisition-window">Acquisition activity</option></select></label>
-            <label><span>Dimension</span><select value={dimensionId} onChange={(event) => { setDimensionId(event.target.value); setFacet(null); }}>{DIMENSIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-            <label><span>Measure</span><select value={metricId} onChange={(event) => setMetricId(event.target.value)}>{METRICS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <div><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>
+            <div><span>Dimension</span><ControlSelect ariaLabel="Dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
+            <div><span>Measure</span><ControlSelect ariaLabel="Measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
             <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
             {activeFilters ? <button type="button" className="analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
           </div>

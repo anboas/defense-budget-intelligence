@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
+import ControlSelect from "./ControlSelect.jsx";
 
 const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
@@ -70,7 +71,7 @@ async function squareWorkspaceIcon(file) {
   throw new Error("That image is too complex. Try a simpler crop.");
 }
 
-export default function WorkspaceManagement({ auth }) {
+export default function WorkspaceManagement({ auth, activeOnly = false }) {
   const [data, setData] = useState({ workspaces: [], requests: [], users: [], availableRoles: [] });
   const [draft, setDraft] = useState({ name: "", description: "" });
   const [editing, setEditing] = useState(null);
@@ -79,6 +80,9 @@ export default function WorkspaceManagement({ auth }) {
   const [busy, setBusy] = useState(true);
   const [notice, setNotice] = useState(null);
   const isSuperUser = auth.user?.roleId === "super_user";
+  const visibleWorkspaces = activeOnly
+    ? data.workspaces.filter((workspace) => workspace.id === auth.user?.activeWorkspace?.id)
+    : data.workspaces;
 
   function showNotice(text, tone = "success") {
     setNotice({ id: Date.now(), text, tone });
@@ -104,12 +108,14 @@ export default function WorkspaceManagement({ auth }) {
   }, [auth]);
 
   const pending = useMemo(() => data.requests.filter((request) => request.status === "pending"), [data.requests]);
+  const visiblePending = pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id);
   const roles = data.availableRoles?.length ? data.availableRoles : ["administrator", "analyst", "viewer"];
-  const totals = useMemo(() => data.workspaces.reduce((summary, workspace) => ({
+  const roleOptions = roles.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
+  const totals = useMemo(() => visibleWorkspaces.reduce((summary, workspace) => ({
     tracked: summary.tracked + Number(workspace.contents?.trackedRecords || 0),
     events: summary.events + Number(workspace.contents?.events || 0),
-  }), { tracked: 0, events: 0 }), [data.workspaces]);
-  const inventoryAvailable = data.workspaces.some((workspace) => Number.isFinite(workspace.contents?.events));
+  }), { tracked: 0, events: 0 }), [visibleWorkspaces]);
+  const inventoryAvailable = visibleWorkspaces.some((workspace) => Number.isFinite(workspace.contents?.events));
 
   async function mutate(operation, success) {
     setBusy(true);
@@ -139,27 +145,27 @@ export default function WorkspaceManagement({ auth }) {
   }
 
   return <section className="ops-panel workspace-management" data-workspace-management aria-labelledby="workspace-management-title">
-    <header className="ops-panel__header workspace-management__header"><div><span>{isSuperUser ? "Super-user control" : "Workspace manager"}</span><h2 id="workspace-management-title">Workspace command</h2><p>Inspect each isolated data boundary, configure its identity, switch context, review requests, and govern membership.</p></div><span className="if-badge if-badge--info if-badge--sm">{isSuperUser ? "Super user" : "Scoped manager"}</span></header>
+    <header className="ops-panel__header workspace-management__header"><div><span>{activeOnly ? "Active workspace" : "Super-user control"}</span><h2 id="workspace-management-title">{activeOnly ? "Workspace management" : "Super admin"}</h2><p>{activeOnly ? "Configure this workspace's identity, members, roles, requests, and shared inventory." : "Inspect and govern every isolated workspace boundary from one global console."}</p></div><span className="if-badge if-badge--info if-badge--sm">{activeOnly ? "Scoped manager" : "Super user"}</span></header>
 
-    <div className="workspace-management__metrics"><article><span>Workspaces</span><strong>{data.workspaces.length}</strong></article><article><span>Pending requests</span><strong>{pending.length}</strong></article><article><span>Registered users</span><strong>{data.users.length}</strong></article><article><span>Tracked records</span><strong>{inventoryAvailable ? totals.tracked : "—"}</strong></article><article><span>Events</span><strong>{inventoryAvailable ? totals.events : "—"}</strong></article></div>
+    <div className="workspace-management__metrics"><article><span>Workspaces</span><strong>{visibleWorkspaces.length}</strong></article><article><span>Pending requests</span><strong>{pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id).length}</strong></article><article><span>Registered users</span><strong>{data.users.length}</strong></article><article><span>Tracked records</span><strong>{inventoryAvailable ? totals.tracked : "—"}</strong></article><article><span>Events</span><strong>{inventoryAvailable ? totals.events : "—"}</strong></article></div>
 
-    {isSuperUser ? <form className="workspace-management__create" onSubmit={createWorkspace}>
+    {isSuperUser && !activeOnly ? <form className="workspace-management__create" onSubmit={createWorkspace}>
       <label>Name<input required minLength={2} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Program intelligence" /></label>
       <label>Description<input value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="What this workspace covers" /></label>
       <button className="if-btn if-btn--primary" type="submit" disabled={busy}><Plus size={15} />Create workspace</button>
     </form> : null}
 
-    {pending.length ? <section className="workspace-request-queue" aria-labelledby="workspace-requests-title"><header><div><span>Approval queue</span><h3 id="workspace-requests-title">Access requests</h3></div><b>{pending.length}</b></header>{pending.map((request) => <article key={request.id} data-workspace-request={request.id}>
+    {visiblePending.length ? <section className="workspace-request-queue" aria-labelledby="workspace-requests-title"><header><div><span>Approval queue</span><h3 id="workspace-requests-title">Access requests</h3></div><b>{visiblePending.length}</b></header>{visiblePending.map((request) => <article key={request.id} data-workspace-request={request.id}>
       <UserAvatar user={request} size={38} />
       <div><strong>{request.displayName}</strong><span>{request.email}</span><small>{request.workspaceName}{request.note ? ` · ${request.note}` : ""}</small></div>
-      <select aria-label={`Role for ${request.displayName}`} value={requestRoles[request.id] || "viewer"} onChange={(event) => setRequestRoles((current) => ({ ...current, [request.id]: event.target.value }))}>{roles.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select>
+      <ControlSelect compact ariaLabel={`Role for ${request.displayName}`} value={requestRoles[request.id] || "viewer"} options={roleOptions} onChange={(role) => setRequestRoles((current) => ({ ...current, [request.id]: role }))} />
       <button className="is-approve" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "approved", role: requestRoles[request.id] || "viewer" }), `${request.displayName} approved.`).catch(() => {})}><Check size={14} />Approve</button>
       <button className="is-deny" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "denied", role: "viewer" }), `${request.displayName} denied.`).catch(() => {})}><X size={14} />Deny</button>
     </article>)}</section> : null}
 
     {notice ? <div className="if-toast-stack workspace-toast-stack" aria-live="polite"><div className={`if-toast workspace-toast is-${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"}><span>{notice.tone === "error" ? <X size={17} /> : <Check size={17} />}</span><div><strong>{notice.tone === "error" ? "Action needed" : "Workspace updated"}</strong><p>{notice.text}</p></div><button type="button" aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={15} /></button></div></div> : null}
 
-    <div className="workspace-management__list">{busy && !data.workspaces.length ? <p>Loading workspaces…</p> : data.workspaces.map((workspace) => {
+    <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <p>Loading workspaces…</p> : visibleWorkspaces.map((workspace) => {
       const memberIds = new Set(workspace.members.map((member) => member.id));
       const candidates = data.users.filter((user) => !memberIds.has(user.id));
       const memberDraft = memberDrafts[workspace.id] || { userId: candidates[0]?.id || "", role: "viewer" };
@@ -192,13 +198,13 @@ export default function WorkspaceManagement({ auth }) {
         <div className="workspace-card__role-summary" aria-label={`${workspace.name} role distribution`}><UsersRound size={15} aria-hidden="true" /><span>{Number(roleCounts.super_user || 0)} owner</span><span>{Number(roleCounts.administrator || 0)} manager</span><span>{Number(roleCounts.analyst || 0)} analyst</span><span>{Number(roleCounts.viewer || 0)} viewer</span></div>
 
         {candidates.length ? <form className="workspace-card__add-member" onSubmit={(event) => { event.preventDefault(); void mutate(() => auth.addWorkspaceMember(workspace.id, memberDraft), "Workspace member added.").catch(() => {}); }}>
-          <select aria-label={`User to add to ${workspace.name}`} value={memberDraft.userId} onChange={(event) => setMemberDrafts((current) => ({ ...current, [workspace.id]: { ...memberDraft, userId: event.target.value } }))}>{candidates.map((user) => <option key={user.id} value={user.id}>{user.displayName} · {user.email}</option>)}</select>
-          <select aria-label={`Role for new member in ${workspace.name}`} value={memberDraft.role} onChange={(event) => setMemberDrafts((current) => ({ ...current, [workspace.id]: { ...memberDraft, role: event.target.value } }))}>{roles.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select>
+          <ControlSelect ariaLabel={`User to add to ${workspace.name}`} value={memberDraft.userId} searchable options={candidates.map((user) => ({ value: user.id, label: user.displayName, description: user.email, icon: <UserAvatar user={user} size={24} /> }))} onChange={(userId) => setMemberDrafts((current) => ({ ...current, [workspace.id]: { ...memberDraft, userId } }))} />
+          <ControlSelect compact ariaLabel={`Role for new member in ${workspace.name}`} value={memberDraft.role} options={roleOptions} onChange={(role) => setMemberDrafts((current) => ({ ...current, [workspace.id]: { ...memberDraft, role } }))} />
           <button type="submit" disabled={busy || !memberDraft.userId}><UserPlus size={14} /><span>Add member</span></button>
         </form> : null}
         <div className="workspace-card__members"><header><span>Members</span><strong>{workspace.members.length}</strong></header>{workspace.members.map((member) => <div key={member.id}>
           <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>
-          {member.roleId !== "super_user" ? <select aria-label={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} onChange={(event) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role: event.target.value }), `${member.displayName} is now ${ROLE_LABELS[event.target.value]}.`).catch(() => {})}>{roles.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select> : <b>{member.role}</b>}
+          {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
           {member.roleId !== "super_user" ? <button type="button" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
         </div>)}</div>
       </article>;

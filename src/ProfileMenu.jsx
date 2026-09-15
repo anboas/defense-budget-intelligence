@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Bot, Building2, ChevronDown, KeyRound, LogIn, UserRound, UsersRound } from "lucide-react";
+import { BrainCircuit, ChevronDown, KeyRound, LogIn, UserRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceSwitcher from "./WorkspaceSwitcher.jsx";
@@ -93,21 +93,9 @@ export default function ProfileMenu() {
                 <span className="if-account-action__icon" aria-hidden="true"><KeyRound size={15} /></span>
                 <span className="if-account-action__content"><strong className="if-account-action__title">Security</strong><span className="if-account-action__meta">Password and active sessions</span></span>
               </a>
-              {user.canManageUsers ? <a className="if-account-action" href="#/budget-spend/users" onClick={() => setOpen(false)}>
-                <span className="if-account-action__icon" aria-hidden="true"><UsersRound size={15} /></span>
-                <span className="if-account-action__content"><strong className="if-account-action__title">Users</strong><span className="if-account-action__meta">Human accounts and roles</span></span>
-              </a> : null}
-              {user.canManageWorkspaces ? <a className="if-account-action" href="#/budget-spend/workspaces" onClick={() => setOpen(false)}>
-                <span className="if-account-action__icon" aria-hidden="true"><Building2 size={15} /></span>
-                <span className="if-account-action__content"><strong className="if-account-action__title">Workspaces</strong><span className="if-account-action__meta">Memberships and access requests</span></span>
-              </a> : null}
-              {user.canManageAgents ? <a className="if-account-action" href="#/budget-spend/agents" onClick={() => setOpen(false)}>
-                <span className="if-account-action__icon" aria-hidden="true"><Bot size={15} /></span>
-                <span className="if-account-action__content"><strong className="if-account-action__title">Agent Access</strong><span className="if-account-action__meta">Scoped API credentials</span></span>
-              </a> : null}
-              <a className="if-account-action" href="#/budget-spend/api-log" onClick={() => setOpen(false)}>
-                <span className="if-account-action__icon" aria-hidden="true"><Activity size={15} /></span>
-                <span className="if-account-action__content"><strong className="if-account-action__title">API Log</strong><span className="if-account-action__meta">Human and agent activity</span></span>
+              <a className="if-account-action" href="#/profile/openai" onClick={() => setOpen(false)}>
+                <span className="if-account-action__icon" aria-hidden="true"><BrainCircuit size={15} /></span>
+                <span className="if-account-action__content"><strong className="if-account-action__title">OpenAI Keys</strong><span className="if-account-action__meta">Personal server-side credentials</span></span>
               </a>
             </section>
           </div>

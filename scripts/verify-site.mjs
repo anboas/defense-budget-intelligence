@@ -39,7 +39,7 @@ async function openSurface(page, route, selector) {
     if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
       const group = route.startsWith("#/budget-spend/analytics") ? "analytics"
         : ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/sources"].includes(route) ? "money"
-          : "admin";
+          : route === "#/budget-spend/workspaces" ? "super-admin" : "workspace";
       await page.locator(`[data-nav-group-trigger="${group}"]`).click();
     } else {
       await page.locator("[data-mobile-more-menu-button]").click();
@@ -48,6 +48,12 @@ async function openSurface(page, route, selector) {
   }
   await link.click();
   await page.waitForSelector(selector);
+}
+
+async function chooseControlSelect(page, label, option) {
+  const trigger = page.getByRole("button", { name: new RegExp(`^${label}:`, "i") }).first();
+  await trigger.click();
+  await page.getByRole("option", { name: option, exact: true }).click();
 }
 
 async function assertNoPageOverflow(page, label) {
@@ -84,19 +90,19 @@ async function assertActiveGroupState(page, group, childLabel) {
 async function assertFlowShell(page) {
   assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 2, "Header should expose only Transactions and Wallboard as primary links");
   assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Transactions", "Wallboard"], "Primary navigation should contain only the two working surfaces");
-  assert.equal(await page.locator("[data-nav-group-trigger]").count(), 3, "Header should expose Analytics, Money flow, and Admin menus");
+  assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 3, "Header should expose Analytics, Money flow, and Workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
     const divider = page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider");
-    assert.equal(await divider.count(), 1, "Desktop navigation should separate Admin from analytical and money-flow groups");
-    assert.equal(await divider.innerText(), "|", "Admin separator should use the established vertical-bar component");
+    assert.equal(await divider.count(), 1, "Desktop navigation should separate workspace controls from analytical and money-flow groups");
+    assert.equal(await divider.innerText(), "|", "Workspace separator should use the established vertical-bar component");
     const dividerOrder = await page.evaluate(() => {
       const money = document.querySelector('[data-nav-group-trigger="money"]')?.getBoundingClientRect();
       const separator = document.querySelector(".ci-header-nav__desktop-groups > .if-operations-topnav__divider")?.getBoundingClientRect();
-      const admin = document.querySelector('[data-nav-group-trigger="admin"]')?.getBoundingClientRect();
-      return { moneyRight: money?.right, separatorLeft: separator?.left, separatorRight: separator?.right, adminLeft: admin?.left };
+      const workspace = document.querySelector('[data-nav-group-trigger="workspace"]')?.getBoundingClientRect();
+      return { moneyRight: money?.right, separatorLeft: separator?.left, separatorRight: separator?.right, workspaceLeft: workspace?.left };
     });
-    assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.adminLeft, "Admin divider should sit between Money flow and Admin");
+    assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.workspaceLeft, "Workspace divider should sit between Money flow and Workspace");
     await page.locator('[data-nav-group-trigger="analytics"]').click();
     assert.equal(await page.locator('[data-budget-nav-menu="analytics"] a[data-budget-nav]').count(), 4, "Analytics should expose all four analytical workspaces");
     assert.match(await page.locator('[data-budget-nav-menu="analytics"]').innerText(), /Overview[\s\S]*Schedule[\s\S]*Spend & structure[\s\S]*Coverage & lineage/i);
@@ -105,14 +111,14 @@ async function assertFlowShell(page) {
     assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 5, "Money flow should contain every non-Transactions stage plus lineage");
     assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Source Lineage/i);
     await page.locator('[data-nav-group-trigger="money"]').click();
-    await page.locator('[data-nav-group-trigger="admin"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 4, "Static Admin should expose browser-local management and audit surfaces");
-    assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log/i);
-    await page.locator('[data-nav-group-trigger="admin"]').click();
+    await page.locator('[data-nav-group-trigger="workspace"]').click();
+    assert.ok(await page.locator('[data-budget-nav-menu="workspace"] a[data-budget-nav]').count() >= 4, "Workspace should expose browser-local management and audit surfaces");
+    assert.match(await page.locator('[data-budget-nav-menu="workspace"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log/i);
+    await page.locator('[data-nav-group-trigger="workspace"]').click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
     assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should contain analytics, money-flow, and management routes");
-    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin/i, "Mobile More should retain all three grouped menus");
+    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should retain all three grouped menus");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -267,7 +273,7 @@ try {
   await assertActiveGroupState(page, "money", "Source Lineage");
   assert.equal(await page.locator('[data-nav-group-trigger="analytics"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Analytics should not show stale child context");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
-  await assertActiveGroupState(page, "admin", "API Log");
+  await assertActiveGroupState(page, "workspace", "API Log");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "API Log should render inside the persistent Admin control-center shell");
   assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "API Log", "Admin shell should identify API Log as its active in-place section");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
@@ -315,7 +321,10 @@ try {
   assert.ok(await page.locator("[data-account-flow] article").count() >= 1, "Account flow should expose TAFS allocations");
   assert.ok(await page.locator("[data-award-account-flow] article").count() >= 1, "Account flow should expose award-to-account links");
   assert.equal(await page.locator("[data-burn-curve] svg").count(), 1, "Account flow should expose obligation history");
-  assert.ok(await page.locator("#lifecycle-account option").count() > 100, "Account flow should expose the federal-account inventory");
+  const federalAccountTrigger = page.getByRole("button", { name: /^Federal account:/ });
+  await federalAccountTrigger.click();
+  assert.ok(await page.locator('[data-control-select-menu] [role="option"]').count() > 100, "Account flow should expose the federal-account inventory");
+  await page.keyboard.press("Escape");
   assert.ok(await page.locator("[data-account-spine-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Account-flow intro should remain compact");
   assert.doesNotMatch(await page.locator("[data-account-spine-page] .phase-intro").innerText(), /Stage\s+3/i, "Account flow should not repeat numbered phase navigation");
   const lifecycleText = await page.locator("[data-account-spine-page]").innerText();
@@ -325,7 +334,7 @@ try {
   await openSurface(page, "#/budget-spend/awards", "[data-awards-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
-  assert.equal(await page.locator("[data-award-filter-bar] select").count(), 5, "Awards should expose factual filter dimensions");
+  assert.equal(await page.locator("[data-award-filter-bar] .control-select").count(), 5, "Awards should expose factual filter dimensions");
   assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
   assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689|records/i, "Awards should disclose the complete sampled award scope");
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
@@ -351,7 +360,7 @@ try {
   const awardContentOrder = await page.evaluate(() => ({
     records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
     rollups: document.querySelector(".awards-page > .grid--sources")?.getBoundingClientRect().top || 0,
-    filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] select, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
+    filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] .control-select__trigger, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
     metricTops: [...document.querySelectorAll(".awards-page > .source-metrics > .metric")].map((node) => Math.round(node.getBoundingClientRect().top)),
   }));
   assert.ok(awardContentOrder.records < awardContentOrder.rollups, `Award records should precede secondary rollups: ${JSON.stringify(awardContentOrder)}`);
@@ -418,8 +427,10 @@ try {
   assert.doesNotMatch(transactionText, FORBIDDEN_SURFACE_TEXT);
   assert.equal(await page.locator("[data-targeting-chart]").count(), 0, "Targeting charts should be removed");
   assert.equal(await page.locator("[data-capture-workboard]").count(), 0, "Analyst workboard should be removed");
-  assert.equal(await page.locator("[data-capture-chart]").count(), 13, "Transactions should retain thirteen descriptive charts");
-  assert.equal(await page.locator("[data-capture-matrix]").count(), 1, "Transactions should retain its descriptive lifecycle matrix");
+  assert.equal(await page.locator("[data-capture-chart]").count(), 0, "Transactions should omit the secondary analytics deck beneath the Gantt");
+  assert.equal(await page.locator("[data-capture-matrix]").count(), 0, "Transactions should omit the secondary lifecycle matrix beneath the Gantt");
+  assert.equal(await page.getByText("More transaction analytics", { exact: true }).count(), 0, "Transactions should remove the bottom analytics disclosure");
+  assert.equal(await page.getByText("Measurement and publication boundary", { exact: true }).count(), 0, "Transactions should remove the bottom methodology disclosure");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 21, "Transactions should expose twenty factual data filters plus tracking scope");
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
   const compactDesktopGeometry = await page.evaluate(() => ({
@@ -443,7 +454,7 @@ try {
   const firstWatchStar = firstWatchRow.locator(".capture-timeline__star");
   await firstWatchStar.click();
   assert.equal(await firstWatchStar.getAttribute("aria-pressed"), "true", "Gantt rows should support stable-ID tracking");
-  await page.locator("[data-capture-filters] .capture-filter").filter({ hasText: "Tracking" }).locator("select").selectOption("tracked");
+  await chooseControlSelect(page, "Tracking", "Tracked only (1)");
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
@@ -608,7 +619,7 @@ try {
         const locationBox = location.getBoundingClientRect();
         return {
           stacked: locationBox.top >= titleBox.bottom - 1,
-          copyUsesSpan: copyBox.width >= barBox.width * .9,
+          copyUsesSpan: copyBox.width >= barBox.width * .75,
           titleUsesCopyWidth: titleBox.width >= copyBox.width - 1,
           locationUsesCopyWidth: locationBox.width >= copyBox.width - 1,
           contained: titleBox.right <= barBox.right + 1 && locationBox.right <= barBox.right + 1 && locationBox.bottom <= barBox.bottom + 1,
@@ -623,13 +634,28 @@ try {
   assert.ok(calendarGeometry.firstCellHeight >= 100, `1080p calendar dates should remain distance-readable, got ${calendarGeometry.firstCellHeight}px cells`);
   assert.ok(calendarGeometry.eventSize >= 12, `1080p calendar event labels should remain readable, got ${calendarGeometry.eventSize}px`);
   assert.equal(calendarGeometry.eventCopy.stacked, true, "Calendar event title and location should render on separate lines");
-  assert.equal(calendarGeometry.eventCopy.copyUsesSpan, true, "Calendar copy should use the full event-bar span");
+  assert.equal(calendarGeometry.eventCopy.copyUsesSpan, true, "Calendar copy should use the available event-bar lane beside attendee avatars");
   assert.equal(calendarGeometry.eventCopy.titleUsesCopyWidth, true, "Calendar event titles should receive the full copy width before truncation");
   assert.equal(calendarGeometry.eventCopy.locationUsesCopyWidth, true, "Calendar event locations should receive the full copy width before truncation");
   assert.equal(calendarGeometry.eventCopy.contained, true, "Stacked calendar copy must remain inside its event bar");
   assert.equal(calendarGeometry.eventCopy.lineCount, 2, "Calendar bars should reserve exactly two unclipped lines for title and location");
   assert.ok(calendarGeometry.lastCellBottom <= calendarGeometry.gridBottom + 1, "Every calendar week should fit within the 1080p wallboard");
   assert.equal(calendarGeometry.writeControls, 0, "Calendar event entries should remain read-only");
+  const calendarAttendeeAvatar = page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-attendees .user-avatar').first();
+  assert.equal(await calendarAttendeeAvatar.count(), 1, "Calendar bars should render the attendee identity rail");
+  const calendarAttendeeAvatarBox = await calendarAttendeeAvatar.boundingBox();
+  assert.ok(calendarAttendeeAvatarBox?.width >= 23.5 && calendarAttendeeAvatarBox?.height >= 23.5, `Calendar attendee images should be at least 24px, got ${calendarAttendeeAvatarBox?.width}×${calendarAttendeeAvatarBox?.height}`);
+  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').click();
+  await page.waitForSelector("[data-calendar-event-detail]");
+  assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Air, Space & Cyber Conference[\s\S]*National Harbor[\s\S]*Attendees/i, "Clicking a calendar bar should open the complete event detail modal");
+  const eventModalHeader = await page.locator("[data-calendar-event-detail] > header").evaluate((header) => {
+    const title = header.querySelector("h2").getBoundingClientRect();
+    const close = header.querySelector("button").getBoundingClientRect();
+    const bounds = header.getBoundingClientRect();
+    return { titleRight: title.right, closeLeft: close.left, closeRight: close.right, headerRight: bounds.right };
+  });
+  assert.ok(eventModalHeader.titleRight <= eventModalHeader.closeLeft && eventModalHeader.closeRight <= eventModalHeader.headerRight + 1, `Event modal title and close action must not overlap: ${JSON.stringify(eventModalHeader)}`);
+  await page.getByRole("button", { name: "Close event details" }).click();
   await assertNoPageOverflow(page, "1080p event calendar");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-1080p.png` });
 
@@ -649,10 +675,12 @@ try {
     workspaceName: node.querySelector("[data-wallboard-workspace]")?.textContent.trim(),
     workspaceNameVisible: node.querySelector("[data-wallboard-workspace]")?.getBoundingClientRect().height > 0,
     clockCount: node.querySelectorAll(".ops-wallboard__time strong").length,
-    clockSupportingCopy: node.querySelectorAll(".ops-wallboard__time span, .ops-wallboard__time small").length,
+    clockSupportingCopy: [...node.querySelectorAll(".ops-wallboard__time span, .ops-wallboard__time small")].filter((item) => item.getBoundingClientRect().height > 0).length,
     calendarControlsVisible: [...node.querySelectorAll(".ops-wall-calendar__controls")].some((control) => control.getBoundingClientRect().height > 0),
-    sectionEyebrowsVisible: [...node.querySelectorAll(".ops-wallboard__section > header span")].some((item) => item.getBoundingClientRect().height > 0),
+    sectionEyebrowsVisible: [...node.querySelectorAll(".ops-wallboard__section:not(.ops-wallboard__section--calendar) > header span")].some((item) => item.getBoundingClientRect().height > 0),
     sectionCountsVisible: [...node.querySelectorAll(".ops-wallboard__section > header > b")].some((item) => item.getBoundingClientRect().height > 0),
+    calendarMonthHeadingVisible: node.querySelector("[data-calendar-month-heading]")?.getBoundingClientRect().height > 0,
+    duplicateCalendarIconVisible: [...node.querySelectorAll(".ops-wall-calendar__identity > img")].some((item) => item.getBoundingClientRect().height > 0),
   }));
   assert.equal(calendarKioskGeometry.mode, "calendar", "Entering kiosk should preserve the selected wallboard view");
   assert.ok(Math.abs(calendarKioskGeometry.width - calendarKioskGeometry.viewportWidth) <= 1 && Math.abs(calendarKioskGeometry.height - calendarKioskGeometry.viewportHeight) <= 1, `Calendar kiosk should fill the viewport, got ${calendarKioskGeometry.width}×${calendarKioskGeometry.height}`);
@@ -665,6 +693,8 @@ try {
   assert.equal(calendarKioskGeometry.clockCount, 1, "Kiosk should retain one current-time display");
   assert.equal(calendarKioskGeometry.clockSupportingCopy, 0, "Kiosk should remove date and data-cutoff copy from the clock");
   assert.equal(calendarKioskGeometry.calendarControlsVisible, false, "Kiosk should hide calendar navigation and count controls");
+  assert.equal(calendarKioskGeometry.calendarMonthHeadingVisible, true, "Kiosk should preserve the calendar month and year heading");
+  assert.equal(calendarKioskGeometry.duplicateCalendarIconVisible, false, "Kiosk should hide the duplicate calendar workspace icon");
   assert.equal(calendarKioskGeometry.sectionEyebrowsVisible, false, "Kiosk should hide secondary section labels");
   assert.equal(calendarKioskGeometry.sectionCountsVisible, false, "Kiosk should hide secondary section count badges");
   await assertNoPageOverflow(page, "Minimal calendar kiosk");
@@ -809,7 +839,7 @@ try {
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capOrigin=.*automated/, "Selected ingestion provenance should be URL-backed");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Combined work and provenance filters should retain matching public records");
   await page.getByRole("button", { name: "Reset" }).click();
-  await page.getByLabel("Subaward activity").selectOption("has");
+  await chooseControlSelect(page, "Subaward activity", "Has reported subawards");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capSubaward=has/, "Subaward posture should be URL-backed");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Subaward posture should retain exactly joined prime awards");
   await page.getByRole("button", { name: "Reset" }).click();
@@ -829,8 +859,12 @@ try {
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count() >= 20, "Timeline should expose quarter guides");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose the source as-of marker");
   await page.locator("[data-capture-gantt-tools] > summary").click();
-  assert.equal(await page.getByLabel("Grouping").locator("option").count(), 14, "Gantt should expose fourteen factual grouping modes");
-  assert.equal(await page.getByLabel("Bar labels").locator("option").count(), 6, "Gantt should expose six bar-label modes");
+  await page.getByRole("button", { name: /^Grouping:/ }).click();
+  assert.equal(await page.locator('[data-control-select-menu] [role="option"]').count(), 14, "Gantt should expose fourteen factual grouping modes");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /^Bar labels:/ }).click();
+  assert.equal(await page.locator('[data-control-select-menu] [role="option"]').count(), 6, "Gantt should expose six bar-label modes");
+  await page.keyboard.press("Escape");
   assert.equal(await page.locator("[data-capture-gantt-tools] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
   await page.locator("[data-capture-field-picker] summary").click();
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 15, "Gantt should expose fifteen configurable row fields");
@@ -854,7 +888,7 @@ try {
   assert.match(hoverText, /Latest FPDS action/i);
   await firstTimelineBar.focus();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 1, "Keyboard focus on an actual Gantt bar should expose contextual evidence");
-  await page.getByLabel("Grouping").selectOption("funding-office");
+  await chooseControlSelect(page, "Grouping", "Funding office");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
 
   const classificationOverlayTrigger = page.getByRole("button", { name: /^Overlays\./ });
@@ -870,7 +904,7 @@ try {
   const provenanceOverlay = page.locator("[data-ingestion-provenance-overlay]").first();
   await provenanceOverlay.hover();
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Ingestion provenance/i, "Provenance overlay hover should disclose import context");
-  await page.getByLabel("Grouping").selectOption("work-category");
+  await chooseControlSelect(page, "Grouping", "Work category");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Work-category grouping should render factual group bands");
   await page.screenshot({ path: `${OUT_DIR}/transactions-classification-overlays-desktop.png` });
   const desktopTimelineScroll = await page.locator("[data-capture-timeline]").evaluate((node) => ({ clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }));
@@ -1003,6 +1037,13 @@ try {
   assert.equal(transactionRequests, 1, "Opening an award should reuse the already-loaded FPDS history");
   assert.equal(await page.locator("[data-capture-action-chart]").count(), 1, "Selected award should expose cumulative obligations");
   assert.ok(await page.locator("[data-capture-action-table] tbody tr").count() >= 1, "Selected award should expose exact action rows");
+  const recordModalHeader = await page.locator("[data-capture-detail] .capture-detail__heading").evaluate((header) => {
+    const title = header.querySelector("h2").getBoundingClientRect();
+    const actions = header.querySelector(".capture-detail__heading-actions").getBoundingClientRect();
+    const bounds = header.getBoundingClientRect();
+    return { titleRight: title.right, actionsLeft: actions.left, actionsRight: actions.right, headerRight: bounds.right };
+  });
+  assert.ok(recordModalHeader.titleRight <= recordModalHeader.actionsLeft && recordModalHeader.actionsRight <= recordModalHeader.headerRight + 1, `Gantt detail title and actions must not overlap: ${JSON.stringify(recordModalHeader)}`);
   await page.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-desktop.png` });
   await page.keyboard.press("Escape");
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
@@ -1013,7 +1054,7 @@ try {
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
   await page.locator("[data-capture-gantt-tools]").evaluate((node) => { node.open = true; });
   await page.getByRole("button", { name: /^Overlays\./ }).waitFor();
-  assert.equal(await page.getByLabel("Grouping").inputValue(), "none", "Malformed grouping should canonicalize to the factual default");
+  assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /No grouping/, "Malformed grouping should canonicalize to the factual default");
   assert.match(await page.getByRole("button", { name: /^Overlays\./ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
   await page.locator("[data-capture-field-picker] summary").click();
   const checkedFields = page.locator("[data-capture-field-picker] input[type=checkbox]:checked");
@@ -1110,8 +1151,8 @@ try {
   await page.locator('[data-d3-analytics="vehicle-pricing"] [role="button"]').first().click();
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Contract vehicle:/, "Vehicle marks should drive the shared contract-vehicle filter");
   await page.locator('.analytics-active-filters button').click();
-  await page.locator('.analytics-commandbar select').nth(1).selectOption('pricing');
-  await page.locator('.analytics-commandbar select').nth(2).selectOption('records');
+  await chooseControlSelect(page, "Dimension", "Pricing type");
+  await chooseControlSelect(page, "Measure", "Records");
   assert.match(await page.locator('[data-d3-analytics="dimension-explorer"] header').innerText(), /Pricing type by records/i, "Dimension and measure controls should reconfigure the shared ranking");
   await page.locator('.analytics-search input').fill('Application Arsenal');
   assert.ok(Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Search should cross-filter the record explorer and charts");
@@ -1221,8 +1262,8 @@ try {
   assert.ok(mobileNavHeights.filter(Boolean).every((height) => height >= 43.5), `Mobile navigation controls should preserve 44px touch targets: ${mobileNavHeights.join(", ")}`);
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 108, "Mobile masthead should remain compact while preserving 44px navigation targets");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose every Analytics, Money flow, and Admin route in grouped Control Framework cards");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin/i, "Mobile More should use the established grouped menu pattern");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose every Analytics, Money flow, and Workspace route in grouped Control Framework cards");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.deepEqual(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents(), ["Transactions", "Wallboard"], "Mobile should keep only Transactions and Wallboard as direct routes");
@@ -1245,7 +1286,7 @@ try {
   await assertNoPageOverflow(mobile, "Mobile request history");
 
   await openSurface(mobile, "#/budget-spend/lifecycle", "[data-account-spine-page]");
-  const accountHeight = await mobile.locator("#lifecycle-account").evaluate((node) => node.getBoundingClientRect().height);
+  const accountHeight = await mobile.getByRole("button", { name: /^Federal account:/ }).evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(accountHeight >= 43.5, `Mobile account selector should be 44px, got ${accountHeight}`);
   assert.ok(await mobile.locator("[data-account-spine-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile account-flow intro should stay compact");
   await assertNoPageOverflow(mobile, "Mobile account flow");
@@ -1276,7 +1317,7 @@ try {
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
   await mobile.locator("[data-capture-gantt-tools] > summary").click();
-  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] select, [data-capture-field-picker] summary, [data-capture-gantt-tools] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] .control-select__trigger, [data-capture-field-picker] summary, [data-capture-gantt-tools] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileScroller.scrollWidth > mobileScroller.clientWidth, "Wide transaction timeline should use an internal mobile scroller");

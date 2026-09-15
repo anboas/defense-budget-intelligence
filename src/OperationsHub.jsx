@@ -31,6 +31,8 @@ import { useManagementState } from "./management-state.js";
 import UserManagement from "./UserManagement.jsx";
 import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
+import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
+import ControlSelect from "./ControlSelect.jsx";
 
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
@@ -39,6 +41,7 @@ const VIEWS = [
   ["activity", "API Log", Activity],
   ["users", "Users", UsersRound],
   ["workspaces", "Workspaces", Building2],
+  ["workspace-settings", "Workspace settings", Building2],
   ["agents", "Agent Access", Bot],
   ["wallboard", "Wallboard", MonitorUp],
 ];
@@ -50,6 +53,7 @@ const VIEW_COPY = {
   activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
   users: ["Administration", "Users", "Human accounts, roles, status, sessions, and password recovery."],
   workspaces: ["Administration", "Workspaces", "Isolated data boundaries, membership, and access-request decisions."],
+  "workspace-settings": ["Workspace", "Workspace settings", "Identity, membership, access requests, roles, and workspace inventory."],
   agents: ["Administration", "Agent access", "Issue and govern narrowly scoped credentials for trusted agents."],
 };
 
@@ -60,6 +64,7 @@ const ADMIN_ROUTES = {
   integrations: "#/budget-spend/integrations",
   users: "#/budget-spend/users",
   workspaces: "#/budget-spend/workspaces",
+  "workspace-settings": "#/budget-spend/workspace",
   agents: "#/budget-spend/agents",
   activity: "#/budget-spend/api-log",
 };
@@ -203,7 +208,7 @@ function EventEditor({ event, records, onSave, onClose }) {
           <label className="ops-field"><span>Starts</span><input type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Location / link</span><input value={draft.location} onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
-          <label className="ops-field"><span>Status</span><select value={draft.status} onChange={(e) => setDraft((value) => ({ ...value, status: e.target.value }))}><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
+          <div className="ops-field"><span>Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
           <div className="ops-attendee-picker ops-field--wide">
             <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
@@ -213,7 +218,7 @@ function EventEditor({ event, records, onSave, onClose }) {
             <legend>Deadlines &amp; milestones</legend>
             <p>Add only published or operator-confirmed dates. Missing dates stay absent from the calendar.</p>
             <div className="ops-event-milestones__list">{(draft.milestones || []).map((milestone, index) => <div className="ops-event-milestone-row" key={milestone.id}>
-              <label><span>Type</span><select aria-label={`Milestone ${index + 1} type`} value={milestone.type} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type: e.target.value } : item) }))}>{EVENT_MILESTONE_TYPES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+              <div><span>Type</span><ControlSelect ariaLabel={`Milestone ${index + 1} type`} value={milestone.type} options={EVENT_MILESTONE_TYPES} onChange={(type) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type } : item) }))} portalTarget={dialogRef} /></div>
               <label><span>Date</span><input aria-label={`Milestone ${index + 1} date`} type="date" value={String(milestone.occursAt || "").slice(0, 10)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, occursAt: e.target.value } : item) }))} /></label>
               <label className="ops-event-milestone-row__label"><span>Display label</span><input aria-label={`Milestone ${index + 1} label`} value={milestone.label || ""} placeholder={milestoneTypeLabel(milestone.type)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, label: e.target.value } : item) }))} /></label>
               <label className="ops-event-milestone-row__notes"><span>Context</span><input aria-label={`Milestone ${index + 1} context`} value={milestone.notes || ""} placeholder="Optional source or policy note" onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, notes: e.target.value } : item) }))} /></label>
@@ -265,7 +270,7 @@ function EventsView({ events, records, onAdd, onEdit, onDelete }) {
   return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
-function IntegrationsView({ dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
+function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
   const rows = [
     { name: "PDB display books", status: "current", count: "3,888 request lines", detail: "Scheduled workbook and justification build" },
     { name: "USAspending prime awards", status: "current", count: `${dataset.metadata?.coverage?.totalPublicRecords?.toLocaleString?.() || "875"} assembled records`, detail: "Automatic award feed plus normalized source records" },
@@ -281,7 +286,7 @@ function IntegrationsView({ dataset, samOpportunities, manualProcurement, procur
     { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];
-  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
+  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
 }
 
 function ActivityView({ activity, records, remote }) {
@@ -296,7 +301,7 @@ function ActivityView({ activity, records, remote }) {
   return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <OperationalDataTable id="api-activity" label="API and activity log" rows={activity} columns={columns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="api-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
-function WallboardView({ records, watchlist, events, asOf, workspace }) {
+function WallboardView({ records, watchlist, events, asOf, workspace, lastRefreshedAt }) {
   const [mode, setMode] = useState("events");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -341,7 +346,7 @@ function WallboardView({ records, watchlist, events, asOf, workspace }) {
   return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode} data-wallboard-fullscreen={isFullscreen ? "true" : "false"}>
     <header className="ops-wallboard__masthead">
       <div className="ops-wallboard__brand"><WorkspaceMark workspace={workspace} eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>{workspace?.displayTitle || "Defense Budget Intelligence"}</h2>{isFullscreen ? <p data-wallboard-workspace>{workspace?.name || "Local workspace"}</p> : null}</div></div>
-      <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
+      <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small data-wallboard-last-refresh>{lastRefreshedAt ? `Updated ${new Date(lastRefreshedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Updating…"}</small> : null}{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
     </header>
     {!isFullscreen ? <div className="ops-wallboard__toolbar">
       <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button></nav>
@@ -437,8 +442,40 @@ function CalendarHoverCard({ hover }) {
   </aside>, document.body);
 }
 
+function CalendarEventModal({ detail, onClose }) {
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    if (!detail) return undefined;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => { if (dialog?.open) dialog.close(); };
+  }, [detail]);
+  if (!detail) return null;
+  const { event, milestone } = detail;
+  return createPortal(<dialog ref={dialogRef} className="ops-dialog ops-event-detail-dialog" aria-labelledby="ops-event-detail-title" onCancel={(eventCancel) => { eventCancel.preventDefault(); onClose(); }} onClick={(eventClick) => { if (eventClick.target === eventClick.currentTarget) onClose(); }}>
+    <article className="ops-dialog__surface ops-event-detail" data-calendar-event-detail>
+      <header><div><span>{milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"}</span><h2 id="ops-event-detail-title">{milestone ? milestoneLabel(milestone) : event.title}</h2>{milestone ? <p>{event.title}</p> : null}</div><button type="button" onClick={onClose} aria-label="Close event details"><X size={18} /></button></header>
+      <div className="ops-event-detail__body">
+        <dl>
+          <div><dt>{milestone ? "Milestone date" : "Starts"}</dt><dd>{dateTime(milestone?.occursAt || event.startsAt)}</dd></div>
+          <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
+          <div><dt>Status</dt><dd>{event.status || "scheduled"}</dd></div>
+          <div><dt>Location</dt><dd>{event.location || "Not set"}</dd></div>
+          <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
+          <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
+        </dl>
+        {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <span key={attendee.id || attendee.displayName}><UserAvatar user={attendee} size={34} decorative={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></span>)}</div></section> : null}
+        {event.milestones?.length ? <section><h3>Deadlines &amp; milestones</h3><div className="ops-event-detail__milestones">{event.milestones.map((entry) => <article key={entry.id} className={milestone?.id === entry.id ? "is-focused" : ""}><i aria-hidden="true" /><span><strong>{milestoneLabel(entry)}</strong><small>{milestoneTypeLabel(entry.type)}</small></span><time dateTime={entry.occursAt}>{compactDate(entry.occursAt)}</time>{entry.notes ? <p>{entry.notes}</p> : null}</article>)}</div></section> : null}
+        {(milestone?.notes || event.notes) ? <section className="ops-event-detail__context"><h3>Context</h3><p>{milestone?.notes || event.notes}</p></section> : null}
+      </div>
+      <footer><button type="button" onClick={onClose}>Close</button></footer>
+    </article>
+  </dialog>, document.body);
+}
+
 function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
   const [hover, setHover] = useState(null);
+  const [detail, setDetail] = useState(null);
   const days = monthCalendarDays(month);
   const today = now.toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
@@ -458,7 +495,7 @@ function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
   }
   return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
     <header>
-      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong>{monthLabel}</strong></span></div>
+      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading>{monthLabel}</strong></span></div>
       <div className="ops-wall-calendar__controls">
         <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
         <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
@@ -479,14 +516,15 @@ function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
             const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
-            return <div key={item.id} role="button" tabIndex="0" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} size={18} />)}{event.attendees.length > 3 ? <b>+{event.attendees.length - 3}</b> : null}</span> : null}
+            return <div key={item.id} role="button" tabIndex="0" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter" || keyEvent.key === " ") { keyEvent.preventDefault(); setHover(null); setDetail({ event, milestone }); } }} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
+              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} size={24} />)}{event.attendees.length > 3 ? <b>+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
         </section>;
       })}</div>
     </div>
     <CalendarHoverCard hover={hover} />
+    <CalendarEventModal detail={detail} onClose={() => setDetail(null)} />
   </section>;
 }
 
@@ -562,19 +600,24 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
         <article><span>Sources online</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>last probe</small></article>
       </div>
       <nav className="admin-console__nav" aria-label="Administration sections">
-        {ADMIN_VIEWS.filter(([id]) => !["users", "workspaces", "agents"].includes(id) || (id === "users" ? auth?.user?.canManageUsers : id === "workspaces" ? auth?.user?.canManageWorkspaces : auth?.user?.canManageAgents)).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
+        {ADMIN_VIEWS.filter(([id]) => !["users", "workspaces", "workspace-settings", "agents"].includes(id)
+          || (id === "users" ? auth?.user?.canManageUsers
+            : id === "workspaces" ? auth?.user?.roleId === "super_user"
+              : id === "workspace-settings" ? auth?.user?.canManageWorkspaces
+                : auth?.user?.canManageAgents)).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
       </nav>
       <div className="admin-console__context" aria-live="polite"><span>{copy[0]}</span><strong>{copy[1]}</strong><small>{copy[2]}</small></div>
     </section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
-    {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
+    {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
-    {view === "workspaces" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure workspace identity, membership, or requests.</p></section> : null}
+    {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Cross-workspace administration is limited to the immutable Super user.</p></section> : null}
+    {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure this workspace.</p></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} /> : null}
+    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;

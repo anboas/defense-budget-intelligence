@@ -11,6 +11,7 @@ import {
   treemap,
 } from "d3";
 import { useEffect, useMemo, useState } from "react";
+import ControlSelect from "./ControlSelect.jsx";
 
 const DAY = 86_400_000;
 const TARGET_WORKBOARD_STORAGE_KEY = "dbi:capture-target-workboard:v1";
@@ -548,7 +549,7 @@ function TargetWorkboard({ signals, active, asOf, onSelect }) {
               <span><b>Recommended action</b>{signal.nextAction}</span>
             </div>
             <div className="target-workboard__fields">
-              <label><span>Analyst stage</span><select aria-label={`Analyst stage for ${signal.id}`} value={task.stage} onChange={(event) => updateTask(signal.opportunityId, { stage: event.target.value })}>{WORKBOARD_STAGES.map((stage) => <option key={stage} value={stage}>{stage[0].toUpperCase() + stage.slice(1)}</option>)}</select></label>
+              <div className="target-workboard__field"><span>Analyst stage</span><ControlSelect ariaLabel={`Analyst stage for ${signal.id}`} value={task.stage} options={WORKBOARD_STAGES.map((stage) => [stage, stage[0].toUpperCase() + stage.slice(1)])} onChange={(stage) => updateTask(signal.opportunityId, { stage })} /></div>
               <label><span>Owner</span><input aria-label={`Owner for ${signal.id}`} value={task.owner} maxLength="80" placeholder="Unassigned" onChange={(event) => updateTask(signal.opportunityId, { owner: event.target.value })} /></label>
               <label><span>Analyst checkpoint</span><input aria-label={`Analyst checkpoint for ${signal.id}`} type="date" value={task.dueDate} onChange={(event) => updateTask(signal.opportunityId, { dueDate: event.target.value })} /></label>
               <label className="target-workboard__note"><span>Private browser note</span><textarea aria-label={`Private browser note for ${signal.id}`} value={task.note} maxLength="500" rows="2" placeholder="Decision, question, or next contact to resolve" onChange={(event) => updateTask(signal.opportunityId, { note: event.target.value })} /></label>

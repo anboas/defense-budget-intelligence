@@ -11,6 +11,12 @@ const initialName = "Initial Owner";
 const finalName = "Workspace Owner";
 mkdirSync("test-results", { recursive: true });
 
+async function chooseControlSelect(page, label, option) {
+  const trigger = page.getByRole("button", { name: new RegExp(`^${label}:`, "i") }).first();
+  await trigger.click();
+  await page.getByRole("option", { name: new RegExp(`^${option}`, "i") }).first().click();
+}
+
 const executablePath = [
   process.env.CHROMIUM_PATH,
   "/usr/bin/google-chrome",
@@ -64,11 +70,15 @@ try {
   await page.getByLabel("Confirm password").fill(initialPassword);
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
-  await page.locator('[data-nav-group-trigger="admin"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[data-budget-nav]').count(), 7, "The Super user should receive workspace, user, and agent administration routes");
-  assert.match(await page.locator('[data-budget-nav-menu="admin"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Users[\s\S]*Workspaces[\s\S]*Agent Access/i);
-  assert.equal(await page.locator('[data-budget-nav-menu="admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Admin");
-  await page.locator('[data-nav-group-trigger="admin"]').click();
+  await page.locator('[data-nav-group-trigger="workspace"]').click();
+  assert.equal(await page.locator('[data-budget-nav-menu="workspace"] a[data-budget-nav]').count(), 7, "The Super user should receive the scoped workspace-management routes");
+  assert.match(await page.locator('[data-budget-nav-menu="workspace"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log[\s\S]*Users[\s\S]*Workspace Settings[\s\S]*Agent Access/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="workspace"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Workspace");
+  await page.locator('[data-nav-group-trigger="workspace"]').click();
+  await page.locator('[data-nav-group-trigger="super-admin"]').click();
+  assert.equal(await page.locator('[data-budget-nav-menu="super-admin"] a[data-budget-nav]').count(), 1, "Global workspace governance should live in its own Super admin dropdown");
+  assert.match(await page.locator('[data-budget-nav-menu="super-admin"]').innerText(), /Workspaces/i);
+  await page.locator('[data-nav-group-trigger="super-admin"]').click();
   const desktopTrigger = page.locator("[data-profile-menu-trigger]");
   const desktopTriggerBox = await desktopTrigger.boundingBox();
   assert.ok(desktopTriggerBox && desktopTriggerBox.height >= 34 && desktopTriggerBox.height <= 38, `Desktop profile trigger should match the compact account control, got ${desktopTriggerBox?.height}px`);
@@ -85,8 +95,8 @@ try {
   const profileSurfaceBox = await profileSurface.boundingBox();
   assert.ok(profileSurfaceBox && Math.abs(profileSurfaceBox.width - 360) <= 1, `Desktop profile surface should match the 360px Opportunity Intelligence account component, got ${profileSurfaceBox?.width}px`);
   assert.equal(await profileSurface.locator(".if-account-surface__header").count(), 1, "Profile dropdown should use the shared account-surface header");
-  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 6, "Profile dropdown should expose workspace, user, and agent administration actions");
-  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 6, "Every shared account-action row should render its icon glyph");
+  assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 3, "Profile dropdown should expose only personal profile, security, and OpenAI-key actions");
+  assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 3, "Every personal account-action row should render its icon glyph");
   assert.equal(await profileSurface.locator(".if-account-surface__footer").count(), 1, "Profile dropdown should use the shared account-surface footer");
   const initialWorkspaceName = await profileSurface.locator("[data-workspace-switcher-trigger] strong").innerText();
   assert.ok(initialWorkspaceName.length >= 2, "Workspace switcher should expose the active workspace name in its trigger");
@@ -97,7 +107,7 @@ try {
   await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Profile should render as a routed page, not a modal");
   assert.match(new URL(page.url()).hash, /^#\/profile$/, "Profile menu should navigate to the canonical profile route");
-  assert.equal(await page.locator(".profile-page__nav a").count(), 2, "Profile workspace should contain only identity and security");
+  assert.equal(await page.locator(".profile-page__nav a").count(), 3, "Personal settings should contain identity, security, and personal OpenAI keys");
   assert.equal(await page.locator('.profile-page__nav a:has-text("Agent access"), .profile-page__nav a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into the account settings rail");
   assert.equal(await page.locator('[data-profile-account] input:disabled').count(), 0, "Immutable account metadata should use compact key/value rows instead of oversized disabled inputs");
   assert.equal(await page.locator('[data-profile-account-meta] .if-kv').count(), 2, "Profile should expose email and role through the framework metadata primitive");
@@ -139,9 +149,12 @@ try {
   await page.getByText("Profile saved.").waitFor();
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".profile-photo-manager .user-avatar img").waitFor();
+  await page.locator("[data-profile-menu-trigger] .user-avatar img").waitFor();
+  await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-openai-key-vault="user"]');
+  assert.match(await page.locator('[data-openai-key-vault="user"]').innerText(), /My OpenAI keys[\s\S]*Write-only vault/i, "Personal settings should expose the write-only OpenAI credential manager");
 
-  await page.locator("[data-profile-menu-trigger]").click();
-  await page.locator("[data-profile-menu-surface]").getByRole("link", { name: /^Users/i }).click();
+  await page.goto(`${BASE_URL}#/budget-spend/users`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="users"] [data-user-management]');
   assert.equal(await page.locator('[data-admin-workspace]').count(), 1, "Users should render inside the persistent Admin workspace");
   assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Users", "Admin workspace should retain Users as its active section");
@@ -150,7 +163,7 @@ try {
   await addUser.getByLabel("Display name").fill("Browser teammate");
   await addUser.getByLabel("Email").fill("browser-teammate@example.test");
   await addUser.getByLabel(/Title/).fill("Read-only reviewer");
-  await addUser.getByLabel("Role").selectOption("viewer");
+  await chooseControlSelect(page, "New user role", "Viewer");
   await addUser.getByLabel("Temporary password", { exact: true }).fill("Temporary-User-2026!");
   await addUser.getByLabel("Confirm temporary password").fill("Temporary-User-2026!");
   await addUser.getByRole("button", { name: "Create user" }).click();
@@ -160,7 +173,7 @@ try {
   assert.match(await teammate.innerText(), /Viewer[\s\S]*Active/);
   await teammate.getByRole("button", { name: "Edit" }).click();
   const editUser = page.locator("[data-user-edit]");
-  await editUser.getByLabel("Role").selectOption("analyst");
+  await chooseControlSelect(page, "User role", "Analyst");
   await editUser.getByRole("button", { name: "Save user" }).click();
   await page.getByText("User updated.", { exact: true }).waitFor();
   assert.match(await teammate.innerText(), /Analyst/);
@@ -176,22 +189,21 @@ try {
   await page.getByText("Browser teammate reactivated.", { exact: true }).waitFor();
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
 
-  await page.locator('.admin-console__nav a[href="#/budget-spend/workspaces"]').click();
+  await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-workspace-management]");
-  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Workspaces", "Workspace administration should remain inside the Admin control center");
+  assert.equal(await page.locator('[data-nav-group-trigger="super-admin"]').getAttribute("data-nav-group-active-child"), "Workspaces", "Workspace governance should activate the dedicated Super admin dropdown");
   const workspaceAdmin = page.locator("[data-workspace-management]");
   await workspaceAdmin.getByLabel("Name").fill("Browser verification");
   await workspaceAdmin.getByLabel("Description").fill("Browser-tested isolated workspace");
   await workspaceAdmin.getByRole("button", { name: "Create workspace" }).click();
   const createdWorkspace = workspaceAdmin.locator('[data-workspace]', { hasText: "Browser verification" });
   await createdWorkspace.waitFor();
-  const candidateValue = await createdWorkspace.locator('select[aria-label^="User to add"] option', { hasText: "Browser teammate" }).getAttribute("value");
-  await createdWorkspace.getByLabel(/User to add/).selectOption(candidateValue);
-  await createdWorkspace.getByLabel(/Role for new member/).selectOption("viewer");
+  await chooseControlSelect(page, "User to add to Browser verification", "Browser teammate");
+  await chooseControlSelect(page, "Role for new member in Browser verification", "Viewer");
   await createdWorkspace.getByRole("button", { name: "Add member" }).click();
   await createdWorkspace.getByText("Browser teammate", { exact: true }).waitFor();
-  assert.match(await createdWorkspace.getByLabel(/Role for Browser teammate/).inputValue(), /viewer/, "Super user should see the member's current workspace role");
-  await createdWorkspace.getByLabel(/Role for Browser teammate/).selectOption("analyst");
+  assert.match(await createdWorkspace.getByRole("button", { name: /^Role for Browser teammate.*:/ }).getAttribute("aria-label"), /Viewer/, "Super user should see the member's current workspace role");
+  await chooseControlSelect(page, "Role for Browser teammate in Browser verification", "Analyst");
   await page.getByText(/Browser teammate is now Analyst/).waitFor();
   assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"] article').count(), 6, "Each workspace should present its isolated content inventory");
   await createdWorkspace.getByRole("button", { name: "Configure" }).click();
@@ -220,7 +232,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileWorkspaceGeometry = await workspaceAdmin.evaluate((node) => {
     const inventory = node.querySelector(".workspace-card__contents > div");
-    const controls = [...node.querySelectorAll("button, input, select")];
+  const controls = [...node.querySelectorAll("button, input")];
     return {
       documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
       inventoryOverflow: getComputedStyle(inventory).overflowX,
@@ -296,7 +308,7 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   const requestRow = page.locator("[data-workspace-request]", { hasText: "Self Signup User" });
   await requestRow.waitFor();
-  await requestRow.getByLabel(/Role for Self Signup User/).selectOption("viewer");
+  await chooseControlSelect(page, "Role for Self Signup User", "Viewer");
   await requestRow.getByRole("button", { name: "Approve" }).click();
   await page.getByText("Self Signup User approved.", { exact: true }).waitFor();
   await signupPage.reload({ waitUntil: "domcontentloaded" });
@@ -313,7 +325,7 @@ try {
   await page.getByRole("option", { name: /Browser teammate/ }).getByRole("checkbox").check();
   assert.match(await attendeePicker.getAttribute("aria-label"), /Attendees \(1\)/, "Event attendees should use the searchable workspace-user multiselect");
   await page.getByRole("button", { name: "Add deadline or milestone" }).click();
-  await page.getByLabel("Milestone 1 type").selectOption("refund_deadline");
+  await chooseControlSelect(page, "Milestone 1 type", "Refund deadline");
   await page.getByLabel("Milestone 1 date").fill("2026-10-01");
   await page.getByLabel("Milestone 1 label").fill("Last day for refunds");
   assert.equal(await page.locator(".ops-event-milestone-row").count(), 1, "Event editor should support typed, optional deadline overlays");
@@ -352,10 +364,10 @@ try {
   await page.screenshot({ path: "test-results/admin-api-log-desktop.png", fullPage: true });
   await page.locator('.admin-console__nav a[href="#/budget-spend/agents"]').click();
   await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
-  const activeAdminTrigger = page.locator('[data-nav-group-trigger="admin"]');
-  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Agent Access", "Authenticated Admin trigger should name the active routed child");
-  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Agent Access", "Authenticated Admin should render the active child in the lighter context label");
-  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").evaluate((node) => getComputedStyle(node).color), "rgb(183, 229, 255)", "Authenticated Admin active child should use the established light-blue treatment");
+  const activeAdminTrigger = page.locator('[data-nav-group-trigger="workspace"]');
+  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Agent Access", "Authenticated Workspace trigger should name the active routed child");
+  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Agent Access", "Authenticated Workspace should render the active child in the lighter context label");
+  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").evaluate((node) => getComputedStyle(node).color), "rgb(183, 229, 255)", "Authenticated Workspace active child should use the established light-blue treatment");
   assert.equal(await page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider").innerText(), "|", "Authenticated header should retain the platform-admin divider");
   await page.getByLabel("Name").fill("Browser verifier");
   await page.getByRole("button", { name: "Create credential" }).click();
@@ -364,10 +376,10 @@ try {
   await page.getByRole("button", { name: "Revoke Browser verifier" }).click();
   await page.getByText("Revoked", { exact: true }).waitFor();
 
-  const workspaceSeed = await page.evaluate(async () => {
-    const recordsResponse = await fetch("/api/v1/agent/records?limit=1");
-    const records = await recordsResponse.json();
-    const recordId = records.data[0].opportunityId;
+  await page.goto(`${BASE_URL}#/budget-spend/transactions`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-capture-timeline-row]");
+  const visibleRecordId = await page.locator("[data-capture-timeline-row]").first().getAttribute("data-record-id");
+  const workspaceSeed = await page.evaluate(async (recordId) => {
     const trackingResponse = await fetch(`/api/v1/agent/tracking/${encodeURIComponent(recordId)}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -379,7 +391,7 @@ try {
       body: JSON.stringify({ title: "Shared D1 verification event", startsAt: "2026-11-15T14:00", recordIds: [recordId], wallboard: true }),
     });
     return { recordId, eventId: (await eventResponse.json()).data.id, trackingStatus: trackingResponse.status };
-  });
+  }, visibleRecordId);
   assert.equal(workspaceSeed.trackingStatus, 201);
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
   await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
@@ -434,8 +446,8 @@ try {
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `Authenticated mobile shell should not overflow, got ${overflow}px`);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Authenticated mobile More should retain all grouped routes including workspace administration");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Admin[\s\S]*Users[\s\S]*Workspaces[\s\S]*Agent Access/i);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile More should retain all grouped routes including Workspace and Super admin");
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Users[\s\S]*Agent Access[\s\S]*Super admin[\s\S]*Workspaces/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();

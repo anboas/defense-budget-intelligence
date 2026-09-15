@@ -62,7 +62,7 @@ function normalizeEvent(entry = {}) {
   if (!title || !startsAt) return null;
   const attendees = (Array.isArray(entry.attendees) ? entry.attendees : []).map((attendee) => {
     if (typeof attendee === "string") return { id: "", displayName: cleanText(attendee, 120), title: "", status: "legacy" };
-    return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active" };
+    return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active", avatarDataUrl: cleanText(attendee?.avatarDataUrl, 14_000) };
   }).filter((attendee) => attendee.displayName);
   const attendeeIds = [...new Set((Array.isArray(entry.attendeeIds) ? entry.attendeeIds : attendees.map((attendee) => attendee.id)).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 30);
   const milestoneIds = new Set();
@@ -186,6 +186,7 @@ export function useManagementState(records = []) {
   const [activity, setActivity] = useState(() => readOperatorActivity(validIds));
   const [loading, setLoading] = useState(remote);
   const [error, setError] = useState("");
+  const [lastRefreshedAt, setLastRefreshedAt] = useState("");
 
   const sync = useCallback(() => {
     setWatchlist(readWatchlist(validIds));
@@ -204,6 +205,7 @@ export function useManagementState(records = []) {
     setEvents((eventPayload.data || []).map(normalizeEvent).filter(Boolean));
     setActivity((activityPayload.data || []).map(remoteActivity).filter(Boolean));
     setError("");
+    setLastRefreshedAt(new Date().toISOString());
   }, [validIds]);
 
   useEffect(() => {
@@ -212,10 +214,15 @@ export function useManagementState(records = []) {
       const timer = window.setTimeout(() => {
         void syncRemote().catch((requestError) => { if (active) setError(requestError.message); }).finally(() => { if (active) setLoading(false); });
       }, 0);
-      const interval = window.setInterval(() => { void syncRemote().catch((requestError) => { if (active) setError(requestError.message); }); }, 30_000);
+      const refresh = () => {
+        if (!document.hidden) void syncRemote().catch((requestError) => { if (active) setError(requestError.message); });
+      };
+      const interval = window.setInterval(refresh, 120_000);
       const onFocus = () => { void syncRemote().catch((requestError) => { if (active) setError(requestError.message); }); };
+      const onVisibility = () => { if (!document.hidden) onFocus(); };
       window.addEventListener("focus", onFocus);
-      return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); window.removeEventListener("focus", onFocus); };
+      document.addEventListener("visibilitychange", onVisibility);
+      return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibility); };
     }
     window.addEventListener(MANAGEMENT_STATE_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -315,5 +322,7 @@ export function useManagementState(records = []) {
     remote,
     loading,
     error,
+    lastRefreshedAt,
+    refresh: syncRemote,
   };
 }

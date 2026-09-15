@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
@@ -129,6 +129,36 @@ function publicUser(row) {
 function validAvatar(value) {
   const avatar = cleanText(value, 14_000);
   return !avatar || /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/]+=*$/i.test(avatar) ? avatar : null;
+}
+
+function validOpenAiKey(value) {
+  const key = String(value || "").trim();
+  return /^sk-[A-Za-z0-9_-]{20,240}$/.test(key) ? key : "";
+}
+
+function encryptOpenAiKey(value) {
+  const secret = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "");
+  if (secret.length < 32) return null;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(secret).digest(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final(), cipher.getAuthTag()]);
+  return { encryptedKey: encrypted.toString("base64"), keyIv: iv.toString("base64"), keyVersion: 1 };
+}
+
+function openAiKeyMetadata(row) {
+  return {
+    id: row.id,
+    scope: row.scope_type,
+    workspaceId: row.workspace_id || null,
+    userId: row.user_id || null,
+    label: row.label,
+    lastFour: row.key_last_four,
+    isDefault: Boolean(row.is_default),
+    status: row.revoked_at ? "revoked" : "active",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastUsedAt: row.last_used_at || null,
+  };
 }
 
 async function hydratedUser(pool, row) {
@@ -663,6 +693,116 @@ export async function registerAuthRoutes(app, pool) {
     if (membership.rows[0].role === "super_user") return reply.code(403).send({ error: "the Super user cannot be removed from a workspace" });
     await pool.query("DELETE FROM app_workspace_memberships WHERE workspace_id = $1 AND user_id = $2", [request.params.workspaceId, request.params.userId]);
     await pool.query("UPDATE app_auth_sessions SET workspace_id = NULL WHERE workspace_id = $1 AND user_id = $2", [request.params.workspaceId, request.params.userId]);
+    return { ok: true };
+  });
+
+  app.get("/api/v1/auth/openai-keys", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const workspaceId = user.active_workspace_id || null;
+    const canManageWorkspaceKeys = workspaceId ? await canAdministerWorkspace(pool, user, workspaceId) : false;
+    const [personal, workspace] = await Promise.all([
+      pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'user' AND user_id = $1 ORDER BY revoked_at NULLS FIRST, is_default DESC, created_at DESC", [user.user_id]),
+      workspaceId && canManageWorkspaceKeys
+        ? pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 ORDER BY revoked_at NULLS FIRST, is_default DESC, created_at DESC", [workspaceId])
+        : Promise.resolve({ rows: [] }),
+    ]);
+    return {
+      capability: {
+        provider: "openai",
+        encryptionReady: String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "").length >= 32,
+        canManageWorkspaceKeys,
+        activeWorkspaceId: workspaceId,
+        queryRuntimeEnabled: false,
+      },
+      personalKeys: personal.rows.map(openAiKeyMetadata),
+      workspaceKeys: workspace.rows.map(openAiKeyMetadata),
+    };
+  });
+
+  app.post("/api/v1/auth/openai-keys", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const scope = cleanText(request.body?.scope, 20);
+    const label = cleanText(request.body?.label, 80);
+    const apiKey = validOpenAiKey(request.body?.apiKey);
+    if (!['workspace', 'user'].includes(scope) || label.length < 2 || !apiKey) return reply.code(400).send({ error: "a valid scope, label, and OpenAI API key are required" });
+    if (scope === "workspace" && (!user.active_workspace_id || !await canAdministerWorkspace(pool, user, user.active_workspace_id))) return reply.code(403).send({ error: "Workspace manager access is required" });
+    const encrypted = encryptOpenAiKey(apiKey);
+    if (!encrypted) return reply.code(503).send({ error: "OpenAI key storage is not configured on this runtime" });
+    const scopeId = scope === "workspace" ? user.active_workspace_id : user.user_id;
+    const existing = await pool.query(`SELECT COUNT(*)::int AS count FROM app_openai_keys WHERE scope_type = $1 AND ${scope === "workspace" ? "workspace_id" : "user_id"} = $2 AND revoked_at IS NULL`, [scope, scopeId]);
+    if (existing.rows[0].count >= 10) return reply.code(409).send({ error: "revoke an existing OpenAI key before adding another" });
+    const isDefault = Boolean(request.body?.isDefault) || existing.rows[0].count === 0;
+    const id = randomUUID();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      if (isDefault) await client.query(`UPDATE app_openai_keys SET is_default = FALSE, updated_at = NOW() WHERE scope_type = $1 AND ${scope === "workspace" ? "workspace_id" : "user_id"} = $2 AND revoked_at IS NULL`, [scope, scopeId]);
+      const result = await client.query(`INSERT INTO app_openai_keys
+        (id, scope_type, workspace_id, user_id, label, encrypted_key, key_iv, key_version, key_last_four, is_default, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`, [
+        id, scope, scope === "workspace" ? user.active_workspace_id : null, scope === "user" ? user.user_id : null,
+        label, encrypted.encryptedKey, encrypted.keyIv, encrypted.keyVersion, apiKey.slice(-4), isDefault, user.user_id,
+      ]);
+      await client.query("COMMIT");
+      return reply.code(201).send({ key: openAiKeyMetadata(result.rows[0]) });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  });
+
+  app.patch("/api/v1/auth/openai-keys/:keyId", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const result = await pool.query("SELECT * FROM app_openai_keys WHERE id = $1", [request.params.keyId]);
+    if (!result.rowCount) return reply.code(404).send({ error: "OpenAI key not found" });
+    const stored = result.rows[0];
+    const authorized = stored.scope_type === "user"
+      ? String(stored.user_id) === String(user.user_id)
+      : String(stored.workspace_id) === String(user.active_workspace_id) && await canAdministerWorkspace(pool, user, stored.workspace_id);
+    if (!authorized) return reply.code(403).send({ error: "credential management access is required" });
+    if (stored.revoked_at) return reply.code(409).send({ error: "OpenAI key is already revoked" });
+    const label = cleanText(request.body?.label ?? stored.label, 80);
+    const nextApiKey = request.body?.apiKey ? validOpenAiKey(request.body.apiKey) : "";
+    if (label.length < 2 || (request.body?.apiKey && !nextApiKey)) return reply.code(400).send({ error: "a valid label and OpenAI API key are required" });
+    const encrypted = nextApiKey ? encryptOpenAiKey(nextApiKey) : null;
+    if (nextApiKey && !encrypted) return reply.code(503).send({ error: "OpenAI key storage is not configured on this runtime" });
+    const makeDefault = Boolean(request.body?.isDefault);
+    const scopeId = stored.scope_type === "workspace" ? stored.workspace_id : stored.user_id;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      if (makeDefault) await client.query(`UPDATE app_openai_keys SET is_default = FALSE, updated_at = NOW() WHERE scope_type = $1 AND ${stored.scope_type === "workspace" ? "workspace_id" : "user_id"} = $2 AND revoked_at IS NULL`, [stored.scope_type, scopeId]);
+      const updated = await client.query(`UPDATE app_openai_keys SET label = $1, encrypted_key = $2, key_iv = $3, key_version = $4,
+        key_last_four = $5, is_default = $6, updated_at = NOW() WHERE id = $7 AND revoked_at IS NULL RETURNING *`, [
+        label, encrypted?.encryptedKey || stored.encrypted_key, encrypted?.keyIv || stored.key_iv, encrypted?.keyVersion || stored.key_version,
+        nextApiKey ? nextApiKey.slice(-4) : stored.key_last_four, makeDefault || stored.is_default, stored.id,
+      ]);
+      await client.query("COMMIT");
+      return { key: openAiKeyMetadata(updated.rows[0]) };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  });
+
+  app.delete("/api/v1/auth/openai-keys/:keyId", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const result = await pool.query("SELECT * FROM app_openai_keys WHERE id = $1", [request.params.keyId]);
+    if (!result.rowCount) return reply.code(404).send({ error: "OpenAI key not found" });
+    const stored = result.rows[0];
+    const authorized = stored.scope_type === "user"
+      ? String(stored.user_id) === String(user.user_id)
+      : String(stored.workspace_id) === String(user.active_workspace_id) && await canAdministerWorkspace(pool, user, stored.workspace_id);
+    if (!authorized) return reply.code(403).send({ error: "credential management access is required" });
+    if (stored.revoked_at) return reply.code(409).send({ error: "OpenAI key is already revoked" });
+    await pool.query("UPDATE app_openai_keys SET revoked_at = NOW(), is_default = FALSE, updated_at = NOW() WHERE id = $1", [stored.id]);
     return { ok: true };
   });
 

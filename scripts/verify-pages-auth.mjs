@@ -48,6 +48,8 @@ async function startPages(persistPath) {
     String(port),
     "--persist-to",
     persistPath,
+    "--binding",
+    "DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001",
     "--log-level",
     "error",
   ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -181,6 +183,7 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.user.canManageUsers, true);
     assert.equal(body.user.canManageWorkspaces, true);
     assert.equal(body.user.activeWorkspace.name, "Defense budget");
+    const ownerId = body.user.id;
     const defaultWorkspaceId = body.user.activeWorkspace.id;
 
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
@@ -353,6 +356,55 @@ async function verifyApiLifecycle(persistPath) {
     });
     assert.equal(response.status, 200);
     assert.equal((await response.json()).user.avatarDataUrl, avatarDataUrl, "Profile pictures must persist through the account API");
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), headers: { "idempotency-key": "avatar-event-verification" },
+      body: { title: "Avatar propagation verification", startsAt: "2027-02-01T09:00", endsAt: "2027-02-01T10:00", attendeeIds: [ownerId] },
+    });
+    assert.equal(response.status, 201);
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    const ownedEventAttendee = body.data.find((event) => event.title === "Avatar propagation verification")?.attendees?.find((attendee) => attendee.id === ownerId);
+    assert.equal(ownedEventAttendee?.avatarDataUrl, avatarDataUrl, "Calendar attendee payloads must carry the current profile image");
+
+    const personalOpenAiKey = "sk-verification_personal_000000000001";
+    const workspaceOpenAiKey = "sk-verification_workspace_000000000002";
+    response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", { cookie: ownerCookie });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.equal(body.capability.encryptionReady, true, "D1 must advertise the configured credential vault");
+    assert.equal(body.capability.queryRuntimeEnabled, false, "Management must not imply that OpenAI query execution is enabled yet");
+    response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { scope: "user", label: "Owner personal", apiKey: personalOpenAiKey, isDefault: true },
+    });
+    assert.equal(response.status, 201, "Users must be able to save a personal OpenAI key");
+    body = await response.json();
+    const personalOpenAiKeyId = body.key.id;
+    assert.equal(body.key.lastFour, "0001");
+    assert.doesNotMatch(JSON.stringify(body), new RegExp(personalOpenAiKey), "Credential responses must never echo a personal secret");
+    response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { scope: "workspace", label: "Workspace default", apiKey: workspaceOpenAiKey, isDefault: true },
+    });
+    assert.equal(response.status, 201, "Workspace managers must be able to save a workspace OpenAI key");
+    body = await response.json();
+    const workspaceOpenAiKeyId = body.key.id;
+    assert.equal(body.key.lastFour, "0002");
+    assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey), "Credential responses must never echo a workspace secret");
+    response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${personalOpenAiKeyId}`, {
+      method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Owner rotated label" },
+    });
+    assert.equal(response.status, 200, "Users must be able to update personal key metadata without resubmitting the secret");
+    response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, {
+      method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Workspace managers must be able to revoke a workspace OpenAI key");
+    response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.personalKeys[0].label, "Owner rotated label");
+    assert.equal(body.workspaceKeys[0].status, "revoked");
+    assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "Credential listings must expose metadata only");
 
     const selfSignup = userPayload(20);
     response = await apiRequest(baseUrl, "/api/v1/auth/register", {

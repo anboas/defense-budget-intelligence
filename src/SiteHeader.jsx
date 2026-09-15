@@ -5,7 +5,8 @@ import WorkspaceMark from "./WorkspaceMark.jsx";
 
 const PRIMARY_IDS = ["calendar", "wallboard"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
-const ADMIN_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspaces", "agents"]);
+const WORKSPACE_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspace-settings", "agents"]);
+const SUPER_ADMIN_IDS = new Set(["workspaces"]);
 
 const ANALYTICS_ITEMS = [
   { id: "analytics-overview", tabId: "analytics", label: "Overview", href: "#/budget-spend/analytics", badge: "6 views", description: "Composition, schedule activity, value distribution, recipients, and work categories." },
@@ -29,6 +30,7 @@ const ADMIN_META = {
   activity: { badge: "Audit", description: "Append-only human and agent API activity across the shared workspace." },
   users: { badge: "RBAC", description: "Create human accounts, assign roles, suspend access, and reset passwords." },
   workspaces: { badge: "Access", description: "Create workspaces, review access requests, and control membership." },
+  "workspace-settings": { badge: "Manage", description: "Configure the active workspace, membership, requests, roles, and identity." },
   agents: { badge: "Keys", description: "Issue, scope, expire, review, and revoke one-time agent credentials." },
 };
 
@@ -55,24 +57,29 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   const navRef = useRef(null);
   const menuRefs = useRef({});
   const triggerRefs = useRef({});
-  const pendingFocusRef = useRef(null);
+  const [pendingFocus, setPendingFocus] = useState(null);
   const tabById = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab])), [tabs]);
   const primaryTabs = PRIMARY_IDS.map((id) => tabById.get(id)).filter(Boolean);
   const moneyItems = MONEY_FLOW_IDS.map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const adminIds = ["watchlist", "events", "integrations", "activity", ...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.canManageWorkspaces ? ["workspaces"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])];
-  const adminItems = adminIds.map((id) => {
+  const workspaceIds = ["watchlist", "events", "integrations", "activity", ...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.canManageWorkspaces ? ["workspace-settings"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])];
+  const workspaceItems = workspaceIds.map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
+  const superAdminItems = auth?.user?.roleId === "super_user" ? ["workspaces"].map((id) => {
+    const tab = tabById.get(id);
+    return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
+  }).filter(Boolean) : [];
   const groups = [
     { id: "analytics", label: "Analytics", items: ANALYTICS_ITEMS },
     { id: "money", label: "Money flow", items: moneyItems },
-    { id: "admin", label: "Admin", items: adminItems },
+    { id: "workspace", label: "Workspace", items: workspaceItems },
+    ...(superAdminItems.length ? [{ id: "super-admin", label: "Super admin", items: superAdminItems }] : []),
   ];
-  const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : ADMIN_IDS.has(activeTab) ? "admin" : "";
+  const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORKSPACE_IDS.has(activeTab) ? "workspace" : SUPER_ADMIN_IDS.has(activeTab) ? "super-admin" : "";
 
   function activeChildLabel(group) {
     return group.items.find(isItemActive)?.label || "";
@@ -97,16 +104,10 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   }, [openMenu]);
 
   useEffect(() => {
-    const pending = pendingFocusRef.current;
+    const pending = pendingFocus;
     if (!pending || openMenu !== pending.menu) return;
     focusMenuItem(menuRefs.current[pending.menu], pending.direction);
-    pendingFocusRef.current = null;
-  }, [openMenu]);
-
-  function openAndFocus(menu, direction = "first") {
-    pendingFocusRef.current = { menu, direction };
-    setOpenMenu(menu);
-  }
+  }, [openMenu, pendingFocus]);
 
   function handleMenuKeyDown(event, menu) {
     const items = menuItems(menuRefs.current[menu]);
@@ -147,8 +148,8 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const activeChild = activeGroup === group.id ? activeChildLabel(group) : "";
     return <div key={group.id} className="if-operations-topnav__secondary ci-header-nav__desktop-menu">
       <button ref={(node) => { triggerRefs.current[group.id] = node; }} type="button" className={`if-operations-topnav__secondary-button ci-header-nav__menu-trigger${activeChild ? " has-active-child" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === group.id} aria-controls={`budget-${group.id}-menu`} data-nav-group-trigger={group.id} data-nav-group-active-child={activeChild || undefined} onClick={() => setOpenMenu((current) => current === group.id ? "" : group.id)} onKeyDown={(event) => {
-        if (event.key === "ArrowDown") { event.preventDefault(); openAndFocus(group.id, "first"); }
-        if (event.key === "ArrowUp") { event.preventDefault(); openAndFocus(group.id, "last"); }
+        if (event.key === "ArrowDown") { event.preventDefault(); setPendingFocus({ menu: group.id, direction: "first" }); setOpenMenu(group.id); }
+        if (event.key === "ArrowUp") { event.preventDefault(); setPendingFocus({ menu: group.id, direction: "last" }); setOpenMenu(group.id); }
       }}><span className="ci-header-nav__menu-trigger-label">{group.label}</span>{activeChild ? <span className="ci-header-nav__menu-trigger-context">{activeChild}</span> : null}<span className="ci-header-nav__menu-trigger-chevron" aria-hidden="true">{openMenu === group.id ? "▲" : "▼"}</span></button>
       {openMenu === group.id ? <div ref={(node) => { menuRefs.current[group.id] = node; }} id={`budget-${group.id}-menu`} className="if-operations-topnav__menu" data-budget-nav-menu={group.id} role="menu" aria-label={group.label} onKeyDown={(event) => handleMenuKeyDown(event, group.id)}>{group.items.map(richMenuItem)}</div> : null}
     </div>;
@@ -169,11 +170,12 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
             {desktopGroup(groups[1])}
             <span className="if-operations-topnav__divider ci-domain-nav-separator ci-header-nav__desktop-menu" aria-hidden="true">|</span>
             {desktopGroup(groups[2])}
+            {groups[3] ? desktopGroup(groups[3]) : null}
           </div>
           <div className="if-operations-topnav__secondary ci-header-nav__mobile-more">
             <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`if-operations-topnav__secondary-button${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
-              if (event.key === "ArrowDown") { event.preventDefault(); openAndFocus("mobile", "first"); }
-              if (event.key === "ArrowUp") { event.preventDefault(); openAndFocus("mobile", "last"); }
+              if (event.key === "ArrowDown") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "first" }); setOpenMenu("mobile"); }
+              if (event.key === "ArrowUp") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "last" }); setOpenMenu("mobile"); }
             }}>More {openMenu === "mobile" ? "▲" : "▼"}</button>
             {openMenu === "mobile" ? <div ref={(node) => { menuRefs.current.mobile = node; }} id="budget-mobile-navigation-menu" className="if-operations-topnav__menu ci-header-nav__mobile-menu" data-mobile-more-menu role="menu" aria-label="All sections" onKeyDown={(event) => handleMenuKeyDown(event, "mobile")}>{groups.map((group) => <div key={group.id} className="ci-mobile-menu-group"><div className="if-operations-topnav__menu-label">{group.label}</div><div className="ci-mobile-menu-group__items">{group.items.map(richMenuItem)}</div></div>)}</div> : null}
           </div>

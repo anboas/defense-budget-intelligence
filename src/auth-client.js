@@ -81,6 +81,10 @@ export const authApi = {
   resolveWorkspaceRequest: (requestId, values) => request(`/workspace-admin/requests/${encodeURIComponent(requestId)}`, { method: "POST", body: JSON.stringify(values) }),
   addWorkspaceMember: (workspaceId, values) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: "POST", body: JSON.stringify(values) }),
   removeWorkspaceMember: (workspaceId, userId) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`, { method: "DELETE", body: "{}" }),
+  listOpenAiKeys: () => request("/openai-keys", { method: "GET", headers: {} }),
+  createOpenAiKey: (values) => request("/openai-keys", { method: "POST", body: JSON.stringify(values) }),
+  updateOpenAiKey: (id, values) => request(`/openai-keys/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(values) }),
+  revokeOpenAiKey: (id) => request(`/openai-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   async createUser({ email, displayName, title, role, password }) {
     const passwordSalt = createPasswordSalt();
     const passwordProof = await derivePasswordProof(password, passwordSalt);

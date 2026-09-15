@@ -35,6 +35,7 @@ import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
 import ProfilePage from "./ProfilePage.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
+import ControlSelect from "./ControlSelect.jsx";
 import "./styles.css";
 
 const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
@@ -54,9 +55,11 @@ const TABS = [
   { id: "activity", label: "API Log", icon: ListChecks },
   { id: "users", label: "Users", icon: Building2 },
   { id: "workspaces", label: "Workspaces", icon: Building2 },
+  { id: "workspace-settings", label: "Workspace Settings", icon: Building2 },
   { id: "sources", label: "Source Lineage", icon: Database },
   { id: "profile", label: "Profile", icon: Building2 },
   { id: "security", label: "Security", icon: Building2 },
+  { id: "personal-ai", label: "OpenAI Keys", icon: BrainCircuit },
   { id: "agents", label: "Agent Access", icon: BrainCircuit },
 ];
 
@@ -74,9 +77,11 @@ const HASH_ROUTES = {
   activity: "#/budget-spend/api-log",
   users: "#/budget-spend/users",
   workspaces: "#/budget-spend/workspaces",
+  "workspace-settings": "#/budget-spend/workspace",
   sources: "#/budget-spend/sources",
   profile: "#/profile",
   security: "#/profile/security",
+  "personal-ai": "#/profile/openai",
   agents: "#/budget-spend/agents",
 };
 
@@ -419,9 +424,9 @@ let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0,
 let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
-const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspaces", "agents"]);
+const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents"]);
 const OPERATIONS_TAB_IDS = new Set(["wallboard", ...ADMINISTRATION_TAB_IDS]);
-const PROFILE_TAB_IDS = new Set(["profile", "security"]);
+const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
 const EXECUTION_TAB_IDS = new Set(["awards", "calendar", "analytics", ...OPERATIONS_TAB_IDS]);
 
@@ -1072,14 +1077,8 @@ function AccountLifecycle() {
       />
 
       <section className="lifecycle-account-picker">
-        <label htmlFor="lifecycle-account">Federal account</label>
-        <select id="lifecycle-account" value={selected.federalAccountCode} onChange={(event) => setSelectedCode(event.target.value)}>
-          {accounts.map((account) => (
-            <option key={account.federalAccountCode} value={account.federalAccountCode}>
-              {account.federalAccountCode} · {account.title}
-            </option>
-          ))}
-        </select>
+        <span>Federal account</span>
+        <ControlSelect ariaLabel="Federal account" searchable value={selected.federalAccountCode} onChange={setSelectedCode} options={accounts.map((account) => ({ value: account.federalAccountCode, label: `${account.federalAccountCode} · ${account.title}`, description: account.bureauName || "Federal account" }))} />
         <p>{selected.bureauName || "Department of War"} · FY{fiscalYear} · observed {dateTime(ACCOUNT_SPINE.metadata.generatedAt)}</p>
       </section>
 
@@ -2229,6 +2228,10 @@ function ResetFilters({ filters, defaults, onReset }) {
   );
 }
 
+function ControlField({ label, value, options, onChange, ariaLabel = label, searchable }) {
+  return <div className="control-field"><span>{label}</span><ControlSelect value={value} options={options} onChange={onChange} ariaLabel={ariaLabel} searchable={searchable} /></div>;
+}
+
 function FilterShell({ filters, setFilters }) {
   const orgs = useMemo(() => aggregate(data.records, (record) => ({ id: record.org, label: record.orgName })).slice(0, 40), []);
 
@@ -2243,36 +2246,10 @@ function FilterShell({ filters, setFilters }) {
         />
       </label>
       <div className="filters__secondary">
-        <label>
-          <span>Color</span>
-          <select value={filters.book} onChange={(event) => setFilters({ ...filters, book: event.target.value })}>
-            <option value="all">All colors</option>
-            {BOOKS.map((book) => <option key={book.id} value={book.id}>{book.short} · {book.color}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Org type</span>
-          <select value={filters.group} onChange={(event) => setFilters({ ...filters, group: event.target.value })}>
-            <option value="all">All DoD</option>
-            <option value="service">Services</option>
-            <option value="fourth-estate">Fourth Estate</option>
-            <option value="other">Other / Reconciliation</option>
-          </select>
-        </label>
-        <label>
-          <span>Signal</span>
-          <select value={filters.signal} onChange={(event) => setFilters({ ...filters, signal: event.target.value })}>
-            <option value="all">All signals</option>
-            {SIGNALS.map((signal) => <option key={signal.id} value={signal.id}>{signal.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Organization</span>
-          <select value={filters.org} onChange={(event) => setFilters({ ...filters, org: event.target.value })}>
-            <option value="all">All organizations</option>
-            {orgs.map((org) => <option key={org.id} value={org.id}>{org.label}</option>)}
-          </select>
-        </label>
+        <ControlField label="Color" value={filters.book} options={[["all", "All colors"], ...BOOKS.map((book) => [book.id, `${book.short} · ${book.color}`])]} onChange={(book) => setFilters({ ...filters, book })} />
+        <ControlField label="Org type" value={filters.group} options={[["all", "All DoD"], ["service", "Services"], ["fourth-estate", "Fourth Estate"], ["other", "Other / Reconciliation"]]} onChange={(group) => setFilters({ ...filters, group })} />
+        <ControlField label="Signal" value={filters.signal} options={[["all", "All signals"], ...SIGNALS.map((signal) => [signal.id, signal.label])]} onChange={(signal) => setFilters({ ...filters, signal })} />
+        <ControlField label="Organization" searchable value={filters.org} options={[["all", "All organizations"], ...orgs.map((org) => [org.id, org.label])]} onChange={(org) => setFilters({ ...filters, org })} />
         <ResetFilters filters={filters} defaults={BUDGET_FILTER_DEFAULTS} onReset={() => setFilters(BUDGET_FILTER_DEFAULTS)} />
       </div>
     </div>
@@ -3169,43 +3146,11 @@ function Awards() {
           <Search size={15} aria-hidden="true" />
           <input placeholder="Search award IDs, vendors, buyers, descriptions" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} />
         </label>
-        <label>
-          <span>Area</span>
-          <select value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })}>
-            <option value="all">All areas</option>
-            {areaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Buyer</span>
-          <select value={filters.buyer} onChange={(event) => setFilters({ ...filters, buyer: event.target.value })}>
-            <option value="all">All buyers</option>
-            {buyerOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Vendor</span>
-          <select value={filters.vendor} onChange={(event) => setFilters({ ...filters, vendor: event.target.value })}>
-            <option value="all">All vendors</option>
-            {vendorOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Work type</span>
-          <select value={filters.workType} onChange={(event) => setFilters({ ...filters, workType: event.target.value })}>
-            <option value="all">All PSC / NAICS</option>
-            {workTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Sort</span>
-          <select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>
-            <option value="amount">Award value</option>
-            <option value="end">End date</option>
-            <option value="start">Start date</option>
-            <option value="vendor">Vendor</option>
-          </select>
-        </label>
+        <ControlField label="Area" value={filters.area} options={[["all", "All areas"], ...areaOptions.map((option) => [option.id, option.label])]} onChange={(area) => setFilters({ ...filters, area })} />
+        <ControlField label="Buyer" searchable value={filters.buyer} options={[["all", "All buyers"], ...buyerOptions.map((option) => [option.id, option.label])]} onChange={(buyer) => setFilters({ ...filters, buyer })} />
+        <ControlField label="Vendor" searchable value={filters.vendor} options={[["all", "All vendors"], ...vendorOptions.map((option) => [option.id, option.label])]} onChange={(vendor) => setFilters({ ...filters, vendor })} />
+        <ControlField label="Work type" searchable value={filters.workType} options={[["all", "All PSC / NAICS"], ...workTypeOptions.map((option) => [option.id, option.label])]} onChange={(workType) => setFilters({ ...filters, workType })} />
+        <ControlField label="Sort" value={filters.sort} options={[["amount", "Award value"], ["end", "End date"], ["start", "Start date"], ["vendor", "Vendor"]]} onChange={(sort) => setFilters({ ...filters, sort })} />
         <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
@@ -3331,36 +3276,10 @@ function Pursuits() {
           <Search size={15} aria-hidden="true" />
           <input placeholder="Search buyers, incumbents, work types, awards" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} />
         </label>
-        <label>
-          <span>Area</span>
-          <select value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })}>
-            <option value="all">All areas</option>
-            {areaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Buyer</span>
-          <select value={filters.buyer} onChange={(event) => setFilters({ ...filters, buyer: event.target.value })}>
-            <option value="all">All buyers</option>
-            {buyerOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Work type</span>
-          <select value={filters.workType} onChange={(event) => setFilters({ ...filters, workType: event.target.value })}>
-            <option value="all">All PSC / NAICS</option>
-            {workTypeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Sort</span>
-          <select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>
-            <option value="score">Pursuit score</option>
-            <option value="end">Next end date</option>
-            <option value="near">Near-term value</option>
-            <option value="value">Active value</option>
-          </select>
-        </label>
+        <ControlField label="Area" value={filters.area} options={[["all", "All areas"], ...areaOptions.map((option) => [option.id, option.label])]} onChange={(area) => setFilters({ ...filters, area })} />
+        <ControlField label="Buyer" searchable value={filters.buyer} options={[["all", "All buyers"], ...buyerOptions.map((option) => [option.id, option.label])]} onChange={(buyer) => setFilters({ ...filters, buyer })} />
+        <ControlField label="Work type" searchable value={filters.workType} options={[["all", "All PSC / NAICS"], ...workTypeOptions.map((option) => [option.id, option.label])]} onChange={(workType) => setFilters({ ...filters, workType })} />
+        <ControlField label="Sort" value={filters.sort} options={[["score", "Pursuit score"], ["end", "Next end date"], ["near", "Near-term value"], ["value", "Active value"]]} onChange={(sort) => setFilters({ ...filters, sort })} />
         <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
@@ -3590,36 +3509,10 @@ function CaptureQueue() {
           <Search size={15} aria-hidden="true" />
           <input placeholder="Search actions, buyers, incumbents, work types" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} />
         </label>
-        <label>
-          <span>Stage</span>
-          <select value={filters.stage} onChange={(event) => setFilters({ ...filters, stage: event.target.value })}>
-            <option value="all">All stages</option>
-            {stageOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Area</span>
-          <select value={filters.area} onChange={(event) => setFilters({ ...filters, area: event.target.value })}>
-            <option value="all">All areas</option>
-            {areaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Buyer</span>
-          <select value={filters.buyer} onChange={(event) => setFilters({ ...filters, buyer: event.target.value })}>
-            <option value="all">All buyers</option>
-            {buyerOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Sort</span>
-          <select value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>
-            <option value="score">Queue score</option>
-            <option value="end">Next end date</option>
-            <option value="near">Near-term value</option>
-            <option value="alignment">Budget alignment</option>
-          </select>
-        </label>
+        <ControlField label="Stage" value={filters.stage} options={[["all", "All stages"], ...stageOptions.map((option) => [option.id, option.label])]} onChange={(stage) => setFilters({ ...filters, stage })} />
+        <ControlField label="Area" value={filters.area} options={[["all", "All areas"], ...areaOptions.map((option) => [option.id, option.label])]} onChange={(area) => setFilters({ ...filters, area })} />
+        <ControlField label="Buyer" searchable value={filters.buyer} options={[["all", "All buyers"], ...buyerOptions.map((option) => [option.id, option.label])]} onChange={(buyer) => setFilters({ ...filters, buyer })} />
+        <ControlField label="Sort" value={filters.sort} options={[["score", "Queue score"], ["end", "Next end date"], ["near", "Near-term value"], ["alignment", "Budget alignment"]]} onChange={(sort) => setFilters({ ...filters, sort })} />
         <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 

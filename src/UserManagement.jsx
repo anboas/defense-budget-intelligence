@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX, X } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
+import ControlSelect from "./ControlSelect.jsx";
 
 const ROLE_LABELS = {
   administrator: "Workspace manager",
@@ -155,7 +156,7 @@ export default function UserManagement({ auth }) {
         <label>Display name<input required minLength={2} autoComplete="off" value={createDraft.displayName} onChange={(event) => setCreateDraft((draft) => ({ ...draft, displayName: event.target.value }))} /></label>
         <label>Email<input required type="email" autoComplete="off" value={createDraft.email} onChange={(event) => setCreateDraft((draft) => ({ ...draft, email: event.target.value }))} /></label>
         <label>Title <span>(optional)</span><input autoComplete="off" value={createDraft.title} onChange={(event) => setCreateDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
-        <label>Role<select value={createDraft.role} onChange={(event) => setCreateDraft((draft) => ({ ...draft, role: event.target.value }))}>{orderedRoles.map((role) => <option value={role} key={role}>{ROLE_LABELS[role]}</option>)}</select><small>{roleDescription(createDraft.role)}</small></label>
+        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="New user role" value={createDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setCreateDraft((draft) => ({ ...draft, role }))} /><small>{roleDescription(createDraft.role)}</small></div>
         <label>Temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.password} onChange={(event) => setCreateDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
         <label>Confirm temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.confirm} onChange={(event) => setCreateDraft((draft) => ({ ...draft, confirm: event.target.value }))} /></label>
       </div>
@@ -168,7 +169,7 @@ export default function UserManagement({ auth }) {
         <label>Display name<input required minLength={2} value={editDraft.displayName} onChange={(event) => setEditDraft((draft) => ({ ...draft, displayName: event.target.value }))} /></label>
         <label>Email<input required type="email" value={editDraft.email} onChange={(event) => setEditDraft((draft) => ({ ...draft, email: event.target.value }))} /></label>
         <label>Title <span>(optional)</span><input value={editDraft.title} onChange={(event) => setEditDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
-        <label>Role<select value={editDraft.role} onChange={(event) => setEditDraft((draft) => ({ ...draft, role: event.target.value }))}>{orderedRoles.map((role) => <option value={role} key={role}>{ROLE_LABELS[role]}</option>)}</select><small>{roleDescription(editDraft.role)}</small></label>
+        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="User role" value={editDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setEditDraft((draft) => ({ ...draft, role }))} /><small>{roleDescription(editDraft.role)}</small></div>
       </div>
       <footer><button type="button" onClick={closeEditor}>Cancel</button><button type="submit" className="is-primary" disabled={busy}><Check size={15} />{busy ? "Saving…" : "Save user"}</button></footer>
     </form> : null}
