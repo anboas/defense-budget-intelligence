@@ -128,7 +128,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "events", "event-categories", "activity", "integrations"]);
+  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "events", "event-categories", "activity", "api-requests", "integrations"]);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
@@ -258,6 +258,15 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/integrations", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.ok(result.payload.data.length >= 5);
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/api-requests?limit=500", { token: agentToken }));
+  assert.equal(result.response.status, 200, "Authorized operators must be able to inspect redacted API request metadata");
+  assert.ok(result.payload.data.length >= 10, "The request ledger must retain authenticated Agent API calls");
+  assert.ok(result.payload.data.some((entry) => entry.operation === "records.list" || entry.route?.includes("/records")), "Request logs must identify the called operation or route");
+  assert.ok(result.payload.data.every((entry) => entry.traceId && Number.isFinite(Number(entry.latencyMs))), "Every request log entry must expose a trace and measured latency");
+  assert.equal(result.payload.meta.retentionDays, 90);
+  assert.match(result.payload.meta.redaction, /secrets.*prompts.*response bodies/i);
+  const requestLedgerJson = JSON.stringify(result.payload.data);
+  assert.doesNotMatch(requestLedgerJson, /authorization|cookie|passwordProof|requestBody|responseBody|prompt/i, "The request ledger must never expose headers, credentials, prompts, or bodies");
 
   await stopPages(instance);
   instance = await startPages(persistPath);
@@ -281,7 +290,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: restartToken }));
   assert.equal(result.response.status, 401, "Revoked agent credentials must fail immediately");
 
-  console.log("Verified authenticated Agent API discovery, scoped credentials, evidence and analytical reads, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
+  console.log("Verified authenticated Agent API discovery, scoped credentials, evidence and analytical reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
 } finally {
   await stopPages(instance);
   rmSync(persistPath, { recursive: true, force: true });

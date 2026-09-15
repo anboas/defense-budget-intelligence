@@ -54,6 +54,8 @@ response = await request("/api/v1/auth/openai-keys", { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.capability.encryptionReady, true, "PostgreSQL must advertise the configured credential vault");
 assert.equal(body.capability.queryRuntimeEnabled, false, "OpenAI query execution must remain disabled in the management-only release");
+assert.equal(body.capability.loggingReady, true, "PostgreSQL must advertise the redacted API request ledger");
+assert.equal(body.capability.retentionDays, 90);
 response = await request("/api/v1/auth/openai-keys", { method: "POST", cookie: ownerCookie,
   body: { scope: "user", label: "PostgreSQL personal", apiKey: personalOpenAiKey, isDefault: true } });
 assert.equal(response.status, 201, "PostgreSQL must store personal OpenAI credentials");
@@ -77,7 +79,15 @@ response = await request("/api/v1/auth/openai-keys", { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.personalKeys[0].label, "PostgreSQL personal renamed");
 assert.equal(body.workspaceKeys[0].status, "revoked");
+assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null });
 assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "PostgreSQL credential listings must expose metadata only");
+response = await request("/api/v1/auth/api-requests", { cookie: ownerCookie });
+assert.equal(response.status, 200, "PostgreSQL workspace managers must be able to inspect redacted request metadata");
+body = await response.json();
+assert.ok(body.requests.some((entry) => entry.operation === "credential.created" && entry.credentialId === personalOpenAiKeyId));
+assert.ok(body.requests.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
+assert.equal(body.summary.retentionDays, 90);
+assert.doesNotMatch(JSON.stringify(body.requests), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-postgres/i, "PostgreSQL request logs must not expose secrets, prompts, headers, or bodies");
 
 const signup = identity("Signup");
 response = await request("/api/v1/auth/register", { method: "POST", body: signup });

@@ -161,6 +161,59 @@ function openAiKeyMetadata(row) {
   };
 }
 
+async function openAiKeyUsage(pool, credentialIds) {
+  const ids = credentialIds.filter(Boolean);
+  if (!ids.length) return new Map();
+  const result = await pool.query(`SELECT credential_id,
+      COUNT(*) FILTER (WHERE request_kind <> 'credential_lifecycle')::int AS request_count,
+      COUNT(*) FILTER (WHERE request_kind <> 'credential_lifecycle' AND status = 'succeeded')::int AS success_count,
+      COUNT(*) FILTER (WHERE request_kind <> 'credential_lifecycle' AND status NOT IN ('succeeded', 'accepted'))::int AS failure_count,
+      COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+      COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+      COALESCE(ROUND(AVG(latency_ms) FILTER (WHERE request_kind <> 'credential_lifecycle')), 0)::int AS average_latency_ms,
+      MAX(completed_at) FILTER (WHERE request_kind <> 'credential_lifecycle') AS last_request_at
+    FROM app_api_request_log WHERE credential_id = ANY($1::uuid[]) GROUP BY credential_id`, [ids]);
+  return new Map(result.rows.map((row) => [String(row.credential_id), {
+    requestCount: row.request_count || 0, successCount: row.success_count || 0, failureCount: row.failure_count || 0,
+    inputTokens: row.input_tokens || 0, outputTokens: row.output_tokens || 0,
+    averageLatencyMs: row.average_latency_ms || 0, lastRequestAt: row.last_request_at || null,
+  }]));
+}
+
+async function recordApiRequest(pool, input = {}) {
+  const now = new Date();
+  const id = randomUUID();
+  const sensitiveField = /(authorization|cookie|secret|password|api.?key|token|prompt|request.?body|response.?body|raw.?request|raw.?response)/i;
+  const safeLogText = (value, limit = 500) => cleanText(value, limit)
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted-key]")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]");
+  const safeMetadata = (value, depth = 0) => {
+    if (depth > 3 || value === null || value === undefined) return null;
+    if (["string", "number", "boolean"].includes(typeof value)) return typeof value === "string" ? safeLogText(value, 500) : value;
+    if (Array.isArray(value)) return value.slice(0, 25).map((item) => safeMetadata(item, depth + 1));
+    if (typeof value !== "object") return null;
+    return Object.fromEntries(Object.entries(value).filter(([key]) => !sensitiveField.test(key)).slice(0, 50)
+      .map(([key, item]) => [safeLogText(key, 80), safeMetadata(item, depth + 1)]));
+  };
+  const metadata = safeMetadata(input.metadata) || {};
+  await pool.query(`INSERT INTO app_api_request_log
+    (id, workspace_id, user_id, principal_type, principal_id, request_kind, provider, operation, method, route,
+     status, http_status, stage, model, credential_id, credential_scope, provider_request_id, trace_id, response_id,
+     latency_ms, input_tokens, output_tokens, retry_count, retryable, error_code, error_message, metadata_json, started_at, completed_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)`, [
+    id, input.workspaceId || null, input.userId || null, cleanText(input.principalType || "user", 40), cleanText(input.principalId, 100) || null,
+    cleanText(input.requestKind || "api", 40), cleanText(input.provider || "dbi", 60), cleanText(input.operation || "request", 120),
+    cleanText(input.method, 12) || null, cleanText(input.route, 180) || null, cleanText(input.status || "failed", 30), Number(input.httpStatus || 0) || null,
+    cleanText(input.stage, 80) || null, cleanText(input.model, 120) || null, input.credentialId || null, cleanText(input.credentialScope, 20) || null,
+    cleanText(input.providerRequestId, 180) || null, cleanText(input.traceId, 180) || null, cleanText(input.responseId, 180) || null,
+    Math.max(0, Number(input.latencyMs || 0)), Math.max(0, Number(input.inputTokens || 0)), Math.max(0, Number(input.outputTokens || 0)),
+    Math.max(0, Number(input.retryCount || 0)), Boolean(input.retryable), safeLogText(input.errorCode, 120) || null, safeLogText(input.errorMessage, 500) || null,
+    JSON.stringify(metadata).slice(0, 8_000), input.startedAt || now, input.completedAt || now,
+  ]);
+  await pool.query("DELETE FROM app_api_request_log WHERE completed_at < NOW() - INTERVAL '90 days'");
+  return id;
+}
+
 async function hydratedUser(pool, row) {
   if (!row) return null;
   const result = await pool.query(`SELECT workspace.workspace_id, workspace.name, workspace.slug, workspace.description, membership.role,
@@ -707,6 +760,8 @@ export async function registerAuthRoutes(app, pool) {
         ? pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 ORDER BY revoked_at NULLS FIRST, is_default DESC, created_at DESC", [workspaceId])
         : Promise.resolve({ rows: [] }),
     ]);
+    const usage = await openAiKeyUsage(pool, [...personal.rows, ...workspace.rows].map((row) => row.id));
+    const withUsage = (row) => ({ ...openAiKeyMetadata(row), usage: usage.get(String(row.id)) || { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null } });
     return {
       capability: {
         provider: "openai",
@@ -714,9 +769,39 @@ export async function registerAuthRoutes(app, pool) {
         canManageWorkspaceKeys,
         activeWorkspaceId: workspaceId,
         queryRuntimeEnabled: false,
+        loggingReady: true,
+        retentionDays: 90,
+        loggedFields: ["status", "latency", "tokens", "provider request ID", "trace ID", "retry count", "safe error"],
       },
-      personalKeys: personal.rows.map(openAiKeyMetadata),
-      workspaceKeys: workspace.rows.map(openAiKeyMetadata),
+      personalKeys: personal.rows.map(withUsage),
+      workspaceKeys: workspace.rows.map(withUsage),
+    };
+  });
+
+  app.get("/api/v1/auth/api-requests", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    if (!user.active_workspace_id) return { requests: [], summary: { retained: 0, requests: 0, succeeded: 0, failed: 0, successRate: null, averageLatencyMs: 0, p95LatencyMs: 0, inputTokens: 0, outputTokens: 0, retentionDays: 90 } };
+    const allowed = await canAdministerWorkspace(pool, user, user.active_workspace_id);
+    if (!allowed) return reply.code(403).send({ error: "Workspace manager access is required" });
+    const result = await pool.query(`SELECT * FROM app_api_request_log WHERE workspace_id = $1 ORDER BY completed_at DESC LIMIT 500`, [user.active_workspace_id]);
+    const calls = result.rows.filter((row) => row.request_kind !== "credential_lifecycle");
+    const latencies = calls.map((row) => Number(row.latency_ms || 0)).sort((a, b) => a - b);
+    const succeeded = calls.filter((row) => row.status === "succeeded").length;
+    return {
+      requests: result.rows.map((row) => ({ id: row.id, workspaceId: row.workspace_id, userId: row.user_id, principalType: row.principal_type,
+        principalId: row.principal_id, requestKind: row.request_kind, provider: row.provider, operation: row.operation, method: row.method,
+        route: row.route, status: row.status, httpStatus: row.http_status, stage: row.stage, model: row.model, credentialId: row.credential_id,
+        credentialScope: row.credential_scope, providerRequestId: row.provider_request_id, traceId: row.trace_id, responseId: row.response_id,
+        latencyMs: row.latency_ms, inputTokens: row.input_tokens, outputTokens: row.output_tokens, retryCount: row.retry_count,
+        retryable: row.retryable, errorCode: row.error_code, errorMessage: row.error_message, metadata: row.metadata_json,
+        startedAt: row.started_at, completedAt: row.completed_at })),
+      summary: { retained: result.rowCount, requests: calls.length, succeeded, failed: calls.length - succeeded,
+        successRate: calls.length ? Math.round((succeeded / calls.length) * 10_000) / 100 : null,
+        averageLatencyMs: calls.length ? Math.round(calls.reduce((sum, row) => sum + Number(row.latency_ms || 0), 0) / calls.length) : 0,
+        p95LatencyMs: latencies.length ? latencies[Math.min(latencies.length - 1, Math.ceil(latencies.length * 0.95) - 1)] : 0,
+        inputTokens: calls.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0), outputTokens: calls.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0),
+        retentionDays: 90, redaction: "Secrets, authorization headers, prompts, request bodies, and response bodies are never retained." },
     };
   });
 
@@ -746,6 +831,9 @@ export async function registerAuthRoutes(app, pool) {
         id, scope, scope === "workspace" ? user.active_workspace_id : null, scope === "user" ? user.user_id : null,
         label, encrypted.encryptedKey, encrypted.keyIv, encrypted.keyVersion, apiKey.slice(-4), isDefault, user.user_id,
       ]);
+      await recordApiRequest(client, { workspaceId: user.active_workspace_id, userId: user.user_id, principalType: "user", principalId: user.user_id,
+        requestKind: "credential_lifecycle", provider: "openai", operation: "credential.created", status: "accepted", httpStatus: 201,
+        credentialId: id, credentialScope: scope, metadata: { label, isDefault } });
       await client.query("COMMIT");
       return reply.code(201).send({ key: openAiKeyMetadata(result.rows[0]) });
     } catch (error) {
@@ -782,6 +870,10 @@ export async function registerAuthRoutes(app, pool) {
         label, encrypted?.encryptedKey || stored.encrypted_key, encrypted?.keyIv || stored.key_iv, encrypted?.keyVersion || stored.key_version,
         nextApiKey ? nextApiKey.slice(-4) : stored.key_last_four, makeDefault || stored.is_default, stored.id,
       ]);
+      await recordApiRequest(client, { workspaceId: user.active_workspace_id, userId: user.user_id, principalType: "user", principalId: user.user_id,
+        requestKind: "credential_lifecycle", provider: "openai", operation: nextApiKey ? "credential.rotated" : makeDefault ? "credential.default_changed" : "credential.updated",
+        status: "accepted", httpStatus: 200, credentialId: stored.id, credentialScope: stored.scope_type,
+        metadata: { label, madeDefault: makeDefault, rotated: Boolean(nextApiKey) } });
       await client.query("COMMIT");
       return { key: openAiKeyMetadata(updated.rows[0]) };
     } catch (error) {
@@ -802,7 +894,16 @@ export async function registerAuthRoutes(app, pool) {
       : String(stored.workspace_id) === String(user.active_workspace_id) && await canAdministerWorkspace(pool, user, stored.workspace_id);
     if (!authorized) return reply.code(403).send({ error: "credential management access is required" });
     if (stored.revoked_at) return reply.code(409).send({ error: "OpenAI key is already revoked" });
-    await pool.query("UPDATE app_openai_keys SET revoked_at = NOW(), is_default = FALSE, updated_at = NOW() WHERE id = $1", [stored.id]);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("UPDATE app_openai_keys SET revoked_at = NOW(), is_default = FALSE, updated_at = NOW() WHERE id = $1", [stored.id]);
+      await recordApiRequest(client, { workspaceId: user.active_workspace_id, userId: user.user_id, principalType: "user", principalId: user.user_id,
+        requestKind: "credential_lifecycle", provider: "openai", operation: "credential.revoked", status: "accepted", httpStatus: 200,
+        credentialId: stored.id, credentialScope: stored.scope_type, metadata: { label: stored.label } });
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
     return { ok: true };
   });
 

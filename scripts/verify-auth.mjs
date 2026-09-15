@@ -153,7 +153,25 @@ try {
   await page.locator("[data-profile-menu-trigger] .user-avatar img").waitFor();
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-openai-key-vault="user"]');
-  assert.match(await page.locator('[data-openai-key-vault="user"]').innerText(), /My OpenAI keys[\s\S]*Write-only vault/i, "Personal settings should expose the write-only OpenAI credential manager");
+  const personalVault = page.locator('[data-openai-key-vault="user"]');
+  assert.match(await personalVault.innerText(), /My OpenAI keys[\s\S]*Write-only vault[\s\S]*Configured credentials/i, "Personal settings should expose the structured write-only OpenAI credential manager");
+  assert.equal(await personalVault.locator(".if-management-card").count(), 4, "The vault summary must use the shared four-card management grid");
+  assert.equal(await personalVault.locator(".if-analytics-panel").count(), 2, "The vault must use shared Control Surface analytics panels rather than local shells");
+  await personalVault.getByRole("button", { name: "Add key" }).click();
+  const keyDialog = page.locator('[data-openai-key-dialog="user"]');
+  await keyDialog.waitFor();
+  assert.equal(await keyDialog.locator(".if-form-grid .if-field").count(), 2, "Credential entry must use the shared form-field grid");
+  assert.equal(await keyDialog.getByLabel("OpenAI API key").getAttribute("type"), "password");
+  const keyDialogBounds = await keyDialog.boundingBox();
+  assert.ok(keyDialogBounds && keyDialogBounds.x >= 0 && keyDialogBounds.y >= 0 && keyDialogBounds.x + keyDialogBounds.width <= 1440 && keyDialogBounds.y + keyDialogBounds.height <= 1000, "Credential dialog must remain inside the desktop viewport");
+  await keyDialog.getByRole("button", { name: "Close OpenAI key form" }).click();
+
+  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-api-request-summary]");
+  assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 4, "API Log must summarize request volume, success, latency, and tokens");
+  await page.waitForSelector("[data-api-request-table]");
+  assert.equal(await page.locator("[data-api-observability-charts] .if-chart-card").count(), 2, "API Log must visualize outcome mix and average latency with shared chart cards");
+  assert.match(await page.locator("[data-ops-activity]").innerText(), /90-day API retention[\s\S]*API requests[\s\S]*Workspace changes/i, "API Log must separate redacted request observability from workspace mutations");
 
   await page.goto(`${BASE_URL}#/budget-spend/users`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="users"] [data-user-management]');
@@ -532,7 +550,23 @@ try {
   assert.ok(mobileProfileGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Profile actions must retain 44px touch geometry: ${mobileProfileGeometry.buttonHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
 
-  console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
+  await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-openai-key-vault="user"]');
+  const mobileVaultOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(mobileVaultOverflow <= 2, `Mobile credential vault should not overflow, got ${mobileVaultOverflow}px`);
+  const mobileVaultButtons = await page.locator('[data-openai-key-vault="user"] .if-btn').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileVaultButtons.every((height) => height >= 43.5), `Mobile credential controls must retain 44px targets: ${mobileVaultButtons.join(", ")}`);
+  await page.locator('[data-openai-key-vault="user"]').getByRole("button", { name: "Add key" }).click();
+  const mobileKeyDialog = page.locator('[data-openai-key-dialog="user"]');
+  await mobileKeyDialog.waitFor();
+  const mobileKeyBounds = await mobileKeyDialog.boundingBox();
+  assert.ok(mobileKeyBounds && mobileKeyBounds.x >= 0 && mobileKeyBounds.y >= 0 && mobileKeyBounds.x + mobileKeyBounds.width <= 390 && mobileKeyBounds.y + mobileKeyBounds.height <= 844, `Mobile key dialog must stay inside the viewport: ${JSON.stringify(mobileKeyBounds)}`);
+  const mobileKeyFields = await mobileKeyDialog.locator(".if-input").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileKeyFields.every((height) => height >= 43.5), `Mobile key fields must retain 44px controls: ${mobileKeyFields.join(", ")}`);
+  await page.screenshot({ path: "test-results/openai-key-vault-mobile.png", fullPage: true });
+  await mobileKeyDialog.getByRole("button", { name: "Close OpenAI key form" }).click();
+
+  console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, OpenAI credential vault and API request log, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
 } finally {
   await browser.close();
 }

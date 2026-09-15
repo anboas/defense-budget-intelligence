@@ -161,6 +161,38 @@ function normalizeActivity(entry = {}) {
   };
 }
 
+function normalizeApiRequest(entry = {}) {
+  return {
+    id: cleanText(entry.id, 180) || `api-request-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    at: cleanDate(entry.completedAt || entry.startedAt) || new Date().toISOString(),
+    startedAt: cleanDate(entry.startedAt),
+    provider: cleanText(entry.provider, 60) || "dbi",
+    requestKind: cleanText(entry.requestKind, 40) || "api",
+    operation: cleanText(entry.operation, 120) || "request",
+    method: cleanText(entry.method, 12),
+    route: cleanText(entry.route, 180),
+    status: cleanText(entry.status, 30) || "failed",
+    httpStatus: Number(entry.httpStatus || 0),
+    stage: cleanText(entry.stage, 80),
+    model: cleanText(entry.model, 120),
+    credentialId: cleanText(entry.credentialId, 100),
+    credentialScope: cleanText(entry.credentialScope, 20),
+    principalType: cleanText(entry.principalType, 40),
+    principalId: cleanText(entry.principalId, 100),
+    traceId: cleanText(entry.traceId, 180),
+    providerRequestId: cleanText(entry.providerRequestId, 180),
+    responseId: cleanText(entry.responseId, 180),
+    latencyMs: Number(entry.latencyMs || 0),
+    inputTokens: Number(entry.inputTokens || 0),
+    outputTokens: Number(entry.outputTokens || 0),
+    retryCount: Number(entry.retryCount || 0),
+    retryable: Boolean(entry.retryable),
+    errorCode: cleanText(entry.errorCode, 120),
+    errorMessage: cleanText(entry.errorMessage, 500),
+    metadata: entry.metadata && typeof entry.metadata === "object" ? entry.metadata : {},
+  };
+}
+
 export function readWatchlist(validIds = null) {
   const allowed = validIds ? new Set(validIds) : null;
   const seen = new Set();
@@ -237,6 +269,8 @@ export function useManagementState(records = []) {
   const [events, setEvents] = useState(() => readManagementEvents(validIds));
   const [eventCategories, setEventCategories] = useState(() => readEventCategories());
   const [activity, setActivity] = useState(() => readOperatorActivity(validIds));
+  const [apiRequests, setApiRequests] = useState([]);
+  const [apiRequestSummary, setApiRequestSummary] = useState(null);
   const [loading, setLoading] = useState(remote);
   const [error, setError] = useState("");
   const [lastRefreshedAt, setLastRefreshedAt] = useState("");
@@ -249,17 +283,20 @@ export function useManagementState(records = []) {
   }, [validIds]);
 
   const syncRemote = useCallback(async () => {
-    const [trackingPayload, eventPayload, categoryPayload, activityPayload] = await Promise.all([
+    const [trackingPayload, eventPayload, categoryPayload, activityPayload, apiRequestPayload] = await Promise.all([
       workspaceRequest("/tracking"),
       workspaceRequest("/events"),
       workspaceRequest("/event-categories"),
       workspaceRequest("/activity?limit=200"),
+      workspaceRequest("/api-requests?limit=500"),
     ]);
     const allowed = new Set(validIds);
     setWatchlist((trackingPayload.data || []).map(normalizeWatch).filter((entry) => entry && allowed.has(entry.recordId)));
     setEvents((eventPayload.data || []).map(normalizeEvent).filter(Boolean));
     setEventCategories((categoryPayload.data || []).map(normalizeEventCategory).filter(Boolean));
     setActivity((activityPayload.data || []).map(remoteActivity).filter(Boolean));
+    setApiRequests((apiRequestPayload.data || []).map(normalizeApiRequest).filter(Boolean));
+    setApiRequestSummary(apiRequestPayload.meta?.summary || null);
     setError("");
     setLastRefreshedAt(new Date().toISOString());
   }, [validIds]);
@@ -418,6 +455,8 @@ export function useManagementState(records = []) {
     events,
     eventCategories: eventCategoriesWithCounts,
     activity,
+    apiRequests,
+    apiRequestSummary,
     toggleWatch,
     updateWatch,
     saveEvent,

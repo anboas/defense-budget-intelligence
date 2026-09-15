@@ -404,6 +404,8 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.capability.encryptionReady, true, "D1 must advertise the configured credential vault");
     assert.equal(body.capability.queryRuntimeEnabled, false, "Management must not imply that OpenAI query execution is enabled yet");
+    assert.equal(body.capability.loggingReady, true, "Credential management must advertise the redacted request ledger");
+    assert.equal(body.capability.retentionDays, 90);
     response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", {
       method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
       body: { scope: "user", label: "Owner personal", apiKey: personalOpenAiKey, isDefault: true },
@@ -434,7 +436,16 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.personalKeys[0].label, "Owner rotated label");
     assert.equal(body.workspaceKeys[0].status, "revoked");
+    assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null }, "New credentials must expose an empty aggregate usage boundary without inventing calls");
     assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "Credential listings must expose metadata only");
+    response = await apiRequest(baseUrl, "/api/v1/agent/api-requests?limit=500", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Workspace managers must be able to inspect redacted API request metadata");
+    body = await response.json();
+    const credentialEntries = body.data.filter((entry) => entry.requestKind === "credential_lifecycle");
+    assert.ok(credentialEntries.some((entry) => entry.operation === "credential.created" && entry.credentialId === personalOpenAiKeyId));
+    assert.ok(credentialEntries.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
+    assert.equal(body.meta.retentionDays, 90);
+    assert.doesNotMatch(JSON.stringify(body.data), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-verification/i, "D1 request logs must not expose secrets, prompts, headers, or bodies");
 
     const selfSignup = userPayload(20);
     response = await apiRequest(baseUrl, "/api/v1/auth/register", {

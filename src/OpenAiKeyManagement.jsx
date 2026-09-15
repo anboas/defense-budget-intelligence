@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { Building2, KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
-import { useToast } from "control-surface-ui/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Building2, CheckCircle2, KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { ControlDialog, useToast } from "control-surface-ui/react";
 
 function dateLabel(value) {
   if (!value) return "Never used";
@@ -13,6 +13,7 @@ export default function OpenAiKeyManagement({ auth, scope = "workspace", embedde
   const [capability, setCapability] = useState(null);
   const [busy, setBusy] = useState(true);
   const [adding, setAdding] = useState(false);
+  const dialogRef = useRef(null);
   const { showToast } = useToast();
   const workspace = auth?.user?.activeWorkspace;
   const personal = scope === "user";
@@ -100,24 +101,51 @@ export default function OpenAiKeyManagement({ auth, scope = "workspace", embedde
 
   const active = keys.filter((key) => key.status === "active");
   const revoked = keys.filter((key) => key.status === "revoked");
+  const usage = useMemo(() => active.reduce((summary, key) => ({
+    requests: summary.requests + Number(key.usage?.requestCount || 0),
+    failures: summary.failures + Number(key.usage?.failureCount || 0),
+    inputTokens: summary.inputTokens + Number(key.usage?.inputTokens || 0),
+    outputTokens: summary.outputTokens + Number(key.usage?.outputTokens || 0),
+  }), { requests: 0, failures: 0, inputTokens: 0, outputTokens: 0 }), [active]);
   const Icon = personal ? UserRound : Building2;
-  return <section className={`openai-key-vault ${embedded ? "openai-key-vault--embedded" : ""}`} data-openai-key-vault={scope}>
-    <header className="openai-key-vault__header"><span><Icon size={18} aria-hidden="true" /></span><div><small>{personal ? "Personal credential" : "Workspace credential"}</small><h3>{personal ? "My OpenAI keys" : `${workspace?.name || "Workspace"} OpenAI keys`}</h3><p>{personal ? "Available only to contextual requests you initiate." : "Shared server-side credentials for approved workspace actions."}</p></div>{canManage ? <button type="button" className="if-btn if-btn--primary" onClick={() => setAdding((value) => !value)} disabled={busy}><Plus size={15} />Add key</button> : null}</header>
-    <div className="openai-key-vault__boundary"><ShieldCheck size={16} aria-hidden="true" /><p><strong>Write-only vault.</strong> Secret values are encrypted before storage, never returned to the browser, and will only be decrypted inside a future server-side OpenAI request.</p><span className={capability?.encryptionReady ? "is-ready" : "is-disabled"}>{capability?.encryptionReady ? "Vault ready" : "Vault unavailable"}</span></div>
-    {adding ? <form className="openai-key-vault__form" onSubmit={createKey}>
-      <label><span>Key label</span><input name="label" required minLength={2} maxLength={80} autoComplete="off" placeholder={personal ? "My project key" : "Workspace default"} /></label>
-      <label><span>OpenAI API key</span><input name="apiKey" required type="password" minLength={23} maxLength={243} autoComplete="off" spellCheck="false" placeholder="Paste key once" /></label>
-      <label className="openai-key-vault__default"><input name="isDefault" type="checkbox" defaultChecked={!active.length} /><span><strong>Use as default</strong><small>Context actions can still target another configured key explicitly.</small></span></label>
-      <footer><button type="button" onClick={() => setAdding(false)}>Cancel</button><button type="submit" disabled={busy || !capability?.encryptionReady}><KeyRound size={15} />Save encrypted key</button></footer>
-    </form> : null}
-    <div className="openai-key-vault__list" aria-busy={busy}>
-      {busy && !keys.length ? <p className="openai-key-vault__empty">Loading key metadata…</p> : !active.length ? <p className="openai-key-vault__empty">No active {personal ? "personal" : "workspace"} OpenAI keys configured.</p> : active.map((key) => <article key={key.id} className={key.isDefault ? "is-default" : ""}>
-        <span className="openai-key-vault__key-icon"><KeyRound size={16} aria-hidden="true" /></span>
-        <div><strong>{key.label}</strong><code>•••• {key.lastFour}</code><small>Added {dateLabel(key.createdAt)} · {key.lastUsedAt ? `Last used ${dateLabel(key.lastUsedAt)}` : "Never used"}</small></div>
-        <span className="openai-key-vault__state">{key.isDefault ? "Default" : "Active"}</span>
-        {canManage ? <span className="openai-key-vault__actions">{!key.isDefault ? <button type="button" onClick={() => void makeDefault(key)} disabled={busy}>Make default</button> : null}<button type="button" className="is-danger" onClick={() => void revoke(key)} disabled={busy} aria-label={`Revoke ${key.label}`}><Trash2 size={14} />Revoke</button></span> : null}
-      </article>)}
-      {revoked.length ? <details><summary>{revoked.length} revoked key{revoked.length === 1 ? "" : "s"}</summary>{revoked.map((key) => <p key={key.id}><strong>{key.label}</strong><code>•••• {key.lastFour}</code><span>Revoked</span></p>)}</details> : null}
-    </div>
+  const headingId = `openai-${scope}-keys-title`;
+  return <section className="if-operations-workspace" data-openai-key-vault={scope} data-openai-key-embedded={embedded ? "true" : "false"} aria-labelledby={headingId}>
+    <section className="if-analytics-panel">
+      <header className="if-analytics-panel__header">
+        <div className="if-analytics-panel__heading"><span className="if-status if-status--info if-status--sm">{personal ? "Personal credential vault" : "Workspace credential vault"}</span><h3 className="if-analytics-panel__title" id={headingId}><Icon size={18} aria-hidden="true" />{personal ? "My OpenAI keys" : `${workspace?.name || "Workspace"} OpenAI keys`}</h3><p className="if-analytics-panel__summary">{personal ? "Available only to contextual requests you initiate." : "Shared server-side credentials for approved workspace actions."}</p></div>
+        {canManage ? <button type="button" className="if-btn if-btn--primary" onClick={() => setAdding(true)} disabled={busy}><Plus size={15} aria-hidden="true" />Add key</button> : null}
+      </header>
+      <div className="if-management-grid" aria-label="OpenAI key summary">
+        <article className="if-management-card if-tone-info"><span className="if-management-card__label">Active keys</span><strong className="if-management-card__value">{active.length}</strong><small className="if-management-card__meta">{active.find((key) => key.isDefault)?.label || "No default selected"}</small></article>
+        <article className={`if-management-card ${capability?.encryptionReady ? "if-tone-success" : "if-tone-danger"}`}><span className="if-management-card__label">Vault</span><strong className="if-management-card__value">{capability?.encryptionReady ? "Ready" : "Unavailable"}</strong><small className="if-management-card__meta">Encrypted, write-only storage</small></article>
+        <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Logged calls</span><strong className="if-management-card__value">{usage.requests.toLocaleString()}</strong><small className="if-management-card__meta">{usage.failures.toLocaleString()} failed in retained window</small></article>
+        <article className="if-management-card if-tone-purple"><span className="if-management-card__label">Token usage</span><strong className="if-management-card__value">{(usage.inputTokens + usage.outputTokens).toLocaleString()}</strong><small className="if-management-card__meta">{usage.inputTokens.toLocaleString()} in · {usage.outputTokens.toLocaleString()} out</small></article>
+      </div>
+      <article className={`if-detail-card ${capability?.encryptionReady ? "if-detail-card--success" : "if-detail-card--danger"}`}>
+        <header className="if-detail-card__header"><h4 className="if-detail-card__title"><ShieldCheck size={16} aria-hidden="true" />Write-only vault</h4><span className="dbi-status-badge">{capability?.queryRuntimeEnabled ? "Calls enabled" : "Management ready · calls disabled"}</span></header>
+        <p className="if-detail-card__summary">Secret values are encrypted before storage and never returned to the browser. Request logs retain metadata, latency, token counts, provider IDs, and safe errors for {capability?.retentionDays || 90} days, never keys, prompts, headers, or response bodies.</p>
+      </article>
+    </section>
+
+    <section className="if-analytics-panel" aria-busy={busy}>
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h4 className="if-analytics-panel__title">Configured credentials</h4><p className="if-analytics-panel__summary">Only labels, scope, final four characters, lifecycle dates, and aggregate usage are visible.</p></div><strong className="if-analytics-panel__count">{active.length}</strong></header>
+      {busy && !keys.length ? <div className="ops-empty"><KeyRound size={22} aria-hidden="true" /><strong>Loading key metadata…</strong></div> : !active.length ? <div className="ops-empty"><KeyRound size={22} aria-hidden="true" /><strong>No active {personal ? "personal" : "workspace"} OpenAI keys</strong><p>Add a credential when you are ready to enable approved contextual actions.</p></div> : <div className="if-analytics-panel__grid">
+        {active.map((key) => <article key={key.id} className={`if-detail-card ${key.isDefault ? "if-detail-card--success" : "if-detail-card--neutral"}`}>
+          <header className="if-detail-card__header"><div><span className="if-status if-status--sm">{key.isDefault ? "Default credential" : "Active credential"}</span><h4 className="if-detail-card__title"><KeyRound size={16} aria-hidden="true" />{key.label}</h4></div><code>•••• {key.lastFour}</code></header>
+          <p className="if-detail-card__summary">Added {dateLabel(key.createdAt)} · {key.lastUsedAt ? `Last used ${dateLabel(key.lastUsedAt)}` : "Never used"}</p>
+          <div className="if-management-grid" aria-label={`${key.label} usage`}><article className="if-management-card"><span className="if-management-card__label">Requests</span><strong className="if-management-card__value">{Number(key.usage?.requestCount || 0).toLocaleString()}</strong><small className="if-management-card__meta">{Number(key.usage?.failureCount || 0).toLocaleString()} failed</small></article><article className="if-management-card"><span className="if-management-card__label">Average latency</span><strong className="if-management-card__value">{Number(key.usage?.averageLatencyMs || 0).toLocaleString()} ms</strong><small className="if-management-card__meta">Last request {dateLabel(key.usage?.lastRequestAt)}</small></article></div>
+          {canManage ? <footer className="if-action-row__actions">{!key.isDefault ? <button type="button" className="if-btn if-btn--secondary" onClick={() => void makeDefault(key)} disabled={busy}><CheckCircle2 size={15} aria-hidden="true" />Make default</button> : null}<button type="button" className="if-btn if-btn--danger" onClick={() => void revoke(key)} disabled={busy} aria-label={`Revoke ${key.label}`}><Trash2 size={14} aria-hidden="true" />Revoke</button></footer> : null}
+        </article>)}
+      </div>}
+      {revoked.length ? <details className="if-detail-card if-detail-card--neutral"><summary>{revoked.length} revoked key{revoked.length === 1 ? "" : "s"}</summary><div className="if-analytics-panel__grid">{revoked.map((key) => <article className="if-management-card" key={key.id}><span className="if-management-card__label">{key.label}</span><strong className="if-management-card__value">•••• {key.lastFour}</strong><small className="if-management-card__meta">Revoked {dateLabel(key.revokedAt || key.updatedAt)}</small></article>)}</div></details> : null}
+    </section>
+
+    {adding ? <ControlDialog open onClose={() => setAdding(false)} title={`Add ${personal ? "personal" : "workspace"} OpenAI key`} eyebrow="Write-only encrypted vault" summary="The key can be submitted once. Only safe metadata will be shown after save." size="default" dialogRef={dialogRef} closeLabel="Close OpenAI key form" surfaceProps={{ "data-openai-key-dialog": scope }} footer={<><button type="button" className="if-btn" onClick={() => setAdding(false)}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form={`openai-key-form-${scope}`} disabled={busy || !capability?.encryptionReady}><KeyRound size={15} aria-hidden="true" />Save encrypted key</button></>}>
+      <form id={`openai-key-form-${scope}`} className="if-form-grid" onSubmit={createKey}>
+        <label className="if-field if-field--full"><span className="if-field__label">Key label</span><input className="if-input" name="label" required minLength={2} maxLength={80} autoComplete="off" placeholder={personal ? "My project key" : "Workspace default"} /><small className="if-field__hint">A recognizable label visible to authorized operators.</small></label>
+        <label className="if-field if-field--full"><span className="if-field__label">OpenAI API key</span><input className="if-input" name="apiKey" required type="password" minLength={23} maxLength={243} autoComplete="off" spellCheck="false" placeholder="Paste key once" /><small className="if-field__hint">The value is encrypted server-side and cannot be viewed after save.</small></label>
+        <label className="if-card if-field--full"><input name="isDefault" type="checkbox" defaultChecked={!active.length} /> <strong>Use as default</strong><p className="if-field__hint">Approved actions can still target another configured key explicitly.</p></label>
+      </form>
+    </ControlDialog> : null}
   </section>;
 }

@@ -309,6 +309,41 @@ const SCHEMA = Object.freeze([
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_openai_keys_workspace ON dbi_openai_keys (workspace_id, scope_type, revoked_at, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_openai_keys_user ON dbi_openai_keys (user_id, scope_type, revoked_at, created_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_api_request_log (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL DEFAULT '',
+    user_id TEXT NOT NULL DEFAULT '',
+    principal_type TEXT NOT NULL,
+    principal_id TEXT NOT NULL,
+    request_kind TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    method TEXT NOT NULL DEFAULT '',
+    route TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    http_status INTEGER NOT NULL DEFAULT 0,
+    stage TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    credential_id TEXT NOT NULL DEFAULT '',
+    credential_scope TEXT NOT NULL DEFAULT '',
+    provider_request_id TEXT NOT NULL DEFAULT '',
+    trace_id TEXT NOT NULL DEFAULT '',
+    response_id TEXT NOT NULL DEFAULT '',
+    latency_ms INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    retryable INTEGER NOT NULL DEFAULT 0,
+    error_code TEXT NOT NULL DEFAULT '',
+    error_message TEXT NOT NULL DEFAULT '',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    started_at TEXT NOT NULL,
+    completed_at TEXT NOT NULL
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_workspace ON dbi_api_request_log (workspace_id, completed_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_user ON dbi_api_request_log (user_id, completed_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_credential ON dbi_api_request_log (credential_id, completed_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_status ON dbi_api_request_log (workspace_id, status, completed_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_agent_keys (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -649,6 +684,45 @@ function openAiKeyMetadata(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastUsedAt: row.last_used_at || null,
+  };
+}
+
+async function openAiKeyUsage(db, column, scopeId) {
+  if (!scopeId || !["workspace_id", "user_id"].includes(column)) return new Map();
+  const result = await db.prepare(`SELECT credential_id,
+      COUNT(*) AS request_count,
+      SUM(CASE WHEN status = 'succeeded' THEN 1 ELSE 0 END) AS success_count,
+      SUM(CASE WHEN status IN ('failed', 'rejected', 'rate_limited', 'cancelled') THEN 1 ELSE 0 END) AS failure_count,
+      SUM(input_tokens) AS input_tokens,
+      SUM(output_tokens) AS output_tokens,
+      CAST(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END) AS INTEGER) AS average_latency_ms,
+      MAX(completed_at) AS last_request_at
+    FROM dbi_api_request_log
+    WHERE ${column} = ? AND credential_id <> '' AND request_kind = 'openai'
+    GROUP BY credential_id`).bind(scopeId).all();
+  return new Map((result.results || []).map((row) => [row.credential_id, {
+    requestCount: Number(row.request_count || 0),
+    successCount: Number(row.success_count || 0),
+    failureCount: Number(row.failure_count || 0),
+    inputTokens: Number(row.input_tokens || 0),
+    outputTokens: Number(row.output_tokens || 0),
+    averageLatencyMs: Number(row.average_latency_ms || 0),
+    lastRequestAt: row.last_request_at || null,
+  }]));
+}
+
+function keyMetadataWithUsage(row, usageById) {
+  return {
+    ...openAiKeyMetadata(row),
+    usage: usageById.get(row.id) || {
+      requestCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      averageLatencyMs: 0,
+      lastRequestAt: null,
+    },
   };
 }
 
@@ -1552,6 +1626,91 @@ async function recordActivity(db, principal, action, entityType, entityId = "", 
   ).run();
 }
 
+function safeObject(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const API_LOG_SENSITIVE_FIELD = /(authorization|cookie|secret|password|api.?key|token|prompt|request.?body|response.?body|raw.?request|raw.?response)/i;
+
+function safeApiLogText(value, limit = 500) {
+  return cleanText(value, limit)
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted-key]")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]");
+}
+
+function safeApiLogMetadata(value, depth = 0) {
+  if (depth > 3 || value === null || value === undefined) return null;
+  if (["string", "number", "boolean"].includes(typeof value)) return typeof value === "string" ? safeApiLogText(value, 500) : value;
+  if (Array.isArray(value)) return value.slice(0, 25).map((item) => safeApiLogMetadata(item, depth + 1));
+  if (typeof value !== "object") return null;
+  return Object.fromEntries(Object.entries(value).filter(([key]) => !API_LOG_SENSITIVE_FIELD.test(key)).slice(0, 50)
+    .map(([key, item]) => [safeApiLogText(key, 80), safeApiLogMetadata(item, depth + 1)]));
+}
+
+function apiRequestFromRow(row) {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id || null,
+    userId: row.user_id || null,
+    principalType: row.principal_type,
+    principalId: row.principal_id,
+    requestKind: row.request_kind,
+    provider: row.provider,
+    operation: row.operation,
+    method: row.method || null,
+    route: row.route || null,
+    status: row.status,
+    httpStatus: Number(row.http_status || 0),
+    stage: row.stage || null,
+    model: row.model || null,
+    credentialId: row.credential_id || null,
+    credentialScope: row.credential_scope || null,
+    providerRequestId: row.provider_request_id || null,
+    traceId: row.trace_id || null,
+    responseId: row.response_id || null,
+    latencyMs: Number(row.latency_ms || 0),
+    inputTokens: Number(row.input_tokens || 0),
+    outputTokens: Number(row.output_tokens || 0),
+    retryCount: Number(row.retry_count || 0),
+    retryable: Boolean(row.retryable),
+    errorCode: row.error_code || null,
+    errorMessage: row.error_message || null,
+    metadata: safeObject(row.metadata_json),
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+  };
+}
+
+async function recordApiRequest(db, entry = {}) {
+  const completedAt = cleanDate(entry.completedAt) || new Date().toISOString();
+  const startedAt = cleanDate(entry.startedAt) || completedAt;
+  const status = ["succeeded", "accepted", "failed", "rejected", "rate_limited", "cancelled"].includes(entry.status) ? entry.status : "failed";
+  const metadata = safeApiLogMetadata(entry.metadata) || {};
+  await db.prepare(`INSERT INTO dbi_api_request_log
+    (id, workspace_id, user_id, principal_type, principal_id, request_kind, provider, operation, method, route,
+      status, http_status, stage, model, credential_id, credential_scope, provider_request_id, trace_id, response_id,
+      latency_ms, input_tokens, output_tokens, retry_count, retryable, error_code, error_message, metadata_json, started_at, completed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(
+      cleanText(entry.id, 100) || crypto.randomUUID(), cleanText(entry.workspaceId, 100), cleanText(entry.userId, 100),
+      cleanText(entry.principalType, 40) || "system", cleanText(entry.principalId, 100) || "system",
+      cleanText(entry.requestKind, 40) || "api", cleanText(entry.provider, 60) || "dbi", cleanText(entry.operation, 120) || "request",
+      cleanText(entry.method, 12), cleanText(entry.route, 180), status, boundedInteger(entry.httpStatus, 0, 0, 599),
+      cleanText(entry.stage, 80), cleanText(entry.model, 120), cleanText(entry.credentialId, 100), cleanText(entry.credentialScope, 20),
+      cleanText(entry.providerRequestId, 180), cleanText(entry.traceId, 180), cleanText(entry.responseId, 180),
+      boundedInteger(entry.latencyMs, 0, 0, 86_400_000), boundedInteger(entry.inputTokens, 0, 0, 1_000_000_000),
+      boundedInteger(entry.outputTokens, 0, 0, 1_000_000_000), boundedInteger(entry.retryCount, 0, 0, 25), entry.retryable ? 1 : 0,
+      safeApiLogText(entry.errorCode, 120), safeApiLogText(entry.errorMessage, 500), JSON.stringify(metadata).slice(0, 8_000), startedAt, completedAt,
+    ).run();
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
+  await db.prepare("DELETE FROM dbi_api_request_log WHERE completed_at < ?").bind(cutoff).run();
+}
+
 function cleanDate(value) {
   const text = cleanText(value, 32);
   if (!text) return "";
@@ -1591,11 +1750,13 @@ async function openAiKeysResponse(request, db, env) {
   const encryptionReady = String(env.DBI_CREDENTIAL_ENCRYPTION_KEY || "").length >= 32;
 
   if (request.method === "GET" && !keyId) {
-    const [personalResult, workspaceResult] = await Promise.all([
+    const [personalResult, workspaceResult, personalUsage, workspaceUsage] = await Promise.all([
       db.prepare("SELECT * FROM dbi_openai_keys WHERE scope_type = 'user' AND user_id = ? ORDER BY revoked_at, is_default DESC, created_at DESC").bind(session.user_id).all(),
       workspaceId && canManageWorkspaceKeys
         ? db.prepare("SELECT * FROM dbi_openai_keys WHERE scope_type = 'workspace' AND workspace_id = ? ORDER BY revoked_at, is_default DESC, created_at DESC").bind(workspaceId).all()
         : Promise.resolve({ results: [] }),
+      openAiKeyUsage(db, "user_id", session.user_id),
+      workspaceId && canManageWorkspaceKeys ? openAiKeyUsage(db, "workspace_id", workspaceId) : Promise.resolve(new Map()),
     ]);
     return json({
       capability: {
@@ -1604,9 +1765,12 @@ async function openAiKeysResponse(request, db, env) {
         canManageWorkspaceKeys,
         activeWorkspaceId: workspaceId || null,
         queryRuntimeEnabled: false,
+        loggingReady: true,
+        retentionDays: 90,
+        loggedFields: ["status", "latency", "tokens", "request IDs", "retry metadata", "safe errors"],
       },
-      personalKeys: (personalResult.results || []).map(openAiKeyMetadata),
-      workspaceKeys: (workspaceResult.results || []).map(openAiKeyMetadata),
+      personalKeys: (personalResult.results || []).map((row) => keyMetadataWithUsage(row, personalUsage)),
+      workspaceKeys: (workspaceResult.results || []).map((row) => keyMetadataWithUsage(row, workspaceUsage)),
     });
   }
 
@@ -1638,6 +1802,12 @@ async function openAiKeysResponse(request, db, env) {
       session.user_id, now, now,
     );
     await db.batch(isDefault ? [clearDefault, insert] : [insert]);
+    await recordApiRequest(db, {
+      workspaceId: workspaceId || "", userId: session.user_id, principalType: "user", principalId: session.user_id,
+      requestKind: "credential_lifecycle", provider: "openai", operation: "credential.created", method: request.method,
+      route: "/api/v1/auth/openai-keys", status: "succeeded", httpStatus: 201, stage: "credential_management",
+      credentialId: id, credentialScope: scope, metadata: { label, isDefault },
+    });
     if (scope === "workspace") await recordActivity(db, { type: "user", id: session.user_id, workspaceId }, "openai_key_added", "openai_key", id, { label });
     return json({ key: openAiKeyMetadata({ id, scope_type: scope, workspace_id: scope === "workspace" ? workspaceId : "", user_id: scope === "user" ? session.user_id : "", label, key_last_four: apiKey.slice(-4), is_default: isDefault ? 1 : 0, created_at: now, updated_at: now, revoked_at: "", last_used_at: "" }) }, 201);
   }
@@ -1670,6 +1840,12 @@ async function openAiKeysResponse(request, db, env) {
       nextApiKey ? nextApiKey.slice(-4) : stored.key_last_four, makeDefault ? 1 : stored.is_default, now, keyId,
     ));
     await db.batch(statements);
+    await recordApiRequest(db, {
+      workspaceId: stored.workspace_id || workspaceId || "", userId: session.user_id, principalType: "user", principalId: session.user_id,
+      requestKind: "credential_lifecycle", provider: "openai", operation: nextApiKey ? "credential.rotated" : makeDefault ? "credential.default_changed" : "credential.updated",
+      method: request.method, route: `/api/v1/auth/openai-keys/${keyId}`, status: "succeeded", httpStatus: 200, stage: "credential_management",
+      credentialId: keyId, credentialScope: stored.scope_type, metadata: { label, rotated: Boolean(nextApiKey), isDefault: makeDefault },
+    });
     if (stored.scope_type === "workspace") await recordActivity(db, { type: "user", id: session.user_id, workspaceId }, "openai_key_updated", "openai_key", keyId, { label, rotated: Boolean(nextApiKey), default: makeDefault });
     return json({ key: openAiKeyMetadata({ ...stored, label, key_last_four: nextApiKey ? nextApiKey.slice(-4) : stored.key_last_four, is_default: makeDefault ? 1 : stored.is_default, updated_at: now }) });
   }
@@ -1678,6 +1854,12 @@ async function openAiKeysResponse(request, db, env) {
     if (stored.revoked_at) return json({ error: "OpenAI key is already revoked" }, 409);
     const now = new Date().toISOString();
     await db.prepare("UPDATE dbi_openai_keys SET revoked_at = ?, is_default = 0, updated_at = ? WHERE id = ?").bind(now, now, keyId).run();
+    await recordApiRequest(db, {
+      workspaceId: stored.workspace_id || workspaceId || "", userId: session.user_id, principalType: "user", principalId: session.user_id,
+      requestKind: "credential_lifecycle", provider: "openai", operation: "credential.revoked", method: request.method,
+      route: `/api/v1/auth/openai-keys/${keyId}`, status: "succeeded", httpStatus: 200, stage: "credential_management",
+      credentialId: keyId, credentialScope: stored.scope_type, metadata: { label: stored.label },
+    });
     if (stored.scope_type === "workspace") await recordActivity(db, { type: "user", id: session.user_id, workspaceId }, "openai_key_revoked", "openai_key", keyId, { label: stored.label });
     return json({ ok: true });
   }
@@ -2059,6 +2241,7 @@ function openApiDocument(origin) {
     "/api/v1/agent/event-categories": { get: { summary: "List workspace event categories", security }, post: { summary: "Create a workspace event category", security } },
     "/api/v1/agent/event-categories/{categoryId}": { patch: { summary: "Update a workspace event category", security }, delete: { summary: "Delete an unused workspace event category", security } },
     "/api/v1/agent/activity": { get: { summary: "Read append-only audit activity", security }, post: { summary: "Append an agent activity note", security } },
+    "/api/v1/agent/api-requests": { get: { summary: "Read redacted API request diagnostics and usage metadata", security } },
     "/api/v1/agent/integrations": { get: { summary: "Read integration status", security } },
     "/api/v1/agent/analytics": { get: { summary: "Aggregate the factual record universe by a bounded dimension and measure", security } },
   };
@@ -2441,6 +2624,45 @@ async function activityResponse(request, db, principal) {
   return agentError("method_not_allowed", "Method not allowed", 405);
 }
 
+async function apiRequestsResponse(request, db, principal) {
+  if (request.method !== "GET") return agentError("method_not_allowed", "Method not allowed", 405);
+  if (!hasScope(principal, "activity:read")) return agentError("insufficient_scope", "Scope activity:read is required", 403);
+  const params = new URL(request.url).searchParams;
+  const limit = boundedInteger(params.get("limit"), 200, 1, 500);
+  const provider = cleanText(params.get("provider"), 60);
+  const status = cleanText(params.get("status"), 30);
+  const requestKind = cleanText(params.get("kind"), 40);
+  const clauses = ["workspace_id = ?"];
+  const values = [principal.workspaceId];
+  if (provider) { clauses.push("provider = ?"); values.push(provider); }
+  if (status) { clauses.push("status = ?"); values.push(status); }
+  if (requestKind) { clauses.push("request_kind = ?"); values.push(requestKind); }
+  const result = await db.prepare(`SELECT * FROM dbi_api_request_log WHERE ${clauses.join(" AND ")} ORDER BY completed_at DESC LIMIT ?`)
+    .bind(...values, limit).all();
+  const rows = (result.results || []).map(apiRequestFromRow);
+  const requestRows = rows.filter((row) => row.requestKind !== "credential_lifecycle");
+  const latencies = requestRows.map((row) => row.latencyMs).filter((value) => value > 0).sort((left, right) => left - right);
+  const percentileIndex = latencies.length ? Math.min(latencies.length - 1, Math.ceil(latencies.length * 0.95) - 1) : -1;
+  const succeeded = requestRows.filter((row) => row.status === "succeeded").length;
+  return agentJson(rows, 200, {
+    summary: {
+      retained: rows.length,
+      requests: requestRows.length,
+      succeeded,
+      failed: requestRows.length - succeeded,
+      successRate: requestRows.length ? Math.round((succeeded / requestRows.length) * 1000) / 10 : null,
+      averageLatencyMs: requestRows.length ? Math.round(requestRows.reduce((sum, row) => sum + row.latencyMs, 0) / requestRows.length) : 0,
+      p95LatencyMs: percentileIndex >= 0 ? latencies[percentileIndex] : 0,
+      inputTokens: requestRows.reduce((sum, row) => sum + row.inputTokens, 0),
+      outputTokens: requestRows.reduce((sum, row) => sum + row.outputTokens, 0),
+    },
+    retentionDays: 90,
+    redaction: "Metadata only. Secrets, authorization headers, prompts, and response bodies are never stored.",
+    total: rows.length,
+    limit,
+  });
+}
+
 async function integrationsResponse(request, env, principal) {
   if (request.method !== "GET") return agentError("method_not_allowed", "Method not allowed", 405);
   if (!hasScope(principal, "integrations:read")) return agentError("insufficient_scope", "Scope integrations:read is required", 403);
@@ -2457,29 +2679,54 @@ async function integrationsResponse(request, env, principal) {
 
 async function agentApiResponse(request, env, db) {
   const requestId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const startedMs = Date.now();
   const principal = await requestPrincipal(db, request);
   if (!principal) return agentError("authentication_required", "Use a valid DBI agent bearer token or signed-in workspace session", 401, requestId);
-  if (principal.type === "user" && !["GET", "HEAD"].includes(request.method) && !sameOrigin(request)) {
-    return agentError("cross_origin_forbidden", "Cross-origin workspace mutations are not allowed", 403, requestId);
-  }
-  if (await rateLimited(db, principal)) return agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
   const relative = pathname.slice("/api/v1/agent".length).replace(/^\//, "");
   const [resource = "capabilities", ...segments] = relative.split("/").filter(Boolean);
-  if (resource === "capabilities" && request.method === "GET") return agentJson({
-    principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
-    resources: ["records", "analytics", "tracking", "events", "event-categories", "activity", "integrations"],
-    writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
-  }, 200, { requestId });
-  if (resource === "openapi.json" && request.method === "GET") return Response.json(openApiDocument(new URL(request.url).origin), { headers: { "cache-control": "no-store" } });
-  if (resource === "records") return recordsResponse(request, env, db, principal, segments);
-  if (resource === "tracking") return trackingResponse(request, env, db, principal, segments);
-  if (resource === "events") return eventsResponse(request, env, db, principal, segments);
-  if (resource === "event-categories") return eventCategoriesResponse(request, db, principal, segments);
-  if (resource === "activity") return activityResponse(request, db, principal);
-  if (resource === "integrations") return integrationsResponse(request, env, principal);
-  if (resource === "analytics") return analyticsResponse(request, env, db, principal);
-  return agentError("route_not_found", "Unknown Agent API route", 404, requestId);
+  const route = `/api/v1/agent/${cleanText(resource, 80)}`;
+  let response;
+  let thrownError = null;
+  try {
+    if (principal.type === "user" && !["GET", "HEAD"].includes(request.method) && !sameOrigin(request)) {
+      response = agentError("cross_origin_forbidden", "Cross-origin workspace mutations are not allowed", 403, requestId);
+    } else if (await rateLimited(db, principal)) {
+      response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
+    } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
+      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
+      resources: ["records", "analytics", "tracking", "events", "event-categories", "activity", "api-requests", "integrations"],
+      writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
+    }, 200, { requestId });
+    else if (resource === "openapi.json" && request.method === "GET") response = Response.json(openApiDocument(new URL(request.url).origin), { headers: { "cache-control": "no-store" } });
+    else if (resource === "records") response = await recordsResponse(request, env, db, principal, segments);
+    else if (resource === "tracking") response = await trackingResponse(request, env, db, principal, segments);
+    else if (resource === "events") response = await eventsResponse(request, env, db, principal, segments);
+    else if (resource === "event-categories") response = await eventCategoriesResponse(request, db, principal, segments);
+    else if (resource === "activity") response = await activityResponse(request, db, principal);
+    else if (resource === "api-requests") response = await apiRequestsResponse(request, db, principal);
+    else if (resource === "integrations") response = await integrationsResponse(request, env, principal);
+    else if (resource === "analytics") response = await analyticsResponse(request, env, db, principal);
+    else response = agentError("route_not_found", "Unknown Agent API route", 404, requestId);
+  } catch (error) {
+    thrownError = error;
+    response = agentError("internal_error", "The request could not be completed", 500, requestId);
+  }
+  const completedAt = new Date().toISOString();
+  const status = response.status === 429 ? "rate_limited" : response.status >= 400 ? (response.status < 500 ? "rejected" : "failed") : "succeeded";
+  await recordApiRequest(db, {
+    id: requestId, workspaceId: principal.workspaceId, userId: principal.type === "user" ? principal.id : "",
+    principalType: principal.type, principalId: principal.id, requestKind: "agent_api", provider: "dbi",
+    operation: `agent.${resource}.${request.method.toLowerCase()}`, method: request.method, route, status, httpStatus: response.status,
+    stage: "request", traceId: requestId, latencyMs: Date.now() - startedMs,
+    errorCode: status === "succeeded" ? "" : response.status === 429 ? "rate_limited" : thrownError ? "internal_error" : `http_${response.status}`,
+    errorMessage: thrownError ? "Unhandled server error" : "", metadata: { segmentCount: segments.length }, startedAt, completedAt,
+  });
+  const headers = new Headers(response.headers);
+  headers.set("x-request-id", requestId);
+  if (thrownError) console.error("Agent API request failed", { requestId, resource, error: thrownError?.message });
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 export async function pagesAuthApiResponse(request, env = {}) {

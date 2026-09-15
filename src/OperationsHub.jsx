@@ -377,16 +377,72 @@ function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, 
   return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
 }
 
-function ActivityView({ activity, records, remote }) {
+function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
-  const columns = [
+  const activityColumns = [
     { key: "at", label: "Time", required: true, sticky: true, minWidth: 170, value: (entry) => entry.at, render: (entry) => dateTime(entry.at) },
     { key: "type", label: "Event", facet: true, minWidth: 150, value: (entry) => entry.type.replaceAll("_", " "), render: (entry) => <strong>{entry.type.replaceAll("_", " ")}</strong> },
     { key: "detail", label: "Detail", minWidth: 280, role: "prose", value: (entry) => entry.detail },
     { key: "actor", label: "Actor", facet: true, minWidth: 130, value: (entry) => entry.actorType || "operator", render: (entry) => <><strong>{entry.actorType || "operator"}</strong>{entry.actorId ? <small>{entry.actorId}</small> : null}</> },
     { key: "record", label: "Record", minWidth: 210, value: (entry) => byId.get(entry.recordId)?.id || entry.recordId || "Not linked", render: (entry) => { const record = byId.get(entry.recordId); return record ? <a className="dbi-table-record-link" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}><strong>{record.id}</strong><small>{record.title}</small></a> : (entry.recordId || "Not linked"); } },
   ];
-  return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <OperationalDataTable id="api-activity" label="API and activity log" rows={activity} columns={columns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="api-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
+  const requestColumns = [
+    { key: "at", label: "Time", required: true, sticky: true, minWidth: 170, value: (entry) => entry.at, render: (entry) => dateTime(entry.at) },
+    { key: "status", label: "Status", facet: true, minWidth: 120, value: (entry) => entry.status, render: (entry) => <span className={`dbi-status-badge is-${entry.status}`}>{entry.status.replaceAll("_", " ")}</span> },
+    { key: "operation", label: "Operation", facet: true, minWidth: 220, value: (entry) => `${entry.provider} ${entry.operation}`, render: (entry) => <><strong>{entry.operation}</strong><small>{entry.provider}{entry.model ? ` · ${entry.model}` : ""}</small></> },
+    { key: "route", label: "Interface", facet: true, minWidth: 190, value: (entry) => entry.route || entry.requestKind, render: (entry) => <><strong>{entry.method ? `${entry.method} ` : ""}{entry.route || entry.requestKind}</strong><small>{entry.requestKind.replaceAll("_", " ")}{entry.credentialScope ? ` · ${entry.credentialScope} key` : ""}</small></> },
+    { key: "latency", label: "Latency", minWidth: 105, sortValue: (entry) => entry.latencyMs, value: (entry) => entry.latencyMs ? `${entry.latencyMs} ms` : "Not measured" },
+    { key: "tokens", label: "Tokens", minWidth: 120, sortValue: (entry) => entry.inputTokens + entry.outputTokens, value: (entry) => entry.inputTokens || entry.outputTokens ? `${entry.inputTokens.toLocaleString()} in · ${entry.outputTokens.toLocaleString()} out` : "Not applicable" },
+    { key: "actor", label: "Principal", facet: true, minWidth: 150, value: (entry) => `${entry.principalType} ${entry.principalId}`, render: (entry) => <><strong>{entry.principalType || "system"}</strong><small>{entry.principalId || "system"}</small></> },
+    { key: "trace", label: "Trace", minWidth: 190, value: (entry) => entry.traceId || entry.providerRequestId || entry.responseId || "Unavailable", render: (entry) => <code>{entry.traceId || entry.providerRequestId || entry.responseId || "Unavailable"}</code> },
+    { key: "error", label: "Safe diagnostic", minWidth: 220, role: "prose", value: (entry) => entry.errorCode || entry.errorMessage || "None", render: (entry) => entry.errorCode || entry.errorMessage ? <><strong>{entry.errorCode || "request_failed"}</strong>{entry.errorMessage ? <small>{entry.errorMessage}</small> : null}</> : "None" },
+  ];
+  const summary = apiRequestSummary || { retained: apiRequests.length, requests: apiRequests.filter((entry) => entry.requestKind !== "credential_lifecycle").length, successRate: null, averageLatencyMs: 0, p95LatencyMs: 0, inputTokens: 0, outputTokens: 0 };
+  const callEntries = apiRequests.filter((entry) => entry.requestKind !== "credential_lifecycle");
+  const outcomeRows = ["succeeded", "rejected", "failed", "rate_limited"].map((status) => ({
+    id: status,
+    label: status === "rate_limited" ? "Rate limited" : status[0].toUpperCase() + status.slice(1),
+    value: callEntries.filter((entry) => entry.status === status).length,
+  })).filter((row) => row.value > 0);
+  const outcomeMaximum = Math.max(...outcomeRows.map((row) => row.value), 1);
+  const latencyByOperation = [...callEntries.reduce((groups, entry) => {
+    const key = entry.operation || entry.route || "request";
+    const current = groups.get(key) || { id: key, label: key.replaceAll("_", " "), total: 0, count: 0 };
+    current.total += Number(entry.latencyMs || 0);
+    current.count += 1;
+    groups.set(key, current);
+    return groups;
+  }, new Map()).values()].map((row) => ({ ...row, value: Math.round(row.total / row.count) })).sort((left, right) => right.value - left.value).slice(0, 6);
+  const latencyMaximum = Math.max(...latencyByOperation.map((row) => row.value), 1);
+  return <section className="ops-panel if-operations-workspace" data-ops-activity>
+    <header className="ops-panel__header"><div><span>Redacted workspace observability</span><h2>API & activity log</h2><p>Request metadata and append-only changes are retained without secrets, authorization headers, prompts, or response bodies.</p></div><small>90-day API retention</small></header>
+    <div className="if-management-grid" aria-label="API request summary" data-api-request-summary>
+      <article className="if-management-card if-tone-info"><span className="if-management-card__label">Requests</span><strong className="if-management-card__value">{Number(summary.requests || 0).toLocaleString()}</strong><small className="if-management-card__meta">{Number(summary.retained || 0).toLocaleString()} retained entries</small></article>
+      <article className={`if-management-card ${summary.successRate === null || summary.successRate >= 99 ? "if-tone-success" : summary.successRate >= 95 ? "if-tone-warning" : "if-tone-danger"}`}><span className="if-management-card__label">Success rate</span><strong className="if-management-card__value">{summary.successRate === null ? "No calls" : `${summary.successRate}%`}</strong><small className="if-management-card__meta">Current retained window</small></article>
+      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Average latency</span><strong className="if-management-card__value">{Number(summary.averageLatencyMs || 0).toLocaleString()} ms</strong><small className="if-management-card__meta">P95 {Number(summary.p95LatencyMs || 0).toLocaleString()} ms</small></article>
+      <article className="if-management-card if-tone-purple"><span className="if-management-card__label">Token usage</span><strong className="if-management-card__value">{(Number(summary.inputTokens || 0) + Number(summary.outputTokens || 0)).toLocaleString()}</strong><small className="if-management-card__meta">{Number(summary.inputTokens || 0).toLocaleString()} in · {Number(summary.outputTokens || 0).toLocaleString()} out</small></article>
+    </div>
+    {callEntries.length ? <div className="if-chart-grid" aria-label="API request charts" data-api-observability-charts>
+      <article className="if-chart-card">
+        <header className="if-chart-card__header"><div><h3 className="if-chart-card__title">Request outcomes</h3><p className="if-chart-card__meta">Retained calls by final status</p></div><span className="if-badge if-badge--info">Status</span></header>
+        <div className="if-chart"><div className="if-chart__bars">{outcomeRows.map((row, index) => <div className="if-chart-bar" key={row.id} aria-label={`${row.label}: ${row.value.toLocaleString()} requests`}><span className="if-chart-bar__label">{row.label}</span><span className="if-chart-bar__track"><i className="if-chart-bar__fill" style={{ "--bar": `${(row.value / outcomeMaximum) * 100}%`, "--i": index }} /></span><strong>{row.value.toLocaleString()}</strong></div>)}</div></div>
+        <footer className="if-chart-legend"><span><i />Bars = retained request count</span></footer>
+      </article>
+      <article className="if-chart-card">
+        <header className="if-chart-card__header"><div><h3 className="if-chart-card__title">Average latency by operation</h3><p className="if-chart-card__meta">Slowest retained operations, highest first</p></div><span className="if-badge if-badge--info">Latency</span></header>
+        <div className="if-chart"><div className="if-chart__bars">{latencyByOperation.map((row, index) => <div className="if-chart-bar" key={row.id} aria-label={`${row.label}: ${row.value.toLocaleString()} milliseconds average`}><span className="if-chart-bar__label">{row.label}</span><span className="if-chart-bar__track"><i className="if-chart-bar__fill" style={{ "--bar": `${(row.value / latencyMaximum) * 100}%`, "--i": index }} /></span><strong>{row.value.toLocaleString()} ms</strong></div>)}</div></div>
+        <footer className="if-chart-legend"><span><i />Bars = mean measured latency</span></footer>
+      </article>
+    </div> : null}
+    <section className="if-analytics-panel" aria-labelledby="api-request-log-title">
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="api-request-log-title">API requests</h3><p className="if-analytics-panel__summary">Agent API calls today; OpenAI provider IDs, token counts, retries, latency, and safe errors will appear here when contextual actions are enabled.</p></div><strong className="if-analytics-panel__count">{apiRequests.length}</strong></header>
+      {apiRequests.length ? <OperationalDataTable id="api-requests" label="API request log" rows={apiRequests} columns={requestColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search operations, routes, principals, traces, and diagnostics…" exportFilename="api-request-log.csv" selectable={false} wrapperProps={{ "data-api-request-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API requests retained</strong><p>Authenticated Agent API calls and future OpenAI requests will appear here.</p></div>}
+    </section>
+    <section className="if-analytics-panel" aria-labelledby="workspace-activity-title">
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="workspace-activity-title">Workspace changes</h3><p className="if-analytics-panel__summary">Append-only human and agent mutations across the shared workspace.</p></div><strong className="if-analytics-panel__count">{activity.length}</strong></header>
+      {activity.length ? <OperationalDataTable id="workspace-activity" label="Workspace activity log" rows={activity} columns={activityColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="workspace-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}
+    </section>
+  </section>;
 }
 
 function WallboardView({ records, watchlist, events, categories, asOf, workspace, lastRefreshedAt }) {
@@ -708,7 +764,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
-    {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
+    {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Cross-workspace administration is limited to the immutable Super user.</p></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure this workspace.</p></section> : null}
