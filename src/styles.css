@@ -296,7 +296,8 @@
 .workspace-card { border: 1px solid var(--border); background: #fff; }
 .workspace-card.is-current { border-color: #6c9dbf; box-shadow: inset 3px 0 #0b6fa4; }
 .workspace-card > header { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border-soft); background: #f7f9fb; }
-.workspace-card > header > span { display: grid; width: 30px; height: 30px; place-items: center; background: #e5f1f8; color: var(--brand); }
+.workspace-card > header > span { display: grid; width: 30px; height: 30px; place-items: center; overflow: hidden; background: #e5f1f8; color: var(--brand); }
+.workspace-card > header > span img { width: 100%; height: 100%; object-fit: cover; }
 .workspace-card > header > div:nth-child(2) { display: grid; min-width: 0; gap: 2px; }
 .workspace-card h3, .workspace-card p { margin: 0; }
 .workspace-card h3 { font-size: 12px; }
@@ -307,9 +308,15 @@
 .workspace-card__header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .workspace-card__header-actions > span { color: var(--quiet); font-size: 9px; white-space: nowrap; }
 .workspace-card__editor, .workspace-card__add-member { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.4fr) auto auto; align-items: end; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border-soft); background: #fbfcfd; }
+.workspace-card__editor { grid-template-columns: repeat(2, minmax(180px, 1fr)) auto auto; }
 .workspace-card__editor label { display: grid; gap: 4px; color: var(--text); font-size: 9px; font-weight: 750; }
+.workspace-card__branding { display: flex; grid-column: 1 / -1; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-soft); }
+.workspace-card__branding > img { width: 46px; height: 46px; border: 1px solid #7ea3bd; border-radius: 7px; object-fit: cover; background: #071a31; }
+.workspace-card__branding > span { display: flex; align-items: center; gap: 7px; }
+.workspace-card__branding input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .workspace-card__add-member { grid-template-columns: minmax(180px, 1fr) 150px auto; background: #fff; }
-.workspace-card__add-member button { border-color: var(--brand); background: var(--brand); color: #fff; }
+.workspace-card__add-member button { min-height: 36px; border-color: var(--brand); background: var(--brand); color: #fff; font-size: 10px; line-height: 1; }
+.workspace-card__add-member button > span { display: inline; color: inherit; font: inherit; }
 .workspace-card__contents { border-bottom: 1px solid var(--border-soft); background: #f8fafc; }
 .workspace-card__contents > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px 7px; }
 .workspace-card__contents > header > div { display: grid; gap: 1px; }
@@ -331,13 +338,28 @@
 .workspace-card__members > div > span { display: grid; min-width: 0; }
 .workspace-card__members > div > b, .workspace-card__members > div > em { color: var(--brand); font-size: 9px; font-style: normal; }
 .workspace-card__members button { color: #9b1c1c; }
+.profile-workspace-switcher__control { display: flex; align-items: center; gap: 6px; }
+.profile-workspace-switcher__control > img { width: 22px; height: 22px; border: 1px solid #adc3d3; border-radius: 4px; object-fit: cover; background: #071a31; }
 .profile-workspace-switcher select { max-width: 190px; border: 1px solid var(--if-border); background: #fff; color: var(--if-text-strong); font-size: var(--if-font-size-xs); font-weight: 700; }
+
+.workspace-toast-stack { position: fixed; z-index: var(--if-z-toast, 700); top: 72px; right: 16px; bottom: auto; display: block; width: min(380px, calc(100vw - 24px)); pointer-events: none; }
+.workspace-toast { display: grid; grid-template-columns: 30px minmax(0, 1fr) 28px; align-items: start; gap: 9px; padding: 12px; border: 1px solid #7ba5c2; border-left: 4px solid #16854f; border-radius: 5px; background: #fff; box-shadow: 0 12px 30px rgba(8, 27, 44, .22); color: var(--text); pointer-events: auto; animation: workspace-toast-in .18s ease-out both; }
+.workspace-toast.is-error { border-left-color: #b42318; }
+.workspace-toast > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #e1f2e8; color: #11643e; }
+.workspace-toast.is-error > span { background: #fae5e3; color: #9b1c1c; }
+.workspace-toast div { display: grid; gap: 2px; }
+.workspace-toast strong { font-size: 11px; }
+.workspace-toast p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+.workspace-toast button { display: grid; width: 28px; min-height: 28px; place-items: center; padding: 0; border: 0; background: transparent; color: #536c7e; }
+@keyframes workspace-toast-in { from { opacity: 0; transform: translateY(-7px); } }
+@media (prefers-reduced-motion: reduce) { .workspace-toast { animation: none; } }
 
 .account-gate__alternate { border: 0 !important; background: transparent !important; color: #075b96 !important; box-shadow: none !important; }
 .account-gate__card--workspace { width: min(620px, calc(100vw - 24px)); }
 .workspace-access-list { display: grid; gap: 8px; margin: 16px 0; text-align: left; }
 .workspace-access-list article { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid #c3d4e1; background: #f7fafc; }
 .workspace-access-list article > span { display: grid; width: 34px; height: 34px; place-items: center; background: #e5f1f8; color: #075b96; }
+.workspace-access-list article > span img { width: 100%; height: 100%; border-radius: 4px; object-fit: cover; background: #071a31; }
 .workspace-access-list article > div { display: grid; }
 .workspace-access-list article strong { color: #173b56; font-size: 12px; }
 .workspace-access-list article small { color: #60778a; font-size: 10px; }
@@ -12553,6 +12575,10 @@ td .dot {
 .ops-wall-event footer svg { flex: 0 0 auto; color: #58788e; }
 .ops-wall-event footer b { color: #173b56; }
 .ops-wallboard__section--calendar > header { min-height: clamp(60px, 3.5vw, 82px); }
+.ops-wall-calendar__identity { display: flex !important; align-items: center; gap: clamp(8px, .55vw, 13px) !important; }
+.ops-wall-calendar__identity > img { width: clamp(34px, 2.2vw, 52px); height: clamp(34px, 2.2vw, 52px); border: 1px solid #719ab7; border-radius: 5px; object-fit: cover; background: #071a31; }
+.ops-wall-calendar__identity > span { display: grid; gap: 2px; }
+.ops-wall-calendar__identity small { color: #526f84; font-size: clamp(8px, .45vw, 13px); font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .ops-wall-calendar__controls {
   display: flex !important;
   grid-auto-flow: initial;
@@ -12668,6 +12694,7 @@ td .dot {
   color: #123d5c;
   box-shadow: 0 1px 2px rgba(18, 61, 92, .12);
   pointer-events: auto;
+  container-type: inline-size;
 }
 .ops-wall-calendar__bar:hover,
 .ops-wall-calendar__bar:focus-visible {
@@ -12731,6 +12758,11 @@ td .dot {
   white-space: nowrap;
 }
 .ops-wall-calendar__bar span { flex: 1 1 auto; }
+.ops-wall-calendar__bar .ops-wall-calendar__bar-attendees { display: flex; flex: 0 0 auto; align-items: center; align-self: center; overflow: visible; padding-left: 3px; }
+.ops-wall-calendar__bar-attendees .user-avatar { flex: 0 0 18px; width: 18px !important; height: 18px !important; margin-left: -5px; border: 1px solid #fff; font-size: 7px; }
+.ops-wall-calendar__bar-attendees .user-avatar:first-child { margin-left: 0; }
+.ops-wall-calendar__bar .ops-wall-calendar__bar-attendees > b { display: grid; width: 18px; height: 18px; margin-left: -4px; place-items: center; border: 1px solid #fff; border-radius: 50%; background: #244d6d; color: #fff; font-size: 7px; }
+@container (max-width: 185px) { .ops-wall-calendar__bar-attendees { display: none !important; } }
 .ops-wall-calendar-tooltip { width: min(380px, calc(100vw - 16px)); border-top-color: #075b96; }
 .ops-wall-calendar-tooltip[data-kind="milestone"] { border-top-color: #5c4d9b; }
 .ops-wall-calendar-tooltip dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }

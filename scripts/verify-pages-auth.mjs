@@ -417,6 +417,30 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(isolatedSummary.contents.wallboardEvents, 1, "Workspace inventory must report wallboard-visible events");
     assert.ok(isolatedSummary.contents.activityEntries >= 2, "Workspace inventory must report administrative and content activity");
     assert.ok(isolatedSummary.lastActivityAt, "Workspace inventory must expose its latest activity time");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, {
+      method: "POST", body: { userId: selfUserId, role: "administrator" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Super user must be able to promote a workspace member to manager");
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
+    body = await response.json();
+    assert.equal(body.user.canManageWorkspaces, true, "Workspace manager permission must be exposed in the signed-in user contract");
+    assert.equal(body.user.role, "Workspace manager");
+    response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin", { cookie: selfCookie });
+    body = await response.json();
+    assert.deepEqual(body.workspaces.map((workspace) => workspace.id), [defaultWorkspaceId], "Workspace managers must see only their active administrative boundary");
+    response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin/workspaces", {
+      method: "POST", body: { name: "Manager escape", description: "Must fail" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Workspace managers must not create global workspaces");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, {
+      method: "PATCH", cookie: selfCookie, origin: baseUrl.slice(0, -1),
+      body: { name: "Defense budget", description: "Defense Budget Intelligence shared workspace", iconDataUrl: avatarDataUrl, headerEyebrow: "Program intelligence", displayTitle: "Defense Budget Command" },
+    });
+    assert.equal(response.status, 200, "Workspace managers must be able to configure their assigned workspace identity");
+    body = await response.json();
+    assert.equal(body.workspace.iconDataUrl, avatarDataUrl);
+    assert.equal(body.workspace.headerEyebrow, "Program intelligence");
+    assert.equal(body.workspace.displayTitle, "Defense Budget Command");
     response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${defaultWorkspaceId}/switch`, { method: "POST", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 200);
     response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });

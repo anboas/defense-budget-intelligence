@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bot,
-  Building2,
   CalendarDays,
   Check,
   ExternalLink,
   FileStack,
   Flag,
+  ImagePlus,
   Pencil,
   Plus,
   Save,
@@ -18,8 +18,9 @@ import {
   X,
 } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
+import WorkspaceMark from "./WorkspaceMark.jsx";
 
-const ROLE_LABELS = { administrator: "Administrator", analyst: "Analyst", viewer: "Viewer" };
+const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
   ["trackedRecords", "Tracked", Star],
   ["events", "Events", CalendarDays],
@@ -39,6 +40,36 @@ function displayDate(value) {
   return Number.isNaN(date.getTime()) ? "No workspace activity yet" : `Last activity ${date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}`;
 }
 
+async function squareWorkspaceIcon(file) {
+  if (!file?.type?.startsWith("image/") || file.size > 8_000_000) throw new Error("Choose a PNG, JPEG, or WebP image under 8 MB.");
+  const sourceDataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("That image could not be opened."));
+    reader.readAsDataURL(file);
+  });
+  const image = await new Promise((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("That image could not be opened."));
+    element.src = sourceDataUrl;
+  });
+  const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+  const sourceX = Math.floor((image.naturalWidth - sourceSize) / 2);
+  const sourceY = Math.floor((image.naturalHeight - sourceSize) / 2);
+  for (const size of [96, 80, 64, 48]) {
+    for (const quality of [0.76, 0.62, 0.48]) {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      canvas.getContext("2d").drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+      const dataUrl = canvas.toDataURL("image/webp", quality);
+      if (dataUrl.length <= 13_500) return dataUrl;
+    }
+  }
+  throw new Error("That image is too complex. Try a simpler crop.");
+}
+
 export default function WorkspaceManagement({ auth }) {
   const [data, setData] = useState({ workspaces: [], requests: [], users: [], availableRoles: [] });
   const [draft, setDraft] = useState({ name: "", description: "" });
@@ -46,7 +77,18 @@ export default function WorkspaceManagement({ auth }) {
   const [memberDrafts, setMemberDrafts] = useState({});
   const [requestRoles, setRequestRoles] = useState({});
   const [busy, setBusy] = useState(true);
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState(null);
+  const isSuperUser = auth.user?.roleId === "super_user";
+
+  function showNotice(text, tone = "success") {
+    setNotice({ id: Date.now(), text, tone });
+  }
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timeout = window.setTimeout(() => setNotice(null), 4200);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   async function refresh() {
     const result = await auth.getWorkspaceAdmin();
@@ -56,7 +98,7 @@ export default function WorkspaceManagement({ auth }) {
   useEffect(() => {
     let active = true;
     auth.getWorkspaceAdmin().then((result) => { if (active) setData(result); })
-      .catch((error) => { if (active) setMessage(error.message); })
+      .catch((error) => { if (active) showNotice(error.message, "error"); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
   }, [auth]);
@@ -71,9 +113,9 @@ export default function WorkspaceManagement({ auth }) {
 
   async function mutate(operation, success) {
     setBusy(true);
-    setMessage("");
-    try { await operation(); await refresh(); setMessage(success); }
-    catch (error) { setMessage(error.message); throw error; }
+    setNotice(null);
+    try { await operation(); await refresh(); showNotice(success); }
+    catch (error) { showNotice(error.message, "error"); throw error; }
     finally { setBusy(false); }
   }
 
@@ -85,27 +127,27 @@ export default function WorkspaceManagement({ auth }) {
   }
 
   function beginEdit(workspace) {
-    setEditing({ id: workspace.id, name: workspace.name, description: workspace.description || "" });
-    setMessage("");
+    setEditing({ id: workspace.id, name: workspace.name, description: workspace.description || "", iconDataUrl: workspace.iconDataUrl || "", headerEyebrow: workspace.headerEyebrow || "Defense Budget & Spend Analytics", displayTitle: workspace.displayTitle || "Defense Budget Intelligence" });
+    setNotice(null);
   }
 
   function saveWorkspace(event, workspace) {
     event.preventDefault();
-    void mutate(() => auth.updateWorkspace(workspace.id, { name: editing.name, description: editing.description }), `${editing.name} updated.`)
+    void mutate(() => auth.updateWorkspace(workspace.id, editing), `${editing.name} updated.`)
       .then(() => setEditing(null))
       .catch(() => {});
   }
 
   return <section className="ops-panel workspace-management" data-workspace-management aria-labelledby="workspace-management-title">
-    <header className="ops-panel__header workspace-management__header"><div><span>Super-user control</span><h2 id="workspace-management-title">Workspace command</h2><p>Inspect each isolated data boundary, rename it, switch context, review requests, and govern membership.</p></div><span className="if-badge if-badge--info if-badge--sm">Super user only</span></header>
+    <header className="ops-panel__header workspace-management__header"><div><span>{isSuperUser ? "Super-user control" : "Workspace manager"}</span><h2 id="workspace-management-title">Workspace command</h2><p>Inspect each isolated data boundary, configure its identity, switch context, review requests, and govern membership.</p></div><span className="if-badge if-badge--info if-badge--sm">{isSuperUser ? "Super user" : "Scoped manager"}</span></header>
 
     <div className="workspace-management__metrics"><article><span>Workspaces</span><strong>{data.workspaces.length}</strong></article><article><span>Pending requests</span><strong>{pending.length}</strong></article><article><span>Registered users</span><strong>{data.users.length}</strong></article><article><span>Tracked records</span><strong>{inventoryAvailable ? totals.tracked : "—"}</strong></article><article><span>Events</span><strong>{inventoryAvailable ? totals.events : "—"}</strong></article></div>
 
-    <form className="workspace-management__create" onSubmit={createWorkspace}>
+    {isSuperUser ? <form className="workspace-management__create" onSubmit={createWorkspace}>
       <label>Name<input required minLength={2} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Program intelligence" /></label>
       <label>Description<input value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="What this workspace covers" /></label>
       <button className="if-btn if-btn--primary" type="submit" disabled={busy}><Plus size={15} />Create workspace</button>
-    </form>
+    </form> : null}
 
     {pending.length ? <section className="workspace-request-queue" aria-labelledby="workspace-requests-title"><header><div><span>Approval queue</span><h3 id="workspace-requests-title">Access requests</h3></div><b>{pending.length}</b></header>{pending.map((request) => <article key={request.id} data-workspace-request={request.id}>
       <UserAvatar user={request} size={38} />
@@ -115,7 +157,7 @@ export default function WorkspaceManagement({ auth }) {
       <button className="is-deny" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "denied", role: "viewer" }), `${request.displayName} denied.`).catch(() => {})}><X size={14} />Deny</button>
     </article>)}</section> : null}
 
-    {message ? <p className="account-form__message workspace-management__message" role="status">{message}</p> : null}
+    {notice ? <div className="if-toast-stack workspace-toast-stack" aria-live="polite"><div className={`if-toast workspace-toast is-${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"}><span>{notice.tone === "error" ? <X size={17} /> : <Check size={17} />}</span><div><strong>{notice.tone === "error" ? "Action needed" : "Workspace updated"}</strong><p>{notice.text}</p></div><button type="button" aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={15} /></button></div></div> : null}
 
     <div className="workspace-management__list">{busy && !data.workspaces.length ? <p>Loading workspaces…</p> : data.workspaces.map((workspace) => {
       const memberIds = new Set(workspace.members.map((member) => member.id));
@@ -127,14 +169,17 @@ export default function WorkspaceManagement({ auth }) {
       const isEditing = editing?.id === workspace.id;
       return <article className={`workspace-card${isCurrent ? " is-current" : ""}`} key={workspace.id} data-workspace={workspace.id} data-workspace-current={isCurrent ? "true" : "false"}>
         <header>
-          <span><Building2 size={19} /></span>
+          <span><WorkspaceMark workspace={workspace} /></span>
           <div><div className="workspace-card__title"><h3>{workspace.name}</h3>{isCurrent ? <b>Current</b> : null}</div><p>{workspace.description || "Shared intelligence workspace"}</p><small>{displayDate(workspace.lastActivityAt)}</small></div>
-          <div className="workspace-card__header-actions"><span>{workspace.members.length} member{workspace.members.length === 1 ? "" : "s"}{workspacePending ? ` · ${workspacePending} pending` : ""}</span>{!isCurrent ? <button type="button" disabled={busy} onClick={() => void auth.switchWorkspace(workspace.id).catch((error) => setMessage(error.message))}><ExternalLink size={14} />Open</button> : null}<button type="button" disabled={busy} onClick={() => beginEdit(workspace)}><Pencil size={14} />Rename</button></div>
+          <div className="workspace-card__header-actions"><span>{workspace.members.length} member{workspace.members.length === 1 ? "" : "s"}{workspacePending ? ` · ${workspacePending} pending` : ""}</span>{!isCurrent ? <button type="button" disabled={busy} onClick={() => void auth.switchWorkspace(workspace.id).catch((error) => showNotice(error.message, "error"))}><ExternalLink size={14} />Open</button> : null}<button type="button" disabled={busy} onClick={() => beginEdit(workspace)}><Pencil size={14} />Configure</button></div>
         </header>
 
         {isEditing ? <form className="workspace-card__editor" onSubmit={(event) => saveWorkspace(event, workspace)} data-workspace-editor={workspace.id}>
+          <div className="workspace-card__branding"><WorkspaceMark workspace={editing} /><span><label className="if-btn if-btn--sm" htmlFor={`workspace-icon-${workspace.id}`}><ImagePlus size={14} />{editing.iconDataUrl ? "Replace icon" : "Choose icon"}</label><input id={`workspace-icon-${workspace.id}`} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void squareWorkspaceIcon(event.target.files?.[0]).then((iconDataUrl) => setEditing((current) => ({ ...current, iconDataUrl }))).catch((error) => showNotice(error.message, "error"))} />{editing.iconDataUrl ? <button type="button" onClick={() => setEditing((current) => ({ ...current, iconDataUrl: "" }))}>Use default</button> : null}</span></div>
           <label>Workspace name<input required minLength={2} value={editing.name} onChange={(event) => setEditing((current) => ({ ...current, name: event.target.value }))} /></label>
           <label>Description<input value={editing.description} onChange={(event) => setEditing((current) => ({ ...current, description: event.target.value }))} /></label>
+          <label>Header eyebrow<input required minLength={2} value={editing.headerEyebrow} onChange={(event) => setEditing((current) => ({ ...current, headerEyebrow: event.target.value }))} /></label>
+          <label>Display title<input required minLength={2} value={editing.displayTitle} onChange={(event) => setEditing((current) => ({ ...current, displayTitle: event.target.value }))} /></label>
           <button type="submit" disabled={busy}><Save size={14} />Save</button>
           <button type="button" disabled={busy} onClick={() => setEditing(null)}><X size={14} />Cancel</button>
         </form> : null}
@@ -144,12 +189,12 @@ export default function WorkspaceManagement({ auth }) {
           <div>{CONTENT_METRICS.map(([key, label, Icon]) => <article key={key}><Icon size={15} aria-hidden="true" /><span>{label}</span><strong>{displayCount(workspace.contents?.[key])}</strong></article>)}</div>
         </section>
 
-        <div className="workspace-card__role-summary" aria-label={`${workspace.name} role distribution`}><UsersRound size={15} aria-hidden="true" /><span>{Number(roleCounts.super_user || 0)} owner</span><span>{Number(roleCounts.administrator || 0)} admin</span><span>{Number(roleCounts.analyst || 0)} analyst</span><span>{Number(roleCounts.viewer || 0)} viewer</span></div>
+        <div className="workspace-card__role-summary" aria-label={`${workspace.name} role distribution`}><UsersRound size={15} aria-hidden="true" /><span>{Number(roleCounts.super_user || 0)} owner</span><span>{Number(roleCounts.administrator || 0)} manager</span><span>{Number(roleCounts.analyst || 0)} analyst</span><span>{Number(roleCounts.viewer || 0)} viewer</span></div>
 
         {candidates.length ? <form className="workspace-card__add-member" onSubmit={(event) => { event.preventDefault(); void mutate(() => auth.addWorkspaceMember(workspace.id, memberDraft), "Workspace member added.").catch(() => {}); }}>
           <select aria-label={`User to add to ${workspace.name}`} value={memberDraft.userId} onChange={(event) => setMemberDrafts((current) => ({ ...current, [workspace.id]: { ...memberDraft, userId: event.target.value } }))}>{candidates.map((user) => <option key={user.id} value={user.id}>{user.displayName} · {user.email}</option>)}</select>
           <select aria-label={`Role for new member in ${workspace.name}`} value={memberDraft.role} onChange={(event) => setMemberDrafts((current) => ({ ...current, [workspace.id]: { ...memberDraft, role: event.target.value } }))}>{roles.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select>
-          <button type="submit" disabled={busy || !memberDraft.userId}><UserPlus size={14} />Add member</button>
+          <button type="submit" disabled={busy || !memberDraft.userId}><UserPlus size={14} /><span>Add member</span></button>
         </form> : null}
         <div className="workspace-card__members"><header><span>Members</span><strong>{workspace.members.length}</strong></header>{workspace.members.map((member) => <div key={member.id}>
           <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>

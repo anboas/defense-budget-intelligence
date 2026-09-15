@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, Bot, Building2, ChevronDown, KeyRound, LogIn, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
+import WorkspaceMark from "./WorkspaceMark.jsx";
 
 export default function ProfileMenu() {
   const auth = useAuth();
@@ -79,7 +80,7 @@ export default function ProfileMenu() {
               <span className="if-account-surface__label">Account</span>
               <div className="if-account-surface__controls">
                 <div className="if-account-surface__control"><span>Role</span><strong>{user.role}</strong></div>
-                <label className="if-account-surface__control profile-workspace-switcher"><span>Workspace</span><select aria-label="Active workspace" value={user.activeWorkspace?.id || ""} onChange={(event) => void auth.switchWorkspace(event.target.value)}>{(user.workspaces || []).map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></label>
+                <label className="if-account-surface__control profile-workspace-switcher"><span>Workspace</span><span className="profile-workspace-switcher__control"><WorkspaceMark workspace={user.activeWorkspace} /><select aria-label="Active workspace" value={user.activeWorkspace?.id || ""} onChange={(event) => void auth.switchWorkspace(event.target.value)}>{(user.workspaces || []).map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></span></label>
               </div>
             </section>
             <section className="if-account-surface__section" aria-label="Account actions">

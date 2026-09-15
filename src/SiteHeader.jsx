@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import ProductMark from "./ProductMark.jsx";
 import ProfileMenu from "./ProfileMenu.jsx";
 import { useAuth } from "./AuthContext.jsx";
+import WorkspaceMark from "./WorkspaceMark.jsx";
 
 const PRIMARY_IDS = ["calendar", "wallboard"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
@@ -50,6 +50,7 @@ function analyticsViewFromHash() {
 
 export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   const auth = useAuth();
+  const workspace = auth?.user?.activeWorkspace;
   const [openMenu, setOpenMenu] = useState("");
   const navRef = useRef(null);
   const menuRefs = useRef({});
@@ -157,8 +158,8 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
         <a href={routes.calendar} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Transactions" title="Go to Transactions">
-          <span className="if-brand__mark masthead__mark" aria-hidden="true"><ProductMark className="masthead__icon" eager /></span>
-          <span className="masthead__copy"><span className="if-product-header__eyebrow">Defense Budget &amp; Spend Analytics</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
+          <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
+          <span className="masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
         </a>
 
         <nav ref={navRef} className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">

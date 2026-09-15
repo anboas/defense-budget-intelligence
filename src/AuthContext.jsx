@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Building2, LockKeyhole, UserPlus } from "lucide-react";
+import { LockKeyhole, UserPlus } from "lucide-react";
 import { authApi, isKnownStaticHost } from "./auth-client.js";
 import ProductMark from "./ProductMark.jsx";
+import WorkspaceMark from "./WorkspaceMark.jsx";
 
 const AuthContext = createContext(null);
 
@@ -74,7 +75,7 @@ function WorkspaceAccessGate({ auth }) {
       <h1 id="workspace-access-title">Choose a workspace</h1>
       <p>Your account is ready. Request access below and the Super user will review it.</p>
       <div className="workspace-access-list">{loading ? <p>Loading workspaces…</p> : workspaces.map((workspace) => <article key={workspace.id}>
-        <span><Building2 size={18} aria-hidden="true" /></span>
+        <span><WorkspaceMark workspace={workspace} /></span>
         <div><strong>{workspace.name}</strong><small>{workspace.description || "Shared intelligence workspace"}</small></div>
         {workspace.roleId ? <button type="button" onClick={() => void auth.switchWorkspace(workspace.id)}>Open</button> : workspace.requestStatus === "pending" ? <b>Pending</b> : <button type="button" onClick={() => void requestAccess(workspace)}>Request access</button>}
       </article>)}</div>

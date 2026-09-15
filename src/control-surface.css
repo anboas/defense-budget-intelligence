@@ -1467,6 +1467,27 @@ code {
   }
 }
 
+.if-toast-stack {
+  position: fixed;
+  right: var(--if-space-4);
+  bottom: var(--if-space-4);
+  z-index: var(--if-z-toast);
+  display: grid;
+  gap: var(--if-space-2);
+  width: min(100% - 2rem, 24rem);
+}
+
+.if-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--if-space-3);
+  padding: var(--if-space-3);
+  border: var(--if-outline);
+  border-radius: var(--if-radius-3);
+  background: var(--if-bg-surface);
+  box-shadow: var(--if-shadow-md);
+}
+
 /* AdamBoas.com editorial pass: quiet framework skin over the original layout. */
 
 /* AdamBoas.com wide adaptive layout pass. */

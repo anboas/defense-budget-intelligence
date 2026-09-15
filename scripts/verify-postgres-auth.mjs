@@ -67,6 +67,21 @@ response = await request("/api/v1/auth/status", { cookie: signupCookie });
 body = await response.json();
 assert.equal(body.user.activeWorkspace.id, defaultWorkspaceId);
 assert.equal(body.user.role, "Analyst");
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, { method: "POST", cookie: ownerCookie,
+  body: { userId: signupId, role: "administrator" } });
+assert.equal(response.status, 200);
+response = await request("/api/v1/auth/status", { cookie: signupCookie });
+body = await response.json();
+assert.equal(body.user.canManageWorkspaces, true);
+assert.equal(body.user.role, "Workspace manager");
+response = await request("/api/v1/auth/workspace-admin", { cookie: signupCookie });
+body = await response.json();
+assert.deepEqual(body.workspaces.map((workspace) => String(workspace.id)), [String(defaultWorkspaceId)]);
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, { method: "PATCH", cookie: signupCookie,
+  body: { name: "Defense budget", description: "Managed boundary", iconDataUrl: avatarDataUrl, headerEyebrow: "Program intelligence", displayTitle: "Defense Budget Command" } });
+assert.equal(response.status, 200, "PostgreSQL workspace managers must configure only their assigned workspace");
+body = await response.json();
+assert.equal(body.workspace.iconDataUrl, avatarDataUrl);
 
 response = await request("/api/v1/auth/workspace-admin/workspaces", { method: "POST", cookie: ownerCookie,
   body: { name: "PostgreSQL isolated", description: "Portability boundary" } });
@@ -97,4 +112,4 @@ assert.equal(response.status, 200, "Super user must remove non-owner workspace m
 response = await request("/api/v1/auth/status", { cookie: signupCookie });
 assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removing the selected membership must clear that session's workspace boundary");
 
-console.log("Verified PostgreSQL profile pictures, self-signup, access requests, Super-user-only workspace administration, role assignment, switching, and removal");
+console.log("Verified PostgreSQL profile pictures, self-signup, workspace branding, scoped workspace managers, role assignment, switching, and removal");

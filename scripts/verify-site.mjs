@@ -563,8 +563,9 @@ try {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
   await page.waitForSelector("[data-wallboard-calendar]");
-  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/, "Calendar should open on the first scheduled event month");
+  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/i, "Calendar should open on the first scheduled event month");
   assert.equal(await page.locator("[data-calendar-day]").count(), 42, "Calendar should render a stable six-week month grid");
+  assert.ok(await page.locator("[data-calendar-event] .ops-wall-calendar__bar-attendees .user-avatar").count() >= 1, "Calendar event bars should surface compact attendee avatars without adding a third text line");
   assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 1, "A multi-day event should render as one continuous Gantt-style weekly bar");
   assert.equal(await page.locator('[data-calendar-milestone][data-parent-event="event-air-space-cyber-conference-2026"]').count(), 2, "Published event deadlines should render as linked Gantt overlays");
   const registrationMilestone = page.locator('[data-calendar-milestone="registration"]');
@@ -673,11 +674,11 @@ try {
   assert.equal(await page.getByRole("button", { name: "Auto-cycle off" }).getAttribute("aria-pressed"), "false", "Entering kiosk should freeze the selected view by disabling auto-cycle");
 
   await page.getByRole("button", { name: "Next month" }).click();
-  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /October 2026/, "Calendar month navigation should advance one month");
+  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /October 2026/i, "Calendar month navigation should advance one month");
   assert.equal(await page.locator('[data-calendar-event="event-ausa-annual-meeting-2026"]').count(), 1, "October should show AUSA as one multi-day bar");
   assert.equal(await page.locator('[data-calendar-event="event-eighth-annual-defense-conference-2026"]').count(), 1, "October should show the defense conference date");
   await page.getByRole("button", { name: "Next month" }).click();
-  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /November 2026/, "Calendar should support sequential month navigation");
+  assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /November 2026/i, "Calendar should support sequential month navigation");
   assert.equal(await page.locator('[data-calendar-event="event-i-itsec-2026"]').count(), 1, "A cross-month event should remain one continuous weekly bar through its final December date");
   await page.getByRole("button", { name: "Previous month" }).click();
   await page.getByRole("button", { name: "Previous month" }).click();

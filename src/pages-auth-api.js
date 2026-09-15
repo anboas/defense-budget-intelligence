@@ -21,9 +21,11 @@ const AGENT_SCOPES = Object.freeze([
 const USER_ROLES = Object.freeze(["administrator", "analyst", "viewer"]);
 const USER_STATUSES = Object.freeze(["active", "suspended"]);
 const DEFAULT_WORKSPACE_ID = "workspace-defense-budget";
+const DEFAULT_HEADER_EYEBROW = "Defense Budget & Spend Analytics";
+const DEFAULT_DISPLAY_TITLE = "Defense Budget Intelligence";
 const ROLE_LABELS = Object.freeze({
   super_user: "Super user",
-  administrator: "Administrator",
+  administrator: "Workspace manager",
   analyst: "Analyst",
   viewer: "Viewer",
 });
@@ -233,6 +235,13 @@ const SCHEMA = Object.freeze([
   `INSERT OR IGNORE INTO dbi_workspaces
     (workspace_id, name, slug, description, status, owner_user_id, created_at, updated_at)
     VALUES ('workspace-defense-budget', 'Defense budget', 'defense-budget', 'Defense Budget Intelligence shared workspace', 'active', '', '2026-09-14T20:20:00.000Z', '2026-09-14T20:20:00.000Z')`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_settings (
+    workspace_id TEXT PRIMARY KEY,
+    icon_data_url TEXT NOT NULL DEFAULT '',
+    header_eyebrow TEXT NOT NULL DEFAULT 'Defense Budget & Spend Analytics',
+    display_title TEXT NOT NULL DEFAULT 'Defense Budget Intelligence',
+    updated_at TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_memberships (
     workspace_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
@@ -506,7 +515,7 @@ function publicUser(row) {
     mustChangePassword: Boolean(row.must_change_password),
     canManageUsers: ["super_user", "administrator"].includes(roleId),
     canManageAgents: ["super_user", "administrator"].includes(roleId),
-    canManageWorkspaces: row.role === "super_user",
+    canManageWorkspaces: row.role === "super_user" || roleId === "administrator",
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
   } : null;
@@ -519,9 +528,11 @@ function validAvatarDataUrl(value) {
 
 async function workspacesForUser(db, userId) {
   const result = await db.prepare(`
-    SELECT workspace.workspace_id, workspace.name, workspace.slug, workspace.description, membership.role
+    SELECT workspace.workspace_id, workspace.name, workspace.slug, workspace.description, membership.role,
+      settings.icon_data_url, settings.header_eyebrow, settings.display_title
     FROM dbi_workspace_memberships membership
     JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id
+    LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
     WHERE membership.user_id = ? AND workspace.status = 'active'
     ORDER BY workspace.name COLLATE NOCASE
   `).bind(userId).all();
@@ -530,6 +541,9 @@ async function workspacesForUser(db, userId) {
     name: workspace.name,
     slug: workspace.slug,
     description: workspace.description || "",
+    iconDataUrl: workspace.icon_data_url || "",
+    headerEyebrow: workspace.header_eyebrow || DEFAULT_HEADER_EYEBROW,
+    displayTitle: workspace.display_title || DEFAULT_DISPLAY_TITLE,
     roleId: workspace.role,
     role: ROLE_LABELS[workspace.role] || "Viewer",
   }));
@@ -563,7 +577,15 @@ function canAdministerUsers(user) {
 }
 
 function canAdministerWorkspaces(user) {
-  return Boolean(user && user.role === "super_user");
+  return Boolean(user && (user.role === "super_user" || user.membership_role === "administrator"));
+}
+
+async function canAdministerWorkspace(db, user, workspaceId) {
+  if (user?.role === "super_user") return true;
+  if (!user || String(user.active_workspace_id || "") !== String(workspaceId || "")) return false;
+  const membership = await db.prepare("SELECT role FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?")
+    .bind(workspaceId, user.user_id).first();
+  return membership?.role === "administrator";
 }
 
 function scopesForRole(role) {
@@ -1038,6 +1060,9 @@ function workspaceSummary(row, membership = null, request = null) {
     name: row.name,
     slug: row.slug,
     description: row.description || "",
+    iconDataUrl: row.icon_data_url || "",
+    headerEyebrow: row.header_eyebrow || DEFAULT_HEADER_EYEBROW,
+    displayTitle: row.display_title || DEFAULT_DISPLAY_TITLE,
     status: row.status,
     ownerUserId: row.owner_user_id || "",
     roleId: membership?.role || null,
@@ -1059,7 +1084,9 @@ async function workspacesResponse(request, db) {
 
   if (request.method === "GET" && !workspaceId) {
     const [workspaceResult, membershipResult, requestResult] = await Promise.all([
-      db.prepare("SELECT * FROM dbi_workspaces WHERE status = 'active' ORDER BY name COLLATE NOCASE").all(),
+      db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title
+        FROM dbi_workspaces workspace LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+        WHERE workspace.status = 'active' ORDER BY workspace.name COLLATE NOCASE`).all(),
       db.prepare("SELECT workspace_id, role FROM dbi_workspace_memberships WHERE user_id = ?").bind(user.user_id).all(),
       db.prepare("SELECT workspace_id, status FROM dbi_workspace_access_requests WHERE user_id = ? ORDER BY created_at DESC").bind(user.user_id).all(),
     ]);
@@ -1110,14 +1137,15 @@ async function workspaceAdminResponse(request, db) {
   if (!sameOrigin(request)) return json({ error: "Cross-origin workspace administration is not allowed" }, 403);
   const owner = await sessionUser(db, request);
   if (!owner) return json({ error: "Sign in required" }, 401);
-  if (!canAdministerWorkspaces(owner)) return json({ error: "Super user access is required" }, 403);
+  if (!canAdministerWorkspaces(owner)) return json({ error: "Workspace manager access is required" }, 403);
+  const isSuperUser = owner.role === "super_user";
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
   const relative = pathname.slice("/api/v1/auth/workspace-admin".length).replace(/^\//, "");
   const segments = relative.split("/").filter(Boolean).map((value) => cleanText(decodeURIComponent(value), 80));
 
   if (request.method === "GET" && !segments.length) {
     const [workspaceResult, membershipResult, requestResult, userResult] = await Promise.all([
-      db.prepare(`SELECT workspace.*,
+      db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title,
         (SELECT COUNT(*) FROM dbi_workspace_memberships membership WHERE membership.workspace_id = workspace.workspace_id) AS member_count,
         (SELECT COUNT(*) FROM dbi_workspace_access_requests access_request WHERE access_request.workspace_id = workspace.workspace_id AND access_request.status = 'pending') AS pending_request_count,
         (SELECT COUNT(*) FROM dbi_workspace_watchlist tracked WHERE tracked.workspace_id = workspace.workspace_id) AS tracked_record_count,
@@ -1128,16 +1156,21 @@ async function workspaceAdminResponse(request, db) {
         (SELECT COUNT(*) FROM dbi_workspace_activity activity WHERE activity.workspace_id = workspace.workspace_id) AS activity_count,
         (SELECT MAX(activity.occurred_at) FROM dbi_workspace_activity activity WHERE activity.workspace_id = workspace.workspace_id) AS last_activity_at,
         (SELECT COUNT(*) FROM dbi_workspace_agent_keys agent_key WHERE agent_key.workspace_id = workspace.workspace_id AND agent_key.revoked_at = '' AND (agent_key.expires_at = '' OR agent_key.expires_at > CURRENT_TIMESTAMP)) AS active_agent_key_count
-        FROM dbi_workspaces workspace ORDER BY workspace.status, workspace.name COLLATE NOCASE`).all(),
+        FROM dbi_workspaces workspace
+        LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+        WHERE (? = 1 OR workspace.workspace_id = ?)
+        ORDER BY workspace.status, workspace.name COLLATE NOCASE`).bind(isSuperUser ? 1 : 0, owner.active_workspace_id || "").all(),
       db.prepare(`SELECT membership.*, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
         FROM dbi_workspace_memberships membership JOIN dbi_users user ON user.user_id = membership.user_id
         LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
-        ORDER BY user.display_name COLLATE NOCASE`).all(),
+        WHERE (? = 1 OR membership.workspace_id = ?)
+        ORDER BY user.display_name COLLATE NOCASE`).bind(isSuperUser ? 1 : 0, owner.active_workspace_id || "").all(),
       db.prepare(`SELECT access_request.*, user.email, user.display_name, user.title, workspace.name AS workspace_name
         FROM dbi_workspace_access_requests access_request
         JOIN dbi_users user ON user.user_id = access_request.user_id
         JOIN dbi_workspaces workspace ON workspace.workspace_id = access_request.workspace_id
-        ORDER BY CASE access_request.status WHEN 'pending' THEN 0 ELSE 1 END, access_request.created_at DESC`).all(),
+        WHERE (? = 1 OR access_request.workspace_id = ?)
+        ORDER BY CASE access_request.status WHEN 'pending' THEN 0 ELSE 1 END, access_request.created_at DESC`).bind(isSuperUser ? 1 : 0, owner.active_workspace_id || "").all(),
       db.prepare(`SELECT user.user_id, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
         FROM dbi_users user LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
         WHERE user.status = 'active' ORDER BY user.display_name COLLATE NOCASE`).all(),
@@ -1176,6 +1209,7 @@ async function workspaceAdminResponse(request, db) {
   }
 
   if (request.method === "POST" && segments[0] === "workspaces" && segments.length === 1) {
+    if (!isSuperUser) return json({ error: "Super user access is required to create workspaces" }, 403);
     const body = await safeJson(request);
     const name = cleanText(body?.name, 80);
     const description = cleanText(body?.description, 240);
@@ -1190,9 +1224,13 @@ async function workspaceAdminResponse(request, db) {
       VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`)
       .bind(workspaceId, name, slug, description, owner.user_id, now, now).run();
     if (!Number(created?.meta?.changes || 0)) return json({ error: "A workspace with that name already exists" }, 409);
-    await db.prepare(`INSERT INTO dbi_workspace_memberships
-      (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, 'super_user', ?, ?, ?)`)
-      .bind(workspaceId, owner.user_id, owner.user_id, now, now).run();
+    await db.batch([
+      db.prepare(`INSERT INTO dbi_workspace_memberships
+        (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, 'super_user', ?, ?, ?)`)
+        .bind(workspaceId, owner.user_id, owner.user_id, now, now),
+      db.prepare(`INSERT INTO dbi_workspace_settings (workspace_id, icon_data_url, header_eyebrow, display_title, updated_at)
+        VALUES (?, '', ?, ?, ?)`).bind(workspaceId, DEFAULT_HEADER_EYEBROW, DEFAULT_DISPLAY_TITLE, now),
+    ]);
     await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_created", "workspace", workspaceId, { name });
     const row = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
     return json({ workspace: workspaceSummary(row, { role: "super_user" }) }, 201);
@@ -1200,20 +1238,33 @@ async function workspaceAdminResponse(request, db) {
 
   if (request.method === "PATCH" && segments[0] === "workspaces" && segments[1] && segments.length === 2) {
     const workspaceId = segments[1];
+    if (!await canAdministerWorkspace(db, owner, workspaceId)) return json({ error: "Workspace manager access is required" }, 403);
     const workspace = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
     if (!workspace) return json({ error: "Workspace not found" }, 404);
     const body = await safeJson(request);
     const name = cleanText(body?.name, 80);
     const description = cleanText(body?.description, 240);
+    const iconDataUrl = validAvatarDataUrl(body?.iconDataUrl);
+    const headerEyebrow = cleanText(body?.headerEyebrow || DEFAULT_HEADER_EYEBROW, 80);
+    const displayTitle = cleanText(body?.displayTitle || DEFAULT_DISPLAY_TITLE, 80);
     if (name.length < 2) return json({ error: "A valid workspace name is required" }, 400);
+    if (iconDataUrl === null || headerEyebrow.length < 2 || displayTitle.length < 2) return json({ error: "Valid workspace branding is required" }, 400);
     const duplicate = await db.prepare("SELECT workspace_id FROM dbi_workspaces WHERE LOWER(name) = LOWER(?) AND workspace_id <> ?")
       .bind(name, workspaceId).first();
     if (duplicate) return json({ error: "A workspace with that name already exists" }, 409);
     const now = new Date().toISOString();
-    await db.prepare("UPDATE dbi_workspaces SET name = ?, description = ?, updated_at = ? WHERE workspace_id = ?")
-      .bind(name, description, now, workspaceId).run();
+    await db.batch([
+      db.prepare("UPDATE dbi_workspaces SET name = ?, description = ?, updated_at = ? WHERE workspace_id = ?")
+        .bind(name, description, now, workspaceId),
+      db.prepare(`INSERT INTO dbi_workspace_settings (workspace_id, icon_data_url, header_eyebrow, display_title, updated_at)
+        VALUES (?, ?, ?, ?, ?) ON CONFLICT(workspace_id) DO UPDATE SET icon_data_url = excluded.icon_data_url,
+        header_eyebrow = excluded.header_eyebrow, display_title = excluded.display_title, updated_at = excluded.updated_at`)
+        .bind(workspaceId, iconDataUrl, headerEyebrow, displayTitle, now),
+    ]);
     await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_updated", "workspace", workspaceId, { previousName: workspace.name, name, description });
-    const row = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
+    const row = await db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title
+      FROM dbi_workspaces workspace LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+      WHERE workspace.workspace_id = ?`).bind(workspaceId).first();
     return json({ workspace: workspaceSummary(row) });
   }
 
@@ -1221,6 +1272,7 @@ async function workspaceAdminResponse(request, db) {
     const accessRequest = await db.prepare("SELECT * FROM dbi_workspace_access_requests WHERE request_id = ?").bind(segments[1]).first();
     if (!accessRequest) return json({ error: "Access request not found" }, 404);
     if (accessRequest.status !== "pending") return json({ error: "Access request is already resolved" }, 409);
+    if (!await canAdministerWorkspace(db, owner, accessRequest.workspace_id)) return json({ error: "Workspace manager access is required" }, 403);
     const body = await safeJson(request);
     const decision = cleanText(body?.decision, 20);
     const role = cleanText(body?.role, 32) || "viewer";
@@ -1248,6 +1300,7 @@ async function workspaceAdminResponse(request, db) {
 
   if (segments[0] === "workspaces" && segments[1] && segments[2] === "members") {
     const workspaceId = segments[1];
+    if (!await canAdministerWorkspace(db, owner, workspaceId)) return json({ error: "Workspace manager access is required" }, 403);
     const workspace = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ? AND status = 'active'").bind(workspaceId).first();
     if (!workspace) return json({ error: "Workspace not found" }, 404);
     if (request.method === "POST" && segments.length === 3) {

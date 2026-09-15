@@ -21,7 +21,8 @@ import {
   X,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
-import ProductMark from "./ProductMark.jsx";
+import WorkspaceMark from "./WorkspaceMark.jsx";
+import UserAvatar from "./UserAvatar.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { AgentAccessPanel } from "./ProfilePage.jsx";
 import { useAuth } from "./AuthContext.jsx";
@@ -295,7 +296,7 @@ function ActivityView({ activity, records, remote }) {
   return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <OperationalDataTable id="api-activity" label="API and activity log" rows={activity} columns={columns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="api-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
-function WallboardView({ records, watchlist, events, asOf, workspaceName }) {
+function WallboardView({ records, watchlist, events, asOf, workspace }) {
   const [mode, setMode] = useState("events");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -339,7 +340,7 @@ function WallboardView({ records, watchlist, events, asOf, workspaceName }) {
   const reviewsDue = watchlist.filter((entry) => entry.reviewAt && entry.reviewAt >= asOf && entry.reviewAt <= reviewHorizon).length;
   return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode} data-wallboard-fullscreen={isFullscreen ? "true" : "false"}>
     <header className="ops-wallboard__masthead">
-      <div className="ops-wallboard__brand"><ProductMark eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>Defense Budget Intelligence</h2>{isFullscreen ? <p data-wallboard-workspace>{workspaceName}</p> : null}</div></div>
+      <div className="ops-wallboard__brand"><WorkspaceMark workspace={workspace} eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>{workspace?.displayTitle || "Defense Budget Intelligence"}</h2>{isFullscreen ? <p data-wallboard-workspace>{workspace?.name || "Local workspace"}</p> : null}</div></div>
       <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
     </header>
     {!isFullscreen ? <div className="ops-wallboard__toolbar">
@@ -352,7 +353,7 @@ function WallboardView({ records, watchlist, events, asOf, workspaceName }) {
       <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
     </div> : null}
-    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
 }
 
@@ -436,7 +437,7 @@ function CalendarHoverCard({ hover }) {
   </aside>, document.body);
 }
 
-function WallboardCalendar({ events, month, onMonthChange, now }) {
+function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
   const [hover, setHover] = useState(null);
   const days = monthCalendarDays(month);
   const today = now.toISOString().slice(0, 10);
@@ -457,7 +458,7 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
   }
   return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
     <header>
-      <div><span>Operator calendar</span><strong>{monthLabel}</strong></div>
+      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong>{monthLabel}</strong></span></div>
       <div className="ops-wall-calendar__controls">
         <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
         <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
@@ -479,7 +480,7 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
             return <div key={item.id} role="button" tabIndex="0" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>
+              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} size={18} />)}{event.attendees.length > 3 ? <b>+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
         </section>;
@@ -571,9 +572,9 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "integrations" ? <IntegrationsView dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
-    {view === "workspaces" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Only the Super user can manage workspace membership and requests.</p></section> : null}
+    {view === "workspaces" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure workspace identity, membership, or requests.</p></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} workspaceName={auth?.user?.activeWorkspace?.name || "Local workspace"} /> : null}
+    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;

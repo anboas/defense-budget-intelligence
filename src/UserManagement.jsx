@@ -3,7 +3,7 @@ import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, 
 import UserAvatar from "./UserAvatar.jsx";
 
 const ROLE_LABELS = {
-  administrator: "Administrator",
+  administrator: "Workspace manager",
   analyst: "Analyst",
   viewer: "Viewer",
 };
@@ -145,7 +145,7 @@ export default function UserManagement({ auth }) {
     <div className="user-management__metrics" aria-label="User access summary">
       <article><span>Total users</span><strong>{users.length}</strong></article>
       <article><span>Active</span><strong>{activeCount}</strong></article>
-      <article><span>Administrators</span><strong>{adminCount}</strong></article>
+      <article><span>Workspace managers</span><strong>{adminCount}</strong></article>
       <article><span>Active sessions</span><strong>{sessionCount}</strong></article>
     </div>
 
