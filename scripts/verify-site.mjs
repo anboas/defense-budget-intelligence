@@ -1402,6 +1402,7 @@ try {
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
     controls: document.querySelector(".analytics-commandbar")?.getBoundingClientRect().height || 0,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
+    briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
     briefColumns: getComputedStyle(document.querySelector("[data-analytics-insights] .if-metric-grid")).gridTemplateColumns.split(" ").filter(Boolean).length,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
@@ -1410,7 +1411,8 @@ try {
   assert.equal(await mobile.locator("[data-analytics-insight]").count(), 4, "Mobile Analytics should retain the complete factual brief");
   assert.equal(compactAnalyticsGeometry.briefColumns, 2, "Mobile factual signals should use the framework two-column compact grid");
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
-  assert.ok(compactAnalyticsGeometry.firstChartTop <= 930, `Mobile Analytics should place the first chart immediately after the factual brief, got ${compactAnalyticsGeometry.firstChartTop}px`);
+  const compactAnalyticsChartGap = compactAnalyticsGeometry.firstChartTop - compactAnalyticsGeometry.briefBottom;
+  assert.ok(compactAnalyticsChartGap >= 0 && compactAnalyticsChartGap <= 24, `Mobile Analytics should place the first chart immediately after the factual brief, got a ${compactAnalyticsChartGap}px gap`);
   assert.ok(await mobile.locator('.analytics-commandbar button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
   await mobile.locator("[data-analytics-manager] summary").click();
   const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
