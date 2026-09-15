@@ -156,11 +156,11 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   }
 
   return (
-    <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
+    <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--mobile-condensed if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
         <a href={routes.calendar} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Transactions" title="Go to Transactions">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
-          <span className="masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
+          <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
         </a>
 
         <nav ref={navRef} className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">

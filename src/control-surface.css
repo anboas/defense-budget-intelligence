@@ -1654,6 +1654,17 @@ code {
   height: 2rem;
 }
 
+.if-product-header__copy {
+  display: grid;
+  min-width: 0;
+}
+
+.if-product-header__account {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-inline-start: auto;
+}
+
 .if-operations-topnav {
   display: flex;
   flex: 1 1 auto;
@@ -1786,6 +1797,72 @@ code {
   .if-product-header--masthead.if-product-header--compact {
     margin-block-start: 0;
     padding-inline: 0;
+  }
+
+  .if-product-header.if-product-header--masthead.if-product-header--compact.if-product-header--mobile-condensed {
+    min-height: 0;
+    padding: 0 var(--if-space-2);
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 var(--if-space-2);
+    padding-inline: 0;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__brand {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 2.5rem;
+    gap: var(--if-space-2);
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__brand .if-brand__mark {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-basis: 1.75rem;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__eyebrow {
+    display: none;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__title {
+    overflow: hidden;
+    font-size: 1rem;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__account {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    width: auto;
+    height: auto;
+    margin-inline-start: 0;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-product-header__account > :first-child {
+    position: relative;
+    inset: auto;
+    min-height: 2.75rem;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed .if-operations-topnav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 2.75rem;
+    margin-inline-start: 0;
+    padding: 0;
+  }
+
+  .if-product-header.if-product-header--mobile-condensed :is(.if-operations-topnav__link, .if-operations-topnav__secondary-button) {
+    min-height: 2.75rem;
   }
 
   .if-operations-topnav {

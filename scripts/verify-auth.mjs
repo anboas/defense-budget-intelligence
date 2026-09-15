@@ -445,6 +445,14 @@ try {
   await page.waitForSelector("[data-defense-budget-app]");
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `Authenticated mobile shell should not overflow, got ${overflow}px`);
+  const authenticatedHeader = await page.locator("[data-budget-spend-header]").evaluate((node) => ({
+    height: node.getBoundingClientRect().height,
+    condensed: node.classList.contains("if-product-header--mobile-condensed"),
+    eyebrow: getComputedStyle(node.querySelector(".if-product-header__eyebrow")).display,
+  }));
+  assert.equal(authenticatedHeader.condensed, true, "Authenticated mobile navigation should consume the Control Surface condensed header variant");
+  assert.ok(authenticatedHeader.height <= 92, `Authenticated mobile masthead should remain within the 92px Control Surface contract, got ${authenticatedHeader.height}px`);
+  assert.equal(authenticatedHeader.eyebrow, "none", "Authenticated mobile masthead should suppress only the secondary eyebrow");
   await page.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile More should retain all grouped routes including Workspace and Super admin");
   assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Users[\s\S]*Agent Access[\s\S]*Super admin[\s\S]*Workspaces/i);

@@ -31,7 +31,7 @@ export default function ProfileMenu() {
 
   return (
     <div
-      className="if-popover if-account-popover ci-profile-menu profile-menu"
+      className="if-popover if-account-popover if-product-header__account ci-profile-menu profile-menu"
       data-profile-menu
       ref={menuRef}
       style={{ position: "relative", flex: "0 0 auto", marginLeft: "auto" }}

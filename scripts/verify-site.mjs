@@ -1260,7 +1260,8 @@ try {
   await assertFlowShell(mobile);
   const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav], .ci-header-nav > .if-operations-topnav__secondary > button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileNavHeights.filter(Boolean).every((height) => height >= 43.5), `Mobile navigation controls should preserve 44px touch targets: ${mobileNavHeights.join(", ")}`);
-  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 108, "Mobile masthead should remain compact while preserving 44px navigation targets");
+  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 92, "Mobile masthead should use the Control Surface condensed variant while preserving 44px navigation targets");
+  assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose every Analytics, Money flow, and Workspace route in grouped Control Framework cards");
   assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
@@ -1399,7 +1400,7 @@ try {
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
-  assert.ok(narrowAnalyticsGeometry.header <= 108, `360px masthead should stay compact while preserving 44px navigation targets, got ${narrowAnalyticsGeometry.header}px`);
+  assert.ok(narrowAnalyticsGeometry.header <= 92, `360px masthead should use the Control Surface condensed variant while preserving 44px navigation targets, got ${narrowAnalyticsGeometry.header}px`);
   assert.ok(narrowAnalyticsGeometry.hero <= 205, `360px Analytics hero should stay compact, got ${narrowAnalyticsGeometry.hero}px`);
   assert.ok(narrowAnalyticsGeometry.firstChartTop <= 610, `360px Analytics should surface its first chart without a second screen of chrome, got ${narrowAnalyticsGeometry.firstChartTop}px`);
   await assertNoPageOverflow(mobile, "360px Analytics");
