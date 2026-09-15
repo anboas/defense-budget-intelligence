@@ -12164,6 +12164,15 @@ td .dot {
   border-radius: 0;
   background: #edf3f7;
 }
+.ops-wallboard[data-wallboard-fullscreen="true"] .ops-wallboard__masthead {
+  min-height: clamp(72px, 5vw, 132px);
+  padding-block: clamp(12px, .8vw, 22px);
+}
+.ops-wallboard[data-wallboard-fullscreen="true"] .ops-wallboard__time { align-items: center; }
+.ops-wallboard[data-wallboard-fullscreen="true"] .ops-wallboard__time strong { font-size: clamp(28px, 1.8vw, 54px); }
+.ops-wallboard[data-wallboard-fullscreen="true"] .ops-wallboard__section > header span,
+.ops-wallboard[data-wallboard-fullscreen="true"] .ops-wallboard__section > header > b,
+.ops-wallboard[data-wallboard-fullscreen="true"] .ops-wall-calendar__controls { display: none !important; }
 .ops-wallboard__masthead {
   display: flex;
   align-items: center;

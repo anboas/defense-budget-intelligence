@@ -329,26 +329,29 @@ function WallboardView({ records, watchlist, events, asOf }) {
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen?.();
-      else await ref.current?.requestFullscreen?.();
+      else {
+        setRotate(false);
+        await ref.current?.requestFullscreen?.();
+      }
     } catch { /* The board remains usable without browser fullscreen permission. */ }
   }
   const now = new Date(clock);
   const reviewsDue = watchlist.filter((entry) => entry.reviewAt && entry.reviewAt >= asOf && entry.reviewAt <= reviewHorizon).length;
   return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode} data-wallboard-fullscreen={isFullscreen ? "true" : "false"}>
     <header className="ops-wallboard__masthead">
-      <div className="ops-wallboard__brand"><ProductMark eager /><div><span>Conference room display</span><h2>Defense Budget Intelligence</h2></div></div>
-      <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong><span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span></time><small>Data through {compactDate(asOf)}</small></div>
+      <div className="ops-wallboard__brand"><ProductMark eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>Defense Budget Intelligence</h2></div></div>
+      <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
     </header>
-    <div className="ops-wallboard__toolbar">
+    {!isFullscreen ? <div className="ops-wallboard__toolbar">
       <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button></nav>
       <div><button type="button" aria-pressed={rotate} onClick={() => setRotate((value) => !value)}>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</button><button type="button" aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</button></div>
-    </div>
-    <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
+    </div> : null}
+    {!isFullscreen ? <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
       <article><span>Tracked records</span><strong>{visibleRecords.length}</strong><small>Enabled for this display</small></article>
       <article><span>Upcoming events</span><strong>{upcomingEvents.length}</strong><small>Scheduled operator activity</small></article>
       <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
-    </div>
+    </div> : null}
     {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
 }

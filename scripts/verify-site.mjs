@@ -632,6 +632,42 @@ try {
   await assertNoPageOverflow(page, "1080p event calendar");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-1080p.png` });
 
+  await page.getByRole("button", { name: "Auto-cycle off" }).click();
+  await page.getByRole("button", { name: "Enter kiosk" }).click();
+  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "true");
+  const calendarKioskGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
+    mode: node.dataset.wallboardMode,
+    width: node.getBoundingClientRect().width,
+    height: node.getBoundingClientRect().height,
+    viewportWidth: innerWidth,
+    viewportHeight: innerHeight,
+    toolbarCount: node.querySelectorAll(".ops-wallboard__toolbar").length,
+    metricsCount: node.querySelectorAll(".ops-wallboard__metrics").length,
+    brandTitleCount: node.querySelectorAll(".ops-wallboard__brand h2").length,
+    brandEyebrowVisible: node.querySelector(".ops-wallboard__brand span")?.getBoundingClientRect().height > 0,
+    clockCount: node.querySelectorAll(".ops-wallboard__time strong").length,
+    clockSupportingCopy: node.querySelectorAll(".ops-wallboard__time span, .ops-wallboard__time small").length,
+    calendarControlsVisible: [...node.querySelectorAll(".ops-wall-calendar__controls")].some((control) => control.getBoundingClientRect().height > 0),
+    sectionEyebrowsVisible: [...node.querySelectorAll(".ops-wallboard__section > header span")].some((item) => item.getBoundingClientRect().height > 0),
+    sectionCountsVisible: [...node.querySelectorAll(".ops-wallboard__section > header > b")].some((item) => item.getBoundingClientRect().height > 0),
+  }));
+  assert.equal(calendarKioskGeometry.mode, "calendar", "Entering kiosk should preserve the selected wallboard view");
+  assert.ok(Math.abs(calendarKioskGeometry.width - calendarKioskGeometry.viewportWidth) <= 1 && Math.abs(calendarKioskGeometry.height - calendarKioskGeometry.viewportHeight) <= 1, `Calendar kiosk should fill the viewport, got ${calendarKioskGeometry.width}×${calendarKioskGeometry.height}`);
+  assert.equal(calendarKioskGeometry.toolbarCount, 0, "Kiosk should remove the wallboard mode and rotation configuration");
+  assert.equal(calendarKioskGeometry.metricsCount, 0, "Kiosk should remove the summary KPI strip");
+  assert.equal(calendarKioskGeometry.brandTitleCount, 1, "Kiosk should retain the Defense Budget Intelligence identity");
+  assert.equal(calendarKioskGeometry.brandEyebrowVisible, false, "Kiosk should remove the conference-room eyebrow");
+  assert.equal(calendarKioskGeometry.clockCount, 1, "Kiosk should retain one current-time display");
+  assert.equal(calendarKioskGeometry.clockSupportingCopy, 0, "Kiosk should remove date and data-cutoff copy from the clock");
+  assert.equal(calendarKioskGeometry.calendarControlsVisible, false, "Kiosk should hide calendar navigation and count controls");
+  assert.equal(calendarKioskGeometry.sectionEyebrowsVisible, false, "Kiosk should hide secondary section labels");
+  assert.equal(calendarKioskGeometry.sectionCountsVisible, false, "Kiosk should hide secondary section count badges");
+  await assertNoPageOverflow(page, "Minimal calendar kiosk");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-kiosk-1080p.png` });
+  await page.evaluate(() => document.exitFullscreen());
+  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "false");
+  assert.equal(await page.getByRole("button", { name: "Auto-cycle off" }).getAttribute("aria-pressed"), "false", "Entering kiosk should freeze the selected view by disabling auto-cycle");
+
   await page.getByRole("button", { name: "Next month" }).click();
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /October 2026/, "Calendar month navigation should advance one month");
   assert.equal(await page.locator('[data-calendar-event="event-ausa-annual-meeting-2026"]').count(), 1, "October should show AUSA as one multi-day bar");
@@ -653,6 +689,23 @@ try {
   assert.equal(fourKCalendarGeometry.columns, 7, "4K calendar should preserve its seven-column structure");
   await assertNoPageOverflow(page, "4K event calendar");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-4k.png` });
+  await page.getByRole("button", { name: "Enter kiosk" }).click();
+  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "true");
+  const fourKCalendarKioskGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
+    toolbarCount: node.querySelectorAll(".ops-wallboard__toolbar").length,
+    metricsCount: node.querySelectorAll(".ops-wallboard__metrics").length,
+    clockSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__time strong")).fontSize),
+    calendarBottom: node.querySelector("[data-wallboard-calendar]").getBoundingClientRect().bottom,
+    viewportHeight: innerHeight,
+  }));
+  assert.equal(fourKCalendarKioskGeometry.toolbarCount, 0, "4K kiosk should remove wallboard configuration");
+  assert.equal(fourKCalendarKioskGeometry.metricsCount, 0, "4K kiosk should remove summary metrics");
+  assert.ok(fourKCalendarKioskGeometry.clockSize >= 50, `4K kiosk clock should remain distance-readable, got ${fourKCalendarKioskGeometry.clockSize}px`);
+  assert.ok(fourKCalendarKioskGeometry.calendarBottom >= fourKCalendarKioskGeometry.viewportHeight - 50, `4K kiosk calendar should consume the freed display height, ending at ${fourKCalendarKioskGeometry.calendarBottom}px of ${fourKCalendarKioskGeometry.viewportHeight}px`);
+  await assertNoPageOverflow(page, "Minimal 4K calendar kiosk");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-kiosk-4k.png` });
+  await page.evaluate(() => document.exitFullscreen());
+  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "false");
 
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileCalendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
@@ -711,10 +764,13 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/wallboard-1080p.png` });
   await page.getByRole("button", { name: "Enter kiosk" }).click();
   await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "true");
-  const fullscreenGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, viewportWidth: innerWidth, viewportHeight: innerHeight }));
+  const fullscreenGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, viewportWidth: innerWidth, viewportHeight: innerHeight, toolbarCount: node.querySelectorAll(".ops-wallboard__toolbar").length, metricsCount: node.querySelectorAll(".ops-wallboard__metrics").length }));
   assert.ok(Math.abs(fullscreenGeometry.width - fullscreenGeometry.viewportWidth) <= 1 && Math.abs(fullscreenGeometry.height - fullscreenGeometry.viewportHeight) <= 1, `Kiosk mode should fill the viewport, got ${fullscreenGeometry.width}×${fullscreenGeometry.height}`);
+  assert.equal(fullscreenGeometry.toolbarCount, 0, "Every kiosk view should remove wallboard configuration");
+  assert.equal(fullscreenGeometry.metricsCount, 0, "Every kiosk view should remove summary metrics");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-kiosk-1080p.png` });
-  await page.getByRole("button", { name: "Exit kiosk" }).click();
+  await page.evaluate(() => document.exitFullscreen());
+  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "false");
   await page.setViewportSize({ width: 3840, height: 2160 });
   const fourKGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
     height: node.getBoundingClientRect().height,
