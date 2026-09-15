@@ -596,6 +596,24 @@ try {
       lastCellBottom: rects.at(-1).bottom,
       gridBottom: grid.getBoundingClientRect().bottom,
       eventSize: parseFloat(getComputedStyle(node.querySelector("[data-calendar-event] strong")).fontSize),
+      eventCopy: (() => {
+        const bar = node.querySelector('[data-calendar-event="event-air-space-cyber-conference-2026"]');
+        const copy = bar.querySelector(".ops-wall-calendar__bar-copy");
+        const title = copy.querySelector("strong");
+        const location = copy.querySelector("span");
+        const barBox = bar.getBoundingClientRect();
+        const copyBox = copy.getBoundingClientRect();
+        const titleBox = title.getBoundingClientRect();
+        const locationBox = location.getBoundingClientRect();
+        return {
+          stacked: locationBox.top >= titleBox.bottom - 1,
+          copyUsesSpan: copyBox.width >= barBox.width * .9,
+          titleUsesCopyWidth: titleBox.width >= copyBox.width - 1,
+          locationUsesCopyWidth: locationBox.width >= copyBox.width - 1,
+          contained: titleBox.right <= barBox.right + 1 && locationBox.right <= barBox.right + 1 && locationBox.bottom <= barBox.bottom + 1,
+          lineCount: copy.children.length,
+        };
+      })(),
       writeControls: node.querySelectorAll("[data-calendar-event] button, [data-calendar-event] input, [data-calendar-event] textarea, [data-calendar-event] select").length,
     };
   });
@@ -603,6 +621,12 @@ try {
   assert.equal(calendarGeometry.rows, 6, "Desktop calendar should retain six stable week rows");
   assert.ok(calendarGeometry.firstCellHeight >= 100, `1080p calendar dates should remain distance-readable, got ${calendarGeometry.firstCellHeight}px cells`);
   assert.ok(calendarGeometry.eventSize >= 12, `1080p calendar event labels should remain readable, got ${calendarGeometry.eventSize}px`);
+  assert.equal(calendarGeometry.eventCopy.stacked, true, "Calendar event title and location should render on separate lines");
+  assert.equal(calendarGeometry.eventCopy.copyUsesSpan, true, "Calendar copy should use the full event-bar span");
+  assert.equal(calendarGeometry.eventCopy.titleUsesCopyWidth, true, "Calendar event titles should receive the full copy width before truncation");
+  assert.equal(calendarGeometry.eventCopy.locationUsesCopyWidth, true, "Calendar event locations should receive the full copy width before truncation");
+  assert.equal(calendarGeometry.eventCopy.contained, true, "Stacked calendar copy must remain inside its event bar");
+  assert.equal(calendarGeometry.eventCopy.lineCount, 2, "Calendar bars should reserve exactly two unclipped lines for title and location");
   assert.ok(calendarGeometry.lastCellBottom <= calendarGeometry.gridBottom + 1, "Every calendar week should fit within the 1080p wallboard");
   assert.equal(calendarGeometry.writeControls, 0, "Calendar event entries should remain read-only");
   await assertNoPageOverflow(page, "1080p event calendar");

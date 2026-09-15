@@ -474,10 +474,9 @@ function WallboardCalendar({ events, month, onMonthChange, now }) {
           <div className="ops-wall-calendar__bars">{segments.map((item) => {
             const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
             const countdown = eventCountdown(event, now);
-            const attendees = event.attendees || [];
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
             return <div key={item.id} role="button" tabIndex="0" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" /><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span>{!milestone && attendees.length ? <small>{attendees.map((attendee) => attendee.displayName).join(" · ")}</small> : null}
+              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>
             </div>;
           })}</div>
         </section>;

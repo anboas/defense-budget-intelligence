@@ -12556,7 +12556,7 @@ td .dot {
   inset: clamp(30px, 1.9vw, 46px) clamp(3px, .24vw, 6px) 4px;
   align-content: start;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(var(--calendar-lanes), clamp(28px, 1.7vw, 52px));
+  grid-template-rows: repeat(var(--calendar-lanes), clamp(42px, 2.4vw, 70px));
   gap: clamp(3px, .22vw, 6px) 0;
   pointer-events: none;
 }
@@ -12564,7 +12564,7 @@ td .dot {
   display: flex;
   position: relative;
   min-width: 0;
-  align-items: center;
+  align-items: flex-start;
   gap: clamp(4px, .34vw, 9px);
   overflow: hidden;
   padding: clamp(3px, .22vw, 6px) clamp(6px, .45vw, 11px);
@@ -12614,16 +12614,22 @@ td .dot {
 .ops-wall-calendar__bar--milestone:hover,
 .ops-wall-calendar__bar--milestone:focus-visible { background: #ddd8f1; box-shadow: inset 0 0 0 2px currentColor; }
 .ops-wall-calendar__bar > i { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: currentColor; }
+.ops-wall-calendar__bar-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-content: center;
+  align-self: stretch;
+  gap: clamp(1px, .08vw, 3px);
+}
 .ops-wall-calendar__bar strong {
   overflow: hidden;
-  flex: 0 1 auto;
   font-size: clamp(10px, calc(7px + .45vw), 22px);
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ops-wall-calendar__bar span,
-.ops-wall-calendar__bar small {
+.ops-wall-calendar__bar span {
   overflow: hidden;
   color: #46657c;
   font-size: clamp(8px, calc(5px + .35vw), 18px);
@@ -12632,7 +12638,6 @@ td .dot {
   white-space: nowrap;
 }
 .ops-wall-calendar__bar span { flex: 1 1 auto; }
-.ops-wall-calendar__bar small { flex: 0 1 auto; color: #244d6d; font-weight: 850; }
 .ops-wall-calendar-tooltip { width: min(380px, calc(100vw - 16px)); border-top-color: #075b96; }
 .ops-wall-calendar-tooltip[data-kind="milestone"] { border-top-color: #5c4d9b; }
 .ops-wall-calendar-tooltip dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
