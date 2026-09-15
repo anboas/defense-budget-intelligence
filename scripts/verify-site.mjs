@@ -1106,6 +1106,14 @@ try {
   assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Overview should expose six focused factual D3 views");
   assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 6, "Every visible Overview view should render its analytical SVG");
   assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 1, "Overview should include a logarithmic reported-value distribution");
+  assert.equal(await page.locator("[data-analytics-insight]").count(), 4, "Every analytics workspace should start with four recomputed factual signals");
+  assert.match(await page.locator("[data-analytics-insights]").innerText(), /Leading work category[\s\S]*Leading recipient[\s\S]*Schedule coverage/i, "Overview signals should summarize concentration, near-term schedule, and coverage");
+  assert.equal(await page.locator("[data-analytics-legend]").count(), 6, "Every visible chart should explain its visual encoding");
+  const insightScopeBefore = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
+  await page.locator('[data-analytics-insight="top-work"]').click();
+  assert.match(await page.locator(".analytics-active-filters").innerText(), /Type of work:/, "Actionable factual signals should open their supporting slice");
+  assert.ok(Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, "")) < insightScopeBefore, "Insight drilldown should reduce the analytical universe");
+  await page.locator('.analytics-active-filters button').click();
   const analyticsAccessibility = await page.evaluate(() => [...document.querySelectorAll("[data-d3-analytics]")].map((chart) => {
     const interactive = [...chart.querySelectorAll('[role="button"]')];
     const marks = [...chart.querySelectorAll('[role="button"][data-analytics-mark]')];
@@ -1163,6 +1171,8 @@ try {
   await page.locator('.analytics-active-filters button').click();
   await page.getByRole("button", { name: "Schedule" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Schedule should expose five focused temporal views");
+  assert.match(await page.locator("[data-analytics-insights]").innerText(), /Busiest endpoint year[\s\S]*Median reported term[\s\S]*Undated schedule/i, "Schedule signals should summarize timing concentration and completeness");
+  assert.equal(await page.locator("[data-analytics-legend]").count(), 5, "Schedule charts should explain their visual encodings");
   assert.equal(await page.locator('[data-d3-analytics="schedule-horizon"]').count(), 1, "Schedule should include the reported endpoint distribution");
   assert.equal(await page.locator('[data-d3-analytics="endpoint-seasonality"]').count(), 1, "Schedule should include calendar-month endpoint seasonality");
   assert.equal(await page.locator('[data-d3-analytics="duration-distribution"]').count(), 1, "Schedule should include reported term-duration bands");
@@ -1175,6 +1185,7 @@ try {
   await page.locator('.analytics-active-filters button').click();
   await page.getByRole("button", { name: "Spend & structure" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Spend should expose six focused value and structure views");
+  assert.match(await page.locator("[data-analytics-insights]").innerText(), /Leading funding office[\s\S]*Acquisition structure[\s\S]*Subaward-bearing primes/i, "Spend signals should summarize concentration, structure, and subaward attachment");
   assert.equal(await page.locator('[data-d3-analytics="acquisition-matrix"]').count(), 1, "Spend should cross published pricing and competition classifications");
   assert.equal(await page.locator('[data-d3-analytics="subawards"]').count(), 1, "Spend should disclose exactly joined prime-to-subaward concentration");
   assert.equal(await page.locator('[data-d3-analytics="fiscal-trend"]').count(), 1, "Spend should expose annual obligation history by the selected dimension");
@@ -1191,6 +1202,7 @@ try {
   await page.locator('.analytics-reset').click();
   await page.getByRole("button", { name: "Coverage & lineage" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Coverage should expose five focused provenance and quality views");
+  assert.match(await page.locator("[data-analytics-insights]").innerText(), /Source-link coverage[\s\S]*Specific work coding[\s\S]*Snapshot changes/i, "Coverage signals should summarize factual completeness and change detection");
   assert.equal(await page.locator('[data-d3-analytics="provenance"]').count(), 1, "Coverage should include ingestion provenance");
   assert.equal(await page.locator('[data-d3-analytics="changes"]').count(), 1, "Coverage should include refresh changes");
   assert.equal(await page.locator('[data-d3-analytics="field-coverage"]').count(), 1, "Coverage should disclose field coverage");
@@ -1201,16 +1213,16 @@ try {
   await page.locator('.analytics-active-filters button').click();
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
-  await page.waitForSelector('.analytics-modal [role="dialog"]');
-  assert.match(await page.locator('.analytics-modal [role="dialog"]').innerText(), /Observed obligations|Reported potential/i);
-  assert.match(await page.locator('.analytics-modal [role="dialog"] a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
-  assert.equal(await page.locator('.analytics-modal [role="dialog"] header button').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
+  await page.waitForSelector('[data-analytics-record-modal][open]');
+  assert.match(await page.locator('[data-analytics-record-modal][open]').innerText(), /Observed obligations|Reported potential/i);
+  assert.match(await page.locator('[data-analytics-record-modal][open] footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-dialog__close').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
   await page.keyboard.press("Shift+Tab");
-  assert.equal(await page.locator('.analytics-modal [role="dialog"]').evaluate((dialog) => dialog.contains(document.activeElement)), true, "Shift+Tab must wrap within analytical detail");
+  assert.equal(await page.locator('[data-analytics-record-modal][open]').evaluate((dialog) => dialog.contains(document.activeElement)), true, "Shift+Tab must wrap within analytical detail");
   await page.keyboard.press("Tab");
-  assert.equal(await page.locator('.analytics-modal [role="dialog"] header button').evaluate((node) => node === document.activeElement), true, "Tab must wrap back to the first analytical-detail control");
+  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-dialog__close').evaluate((node) => node === document.activeElement), true, "Tab must wrap back to the first analytical-detail control");
   await page.keyboard.press("Escape");
-  await page.waitForSelector('.analytics-modal', { state: "detached" });
+  await page.waitForSelector('[data-analytics-record-modal][open]', { state: "detached" });
   assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
   assert.match(await page.locator("[data-transaction-d3-page]").innerText(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
@@ -1389,11 +1401,16 @@ try {
   const compactAnalyticsGeometry = await mobile.evaluate(() => ({
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
     controls: document.querySelector(".analytics-commandbar")?.getBoundingClientRect().height || 0,
+    brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
+    briefColumns: getComputedStyle(document.querySelector("[data-analytics-insights] .if-metric-grid")).gridTemplateColumns.split(" ").filter(Boolean).length,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
   assert.ok(compactAnalyticsGeometry.hero <= 190, `Mobile Analytics hero should stay compact, got ${compactAnalyticsGeometry.hero}px`);
   assert.ok(compactAnalyticsGeometry.controls <= 235, `Mobile Analytics controls should use a search row plus horizontal secondary rail, got ${compactAnalyticsGeometry.controls}px`);
-  assert.ok(compactAnalyticsGeometry.firstChartTop <= 590, `Mobile Analytics should surface a chart within the first viewport, got ${compactAnalyticsGeometry.firstChartTop}px`);
+  assert.equal(await mobile.locator("[data-analytics-insight]").count(), 4, "Mobile Analytics should retain the complete factual brief");
+  assert.equal(compactAnalyticsGeometry.briefColumns, 2, "Mobile factual signals should use the framework two-column compact grid");
+  assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
+  assert.ok(compactAnalyticsGeometry.firstChartTop <= 930, `Mobile Analytics should place the first chart immediately after the factual brief, got ${compactAnalyticsGeometry.firstChartTop}px`);
   assert.ok(await mobile.locator('.analytics-commandbar button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
   await mobile.locator("[data-analytics-manager] summary").click();
   const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
@@ -1429,11 +1446,13 @@ try {
   const narrowAnalyticsGeometry = await mobile.evaluate(() => ({
     header: document.querySelector("[data-budget-spend-header]")?.getBoundingClientRect().height || 0,
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
+    brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
   assert.ok(narrowAnalyticsGeometry.header <= 92, `360px masthead should use the Control Surface condensed variant while preserving 44px navigation targets, got ${narrowAnalyticsGeometry.header}px`);
   assert.ok(narrowAnalyticsGeometry.hero <= 205, `360px Analytics hero should stay compact, got ${narrowAnalyticsGeometry.hero}px`);
-  assert.ok(narrowAnalyticsGeometry.firstChartTop <= 610, `360px Analytics should surface its first chart without a second screen of chrome, got ${narrowAnalyticsGeometry.firstChartTop}px`);
+  assert.ok(narrowAnalyticsGeometry.brief <= 420, `360px factual brief should remain compact, got ${narrowAnalyticsGeometry.brief}px`);
+  assert.ok(narrowAnalyticsGeometry.firstChartTop <= 955, `360px Analytics should place the first chart immediately after the factual brief, got ${narrowAnalyticsGeometry.firstChartTop}px`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
   console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=7 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=19 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);

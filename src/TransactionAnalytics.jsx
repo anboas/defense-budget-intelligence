@@ -27,6 +27,7 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
+import { ControlDialog } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import {
@@ -235,7 +236,7 @@ function exportAnalyticsSlice(records, metric, context) {
   URL.revokeObjectURL(link.href);
 }
 
-function ChartFrame({ icon: Icon, title, note, children, testId }) {
+function ChartFrame({ icon: Icon, title, note, children, testId, legend = [] }) {
   const [hover, setHover] = useState(null);
   const frameRef = useRef(null);
 
@@ -307,6 +308,11 @@ function ChartFrame({ icon: Icon, title, note, children, testId }) {
         </span>
       </header>
       <div className="transaction-viz__scroller">{children}</div>
+      {legend.length ? (
+        <footer className="if-chart-summary" aria-label={`${title} legend`} data-analytics-legend>
+          {legend.map((item) => <span key={item} className="if-status if-status--sm">{item}</span>)}
+        </footer>
+      ) : null}
       {hover ? (
         <aside
           className="analytics-hovercard"
@@ -1129,6 +1135,125 @@ function recordDurationDays(record) {
   return Number.isFinite(duration) && duration >= 0 ? duration : null;
 }
 
+function percentage(part, whole) {
+  if (!whole) return "0%";
+  return `${((part / whole) * 100).toFixed(part === whole ? 0 : 1)}%`;
+}
+
+function median(values) {
+  const sorted = values.filter(Number.isFinite).sort((left, right) => left - right);
+  if (!sorted.length) return null;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function leadingGroup(records, value, measure = () => 1) {
+  const groups = new Map();
+  for (const record of records) {
+    const label = value(record) || "Not published";
+    groups.set(label, (groups.get(label) || 0) + Number(measure(record) || 0));
+  }
+  return [...groups.entries()]
+    .map(([label, amount]) => ({ label, amount }))
+    .sort((left, right) => right.amount - left.amount || left.label.localeCompare(right.label))[0] || { label: "No records", amount: 0 };
+}
+
+function analyticsInsights({ activeView, records, asOf, procurementDelta }) {
+  const scope = records.length;
+  const obligations = records.reduce((sum, record) => sum + recordObligations(record), 0);
+  const anchor = new Date(`${asOf || "1970-01-01"}T00:00:00Z`);
+  const horizon = new Date(anchor);
+  horizon.setUTCFullYear(horizon.getUTCFullYear() + 1);
+  const endpointRows = records.map((record) => ({
+    record,
+    date: record.currentEnd || record.solicitationEnd || record.potentialEnd || null,
+  }));
+  const horizonRows = endpointRows.filter(({ date }) => {
+    if (!date) return false;
+    const parsed = new Date(`${date}T00:00:00Z`);
+    return parsed >= anchor && parsed <= horizon;
+  });
+  const scheduleRows = endpointRows.filter(({ date }) => Boolean(date));
+  const topWork = leadingGroup(records, (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", recordObligations);
+  const topRecipient = leadingGroup(records, (record) => record.party || "Not published", recordObligations);
+  const topBuyer = leadingGroup(records, (record) => record.fundingOffice || record.owner || "Not published", recordObligations);
+  const years = new Map();
+  for (const { date } of scheduleRows) {
+    const year = dateYear(date);
+    if (year) years.set(year, (years.get(year) || 0) + 1);
+  }
+  const busiestYear = [...years.entries()].sort((left, right) => right[1] - left[1] || left[0] - right[0])[0] || ["None", 0];
+  const duration = median(records.map(recordDurationDays));
+  const structured = records.filter((record) => record.vehicle || record.pricingType || record.awardType).length;
+  const subawardPrimes = records.filter((record) => Number(record.subawardSummary?.reportedCount || 0) > 0);
+  const subawardCount = subawardPrimes.reduce((sum, record) => sum + Number(record.subawardSummary?.reportedCount || 0), 0);
+  const linked = records.filter((record) => record.sourceUrls?.length).length;
+  const specificallyCoded = records.filter((record) => record.workCategory && record.workCategory !== "other-unclassified").length;
+  const automated = records.filter((record) => record.ingestionMethod === "automated").length;
+  const changes = ["added", "updated", "removed"].map((key) => Number(procurementDelta?.[key] || 0));
+
+  if (activeView === "schedule") return [
+    { id: "near-term-endpoints", label: "Next 12 months", value: horizonRows.length.toLocaleString(), meta: `${money(horizonRows.reduce((sum, row) => sum + recordValue(row.record), 0))} reported potential attached` },
+    { id: "busiest-year", label: "Busiest endpoint year", value: String(busiestYear[0]), meta: `${Number(busiestYear[1]).toLocaleString()} reported endpoints`, action: busiestYear[1] ? { type: "year", value: busiestYear[0] } : null },
+    { id: "median-term", label: "Median reported term", value: duration === null ? "Not available" : `${(duration / 365.25).toFixed(1)} years`, meta: `${records.filter((record) => recordDurationDays(record) !== null).length.toLocaleString()} dated records` },
+    { id: "undated", label: "Undated schedule", value: (scope - scheduleRows.length).toLocaleString(), meta: `${percentage(scope - scheduleRows.length, scope)} of the current scope` },
+  ];
+
+  if (activeView === "spend") return [
+    { id: "top-buyer", label: "Leading funding office", value: topBuyer.label, meta: `${money(topBuyer.amount)} · ${percentage(topBuyer.amount, obligations)} of obligations`, action: scope ? { type: "facet", dimensionId: "buyer", value: topBuyer.label } : null },
+    { id: "top-recipient", label: "Leading recipient", value: topRecipient.label, meta: `${money(topRecipient.amount)} · ${percentage(topRecipient.amount, obligations)} of obligations`, action: scope ? { type: "facet", dimensionId: "recipient", value: topRecipient.label } : null },
+    { id: "structure-coverage", label: "Acquisition structure", value: percentage(structured, scope), meta: `${structured.toLocaleString()} of ${scope.toLocaleString()} records publish vehicle, pricing, or award type` },
+    { id: "subaward-primes", label: "Subaward-bearing primes", value: subawardPrimes.length.toLocaleString(), meta: `${subawardCount.toLocaleString()} reported subawards attached` },
+  ];
+
+  if (activeView === "coverage") return [
+    { id: "source-links", label: "Source-link coverage", value: percentage(linked, scope), meta: `${linked.toLocaleString()} of ${scope.toLocaleString()} records include a public source` },
+    { id: "work-coding", label: "Specific work coding", value: percentage(specificallyCoded, scope), meta: `${specificallyCoded.toLocaleString()} records classify beyond Other / unclassified` },
+    { id: "automated-share", label: "Automated source share", value: percentage(automated, scope), meta: `${automated.toLocaleString()} records from automated ingestion`, action: automated ? { type: "facet", dimensionId: "provenance", value: INGESTION_METHOD_BY_ID.get("automated")?.label || "Automated" } : null },
+    { id: "snapshot-changes", label: "Snapshot changes", value: changes.reduce((sum, value) => sum + value, 0).toLocaleString(), meta: `${changes[0]} added · ${changes[1]} updated · ${changes[2]} removed` },
+  ];
+
+  return [
+    { id: "top-work", label: "Leading work category", value: topWork.label, meta: `${money(topWork.amount)} · ${percentage(topWork.amount, obligations)} of obligations`, action: scope ? { type: "facet", dimensionId: "work", value: topWork.label } : null },
+    { id: "top-recipient", label: "Leading recipient", value: topRecipient.label, meta: `${money(topRecipient.amount)} · ${percentage(topRecipient.amount, obligations)} of obligations`, action: scope ? { type: "facet", dimensionId: "recipient", value: topRecipient.label } : null },
+    { id: "near-term-endpoints", label: "Next 12 months", value: horizonRows.length.toLocaleString(), meta: `${money(horizonRows.reduce((sum, row) => sum + recordValue(row.record), 0))} reported potential attached` },
+    { id: "schedule-coverage", label: "Schedule coverage", value: percentage(scheduleRows.length, scope), meta: `${scheduleRows.length.toLocaleString()} of ${scope.toLocaleString()} records report an endpoint` },
+  ];
+}
+
+function AnalyticsBrief({ insights, activeView, onAction }) {
+  return (
+    <section className="if-panel if-operations-signal-section" data-analytics-insights>
+      <header className="if-panel__header">
+        <div className="if-section-heading">
+          <span className="if-section-heading__icon"><BarChart3 size={16} aria-hidden="true" /></span>
+          <div className="if-section-heading__body">
+            <h3 className="if-panel__title">Current-scope brief</h3>
+            <p className="if-panel__subtitle">Four factual signals recompute with every filter. Select an actionable signal to open its supporting slice.</p>
+          </div>
+        </div>
+        <span className="if-status if-status--info if-status--sm">{ANALYTICS_VIEWS.find(({ id }) => id === activeView)?.label}</span>
+      </header>
+      <div className="if-panel__body">
+        <div className="if-operations-signal-grid if-operations-signal-grid--compact if-metric-grid">
+          {insights.map((insight) => {
+            const content = <>
+              <div className="if-metric__top"><p className="if-metric__label">{insight.label}</p></div>
+              <p className="if-metric__value">{insight.value}</p>
+              <div className="if-metric__meta"><span>{insight.meta}</span></div>
+            </>;
+            return insight.action ? (
+              <button key={insight.id} type="button" className="if-card if-metric if-operations-signal if-operations-signal--compact" data-analytics-insight={insight.id} onClick={() => onAction(insight.action)}>{content}</button>
+            ) : (
+              <article key={insight.id} className="if-card if-metric if-operations-signal--compact" data-analytics-insight={insight.id}>{content}</article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ValueDistribution({ records, activeBand, onBand }) {
   const rows = VALUE_BANDS.map((band) => {
     const matches = records.filter((record) => {
@@ -1517,71 +1642,39 @@ function RecordExplorer({ records, metricId, onSelect }) {
 }
 
 function AnalyticsRecordModal({ record, onClose }) {
-  const dialogRef = useRef(null);
-  const previousFocusRef = useRef(null);
-  const closeRef = useRef(onClose);
-
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!record) return undefined;
-    previousFocusRef.current = document.activeElement;
-    const dialog = dialogRef.current;
-    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const focusables = () => [...(dialog?.querySelectorAll(focusableSelector) || [])].filter((node) => !node.hidden);
-    const initial = focusables()[0] || dialog;
-    initial?.focus();
-    const containFocus = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const nodes = focusables();
-      if (!nodes.length) {
-        event.preventDefault();
-        dialog?.focus();
-        return;
-      }
-      const first = nodes[0];
-      const last = nodes.at(-1);
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", containFocus);
-    return () => {
-      document.removeEventListener("keydown", containFocus);
-      previousFocusRef.current?.focus?.();
-    };
-  }, [record]);
-
-  if (!record) return null;
+  const facts = record ? [
+    ["Recipient / sponsor", record.party || "Not published"],
+    ["Type of work", WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", record.workCategoryBasis || "No classification basis published"],
+    ["Observed obligations", money(recordObligations(record))],
+    ["Reported potential", money(recordValue(record))],
+    ["Reported schedule", `${record.start || record.solicitationStart || "Unknown"} → ${record.currentEnd || record.solicitationEnd || "Unknown"}`],
+    ["Acquisition structure", [record.vehicle, record.pricingType, record.awardType].filter(Boolean).join(" · ") || "Not published", record.setAside || record.competitionType || "Competition not published"],
+    ["FPDS actions", Number(record.transactionSummary?.actions || 0).toLocaleString()],
+    ["Reported subawards", Number(record.subawardSummary?.reportedCount || 0).toLocaleString(), record.subawardSummary?.detailTruncated ? "Recent detail is sampled" : "Exact prime count where available"],
+    ["Ingestion provenance", record.ingestionLabel || record.ingestionMethod || "Not published", record.sourceSystem || "Source system not published"],
+  ] : [];
   return (
-    <div className="analytics-modal" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="analytics-record-title" className="analytics-modal__surface" tabIndex={-1}>
-        <header><div><span>{record.id} · {record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"}</span><h2 id="analytics-record-title">{record.title}</h2></div><button type="button" onClick={onClose} aria-label="Close analytical detail"><X size={19} aria-hidden="true" /></button></header>
-        <div className="analytics-modal__facts">
-          <article><span>Recipient / sponsor</span><strong>{record.party || "Not published"}</strong></article>
-          <article><span>Type of work</span><strong>{WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified"}</strong><small>{record.workCategoryBasis || "No classification basis published"}</small></article>
-          <article><span>Observed obligations</span><strong>{money(recordObligations(record))}</strong></article>
-          <article><span>Reported potential</span><strong>{money(recordValue(record))}</strong></article>
-          <article><span>Reported schedule</span><strong>{record.start || record.solicitationStart || "Unknown"} → {record.currentEnd || record.solicitationEnd || "Unknown"}</strong></article>
-          <article><span>Acquisition structure</span><strong>{[record.vehicle, record.pricingType, record.awardType].filter(Boolean).join(" · ") || "Not published"}</strong><small>{record.setAside || record.competitionType || "Competition not published"}</small></article>
-          <article><span>FPDS actions</span><strong>{Number(record.transactionSummary?.actions || 0).toLocaleString()}</strong></article>
-          <article><span>Reported subawards</span><strong>{Number(record.subawardSummary?.reportedCount || 0).toLocaleString()}</strong><small>{record.subawardSummary?.detailTruncated ? "Recent detail is sampled" : "Exact prime count where available"}</small></article>
-          <article><span>Ingestion provenance</span><strong>{record.ingestionLabel || record.ingestionMethod || "Not published"}</strong><small>{record.sourceSystem || "Source system not published"}</small></article>
-        </div>
-        <footer><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Transactions</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</footer>
-      </section>
-    </div>
+    <ControlDialog
+      open={Boolean(record)}
+      onClose={onClose}
+      eyebrow={record ? `${record.id} · ${record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"}` : "Analytical detail"}
+      title={record?.title || "Analytical detail"}
+      size="detail"
+      closeLabel="Close analytical detail"
+      dialogProps={{ "data-analytics-record-modal": "" }}
+      bodyProps={{ className: "if-record-detail if-record-detail--intelligence" }}
+      footer={record ? <><a className="if-btn if-btn--primary" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Transactions</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</> : null}
+    >
+      <div className="if-record-detail__facts">
+        {facts.map(([label, value, detail]) => (
+          <article key={label} className="if-detail-card if-detail-card--neutral">
+            <header className="if-detail-card__header"><h3 className="if-detail-card__title">{label}</h3></header>
+            <strong>{value}</strong>
+            {detail ? <p className="if-detail-card__summary">{detail}</p> : null}
+          </article>
+        ))}
+      </div>
+    </ControlDialog>
   );
 }
 
@@ -1713,6 +1806,12 @@ export default function TransactionAnalytics({
     }),
     [scopedRecords],
   );
+  const insights = useMemo(() => analyticsInsights({
+    activeView,
+    records: scopedRecords,
+    asOf: dataset.metadata.asOf,
+    procurementDelta: procurementDelta.summary,
+  }), [activeView, dataset.metadata.asOf, procurementDelta.summary, scopedRecords]);
   const contractRecords = records.filter(
     (record) => record.mode === "contract-performance",
   );
@@ -1743,6 +1842,13 @@ export default function TransactionAnalytics({
     setValueBand(null);
     setDurationBand(null);
     setFilterValues({ work: "all", buyer: "all", recipient: "all", provenance: "all", pricing: "all", competition: "all", vehicle: "all", source: "all" });
+  };
+  const applyInsight = (action) => {
+    if (action.type === "year") {
+      setEndYear(action.value);
+      return;
+    }
+    if (action.type === "facet") setFacet({ dimensionId: action.dimensionId, value: action.value });
   };
   const chartOptions = VIEW_CHARTS[activeView];
   const activeChartIds = visibleCharts[activeView] || DEFAULT_VISIBLE_CHARTS[activeView];
@@ -1838,38 +1944,40 @@ export default function TransactionAnalytics({
         </div> : null}
       </section>
 
+      <AnalyticsBrief insights={insights} activeView={activeView} onAction={applyInsight} />
+
       {activeView === "overview" ? <div className="transaction-viz-grid">
-        {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
-        {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame> : null}
-        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
-        {chartVisible("value-distribution") ? <ChartFrame icon={CircleDollarSign} title="Reported value distribution" note="Logarithmic bands preserve the small and large award populations; click to filter" testId="value-distribution"><ValueDistribution records={scopedRecords} activeBand={valueBand} onBand={setValueBand} /></ChartFrame> : null}
-        {chartVisible("treemap") ? <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure; click a recipient to filter every view" testId="treemap"><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} onRecipient={(value) => setFacet({ dimensionId: "recipient", value })} /></ChartFrame> : null}
-        {chartVisible("work-categories") ? <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit; click to filter" testId="work-categories"><WorkCategoryTreemap records={scopedRecords} onCategory={(value) => setFacet({ dimensionId: "work", value })} /></ChartFrame> : null}
+        {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer" legend={[`Bar length = ${metric.label.toLowerCase()}`, "Labels = record count"]}><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
+        {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly" legend={["Blue = reported term ends", "Gold = acquisition events"]}><EventTimeline records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("value-distribution") ? <ChartFrame icon={CircleDollarSign} title="Reported value distribution" note="Logarithmic bands preserve the small and large award populations; click to filter" testId="value-distribution" legend={["Bars = record count", "Bands use reported potential or observed value"]}><ValueDistribution records={scopedRecords} activeBand={valueBand} onBand={setValueBand} /></ChartFrame> : null}
+        {chartVisible("treemap") ? <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure; click a recipient to filter every view" testId="treemap" legend={[`Area = ${treemapMetric}`, "Color = portfolio", "Nested labels = recipients"]}><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} onRecipient={(value) => setFacet({ dimensionId: "recipient", value })} /></ChartFrame> : null}
+        {chartVisible("work-categories") ? <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit; click to filter" testId="work-categories" legend={["Area = record count", "Color = work category", "Unknowns remain explicit"]}><WorkCategoryTreemap records={scopedRecords} onCategory={(value) => setFacet({ dimensionId: "work", value })} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "schedule" ? <div className="transaction-viz-grid">
-        {chartVisible("schedule-horizon") ? <div className="transaction-viz--wide"><ChartFrame icon={CalendarClock} title="Reported schedule horizon" note="Click a year to filter records by current, solicitation, or conditional potential endpoint" testId="schedule-horizon"><ScheduleHorizon records={scopedRecords} onYear={(year) => setEndYear(endYear === year ? null : year)} /></ChartFrame></div> : null}
-        {chartVisible("endpoint-seasonality") ? <ChartFrame icon={CalendarClock} title="Endpoint seasonality" note="Current, solicitation, and conditional endpoints by calendar month; click to filter" testId="endpoint-seasonality"><EndpointSeasonality records={scopedRecords} activeMonth={endMonth} onMonth={setEndMonth} /></ChartFrame> : null}
-        {chartVisible("duration-distribution") ? <ChartFrame icon={BarChart3} title="Reported term duration" note="Published start-to-current-end duration; undated terms remain outside the distribution" testId="duration-distribution"><DurationDistribution records={scopedRecords} activeBand={durationBand} onBand={setDurationBand} /></ChartFrame> : null}
-        {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly"><EventTimeline records={scopedRecords} /></ChartFrame> : null}
-        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter"><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("schedule-horizon") ? <div className="transaction-viz--wide"><ChartFrame icon={CalendarClock} title="Reported schedule horizon" note="Click a year to filter records by current, solicitation, or conditional potential endpoint" testId="schedule-horizon" legend={["Current = reported term/solicitation end", "Potential = conditional endpoint", "Bars = records"]}><ScheduleHorizon records={scopedRecords} onYear={(year) => setEndYear(endYear === year ? null : year)} /></ChartFrame></div> : null}
+        {chartVisible("endpoint-seasonality") ? <ChartFrame icon={CalendarClock} title="Endpoint seasonality" note="Current, solicitation, and conditional endpoints by calendar month; click to filter" testId="endpoint-seasonality" legend={["Blue = current endpoints", "Gold = potential endpoints", "Columns = calendar month"]}><EndpointSeasonality records={scopedRecords} activeMonth={endMonth} onMonth={setEndMonth} /></ChartFrame> : null}
+        {chartVisible("duration-distribution") ? <ChartFrame icon={BarChart3} title="Reported term duration" note="Published start-to-current-end duration; undated terms remain outside the distribution" testId="duration-distribution" legend={["Bars = dated records", "Duration = published start to current end"]}><DurationDistribution records={scopedRecords} activeBand={durationBand} onBand={setDurationBand} /></ChartFrame> : null}
+        {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly" legend={["Blue = reported term ends", "Gold = acquisition events"]}><EventTimeline records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "spend" ? <div className="transaction-viz-grid">
-        {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer"><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
-        {chartVisible("fiscal-trend") ? <div className="transaction-viz--wide"><ChartFrame icon={CircleDollarSign} title={`Fiscal obligation trend by ${dimensionLabel.toLowerCase()}`} note="Top five groups in the selected dimension; click a segment to filter every view" testId="fiscal-trend"><FiscalObligationTrend records={scopedRecords} dimensionId={dimensionId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
-        {chartVisible("buyer-year") ? <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations; click a cell to filter by funding office" testId="buyer-year"><BuyerYearHeatmap records={scopedRecords} onBuyer={(value) => setFacet({ dimensionId: "buyer", value })} /></ChartFrame> : null}
-        {chartVisible("acquisition-matrix") ? <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix"><AcquisitionMatrix records={scopedRecords} /></ChartFrame> : null}
-        {chartVisible("vehicle-pricing") ? <ChartFrame icon={Layers3} title="Vehicle and pricing mix" note="Top published contract vehicles split by fixed-price, cost-type, T&M, and unpublished pricing" testId="vehicle-pricing"><VehiclePricingMix records={scopedRecords} onVehicle={(vehicle) => setFacet({ dimensionId: "vehicle", value: vehicle })} /></ChartFrame> : null}
-        {chartVisible("subawards") ? <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards"><SubawardConcentration records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer" legend={[`Bar length = ${metric.label.toLowerCase()}`, "Labels = record count"]}><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
+        {chartVisible("fiscal-trend") ? <div className="transaction-viz--wide"><ChartFrame icon={CircleDollarSign} title={`Fiscal obligation trend by ${dimensionLabel.toLowerCase()}`} note="Top five groups in the selected dimension; click a segment to filter every view" testId="fiscal-trend" legend={["Segments = selected dimension", "Height = annual net obligations", "Top five groups shown"]}><FiscalObligationTrend records={scopedRecords} dimensionId={dimensionId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
+        {chartVisible("buyer-year") ? <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations; click a cell to filter by funding office" testId="buyer-year" legend={["Darker blue = more obligations", "Blank = none reported", "Columns = fiscal year"]}><BuyerYearHeatmap records={scopedRecords} onBuyer={(value) => setFacet({ dimensionId: "buyer", value })} /></ChartFrame> : null}
+        {chartVisible("acquisition-matrix") ? <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix" legend={["Darker cell = more records", "Rows = pricing type", "Columns = competition structure"]}><AcquisitionMatrix records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("vehicle-pricing") ? <ChartFrame icon={Layers3} title="Vehicle and pricing mix" note="Top published contract vehicles split by fixed-price, cost-type, T&M, and unpublished pricing" testId="vehicle-pricing" legend={["Stack length = records", "Color = pricing family", "Top published vehicles shown"]}><VehiclePricingMix records={scopedRecords} onVehicle={(vehicle) => setFacet({ dimensionId: "vehicle", value: vehicle })} /></ChartFrame> : null}
+        {chartVisible("subawards") ? <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards" legend={["Bars = reported subaward count", "Dollars = retained recent sample", "Prime joins are exact"]}><SubawardConcentration records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "coverage" ? <div className="transaction-viz-grid">
-        {chartVisible("field-coverage") ? <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage"><FieldCoverageBars records={scopedRecords} /></ChartFrame> : null}
-        {chartVisible("source-coverage") ? <ChartFrame icon={Grid3X3} title="Source-system coverage" note="Published field completeness by source system; click a cell to filter the active universe" testId="source-coverage"><SourceCoverageMatrix records={scopedRecords} onSource={(source) => setFacet({ dimensionId: "source", value: source })} /></ChartFrame> : null}
-        {chartVisible("provenance") ? <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct; click to filter" testId="provenance"><ProvenanceBars records={scopedRecords} onProvenance={(value) => setFacet({ dimensionId: "provenance", value })} /></ChartFrame> : null}
-        {chartVisible("money-lineage") ? <ChartFrame icon={Network} title="Money lineage and public join gaps" note="Counts encode records and links, not additive dollars; relationship class is explicit" testId="money-lineage"><MoneyLineageMap accountSpine={accountSpine} requestLineCount={requestLineCount} captureCoverage={dataset.metadata.coverage} /></ChartFrame> : null}
-        {chartVisible("changes") ? <ChartFrame icon={CalendarClock} title="Changed since prior snapshot" note="Stable identifiers distinguish added, updated, and no-longer-returned records" testId="changes"><ChangeBars summary={procurementDelta.summary} /></ChartFrame> : null}
+        {chartVisible("field-coverage") ? <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage" legend={["Bar length = records with field", "Percent = current-scope completeness"]}><FieldCoverageBars records={scopedRecords} /></ChartFrame> : null}
+        {chartVisible("source-coverage") ? <ChartFrame icon={Grid3X3} title="Source-system coverage" note="Published field completeness by source system; click a cell to filter the active universe" testId="source-coverage" legend={["Darker cell = higher coverage", "Rows = source systems", "Columns = published fields"]}><SourceCoverageMatrix records={scopedRecords} onSource={(source) => setFacet({ dimensionId: "source", value: source })} /></ChartFrame> : null}
+        {chartVisible("provenance") ? <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct; click to filter" testId="provenance" legend={["Bars = record count", "Categories = ingestion method"]}><ProvenanceBars records={scopedRecords} onProvenance={(value) => setFacet({ dimensionId: "provenance", value })} /></ChartFrame> : null}
+        {chartVisible("money-lineage") ? <ChartFrame icon={Network} title="Money lineage and public join gaps" note="Counts encode records and links, not additive dollars; relationship class is explicit" testId="money-lineage" legend={["Solid = exact public join", "Dashed = derived relationship", "Red = unresolved gap"]}><MoneyLineageMap accountSpine={accountSpine} requestLineCount={requestLineCount} captureCoverage={dataset.metadata.coverage} /></ChartFrame> : null}
+        {chartVisible("changes") ? <ChartFrame icon={CalendarClock} title="Changed since prior snapshot" note="Stable identifiers distinguish added, updated, and no-longer-returned records" testId="changes" legend={["Green = added", "Blue = updated", "Gray = removed"]}><ChangeBars summary={procurementDelta.summary} /></ChartFrame> : null}
       </div> : null}
 
       <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={setSelectedRecord} />
