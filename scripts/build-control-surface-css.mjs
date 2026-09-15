@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { PurgeCSS } from "purgecss";
 
 const [result] = await new PurgeCSS().purge({
-  content: ["index.html", "src/**/*.{js,jsx}"],
+  content: ["index.html", "src/**/*.{js,jsx}", "node_modules/control-surface-ui/src/react/**/*.{js,jsx}"],
   css: ["node_modules/control-surface-ui/dist/interface-framework.css"],
   defaultExtractor: (content) => content.match(/[A-Za-z0-9_:/-]+/g) || [],
   safelist: {

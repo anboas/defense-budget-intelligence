@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bot,
@@ -20,6 +20,7 @@ import {
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { useToast } from "control-surface-ui/react";
 
 const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
@@ -78,21 +79,19 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   const [memberDrafts, setMemberDrafts] = useState({});
   const [requestRoles, setRequestRoles] = useState({});
   const [busy, setBusy] = useState(true);
-  const [notice, setNotice] = useState(null);
+  const { showToast } = useToast();
   const isSuperUser = auth.user?.roleId === "super_user";
   const visibleWorkspaces = activeOnly
     ? data.workspaces.filter((workspace) => workspace.id === auth.user?.activeWorkspace?.id)
     : data.workspaces;
 
-  function showNotice(text, tone = "success") {
-    setNotice({ id: Date.now(), text, tone });
-  }
-
-  useEffect(() => {
-    if (!notice) return undefined;
-    const timeout = window.setTimeout(() => setNotice(null), 4200);
-    return () => window.clearTimeout(timeout);
-  }, [notice]);
+  const showNotice = useCallback((text, tone = "success") => {
+    showToast({
+      tone: tone === "error" ? "danger" : tone,
+      title: tone === "error" ? "Action needed" : "Workspace updated",
+      message: text,
+    });
+  }, [showToast]);
 
   async function refresh() {
     const result = await auth.getWorkspaceAdmin();
@@ -105,7 +104,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       .catch((error) => { if (active) showNotice(error.message, "error"); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [auth]);
+  }, [auth, showNotice]);
 
   const pending = useMemo(() => data.requests.filter((request) => request.status === "pending"), [data.requests]);
   const visiblePending = pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id);
@@ -119,7 +118,6 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
 
   async function mutate(operation, success) {
     setBusy(true);
-    setNotice(null);
     try { await operation(); await refresh(); showNotice(success); }
     catch (error) { showNotice(error.message, "error"); throw error; }
     finally { setBusy(false); }
@@ -134,7 +132,6 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
 
   function beginEdit(workspace) {
     setEditing({ id: workspace.id, name: workspace.name, description: workspace.description || "", iconDataUrl: workspace.iconDataUrl || "", headerEyebrow: workspace.headerEyebrow || "Defense Budget & Spend Analytics", displayTitle: workspace.displayTitle || "Defense Budget Intelligence" });
-    setNotice(null);
   }
 
   function saveWorkspace(event, workspace) {
@@ -162,8 +159,6 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       <button className="is-approve" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "approved", role: requestRoles[request.id] || "viewer" }), `${request.displayName} approved.`).catch(() => {})}><Check size={14} />Approve</button>
       <button className="is-deny" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "denied", role: "viewer" }), `${request.displayName} denied.`).catch(() => {})}><X size={14} />Deny</button>
     </article>)}</section> : null}
-
-    {notice ? <div className="if-toast-stack workspace-toast-stack" aria-live="polite"><div className={`if-toast workspace-toast is-${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"}><span>{notice.tone === "error" ? <X size={17} /> : <Check size={17} />}</span><div><strong>{notice.tone === "error" ? "Action needed" : "Workspace updated"}</strong><p>{notice.text}</p></div><button type="button" aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={15} /></button></div></div> : null}
 
     <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <p>Loading workspaces…</p> : visibleWorkspaces.map((workspace) => {
       const memberIds = new Set(workspace.members.map((member) => member.id));

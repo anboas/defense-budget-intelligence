@@ -11,7 +11,7 @@ export default function ProfileMenu() {
 
   useEffect(() => {
     if (!open) return undefined;
-    const close = (event) => { if (!menuRef.current?.contains(event.target) && !event.target.closest?.("[data-workspace-switcher-menu]")) setOpen(false); };
+    const close = (event) => { if (!menuRef.current?.contains(event.target) && !event.target.closest?.("[data-if-picker-menu]")) setOpen(false); };
     const escape = (event) => { if (event.key === "Escape") setOpen(false); };
     const route = () => setOpen(false);
     window.addEventListener("pointerdown", close);

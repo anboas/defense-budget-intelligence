@@ -147,6 +147,7 @@ npm run verify
 npm run verify:pages-auth
 npm run verify:agent-api
 npm run verify:postgres-auth
+npm run verify:postgres-auth:local
 npm run container:up
 npm run container:verify
 npm run container:down
@@ -154,6 +155,8 @@ npm run verify:prod-interactions
 npm run pages:deploy
 npm run verify:prod-smoke
 ```
+
+`verify:postgres-auth` targets an already running authenticated sidecar (as CI does). Use `verify:postgres-auth:local` for a self-contained local run; it builds the current app image, creates a temporary PostgreSQL database, starts the verifier sidecar, and removes both after the contract finishes.
 
 ## Publishing
 

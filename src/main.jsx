@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { ToastProvider } from "control-surface-ui/react";
 import "./control-surface.css";
 import {
   BarChart3,
@@ -4797,4 +4798,4 @@ function RuntimeApp() {
   return <App />;
 }
 
-createRoot(document.getElementById("root")).render(<AuthProvider><RuntimeApp /></AuthProvider>);
+createRoot(document.getElementById("root")).render(<ToastProvider placement="masthead"><AuthProvider><RuntimeApp /></AuthProvider></ToastProvider>);

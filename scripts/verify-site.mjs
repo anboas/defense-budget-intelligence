@@ -323,7 +323,7 @@ try {
   assert.equal(await page.locator("[data-burn-curve] svg").count(), 1, "Account flow should expose obligation history");
   const federalAccountTrigger = page.getByRole("button", { name: /^Federal account:/ });
   await federalAccountTrigger.click();
-  assert.ok(await page.locator('[data-control-select-menu] [role="option"]').count() > 100, "Account flow should expose the federal-account inventory");
+  assert.ok(await page.locator('[data-if-picker-menu] [role="option"]').count() > 100, "Account flow should expose the federal-account inventory");
   await page.keyboard.press("Escape");
   assert.ok(await page.locator("[data-account-spine-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Account-flow intro should remain compact");
   assert.doesNotMatch(await page.locator("[data-account-spine-page] .phase-intro").innerText(), /Stage\s+3/i, "Account flow should not repeat numbered phase navigation");
@@ -334,7 +334,7 @@ try {
   await openSurface(page, "#/budget-spend/awards", "[data-awards-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
-  assert.equal(await page.locator("[data-award-filter-bar] .control-select").count(), 5, "Awards should expose factual filter dimensions");
+  assert.equal(await page.locator("[data-award-filter-bar] .if-picker").count(), 5, "Awards should expose factual filter dimensions");
   assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
   assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689|records/i, "Awards should disclose the complete sampled award scope");
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
@@ -360,7 +360,7 @@ try {
   const awardContentOrder = await page.evaluate(() => ({
     records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
     rollups: document.querySelector(".awards-page > .grid--sources")?.getBoundingClientRect().top || 0,
-    filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] .control-select__trigger, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
+    filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] .if-picker__trigger, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
     metricTops: [...document.querySelectorAll(".awards-page > .source-metrics > .metric")].map((node) => Math.round(node.getBoundingClientRect().top)),
   }));
   assert.ok(awardContentOrder.records < awardContentOrder.rollups, `Award records should precede secondary rollups: ${JSON.stringify(awardContentOrder)}`);
@@ -824,14 +824,14 @@ try {
   assert.equal(await page.locator("[data-capture-timeline-row]").first().locator(".capture-timeline__star").getAttribute("aria-pressed"), "true", "Tracking state should persist across application surfaces");
   await page.getByRole("button", { name: "Show 16 more filters" }).click();
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "Advanced factual filters should remain reachable");
-  const workFilterTrigger = page.getByRole("button", { name: /^Type of work\./ });
+  const workFilterTrigger = page.getByRole("button", { name: /^Type of work:/ });
   await workFilterTrigger.click();
-  await page.getByLabel("Search Type of work options").fill("Cloud infrastructure");
-  await page.getByRole("option", { name: "Cloud infrastructure" }).getByRole("checkbox").check();
+  await page.getByLabel("Search Type of work").fill("Cloud infrastructure");
+  await page.getByRole("option", { name: "Cloud infrastructure" }).click();
   await page.keyboard.press("Escape");
-  const provenanceFilterTrigger = page.getByRole("button", { name: /^Ingestion provenance\./ });
+  const provenanceFilterTrigger = page.getByRole("button", { name: /^Ingestion provenance:/ });
   await provenanceFilterTrigger.click();
-  await page.getByRole("option", { name: "Automated public feed" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Automated public feed" }).click();
   await page.keyboard.press("Escape");
   assert.match(await workFilterTrigger.getAttribute("aria-label"), /Type of work \(1\)/, "Work category should support searchable filtering");
   assert.match(await provenanceFilterTrigger.getAttribute("aria-label"), /Ingestion provenance \(1\)/, "Ingestion provenance should support searchable filtering");
@@ -844,12 +844,12 @@ try {
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Subaward posture should retain exactly joined prime awards");
   await page.getByRole("button", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Show core filters" }).click();
-  const portfolioTrigger = page.getByRole("button", { name: /^Portfolio\./ });
+  const portfolioTrigger = page.getByRole("button", { name: /^Portfolio:/ });
   await portfolioTrigger.click();
-  await page.getByLabel("Search Portfolio options").fill("Navy Mission");
-  await page.getByRole("option", { name: "Navy Mission Engineering" }).getByRole("checkbox").check();
-  await page.getByLabel("Search Portfolio options").fill("DAF Mission");
-  await page.getByRole("option", { name: "DAF Mission Software" }).getByRole("checkbox").check();
+  await page.getByLabel("Search Portfolio").fill("Navy Mission");
+  await page.getByRole("option", { name: "Navy Mission Engineering" }).click();
+  await page.getByLabel("Search Portfolio").fill("DAF Mission");
+  await page.getByRole("option", { name: "DAF Mission Software" }).click();
   assert.match(await portfolioTrigger.getAttribute("aria-label"), /Portfolio \(2\)/, "Portfolio filter should support searchable multi-selection");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Reset" }).click();
@@ -860,10 +860,10 @@ try {
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose the source as-of marker");
   await page.locator("[data-capture-gantt-tools] > summary").click();
   await page.getByRole("button", { name: /^Grouping:/ }).click();
-  assert.equal(await page.locator('[data-control-select-menu] [role="option"]').count(), 14, "Gantt should expose fourteen factual grouping modes");
+  assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 14, "Gantt should expose fourteen factual grouping modes");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Bar labels:/ }).click();
-  assert.equal(await page.locator('[data-control-select-menu] [role="option"]').count(), 6, "Gantt should expose six bar-label modes");
+  assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 6, "Gantt should expose six bar-label modes");
   await page.keyboard.press("Escape");
   assert.equal(await page.locator("[data-capture-gantt-tools] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
   await page.locator("[data-capture-field-picker] summary").click();
@@ -891,10 +891,10 @@ try {
   await chooseControlSelect(page, "Grouping", "Funding office");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
 
-  const classificationOverlayTrigger = page.getByRole("button", { name: /^Overlays\./ });
+  const classificationOverlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
   await classificationOverlayTrigger.click();
-  await page.getByRole("option", { name: "Type of work" }).getByRole("checkbox").check();
-  await page.getByRole("option", { name: "Ingestion provenance" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Type of work" }).click();
+  await page.getByRole("option", { name: "Ingestion provenance" }).click();
   await page.keyboard.press("Escape");
   assert.equal(await page.locator("[data-work-category-overlay]").count(), 50, "Every visible row should expose a contextual work-category lane");
   assert.equal(await page.locator("[data-ingestion-provenance-overlay]").count(), 50, "Every visible row should expose a contextual ingestion-provenance lane");
@@ -920,9 +920,9 @@ try {
   assert.ok(desktopLastRowReachable, "The final Gantt row should remain reachable inside the bounded timeline");
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Agile SSD");
-  const overlayTrigger = page.getByRole("button", { name: /^Overlays\./ });
+  const overlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
   await overlayTrigger.click();
-  await page.getByRole("option", { name: "Published follow-on activity" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Published follow-on activity" }).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelectorAll("[data-followon-activity]").length > 0);
   assert.equal(transactionRequests, 0, "Follow-on relationships should not load the deferred FPDS action payload");
@@ -958,10 +958,10 @@ try {
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await overlayTrigger.click();
-  await page.getByRole("option", { name: "Competition / set-aside" }).getByRole("checkbox").check();
-  await page.getByRole("option", { name: "Contract vehicle" }).getByRole("checkbox").check();
-  await page.getByRole("option", { name: "Award / pricing type" }).getByRole("checkbox").check();
-  await page.getByRole("option", { name: "FPDS annual obligations" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "Competition / set-aside" }).click();
+  await page.getByRole("option", { name: "Contract vehicle" }).click();
+  await page.getByRole("option", { name: "Award / pricing type" }).click();
+  await page.getByRole("option", { name: "FPDS annual obligations" }).click();
   await page.keyboard.press("Escape");
   assert.ok(await page.locator("[data-competition-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct competition classifications");
   assert.ok(await page.locator("[data-vehicle-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct vehicles");
@@ -1002,7 +1002,7 @@ try {
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("N0002417C2100");
   await overlayTrigger.click();
-  await page.getByRole("option", { name: "USAspending subaward actions" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "USAspending subaward actions" }).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelectorAll("[data-subaward-overlay]").length > 0);
   assert.equal(subawardDetailRequests, 1, "Enabling the subaward overlay should lazily load recent detail once");
@@ -1020,7 +1020,7 @@ try {
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await overlayTrigger.click();
-  await page.getByRole("option", { name: "FPDS action pulses" }).getByRole("checkbox").check();
+  await page.getByRole("option", { name: "FPDS action pulses" }).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
@@ -1053,9 +1053,9 @@ try {
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
   await page.locator("[data-capture-gantt-tools]").evaluate((node) => { node.open = true; });
-  await page.getByRole("button", { name: /^Overlays\./ }).waitFor();
+  await page.getByRole("button", { name: /^Overlays:/ }).waitFor();
   assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /No grouping/, "Malformed grouping should canonicalize to the factual default");
-  assert.match(await page.getByRole("button", { name: /^Overlays\./ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
+  assert.match(await page.getByRole("button", { name: /^Overlays:/ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
   await page.locator("[data-capture-field-picker] summary").click();
   const checkedFields = page.locator("[data-capture-field-picker] input[type=checkbox]:checked");
   while (await checkedFields.count()) await checkedFields.first().uncheck();
@@ -1105,20 +1105,20 @@ try {
   await page.locator(".analytics-search input").focus();
   await page.waitForSelector("[data-analytics-hovercard]", { state: "detached" });
   await page.locator("[data-analytics-manager] summary").click();
-  assert.equal(await page.locator("[data-analytics-manager] .capture-multiselect__trigger").count(), 9, "Analytics should expose eight searchable data facets and one chart manager");
-  await page.getByRole("button", { name: /^Type of work\./ }).click();
-  await page.getByLabel("Search Type of work options").fill("software");
-  await page.locator('.capture-multiselect__options [role="option"]').first().click();
+  assert.equal(await page.locator("[data-analytics-manager] .if-picker__trigger").count(), 9, "Analytics should expose eight searchable data facets and one chart manager");
+  await page.getByRole("button", { name: /^Type of work:/ }).click();
+  await page.getByLabel("Search Type of work").fill("software");
+  await page.locator('[data-if-picker-menu] [role="option"]').first().click();
   await page.keyboard.press("Escape");
   assert.match(await page.locator(".analytics-active-filters").innerText(), /Type of work: 1/, "Searchable multi-select facets should filter the analytical universe");
   await page.locator(".analytics-active-filters button").filter({ hasText: "Type of work" }).click();
-  await page.getByRole("button", { name: /^Visible charts\./ }).click();
-  await page.locator('.capture-multiselect__options [role="option"]').filter({ hasText: "Reported value distribution" }).click();
+  await page.getByRole("button", { name: /^Visible charts:/ }).click();
+  await page.locator('[data-if-picker-menu] [role="option"]').filter({ hasText: "Reported value distribution" }).click();
   await page.keyboard.press("Escape");
   assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 0, "Chart management should remove an optional graph without changing the data filters");
   assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Hiding one Overview graph should leave five visible views");
-  await page.getByRole("button", { name: /^Visible charts\./ }).click();
-  await page.locator('.capture-multiselect__options [role="option"]').filter({ hasText: "Reported value distribution" }).click();
+  await page.getByRole("button", { name: /^Visible charts:/ }).click();
+  await page.locator('[data-if-picker-menu] [role="option"]').filter({ hasText: "Reported value distribution" }).click();
   await page.keyboard.press("Escape");
   const overviewScopeBefore = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-d3-analytics="value-distribution"] [role="button"]').filter({ hasText: "Under $1M" }).click();
@@ -1318,7 +1318,7 @@ try {
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
   await mobile.locator("[data-capture-gantt-tools] > summary").click();
-  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] .control-select__trigger, [data-capture-field-picker] summary, [data-capture-gantt-tools] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] .if-picker__trigger, [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileScroller.scrollWidth > mobileScroller.clientWidth, "Wide transaction timeline should use an internal mobile scroller");
@@ -1365,7 +1365,7 @@ try {
   assert.ok(compactAnalyticsGeometry.firstChartTop <= 590, `Mobile Analytics should surface a chart within the first viewport, got ${compactAnalyticsGeometry.firstChartTop}px`);
   assert.ok(await mobile.locator('.analytics-commandbar button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
   await mobile.locator("[data-analytics-manager] summary").click();
-  const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .capture-multiselect__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.equal(mobileAnalyticsManagerHeights.length, 9, "Mobile should retain every data facet and the chart manager");
   assert.ok(mobileAnalyticsManagerHeights.every((height) => height >= 43.5), `Mobile analytics manager controls should be 44px: ${mobileAnalyticsManagerHeights.join(", ")}`);
   await assertNoPageOverflow(mobile, "Expanded mobile analytics manager");

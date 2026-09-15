@@ -28,11 +28,13 @@
     "source:refresh": "npm run source:workbooks && npm run source:justifications && npm run source:usaspending && npm run data:build && npm run source:subawards && npm run source:sam && npm run source:account-spine && npm run source:health",
     "source:health": "node scripts/check-source-health.mjs",
     "lint": "eslint .",
-    "verify": "npm run lint && npm run build && node scripts/verify-site.mjs",
+    "verify:ui-conformance": "node scripts/check-ui-conformance.mjs",
+    "verify": "npm run lint && npm run verify:ui-conformance && npm run build && node scripts/verify-site.mjs",
     "verify:auth": "node scripts/verify-auth.mjs",
     "verify:pages-auth": "npm run build:cloudflare && node scripts/verify-pages-auth.mjs",
     "verify:agent-api": "npm run build:cloudflare && node scripts/verify-agent-api.mjs",
     "verify:postgres-auth": "node scripts/verify-postgres-auth.mjs",
+    "verify:postgres-auth:local": "node scripts/verify-postgres-auth-local.mjs",
     "verify:prod-interactions": "BUDGET_VERIFY_URL=https://defense-budget-intelligence.pages.dev/ node scripts/verify-site.mjs",
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",
     "pages:dev": "npm run build:cloudflare && wrangler pages dev dist",
@@ -41,7 +43,7 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.3",
-    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/2b5982db9a42be766d42207d7b06ffe3057dcf7c.tar.gz",
+    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/3a00eebbd3fcf54c43e49abf7f27bbe61410b451.tar.gz",
     "fastify": "^5.12.4",
     "pg": "^8.23.0"
   },

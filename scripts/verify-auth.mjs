@@ -98,9 +98,10 @@ try {
   assert.equal(await profileSurface.locator(".if-account-surface__body .if-account-action").count(), 3, "Profile dropdown should expose only personal profile, security, and OpenAI-key actions");
   assert.equal(await profileSurface.locator(".if-account-action__icon svg").count(), 3, "Every personal account-action row should render its icon glyph");
   assert.equal(await profileSurface.locator(".if-account-surface__footer").count(), 1, "Profile dropdown should use the shared account-surface footer");
-  const initialWorkspaceName = await profileSurface.locator("[data-workspace-switcher-trigger] strong").innerText();
+  const workspaceTriggerSelector = ".profile-workspace-switcher__picker .if-picker__trigger";
+  const initialWorkspaceName = await profileSurface.locator(`${workspaceTriggerSelector} strong`).innerText();
   assert.ok(initialWorkspaceName.length >= 2, "Workspace switcher should expose the active workspace name in its trigger");
-  assert.equal(await profileSurface.locator("[data-workspace-switcher-trigger] img").count(), 1, "Workspace switcher trigger should expose the active workspace icon");
+  assert.equal(await profileSurface.locator(`${workspaceTriggerSelector} img`).count(), 1, "Workspace switcher trigger should expose the active workspace icon");
   assert.ok(await page.getByText("Super user", { exact: true }).count() >= 1, "Profile menu should identify the first account as super user");
   await page.screenshot({ path: "test-results/profile-menu-desktop.png" });
   await page.getByRole("link", { name: /Open Profile/i }).click();
@@ -216,7 +217,7 @@ try {
   await workspaceEditor.locator(".workspace-card__branding > img").waitFor();
   await workspaceEditor.getByRole("button", { name: "Save" }).click();
   await page.getByText("Browser command updated.", { exact: true }).waitFor();
-  const workspaceToast = page.locator(".workspace-toast");
+  const workspaceToast = page.locator(".if-toast").filter({ hasText: "Browser command updated." });
   assert.match(await workspaceToast.innerText(), /Workspace updated[\s\S]*Browser command updated/);
   assert.equal(await workspaceToast.getByRole("button", { name: "Dismiss notification" }).count(), 1, "Workspace actions should use a dismissible framework toast");
   const renamedWorkspace = workspaceAdmin.locator('[data-workspace]', { hasText: "Browser command" });
@@ -252,9 +253,9 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
 
   await page.locator("[data-profile-menu-trigger]").click();
-  const workspaceSwitcher = page.locator("[data-workspace-switcher-trigger]");
+  const workspaceSwitcher = page.locator(workspaceTriggerSelector);
   await workspaceSwitcher.click();
-  const workspaceMenu = page.locator("[data-workspace-switcher-menu]");
+  const workspaceMenu = page.locator("[data-if-picker-menu]");
   await workspaceMenu.waitFor();
   assert.equal(await workspaceMenu.getByLabel("Search workspaces").count(), 1, "Workspace picker should expose a dedicated search field");
   assert.equal(await workspaceMenu.getByRole("option").count(), 2, "Workspace picker should present every available workspace");
@@ -277,16 +278,16 @@ try {
   ]);
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator("[data-profile-menu-trigger]").click();
-  assert.equal(await page.locator("[data-workspace-switcher-trigger] strong").innerText(), "Browser command", "Keyboard selection should switch to the matching workspace");
-  await page.locator("[data-workspace-switcher-trigger]").click();
-  await page.locator("[data-workspace-switcher-menu]").getByLabel("Search workspaces").fill(initialWorkspaceName);
+  assert.equal((await page.locator(`${workspaceTriggerSelector} strong`).innerText()).toLocaleLowerCase(), "browser command", "Keyboard selection should switch to the matching workspace");
+  await page.locator(workspaceTriggerSelector).click();
+  await page.locator("[data-if-picker-menu]").getByLabel("Search workspaces").fill(initialWorkspaceName);
   await Promise.all([
     page.waitForNavigation({ waitUntil: "domcontentloaded" }),
-    page.locator("[data-workspace-switcher-menu]").getByRole("option").click(),
+    page.locator("[data-if-picker-menu]").getByRole("option").click(),
   ]);
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator("[data-profile-menu-trigger]").click();
-  assert.equal(await page.locator("[data-workspace-switcher-trigger] strong").innerText(), initialWorkspaceName, "Workspace switcher should return to the original active workspace");
+  assert.equal(await page.locator(`${workspaceTriggerSelector} strong`).innerText(), initialWorkspaceName, "Workspace switcher should return to the original active workspace");
   await page.locator("[data-profile-menu-trigger]").click();
 
   const signupContext = await browser.newContext({ viewport: { width: 1080, height: 900 } });
@@ -319,10 +320,10 @@ try {
   await page.waitForSelector("[data-ops-events]");
   await page.getByRole("button", { name: "Add event" }).click();
   await page.waitForSelector("[data-ops-event-editor]");
-  const attendeePicker = page.getByRole("button", { name: /^Attendees\./ });
+  const attendeePicker = page.getByRole("button", { name: /^Attendees:/ });
   await attendeePicker.click();
-  await page.getByLabel("Search Attendees options").fill("Browser teammate");
-  await page.getByRole("option", { name: /Browser teammate/ }).getByRole("checkbox").check();
+  await page.getByLabel("Search Attendees").fill("Browser teammate");
+  await page.getByRole("option", { name: /Browser teammate/ }).click();
   assert.match(await attendeePicker.getAttribute("aria-label"), /Attendees \(1\)/, "Event attendees should use the searchable workspace-user multiselect");
   await page.getByRole("button", { name: "Add deadline or milestone" }).click();
   await chooseControlSelect(page, "Milestone 1 type", "Refund deadline");
@@ -464,8 +465,8 @@ try {
   const mobileSurface = page.getByRole("dialog", { name: "Profile controls" });
   const mobileSurfaceBox = await mobileSurface.boundingBox();
   assert.ok(mobileSurfaceBox && mobileSurfaceBox.x <= 13 && Math.abs((mobileSurfaceBox.x + mobileSurfaceBox.width) - 378) <= 2, "Mobile profile dropdown should use the same fixed 12px-gutter account sheet as Opportunity Intelligence");
-  await mobileSurface.locator("[data-workspace-switcher-trigger]").click();
-  const mobileWorkspaceMenu = page.locator("[data-workspace-switcher-menu]");
+  await mobileSurface.locator(workspaceTriggerSelector).click();
+  const mobileWorkspaceMenu = page.locator("[data-if-picker-menu]");
   await mobileWorkspaceMenu.waitFor({ state: "visible" });
   const mobileWorkspaceMenuGeometry = await mobileWorkspaceMenu.evaluate((node) => {
     const bounds = node.getBoundingClientRect();
@@ -483,7 +484,7 @@ try {
   assert.ok(mobileWorkspaceMenuGeometry.optionHeights.every((height) => height >= 43.5), `Mobile workspace options must keep 44px targets: ${mobileWorkspaceMenuGeometry.optionHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-workspace-switcher-mobile.png" });
   await mobileWorkspaceMenu.getByLabel("Search workspaces").press("Escape");
-  assert.equal(await page.locator("[data-workspace-switcher-menu]").count(), 0, "Escape should close only the workspace picker");
+  assert.equal(await page.locator("[data-if-picker-menu]").count(), 0, "Escape should close only the workspace picker");
   assert.equal(await mobileSurface.count(), 1, "Closing the workspace picker should preserve the parent profile surface");
   await page.screenshot({ path: "test-results/profile-menu-mobile.png" });
   await page.getByRole("link", { name: /Open Profile/i }).click();

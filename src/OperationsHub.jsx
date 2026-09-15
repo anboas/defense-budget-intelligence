@@ -18,7 +18,6 @@ import {
   Star,
   Trash2,
   UsersRound,
-  X,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
@@ -33,6 +32,7 @@ import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { ControlDialog } from "control-surface-ui/react";
 
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
@@ -166,11 +166,6 @@ function EventEditor({ event, records, onSave, onClose }) {
   const [directoryError, setDirectoryError] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    return () => { if (dialog?.open) dialog.close(); };
-  }, []);
-  useEffect(() => {
     if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
     let active = true;
     void auth.listDirectory().then((result) => {
@@ -198,11 +193,18 @@ function EventEditor({ event, records, onSave, onClose }) {
     onSave({ ...draft, updatedAt: new Date().toISOString() });
     onClose();
   }
-  return createPortal(
-    <dialog ref={dialogRef} className="ops-dialog" aria-labelledby="ops-event-title" onCancel={(e) => { e.preventDefault(); onClose(); }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <form className="ops-dialog__surface" onSubmit={submit} data-ops-event-editor>
-        <header><div><span>Workspace schedule</span><h2 id="ops-event-title">{event ? "Edit event" : "Add event"}</h2></div><button type="button" onClick={onClose} aria-label="Close event editor"><X size={18} /></button></header>
-        <div className="ops-event-form">
+  return <ControlDialog
+    open
+    onClose={onClose}
+    title={event ? "Edit event" : "Add event"}
+    eyebrow="Workspace schedule"
+    size="wide"
+    dialogRef={dialogRef}
+    closeLabel="Close event editor"
+    surfaceProps={{ "data-ops-event-editor": true }}
+    footer={<><button type="button" onClick={onClose}>Cancel</button><button type="submit" form="ops-event-editor-form">Save event</button></>}
+  >
+      <form id="ops-event-editor-form" className="ops-event-form" onSubmit={submit}>
           {error ? <p role="alert" className="ops-alert">{error}</p> : null}
           <label className="ops-field ops-field--wide"><span>Title</span><input autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
           <label className="ops-field"><span>Starts</span><input type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
@@ -228,12 +230,8 @@ function EventEditor({ event, records, onSave, onClose }) {
           </fieldset>
           <label className="ops-check ops-field--wide"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><b>Show on wallboard</b><small>Read-only display projection</small></span></label>
           <fieldset className="ops-event-links ops-field--wide"><legend>Linked watched records</legend>{records.length ? records.map((record) => <label key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><b>{record.id}</b>{record.title}</span></label>) : <p>Star records in Transactions to link them here.</p>}</fieldset>
-        </div>
-        <footer><button type="button" onClick={onClose}>Cancel</button><button type="submit">Save event</button></footer>
       </form>
-    </dialog>,
-    document.body,
-  );
+  </ControlDialog>;
 }
 
 function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, updateWatch }) {
@@ -443,19 +441,20 @@ function CalendarHoverCard({ hover }) {
 }
 
 function CalendarEventModal({ detail, onClose }) {
-  const dialogRef = useRef(null);
-  useEffect(() => {
-    if (!detail) return undefined;
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
-    return () => { if (dialog?.open) dialog.close(); };
-  }, [detail]);
   if (!detail) return null;
   const { event, milestone } = detail;
-  return createPortal(<dialog ref={dialogRef} className="ops-dialog ops-event-detail-dialog" aria-labelledby="ops-event-detail-title" onCancel={(eventCancel) => { eventCancel.preventDefault(); onClose(); }} onClick={(eventClick) => { if (eventClick.target === eventClick.currentTarget) onClose(); }}>
-    <article className="ops-dialog__surface ops-event-detail" data-calendar-event-detail>
-      <header><div><span>{milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"}</span><h2 id="ops-event-detail-title">{milestone ? milestoneLabel(milestone) : event.title}</h2>{milestone ? <p>{event.title}</p> : null}</div><button type="button" onClick={onClose} aria-label="Close event details"><X size={18} /></button></header>
-      <div className="ops-event-detail__body">
+  return <ControlDialog
+    open
+    onClose={onClose}
+    title={milestone ? milestoneLabel(milestone) : event.title}
+    eyebrow={milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"}
+    summary={milestone ? event.title : null}
+    size="detail"
+    closeLabel="Close event details"
+    surfaceProps={{ className: "ops-event-detail", "data-calendar-event-detail": true }}
+    bodyProps={{ className: "ops-event-detail__body" }}
+    footer={<button type="button" onClick={onClose}>Close</button>}
+  >
         <dl>
           <div><dt>{milestone ? "Milestone date" : "Starts"}</dt><dd>{dateTime(milestone?.occursAt || event.startsAt)}</dd></div>
           <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
@@ -467,10 +466,7 @@ function CalendarEventModal({ detail, onClose }) {
         {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <span key={attendee.id || attendee.displayName}><UserAvatar user={attendee} size={34} decorative={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></span>)}</div></section> : null}
         {event.milestones?.length ? <section><h3>Deadlines &amp; milestones</h3><div className="ops-event-detail__milestones">{event.milestones.map((entry) => <article key={entry.id} className={milestone?.id === entry.id ? "is-focused" : ""}><i aria-hidden="true" /><span><strong>{milestoneLabel(entry)}</strong><small>{milestoneTypeLabel(entry.type)}</small></span><time dateTime={entry.occursAt}>{compactDate(entry.occursAt)}</time>{entry.notes ? <p>{entry.notes}</p> : null}</article>)}</div></section> : null}
         {(milestone?.notes || event.notes) ? <section className="ops-event-detail__context"><h3>Context</h3><p>{milestone?.notes || event.notes}</p></section> : null}
-      </div>
-      <footer><button type="button" onClick={onClose}>Close</button></footer>
-    </article>
-  </dialog>, document.body);
+  </ControlDialog>;
 }
 
 function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {

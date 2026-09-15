@@ -30,6 +30,7 @@ import {
 import { useManagementState } from "./management-state.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { ControlMultiSelect } from "control-surface-ui/react";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -190,79 +191,20 @@ function label(value) {
 }
 
 export function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null, portalTarget = null }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [menuGeometry, setMenuGeometry] = useState(null);
-  const rootRef = useRef(null);
-  const menuRef = useRef(null);
-  const searchRef = useRef(null);
-  const rows = options.map((option) => Array.isArray(option) ? { value: option[0], label: option[1] } : typeof option === "string" ? { value: option, label: option } : option);
-  const selected = parseMultiValues(value);
-  const selectedSet = new Set(selected);
-  const visibleRows = rows.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
-  const buttonLabel = selected.length ? `${title} (${selected.length})` : allLabel;
-
-  useEffect(() => {
-    function closeOutside(event) {
-      if (!rootRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) setOpen(false);
-    }
-    function closeOnEscape(event) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function updateGeometry() {
-      const button = rootRef.current?.querySelector("button");
-      if (!button) return;
-      const bounds = button.getBoundingClientRect();
-      const width = Math.min(440, Math.max(280, window.innerWidth - 24));
-      setMenuGeometry({
-        left: Math.max(12, Math.min(bounds.left, window.innerWidth - width - 12)),
-        top: Math.max(12, Math.min(bounds.bottom + 5, window.innerHeight - 420)),
-        width,
-      });
-    }
-    updateGeometry();
-    const focusFrame = window.requestAnimationFrame(() => searchRef.current?.focus());
-    window.addEventListener("resize", updateGeometry);
-    window.addEventListener("scroll", updateGeometry, true);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      window.removeEventListener("resize", updateGeometry);
-      window.removeEventListener("scroll", updateGeometry, true);
-    };
-  }, [open]);
-
-  function toggle(optionValue) {
-    const next = selectedSet.has(optionValue) ? selected.filter((item) => item !== optionValue) : [...selected, optionValue];
-    if (maxSelected && next.length > maxSelected) return;
-    onChange(next);
-  }
-
-  const menu = open ? createPortal(
-    <div ref={menuRef} className="capture-multiselect__menu" style={{ left: menuGeometry?.left, top: menuGeometry?.top, width: menuGeometry?.width, visibility: menuGeometry ? "visible" : "hidden" }}>
-      <header><span><strong>{title}</strong><small>{selected.length ? `${selected.length} selected` : allLabel}</small></span><button type="button" onClick={() => onChange([])} disabled={!selected.length}>Clear</button></header>
-      <label className="capture-multiselect__search"><Search size={15} aria-hidden="true" /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} aria-label={`Search ${title} options`} /></label>
-      <div className="capture-multiselect__options" role="listbox" aria-label={`${title} options`} aria-multiselectable="true">
-        {visibleRows.length ? visibleRows.map((option) => {
-          const checked = selectedSet.has(option.value);
-          const disabled = Boolean(maxSelected && !checked && selected.length >= maxSelected);
-          return <label key={option.value} role="option" aria-selected={checked} className={checked ? "is-selected" : ""}><input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggle(option.value)} /><span>{option.label}</span>{Number.isFinite(option.count) ? <small>{option.count.toLocaleString()}</small> : null}</label>;
-        }) : <p>No matching options</p>}
-      </div>
-    </div>,
-    portalTarget?.current || document.body,
-  ) : null;
-
-  return <div ref={rootRef} className={`capture-filter capture-multiselect ${className}`.trim()}><span>{title}</span><button type="button" className="capture-multiselect__trigger" aria-label={`${title}. ${buttonLabel}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)} title={selected.length ? selected.join(", ") : allLabel}><span>{buttonLabel}</span><ChevronDown size={14} aria-hidden="true" /></button>{menu}</div>;
+  return <div className={`capture-filter ${className}`.trim()}>
+    <span>{title}</span>
+    <ControlMultiSelect
+      label={title}
+      placeholder={allLabel}
+      value={parseMultiValues(value)}
+      options={options}
+      onChange={onChange}
+      maxSelected={maxSelected}
+      portalTarget={portalTarget}
+      searchable
+      clearable
+    />
+  </div>;
 }
 
 function formatMoney(value) {
