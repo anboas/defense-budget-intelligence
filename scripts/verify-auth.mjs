@@ -446,6 +446,7 @@ try {
   assert.ok(mobileSurfaceBox && mobileSurfaceBox.x <= 13 && Math.abs((mobileSurfaceBox.x + mobileSurfaceBox.width) - 378) <= 2, "Mobile profile dropdown should use the same fixed 12px-gutter account sheet as Opportunity Intelligence");
   await mobileSurface.locator("[data-workspace-switcher-trigger]").click();
   const mobileWorkspaceMenu = page.locator("[data-workspace-switcher-menu]");
+  await mobileWorkspaceMenu.waitFor({ state: "visible" });
   const mobileWorkspaceMenuGeometry = await mobileWorkspaceMenu.evaluate((node) => {
     const bounds = node.getBoundingClientRect();
     return {
