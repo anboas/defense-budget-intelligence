@@ -472,6 +472,16 @@ try {
   await page.waitForSelector("[data-ops-event-editor]");
   await page.getByLabel("Title").fill("Portfolio evidence review");
   await page.getByLabel("Starts").fill("2027-01-15T14:00");
+  await page.getByLabel("Location").fill("Mission center, Room 204");
+  await page.getByRole("button", { name: "Add link" }).click();
+  await page.getByLabel("Event link 1 label").fill("Official event page");
+  await page.getByLabel("Event link 1 URL").fill("https://example.test/portfolio-review");
+  const eventCategoryPicker = page.getByRole("button", { name: /^Event categories:/ });
+  await eventCategoryPicker.click();
+  await page.getByRole("option", { name: /Workshop/ }).click();
+  await page.keyboard.press("Escape");
+  const milestoneButton = page.getByRole("button", { name: "Add deadline or milestone" });
+  assert.match(await milestoneButton.getAttribute("class"), /if-btn--secondary/, "The milestone action must use the Control Surface secondary button");
   await page.getByRole("button", { name: "Save event" }).click();
   await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
@@ -484,12 +494,20 @@ try {
     const at = "2026-09-13T12:00:00.000Z";
     localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
     localStorage.setItem("dbi:management-events:v1", JSON.stringify([
-      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }], milestones: [{ id: "registration", type: "registration_deadline", label: "Registration closes", occursAt: "2026-09-10", notes: "Published registration cutoff" }, { id: "refund", type: "refund_deadline", label: "Last day for refunds", occursAt: "2026-09-11", notes: "Published refund policy" }] },
+      { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", links: [{ id: "official", label: "Official event page", url: "https://example.test/air-space-cyber" }, { id: "agenda", label: "Agenda", url: "https://example.test/air-space-cyber/agenda" }], attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }], milestones: [{ id: "registration", type: "registration_deadline", label: "Registration closes", occursAt: "2026-09-10", notes: "Published registration cutoff" }, { id: "refund", type: "refund_deadline", label: "Last day for refunds", occursAt: "2026-09-11", notes: "Published refund policy" }] },
       { id: "event-ausa-annual-meeting-2026", title: "AUSA Annual Meeting & Exposition 2026", startsAt: "2026-10-12T08:00", endsAt: "2026-10-14T17:00", location: "Walter E. Washington Convention Center, Washington, DC", attendees: [], milestones: [{ id: "hotel", type: "hotel_deadline", label: "Hotel block cutoff", occursAt: "2026-10-01", notes: "Published room-block cutoff" }] },
       { id: "event-eighth-annual-defense-conference-2026", title: "8th Annual Defense Conference", startsAt: "2026-10-30T08:00", endsAt: "2026-10-30T17:00", location: "Hyatt Regency Crystal City, Virginia or virtual", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
       { id: "event-i-itsec-2026", title: "Interservice/Industry Training, Simulation and Education Conference (I/ITSEC) 2026", startsAt: "2026-11-30T08:00", endsAt: "2026-12-04T17:00", location: "Orange County Convention Center, Orlando, Florida", attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }] },
       { id: "event-weapon-systems-software-summit-2026", title: "2026 Department of Defense Weapon Systems Software Summit", startsAt: "2026-12-08T08:00", endsAt: "2026-12-08T17:00", location: "Broward County Convention Center, Fort Lauderdale, Florida", attendees: [{ id: "user-adam", displayName: "Adam Boas" }] },
-    ].map((event, index) => ({ ...event, attendeeIds: event.attendees.map((attendee) => attendee.id), notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
+    ].map((event, index) => ({ ...event, attendeeIds: event.attendees.map((attendee) => attendee.id), categoryIds: [index === 4 ? "summit" : "conference"], notes: "", status: "scheduled", recordIds: [recordIds[index]], wallboard: true, createdAt: at, updatedAt: at }))));
+    localStorage.setItem("dbi:event-categories:v1", JSON.stringify([
+      { id: "conference", name: "Conference", description: "Conferences and annual meetings" },
+      { id: "industry-day", name: "Industry day", description: "Government industry engagement" },
+      { id: "workshop", name: "Workshop", description: "Hands-on working sessions" },
+      { id: "immersion-day", name: "Immersion day", description: "Focused customer immersion" },
+      { id: "summit", name: "Summit", description: "Executive and technical summits" },
+      { id: "other", name: "Other", description: "Other workspace events" },
+    ]));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
   }, wallboardRecordIds);
   await openSurface(page, "#/budget-spend/wallboard", "[data-ops-wallboard]");
@@ -648,6 +666,7 @@ try {
   await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').click();
   await page.waitForSelector("[data-calendar-event-detail]");
   assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Air, Space & Cyber Conference[\s\S]*National Harbor[\s\S]*Attendees/i, "Clicking a calendar bar should open the complete event detail modal");
+  assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Conference[\s\S]*Official event page[\s\S]*Agenda/i, "Event details should separate category, venue, and multiple event links");
   const eventModalHeader = await page.locator("[data-calendar-event-detail] > header").evaluate((header) => {
     const title = header.querySelector("h2").getBoundingClientRect();
     const close = header.querySelector("button").getBoundingClientRect();
@@ -656,6 +675,18 @@ try {
   });
   assert.ok(eventModalHeader.titleRight <= eventModalHeader.closeLeft && eventModalHeader.closeRight <= eventModalHeader.headerRight + 1, `Event modal title and close action must not overlap: ${JSON.stringify(eventModalHeader)}`);
   await page.getByRole("button", { name: "Close event details" }).click();
+  const calendarCategoryFilter = page.locator("[data-calendar-category-filter]");
+  await calendarCategoryFilter.click();
+  await page.getByRole("option", { name: /^Summit/ }).click();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 0, "Selecting Summit alone should hide Conference events");
+  await calendarCategoryFilter.click();
+  await page.getByRole("option", { name: /^Conference/ }).click();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 1, "Selecting multiple event types should apply inclusive OR filtering");
+  await calendarCategoryFilter.click();
+  await page.getByRole("button", { name: "Clear" }).click();
+  await page.keyboard.press("Escape");
   await assertNoPageOverflow(page, "1080p event calendar");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-1080p.png` });
 

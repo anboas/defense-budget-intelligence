@@ -254,6 +254,15 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 403, "Viewer must not enumerate or manage human accounts");
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: viewerCookie });
     assert.equal(response.status, 200, "Signed-in viewers may read the minimal active-user directory used by event filters");
+    response = await apiRequest(baseUrl, "/api/v1/agent/event-categories", { cookie: viewerCookie });
+    assert.equal(response.status, 200, "Viewers may read the workspace taxonomy used by event filters");
+    response = await apiRequest(baseUrl, "/api/v1/agent/event-categories", {
+      method: "POST",
+      body: { name: "Viewer-created category" },
+      cookie: viewerCookie,
+      origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Only workspace managers may change the event taxonomy");
 
     response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}`, {
       method: "PATCH",
@@ -356,9 +365,23 @@ async function verifyApiLifecycle(persistPath) {
     });
     assert.equal(response.status, 200);
     assert.equal((await response.json()).user.avatarDataUrl, avatarDataUrl, "Profile pictures must persist through the account API");
+    response = await apiRequest(baseUrl, "/api/v1/agent/event-categories", { cookie: ownerCookie });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.equal(body.data.length, 6, "The initial workspace must expose its managed event taxonomy");
+    response = await apiRequest(baseUrl, "/api/v1/agent/event-categories", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { name: "Customer forum", description: "Customer-led mission and roadmap sessions" },
+    });
+    assert.equal(response.status, 201, "Workspace managers must be able to create event categories");
+    body = await response.json();
+    const customerForumCategoryId = body.data.id;
     response = await apiRequest(baseUrl, "/api/v1/agent/events", {
       method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), headers: { "idempotency-key": "avatar-event-verification" },
-      body: { title: "Avatar propagation verification", startsAt: "2027-02-01T09:00", endsAt: "2027-02-01T10:00", attendeeIds: [ownerId] },
+      body: { title: "Avatar propagation verification", startsAt: "2027-02-01T09:00", endsAt: "2027-02-01T10:00", location: "Mission center", attendeeIds: [ownerId], categoryIds: [customerForumCategoryId], links: [
+        { id: "official", label: "Official page", url: "https://example.test/customer-forum" },
+        { id: "registration", label: "Registration", url: "https://example.test/customer-forum/register" },
+      ] },
     });
     assert.equal(response.status, 201);
     response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });
@@ -366,6 +389,13 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     const ownedEventAttendee = body.data.find((event) => event.title === "Avatar propagation verification")?.attendees?.find((attendee) => attendee.id === ownerId);
     assert.equal(ownedEventAttendee?.avatarDataUrl, avatarDataUrl, "Calendar attendee payloads must carry the current profile image");
+    const categorizedEvent = body.data.find((event) => event.title === "Avatar propagation verification");
+    assert.deepEqual(categorizedEvent?.categoryIds, [customerForumCategoryId], "Event category assignments must be workspace-scoped and stable");
+    assert.deepEqual(categorizedEvent?.links?.map((link) => link.label), ["Official page", "Registration"], "Event links must persist independently from the venue field");
+    response = await apiRequest(baseUrl, `/api/v1/agent/event-categories/${customerForumCategoryId}`, {
+      method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 409, "Assigned event categories must not be deleted out from under events");
 
     const personalOpenAiKey = "sk-verification_personal_000000000001";
     const workspaceOpenAiKey = "sk-verification_workspace_000000000002";

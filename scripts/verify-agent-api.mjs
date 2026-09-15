@@ -128,7 +128,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "events", "activity", "integrations"]);
+  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "events", "event-categories", "activity", "integrations"]);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
@@ -140,6 +140,17 @@ try {
   assert.equal(result.payload.data.some((event) => /AFRL Classified Industry Day/i.test(event.title)), false, "The excluded AFRL event must not enter the shared database");
   assert.deepEqual(result.payload.data.find((event) => event.id === "event-air-space-cyber-conference-2026")?.attendees, [], "Imported free-text names must not masquerade as workspace-user attendees");
   assert.ok(result.payload.data.some((event) => event.id === "event-weapon-systems-software-summit-2026"), "The Weapon Systems Software Summit should be imported");
+  assert.deepEqual(result.payload.data.find((event) => event.id === "event-air-space-cyber-conference-2026")?.categoryIds, ["conference"], "Title-explicit legacy conferences should receive the managed Conference category");
+  assert.deepEqual(result.payload.data.find((event) => event.id === "event-weapon-systems-software-summit-2026")?.categoryIds, ["summit"], "The existing software summit should receive the managed Summit category");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/event-categories", { token: agentToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 6, "Every workspace should start with the six managed event categories");
+  assert.ok(result.payload.data.some((category) => category.id === "industry-day" && category.name === "Industry day"));
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/event-categories", {
+    method: "POST", token: agentToken, body: { name: "Agent-defined taxonomy" },
+  }));
+  assert.equal(result.response.status, 403, "Agent event-write scope must not grant workspace taxonomy administration");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/records?limit=5&sort=potentialAmount&direction=desc", { token: agentToken }));
   assert.equal(result.response.status, 200);
@@ -202,7 +213,10 @@ try {
   assert.equal(result.response.status, 200);
 
   const eventKey = crypto.randomUUID();
-  const eventInput = { title: "Agent coordination review", startsAt: "2026-11-20T14:00", status: "scheduled", recordIds: [factualRecordId], attendeeIds: [ownerId], milestones: [
+  const eventInput = { title: "Agent coordination review", startsAt: "2026-11-20T14:00", location: "Mission partner center", status: "scheduled", recordIds: [factualRecordId], attendeeIds: [ownerId], categoryIds: ["workshop"], links: [
+    { id: "official", label: "Official event page", url: "https://example.test/events/coordination-review" },
+    { id: "agenda", label: "Agenda", url: "https://example.test/events/coordination-review/agenda" },
+  ], milestones: [
     { id: "registration", type: "registration_deadline", label: "Registration closes", occursAt: "2026-11-10", notes: "Published cutoff" },
     { id: "refund", type: "refund_deadline", label: "Last day for refunds", occursAt: "2026-11-12", notes: "Published refund policy" },
   ], wallboard: true };
@@ -214,10 +228,20 @@ try {
   assert.deepEqual(event.attendeeIds, [ownerId], "Event attendees must persist as stable workspace-user IDs");
   assert.equal(event.attendees[0].displayName, owner.displayName, "Event reads should resolve the current workspace-user display name");
   assert.deepEqual(event.milestones.map((milestone) => milestone.type), ["registration_deadline", "refund_deadline"], "Event milestones must persist as typed, date-backed overlays");
+  assert.deepEqual(event.categoryIds, ["workshop"], "Event categories must persist as stable workspace taxonomy IDs");
+  assert.deepEqual(event.links.map((link) => link.label), ["Official event page", "Agenda"], "Multiple event links must persist separately from the physical location");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
     method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { title: "Invalid milestone", startsAt: "2026-11-20", milestones: [{ id: "custom", type: "other", occursAt: "" }] },
   }));
   assert.equal(result.response.status, 400, "Undated event milestones must be rejected rather than inferred");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { title: "Invalid event link", startsAt: "2026-11-20", links: [{ id: "bad", url: "javascript:alert(1)" }] },
+  }));
+  assert.equal(result.response.status, 400, "Event links must reject non-HTTP protocols");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { title: "Invalid event category", startsAt: "2026-11-20", categoryIds: ["outside-workspace"] },
+  }));
+  assert.equal(result.response.status, 404, "Event category assignments must stay inside the active workspace taxonomy");
   result = await body(await request(instance.baseUrl, `/api/v1/agent/events/${event.id}`, {
     method: "PATCH", token: agentToken, headers: { "if-match": String(event.version) }, body: { notes: "Validated through the Agent API" },
   }));
@@ -247,7 +271,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tracking", { token: restartToken }));
   assert.ok(result.payload.data.some((entry) => entry.recordId === factualRecordId && entry.note === "Updated shared note"), "Tracking state must survive restart");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: restartToken }));
-  assert.ok(result.payload.data.some((entry) => entry.id === event.id && entry.notes === "Validated through the Agent API" && entry.milestones?.length === 2), "Event milestones must survive restart with the event state");
+  assert.ok(result.payload.data.some((entry) => entry.id === event.id && entry.notes === "Validated through the Agent API" && entry.milestones?.length === 2 && entry.links?.length === 2 && entry.categoryIds?.[0] === "workshop"), "Event milestones, links, and categories must survive restart with the event state");
 
   await request(instance.baseUrl, `/api/v1/agent/events/${event.id}`, { method: "DELETE", token: restartToken });
   await request(instance.baseUrl, `/api/v1/agent/tracking/${encodeURIComponent(factualRecordId)}`, { method: "DELETE", token: restartToken });

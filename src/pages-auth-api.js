@@ -23,6 +23,14 @@ const USER_STATUSES = Object.freeze(["active", "suspended"]);
 const DEFAULT_WORKSPACE_ID = "workspace-defense-budget";
 const DEFAULT_HEADER_EYEBROW = "Defense Budget & Spend Analytics";
 const DEFAULT_DISPLAY_TITLE = "Defense Budget Intelligence";
+const DEFAULT_EVENT_CATEGORIES = Object.freeze([
+  ["conference", "Conference", "Conferences, conventions, and annual meetings"],
+  ["industry-day", "Industry day", "Government and mission-partner industry engagement"],
+  ["workshop", "Workshop", "Hands-on working sessions and workshops"],
+  ["immersion-day", "Immersion day", "Focused mission, customer, or technology immersion"],
+  ["summit", "Summit", "Executive, technical, and mission summits"],
+  ["other", "Other", "Workspace events outside the managed categories"],
+]);
 const ROLE_LABELS = Object.freeze({
   super_user: "Super user",
   administrator: "Workspace manager",
@@ -30,6 +38,14 @@ const ROLE_LABELS = Object.freeze({
   viewer: "Viewer",
 });
 const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read"]);
+
+function defaultEventCategoryStatements(db, workspaceId, now) {
+  return DEFAULT_EVENT_CATEGORIES.map(([categoryId, name, description]) => db.prepare(`
+    INSERT OR IGNORE INTO dbi_workspace_event_categories
+      (workspace_id, category_id, name, description, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(workspaceId, categoryId, name, description, now, now));
+}
 
 const SCHEMA = Object.freeze([
   `CREATE TABLE IF NOT EXISTS dbi_super_user (
@@ -340,6 +356,36 @@ const SCHEMA = Object.freeze([
     created_at TEXT NOT NULL,
     PRIMARY KEY (workspace_id, event_id, user_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_links (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    link_id TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id, link_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_event_links_event ON dbi_workspace_event_links (workspace_id, event_id, sort_order)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_categories (
+    workspace_id TEXT NOT NULL,
+    category_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, category_id)
+  )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_workspace_event_categories_name ON dbi_workspace_event_categories (workspace_id, name COLLATE NOCASE)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_category_assignments (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    category_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id, category_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_event_category_assignments_category ON dbi_workspace_event_category_assignments (workspace_id, category_id, event_id)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_event_milestones (
     workspace_id TEXT NOT NULL,
     event_id TEXT NOT NULL,
@@ -353,6 +399,24 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (workspace_id, event_id, milestone_id)
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_event_milestones_date ON dbi_workspace_event_milestones (workspace_id, occurs_at)",
+  `INSERT OR IGNORE INTO dbi_workspace_event_categories (workspace_id, category_id, name, description, created_at, updated_at)
+    SELECT workspace_id, 'conference', 'Conference', 'Conferences, conventions, and annual meetings', '2026-09-15T18:00:00.000Z', '2026-09-15T18:00:00.000Z' FROM dbi_workspaces`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_categories (workspace_id, category_id, name, description, created_at, updated_at)
+    SELECT workspace_id, 'industry-day', 'Industry day', 'Government and mission-partner industry engagement', '2026-09-15T18:00:00.000Z', '2026-09-15T18:00:00.000Z' FROM dbi_workspaces`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_categories (workspace_id, category_id, name, description, created_at, updated_at)
+    SELECT workspace_id, 'workshop', 'Workshop', 'Hands-on working sessions and workshops', '2026-09-15T18:00:00.000Z', '2026-09-15T18:00:00.000Z' FROM dbi_workspaces`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_categories (workspace_id, category_id, name, description, created_at, updated_at)
+    SELECT workspace_id, 'immersion-day', 'Immersion day', 'Focused mission, customer, or technology immersion', '2026-09-15T18:00:00.000Z', '2026-09-15T18:00:00.000Z' FROM dbi_workspaces`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_categories (workspace_id, category_id, name, description, created_at, updated_at)
+    SELECT workspace_id, 'summit', 'Summit', 'Executive, technical, and mission summits', '2026-09-15T18:00:00.000Z', '2026-09-15T18:00:00.000Z' FROM dbi_workspaces`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_categories (workspace_id, category_id, name, description, created_at, updated_at)
+    SELECT workspace_id, 'other', 'Other', 'Workspace events outside the managed categories', '2026-09-15T18:00:00.000Z', '2026-09-15T18:00:00.000Z' FROM dbi_workspaces`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_category_assignments (workspace_id, event_id, category_id, created_at)
+    SELECT workspace_id, id, 'conference', '2026-09-15T18:00:00.000Z' FROM dbi_workspace_events
+    WHERE id IN ('event-air-space-cyber-conference-2026', 'event-ausa-annual-meeting-2026', 'event-eighth-annual-defense-conference-2026', 'event-i-itsec-2026')`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_category_assignments (workspace_id, event_id, category_id, created_at)
+    SELECT workspace_id, id, 'summit', '2026-09-15T18:00:00.000Z' FROM dbi_workspace_events
+    WHERE id = 'event-weapon-systems-software-summit-2026'`,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_activity (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -411,6 +475,12 @@ const SCHEMA = Object.freeze([
     SELECT id, 'workspace-defense-budget', payload_json, version, created_at, updated_at, deleted_at
     FROM dbi_manual_records
     WHERE NOT EXISTS (SELECT 1 FROM dbi_schema_migrations WHERE name = '2026-09-14-multi-workspace-v1')`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_category_assignments (workspace_id, event_id, category_id, created_at)
+    SELECT workspace_id, id, 'conference', '2026-09-15T18:00:00.000Z' FROM dbi_workspace_events
+    WHERE id IN ('event-air-space-cyber-conference-2026', 'event-ausa-annual-meeting-2026', 'event-eighth-annual-defense-conference-2026', 'event-i-itsec-2026')`,
+  `INSERT OR IGNORE INTO dbi_workspace_event_category_assignments (workspace_id, event_id, category_id, created_at)
+    SELECT workspace_id, id, 'summit', '2026-09-15T18:00:00.000Z' FROM dbi_workspace_events
+    WHERE id = 'event-weapon-systems-software-summit-2026'`,
   `INSERT OR IGNORE INTO dbi_schema_migrations (name, applied_at)
     VALUES ('2026-09-14-multi-workspace-v1', '2026-09-14T20:20:00.000Z')`,
 ]);
@@ -1286,6 +1356,7 @@ async function workspaceAdminResponse(request, db) {
         .bind(workspaceId, owner.user_id, owner.user_id, now, now),
       db.prepare(`INSERT INTO dbi_workspace_settings (workspace_id, icon_data_url, header_eyebrow, display_title, updated_at)
         VALUES (?, '', ?, ?, ?)`).bind(workspaceId, DEFAULT_HEADER_EYEBROW, DEFAULT_DISPLAY_TITLE, now),
+      ...defaultEventCategoryStatements(db, workspaceId, now),
     ]);
     await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_created", "workspace", workspaceId, { name });
     const row = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
@@ -1421,15 +1492,18 @@ function parsedScopes(value) {
 
 async function requestPrincipal(db, request) {
   const session = await sessionUser(db, request);
-  if (session) return {
-    type: "user",
-    id: session.user_id,
-    name: session.display_name,
-    workspaceId: session.active_workspace_id || "",
-    scopes: session.must_change_password || !session.active_workspace_id
-      ? []
-      : scopesForRole(session.role === "super_user" ? "super_user" : session.membership_role),
-  };
+  if (session) {
+    const roleId = session.role === "super_user" ? "super_user" : session.membership_role;
+    return {
+      type: "user",
+      id: session.user_id,
+      name: session.display_name,
+      workspaceId: session.active_workspace_id || "",
+      roleId,
+      canManageWorkspace: roleId === "super_user" || roleId === "administrator",
+      scopes: session.must_change_password || !session.active_workspace_id ? [] : scopesForRole(roleId),
+    };
+  }
   const authorization = request.headers.get("authorization") || "";
   const rawToken = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!rawToken.startsWith(AGENT_TOKEN_PREFIX) || rawToken.length < 72) return null;
@@ -1440,7 +1514,7 @@ async function requestPrincipal(db, request) {
   `).bind(await hashValue(rawToken), now).first();
   if (!row) return null;
   await db.prepare("UPDATE dbi_workspace_agent_keys SET last_used_at = ? WHERE id = ?").bind(now, row.id).run();
-  return { type: "agent", id: row.id, name: row.name, workspaceId: row.workspace_id, scopes: parsedScopes(row.scopes_json) };
+  return { type: "agent", id: row.id, name: row.name, workspaceId: row.workspace_id, roleId: "agent", canManageWorkspace: false, scopes: parsedScopes(row.scopes_json) };
 }
 
 function hasScope(principal, scope) {
@@ -1746,13 +1820,14 @@ function recordProjection(record) {
   };
 }
 
-function eventFromRow(row, attendees = [], milestones = []) {
+function eventFromRow(row, attendees = [], milestones = [], links = [], categoryIds = []) {
   let recordIds = [];
   try { recordIds = JSON.parse(row.record_ids_json || "[]"); } catch { /* empty */ }
   return {
     id: row.id, title: row.title, startsAt: row.starts_at, endsAt: row.ends_at || "",
     location: row.location || "", notes: row.notes || "", status: row.status,
-    recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), milestones, wallboard: Boolean(row.wallboard), version: row.version,
+    recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), milestones, links, categoryIds,
+    wallboard: Boolean(row.wallboard), version: row.version,
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -1761,20 +1836,34 @@ async function eventsFromRows(db, workspaceId, rows = []) {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const attendeeResult = await db.prepare(`
+  const [attendeeResult, milestoneResult, linkResult, categoryResult] = await Promise.all([
+    db.prepare(`
     SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status, profile.avatar_data_url
     FROM dbi_workspace_event_attendees attendee
     JOIN dbi_users user ON user.user_id = attendee.user_id
     LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
     WHERE attendee.workspace_id = ? AND attendee.event_id IN (${placeholders})
     ORDER BY user.display_name COLLATE NOCASE
-  `).bind(workspaceId, ...ids).all();
-  const milestoneResult = await db.prepare(`
+  `).bind(workspaceId, ...ids).all(),
+    db.prepare(`
     SELECT event_id, milestone_id, type, label, occurs_at, notes
     FROM dbi_workspace_event_milestones
     WHERE workspace_id = ? AND event_id IN (${placeholders})
     ORDER BY occurs_at, milestone_id
-  `).bind(workspaceId, ...ids).all();
+  `).bind(workspaceId, ...ids).all(),
+    db.prepare(`
+    SELECT event_id, link_id, label, url, sort_order
+    FROM dbi_workspace_event_links
+    WHERE workspace_id = ? AND event_id IN (${placeholders})
+    ORDER BY sort_order, link_id
+  `).bind(workspaceId, ...ids).all(),
+    db.prepare(`
+    SELECT event_id, category_id
+    FROM dbi_workspace_event_category_assignments
+    WHERE workspace_id = ? AND event_id IN (${placeholders})
+    ORDER BY category_id
+  `).bind(workspaceId, ...ids).all(),
+  ]);
   const attendeesByEvent = new Map();
   for (const attendee of attendeeResult.results || []) {
     const people = attendeesByEvent.get(attendee.event_id) || [];
@@ -1787,7 +1876,25 @@ async function eventsFromRows(db, workspaceId, rows = []) {
     items.push({ id: milestone.milestone_id, type: milestone.type, label: milestone.label || "", occursAt: milestone.occurs_at, notes: milestone.notes || "" });
     milestonesByEvent.set(milestone.event_id, items);
   }
-  return rows.map((row) => eventFromRow(row, attendeesByEvent.get(row.id) || [], milestonesByEvent.get(row.id) || []));
+  const linksByEvent = new Map();
+  for (const link of linkResult.results || []) {
+    const items = linksByEvent.get(link.event_id) || [];
+    items.push({ id: link.link_id, label: link.label || "", url: link.url, sortOrder: Number(link.sort_order || 0) });
+    linksByEvent.set(link.event_id, items);
+  }
+  const categoriesByEvent = new Map();
+  for (const assignment of categoryResult.results || []) {
+    const items = categoriesByEvent.get(assignment.event_id) || [];
+    items.push(assignment.category_id);
+    categoriesByEvent.set(assignment.event_id, items);
+  }
+  return rows.map((row) => eventFromRow(
+    row,
+    attendeesByEvent.get(row.id) || [],
+    milestonesByEvent.get(row.id) || [],
+    linksByEvent.get(row.id) || [],
+    categoriesByEvent.get(row.id) || [],
+  ));
 }
 
 const EVENT_MILESTONE_TYPES = new Set(["registration_deadline", "refund_deadline", "hotel_deadline", "exhibitor_deadline", "submission_deadline", "other"]);
@@ -1807,6 +1914,46 @@ function cleanEventMilestones(value) {
     milestones.push({ id, type, label, occursAt, notes });
   }
   return { milestones, valid: value.length <= 24 };
+}
+
+function cleanHttpUrl(value) {
+  const text = cleanText(value, 2_000);
+  if (!text) return "";
+  try {
+    const url = new URL(text);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function cleanEventLinks(value) {
+  if (!Array.isArray(value)) return { links: [], valid: false };
+  const ids = new Set();
+  const urls = new Set();
+  const links = [];
+  for (const [index, candidate] of value.slice(0, 12).entries()) {
+    const id = cleanText(candidate?.id, 100) || `link-${index + 1}`;
+    const label = cleanText(candidate?.label, 120);
+    const url = cleanHttpUrl(candidate?.url);
+    if (!url || ids.has(id) || urls.has(url)) return { links: [], valid: false };
+    ids.add(id);
+    urls.add(url);
+    links.push({ id, label, url, sortOrder: index });
+  }
+  return { links, valid: value.length <= 12 };
+}
+
+async function activeEventCategoryIds(db, workspaceId, value) {
+  const ids = cleanStringArray(value, 8, 80);
+  if (!ids.length) return { ids: [], valid: true };
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = await db.prepare(`
+    SELECT category_id FROM dbi_workspace_event_categories
+    WHERE workspace_id = ? AND category_id IN (${placeholders})
+  `).bind(workspaceId, ...ids).all();
+  const active = new Set((result.results || []).map((row) => row.category_id));
+  return { ids: ids.filter((id) => active.has(id)), valid: active.size === ids.length };
 }
 
 async function activeEventAttendeeIds(db, workspaceId, value) {
@@ -1838,6 +1985,27 @@ async function replaceEventMilestones(db, workspaceId, eventId, milestones) {
       (workspace_id, event_id, milestone_id, type, label, occurs_at, notes, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(workspaceId, eventId, milestone.id, milestone.type, milestone.label, milestone.occursAt, milestone.notes, now, now).run();
+  }
+}
+
+async function replaceEventLinks(db, workspaceId, eventId, links) {
+  await db.prepare("DELETE FROM dbi_workspace_event_links WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
+  const now = new Date().toISOString();
+  for (const link of links) {
+    await db.prepare(`INSERT INTO dbi_workspace_event_links
+      (workspace_id, event_id, link_id, label, url, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(workspaceId, eventId, link.id, link.label, link.url, link.sortOrder, now, now).run();
+  }
+}
+
+async function replaceEventCategories(db, workspaceId, eventId, categoryIds) {
+  await db.prepare("DELETE FROM dbi_workspace_event_category_assignments WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
+  const now = new Date().toISOString();
+  for (const categoryId of categoryIds) {
+    await db.prepare(`INSERT INTO dbi_workspace_event_category_assignments
+      (workspace_id, event_id, category_id, created_at) VALUES (?, ?, ?, ?)`)
+      .bind(workspaceId, eventId, categoryId, now).run();
   }
 }
 
@@ -1888,6 +2056,8 @@ function openApiDocument(origin) {
     "/api/v1/agent/tracking/{recordId}": { put: { summary: "Track or update a record", security }, delete: { summary: "Stop tracking a record", security } },
     "/api/v1/agent/events": { get: { summary: "List operator events", security }, post: { summary: "Create an operator event", security } },
     "/api/v1/agent/events/{eventId}": { get: { summary: "Read an event", security }, patch: { summary: "Update an event", security }, delete: { summary: "Delete an event", security } },
+    "/api/v1/agent/event-categories": { get: { summary: "List workspace event categories", security }, post: { summary: "Create a workspace event category", security } },
+    "/api/v1/agent/event-categories/{categoryId}": { patch: { summary: "Update a workspace event category", security }, delete: { summary: "Delete an unused workspace event category", security } },
     "/api/v1/agent/activity": { get: { summary: "Read append-only audit activity", security }, post: { summary: "Append an agent activity note", security } },
     "/api/v1/agent/integrations": { get: { summary: "Read integration status", security } },
     "/api/v1/agent/analytics": { get: { summary: "Aggregate the factual record universe by a bounded dimension and measure", security } },
@@ -2076,6 +2246,78 @@ async function trackingResponse(request, env, db, principal, segments) {
   return agentError("method_not_allowed", "Method not allowed", 405);
 }
 
+function eventCategoryFromRow(row) {
+  return {
+    id: row.category_id,
+    name: row.name,
+    description: row.description || "",
+    assignedEventCount: Number(row.assigned_event_count || 0),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function eventCategoriesResponse(request, db, principal, segments) {
+  if (!hasScope(principal, "events:read")) return agentError("insufficient_scope", "Scope events:read is required", 403);
+  const categoryId = cleanText(decodeURIComponent(segments[0] || ""), 80);
+  if (request.method === "GET") {
+    const result = await db.prepare(`
+      SELECT category.*,
+        (SELECT COUNT(*) FROM dbi_workspace_event_category_assignments assignment
+          WHERE assignment.workspace_id = category.workspace_id AND assignment.category_id = category.category_id) AS assigned_event_count
+      FROM dbi_workspace_event_categories category
+      WHERE category.workspace_id = ?
+      ORDER BY category.name COLLATE NOCASE
+    `).bind(principal.workspaceId).all();
+    return agentJson((result.results || []).map(eventCategoryFromRow), 200, { total: result.results?.length || 0 });
+  }
+  if (principal.type !== "user" || !principal.canManageWorkspace) {
+    return agentError("workspace_manager_required", "Workspace manager access is required to manage event categories", 403);
+  }
+  if (request.method === "POST" && !categoryId) {
+    const body = await safeJson(request);
+    const name = cleanText(body?.name, 80);
+    const description = cleanText(body?.description, 240);
+    if (name.length < 2) return agentError("invalid_event_category", "Category name must be at least two characters", 400);
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const created = await db.prepare(`INSERT OR IGNORE INTO dbi_workspace_event_categories
+      (workspace_id, category_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(principal.workspaceId, id, name, description, now, now).run();
+    if (!Number(created?.meta?.changes || 0)) return agentError("event_category_exists", "An event category with that name already exists", 409);
+    const row = await db.prepare("SELECT * FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, id).first();
+    await recordActivity(db, principal, "event_category_created", "event_category", id, { name });
+    return agentJson(eventCategoryFromRow(row), 201);
+  }
+  const existing = categoryId
+    ? await db.prepare("SELECT * FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, categoryId).first()
+    : null;
+  if (!existing) return agentError("event_category_not_found", "Event category not found", 404);
+  if (request.method === "PATCH") {
+    const body = await safeJson(request);
+    const name = cleanText(body?.name ?? existing.name, 80);
+    const description = cleanText(body?.description ?? existing.description, 240);
+    if (name.length < 2) return agentError("invalid_event_category", "Category name must be at least two characters", 400);
+    const now = new Date().toISOString();
+    const updated = await db.prepare(`UPDATE OR IGNORE dbi_workspace_event_categories
+      SET name = ?, description = ?, updated_at = ? WHERE workspace_id = ? AND category_id = ?`)
+      .bind(name, description, now, principal.workspaceId, categoryId).run();
+    if (!Number(updated?.meta?.changes || 0)) return agentError("event_category_exists", "An event category with that name already exists", 409);
+    const row = await db.prepare("SELECT * FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, categoryId).first();
+    await recordActivity(db, principal, "event_category_updated", "event_category", categoryId, { name });
+    return agentJson(eventCategoryFromRow(row));
+  }
+  if (request.method === "DELETE") {
+    const assignment = await db.prepare(`SELECT COUNT(*) AS count FROM dbi_workspace_event_category_assignments
+      WHERE workspace_id = ? AND category_id = ?`).bind(principal.workspaceId, categoryId).first();
+    if (Number(assignment?.count || 0)) return agentError("event_category_in_use", "Remove this category from its events before deleting it", 409);
+    await db.prepare("DELETE FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, categoryId).run();
+    await recordActivity(db, principal, "event_category_deleted", "event_category", categoryId, { name: existing.name });
+    return new Response(null, { status: 204 });
+  }
+  return agentError("method_not_allowed", "Method not allowed", 405);
+}
+
 async function eventsResponse(request, env, db, principal, segments) {
   const scope = request.method === "GET" ? "events:read" : "events:write";
   if (!hasScope(principal, scope)) return agentError("insufficient_scope", `Scope ${scope} is required`, 403);
@@ -2096,8 +2338,12 @@ async function eventsResponse(request, env, db, principal, segments) {
     const recordIds = cleanStringArray(body?.recordIds);
     const attendeeSelection = await activeEventAttendeeIds(db, principal.workspaceId, body?.attendeeIds);
     const milestoneSelection = cleanEventMilestones(body?.milestones || []);
+    const linkSelection = cleanEventLinks(body?.links || []);
+    const categorySelection = await activeEventCategoryIds(db, principal.workspaceId, body?.categoryIds || []);
     if (!attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (!milestoneSelection.valid) return agentError("invalid_event_milestones", "Milestones require a unique ID, supported type, and valid date; custom milestones also require a label", 400);
+    if (!linkSelection.valid) return agentError("invalid_event_links", "Event links require unique IDs and valid HTTP or HTTPS URLs", 400);
+    if (!categorySelection.valid) return agentError("event_category_not_found", "Every event category must exist in this workspace", 404);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -2114,6 +2360,8 @@ async function eventsResponse(request, env, db, principal, segments) {
       JSON.stringify(recordIds), body?.wallboard === false ? 0 : 1, now, now).run();
     await replaceEventAttendees(db, principal.workspaceId, id, attendeeSelection.ids);
     await replaceEventMilestones(db, principal.workspaceId, id, milestoneSelection.milestones);
+    await replaceEventLinks(db, principal.workspaceId, id, linkSelection.links);
+    await replaceEventCategories(db, principal.workspaceId, id, categorySelection.ids);
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0], 201);
@@ -2133,8 +2381,12 @@ async function eventsResponse(request, env, db, principal, segments) {
     const recordIds = cleanStringArray(next.recordIds);
     const attendeeSelection = Array.isArray(body?.attendeeIds) ? await activeEventAttendeeIds(db, principal.workspaceId, body.attendeeIds) : null;
     const milestoneSelection = Array.isArray(body?.milestones) ? cleanEventMilestones(body.milestones) : null;
+    const linkSelection = Array.isArray(body?.links) ? cleanEventLinks(body.links) : null;
+    const categorySelection = Array.isArray(body?.categoryIds) ? await activeEventCategoryIds(db, principal.workspaceId, body.categoryIds) : null;
     if (attendeeSelection && !attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (milestoneSelection && !milestoneSelection.valid) return agentError("invalid_event_milestones", "Milestones require a unique ID, supported type, and valid date; custom milestones also require a label", 400);
+    if (linkSelection && !linkSelection.valid) return agentError("invalid_event_links", "Event links require unique IDs and valid HTTP or HTTPS URLs", 400);
+    if (categorySelection && !categorySelection.valid) return agentError("event_category_not_found", "Every event category must exist in this workspace", 404);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -2149,6 +2401,8 @@ async function eventsResponse(request, env, db, principal, segments) {
       JSON.stringify(recordIds), next.wallboard === false ? 0 : 1, now, eventId, principal.workspaceId).run();
     if (attendeeSelection) await replaceEventAttendees(db, principal.workspaceId, eventId, attendeeSelection.ids);
     if (milestoneSelection) await replaceEventMilestones(db, principal.workspaceId, eventId, milestoneSelection.milestones);
+    if (linkSelection) await replaceEventLinks(db, principal.workspaceId, eventId, linkSelection.links);
+    if (categorySelection) await replaceEventCategories(db, principal.workspaceId, eventId, categorySelection.ids);
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first();
     await recordActivity(db, principal, "event_updated", "event", eventId, { version: row.version });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]);
@@ -2156,6 +2410,8 @@ async function eventsResponse(request, env, db, principal, segments) {
   if (request.method === "DELETE") {
     await db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
+    await db.prepare("DELETE FROM dbi_workspace_event_links WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
+    await db.prepare("DELETE FROM dbi_workspace_event_category_assignments WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
     return new Response(null, { status: 204 });
@@ -2212,13 +2468,14 @@ async function agentApiResponse(request, env, db) {
   const [resource = "capabilities", ...segments] = relative.split("/").filter(Boolean);
   if (resource === "capabilities" && request.method === "GET") return agentJson({
     principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
-    resources: ["records", "analytics", "tracking", "events", "activity", "integrations"],
+    resources: ["records", "analytics", "tracking", "events", "event-categories", "activity", "integrations"],
     writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
   }, 200, { requestId });
   if (resource === "openapi.json" && request.method === "GET") return Response.json(openApiDocument(new URL(request.url).origin), { headers: { "cache-control": "no-store" } });
   if (resource === "records") return recordsResponse(request, env, db, principal, segments);
   if (resource === "tracking") return trackingResponse(request, env, db, principal, segments);
   if (resource === "events") return eventsResponse(request, env, db, principal, segments);
+  if (resource === "event-categories") return eventCategoriesResponse(request, db, principal, segments);
   if (resource === "activity") return activityResponse(request, db, principal);
   if (resource === "integrations") return integrationsResponse(request, env, principal);
   if (resource === "analytics") return analyticsResponse(request, env, db, principal);

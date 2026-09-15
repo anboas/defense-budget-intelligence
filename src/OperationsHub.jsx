@@ -32,7 +32,7 @@ import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog } from "control-surface-ui/react";
+import { ControlDialog, ControlMultiSelect } from "control-surface-ui/react";
 
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
@@ -145,7 +145,15 @@ function nextPublishedDate(record, asOf) {
   return futureRecordDates(record, asOf)[0] || "";
 }
 
-function EventEditor({ event, records, onSave, onClose }) {
+function validEventLinkUrl(value) {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+function EventEditor({ event, records, categories, onSave, onClose }) {
   const auth = useAuth();
   const dialogRef = useRef(null);
   const [draft, setDraft] = useState(() => event || {
@@ -154,6 +162,8 @@ function EventEditor({ event, records, onSave, onClose }) {
     startsAt: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
     endsAt: "",
     location: "",
+    links: [],
+    categoryIds: [],
     notes: "",
     status: "scheduled",
     recordIds: [],
@@ -190,6 +200,10 @@ function EventEditor({ event, records, onSave, onClose }) {
       setError("Every milestone needs a date, and custom milestones also need a label.");
       return;
     }
+    if ((draft.links || []).some((link) => !validEventLinkUrl(link.url))) {
+      setError("Every event link needs a valid HTTP or HTTPS URL.");
+      return;
+    }
     onSave({ ...draft, updatedAt: new Date().toISOString() });
     onClose();
   }
@@ -202,31 +216,45 @@ function EventEditor({ event, records, onSave, onClose }) {
     dialogRef={dialogRef}
     closeLabel="Close event editor"
     surfaceProps={{ "data-ops-event-editor": true }}
-    footer={<><button type="button" onClick={onClose}>Cancel</button><button type="submit" form="ops-event-editor-form">Save event</button></>}
+    footer={<><button type="button" className="if-btn" onClick={onClose}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="ops-event-editor-form">Save event</button></>}
   >
       <form id="ops-event-editor-form" className="ops-event-form" onSubmit={submit}>
           {error ? <p role="alert" className="ops-alert">{error}</p> : null}
           <label className="ops-field ops-field--wide"><span>Title</span><input autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
           <label className="ops-field"><span>Starts</span><input type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
-          <label className="ops-field"><span>Location / link</span><input value={draft.location} onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
+          <label className="ops-field"><span>Location</span><input value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
           <div className="ops-field"><span>Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
+          <div className="ops-attendee-picker ops-field--wide">
+            <SearchMultiSelect title="Event categories" allLabel="Select event types" value={JSON.stringify(draft.categoryIds || [])} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description }))} onChange={(categoryIds) => setDraft((value) => ({ ...value, categoryIds }))} portalTarget={dialogRef} />
+            {!categories.length ? <small>No workspace event categories are available.</small> : null}
+          </div>
           <div className="ops-attendee-picker ops-field--wide">
             <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
           </div>
           <label className="ops-field ops-field--wide"><span>Notes</span><textarea value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
-          <fieldset className="ops-event-milestones ops-field--wide">
-            <legend>Deadlines &amp; milestones</legend>
-            <p>Add only published or operator-confirmed dates. Missing dates stay absent from the calendar.</p>
-            <div className="ops-event-milestones__list">{(draft.milestones || []).map((milestone, index) => <div className="ops-event-milestone-row" key={milestone.id}>
-              <div><span>Type</span><ControlSelect ariaLabel={`Milestone ${index + 1} type`} value={milestone.type} options={EVENT_MILESTONE_TYPES} onChange={(type) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type } : item) }))} portalTarget={dialogRef} /></div>
-              <label><span>Date</span><input aria-label={`Milestone ${index + 1} date`} type="date" value={String(milestone.occursAt || "").slice(0, 10)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, occursAt: e.target.value } : item) }))} /></label>
-              <label className="ops-event-milestone-row__label"><span>Display label</span><input aria-label={`Milestone ${index + 1} label`} value={milestone.label || ""} placeholder={milestoneTypeLabel(milestone.type)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, label: e.target.value } : item) }))} /></label>
-              <label className="ops-event-milestone-row__notes"><span>Context</span><input aria-label={`Milestone ${index + 1} context`} value={milestone.notes || ""} placeholder="Optional source or policy note" onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, notes: e.target.value } : item) }))} /></label>
-              <button type="button" aria-label={`Remove milestone ${index + 1}`} onClick={() => setDraft((value) => ({ ...value, milestones: value.milestones.filter((item) => item.id !== milestone.id) }))}><Trash2 size={15} aria-hidden="true" /></button>
-            </div>)}</div>
-            <button type="button" className="ops-event-milestones__add" onClick={() => setDraft((value) => ({ ...value, milestones: [...(value.milestones || []), { id: `milestone-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "registration_deadline", label: "", occursAt: "", notes: "" }] }))}><Plus size={15} aria-hidden="true" />Add deadline or milestone</button>
+          <fieldset className="if-card if-form-grid if-field--full" data-event-links>
+            <legend className="if-field__label">Event links</legend>
+            <p className="if-field__hint if-field--full">Add the official event page, registration, agenda, lodging, or other relevant links.</p>
+            {(draft.links || []).map((link, index) => <div className="if-card if-form-grid if-field--full" key={link.id}>
+              <label className="if-field"><span className="if-field__label">Label</span><input className="if-input" aria-label={`Event link ${index + 1} label`} value={link.label || ""} placeholder="Registration" onChange={(e) => setDraft((value) => ({ ...value, links: value.links.map((item) => item.id === link.id ? { ...item, label: e.target.value } : item) }))} /></label>
+              <label className="if-field"><span className="if-field__label">URL</span><input className="if-input" aria-label={`Event link ${index + 1} URL`} type="url" value={link.url || ""} placeholder="https://…" onChange={(e) => setDraft((value) => ({ ...value, links: value.links.map((item) => item.id === link.id ? { ...item, url: e.target.value } : item) }))} /></label>
+              <button type="button" className="if-btn if-field--full" aria-label={`Remove event link ${index + 1}`} onClick={() => setDraft((value) => ({ ...value, links: value.links.filter((item) => item.id !== link.id) }))}><Trash2 size={15} aria-hidden="true" />Remove link</button>
+            </div>)}
+            <button type="button" className="if-btn if-btn--secondary" onClick={() => setDraft((value) => ({ ...value, links: [...(value.links || []), { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label: "", url: "" }] }))}><Plus size={15} aria-hidden="true" />Add link</button>
+          </fieldset>
+          <fieldset className="if-card if-form-grid if-field--full" data-event-milestones>
+            <legend className="if-field__label">Deadlines &amp; milestones</legend>
+            <p className="if-field__hint if-field--full">Add only published or operator-confirmed dates. Missing dates stay absent from the calendar.</p>
+            {(draft.milestones || []).map((milestone, index) => <div className="if-card if-form-grid if-field--full" key={milestone.id}>
+              <div className="if-field"><span className="if-field__label">Type</span><ControlSelect ariaLabel={`Milestone ${index + 1} type`} value={milestone.type} options={EVENT_MILESTONE_TYPES} onChange={(type) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type } : item) }))} portalTarget={dialogRef} /></div>
+              <label className="if-field"><span className="if-field__label">Date</span><input className="if-input" aria-label={`Milestone ${index + 1} date`} type="date" value={String(milestone.occursAt || "").slice(0, 10)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, occursAt: e.target.value } : item) }))} /></label>
+              <label className="if-field"><span className="if-field__label">Display label</span><input className="if-input" aria-label={`Milestone ${index + 1} label`} value={milestone.label || ""} placeholder={milestoneTypeLabel(milestone.type)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, label: e.target.value } : item) }))} /></label>
+              <label className="if-field"><span className="if-field__label">Context</span><input className="if-input" aria-label={`Milestone ${index + 1} context`} value={milestone.notes || ""} placeholder="Optional source or policy note" onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, notes: e.target.value } : item) }))} /></label>
+              <button type="button" className="if-btn if-field--full" aria-label={`Remove milestone ${index + 1}`} onClick={() => setDraft((value) => ({ ...value, milestones: value.milestones.filter((item) => item.id !== milestone.id) }))}><Trash2 size={15} aria-hidden="true" />Remove milestone</button>
+            </div>)}
+            <button type="button" className="if-btn if-btn--secondary" onClick={() => setDraft((value) => ({ ...value, milestones: [...(value.milestones || []), { id: `milestone-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "registration_deadline", label: "", occursAt: "", notes: "" }] }))}><Plus size={15} aria-hidden="true" />Add deadline or milestone</button>
           </fieldset>
           <label className="ops-check ops-field--wide"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><b>Show on wallboard</b><small>Read-only display projection</small></span></label>
           <fieldset className="ops-event-links ops-field--wide"><legend>Linked watched records</legend>{records.length ? records.map((record) => <label key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><b>{record.id}</b>{record.title}</span></label>) : <p>Star records in Transactions to link them here.</p>}</fieldset>
@@ -253,19 +281,81 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
   );
 }
 
-function EventsView({ events, records, onAdd, onEdit, onDelete }) {
+function EventCategoryCard({ category, onSave, onDelete }) {
+  const [name, setName] = useState(category.name);
+  const [description, setDescription] = useState(category.description || "");
+  const [error, setError] = useState("");
+  async function save(formEvent) {
+    formEvent.preventDefault();
+    try {
+      await onSave({ ...category, name, description });
+      setError("");
+    } catch (requestError) { setError(requestError.message); }
+  }
+  return <form className="if-card if-form-grid" onSubmit={save} data-event-category={category.id}>
+    <label className="if-field"><span className="if-field__label">Category name</span><input className="if-input" value={name} onChange={(event) => setName(event.target.value)} /></label>
+    <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+    <span className="if-field__hint">{category.assignedEventCount || 0} assigned event{category.assignedEventCount === 1 ? "" : "s"}</span>
+    <div><button type="submit" className="if-btn if-btn--secondary">Save category</button> <button type="button" className="if-btn" disabled={Boolean(category.assignedEventCount)} onClick={() => void onDelete(category.id).catch((requestError) => setError(requestError.message))}><Trash2 size={15} aria-hidden="true" />Delete</button></div>
+    {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
+  </form>;
+}
+
+function EventCategoryManager({ categories, onSave, onDelete, onClose }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState("");
+  async function create(formEvent) {
+    formEvent.preventDefault();
+    try {
+      const saved = await onSave({ name, description });
+      if (saved) { setName(""); setDescription(""); setError(""); }
+    } catch (requestError) { setError(requestError.message); }
+  }
+  return <ControlDialog
+    open
+    onClose={onClose}
+    title="Event categories"
+    eyebrow="Workspace taxonomy"
+    summary="Manage the event types available to this workspace and its calendar filters."
+    size="wide"
+    closeLabel="Close event categories"
+    surfaceProps={{ "data-event-category-manager": true }}
+    footer={<button type="button" className="if-btn" onClick={onClose}>Close</button>}
+  >
+    <div className="if-form-grid">
+      <form className="if-card if-form-grid if-field--full" onSubmit={create}>
+        <label className="if-field"><span className="if-field__label">New category</span><input className="if-input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Customer immersion" /></label>
+        <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="How this event type is used" /></label>
+        <button type="submit" className="if-btn if-btn--primary">Add category</button>
+        {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
+      </form>
+      {categories.map((category) => <EventCategoryCard key={`${category.id}-${category.updatedAt}`} category={category} onSave={onSave} onDelete={onDelete} />)}
+    </div>
+  </ControlDialog>;
+}
+
+function eventCategoryLabels(event, categories) {
+  const byId = new Map(categories.map((category) => [category.id, category.name]));
+  return (event.categoryIds || []).map((id) => byId.get(id)).filter(Boolean);
+}
+
+function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories }) {
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
-    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
+    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, ...(event.links || []).flatMap((link) => [link.label, link.url]), ...eventCategoryLabels(event, categories), ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
     { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt, render: (event) => dateTime(event.startsAt) },
     { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt, render: (event) => dateTime(event.endsAt || event.startsAt) },
     { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <span className={`dbi-status-badge is-${event.status || "scheduled"}`}>{event.status || "scheduled"}</span> },
     { key: "display", label: "Wallboard", facet: true, value: (event) => event.wallboard ? "Shown" : "Hidden" },
+    { key: "categories", label: "Categories", facet: true, minWidth: 150, value: (event) => eventCategoryLabels(event, categories).join(" · ") || "Uncategorized" },
+    { key: "links", label: "Links", minWidth: 100, sortValue: (event) => event.links?.length || 0, value: (event) => `${event.links?.length || 0}`, render: (event) => <strong>{event.links?.length || 0}</strong> },
     { key: "milestones", label: "Milestones", minWidth: 120, sortValue: (event) => event.milestones?.length || 0, value: (event) => `${event.milestones?.length || 0}`, render: (event) => <strong>{event.milestones?.length || 0}</strong> },
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button>} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p><button type="button" className="ops-primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
+  const actions = <>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
 function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -299,7 +389,7 @@ function ActivityView({ activity, records, remote }) {
   return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <OperationalDataTable id="api-activity" label="API and activity log" rows={activity} columns={columns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="api-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
-function WallboardView({ records, watchlist, events, asOf, workspace, lastRefreshedAt }) {
+function WallboardView({ records, watchlist, events, categories, asOf, workspace, lastRefreshedAt }) {
   const [mode, setMode] = useState("events");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -356,7 +446,7 @@ function WallboardView({ records, watchlist, events, asOf, workspace, lastRefres
       <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
     </div> : null}
-    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} categories={categories} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
 }
 
@@ -410,7 +500,7 @@ function daysBetween(left, right) {
   return Number.isFinite(leftDate) && Number.isFinite(rightDate) ? Math.round((rightDate - leftDate) / 86400000) : null;
 }
 
-function CalendarHoverCard({ hover }) {
+function CalendarHoverCard({ hover, categories }) {
   if (!hover) return null;
   const { item, left, top } = hover;
   const { event, milestone } = item;
@@ -434,13 +524,14 @@ function CalendarHoverCard({ hover }) {
       <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
     </>}</dl>
     <p><b>Location</b>{event.location || "Location not set"}</p>
+    {event.categoryIds?.length ? <p><b>Categories</b>{eventCategoryLabels(event, categories).join(" · ")}</p> : null}
     {attendees.length ? <p><b>Attending</b>{attendees.map((attendee) => attendee.displayName).join(" · ")}</p> : null}
     {(milestone?.notes || (!milestone && event.notes)) ? <p><b>Context</b>{milestone?.notes || event.notes}</p> : null}
     <footer>Workspace event calendar · hover or keyboard focus for context</footer>
   </aside>, document.body);
 }
 
-function CalendarEventModal({ detail, onClose }) {
+function CalendarEventModal({ detail, categories, onClose }) {
   if (!detail) return null;
   const { event, milestone } = detail;
   return <ControlDialog
@@ -460,18 +551,25 @@ function CalendarEventModal({ detail, onClose }) {
           <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
           <div><dt>Status</dt><dd>{event.status || "scheduled"}</dd></div>
           <div><dt>Location</dt><dd>{event.location || "Not set"}</dd></div>
+          <div><dt>Categories</dt><dd>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</dd></div>
           <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
           <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
         </dl>
         {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <span key={attendee.id || attendee.displayName}><UserAvatar user={attendee} size={34} decorative={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></span>)}</div></section> : null}
+        {event.links?.length ? <section><h3>Event links</h3><div>{event.links.map((link) => <a key={link.id} className="if-btn if-btn--secondary" href={link.url} target="_blank" rel="noreferrer"><Link2 size={15} aria-hidden="true" />{link.label || new URL(link.url).hostname}</a>)}</div></section> : null}
         {event.milestones?.length ? <section><h3>Deadlines &amp; milestones</h3><div className="ops-event-detail__milestones">{event.milestones.map((entry) => <article key={entry.id} className={milestone?.id === entry.id ? "is-focused" : ""}><i aria-hidden="true" /><span><strong>{milestoneLabel(entry)}</strong><small>{milestoneTypeLabel(entry.type)}</small></span><time dateTime={entry.occursAt}>{compactDate(entry.occursAt)}</time>{entry.notes ? <p>{entry.notes}</p> : null}</article>)}</div></section> : null}
         {(milestone?.notes || event.notes) ? <section className="ops-event-detail__context"><h3>Context</h3><p>{milestone?.notes || event.notes}</p></section> : null}
   </ControlDialog>;
 }
 
-function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
+function WallboardCalendar({ events, categories, month, onMonthChange, now, workspace }) {
   const [hover, setHover] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
+  const selectedCategorySet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
+  const filteredEvents = selectedCategoryIds.length
+    ? events.filter((event) => (event.categoryIds || []).some((categoryId) => selectedCategorySet.has(categoryId)))
+    : events;
   const days = monthCalendarDays(month);
   const today = now.toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
@@ -479,8 +577,8 @@ function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
   const monthLabel = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const monthStart = `${month}-01`;
   const monthEnd = `${month}-${String(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).getUTCDate()).padStart(2, "0")}`;
-  const monthEvents = events.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
-  const monthMilestones = events.flatMap((event) => (event.milestones || []).filter((milestone) => String(milestone.occursAt || "").slice(0, 10) >= monthStart && String(milestone.occursAt || "").slice(0, 10) <= monthEnd));
+  const monthEvents = filteredEvents.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
+  const monthMilestones = filteredEvents.flatMap((event) => (event.milestones || []).filter((milestone) => String(milestone.occursAt || "").slice(0, 10) >= monthStart && String(milestone.occursAt || "").slice(0, 10) <= monthEnd));
   const weeks = Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
   function showHover(item, target, clientX, clientY) {
     const bounds = target.getBoundingClientRect();
@@ -493,6 +591,7 @@ function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
     <header>
       <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading>{monthLabel}</strong></span></div>
       <div className="ops-wall-calendar__controls">
+        <ControlMultiSelect label="Event types" placeholder="All event types" value={selectedCategoryIds} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description, meta: `${category.assignedEventCount || 0}` }))} onChange={setSelectedCategoryIds} searchable clearable compact triggerProps={{ "data-calendar-category-filter": true }} />
         <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
         <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
         <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
@@ -502,7 +601,7 @@ function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
       <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
       <div className="ops-wall-calendar__weeks">{weeks.map((week) => {
-        const segments = calendarWeekSegments(events, week);
+        const segments = calendarWeekSegments(filteredEvents, week);
         const laneCount = Math.max(1, ...segments.map((segment) => segment.lane + 1));
         return <section className="ops-wall-calendar__week" key={week[0].key} style={{ "--calendar-lanes": laneCount }}>
           <div className="ops-wall-calendar__days">{week.map((day) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
@@ -519,8 +618,8 @@ function WallboardCalendar({ events, month, onMonthChange, now, workspace }) {
         </section>;
       })}</div>
     </div>
-    <CalendarHoverCard hover={hover} />
-    <CalendarEventModal detail={detail} onClose={() => setDetail(null)} />
+    <CalendarHoverCard hover={hover} categories={categories} />
+    <CalendarEventModal detail={detail} categories={categories} onClose={() => setDetail(null)} />
   </section>;
 }
 
@@ -571,6 +670,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
   const reviewHorizon = useMemo(() => {
     const horizon = new Date(`${dataset.metadata.asOf}T00:00:00Z`);
@@ -606,15 +706,16 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     </section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
-    {view === "events" ? <EventsView events={state.events} records={watchedRecords} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} /> : null}
+    {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Cross-workspace administration is limited to the immutable Super user.</p></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure this workspace.</p></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
-    {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
+    {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} categories={state.eventCategories} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;
 }

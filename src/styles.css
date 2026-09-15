@@ -12091,34 +12091,6 @@ td .dot {
 .ops-event-links label { display: flex; align-items: flex-start; gap: 6px; padding: 5px; color: var(--muted); font-size: 9px; }
 .ops-event-links label span { display: grid; }
 .ops-event-links label b { color: var(--brand); }
-.ops-event-milestones {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface-muted);
-}
-.ops-event-milestones legend { color: var(--brand-dark); font-size: 10px; font-weight: 850; }
-.ops-event-milestones > p { margin: 0; color: var(--muted); font-size: 9px; font-weight: 650; line-height: 1.4; }
-.ops-event-milestones__list { display: grid; gap: 7px; }
-.ops-event-milestone-row {
-  display: grid;
-  grid-template-columns: minmax(135px, .8fr) 145px minmax(150px, 1fr) minmax(180px, 1.25fr) 34px;
-  gap: 7px;
-  align-items: end;
-  padding: 8px;
-  border: 1px solid var(--border-soft);
-  border-left: 4px solid var(--brand);
-  border-radius: 4px;
-  background: var(--surface);
-}
-.ops-event-milestone-row label { display: grid; min-width: 0; gap: 4px; color: var(--quiet); font-size: 8px; font-weight: 800; text-transform: uppercase; }
-.ops-event-milestone-row input,
-.ops-event-milestone-row select { width: 100%; min-width: 0; min-height: 34px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: var(--text); font: inherit; text-transform: none; }
-.ops-event-milestone-row > button { min-width: 34px; padding: 0; color: var(--red); }
-.ops-event-milestones__add { justify-self: start; }
 .ops-alert { grid-column: 1 / -1; margin: 0; padding: 8px; background: #fff1f0; color: #8b1e17; font-size: 10px; }
 .ops-integration-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--border-soft); }
 .ops-integration-summary article { display: grid; padding: 12px 14px; border-right: 1px solid var(--border-soft); }
@@ -12764,10 +12736,6 @@ td .dot {
   .ops-event-form { grid-template-columns: 1fr; }
   .ops-field--wide { grid-column: auto; }
   .ops-event-links { grid-template-columns: 1fr; }
-  .ops-event-milestone-row { grid-template-columns: 1fr 1fr 44px; }
-  .ops-event-milestone-row__label,
-  .ops-event-milestone-row__notes { grid-column: 1 / -1; }
-  .ops-event-milestone-row > button { grid-column: 3; grid-row: 1; min-width: 44px; min-height: 44px; }
   .ops-integration-summary { display: flex; overflow-x: auto; }
   .ops-integration-summary article { flex: 0 0 150px; }
   .ops-integration-list article { grid-template-columns: 8px minmax(0, 1fr); }

@@ -3,6 +3,7 @@ import { useAuth } from "./AuthContext.jsx";
 
 export const WATCHLIST_STORAGE_KEY = "dbi:watchlist:v1";
 export const MANAGEMENT_EVENTS_STORAGE_KEY = "dbi:management-events:v1";
+export const EVENT_CATEGORIES_STORAGE_KEY = "dbi:event-categories:v1";
 export const OPERATOR_ACTIVITY_STORAGE_KEY = "dbi:operator-activity:v1";
 export const MANAGEMENT_STATE_EVENT = "dbi:management-state-changed";
 
@@ -10,6 +11,16 @@ const WATCHLIST_LIMIT = 250;
 const EVENT_LIMIT = 200;
 const ACTIVITY_LIMIT = 500;
 const EVENT_MILESTONE_LIMIT = 24;
+const EVENT_LINK_LIMIT = 12;
+const EVENT_CATEGORY_LIMIT = 50;
+const DEFAULT_EVENT_CATEGORIES = Object.freeze([
+  { id: "conference", name: "Conference", description: "Conferences, conventions, and annual meetings" },
+  { id: "industry-day", name: "Industry day", description: "Government and mission-partner industry engagement" },
+  { id: "workshop", name: "Workshop", description: "Hands-on working sessions and workshops" },
+  { id: "immersion-day", name: "Immersion day", description: "Focused mission, customer, or technology immersion" },
+  { id: "summit", name: "Summit", description: "Executive, technical, and mission summits" },
+  { id: "other", name: "Other", description: "Workspace events outside the managed categories" },
+]);
 const EVENT_MILESTONE_TYPES = new Set([
   "registration_deadline",
   "refund_deadline",
@@ -29,6 +40,17 @@ function cleanText(value, limit = 500) {
 function cleanDate(value) {
   const text = cleanText(value, 32);
   return /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?Z?)?$/.test(text) ? text : "";
+}
+
+function cleanHttpUrl(value) {
+  const text = cleanText(value, 2_000);
+  if (!text) return "";
+  try {
+    const url = new URL(text);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function storedArray(key) {
@@ -65,6 +87,16 @@ function normalizeEvent(entry = {}) {
     return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active", avatarDataUrl: cleanText(attendee?.avatarDataUrl, 14_000) };
   }).filter((attendee) => attendee.displayName);
   const attendeeIds = [...new Set((Array.isArray(entry.attendeeIds) ? entry.attendeeIds : attendees.map((attendee) => attendee.id)).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 30);
+  const linkIds = new Set();
+  const linkUrls = new Set();
+  const links = (Array.isArray(entry.links) ? entry.links : []).map((link, index) => {
+    const id = cleanText(link?.id, 100) || `link-${Date.now()}-${index}`;
+    const url = cleanHttpUrl(link?.url);
+    if (!url || linkIds.has(id) || linkUrls.has(url)) return null;
+    linkIds.add(id);
+    linkUrls.add(url);
+    return { id, label: cleanText(link?.label, 120), url, sortOrder: index };
+  }).filter(Boolean).slice(0, EVENT_LINK_LIMIT);
   const milestoneIds = new Set();
   const milestones = (Array.isArray(entry.milestones) ? entry.milestones : []).map((milestone, index) => {
     const occursAt = cleanDate(milestone?.occursAt || milestone?.date);
@@ -92,9 +124,24 @@ function normalizeEvent(entry = {}) {
     recordIds: [...new Set((Array.isArray(entry.recordIds) ? entry.recordIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 50),
     attendees: attendees.slice(0, 30),
     attendeeIds,
+    links,
+    categoryIds: [...new Set((Array.isArray(entry.categoryIds) ? entry.categoryIds : []).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 8),
     milestones,
     wallboard: entry.wallboard !== false,
     version: Number.isFinite(Number(entry.version)) ? Number(entry.version) : 0,
+    createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),
+    updatedAt: cleanDate(entry.updatedAt) || new Date().toISOString(),
+  };
+}
+
+function normalizeEventCategory(entry = {}) {
+  const name = cleanText(entry.name, 80);
+  if (name.length < 2) return null;
+  return {
+    id: cleanText(entry.id, 80) || `category-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    description: cleanText(entry.description, 240),
+    assignedEventCount: Number(entry.assignedEventCount || 0),
     createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),
     updatedAt: cleanDate(entry.updatedAt) || new Date().toISOString(),
   };
@@ -130,6 +177,11 @@ export function readManagementEvents(validIds = null) {
     .filter((entry) => entry)
     .map((entry) => ({ ...entry, recordIds: allowed ? entry.recordIds.filter((id) => allowed.has(id)) : entry.recordIds }))
     .slice(0, EVENT_LIMIT);
+}
+
+export function readEventCategories() {
+  const stored = storedArray(EVENT_CATEGORIES_STORAGE_KEY).map(normalizeEventCategory).filter(Boolean);
+  return (stored.length ? stored : DEFAULT_EVENT_CATEGORIES.map(normalizeEventCategory)).slice(0, EVENT_CATEGORY_LIMIT);
 }
 
 export function readOperatorActivity(validIds = null) {
@@ -183,6 +235,7 @@ export function useManagementState(records = []) {
   const validIds = useMemo(() => records.map((record) => record.opportunityId), [records]);
   const [watchlist, setWatchlist] = useState(() => readWatchlist(validIds));
   const [events, setEvents] = useState(() => readManagementEvents(validIds));
+  const [eventCategories, setEventCategories] = useState(() => readEventCategories());
   const [activity, setActivity] = useState(() => readOperatorActivity(validIds));
   const [loading, setLoading] = useState(remote);
   const [error, setError] = useState("");
@@ -191,18 +244,21 @@ export function useManagementState(records = []) {
   const sync = useCallback(() => {
     setWatchlist(readWatchlist(validIds));
     setEvents(readManagementEvents(validIds));
+    setEventCategories(readEventCategories());
     setActivity(readOperatorActivity(validIds));
   }, [validIds]);
 
   const syncRemote = useCallback(async () => {
-    const [trackingPayload, eventPayload, activityPayload] = await Promise.all([
+    const [trackingPayload, eventPayload, categoryPayload, activityPayload] = await Promise.all([
       workspaceRequest("/tracking"),
       workspaceRequest("/events"),
+      workspaceRequest("/event-categories"),
       workspaceRequest("/activity?limit=200"),
     ]);
     const allowed = new Set(validIds);
     setWatchlist((trackingPayload.data || []).map(normalizeWatch).filter((entry) => entry && allowed.has(entry.recordId)));
     setEvents((eventPayload.data || []).map(normalizeEvent).filter(Boolean));
+    setEventCategories((categoryPayload.data || []).map(normalizeEventCategory).filter(Boolean));
     setActivity((activityPayload.data || []).map(remoteActivity).filter(Boolean));
     setError("");
     setLastRefreshedAt(new Date().toISOString());
@@ -310,15 +366,64 @@ export function useManagementState(records = []) {
     setActivity((items) => appendActivity({ type: "event_removed", eventId, detail: removed?.title || "Removed event" }, items));
   }, [remote, syncRemote, validIds]);
 
+  const saveEventCategory = useCallback(async (candidate) => {
+    const normalized = normalizeEventCategory(candidate);
+    if (!normalized) return false;
+    if (remote) {
+      const existing = eventCategories.find((entry) => entry.id === normalized.id);
+      try {
+        await workspaceRequest(existing ? `/event-categories/${encodeURIComponent(existing.id)}` : "/event-categories", {
+          method: existing ? "PATCH" : "POST",
+          body: JSON.stringify({ name: normalized.name, description: normalized.description }),
+        });
+        await syncRemote();
+        return true;
+      } catch (requestError) {
+        setError(requestError.message);
+        throw requestError;
+      }
+    }
+    const current = readEventCategories();
+    const exists = current.some((entry) => entry.id === normalized.id);
+    const next = (exists ? current.map((entry) => entry.id === normalized.id ? normalized : entry) : [...current, normalized]).slice(0, EVENT_CATEGORY_LIMIT);
+    write(EVENT_CATEGORIES_STORAGE_KEY, next);
+    setEventCategories(next);
+    return true;
+  }, [eventCategories, remote, syncRemote]);
+
+  const deleteEventCategory = useCallback(async (categoryId) => {
+    if (events.some((event) => event.categoryIds?.includes(categoryId))) throw new Error("Remove this category from its events before deleting it.");
+    if (remote) {
+      try {
+        await workspaceRequest(`/event-categories/${encodeURIComponent(categoryId)}`, { method: "DELETE" });
+        await syncRemote();
+      } catch (requestError) {
+        setError(requestError.message);
+        throw requestError;
+      }
+      return;
+    }
+    const next = readEventCategories().filter((entry) => entry.id !== categoryId);
+    write(EVENT_CATEGORIES_STORAGE_KEY, next);
+    setEventCategories(next);
+  }, [events, remote, syncRemote]);
+  const eventCategoriesWithCounts = useMemo(() => eventCategories.map((category) => ({
+    ...category,
+    assignedEventCount: events.filter((event) => event.categoryIds?.includes(category.id)).length,
+  })), [eventCategories, events]);
+
   return {
     watchlist,
     watchedIds: useMemo(() => new Set(watchlist.map((entry) => entry.recordId)), [watchlist]),
     events,
+    eventCategories: eventCategoriesWithCounts,
     activity,
     toggleWatch,
     updateWatch,
     saveEvent,
     deleteEvent,
+    saveEventCategory,
+    deleteEventCategory,
     remote,
     loading,
     error,
