@@ -1,0 +1,46 @@
+name: Monitor active and upcoming contracts
+
+on:
+  schedule:
+    - cron: "32 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-intelligence
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Refresh official contract observations
+        env:
+          SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
+        run: npm run source:sam && npm run source:contracts
+      - name: Verify generated runtime and UI contracts
+        run: npm run lint && npm run verify:ui-conformance && npm run build
+      - name: Commit changed contract observations
+        run: |
+          if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json; then
+            echo "No contract-monitor changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/sam-opportunities.json src/data/contract-monitor.json
+          git commit -m "chore(data): refresh active contract monitor"
+          git push origin HEAD:main

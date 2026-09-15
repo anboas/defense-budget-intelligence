@@ -101,6 +101,8 @@ Execution source refresh uses `npm run source:usaspending`, which caches top DoD
 
 SAM.gov refresh uses `npm run source:sam` to retrieve a rolling 180-day Department of Defense opportunity window when a protected `SAM_GOV_API_KEY` is available. Without the credential, the prior snapshot is preserved and the feed is explicitly labeled unavailable. Manual and CRM-derived public records use the separate schema described in [Procurement ingestion and classification](docs/procurement-ingestion.md); private capture fields never enter the public bundle.
 
+Known-contract monitoring uses `npm run source:contracts` after the award and SAM refreshes. Every non-historical record in the assembled DBI universe is evaluated: exact USAspending generated award IDs are refreshed individually, single explicit active-contract PIIDs can resolve through identity-validated DoD award or IDV probes, SAM notices inherit the credentialed batch status, and records without an exact automated key remain explicit coverage gaps. Composite identifiers, predecessor references, forecasts, solicitations, and title similarity never create an award relationship. Transient failures retain the prior verified observation as stale instead of dropping the contract. The generated `contract-monitor.json` reports active, upcoming, option-horizon, unresolved-schedule, current, stale, unavailable, and uncovered counts without inferring award or notice relationships.
+
 Account-spine refresh uses `npm run source:account-spine`. It joins the latest public OMB apportionment document for each Department TAFS to USAspending Treasury-account execution records by the exact TAS code. It separately derives request-to-account links through normalized exact account-title matches and labels those edges `derived` in the data and UI. It also enriches the 250 highest-value awards in the current technology sample through USAspending's award-account endpoint, preserving those transaction-funded federal-account edges as exact while making the sample boundary explicit.
 
 Transactions reconstructs published contract-performance and acquisition-event rows from a source Gantt PDF, reconciles every row to the corroboration CSV, and merges exact award references with the current award analytics bundle. The public runtime excludes internal campaign fields, proposed work packages, scores, recommendations, and analyst workboard state. Rebuild it from authorized local source artifacts with:
@@ -138,6 +140,7 @@ npm install
 npm run source:workbooks
 npm run source:justifications
 npm run source:usaspending
+npm run source:contracts
 npm run source:account-spine
 npm run source:refresh
 npm run data:build

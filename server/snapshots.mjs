@@ -12,6 +12,7 @@ const SNAPSHOT_FILES = [
   { kind: "account_spine", path: "src/data/account-spine.json" },
   { kind: "capture_calendar", path: "src/data/capture-calendar.json" },
   { kind: "usaspending_subawards", path: "src/data/usaspending-subawards.json" },
+  { kind: "contract_monitor", path: "src/data/contract-monitor.json" },
 ];
 
 function capturedAt(kind, payload) {
@@ -20,6 +21,7 @@ function capturedAt(kind, payload) {
   if (kind === "account_spine") return payload.metadata?.generatedAt;
   if (kind === "capture_calendar") return payload.metadata?.generatedAt;
   if (kind === "usaspending_subawards") return payload.metadata?.generatedAt;
+  if (kind === "contract_monitor") return payload.metadata?.generatedAt;
   return payload.metadata?.generatedAt;
 }
 
@@ -29,6 +31,7 @@ function recordCount(kind, payload) {
   if (kind === "account_spine") return payload.accounts?.length || 0;
   if (kind === "capture_calendar") return payload.records?.length || 0;
   if (kind === "usaspending_subawards") return payload.metadata?.reportedSubawardCount || 0;
+  if (kind === "contract_monitor") return payload.metadata?.targetCount || payload.records?.length || 0;
   return ["budgetChanges", "awardChanges", "queueChanges", "sourceChanges"]
     .reduce((total, key) => total + (payload[key]?.length || 0), 0);
 }

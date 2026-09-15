@@ -415,3 +415,25 @@ export function applyProcurementChanges(records = [], changes = []) {
     return change ? { ...record, changeStatus: change.change, changeSourceSystem: change.sourceSystem, changeDetail: change } : { ...record, changeStatus: "unchanged", changeSourceSystem: null, changeDetail: null };
   });
 }
+
+export function attachContractMonitor(records = [], snapshot = { records: [] }) {
+  const byOpportunity = new Map((snapshot.records || []).map((entry) => [entry.opportunityId, entry]));
+  return records.map((record) => {
+    const monitor = byOpportunity.get(record.opportunityId);
+    if (!monitor) return { ...record, automationCoverage: null };
+    return {
+      ...record,
+      automationCoverage: {
+        status: monitor.status,
+        method: monitor.method,
+        lifecycle: monitor.lifecycle,
+        checkedAt: monitor.checkedAt || monitor.lastAttemptAt || null,
+        diagnostic: monitor.diagnostic || null,
+        observation: monitor.observation || null,
+      },
+      ingestionChannels: monitor.observation && !(record.ingestionChannels || []).some((channel) => channel.id === "usaspending-award-detail")
+        ? [...(record.ingestionChannels || []), { id: "usaspending-award-detail", label: "USAspending exact award monitor", method: "automated" }]
+        : record.ingestionChannels || [],
+    };
+  });
+}

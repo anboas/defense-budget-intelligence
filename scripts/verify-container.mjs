@@ -40,12 +40,13 @@ assert.equal(readiness.status, "ready");
 const metadata = await (await get("api/v1/snapshots")).json();
 assert.deepEqual(
   metadata.snapshots.map((snapshot) => snapshot.kind).sort(),
-  ["account_spine", "budget", "capture_calendar", "refresh_delta", "source_health", "usaspending_subawards"],
+  ["account_spine", "budget", "capture_calendar", "contract_monitor", "refresh_delta", "source_health", "usaspending_subawards"],
 );
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "budget")?.record_count > 3000);
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "account_spine")?.record_count > 100);
 assert.equal(metadata.snapshots.find((snapshot) => snapshot.kind === "capture_calendar")?.record_count, 198);
 assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "usaspending_subawards")?.record_count > 0);
+assert.ok(metadata.snapshots.find((snapshot) => snapshot.kind === "contract_monitor")?.record_count >= 500);
 
 const budget = await (await get("api/v1/snapshots/budget/current")).json();
 assert.ok(budget.payload?.records?.length > 3000);
@@ -59,12 +60,20 @@ assert.equal(captureCalendar.payload?.metadata?.coverage?.awardsWithAwardType, 1
 assert.equal(captureCalendar.payload?.metadata?.coverage?.rowsWithVehicle, 60);
 assert.equal(captureCalendar.payload?.metadata?.coverage?.rowsWithCompetition, 119);
 assert.ok(captureCalendar.payload.records.every((record) => record.opportunityId && !("statusLabel" in record) && !("note" in record) && !("targetIds" in record) && !("captureMotion" in record)), "capture snapshot should use stable IDs and exclude internal parser fields");
+const contractMonitor = await (await get("api/v1/snapshots/contract_monitor/current")).json();
+assert.ok(contractMonitor.payload?.metadata?.targetCount >= 500, "contract monitor snapshot should cover the known non-historical inventory");
+assert.ok(contractMonitor.payload?.metadata?.currentCount >= 460, "contract monitor snapshot should retain current exact-key observations and exact-PIID resolutions");
+assert.equal(contractMonitor.payload?.metadata?.targetCount, contractMonitor.payload?.records?.length);
 
 const normalizedCapture = await (await get("api/v1/capture-calendar")).json();
 assert.ok(normalizedCapture.opportunities >= 875, "normalized capture API should expose the current baseline and permit automatic feed growth");
 assert.ok(normalizedCapture.automated_imports >= 677, "normalized capture API should retain the automated USAspending baseline and permit new feeds");
 assert.ok(normalizedCapture.classified_records >= 632, "normalized capture API should report records with a specific work category");
 assert.ok(normalizedCapture.source_channels >= 1056, "normalized capture API should preserve every disclosed ingestion channel");
+assert.ok(normalizedCapture.monitored_contracts >= 500, "normalized capture API should expose monitor status for every non-historical target");
+assert.ok(normalizedCapture.current_monitor_observations >= 460, "normalized capture API should expose current exact-key observations and exact-PIID resolutions");
+assert.equal(normalizedCapture.stale_monitor_observations, 0, "fresh monitor import should not start with stale observations");
+assert.ok(normalizedCapture.monitor_gaps >= 60, "normalized capture API should disclose records that lack an exact automated key");
 assert.ok(normalizedCapture.events >= 502, "normalized capture API should expose every canonical event and permit new SAM events");
 assert.equal(normalizedCapture.actions, 3085, "normalized capture API should expose every exact FPDS action");
 assert.equal(normalizedCapture.instruments, 134, "normalized capture API should preserve primary and supporting instruments");
@@ -73,6 +82,9 @@ assert.ok(normalizedCapture.retained_subaward_details > 0, "normalized capture A
 const applicationArsenal = await (await get("api/v1/capture-calendar/opportunities/opp_4d78f85a742aeb6f4b59")).json();
 assert.equal(applicationArsenal.id, "C028");
 assert.equal(applicationArsenal.transactionSummary.actions, 20);
+assert.equal(applicationArsenal.automationCoverage.status, "current");
+assert.equal(applicationArsenal.automationCoverage.method, "usaspending-award-detail");
+assert.equal(applicationArsenal.automationCoverage.observation.piid, "N6600123F3509");
 const applicationArsenalActions = await (await get("api/v1/capture-calendar/opportunities/opp_4d78f85a742aeb6f4b59/actions")).json();
 assert.equal(applicationArsenalActions.actions.length, 20, "action API should return exact Application Arsenal history");
 assert.ok(applicationArsenalActions.actions.every((action) => action.actionId && action.piid === "N6600123F3509"), "action API should preserve exact PIID lineage");
@@ -123,5 +135,5 @@ const writesDisabled = await fetch(new URL("api/v1/saved-views", baseUrl));
 assert.equal(writesDisabled.status, 503, "persistent writes should be disabled by default");
 
 console.log(
-  `Verified container API: snapshots=${metadata.snapshots.length} source_capture_records=${captureCalendar.payload.records.length} normalized_opportunities=${normalizedCapture.opportunities} automated_imports=${normalizedCapture.automated_imports} capture_events=${normalizedCapture.events} fpds_actions=${normalizedCapture.actions} reported_subawards=${normalizedCapture.reported_subawards} retained_subaward_details=${normalizedCapture.retained_subaward_details} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
+  `Verified container API: snapshots=${metadata.snapshots.length} source_capture_records=${captureCalendar.payload.records.length} normalized_opportunities=${normalizedCapture.opportunities} monitored_contracts=${normalizedCapture.monitored_contracts} current_monitor_observations=${normalizedCapture.current_monitor_observations} monitor_gaps=${normalizedCapture.monitor_gaps} automated_imports=${normalizedCapture.automated_imports} capture_events=${normalizedCapture.events} fpds_actions=${normalizedCapture.actions} reported_subawards=${normalizedCapture.reported_subawards} retained_subaward_details=${normalizedCapture.retained_subaward_details} accounts=${spine.federal_accounts} exact_tafs=${spine.exact_tafs_joins} writes=disabled`,
 );

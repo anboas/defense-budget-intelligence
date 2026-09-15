@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { applyProcurementChanges, assembleProcurementRecords } from "../src/procurement-taxonomy.js";
+import { applyProcurementChanges, assembleProcurementRecords, attachContractMonitor } from "../src/procurement-taxonomy.js";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SOURCE_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
@@ -12,12 +12,14 @@ const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
 const MANUAL_PROCUREMENT_FILE = resolve(ROOT, "src/data/manual-procurement.json");
 const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
+const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
 const OUT_DIR = resolve(ROOT, "public/data");
 
 const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
 const captureCalendar = JSON.parse(readFileSync(CAPTURE_CALENDAR_FILE, "utf8"));
 const captureTransactions = JSON.parse(readFileSync(CAPTURE_TRANSACTIONS_FILE, "utf8"));
 const subawards = JSON.parse(readFileSync(SUBAWARDS_FILE, "utf8"));
+const contractMonitor = JSON.parse(readFileSync(CONTRACT_MONITOR_FILE, "utf8"));
 const captureIds = new Set(captureCalendar.records.map((record) => record.opportunityId));
 if (captureCalendar.records.length < 190 || captureIds.size !== captureCalendar.records.length) {
   throw new Error("Capture calendar must contain at least 190 unique public records");
@@ -30,6 +32,12 @@ if (captureCalendar.metadata?.coverage?.normalizedEvents !== 502 || captureCalen
 }
 if (captureTransactions.metadata?.actionCount !== 3085) {
   throw new Error("Capture transaction payload must contain 3,085 exact FPDS actions");
+}
+if (contractMonitor.metadata?.targetCount !== contractMonitor.records?.length || contractMonitor.metadata?.targetCount < 500) {
+  throw new Error("Contract monitor must cover the complete known active, upcoming, option-horizon, and unresolved-schedule universe");
+}
+if (new Set(contractMonitor.records.map((record) => record.opportunityId)).size !== contractMonitor.records.length) {
+  throw new Error("Contract monitor records must retain unique stable opportunity IDs");
 }
 const subawardPrimeIds = new Set((subawards.primes || []).map((prime) => prime.primeAwardId));
 const currentAwardIds = new Set(source.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards?.map((award) => award.id) || []);
@@ -57,14 +65,14 @@ const execution = {
   awardDrilldown: strategyAnalytics.executionAnalytics?.awardDrilldown || {},
 };
 const agentRecords = applyProcurementChanges(
-  assembleProcurementRecords(
+  attachContractMonitor(assembleProcurementRecords(
     captureCalendar.records,
     execution.awardDrilldown?.awards || [],
     captureCalendar.metadata?.asOf,
     JSON.parse(readFileSync(SAM_OPPORTUNITIES_FILE, "utf8")).records || [],
     JSON.parse(readFileSync(MANUAL_PROCUREMENT_FILE, "utf8")).records || [],
     subawards,
-  ),
+  ), contractMonitor),
   JSON.parse(readFileSync(PROCUREMENT_DELTA_FILE, "utf8")).records || [],
 );
 if (agentRecords.length < 875 || new Set(agentRecords.map((record) => record.opportunityId)).size !== agentRecords.length) {
@@ -125,6 +133,10 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "procurement-delta.json"),
   readFileSync(PROCUREMENT_DELTA_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "contract-monitor.json"),
+  readFileSync(CONTRACT_MONITOR_FILE, "utf8"),
 );
 writeFileSync(
   resolve(OUT_DIR, "usaspending-subawards.json"),

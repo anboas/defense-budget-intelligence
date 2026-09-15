@@ -33,6 +33,12 @@ Do not place private capture notes, scores, owners, internal work packages, bid 
 
 `npm run source:sam` refreshes the rolling 180-day Department of Defense notice snapshot. Without a protected key, the script preserves the prior snapshot and reports the feed as unavailable. The GitHub workflow is already wired to the optional `SAM_GOV_API_KEY` secret; credentials must never be committed or entered in chat.
 
+## Active and upcoming contract monitor
+
+`npm run source:contracts` builds the source-backed monitoring boundary for every known non-historical DBI procurement record. Exact USAspending generated award IDs are refreshed through the official award-detail endpoint with bounded concurrency, timeout, retry, and identity validation. A single explicit active-contract PIID can also be normalized and probed as a standalone DoD award or IDV; the returned generated award identity must match before it is retained. Composite identifiers, predecessors on upcoming records, forecast numbers, solicitations, and title similarity are never used to infer an award relationship. SAM opportunities use the separately credentialed batch snapshot. A record without an exact verified key remains a disclosed gap.
+
+The monitor retains safe public contract facts only. On transient upstream failure it keeps the last verified observation, marks it stale, and stores a bounded diagnostic without credentials, headers, prompts, or raw upstream payloads. The monitor does not replace the immutable capture packet and does not convert conditional option dates into confirmed work.
+
 ## USAspending subaward refresh
 
 `npm run source:subawards` checks each indexed USAspending prime award through the official exact-count endpoint, then retains at most 100 recent detail rows for positive primes. The snapshot records failed prime probes and remains `partial` when the public API returns an empty or invalid response. Do not interpret the retained detail dollar sum as the complete subaward total.

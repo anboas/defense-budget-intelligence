@@ -8,7 +8,8 @@ const SAM_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
 const BUDGET_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const MANUAL_FILE = resolve(ROOT, "src/data/manual-procurement.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
-import { assembleProcurementRecords } from "../src/procurement-taxonomy.js";
+const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
+import { assembleProcurementRecords, attachContractMonitor } from "../src/procurement-taxonomy.js";
 
 async function currentCaptureSnapshot(pool) {
   const result = await pool.query(
@@ -29,8 +30,12 @@ export async function importCaptureCalendar(pool) {
   const sam = JSON.parse(await readFile(SAM_FILE, "utf8"));
   const manual = JSON.parse(await readFile(MANUAL_FILE, "utf8"));
   const subawardSnapshot = JSON.parse(await readFile(SUBAWARDS_FILE, "utf8"));
+  const contractMonitor = JSON.parse(await readFile(CONTRACT_MONITOR_FILE, "utf8"));
   const awards = budget.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards || [];
-  const opportunities = assembleProcurementRecords(snapshot.payload.records || [], awards, snapshot.payload.metadata?.asOf, sam.records || [], manual.records || [], subawardSnapshot);
+  const opportunities = attachContractMonitor(
+    assembleProcurementRecords(snapshot.payload.records || [], awards, snapshot.payload.metadata?.asOf, sam.records || [], manual.records || [], subawardSnapshot),
+    contractMonitor,
+  );
   const events = opportunities.flatMap((opportunity) => (opportunity.events || []).map((event) => ({ opportunityId: opportunity.opportunityId, ...event })));
   const actions = Object.entries(transactions.byOpportunity || {}).flatMap(([opportunityId, rows]) => rows.map((action) => ({ opportunityId, ...action })));
   const subawards = opportunities.flatMap((opportunity) => (opportunity.subawards || []).map((subaward) => ({ opportunityId: opportunity.opportunityId, ...subaward })));
@@ -188,6 +193,10 @@ export async function registerCaptureCalendarRoutes(app, pool) {
          (SELECT COUNT(DISTINCT piid) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS instruments,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND automated_import)::INTEGER AS automated_imports,
          (SELECT COUNT(*) FROM capture_opportunity_sources WHERE snapshot_id = $1)::INTEGER AS source_channels,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload ? 'automationCoverage')::INTEGER AS monitored_contracts,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->'automationCoverage'->>'status' IN ('current', 'batch-current'))::INTEGER AS current_monitor_observations,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->'automationCoverage'->>'status' = 'stale')::INTEGER AS stale_monitor_observations,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->'automationCoverage'->>'status' = 'coverage-gap')::INTEGER AS monitor_gaps,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND work_category IS NOT NULL AND work_category <> 'other-unclassified')::INTEGER AS classified_records`,
       [snapshot.id],
     );

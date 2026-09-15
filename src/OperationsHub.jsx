@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
+import contractMonitor from "./data/contract-monitor.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -110,11 +111,35 @@ function IntegrationFreshness({ budgetGeneratedAt, awardGeneratedAt }) {
     { id: "budget", label: "Budget books", mobileLabel: "Budget", at: budgetGeneratedAt, maxAgeDays: 400 },
     { id: "awards", label: "Award execution", mobileLabel: "Awards", at: awardGeneratedAt, maxAgeDays: 14 },
     { id: "health", label: "Source health", mobileLabel: "Sources", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
+    { id: "contracts", label: "Contract monitor", mobileLabel: "Contracts", at: contractMonitor.metadata.generatedAt, maxAgeDays: 2 },
   ];
   return <section className="freshness-strip" aria-label="Data freshness" data-freshness-strip data-integration-freshness>{layers.map((layer) => {
     const state = freshnessState(layer.at, layer.maxAgeDays);
     return <span key={layer.id} className={`freshness-chip freshness-chip--${state.tone}`} title={`${layer.label}: ${state.label} · ${layer.at ? dateTime(layer.at) : "No snapshot"}`}><strong data-mobile-label={layer.mobileLabel}>{layer.label}</strong><em>{state.label}</em><small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small></span>;
   })}</section>;
+}
+
+function ContractMonitorCoverage() {
+  const metadata = contractMonitor.metadata || {};
+  const rows = contractMonitor.records || [];
+  const columns = [
+    { key: "contract", label: "Contract", required: true, sticky: true, minWidth: 260, value: (row) => `${row.reference || "Unidentified"} ${row.title}`, render: (row) => <><strong>{row.reference || "Identifier unavailable"}</strong><small>{row.title}</small></> },
+    { key: "lifecycle", label: "Lifecycle", facet: true, minWidth: 135, value: (row) => row.lifecycle, render: (row) => row.lifecycle.replaceAll("-", " ") },
+    { key: "status", label: "Automation", facet: true, minWidth: 135, value: (row) => row.status, render: (row) => <span className={`dbi-status-badge is-${row.status}`}>{row.status.replaceAll("-", " ")}</span> },
+    { key: "method", label: "Method", facet: true, minWidth: 200, value: (row) => row.method, render: (row) => <><strong>{row.method.replaceAll("-", " ")}</strong><small>{row.generatedAwardId || row.sourceSystem || "No exact automated key"}</small></> },
+    { key: "checked", label: "Checked", minWidth: 165, value: (row) => row.checkedAt || row.lastAttemptAt || "", render: (row) => row.checkedAt || row.lastAttemptAt ? dateTime(row.checkedAt || row.lastAttemptAt) : "Not refreshable" },
+    { key: "diagnostic", label: "Coverage note", minWidth: 260, role: "prose", value: (row) => row.diagnostic?.message || "Exact public record refreshed.", render: (row) => row.diagnostic?.message || "Exact public record refreshed." },
+  ];
+  return <section className="if-panel" data-contract-monitor>
+    <header className="if-panel__header"><div><span>Known contract universe</span><h3>Automated active &amp; upcoming coverage</h3><p>{metadata.methodology}</p></div><a href={metadata.sourceUrls?.[0]} target="_blank" rel="noreferrer">USAspending source<ChevronRight size={15} /></a></header>
+    <div className="if-metric-grid if-operations-signal-grid if-operations-signal-grid--compact" data-contract-monitor-summary>
+      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-info"><div className="if-metric__top"><p className="if-metric__label">Known targets</p></div><p className="if-metric__value">{Number(metadata.targetCount || 0).toLocaleString()}</p><div className="if-metric__meta"><span>{Number(metadata.byLifecycle?.active || 0).toLocaleString()} active</span><span>{Number(metadata.byLifecycle?.upcoming || 0).toLocaleString()} upcoming</span></div></article>
+      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-success"><div className="if-metric__top"><p className="if-metric__label">Automated coverage</p></div><p className="if-metric__value">{metadata.coveragePercent || 0}%</p><div className="if-metric__meta"><span>{Number(metadata.currentCount || 0).toLocaleString()} current</span><span>{Number(metadata.staleCount || 0).toLocaleString()} stale</span></div></article>
+      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-warning"><div className="if-metric__top"><p className="if-metric__label">Exact-key gaps</p></div><p className="if-metric__value">{Number(metadata.gapCount || 0).toLocaleString()}</p><div className="if-metric__meta"><span>{Number(metadata.byLifecycle?.["unresolved-schedule"] || 0).toLocaleString()} unscheduled</span><span>SAM key can close notice gaps</span></div></article>
+      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-neutral"><div className="if-metric__top"><p className="if-metric__label">Last completed</p></div><p className="if-metric__value">{metadata.generatedAt ? compactDate(metadata.generatedAt) : "Unavailable"}</p><div className="if-metric__meta"><span>{metadata.status || "unknown"}</span><span>Prior verified facts retained on failure</span></div></article>
+    </div>
+    <OperationalDataTable id="contract-monitor" label="Active and upcoming contract automation" rows={rows} columns={columns} rowKey={(row) => row.opportunityId} defaultSort={{ key: "status", direction: "asc" }} searchPlaceholder="Search monitored contracts, identifiers, lifecycle, methods, and gaps…" exportFilename="contract-monitor.csv" selectable={false} wrapperProps={{ "data-contract-monitor-table": true }} />
+  </section>;
 }
 
 function money(value) {
@@ -367,6 +392,7 @@ function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, 
     { name: "SAM.gov opportunities", status: samOpportunities.metadata?.status || "unavailable", count: `${Number(samOpportunities.metadata?.recordCount || samOpportunities.records?.length || 0).toLocaleString()} records`, detail: "Credentialed rolling-window importer" },
     { name: "Manual / CRM imports", status: "ready", count: `${Number(manualProcurement.records?.length || 0).toLocaleString()} records`, detail: "Stable procurement identifiers required" },
     { name: "Change detection", status: procurementDelta.metadata?.status || "baseline", count: `${Number(procurementDelta.summary?.added || 0) + Number(procurementDelta.summary?.updated || 0)} changes`, detail: "Deterministic consecutive-snapshot comparison" },
+    { name: "Known contract monitor", status: contractMonitor.metadata?.status || "unavailable", count: `${Number(contractMonitor.metadata?.coveredCount || 0).toLocaleString()} of ${Number(contractMonitor.metadata?.targetCount || 0).toLocaleString()} covered`, detail: "Exact award-detail refresh across active, upcoming, option-horizon, and unresolved records" },
   ];
   const columns = [
     { key: "name", label: "Integration", required: true, sticky: true, minWidth: 230, value: (row) => row.name, render: (row) => <><strong>{row.name}</strong><small>{row.detail}</small></> },
@@ -374,7 +400,7 @@ function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, 
     { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];
-  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
+  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><ContractMonitorCoverage /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
 }
 
 function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {

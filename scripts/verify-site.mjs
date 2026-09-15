@@ -486,8 +486,25 @@ try {
   await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
   await openSurface(page, "#/budget-spend/integrations", "[data-ops-integrations]");
-  assert.equal(await page.locator("[data-ops-integrations] [data-ops-integration-table] [data-if-table-row]").count(), 7, "Operations should summarize each current ingestion layer");
-  assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 3, "Budget, award, and source freshness should live with Admin integration health");
+  assert.equal(await page.locator("[data-ops-integrations] [data-ops-integration-table] [data-if-table-row]").count(), 8, "Operations should summarize each current ingestion layer");
+  assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 4, "Budget, award, source, and contract-monitor freshness should live with Admin integration health");
+  assert.equal(await page.locator("[data-contract-monitor-summary] .if-metric").count(), 4, "Contract monitoring should expose target, coverage, gap, and freshness metrics");
+  assert.ok(await page.locator("[data-contract-monitor-table] [data-if-table-row]").count() > 0, "Contract monitoring should expose its active and upcoming records");
+  const contractMonitorPayload = await page.evaluate(() => fetch(new URL("data/contract-monitor.json", document.baseURI)).then((response) => response.json()));
+  assert.ok(contractMonitorPayload.metadata.targetCount >= 500, "Contract monitor should cover the complete known non-historical universe");
+  assert.ok(contractMonitorPayload.metadata.currentCount >= 460, "Contract monitor should refresh exact USAspending observations and exact-PIID resolutions across the current universe");
+  assert.equal(contractMonitorPayload.metadata.targetCount, contractMonitorPayload.records.length, "Contract-monitor metadata should match its published rows");
+  assert.equal(new Set(contractMonitorPayload.records.map((record) => record.opportunityId)).size, contractMonitorPayload.records.length, "Contract-monitor rows should retain unique stable IDs");
+  const forbiddenMonitorKeys = [];
+  (function inspectMonitorKeys(value, path = "contractMonitor") {
+    if (Array.isArray(value)) return value.forEach((item, index) => inspectMonitorKeys(item, `${path}[${index}]`));
+    if (!value || typeof value !== "object") return;
+    for (const [key, nested] of Object.entries(value)) {
+      if (/^(authorization|cookie|api[_-]?key|credential|headers?)$/i.test(key)) forbiddenMonitorKeys.push(`${path}.${key}`);
+      inspectMonitorKeys(nested, `${path}.${key}`);
+    }
+  }(contractMonitorPayload));
+  assert.deepEqual(forbiddenMonitorKeys, [], "Contract-monitor output must not contain credential or header fields");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
   assert.ok(await page.locator("[data-ops-activity] [data-ops-activity-table] [data-if-table-row]").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
   await page.evaluate((recordIds) => {
@@ -1487,7 +1504,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=7 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=8 contract_monitor>=500 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

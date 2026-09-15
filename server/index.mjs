@@ -17,7 +17,7 @@ import { registerAuthRoutes } from "./auth-routes.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIST_ROOT = resolve(ROOT, "dist");
-const SNAPSHOT_KINDS = new Set(["budget", "source_health", "refresh_delta", "account_spine", "capture_calendar", "usaspending_subawards"]);
+const SNAPSHOT_KINDS = new Set(["budget", "source_health", "refresh_delta", "account_spine", "capture_calendar", "usaspending_subawards", "contract_monitor"]);
 const app = Fastify({
   logger: {
     level: process.env.LOG_LEVEL || "info",
