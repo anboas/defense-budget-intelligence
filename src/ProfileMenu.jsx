@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, Bot, Building2, ChevronDown, KeyRound, LogIn, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
-import WorkspaceMark from "./WorkspaceMark.jsx";
+import WorkspaceSwitcher from "./WorkspaceSwitcher.jsx";
 
 export default function ProfileMenu() {
   const auth = useAuth();
@@ -11,7 +11,7 @@ export default function ProfileMenu() {
 
   useEffect(() => {
     if (!open) return undefined;
-    const close = (event) => { if (!menuRef.current?.contains(event.target)) setOpen(false); };
+    const close = (event) => { if (!menuRef.current?.contains(event.target) && !event.target.closest?.("[data-workspace-switcher-menu]")) setOpen(false); };
     const escape = (event) => { if (event.key === "Escape") setOpen(false); };
     const route = () => setOpen(false);
     window.addEventListener("pointerdown", close);
@@ -80,7 +80,7 @@ export default function ProfileMenu() {
               <span className="if-account-surface__label">Account</span>
               <div className="if-account-surface__controls">
                 <div className="if-account-surface__control"><span>Role</span><strong>{user.role}</strong></div>
-                <label className="if-account-surface__control profile-workspace-switcher"><span>Workspace</span><span className="profile-workspace-switcher__control"><WorkspaceMark workspace={user.activeWorkspace} /><select aria-label="Active workspace" value={user.activeWorkspace?.id || ""} onChange={(event) => void auth.switchWorkspace(event.target.value)}>{(user.workspaces || []).map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}</select></span></label>
+                <div className="if-account-surface__control profile-workspace-switcher"><span>Workspace</span><WorkspaceSwitcher workspaces={user.workspaces || []} activeWorkspace={user.activeWorkspace} onSelect={auth.switchWorkspace} /></div>
               </div>
             </section>
             <section className="if-account-surface__section" aria-label="Account actions">

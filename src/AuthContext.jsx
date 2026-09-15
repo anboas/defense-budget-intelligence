@@ -172,11 +172,26 @@ export default function AuthProvider({ children }) {
     requestWorkspaceAccess: (workspaceId, note) => authApi.requestWorkspaceAccess(workspaceId, note),
     switchWorkspace: async (workspaceId) => { const result = await authApi.switchWorkspace(workspaceId); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
     getWorkspaceAdmin: () => authApi.getWorkspaceAdmin(),
-    createWorkspace: (values) => authApi.createWorkspace(values),
+    createWorkspace: async (values) => {
+      const result = await authApi.createWorkspace(values);
+      setStatus((current) => ({ ...current, user: current.user ? {
+        ...current.user,
+        workspaces: [...(current.user.workspaces || []), result.workspace].sort((left, right) => left.name.localeCompare(right.name)),
+      } : current.user }));
+      return result;
+    },
     updateWorkspace: async (workspaceId, values) => {
       const result = await authApi.updateWorkspace(workspaceId, values);
       setStatus((current) => {
-        const update = (workspace) => String(workspace?.id || "") === String(workspaceId) ? { ...workspace, ...result.workspace } : workspace;
+        const update = (workspace) => {
+          if (String(workspace?.id || "") !== String(workspaceId)) return workspace;
+          return {
+            ...workspace,
+            ...result.workspace,
+            roleId: result.workspace.roleId || workspace.roleId,
+            role: result.workspace.role || workspace.role,
+          };
+        };
         return { ...current, user: current.user ? {
           ...current.user,
           workspaces: (current.user.workspaces || []).map(update),
