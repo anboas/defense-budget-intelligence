@@ -1449,12 +1449,14 @@ try {
     header: document.querySelector("[data-budget-spend-header]")?.getBoundingClientRect().height || 0,
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
+    briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
   assert.ok(narrowAnalyticsGeometry.header <= 92, `360px masthead should use the Control Surface condensed variant while preserving 44px navigation targets, got ${narrowAnalyticsGeometry.header}px`);
   assert.ok(narrowAnalyticsGeometry.hero <= 205, `360px Analytics hero should stay compact, got ${narrowAnalyticsGeometry.hero}px`);
   assert.ok(narrowAnalyticsGeometry.brief <= 420, `360px factual brief should remain compact, got ${narrowAnalyticsGeometry.brief}px`);
-  assert.ok(narrowAnalyticsGeometry.firstChartTop <= 955, `360px Analytics should place the first chart immediately after the factual brief, got ${narrowAnalyticsGeometry.firstChartTop}px`);
+  const narrowAnalyticsChartGap = narrowAnalyticsGeometry.firstChartTop - narrowAnalyticsGeometry.briefBottom;
+  assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
   console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=7 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=19 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
