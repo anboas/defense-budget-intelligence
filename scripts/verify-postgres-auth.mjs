@@ -72,9 +72,24 @@ response = await request("/api/v1/auth/workspace-admin/workspaces", { method: "P
   body: { name: "PostgreSQL isolated", description: "Portability boundary" } });
 assert.equal(response.status, 201);
 const secondWorkspaceId = (await response.json()).workspace.id;
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${secondWorkspaceId}`, { method: "PATCH", cookie: ownerCookie,
+  body: { name: "PostgreSQL command", description: "Renamed portability boundary" } });
+assert.equal(response.status, 200, "PostgreSQL must support stable-ID workspace renames");
+body = await response.json();
+assert.equal(body.workspace.id, secondWorkspaceId);
+assert.equal(body.workspace.name, "PostgreSQL command");
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${secondWorkspaceId}/members`, { method: "POST", cookie: ownerCookie,
   body: { userId: signupId, role: "viewer" } });
 assert.equal(response.status, 201, "Super user must add an existing account to a workspace");
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${secondWorkspaceId}/members`, { method: "POST", cookie: ownerCookie,
+  body: { userId: signupId, role: "analyst" } });
+assert.equal(response.status, 200, "Super user must change an existing workspace role in place");
+response = await request("/api/v1/auth/workspace-admin", { cookie: ownerCookie });
+body = await response.json();
+const workspaceSummary = body.workspaces.find((workspace) => String(workspace.id) === String(secondWorkspaceId));
+assert.equal(workspaceSummary.name, "PostgreSQL command");
+assert.equal(workspaceSummary.members.find((member) => String(member.id) === String(signupId)).roleId, "analyst");
+assert.equal(workspaceSummary.contents.events, null, "PostgreSQL auth portability must mark hosted workspace-content counts unavailable");
 response = await request(`/api/v1/auth/workspaces/${secondWorkspaceId}/switch`, { method: "POST", cookie: signupCookie, body: {} });
 assert.equal(response.status, 200, "Members must be able to switch active workspaces");
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${secondWorkspaceId}/members/${signupId}`, { method: "DELETE", cookie: ownerCookie, body: {} });

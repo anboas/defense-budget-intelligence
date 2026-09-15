@@ -365,6 +365,10 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.user.hasWorkspaceAccess, false, "Self-signups must begin without implicit workspace access");
     const selfUserId = body.user.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, {
+      method: "PATCH", body: { name: "Unauthorized rename", description: "" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Only the global Super user may rename workspaces");
     response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${defaultWorkspaceId}/request`, {
       method: "POST", body: { note: "Need budget access" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
     });
@@ -373,6 +377,10 @@ async function verifyApiLifecycle(persistPath) {
     response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin", { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.requests.some((item) => item.id === accessRequestId && item.status === "pending"), true, "Super user must see pending access requests");
+    const defaultWorkspaceSummary = body.workspaces.find((item) => item.id === defaultWorkspaceId);
+    assert.equal(defaultWorkspaceSummary.pendingRequestCount, 1, "Workspace inventory must surface its pending request count");
+    assert.equal(typeof defaultWorkspaceSummary.contents.events, "number", "Hosted workspace administration must report event inventory");
+    assert.equal(typeof defaultWorkspaceSummary.contents.trackedRecords, "number", "Hosted workspace administration must report tracked-record inventory");
     response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/requests/${accessRequestId}`, {
       method: "POST", body: { decision: "approved", role: "analyst" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
     });
@@ -387,6 +395,13 @@ async function verifyApiLifecycle(persistPath) {
     });
     assert.equal(response.status, 201, "Super user must be able to create another workspace");
     const isolatedWorkspaceId = (await response.json()).workspace.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${isolatedWorkspaceId}`, {
+      method: "PATCH", body: { name: "Mission Delta Command", description: "Renamed isolation verification workspace" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Super user must be able to rename a workspace without replacing its ID");
+    body = await response.json();
+    assert.equal(body.workspace.id, isolatedWorkspaceId, "Workspace rename must preserve the stable workspace ID");
+    assert.equal(body.workspace.name, "Mission Delta Command");
     response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${isolatedWorkspaceId}/switch`, { method: "POST", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 200);
     response = await apiRequest(baseUrl, "/api/v1/agent/events", {
@@ -394,6 +409,14 @@ async function verifyApiLifecycle(persistPath) {
       origin: baseUrl.slice(0, -1), headers: { "idempotency-key": "workspace-isolation-event" },
     });
     assert.equal(response.status, 201, "The second workspace must accept its own management state");
+    response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin", { cookie: ownerCookie });
+    body = await response.json();
+    const isolatedSummary = body.workspaces.find((item) => item.id === isolatedWorkspaceId);
+    assert.equal(isolatedSummary.name, "Mission Delta Command", "Workspace inventory must return the renamed identity");
+    assert.equal(isolatedSummary.contents.events, 1, "Workspace inventory must report isolated event content");
+    assert.equal(isolatedSummary.contents.wallboardEvents, 1, "Workspace inventory must report wallboard-visible events");
+    assert.ok(isolatedSummary.contents.activityEntries >= 2, "Workspace inventory must report administrative and content activity");
+    assert.ok(isolatedSummary.lastActivityAt, "Workspace inventory must expose its latest activity time");
     response = await apiRequest(baseUrl, `/api/v1/auth/workspaces/${defaultWorkspaceId}/switch`, { method: "POST", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 200);
     response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });

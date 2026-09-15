@@ -77,6 +77,7 @@ export const authApi = {
   switchWorkspace: (workspaceId) => request(`/workspaces/${encodeURIComponent(workspaceId)}/switch`, { method: "POST", body: "{}" }),
   getWorkspaceAdmin: () => request("/workspace-admin", { method: "GET", headers: {} }),
   createWorkspace: (values) => request("/workspace-admin/workspaces", { method: "POST", body: JSON.stringify(values) }),
+  updateWorkspace: (workspaceId, values) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}`, { method: "PATCH", body: JSON.stringify(values) }),
   resolveWorkspaceRequest: (requestId, values) => request(`/workspace-admin/requests/${encodeURIComponent(requestId)}`, { method: "POST", body: JSON.stringify(values) }),
   addWorkspaceMember: (workspaceId, values) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}/members`, { method: "POST", body: JSON.stringify(values) }),
   removeWorkspaceMember: (workspaceId, userId) => request(`/workspace-admin/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`, { method: "DELETE", body: "{}" }),

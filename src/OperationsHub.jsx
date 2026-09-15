@@ -295,7 +295,7 @@ function ActivityView({ activity, records, remote }) {
   return <section className="ops-panel" data-ops-activity><header className="ops-panel__header"><div><span>Append-only {remote ? "workspace" : "browser"} history</span><h2>API & activity log</h2></div><small>{activity.length} retained events</small></header>{activity.length ? <OperationalDataTable id="api-activity" label="API and activity log" rows={activity} columns={columns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="api-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API or operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}</section>;
 }
 
-function WallboardView({ records, watchlist, events, asOf }) {
+function WallboardView({ records, watchlist, events, asOf, workspaceName }) {
   const [mode, setMode] = useState("events");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -339,7 +339,7 @@ function WallboardView({ records, watchlist, events, asOf }) {
   const reviewsDue = watchlist.filter((entry) => entry.reviewAt && entry.reviewAt >= asOf && entry.reviewAt <= reviewHorizon).length;
   return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode} data-wallboard-fullscreen={isFullscreen ? "true" : "false"}>
     <header className="ops-wallboard__masthead">
-      <div className="ops-wallboard__brand"><ProductMark eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>Defense Budget Intelligence</h2></div></div>
+      <div className="ops-wallboard__brand"><ProductMark eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>Defense Budget Intelligence</h2>{isFullscreen ? <p data-wallboard-workspace>{workspaceName}</p> : null}</div></div>
       <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
     </header>
     {!isFullscreen ? <div className="ops-wallboard__toolbar">
@@ -573,7 +573,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
     {view === "workspaces" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Only the Super user can manage workspace membership and requests.</p></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} /> : null}
+    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} workspaceName={auth?.user?.activeWorkspace?.name || "Local workspace"} /> : null}
     {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;

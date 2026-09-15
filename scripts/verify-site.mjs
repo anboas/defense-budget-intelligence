@@ -645,6 +645,8 @@ try {
     metricsCount: node.querySelectorAll(".ops-wallboard__metrics").length,
     brandTitleCount: node.querySelectorAll(".ops-wallboard__brand h2").length,
     brandEyebrowVisible: node.querySelector(".ops-wallboard__brand span")?.getBoundingClientRect().height > 0,
+    workspaceName: node.querySelector("[data-wallboard-workspace]")?.textContent.trim(),
+    workspaceNameVisible: node.querySelector("[data-wallboard-workspace]")?.getBoundingClientRect().height > 0,
     clockCount: node.querySelectorAll(".ops-wallboard__time strong").length,
     clockSupportingCopy: node.querySelectorAll(".ops-wallboard__time span, .ops-wallboard__time small").length,
     calendarControlsVisible: [...node.querySelectorAll(".ops-wall-calendar__controls")].some((control) => control.getBoundingClientRect().height > 0),
@@ -657,6 +659,8 @@ try {
   assert.equal(calendarKioskGeometry.metricsCount, 0, "Kiosk should remove the summary KPI strip");
   assert.equal(calendarKioskGeometry.brandTitleCount, 1, "Kiosk should retain the Defense Budget Intelligence identity");
   assert.equal(calendarKioskGeometry.brandEyebrowVisible, false, "Kiosk should remove the conference-room eyebrow");
+  assert.equal(calendarKioskGeometry.workspaceName, "Local workspace", "Kiosk should identify the active workspace");
+  assert.equal(calendarKioskGeometry.workspaceNameVisible, true, "Kiosk workspace identity should remain visible");
   assert.equal(calendarKioskGeometry.clockCount, 1, "Kiosk should retain one current-time display");
   assert.equal(calendarKioskGeometry.clockSupportingCopy, 0, "Kiosk should remove date and data-cutoff copy from the clock");
   assert.equal(calendarKioskGeometry.calendarControlsVisible, false, "Kiosk should hide calendar navigation and count controls");

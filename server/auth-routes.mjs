@@ -503,7 +503,10 @@ export async function registerAuthRoutes(app, pool) {
     if (!owner) return reply.code(401).send({ error: "sign in required" });
     if (owner.role !== "super_user") return reply.code(403).send({ error: "Super user access is required" });
     const [workspaces, members, requests, users] = await Promise.all([
-      pool.query("SELECT * FROM app_workspaces ORDER BY status, name"),
+      pool.query(`SELECT workspace.*,
+        (SELECT COUNT(*)::int FROM app_workspace_memberships membership WHERE membership.workspace_id = workspace.workspace_id) AS member_count,
+        (SELECT COUNT(*)::int FROM app_workspace_access_requests access_request WHERE access_request.workspace_id = workspace.workspace_id AND access_request.status = 'pending') AS pending_request_count
+        FROM app_workspaces workspace ORDER BY workspace.status, workspace.name`),
       pool.query(`SELECT membership.*, u.email, u.display_name, u.title, u.status, u.avatar_data_url
         FROM app_workspace_memberships membership JOIN app_users u ON u.user_id = membership.user_id ORDER BY u.display_name`),
       pool.query(`SELECT access_request.*, u.email, u.display_name, u.title, workspace.name AS workspace_name
@@ -515,6 +518,9 @@ export async function registerAuthRoutes(app, pool) {
     return {
       workspaces: workspaces.rows.map((workspace) => ({ id: workspace.workspace_id, name: workspace.name, slug: workspace.slug,
         description: workspace.description, status: workspace.status, ownerUserId: workspace.owner_user_id,
+        createdAt: workspace.created_at, updatedAt: workspace.updated_at,
+        pendingRequestCount: Number(workspace.pending_request_count || 0), lastActivityAt: null,
+        contents: { trackedRecords: null, events: null, wallboardEvents: null, milestones: null, manualRecords: null, activityEntries: null, activeAgentKeys: null },
         members: members.rows.filter((member) => String(member.workspace_id) === String(workspace.workspace_id)).map((member) => ({ id: member.user_id,
           email: member.email, displayName: member.display_name, title: member.title, avatarDataUrl: member.avatar_data_url,
           status: member.status, roleId: member.role, role: ROLE_LABELS[member.role] })) })),
@@ -548,6 +554,25 @@ export async function registerAuthRoutes(app, pool) {
       if (error.code === "23505") return reply.code(409).send({ error: "a workspace with that name already exists" });
       throw error;
     } finally { client.release(); }
+  });
+
+  app.patch("/api/v1/auth/workspace-admin/workspaces/:workspaceId", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const owner = await authenticated(pool, request);
+    if (!owner) return reply.code(401).send({ error: "sign in required" });
+    if (owner.role !== "super_user") return reply.code(403).send({ error: "Super user access is required" });
+    const name = cleanText(request.body?.name, 80);
+    const description = cleanText(request.body?.description, 240);
+    if (name.length < 2) return reply.code(400).send({ error: "a valid workspace name is required" });
+    const duplicate = await pool.query("SELECT workspace_id FROM app_workspaces WHERE lower(name) = lower($1) AND workspace_id <> $2", [name, request.params.workspaceId]);
+    if (duplicate.rowCount) return reply.code(409).send({ error: "a workspace with that name already exists" });
+    const result = await pool.query(`UPDATE app_workspaces SET name = $1, description = $2, updated_at = NOW()
+      WHERE workspace_id = $3 RETURNING *`, [name, description, request.params.workspaceId]);
+    if (!result.rowCount) return reply.code(404).send({ error: "workspace not found" });
+    const workspace = result.rows[0];
+    return { workspace: { id: workspace.workspace_id, name: workspace.name, slug: workspace.slug,
+      description: workspace.description, status: workspace.status, ownerUserId: workspace.owner_user_id,
+      createdAt: workspace.created_at, updatedAt: workspace.updated_at } };
   });
 
   app.post("/api/v1/auth/workspace-admin/requests/:requestId", async (request, reply) => {
@@ -586,9 +611,10 @@ export async function registerAuthRoutes(app, pool) {
     const target = await pool.query("SELECT role, status FROM app_users WHERE user_id = $1", [request.body?.userId]);
     if (!target.rowCount || target.rows[0].status !== "active") return reply.code(400).send({ error: "an active user is required" });
     if (target.rows[0].role === "super_user") return reply.code(403).send({ error: "the Super user membership is immutable" });
+    const existing = await pool.query("SELECT role FROM app_workspace_memberships WHERE workspace_id = $1 AND user_id = $2", [request.params.workspaceId, request.body?.userId]);
     await pool.query(`INSERT INTO app_workspace_memberships (workspace_id, user_id, role, created_by) VALUES ($1, $2, $3, $4)
       ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = NOW()`, [request.params.workspaceId, request.body?.userId, role, owner.user_id]);
-    return reply.code(201).send({ ok: true });
+    return reply.code(existing.rowCount ? 200 : 201).send({ ok: true });
   });
 
   app.delete("/api/v1/auth/workspace-admin/workspaces/:workspaceId/members/:userId", async (request, reply) => {

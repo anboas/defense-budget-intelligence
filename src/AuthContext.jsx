@@ -172,6 +172,18 @@ export default function AuthProvider({ children }) {
     switchWorkspace: async (workspaceId) => { const result = await authApi.switchWorkspace(workspaceId); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
     getWorkspaceAdmin: () => authApi.getWorkspaceAdmin(),
     createWorkspace: (values) => authApi.createWorkspace(values),
+    updateWorkspace: async (workspaceId, values) => {
+      const result = await authApi.updateWorkspace(workspaceId, values);
+      setStatus((current) => {
+        const update = (workspace) => String(workspace?.id || "") === String(workspaceId) ? { ...workspace, ...result.workspace } : workspace;
+        return { ...current, user: current.user ? {
+          ...current.user,
+          workspaces: (current.user.workspaces || []).map(update),
+          activeWorkspace: update(current.user.activeWorkspace),
+        } : current.user };
+      });
+      return result;
+    },
     resolveWorkspaceRequest: (requestId, values) => authApi.resolveWorkspaceRequest(requestId, values),
     addWorkspaceMember: (workspaceId, values) => authApi.addWorkspaceMember(workspaceId, values),
     removeWorkspaceMember: (workspaceId, userId) => authApi.removeWorkspaceMember(workspaceId, userId),
@@ -181,7 +193,13 @@ export default function AuthProvider({ children }) {
     clearError: () => setError(""),
   }), [status, busy, error]);
 
-  if (status.loading) return <main className="account-gate account-gate--loading" role="status"><span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span><h1>Loading workspace</h1></main>;
+  if (status.loading) return <main className="account-gate account-gate--loading" role="status">
+    <span className="account-gate__loading-mark" aria-hidden="true">
+      <span className="account-gate__mark"><ProductMark eager /></span>
+    </span>
+    <h1>Loading workspace</h1>
+    <span className="account-gate__loading-dots" aria-hidden="true"><i /><i /><i /></span>
+  </main>;
   if (status.enabled && status.required && !status.claimed) return <AccountGate mode="setup" busy={busy} error={error} onSubmit={(values) => void value.claim(values).catch(() => {})} />;
   if (status.enabled && status.required && !status.user) return <AccountGate mode="login" registrationEnabled={status.registrationEnabled} busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} onRegister={(values) => void value.register(values).catch(() => {})} />;
   if (status.enabled && status.user?.mustChangePassword) return <PasswordChangeGate user={status.user} busy={busy} error={error} onSubmit={(values) => void run(() => authApi.changePassword(values)).catch(() => {})} />;

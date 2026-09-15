@@ -27,8 +27,30 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
+  let delayedInitialStatus = false;
+  await page.route("**/api/v1/auth/status", async (route) => {
+    if (!delayedInitialStatus) {
+      delayedInitialStatus = true;
+      await new Promise((resolve) => setTimeout(resolve, 450));
+    }
+    await route.continue();
+  });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  const loadingGate = page.locator(".account-gate--loading");
+  await loadingGate.waitFor();
+  assert.equal(await loadingGate.getByRole("heading", { name: "Loading workspace" }).count(), 1, "Loading state should retain a clear status label");
+  assert.equal(await loadingGate.locator(".account-gate__loading-dots i").count(), 3, "Loading state should render the three-dot progress cadence");
+  const loadingAnimation = await loadingGate.locator(".account-gate__loading-mark").evaluate((node) => ({
+    ringAnimation: getComputedStyle(node, "::before").animationName,
+    dotAnimation: getComputedStyle(node.parentElement.querySelector(".account-gate__loading-dots i")).animationName,
+    ringDiameter: node.getBoundingClientRect().width,
+  }));
+  assert.equal(loadingAnimation.ringAnimation, "account-loading-spin", "Product mark should be surrounded by the segmented loading spinner");
+  assert.equal(loadingAnimation.dotAnimation, "account-loading-dot", "Loading dots should use the shared cadence animation");
+  assert.ok(loadingAnimation.ringDiameter >= 60 && loadingAnimation.ringDiameter <= 64, `Loading spinner should remain compact, got ${loadingAnimation.ringDiameter}px`);
+  await page.screenshot({ path: "test-results/account-loading.png" });
   await page.waitForSelector('[data-account-gate="setup"]');
+  await page.unroute("**/api/v1/auth/status");
   const setupMark = page.locator(".account-gate__mark img");
   assert.deepEqual(await setupMark.evaluate((node) => [node.naturalWidth, node.naturalHeight]), [192, 192], "First-account setup should use the supplied product mark");
   assert.equal(await page.locator(".account-gate").evaluate((node) => getComputedStyle(node).backgroundImage), "none", "Authentication surface should preserve the established flat control-surface treatment");
@@ -162,12 +184,49 @@ try {
   await createdWorkspace.waitFor();
   const candidateValue = await createdWorkspace.locator('select[aria-label^="User to add"] option', { hasText: "Browser teammate" }).getAttribute("value");
   await createdWorkspace.getByLabel(/User to add/).selectOption(candidateValue);
-  await createdWorkspace.getByLabel("Workspace role").selectOption("viewer");
-  await createdWorkspace.getByRole("button", { name: "Add" }).click();
+  await createdWorkspace.getByLabel(/Role for new member/).selectOption("viewer");
+  await createdWorkspace.getByRole("button", { name: "Add member" }).click();
   await createdWorkspace.getByText("Browser teammate", { exact: true }).waitFor();
-  await createdWorkspace.getByRole("button", { name: /Remove Browser teammate/ }).click();
-  await page.getByText(/removed from Browser verification/).waitFor();
+  assert.match(await createdWorkspace.getByLabel(/Role for Browser teammate/).inputValue(), /viewer/, "Super user should see the member's current workspace role");
+  await createdWorkspace.getByLabel(/Role for Browser teammate/).selectOption("analyst");
+  await page.getByText(/Browser teammate is now Analyst/).waitFor();
+  assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"] article').count(), 6, "Each workspace should present its isolated content inventory");
+  await createdWorkspace.getByRole("button", { name: "Rename" }).click();
+  const workspaceEditor = createdWorkspace.locator("[data-workspace-editor]");
+  await workspaceEditor.getByLabel("Workspace name").fill("Browser command");
+  await workspaceEditor.getByLabel("Description").fill("Renamed browser-tested workspace");
+  await workspaceEditor.getByRole("button", { name: "Save" }).click();
+  await page.getByText("Browser command updated.", { exact: true }).waitFor();
+  const renamedWorkspace = workspaceAdmin.locator('[data-workspace]', { hasText: "Browser command" });
+  await renamedWorkspace.waitFor();
+  assert.match(await renamedWorkspace.innerText(), /What lives here[\s\S]*Tracked[\s\S]*Events[\s\S]*Milestones[\s\S]*Manual records[\s\S]*Audit entries[\s\S]*Agent keys/);
+  await renamedWorkspace.getByRole("button", { name: /Remove Browser teammate/ }).click();
+  await page.getByText(/removed from Browser command/).waitFor();
+  const addMemberButton = renamedWorkspace.getByRole("button", { name: "Add member" });
+  await addMemberButton.waitFor();
+  await page.waitForFunction((button) => !button.disabled, await addMemberButton.elementHandle());
   await page.screenshot({ path: "test-results/admin-workspaces-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileWorkspaceGeometry = await workspaceAdmin.evaluate((node) => {
+    const inventory = node.querySelector(".workspace-card__contents > div");
+    const controls = [...node.querySelectorAll("button, input, select")];
+    return {
+      documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+      inventoryOverflow: getComputedStyle(inventory).overflowX,
+      inventoryItems: inventory.children.length,
+      controlHeights: controls.map((control) => control.getBoundingClientRect().height),
+    };
+  });
+  assert.ok(mobileWorkspaceGeometry.documentOverflow <= 2, `Mobile workspace command should not overflow the document, got ${mobileWorkspaceGeometry.documentOverflow}px`);
+  assert.equal(mobileWorkspaceGeometry.inventoryOverflow, "auto", "Mobile workspace inventory should use a contained horizontal rail");
+  assert.equal(mobileWorkspaceGeometry.inventoryItems, 6, "Mobile workspace inventory should preserve all six content categories");
+  assert.ok(mobileWorkspaceGeometry.controlHeights.every((height) => height >= 43.5), `Mobile workspace controls must retain 44px targets: ${mobileWorkspaceGeometry.controlHeights.join(", ")}`);
+  const addMemberPresentation = await addMemberButton.evaluate((button) => ({ text: button.innerText.trim(), color: getComputedStyle(button).color, opacity: getComputedStyle(button).opacity }));
+  assert.equal(addMemberPresentation.text, "Add member", "Mobile workspace add control must retain its visible label");
+  assert.equal(addMemberPresentation.color, "rgb(255, 255, 255)", "Mobile workspace add control must retain readable text contrast");
+  assert.equal(addMemberPresentation.opacity, "1", "Mobile workspace add control must remain fully visible when ready");
+  await page.screenshot({ path: "test-results/admin-workspaces-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
 
   const signupContext = await browser.newContext({ viewport: { width: 1080, height: 900 } });
   const signupPage = await signupContext.newPage();

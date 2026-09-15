@@ -1044,6 +1044,7 @@ function workspaceSummary(row, membership = null, request = null) {
     role: membership?.role ? ROLE_LABELS[membership.role] || "Viewer" : null,
     requestStatus: request?.status || null,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -1116,7 +1117,18 @@ async function workspaceAdminResponse(request, db) {
 
   if (request.method === "GET" && !segments.length) {
     const [workspaceResult, membershipResult, requestResult, userResult] = await Promise.all([
-      db.prepare("SELECT * FROM dbi_workspaces ORDER BY status, name COLLATE NOCASE").all(),
+      db.prepare(`SELECT workspace.*,
+        (SELECT COUNT(*) FROM dbi_workspace_memberships membership WHERE membership.workspace_id = workspace.workspace_id) AS member_count,
+        (SELECT COUNT(*) FROM dbi_workspace_access_requests access_request WHERE access_request.workspace_id = workspace.workspace_id AND access_request.status = 'pending') AS pending_request_count,
+        (SELECT COUNT(*) FROM dbi_workspace_watchlist tracked WHERE tracked.workspace_id = workspace.workspace_id) AS tracked_record_count,
+        (SELECT COUNT(*) FROM dbi_workspace_events event WHERE event.workspace_id = workspace.workspace_id) AS event_count,
+        (SELECT COUNT(*) FROM dbi_workspace_events event WHERE event.workspace_id = workspace.workspace_id AND event.wallboard = 1) AS wallboard_event_count,
+        (SELECT COUNT(*) FROM dbi_workspace_event_milestones milestone WHERE milestone.workspace_id = workspace.workspace_id) AS milestone_count,
+        (SELECT COUNT(*) FROM dbi_workspace_manual_records manual WHERE manual.workspace_id = workspace.workspace_id AND manual.deleted_at = '') AS manual_record_count,
+        (SELECT COUNT(*) FROM dbi_workspace_activity activity WHERE activity.workspace_id = workspace.workspace_id) AS activity_count,
+        (SELECT MAX(activity.occurred_at) FROM dbi_workspace_activity activity WHERE activity.workspace_id = workspace.workspace_id) AS last_activity_at,
+        (SELECT COUNT(*) FROM dbi_workspace_agent_keys agent_key WHERE agent_key.workspace_id = workspace.workspace_id AND agent_key.revoked_at = '' AND (agent_key.expires_at = '' OR agent_key.expires_at > CURRENT_TIMESTAMP)) AS active_agent_key_count
+        FROM dbi_workspaces workspace ORDER BY workspace.status, workspace.name COLLATE NOCASE`).all(),
       db.prepare(`SELECT membership.*, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
         FROM dbi_workspace_memberships membership JOIN dbi_users user ON user.user_id = membership.user_id
         LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
@@ -1134,6 +1146,17 @@ async function workspaceAdminResponse(request, db) {
     return json({
       workspaces: (workspaceResult.results || []).map((workspace) => ({
         ...workspaceSummary(workspace),
+        pendingRequestCount: Number(workspace.pending_request_count || 0),
+        lastActivityAt: workspace.last_activity_at || null,
+        contents: {
+          trackedRecords: Number(workspace.tracked_record_count || 0),
+          events: Number(workspace.event_count || 0),
+          wallboardEvents: Number(workspace.wallboard_event_count || 0),
+          milestones: Number(workspace.milestone_count || 0),
+          manualRecords: Number(workspace.manual_record_count || 0),
+          activityEntries: Number(workspace.activity_count || 0),
+          activeAgentKeys: Number(workspace.active_agent_key_count || 0),
+        },
         members: memberships.filter((entry) => entry.workspace_id === workspace.workspace_id).map((entry) => ({
           id: entry.user_id, email: entry.email, displayName: entry.display_name, title: entry.title || "",
           avatarDataUrl: entry.avatar_data_url || "", status: entry.status, roleId: entry.role, role: ROLE_LABELS[entry.role] || "Viewer",
@@ -1173,6 +1196,25 @@ async function workspaceAdminResponse(request, db) {
     await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_created", "workspace", workspaceId, { name });
     const row = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
     return json({ workspace: workspaceSummary(row, { role: "super_user" }) }, 201);
+  }
+
+  if (request.method === "PATCH" && segments[0] === "workspaces" && segments[1] && segments.length === 2) {
+    const workspaceId = segments[1];
+    const workspace = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
+    if (!workspace) return json({ error: "Workspace not found" }, 404);
+    const body = await safeJson(request);
+    const name = cleanText(body?.name, 80);
+    const description = cleanText(body?.description, 240);
+    if (name.length < 2) return json({ error: "A valid workspace name is required" }, 400);
+    const duplicate = await db.prepare("SELECT workspace_id FROM dbi_workspaces WHERE LOWER(name) = LOWER(?) AND workspace_id <> ?")
+      .bind(name, workspaceId).first();
+    if (duplicate) return json({ error: "A workspace with that name already exists" }, 409);
+    const now = new Date().toISOString();
+    await db.prepare("UPDATE dbi_workspaces SET name = ?, description = ?, updated_at = ? WHERE workspace_id = ?")
+      .bind(name, description, now, workspaceId).run();
+    await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_updated", "workspace", workspaceId, { previousName: workspace.name, name, description });
+    const row = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
+    return json({ workspace: workspaceSummary(row) });
   }
 
   if (request.method === "POST" && segments[0] === "requests" && segments[1]) {
@@ -1216,12 +1258,13 @@ async function workspaceAdminResponse(request, db) {
       if (!target || !USER_ROLES.includes(role)) return json({ error: "An active user and valid role are required" }, 400);
       if (target.role === "super_user") return json({ error: "The Super user membership is immutable" }, 403);
       const now = new Date().toISOString();
+      const existing = await db.prepare("SELECT role FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId).first();
       await db.prepare(`INSERT INTO dbi_workspace_memberships
         (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at`)
         .bind(workspaceId, userId, role, owner.user_id, now, now).run();
-      await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_member_added", "user", userId, { role });
-      return json({ ok: true }, 201);
+      await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, existing ? "workspace_member_role_changed" : "workspace_member_added", "user", userId, { role, previousRole: existing?.role || null });
+      return json({ ok: true }, existing ? 200 : 201);
     }
     if (request.method === "DELETE" && segments[3]) {
       const userId = segments[3];
