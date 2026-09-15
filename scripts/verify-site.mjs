@@ -1184,8 +1184,16 @@ try {
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Reported endpoint: 2026/, "Schedule-year selection should cross-filter every analytical view");
   await page.locator('.analytics-active-filters button').click();
   await page.getByRole("button", { name: "Spend & structure" }).click();
-  assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Spend should expose six focused value and structure views");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 7, "Spend should expose seven focused value, concentration, and structure views");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Leading funding office[\s\S]*Acquisition structure[\s\S]*Subaward-bearing primes/i, "Spend signals should summarize concentration, structure, and subaward attachment");
+  assert.equal(await page.locator('[data-d3-analytics="concentration-pareto"]').count(), 1, "Spend should expose recipient and funding-office concentration as a Pareto view");
+  assert.match(await page.locator('[data-d3-analytics="concentration-pareto"] [data-analytics-legend]').innerText(), /cumulative share[\s\S]*80% concentration threshold/i, "Pareto should explain its obligation and cumulative-share encodings");
+  await page.locator('[data-d3-analytics="concentration-pareto"] [role="button"]').first().click();
+  assert.match(await page.locator('.analytics-active-filters').innerText(), /Recipient \/ sponsor:/, "Pareto bars should filter the full workspace to their supporting recipient slice");
+  await page.locator('.analytics-active-filters button').click();
+  await page.locator('[data-d3-analytics="concentration-pareto"] .transaction-viz__segmented button').filter({ hasText: "Funding offices" }).click();
+  assert.match(await page.locator('[data-d3-analytics="concentration-pareto"]').innerText(), /Funding offices/i, "Pareto should switch between recipient and funding-office concentration");
+  await page.screenshot({ path: `${OUT_DIR}/analytics-pareto-desktop.png`, fullPage: true });
   assert.equal(await page.locator('[data-d3-analytics="acquisition-matrix"]').count(), 1, "Spend should cross published pricing and competition classifications");
   assert.equal(await page.locator('[data-d3-analytics="subawards"]').count(), 1, "Spend should disclose exactly joined prime-to-subaward concentration");
   assert.equal(await page.locator('[data-d3-analytics="fiscal-trend"]').count(), 1, "Spend should expose annual obligation history by the selected dimension");
@@ -1201,13 +1209,22 @@ try {
   assert.match(await page.locator('.analytics-export').innerText(), /Export/, "Filtered analytical slices should be exportable");
   await page.locator('.analytics-reset').click();
   await page.getByRole("button", { name: "Coverage & lineage" }).click();
-  assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Coverage should expose five focused provenance and quality views");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Coverage should expose six focused evidence, provenance, and quality views");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Source-link coverage[\s\S]*Specific work coding[\s\S]*Snapshot changes/i, "Coverage signals should summarize factual completeness and change detection");
   assert.equal(await page.locator('[data-d3-analytics="provenance"]').count(), 1, "Coverage should include ingestion provenance");
   assert.equal(await page.locator('[data-d3-analytics="changes"]').count(), 1, "Coverage should include refresh changes");
   assert.equal(await page.locator('[data-d3-analytics="field-coverage"]').count(), 1, "Coverage should disclose field coverage");
   assert.equal(await page.locator('[data-d3-analytics="money-lineage"]').count(), 1, "Coverage should disclose money lineage and unresolved join gaps");
   assert.equal(await page.locator('[data-d3-analytics="source-coverage"]').count(), 1, "Coverage should expose source-system field completeness");
+  assert.equal(await page.locator('[data-d3-analytics="evidence-risk"]').count(), 1, "Coverage should expose reported-value exposure by explicit evidence gaps");
+  const evidenceCells = page.locator('[data-d3-analytics="evidence-risk"] [data-evidence-cell]');
+  assert.equal(await evidenceCells.count(), 24, "Evidence matrix should cross four gap levels with six reported-value bands");
+  const evidenceCellId = await evidenceCells.evaluateAll((nodes) => nodes.find((node) => Number(node.dataset.recordCount || 0) > 0)?.dataset.evidenceCell || "");
+  assert.ok(evidenceCellId, "Evidence matrix should contain at least one populated supporting slice");
+  await page.locator(`[data-d3-analytics="evidence-risk"] [data-evidence-cell="${evidenceCellId}"]`).click();
+  assert.match(await page.locator('.analytics-active-filters').innerText(), /evidence gap|complete evidence/i, "Evidence cells should filter every view to their supporting records");
+  await page.locator('.analytics-active-filters button').click();
+  await page.screenshot({ path: `${OUT_DIR}/analytics-evidence-risk-desktop.png`, fullPage: true });
   await page.locator('[data-d3-analytics="source-coverage"] [role="button"]').first().click();
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Source system:/, "Coverage cells should filter the record universe by source system");
   await page.locator('.analytics-active-filters button').click();
@@ -1424,6 +1441,17 @@ try {
   await assertNoPageOverflow(mobile, "Mobile D3 analytics");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
+  await openSurface(mobile, "#/budget-spend/analytics?analyticsView=spend", '[data-d3-analytics="concentration-pareto"]');
+  assert.equal(await mobile.locator('[data-d3-analytics="concentration-pareto"]').count(), 1, "Mobile Spend should retain the concentration Pareto");
+  assert.ok(await mobile.locator('[data-d3-analytics="concentration-pareto"] .transaction-viz__scroller').evaluate((node) => node.scrollWidth > node.clientWidth), "Mobile Pareto should stay inside its horizontal chart scroller");
+  assert.ok(await mobile.locator('[data-d3-analytics="concentration-pareto"] .transaction-viz__segmented button').first().evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Pareto dimension controls should meet the 44px touch contract");
+  await assertNoPageOverflow(mobile, "Mobile Pareto analytics");
+
+  await openSurface(mobile, "#/budget-spend/analytics?analyticsView=coverage", '[data-d3-analytics="evidence-risk"]');
+  assert.equal(await mobile.locator('[data-d3-analytics="evidence-risk"] [data-evidence-cell]').count(), 24, "Mobile Coverage should retain every evidence matrix cell");
+  assert.ok(await mobile.locator('[data-d3-analytics="evidence-risk"] .transaction-viz__scroller').evaluate((node) => node.scrollWidth > node.clientWidth), "Mobile evidence matrix should stay inside its horizontal chart scroller");
+  await assertNoPageOverflow(mobile, "Mobile evidence-risk analytics");
+
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
   const mobileAdminShellHeight = await mobile.locator("[data-admin-workspace]").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileAdminShellHeight <= 360, `Mobile Admin control center should stay compact enough to expose working content, got ${mobileAdminShellHeight}px`);
@@ -1459,7 +1487,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=7 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=19 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=7 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

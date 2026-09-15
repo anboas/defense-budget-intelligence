@@ -131,6 +131,7 @@ const VIEW_CHARTS = {
     ["scatter", "Obligation and value distribution"],
   ],
   spend: [
+    ["concentration-pareto", "Obligation concentration Pareto"],
     ["dimension-explorer", "Dimension ranking"],
     ["fiscal-trend", "Fiscal obligation trend"],
     ["buyer-year", "Funding office by fiscal year"],
@@ -139,6 +140,7 @@ const VIEW_CHARTS = {
     ["subawards", "Prime-to-subaward concentration"],
   ],
   coverage: [
+    ["evidence-risk", "Evidence exposure matrix"],
     ["field-coverage", "Field coverage"],
     ["source-coverage", "Source-system coverage"],
     ["provenance", "Ingestion provenance"],
@@ -1119,6 +1121,116 @@ const VALUE_BANDS = [
   { id: "over-10b", label: "$10B+", min: 10_000_000_000, max: Infinity },
 ];
 
+const EVIDENCE_FIELDS = [
+  ["Public source", (record) => Boolean(record.sourceUrls?.length)],
+  ["Schedule", (record) => Boolean(record.start || record.currentEnd || record.solicitationStart || record.solicitationEnd || record.potentialEnd)],
+  ["Acquisition structure", (record) => Boolean(record.vehicle || record.pricingType || record.awardType || record.competitionType || record.setAside)],
+];
+
+function evidenceProfile(record) {
+  const missing = EVIDENCE_FIELDS.filter(([, predicate]) => !predicate(record)).map(([label]) => label);
+  return { gaps: missing.length, missing };
+}
+
+function evidenceCellMatches(record, cell) {
+  if (!cell) return true;
+  const band = VALUE_BANDS.find((item) => item.id === cell.bandId);
+  const value = recordValue(record);
+  return evidenceProfile(record).gaps === cell.gaps && (!band || (value >= band.min && value < band.max));
+}
+
+function ConcentrationPareto({ records, dimensionId, onDimensionChange, facet, onFacet }) {
+  const dimension = DIMENSIONS.find((item) => item.id === dimensionId) || DIMENSIONS.find((item) => item.id === "recipient");
+  const grouped = new Map();
+  for (const record of records) {
+    const label = dimension.value(record);
+    const current = grouped.get(label) || { label, amount: 0, records: 0 };
+    current.amount += recordObligations(record);
+    current.records += 1;
+    grouped.set(label, current);
+  }
+  const ranked = [...grouped.values()].sort((left, right) => right.amount - left.amount || right.records - left.records || left.label.localeCompare(right.label));
+  const total = ranked.reduce((sum, row) => sum + row.amount, 0);
+  const leadingRows = ranked.slice(0, 14);
+  const topRows = leadingRows.map((row, index) => {
+    const cumulativeAmount = leadingRows.slice(0, index + 1).reduce((sum, item) => sum + item.amount, 0);
+    return { ...row, cumulativeAmount, cumulativeShare: total ? cumulativeAmount / total : 0 };
+  });
+  const remaining = ranked.slice(14);
+  if (remaining.length) {
+    const amount = remaining.reduce((sum, row) => sum + row.amount, 0);
+    const cumulativeAmount = (topRows.at(-1)?.cumulativeAmount || 0) + amount;
+    topRows.push({ label: `Other ${remaining.length} groups`, amount, cumulativeAmount, records: remaining.reduce((sum, row) => sum + row.records, 0), cumulativeShare: total ? cumulativeAmount / total : 0, aggregate: true });
+  }
+  const width = 1260;
+  const height = 98 + Math.max(topRows.length, 1) * 34;
+  const inset = { top: 44, right: 145, bottom: 34, left: 330 };
+  const plotWidth = width - inset.left - inset.right;
+  const maximum = Math.max(...topRows.map((row) => row.amount), 1);
+  const amountX = scaleLinear().domain([0, maximum]).range([0, plotWidth]);
+  const shareX = scaleLinear().domain([0, 1]).range([inset.left, width - inset.right]);
+  const y = scaleBand().domain(topRows.map((row) => row.label)).range([inset.top, height - inset.bottom]).padding(0.22);
+  const linePoints = topRows.map((row) => `${shareX(row.cumulativeShare)},${(y(row.label) || 0) + y.bandwidth() / 2}`).join(" ");
+  return (
+    <>
+      <div className="transaction-viz__segmented" aria-label="Pareto dimension">
+        {[["recipient", "Recipients"], ["buyer", "Funding offices"]].map(([id, label]) => <button type="button" key={id} className={dimension.id === id ? "is-active" : ""} aria-pressed={dimension.id === id} onClick={() => onDimensionChange(id)}>{label}</button>)}
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Observed obligation concentration by ${dimension.label.toLowerCase()}`}>
+        <line x1={shareX(0.8)} x2={shareX(0.8)} y1={inset.top - 8} y2={height - inset.bottom} stroke="#b78000" strokeDasharray="5 5" />
+        <text x={shareX(0.8)} y="26" textAnchor="middle">80% cumulative share</text>
+        {topRows.map((row) => {
+          const top = y(row.label) || 0;
+          const active = !row.aggregate && facet?.dimensionId === dimension.id && facet.value === row.label;
+          const content = <>
+            <text x={inset.left - 12} y={top + y.bandwidth() / 2 + 4} textAnchor="end">{row.label.slice(0, 48)}</text>
+            <rect x={inset.left} y={top} width={Math.max(amountX(row.amount), row.amount ? 2 : 0)} height={y.bandwidth()} rx="3" fill={active ? "#f0b323" : "#1678a5"} opacity="0.86" />
+            <text x={width - inset.right + 10} y={top + y.bandwidth() / 2 + 4}>{money(row.amount)} · {Math.round(row.cumulativeShare * 100)}%</text>
+          </>;
+          return row.aggregate ? <g key={row.label}>{content}</g> : <g key={row.label} role="button" tabIndex="0" aria-pressed={active} data-analytics-tooltip={`${row.label}\n${money(row.amount)} observed obligations\n${percentage(row.amount, total)} individual share · ${percentage(row.cumulativeShare, 1)} cumulative share\n${row.records.toLocaleString()} records\nClick to filter every view`} onClick={() => onFacet(active ? null : { dimensionId: dimension.id, value: row.label })} onKeyDown={(event) => activateWithKeyboard(event, () => onFacet(active ? null : { dimensionId: dimension.id, value: row.label }))}>{content}</g>;
+        })}
+        {linePoints ? <polyline points={linePoints} fill="none" stroke="#f0b323" strokeWidth="3" /> : null}
+        {topRows.map((row) => <circle key={`share-${row.label}`} cx={shareX(row.cumulativeShare)} cy={(y(row.label) || 0) + y.bandwidth() / 2} r="4" fill="#6f4d00" />)}
+      </svg>
+    </>
+  );
+}
+
+function EvidenceRiskMatrix({ records, activeCell, onCell }) {
+  const rows = [0, 1, 2, 3];
+  const cells = rows.flatMap((gaps) => VALUE_BANDS.map((band) => {
+    const matches = records.filter((record) => evidenceProfile(record).gaps === gaps && recordValue(record) >= band.min && recordValue(record) < band.max);
+    return {
+      gaps,
+      band,
+      count: matches.length,
+      exposure: matches.reduce((sum, record) => sum + recordValue(record), 0),
+      missing: EVIDENCE_FIELDS.map(([label]) => ({ label, count: matches.filter((record) => evidenceProfile(record).missing.includes(label)).length })),
+    };
+  }));
+  const width = 1180;
+  const height = 390;
+  const inset = { top: 82, right: 34, bottom: 34, left: 235 };
+  const x = scaleBand().domain(VALUE_BANDS.map((band) => band.id)).range([inset.left, width - inset.right]).padding(0.06);
+  const y = scaleBand().domain(rows).range([inset.top, height - inset.bottom]).padding(0.06);
+  const color = scaleSequential(interpolateBlues).domain([0, max(cells, (cell) => cell.exposure) || 1]);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Reported value exposure by explicit evidence-gap count">
+      {VALUE_BANDS.map((band) => <text key={band.id} x={(x(band.id) || 0) + x.bandwidth() / 2} y="54" textAnchor="middle">{band.label}</text>)}
+      {rows.map((gaps) => <text key={gaps} x={inset.left - 12} y={(y(gaps) || 0) + y.bandwidth() / 2 + 4} textAnchor="end">{gaps === 0 ? "Complete across 3 fields" : `${gaps} evidence gap${gaps === 1 ? "" : "s"}`}</text>)}
+      {cells.map((cell) => {
+        const selected = activeCell?.bandId === cell.band.id && activeCell?.gaps === cell.gaps;
+        const missingText = cell.missing.filter((item) => item.count).map((item) => `${item.label}: ${item.count}`).join(" · ") || "No missing evidence fields";
+        return <g key={`${cell.gaps}-${cell.band.id}`} role="button" tabIndex="0" aria-pressed={selected} data-evidence-cell={`${cell.gaps}:${cell.band.id}`} data-record-count={cell.count} data-analytics-tooltip={`${cell.band.label} · ${cell.gaps} evidence gap${cell.gaps === 1 ? "" : "s"}\n${cell.count.toLocaleString()} records · ${money(cell.exposure)} reported value exposure\n${missingText}\nClick to filter every view`} onClick={() => onCell(selected ? null : { gaps: cell.gaps, bandId: cell.band.id })} onKeyDown={(event) => activateWithKeyboard(event, () => onCell(selected ? null : { gaps: cell.gaps, bandId: cell.band.id }))}>
+          <rect x={x(cell.band.id)} y={y(cell.gaps)} width={x.bandwidth()} height={y.bandwidth()} rx="3" fill={cell.exposure ? color(cell.exposure) : cell.count ? "#dce6ec" : "#eef2f5"} stroke={selected ? "#f0b323" : "none"} strokeWidth={selected ? "4" : "0"} />
+          <text x={(x(cell.band.id) || 0) + x.bandwidth() / 2} y={(y(cell.gaps) || 0) + y.bandwidth() / 2 - 3} textAnchor="middle">{cell.count.toLocaleString()}</text>
+          <text x={(x(cell.band.id) || 0) + x.bandwidth() / 2} y={(y(cell.gaps) || 0) + y.bandwidth() / 2 + 13} textAnchor="middle">{money(cell.exposure)}</text>
+        </g>;
+      })}
+    </svg>
+  );
+}
+
 const DURATION_BANDS = [
   { id: "under-1y", label: "Under 1 year", min: 0, max: 365 },
   { id: "1-2y", label: "1–2 years", min: 365, max: 731 },
@@ -1721,6 +1833,8 @@ export default function TransactionAnalytics({
   const [endMonth, setEndMonth] = useState(null);
   const [valueBand, setValueBand] = useState(null);
   const [durationBand, setDurationBand] = useState(null);
+  const [evidenceCell, setEvidenceCell] = useState(null);
+  const [paretoDimension, setParetoDimension] = useState("recipient");
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [treemapMetric, setTreemapMetric] = useState("obligations");
   const [filterValues, setFilterValues] = useState({
@@ -1762,7 +1876,7 @@ export default function TransactionAnalytics({
         .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label)),
     };
   }), [records]);
-  const scopedRecords = useMemo(() => records.filter((record) => {
+  const baseScopedRecords = useMemo(() => records.filter((record) => {
     if (!recordMatchesQuery(record, query)) return false;
     if (mode !== "all" && record.mode !== mode) return false;
     if (endYear && dateYear(record.currentEnd || record.solicitationEnd) !== endYear && dateYear(record.potentialEnd) !== endYear) return false;
@@ -1790,6 +1904,7 @@ export default function TransactionAnalytics({
     }
     return true;
   }), [durationBand, endMonth, endYear, facet, filterDefinitions, filterValues, mode, query, records, valueBand]);
+  const scopedRecords = useMemo(() => evidenceCell ? baseScopedRecords.filter((record) => evidenceCellMatches(record, evidenceCell)) : baseScopedRecords, [baseScopedRecords, evidenceCell]);
   const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
   const totals = useMemo(
     () => ({
@@ -1831,7 +1946,7 @@ export default function TransactionAnalytics({
   const samRecords = acquisitionRecords.filter((record) =>
     record.sourceUrls.some((url) => /sam\.gov/i.test(url)),
   ).length;
-  const activeFilters = Number(Boolean(query)) + Number(mode !== "all") + Number(Boolean(facet)) + Number(Boolean(endYear)) + Number(endMonth !== null) + Number(Boolean(valueBand)) + Number(Boolean(durationBand)) + filterDefinitions.filter((definition) => parseMultiValues(filterValues[definition.id]).length).length;
+  const activeFilters = Number(Boolean(query)) + Number(mode !== "all") + Number(Boolean(facet)) + Number(Boolean(endYear)) + Number(endMonth !== null) + Number(Boolean(valueBand)) + Number(Boolean(durationBand)) + Number(Boolean(evidenceCell)) + filterDefinitions.filter((definition) => parseMultiValues(filterValues[definition.id]).length).length;
   const dimensionLabel = DIMENSIONS.find((item) => item.id === dimensionId)?.label || "Dimension";
   const clearFilters = () => {
     setQuery("");
@@ -1841,6 +1956,7 @@ export default function TransactionAnalytics({
     setEndMonth(null);
     setValueBand(null);
     setDurationBand(null);
+    setEvidenceCell(null);
     setFilterValues({ work: "all", buyer: "all", recipient: "all", provenance: "all", pricing: "all", competition: "all", vehicle: "all", source: "all" });
   };
   const applyInsight = (action) => {
@@ -1937,6 +2053,7 @@ export default function TransactionAnalytics({
           {endMonth !== null ? <button type="button" onClick={() => setEndMonth(null)}><CalendarClock size={13} aria-hidden="true" />Endpoint month: {new Date(2026, endMonth, 1).toLocaleString(undefined, { month: "short" })}<X size={13} aria-hidden="true" /></button> : null}
           {valueBand ? <button type="button" onClick={() => setValueBand(null)}><CircleDollarSign size={13} aria-hidden="true" />{VALUE_BANDS.find((item) => item.id === valueBand)?.label}<X size={13} aria-hidden="true" /></button> : null}
           {durationBand ? <button type="button" onClick={() => setDurationBand(null)}><CalendarClock size={13} aria-hidden="true" />{DURATION_BANDS.find((item) => item.id === durationBand)?.label}<X size={13} aria-hidden="true" /></button> : null}
+          {evidenceCell ? <button type="button" onClick={() => setEvidenceCell(null)}><Database size={13} aria-hidden="true" />{VALUE_BANDS.find((item) => item.id === evidenceCell.bandId)?.label} · {evidenceCell.gaps === 0 ? "complete evidence" : `${evidenceCell.gaps} evidence gap${evidenceCell.gaps === 1 ? "" : "s"}`}<X size={13} aria-hidden="true" /></button> : null}
           {filterDefinitions.map((definition) => {
             const selected = parseMultiValues(filterValues[definition.id]);
             return selected.length ? <button key={definition.id} type="button" onClick={() => setFilterValues((current) => ({ ...current, [definition.id]: "all" }))}><Filter size={13} aria-hidden="true" />{definition.title}: {selected.length}<X size={13} aria-hidden="true" /></button> : null;
@@ -1964,6 +2081,7 @@ export default function TransactionAnalytics({
       </div> : null}
 
       {activeView === "spend" ? <div className="transaction-viz-grid">
+        {chartVisible("concentration-pareto") ? <div className="transaction-viz--wide"><ChartFrame icon={BarChart3} title="Obligation concentration Pareto" note="Ranked observed obligations with cumulative share; switch between recipients and funding offices" testId="concentration-pareto" legend={["Blue bars = observed obligations", "Gold line = cumulative share", "Dashed marker = 80% concentration threshold"]}><ConcentrationPareto records={scopedRecords} dimensionId={paretoDimension} onDimensionChange={(next) => { setParetoDimension(next); setFacet(null); }} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer" legend={[`Bar length = ${metric.label.toLowerCase()}`, "Labels = record count"]}><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("fiscal-trend") ? <div className="transaction-viz--wide"><ChartFrame icon={CircleDollarSign} title={`Fiscal obligation trend by ${dimensionLabel.toLowerCase()}`} note="Top five groups in the selected dimension; click a segment to filter every view" testId="fiscal-trend" legend={["Segments = selected dimension", "Height = annual net obligations", "Top five groups shown"]}><FiscalObligationTrend records={scopedRecords} dimensionId={dimensionId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("buyer-year") ? <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations; click a cell to filter by funding office" testId="buyer-year" legend={["Darker blue = more obligations", "Blank = none reported", "Columns = fiscal year"]}><BuyerYearHeatmap records={scopedRecords} onBuyer={(value) => setFacet({ dimensionId: "buyer", value })} /></ChartFrame> : null}
@@ -1973,6 +2091,7 @@ export default function TransactionAnalytics({
       </div> : null}
 
       {activeView === "coverage" ? <div className="transaction-viz-grid">
+        {chartVisible("evidence-risk") ? <div className="transaction-viz--wide"><ChartFrame icon={Grid3X3} title="Evidence exposure matrix" note="Reported value bands crossed with missing public source, schedule, and acquisition-structure fields" testId="evidence-risk" legend={["Rows = explicit evidence-gap count", "Columns = reported value bands", "Color = reported value exposure", "Cell labels = records and exposure"]}><EvidenceRiskMatrix records={baseScopedRecords} activeCell={evidenceCell} onCell={setEvidenceCell} /></ChartFrame></div> : null}
         {chartVisible("field-coverage") ? <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage" legend={["Bar length = records with field", "Percent = current-scope completeness"]}><FieldCoverageBars records={scopedRecords} /></ChartFrame> : null}
         {chartVisible("source-coverage") ? <ChartFrame icon={Grid3X3} title="Source-system coverage" note="Published field completeness by source system; click a cell to filter the active universe" testId="source-coverage" legend={["Darker cell = higher coverage", "Rows = source systems", "Columns = published fields"]}><SourceCoverageMatrix records={scopedRecords} onSource={(source) => setFacet({ dimensionId: "source", value: source })} /></ChartFrame> : null}
         {chartVisible("provenance") ? <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct; click to filter" testId="provenance" legend={["Bars = record count", "Categories = ingestion method"]}><ProvenanceBars records={scopedRecords} onProvenance={(value) => setFacet({ dimensionId: "provenance", value })} /></ChartFrame> : null}
