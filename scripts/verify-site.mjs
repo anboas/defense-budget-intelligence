@@ -368,7 +368,7 @@ try {
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
   assert.equal(await page.locator("[data-award-filter-bar] .if-picker").count(), 5, "Awards should expose factual filter dimensions");
   assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
-  assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689|records/i, "Awards should disclose the complete sampled award scope");
+  assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689\s+of 689 records/i, "Awards should preserve the complete matched sample in pagination and export");
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
   assert.equal(await page.locator("[data-award-record-table] .dbi-data-table__columns").count(), 1, "Awards should expose persistent column configuration");
   const awardColumnManager = page.locator("[data-award-record-table] .dbi-data-table__columns");

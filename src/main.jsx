@@ -3127,7 +3127,6 @@ function Awards() {
     if (filters.sort === "vendor") return a.recipient.localeCompare(b.recipient) || b.awardAmount - a.awardAmount;
     return b.awardAmount - a.awardAmount;
   });
-  const visibleAwards = filteredAwards.slice(0, 250);
   const filteredValue = sum(filteredAwards, "awardAmount");
   const filteredOfficeCount = filteredAwards.filter((award) => award.fundingOffice || award.awardingOffice).length;
   const topBuyer = aggregateAwardsForUi(filteredAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 4);
@@ -3165,7 +3164,7 @@ function Awards() {
       </div>
 
       <ControlMetricStrip label="Award filter metrics" mobileScroll compactMobile items={[
-        { id: "awards", label: "Filtered awards", value: filteredAwards.length.toLocaleString(), meta: `${visibleAwards.length.toLocaleString()} shown in table`, tone: "info" },
+        { id: "awards", label: "Filtered awards", value: filteredAwards.length.toLocaleString(), meta: "All matched records available in table and export", tone: "info" },
         { id: "value", label: "Filtered value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" },
         { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" },
         { id: "vendor", label: "Largest vendor", value: topVendor[0]?.label || "n/a", meta: topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards", tone: "warning" },
@@ -3174,8 +3173,8 @@ function Awards() {
 
       <AnalysisActions rows={filteredAwards} filename="filtered-awards" />
 
-      <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · showing ${visibleAwards.length.toLocaleString()}`} icon={FileSpreadsheet}>
-        <AwardTable awards={visibleAwards} />
+      <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · paginated below`} icon={FileSpreadsheet}>
+        <AwardTable awards={filteredAwards} />
       </Section>
 
       <ControlDisclosure className="award-rollup-details" icon={<BarChart3 size={16} />} title="Market rollups" summary="Top buyers, vendors, and coded work types for the current filters">
