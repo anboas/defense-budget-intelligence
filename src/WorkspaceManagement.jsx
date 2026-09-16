@@ -13,7 +13,7 @@ import {
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
@@ -148,11 +148,11 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
     const memberIds = new Set(workspace.members.map((member) => member.id));
     const candidates = data.users.filter((user) => !memberIds.has(user.id));
     return <div className="if-stack" data-workspace-detail={workspace.id}>
-      <section className="if-analytics-panel" aria-label={`${workspace.name} contents`}>
+      <section className="if-analytics-panel if-analytics-panel--flat" aria-label={`${workspace.name} contents`}>
         <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Workspace inventory</h3><p className="if-analytics-panel__summary">{workspace.contents?.wallboardEvents === null || workspace.contents?.wallboardEvents === undefined ? "Hosted counts unavailable locally" : `${workspace.contents.wallboardEvents} event${workspace.contents.wallboardEvents === 1 ? "" : "s"} on wallboard`}</p></div></header>
-        <ControlMetricStrip label={`${workspace.name} inventory`} items={CONTENT_METRICS.map(([key, label, tone]) => ({ id: key, label, value: displayCount(workspace.contents?.[key]), tone }))} />
+        <ControlMetricStrip mobileScroll label={`${workspace.name} inventory`} items={CONTENT_METRICS.map(([key, label, tone]) => ({ id: key, label, value: displayCount(workspace.contents?.[key]), tone }))} />
       </section>
-      <section className="workspace-card__members if-analytics-panel" aria-label={`${workspace.name} members`}><header><span>Members <strong>{workspace.members.length}</strong></span>{candidates.length ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setAddingMemberTo(workspace.id)} disabled={busy}><UserPlus size={14} />Add member</button> : null}</header>{workspace.members.map((member) => <div key={member.id}>
+      <section className="workspace-card__members if-analytics-panel if-analytics-panel--flat" aria-label={`${workspace.name} members`}><header><span>Members <strong>{workspace.members.length}</strong></span>{candidates.length ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setAddingMemberTo(workspace.id)} disabled={busy}><UserPlus size={14} />Add member</button> : null}</header>{workspace.members.map((member) => <div key={member.id}>
         <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>
         {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} portalTarget={portalTarget} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
         {member.roleId !== "super_user" ? <button type="button" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
@@ -184,7 +184,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       <button className="is-deny" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "denied", role: "viewer" }), `${request.displayName} denied.`).catch(() => {})}><X size={14} />Deny</button>
     </article>)}</section> : null}
 
-    <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <p>Loading workspaces…</p> : visibleWorkspaces.map((workspace) => {
+    <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <ControlAsyncState compact state="loading" title="Loading workspaces" message="Reading workspace boundaries, membership, and inventory." /> : visibleWorkspaces.map((workspace) => {
       const isCurrent = auth.user?.activeWorkspace?.id === workspace.id;
       const workspacePending = Number(workspace.pendingRequestCount || 0);
       return <article className={`workspace-card${isCurrent ? " is-current" : ""}`} key={workspace.id} data-workspace={workspace.id} data-workspace-current={isCurrent ? "true" : "false"}>
