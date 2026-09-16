@@ -311,7 +311,7 @@ try {
   await page.waitForSelector("[data-pdb-request-page]");
   assert.equal(await page.locator("[data-pdb-request-page]").count(), 1, "Default surface should be the source request");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Request surface should expose line-level filters");
-  assert.equal(await page.locator("[data-budget-metric]").count(), 5, "Request surface should expose factual coverage metrics");
+  assert.equal(await page.locator("[data-budget-metrics] > .if-management-card").count(), 5, "Request surface should expose factual coverage metrics");
   assert.equal(await page.locator("[data-analytics-readout]").count(), 0, "Request surface should not generate narrative judgments");
   assert.ok(await page.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Request intro should remain compact");
   assert.doesNotMatch(await page.locator("[data-pdb-request-page]").innerText(), /Stage\s+1/i, "Request intro should not repeat numbered phase navigation");
@@ -335,7 +335,11 @@ try {
   assert.equal(await page.locator("[data-color-money-history] .trend-series-card").count(), 6, "History should expose all six colors of money");
   assert.ok(await page.locator("[data-request-history-page]").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Request-history intro should remain compact");
   assert.doesNotMatch(await page.locator("[data-request-history-page]").innerText(), /Stage\s+2/i, "Request history should not repeat numbered phase navigation");
-  const historyText = await page.locator("[data-request-history-page]").locator("xpath=..").innerText();
+  assert.equal(await page.locator(".trend-history-details").getAttribute("open"), null, "Detailed history should stay collapsed until requested");
+  let historyText = await page.locator("[data-request-history-page]").locator("xpath=..").innerText();
+  assert.doesNotMatch(historyText, /Largest Request Changes/);
+  await page.locator(".trend-history-details > summary").click();
+  historyText = await page.locator("[data-request-history-page]").locator("xpath=..").innerText();
   assert.match(historyText, /Largest Request Changes/);
   assert.doesNotMatch(historyText, /Momentum Leaders|Trend Readout/);
 
@@ -355,6 +359,9 @@ try {
   const lifecycleText = await page.locator("[data-account-spine-page]").innerText();
   assert.match(lifecycleText, /derived/i, "Derived request joins should be labeled");
   assert.match(lifecycleText, /exact TAFS joins/i, "Exact TAFS joins should be labeled");
+  assert.equal(await page.locator(".lifecycle-detail-disclosure").getAttribute("open"), null, "Secondary execution history should stay collapsed until requested");
+  await page.locator(".lifecycle-detail-disclosure > summary").click();
+  assert.match(await page.locator("[data-account-spine-page]").innerText(), /Award-to-Account Flow/, "Account detail disclosure should expose award-linked evidence on demand");
 
   await openSurface(page, "#/budget-spend/awards", "[data-awards-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
@@ -384,11 +391,12 @@ try {
   assert.ok(Math.abs(awardStickyGeometry.before.actions - awardStickyGeometry.after.actions) <= 5, `The action column should remain pinned within the table border during horizontal scroll: ${JSON.stringify(awardStickyGeometry)}`);
   const awardContentOrder = await page.evaluate(() => ({
     records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
-    rollups: document.querySelector(".awards-page > .grid--sources")?.getBoundingClientRect().top || 0,
+    rollups: document.querySelector(".award-rollup-details")?.getBoundingClientRect().top || 0,
     filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] .if-picker__trigger, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
-    metricTops: [...document.querySelectorAll(".awards-page > .source-metrics > .metric")].map((node) => Math.round(node.getBoundingClientRect().top)),
+    metricTops: [...document.querySelectorAll('[aria-label="Award filter metrics"] > .if-management-card')].map((node) => Math.round(node.getBoundingClientRect().top)),
   }));
   assert.ok(awardContentOrder.records < awardContentOrder.rollups, `Award records should precede secondary rollups: ${JSON.stringify(awardContentOrder)}`);
+  assert.equal(await page.locator(".award-rollup-details").getAttribute("open"), null, "Award rollups should stay collapsed until the operator requests secondary analysis");
   assert.equal(new Set(awardContentOrder.filterBottoms).size, 1, `Desktop award controls should occupy one aligned Control Framework command row: ${JSON.stringify(awardContentOrder)}`);
   assert.equal(new Set(awardContentOrder.metricTops).size, 1, `Desktop award KPIs should occupy one aligned row: ${JSON.stringify(awardContentOrder)}`);
   assert.ok(awardContentOrder.records <= 560, `Award records should remain visible in the first desktop viewport: ${JSON.stringify(awardContentOrder)}`);
@@ -1381,7 +1389,7 @@ try {
   await openSurface(mobile, "#/budget-spend", "[data-pdb-request-page]");
   const mobileRequestChrome = await mobile.evaluate(() => ({
     filters: document.querySelector("[data-budget-filter-bar]")?.getBoundingClientRect().height || 0,
-    metrics: document.querySelector(".metrics")?.getBoundingClientRect().height || 0,
+    metrics: document.querySelector("[data-budget-metrics]")?.getBoundingClientRect().height || 0,
     freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
   }));
   assert.ok(mobileRequestChrome.filters <= 140, `Mobile request filters should use one search row and one contained control rail, got ${mobileRequestChrome.filters}px`);

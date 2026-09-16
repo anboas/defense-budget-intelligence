@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-surface-ui/react";
+import { ControlAsyncState, ControlErrorBoundary, ControlMetricStrip, ToastProvider } from "control-surface-ui/react";
 import "./control-surface.css";
 import {
   BarChart3,
@@ -619,16 +619,6 @@ function Spark({ row }) {
   );
 }
 
-function Metric({ label, value, helper, tone = "blue" }) {
-  return (
-    <article className={`if-card if-metric if-operations-signal metric metric--${tone}`} data-budget-metric={label}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <p>{helper}</p>
-    </article>
-  );
-}
-
 function RuntimeDataState({ error = "", loadingTitle, loadingMessage, errorTitle, onRetry, ...props }) {
   return <ControlAsyncState
     {...props}
@@ -1005,6 +995,28 @@ function LifecycleStage({ label, amount, maximum, source, relationship = "exact"
   );
 }
 
+function TafsFlowCard({ row, maximum }) {
+  return <article>
+    <header>
+      <div><strong>{row.tasCode}</strong><span>{row.title}</span></div>
+      <a href={row.apportionment.sourceUrl} target="_blank" rel="noreferrer">OMB source <ExternalLink size={13} aria-hidden="true" /></a>
+    </header>
+    <div className="tafs-flow__bars">
+      {[
+        ["Apportioned", row.apportionment.approvedAmount, "blue"],
+        ["Obligated", row.obligatedAmount, "purple"],
+        ["Outlays", row.outlayedAmount, "green"],
+      ].map(([label, amount, tone]) => (
+        <div key={label}>
+          <span>{label}</span>
+          <i aria-hidden="true"><b className={`tone-${tone}`} style={{ width: `${Math.max(1, (Number(amount || 0) / maximum) * 100)}%` }} /></i>
+          <strong>{federalMoney(amount)}</strong>
+        </div>
+      ))}
+    </div>
+  </article>;
+}
+
 function AccountLifecycle() {
   const accounts = ACCOUNT_SPINE?.accounts || EMPTY_ROWS;
   const awardFlows = ACCOUNT_SPINE?.awardFlows || EMPTY_ROWS;
@@ -1106,30 +1118,14 @@ function AccountLifecycle() {
 
       <Section title="TAFS Account Flow" meta={`${treasuryRows.length} highest-obligation exact joins shown`} icon={Network}>
         <div className="tafs-flow" data-account-flow>
-          {treasuryRows.map((row) => (
-            <article key={row.tasCode}>
-              <header>
-                <div><strong>{row.tasCode}</strong><span>{row.title}</span></div>
-                <a href={row.apportionment.sourceUrl} target="_blank" rel="noreferrer">OMB source <ExternalLink size={13} aria-hidden="true" /></a>
-              </header>
-              <div className="tafs-flow__bars">
-                {[
-                  ["Apportioned", row.apportionment.approvedAmount, "blue"],
-                  ["Obligated", row.obligatedAmount, "purple"],
-                  ["Outlays", row.outlayedAmount, "green"],
-                ].map(([label, amount, tone]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <i aria-hidden="true"><b className={`tone-${tone}`} style={{ width: `${Math.max(1, (Number(amount || 0) / maxTreasury) * 100)}%` }} /></i>
-                    <strong>{federalMoney(amount)}</strong>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
+          {treasuryRows.slice(0, 2).map((row) => <TafsFlowCard key={row.tasCode} row={row} maximum={maxTreasury} />)}
+          {treasuryRows.length > 2 ? <details className="tafs-flow__more"><summary>{treasuryRows.length - 2} more exact TAFS accounts</summary><div className="tafs-flow tafs-flow--nested">{treasuryRows.slice(2).map((row) => <TafsFlowCard key={row.tasCode} row={row} maximum={maxTreasury} />)}</div></details> : null}
         </div>
       </Section>
 
+      <details className="analytics-records lifecycle-detail-disclosure">
+        <summary><div><GitBranch size={16} aria-hidden="true" /><span><strong>Execution history and evidence</strong><small>Award links, five-year totals, obligation burn, and source policy</small></span></div></summary>
+        <div className="grid lifecycle-detail-disclosure__body">
       <Section title="Award-to-Account Flow" meta={`${selectedAwardRows.length} highest-obligation sampled awards shown`} icon={GitBranch}>
         <div className="award-account-flow" data-award-account-flow>
           {selectedAwardRows.length ? selectedAwardRows.map((award) => (
@@ -1206,6 +1202,8 @@ function AccountLifecycle() {
         </div>
         <p className="lifecycle-caveat">Award-to-account edges are exact. No budget-line or program-element-to-award link is asserted; that last-mile relationship remains unlinked until a public identifier or cited source supports it.</p>
       </Section>
+        </div>
+      </details>
     </div>
   );
 }
@@ -2339,7 +2337,10 @@ function Overview({ records }) {
             ))}
           </div>
         </Section>
-        <Section title="Mission Signals" meta="keyword-derived from line titles" icon={Filter}>
+      </div>
+      <details className="analytics-records request-signal-details">
+        <summary><div><Filter size={16} aria-hidden="true" /><span><strong>Mission-signal classifications</strong><small>Keyword-derived categories from line titles</small></span></div></summary>
+        <div className="request-signal-details__body">
           <div className="signal-grid">
             {bySignal.map((row) => (
               <article key={row.id}>
@@ -2349,8 +2350,8 @@ function Overview({ records }) {
               </article>
             ))}
           </div>
-        </Section>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -2381,12 +2382,12 @@ function RequestTrends() {
         description="Year-over-year request values from official budget packages. Comparable trends use only books present across the compared vintages; keyword-derived categories remain labeled as classifications."
         dataAttribute={{ "data-request-history-page": true }}
       />
-      <section className="source-metrics trend-metrics" aria-label="Request trend summary">
-        <Metric label="Request vintages" value={`${DATA_INVENTORY.availableBudgetRequestYears.length} years`} helper={`${yearList(DATA_INVENTORY.availableBudgetRequestYears)} · ${TREND_SUMMARY.sourceVersionCount || 0} workbook versions`} />
-        <Metric label="Historical records" value={(TREND_SUMMARY.historicalRecordCount || 0).toLocaleString()} helper="Aggregate model records across request packages" tone="purple" />
-        <Metric label="Comparable set" value={`${TREND_SUMMARY.comparableBookCount || 0} books`} helper={(TREND_SUMMARY.comparableBooks || []).join(", ")} tone="green" />
-        <Metric label="Comparable trend" value={pct(TREND_SUMMARY.comparableGrowth || 0)} helper={`${money(TREND_SUMMARY.comparableEarliestRequestValue)} FY${TREND_SUMMARY.comparableEarliestRequestYear} to ${money(TREND_SUMMARY.comparableCurrentRequestValue)} FY${latest?.requestYear}`} tone="orange" />
-      </section>
+      <ControlMetricStrip className="trend-metrics" label="Request trend summary" mobileScroll compactMobile items={[
+        { id: "vintages", label: "Request vintages", value: `${DATA_INVENTORY.availableBudgetRequestYears.length} years`, meta: `${yearList(DATA_INVENTORY.availableBudgetRequestYears)} · ${TREND_SUMMARY.sourceVersionCount || 0} workbook versions`, tone: "info" },
+        { id: "records", label: "Historical records", value: (TREND_SUMMARY.historicalRecordCount || 0).toLocaleString(), meta: "Aggregate model records across request packages", tone: "purple" },
+        { id: "comparable", label: "Comparable set", value: `${TREND_SUMMARY.comparableBookCount || 0} books`, meta: (TREND_SUMMARY.comparableBooks || []).join(", "), tone: "success" },
+        { id: "trend", label: "Comparable trend", value: pct(TREND_SUMMARY.comparableGrowth || 0), meta: `${money(TREND_SUMMARY.comparableEarliestRequestValue)} FY${TREND_SUMMARY.comparableEarliestRequestYear} to ${money(TREND_SUMMARY.comparableCurrentRequestValue)} FY${latest?.requestYear}`, tone: "warning" },
+      ]} />
 
       <Section title="Request Vintage Timeline" meta="annual President's Budget packages" icon={CalendarClock}>
         <div className="trend-year-list" data-request-history-timeline>
@@ -2455,6 +2456,9 @@ function RequestTrends() {
         </Section>
       </div>
 
+      <details className="analytics-records trend-history-details">
+        <summary><div><TrendingUp size={16} aria-hidden="true" /><span><strong>Detailed request history</strong><small>Largest changes, color-of-money vintages, and mission-signal movement</small></span></div></summary>
+        <div className="grid trend-history-details__body">
       <Section title="Largest Request Changes" meta="largest FY2026-FY2027 changes by keyword-derived mission signal" icon={TrendingUp}>
         <div className="momentum-grid" data-momentum-leaders>
           {(ANALYTICS.signalMomentum || []).slice(0, 6).map((row) => (
@@ -2521,6 +2525,8 @@ function RequestTrends() {
           ))}
         </div>
       </Section>
+        </div>
+      </details>
     </div>
   );
 }
@@ -3169,13 +3175,13 @@ function Awards() {
         <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
-      <section className="if-metric-grid source-metrics" aria-label="Award filter metrics">
-        <Metric label="Filtered awards" value={filteredAwards.length.toLocaleString()} helper={`${visibleAwards.length.toLocaleString()} shown in table`} />
-        <Metric label="Filtered value" value={money(filteredValue)} helper="Deduped award amount from current filters" tone="green" />
-        <Metric label="Largest buyer" value={topBuyer[0]?.label || "n/a"} helper={topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards"} tone="purple" />
-        <Metric label="Largest vendor" value={topVendor[0]?.label || "n/a"} helper={topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards"} tone="orange" />
-        <Metric label="Office detail" value={filteredAwards.length ? percent((filteredOfficeCount / filteredAwards.length) * 100, 1) : "0.0%"} helper={`${filteredOfficeCount.toLocaleString()} awards identify an awarding or funding office`} tone="green" />
-      </section>
+      <ControlMetricStrip label="Award filter metrics" mobileScroll compactMobile items={[
+        { id: "awards", label: "Filtered awards", value: filteredAwards.length.toLocaleString(), meta: `${visibleAwards.length.toLocaleString()} shown in table`, tone: "info" },
+        { id: "value", label: "Filtered value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" },
+        { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" },
+        { id: "vendor", label: "Largest vendor", value: topVendor[0]?.label || "n/a", meta: topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards", tone: "warning" },
+        { id: "office", label: "Office detail", value: filteredAwards.length ? percent((filteredOfficeCount / filteredAwards.length) * 100, 1) : "0.0%", meta: `${filteredOfficeCount.toLocaleString()} awards identify an awarding or funding office`, tone: "success" },
+      ]} />
 
       <AnalysisActions rows={filteredAwards} filename="filtered-awards" />
 
@@ -3183,11 +3189,14 @@ function Awards() {
         <AwardTable awards={visibleAwards} />
       </Section>
 
-      <div className="grid grid--sources">
-        <AwardRollup title="Top Buyers" rows={topBuyer} />
-        <AwardRollup title="Top Vendors" rows={topVendor} />
-        <AwardRollup title="Top Work Types" rows={topWork} />
-      </div>
+      <details className="analytics-records award-rollup-details">
+        <summary><div><BarChart3 size={16} aria-hidden="true" /><span><strong>Market rollups</strong><small>Top buyers, vendors, and coded work types for the current filters</small></span></div></summary>
+        <div className="grid grid--sources award-rollup-details__body">
+          <AwardRollup title="Top Buyers" rows={topBuyer} />
+          <AwardRollup title="Top Vendors" rows={topVendor} />
+          <AwardRollup title="Top Work Types" rows={topWork} />
+        </div>
+      </details>
     </div>
   );
 }
@@ -3298,13 +3307,13 @@ function Pursuits() {
         <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
       </div>
 
-      <section className="if-metric-grid source-metrics" aria-label="Pursuit filter metrics">
-        <Metric label="Matched lanes" value={filteredLanes.length.toLocaleString()} helper={`${filteredCandidates.length.toLocaleString()} near-term awards under current filters`} />
-        <Metric label="Near-term value" value={money(nearTermValue)} helper="Awards ending within 24 months in current filters" tone="green" />
-        <Metric label="Largest buyer" value={topBuyer?.label || "n/a"} helper={topBuyer ? `${money(topBuyer.awardAmount)} · ${topBuyer.awards} awards` : "No matching candidates"} tone="purple" />
-        <Metric label="Largest incumbent" value={topVendor?.label || "n/a"} helper={topVendor ? `${money(topVendor.awardAmount)} · ${topVendor.awards} awards` : "No matching candidates"} tone="orange" />
-        <Metric label="Office detail" value={filteredCandidates.length ? percent((filteredOfficeCount / filteredCandidates.length) * 100, 1) : "0.0%"} helper={`${filteredOfficeCount.toLocaleString()} candidates identify an awarding or funding office`} tone="green" />
-      </section>
+      <ControlMetricStrip label="Pursuit filter metrics" mobileScroll compactMobile items={[
+        { id: "lanes", label: "Matched lanes", value: filteredLanes.length.toLocaleString(), meta: `${filteredCandidates.length.toLocaleString()} near-term awards under current filters`, tone: "info" },
+        { id: "value", label: "Near-term value", value: money(nearTermValue), meta: "Awards ending within 24 months in current filters", tone: "success" },
+        { id: "buyer", label: "Largest buyer", value: topBuyer?.label || "n/a", meta: topBuyer ? `${money(topBuyer.awardAmount)} · ${topBuyer.awards} awards` : "No matching candidates", tone: "purple" },
+        { id: "incumbent", label: "Largest incumbent", value: topVendor?.label || "n/a", meta: topVendor ? `${money(topVendor.awardAmount)} · ${topVendor.awards} awards` : "No matching candidates", tone: "warning" },
+        { id: "office", label: "Office detail", value: filteredCandidates.length ? percent((filteredOfficeCount / filteredCandidates.length) * 100, 1) : "0.0%", meta: `${filteredOfficeCount.toLocaleString()} candidates identify an awarding or funding office`, tone: "success" },
+      ]} />
 
       <AnalysisActions rows={filteredCandidates} filename="pursuit-candidates" />
       <MobileDisclosure expanded={expanded} onToggle={setExpanded} label="pursuit evidence" />
@@ -3745,7 +3754,7 @@ function AwardTable({ awards }) {
       render: (award) => <><strong>{award.awardId || award.id}</strong><small>{award.contractType || "Contract award"} · {award.description || "No description"}</small></>,
     },
     { key: "vendor", label: "Vendor", facet: true, minWidth: 180, value: (award) => award.recipient },
-    { key: "buyer", label: "Buyer", facet: true, minWidth: 200, value: (award) => award.buyerSubAgency, searchValue: (award) => [award.buyerSubAgency, award.fundingOffice, award.awardingOffice], render: (award) => <><strong>{award.buyerSubAgency}</strong><small>{award.fundingOffice || award.awardingOffice || award.awardingSubAgency}</small></> },
+    { key: "buyer", label: "Buyer", facet: true, minWidth: 200, value: (award) => award.buyerSubAgency, searchValue: (award) => [award.buyerSubAgency, award.fundingOffice, award.awardingOffice], render: (award) => { const office = award.fundingOffice || award.awardingOffice || award.awardingSubAgency; return <><strong>{award.buyerSubAgency}</strong>{office && office !== award.buyerSubAgency ? <small>{office}</small> : null}</>; } },
     { key: "area", label: "Area", facet: true, minWidth: 150, value: (award) => (award.areas || [award.area]).slice(0, 2).join(", ") },
     { key: "workType", label: "Work type", facet: true, minWidth: 170, value: (award) => award.pscCode || award.naicsCode || "Uncoded", searchValue: (award) => [award.pscCode, award.naicsCode, award.pscDescription, award.naicsDescription], render: (award) => <><strong>{award.pscCode || award.naicsCode || "n/a"}</strong><small>{award.pscDescription || award.naicsDescription || "Uncoded"}</small></> },
     { key: "start", label: "Start", value: (award) => award.startDate || "Unknown" },
@@ -3765,6 +3774,7 @@ function AwardTable({ awards }) {
         searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…"
         exportFilename="defense-awards.csv"
         defaultPageSize={25}
+        mobileColumns={["award", "vendor", "buyer", "value", "actions"]}
         showSearch={false}
         showFacets={false}
         wrapperProps={{ "data-award-record-table": true }}
@@ -3845,12 +3855,12 @@ function Sources() {
 
       <MobileDisclosure expanded={expanded} onToggle={setExpanded} label="source evidence" />
 
-      <div className="source-metrics">
-        <Metric label="Official publisher" value="OUSD(C)" helper={DATA_INVENTORY.sourcePackage} />
-        <Metric label="Current package" value={yearList(DATA_INVENTORY.availableBudgetRequestYears)} helper={`${DATA_INVENTORY.sourceVersionCount} workbook versions in the trend model`} tone="purple" />
-        <Metric label="Value coverage" value={yearList(DATA_INVENTORY.availableFiscalYears)} helper="Actual, enacted or plan, and request columns where present" tone="green" />
-        <Metric label="Latest cache refresh" value={latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown"} helper="Newest cached workbook timestamp" tone="orange" />
-      </div>
+      <ControlMetricStrip label="Source package metrics" mobileScroll compactMobile items={[
+        { id: "publisher", label: "Official publisher", value: "OUSD(C)", meta: DATA_INVENTORY.sourcePackage, tone: "info" },
+        { id: "package", label: "Current package", value: yearList(DATA_INVENTORY.availableBudgetRequestYears), meta: `${DATA_INVENTORY.sourceVersionCount} workbook versions in the trend model`, tone: "purple" },
+        { id: "coverage", label: "Value coverage", value: yearList(DATA_INVENTORY.availableFiscalYears), meta: "Actual, enacted or plan, and request columns where present", tone: "success" },
+        { id: "refresh", label: "Latest cache refresh", value: latestSourceRefresh ? dateTime(latestSourceRefresh) : "Unknown", meta: "Newest cached workbook timestamp", tone: "warning" },
+      ]} />
 
       <Section title="Justification Evidence" meta="program narrative coverage" icon={FileText}>
         <div className="justification-evidence-summary" data-justification-evidence>
@@ -4704,18 +4714,13 @@ function App() {
           <>
             <FilterShell filters={filters} setFilters={setFilters} />
 
-            <section className="if-metric-grid metrics" aria-label="Filtered budget metrics">
-              <Metric label="Filtered FY2027 request" value={money(total.fy2027)} helper={`${total.records} line records · ${pct(growth(total))} since FY2025`} />
-              <Metric label="AI / autonomy signal" value={money(ai.fy2027)} helper={`${ai.records} matched source lines`} tone="purple" />
-              <Metric label="Fourth Estate" value={money(fourth.fy2027)} helper={`${fourth.records} agency / joint records`} tone="green" />
-              <Metric label="Data depth" value={`${data.records.length.toLocaleString()} lines`} helper="M-1, O-1, P-1, R-1, RF-1, C-1" tone="orange" />
-              <Metric
-                label="Narrative coverage"
-                value={records.length ? percent((evidenceRecords.length / records.length) * 100, 1) : "0.0%"}
-                helper={`${evidenceRecords.length.toLocaleString()} source-matched · ${confirmedEvidenceRecords.length.toLocaleString()} narrative-confirmed`}
-                tone="green"
-              />
-            </section>
+            <ControlMetricStrip data-budget-metrics label="Filtered budget metrics" mobileScroll compactMobile items={[
+              { id: "request", label: "Filtered FY2027 request", value: money(total.fy2027), meta: `${total.records} line records · ${pct(growth(total))} since FY2025`, tone: "info" },
+              { id: "ai", label: "AI / autonomy signal", value: money(ai.fy2027), meta: `${ai.records} matched source lines`, tone: "purple" },
+              { id: "fourth", label: "Fourth Estate", value: money(fourth.fy2027), meta: `${fourth.records} agency / joint records`, tone: "success" },
+              { id: "depth", label: "Data depth", value: `${data.records.length.toLocaleString()} lines`, meta: "M-1, O-1, P-1, R-1, RF-1, C-1", tone: "warning" },
+              { id: "narrative", label: "Narrative coverage", value: records.length ? percent((evidenceRecords.length / records.length) * 100, 1) : "0.0%", meta: `${evidenceRecords.length.toLocaleString()} source-matched · ${confirmedEvidenceRecords.length.toLocaleString()} narrative-confirmed`, tone: "success" },
+            ]} />
             <AnalysisActions rows={records} filename={`${activeTab}-budget-records`} />
           </>
         ) : null}
