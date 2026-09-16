@@ -6,6 +6,7 @@ import { chromium } from "playwright-core";
 const REMOTE_BASE_URL = process.env.BUDGET_VERIFY_URL;
 const BASE_URL = REMOTE_BASE_URL ? new URL(REMOTE_BASE_URL).href : "http://127.0.0.1:4188/";
 const OUT_DIR = "test-results";
+const VERIFY_NOW = "2026-09-13T12:00:00.000Z";
 const FORBIDDEN_SURFACE_TEXT = /Decision Briefs|Portfolio Strategy|Pursuit Cockpit|Target execution brief|Target workboard|attention score|win probability|Response Library|Capture Playbooks|Response Assets/i;
 mkdirSync(OUT_DIR, { recursive: true });
 const compiledScripts = readdirSync("dist/assets").filter((name) => name.endsWith(".js")).map((name) => readFileSync(`dist/assets/${name}`, "utf8")).join("\n");
@@ -27,6 +28,22 @@ async function waitForServer(url, timeoutMs = 30000) {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Timed out waiting for ${url}`);
+}
+
+async function installVerificationDate(page) {
+  await page.addInitScript((fixedNow) => {
+    const NativeDate = Date;
+    const fixedTime = NativeDate.parse(fixedNow);
+    window.Date = class extends NativeDate {
+      constructor(...args) {
+        super(...(args.length ? args : [fixedTime]));
+      }
+
+      static now() {
+        return fixedTime;
+      }
+    };
+  }, VERIFY_NOW);
 }
 
 function resourceCount(page, filename) {
@@ -150,6 +167,7 @@ const browser = await chromium.launch({
 
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await installVerificationDate(page);
   let transactionRequests = 0;
   let subawardDetailRequests = 0;
   await page.route("**/data/capture-transactions.json", async (route) => {
@@ -385,6 +403,7 @@ try {
   assert.ok(awardSearchGeometry.iconRight + 5 <= awardSearchGeometry.textStart, `Award search icon must not overlap its text lane: ${JSON.stringify(awardSearchGeometry)}`);
 
   const tablet = await browser.newPage({ viewport: { width: 768, height: 900 } });
+  await installVerificationDate(tablet);
   await tablet.goto(`${BASE_URL}#/budget-spend/awards`, { waitUntil: "domcontentloaded" });
   await tablet.waitForSelector("[data-awards-page]");
   await tablet.waitForFunction(() => document.querySelector("[data-award-record-table]")?.getAttribute("data-table-layout") === "cards");
@@ -1297,6 +1316,7 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
 
   const ultrawide = await browser.newPage({ viewport: { width: 3440, height: 1440 } });
+  await installVerificationDate(ultrawide);
   await ultrawide.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-defense-budget-app]");
   await openSurface(ultrawide, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
@@ -1343,6 +1363,7 @@ try {
   await ultrawide.close();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await installVerificationDate(mobile);
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-transaction-analytics-page]");
   await assertFlowShell(mobile);
@@ -1405,8 +1426,10 @@ try {
   await mobile.getByRole("button", { name: "Show core filters" }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
-  await mobile.locator("[data-capture-gantt-tools] > summary").click();
-  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-tools] .if-picker__trigger, [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  await mobile.locator("[data-capture-gantt-mobile-trigger]").click();
+  await mobile.waitForSelector("[data-capture-gantt-dialog]");
+  assert.equal(await mobile.locator("[data-capture-gantt-dialog]").evaluate((surface) => surface.closest("dialog")?.open), true, "Mobile Timeline controls should open in a focused dialog instead of pushing the Gantt below the viewport");
+  const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-dialog] .if-picker__trigger, [data-capture-gantt-dialog] [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileScroller.scrollWidth > mobileScroller.clientWidth, "Wide transaction timeline should use an internal mobile scroller");
@@ -1422,8 +1445,12 @@ try {
   assert.ok(mobileTimelineGeometry.scrollHeight > mobileTimelineGeometry.clientHeight, "Mobile Gantt should bound long results inside its own vertical scroller");
   assert.ok(mobileTimelineGeometry.labelWidth <= 212, `Mobile sticky labels should preserve the time plane, got ${mobileTimelineGeometry.labelWidth}px`);
   assert.ok(mobileTimelineGeometry.visibleTimePlane >= 140, `Mobile should expose a useful time-plane viewport, got ${mobileTimelineGeometry.visibleTimePlane}px`);
+  await mobile.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).evaluate((button) => button.click());
+  await mobile.waitForSelector("[data-capture-gantt-dialog]", { state: "detached" });
   await mobile.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
-  await mobile.locator("[data-capture-timeline] .capture-timeline__row").first().tap();
+  const mobileTimelineRecordButton = mobile.locator("[data-capture-timeline] .capture-timeline__record-button").first();
+  assert.ok(await mobileTimelineRecordButton.evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Timeline row titles should provide a 44px touch target");
+  await mobileTimelineRecordButton.tap();
   assert.equal(await mobile.locator("[data-capture-hovercard]").count(), 0, "Touch selection should not leave a hover card covering the timeline");
   await mobile.waitForSelector("[data-capture-detail-modal][open]");
   const mobileModalGeometry = await mobile.locator("[data-capture-detail-modal]").evaluate((node) => {
@@ -1433,7 +1460,7 @@ try {
   assert.ok(mobileModalGeometry.width <= mobileModalGeometry.viewportWidth, `Mobile detail modal must fit the viewport width, got ${mobileModalGeometry.width}px`);
   assert.ok(mobileModalGeometry.height <= mobileModalGeometry.viewportHeight, `Mobile detail modal must fit the viewport height, got ${mobileModalGeometry.height}px`);
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-mobile.png` });
-  await mobile.getByRole("button", { name: "Close record details" }).click();
+  await mobile.getByRole("button", { name: "Close record details" }).evaluate((button) => button.click());
   await mobile.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   assert.equal(await mobile.getByRole("button", { name: "Data table" }).count(), 0, "Mobile Transactions must remain Gantt-only");
   assert.equal(await mobile.locator("[data-transaction-data-table]").count(), 0, "Mobile Transactions must not render a DataTable card view");

@@ -717,6 +717,30 @@ try {
   assert.equal(authenticatedHeader.condensed, true, "Authenticated mobile navigation should consume the Control Surface condensed header variant");
   assert.ok(authenticatedHeader.height <= 92, `Authenticated mobile masthead should remain within the 92px Control Surface contract, got ${authenticatedHeader.height}px`);
   assert.equal(authenticatedHeader.eyebrow, "none", "Authenticated mobile masthead should suppress only the secondary eyebrow");
+  const mobileEventId = await page.evaluate(async () => {
+    const response = await fetch("/api/v1/agent/events", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+      body: JSON.stringify({ title: "Mobile event card verification", startsAt: "2026-12-10T14:00", notes: "Secondary details stay behind row expansion.", wallboard: false }),
+    });
+    return (await response.json()).data.id;
+  });
+  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
+  const mobileEventFilterToggle = page.locator('[data-ops-event-table] .dbi-data-table__mobile-filter-toggle');
+  assert.ok(await mobileEventFilterToggle.evaluate((button) => button.getBoundingClientRect().height >= 43.5), "Mobile DataTable filters should use a 44px disclosure control");
+  assert.equal(await page.locator('[data-ops-event-table] [data-table-filters]:visible').count(), 0, "Mobile DataTable facets should start collapsed");
+  await mobileEventFilterToggle.click();
+  assert.equal(await page.locator('[data-ops-event-table] [data-table-filters]:visible').count(), 1, "Mobile DataTable facets should remain available on demand");
+  await mobileEventFilterToggle.click();
+  const mobileEventCardGeometry = await page.locator('[data-ops-event-table] [data-if-table-row]').first().evaluate((row) => ({
+    visibleCells: [...row.querySelectorAll("td")].filter((cell) => getComputedStyle(cell).display !== "none").length,
+    height: row.getBoundingClientRect().height,
+  }));
+  assert.ok(mobileEventCardGeometry.visibleCells <= 5, `Mobile Events should expose only the scan-and-act fields, got ${mobileEventCardGeometry.visibleCells} visible cells`);
+  assert.ok(mobileEventCardGeometry.height <= 340, `Mobile Events cards should stay compact before detail expansion, got ${mobileEventCardGeometry.height}px`);
+  await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
+  await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile More should retain grouped routes without duplicating primary Events");
   assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);

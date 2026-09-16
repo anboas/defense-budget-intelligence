@@ -113,6 +113,7 @@ export default function OperationalDataTable({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(() => new Set());
   const [expandedId, setExpandedId] = useState(initialExpandedId);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [draggingKey, setDraggingKey] = useState("");
   const resizeRef = useRef(null);
   const columnsRef = useRef(null);
@@ -344,7 +345,10 @@ export default function OperationalDataTable({
           <button className="if-btn if-btn--secondary" type="button" onClick={() => downloadCsv(exportFilename, visibleColumns, selectedRows.length ? selectedRows : sortedRows)}><Download size={15} /><span>Export{selectedRows.length ? ` ${selectedRows.length}` : ""}</span></button>
         </div>
       </div>
-      {showFacets && facetColumns.length ? <div className="dbi-data-table__filters" data-table-filters>{facetColumns.map((column) => <div className="dbi-data-table__filter" key={column.key}><span>{column.label}</span><ControlSelect compact ariaLabel={`${column.label} filter`} value={filters[column.key] || ""} options={[["", "All"], ...facetOptions[column.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [column.key]: nextValue })); setPage(1); }} /></div>)}{activeFilterCount ? <button type="button" className="if-btn if-btn--secondary" onClick={() => { setFilters({}); setPage(1); }}>Clear {activeFilterCount}</button> : null}</div> : null}
+      {showFacets && facetColumns.length ? <>
+        <button type="button" className="if-btn if-btn--secondary dbi-data-table__mobile-filter-toggle" aria-expanded={mobileFiltersOpen} onClick={() => setMobileFiltersOpen((open) => !open)}><span>Filters{activeFilterCount ? ` · ${activeFilterCount} active` : ""}</span><ChevronDown size={14} aria-hidden="true" /></button>
+        <div className="dbi-data-table__filters" data-table-filters data-mobile-expanded={mobileFiltersOpen ? "true" : "false"}>{facetColumns.map((column) => <div className="dbi-data-table__filter" key={column.key}><span>{column.label}</span><ControlSelect compact ariaLabel={`${column.label} filter`} value={filters[column.key] || ""} options={[["", "All"], ...facetOptions[column.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [column.key]: nextValue })); setPage(1); }} /></div>)}{activeFilterCount ? <button type="button" className="if-btn if-btn--secondary" onClick={() => { setFilters({}); setPage(1); }}>Clear {activeFilterCount}</button> : null}</div>
+      </> : null}
       {selected.size ? <div className="dbi-data-table__bulk" data-if-table-bulk><span><strong>{selected.size}</strong> selected across this table</span><button type="button" onClick={() => setSelected(new Set())}>Clear selection</button></div> : null}
       <div className="if-table-wrap dbi-data-table__wrap">
         <table className={`if-table if-table--${density}`} aria-label={label}>

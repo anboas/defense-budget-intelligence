@@ -4287,22 +4287,13 @@ button.if-chart-bar.is-selected {
   box-shadow: var(--if-shadow-xs);
 }
 
-
-.if-management-card.if-tone-success {
-  --if-card-accent: var(--if-success);
-  --if-metric-accent: var(--if-success);
-  --if-list-accent: var(--if-success);
-}
-
-.if-detail-card--warning,
-.if-management-card.if-tone-warning {
+.if-detail-card--warning {
   --if-card-accent: var(--if-warning);
   --if-metric-accent: var(--if-warning);
   --if-list-accent: var(--if-warning);
 }
 
 
-.if-management-card.if-tone-danger,
 .if-analytics-panel.is-danger .if-analytics-panel__count {
   --if-card-accent: var(--if-danger);
   --if-metric-accent: var(--if-danger);
@@ -4310,8 +4301,7 @@ button.if-chart-bar.is-selected {
   color: var(--if-danger);
 }
 
-.if-detail-card--info,
-.if-management-card.if-tone-info {
+.if-detail-card--info {
   --if-card-accent: var(--if-color-cyan-700, #0369a1);
   --if-metric-accent: var(--if-color-cyan-700, #0369a1);
   --if-list-accent: var(--if-color-cyan-700, #0369a1);
@@ -4457,6 +4447,24 @@ button.if-chart-bar.is-selected {
   .if-management-grid--strip .if-sparkline {
     justify-self: start;
   }
+
+  .if-management-grid--strip.if-management-grid--mobile-compact > .if-management-card {
+    grid-template-areas: "label" "value";
+    min-height: 3.375rem;
+    padding-block: var(--if-space-2);
+  }
+
+  .if-management-grid--strip.if-management-grid--mobile-compact .if-management-card__meta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 .if-management-card {
@@ -4477,26 +4485,6 @@ button.if-chart-bar.is-selected {
   font-weight: var(--if-font-weight-black);
   line-height: var(--if-line-height-snug);
   overflow-wrap: anywhere;
-}
-
-
-.if-management-card.if-tone-success .if-management-card__value {
-  color: var(--if-success);
-}
-
-
-.if-management-card.if-tone-warning .if-management-card__value {
-  color: var(--if-warning);
-}
-
-
-.if-management-card.if-tone-danger .if-management-card__value {
-  color: var(--if-danger);
-}
-
-
-.if-management-card.if-tone-info .if-management-card__value {
-  color: var(--if-color-cyan-700, #0369a1);
 }
 
 

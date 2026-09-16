@@ -30,10 +30,24 @@ import {
 import { useManagementState } from "./management-state.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlMultiSelect } from "control-surface-ui/react";
+import { ControlDialog, ControlMetricStrip, ControlMultiSelect } from "control-surface-ui/react";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+
+  return matches;
+}
 
 const FILTER_DEFAULTS = {
   capQuery: "",
@@ -500,16 +514,6 @@ function QuarterOutlook({ rows, onSelect }) {
         </button>
       ))}
     </div>
-  );
-}
-
-function SummaryMetric({ label: metricLabel, value, helper, tone = "blue" }) {
-  return (
-    <article className={`capture-metric capture-metric--${tone}`} data-capture-metric title={`${metricLabel}: ${value}. ${helper}`}>
-      <span>{metricLabel}</span>
-      <strong>{value}</strong>
-      <small>{helper}</small>
-    </article>
   );
 }
 
@@ -1088,7 +1092,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
           <Fragment key={group.id}>
             {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}${watchedIds.has(record.opportunityId) ? " is-watched" : ""}`} data-capture-timeline-row data-record-id={record.opportunityId}>
+              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}${watchedIds.has(record.opportunityId) ? " is-watched" : ""}`} data-capture-timeline-row data-record-id={record.opportunityId} onClick={(event) => { if (!event.target.closest(".capture-timeline__star, [data-followon-activity]")) onSelect(record.opportunityId); }}>
                 <div className="capture-timeline__label">
                   <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em></span>
                   <button type="button" className={`capture-timeline__star${watchedIds.has(record.opportunityId) ? " is-starred" : ""}`} aria-pressed={watchedIds.has(record.opportunityId)} onClick={() => onToggleWatch(record.opportunityId)} aria-label={watchedIds.has(record.opportunityId) ? `Stop tracking ${record.title}` : `Track ${record.title}`}><Star size={16} fill={watchedIds.has(record.opportunityId) ? "currentColor" : "none"} /></button>
@@ -1148,6 +1152,8 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const [subawardDetailState, setSubawardDetailState] = useState("idle");
   const subawardRequestRef = useRef(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [ganttToolsOpen, setGanttToolsOpen] = useState(false);
+  const isMobileViewport = useMediaQuery("(max-width: 760px)");
   const [comparisonIds, setComparisonIds] = useState(() => {
     const validIds = new Set(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot).map((record) => record.opportunityId));
     return [...new Set(readStoredArray(COMPARISON_STORAGE_KEY).filter((value) => typeof value === "string" && validIds.has(value)))].slice(0, 4);
@@ -1513,6 +1519,29 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     scroller.scrollTo({ left: Math.max(target, 0), behavior: "smooth" });
   }
 
+  const ganttControlGroups = <div className="capture-gantt-tools__grid">
+    <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
+      <legend>Time</legend>
+      <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
+      <div className="capture-gantt-window" aria-label="Timeline windows"><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Current</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
+    </fieldset>
+    <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--display">
+      <legend>Display</legend>
+      <SingleSelectFilter title="Density" ariaLabel="Row density" value={filters.capDensity} options={[["comfortable", "Comfortable"], ["compact", "Compact"]]} onChange={(capDensity) => setFilters({ capDensity })} />
+      <SingleSelectFilter title="Group" ariaLabel="Grouping" value={filters.capGroup} options={GROUP_BY_OPTIONS} onChange={(capGroup) => setFilters({ capGroup })} />
+      <SingleSelectFilter title="Bar text" ariaLabel="Bar labels" value={filters.capLabels} options={[["dates", "Date ranges"], ["obligations", "Observed obligations"], ["potential", "Potential / high value"], ["utilization", "Obligation ratio"], ["actions", "FPDS action count"], ["none", "No labels"]]} onChange={(capLabels) => setFilters({ capLabels })} />
+      <details className="capture-gantt-fields" data-capture-field-picker>
+        <summary>Row fields ({selectedFieldIds(filters.capFields).length})</summary>
+        <div role="group" aria-label="Visible Gantt row fields"><p>Choose up to four fields. Full detail remains available on hover or focus.</p>{ROW_FIELD_OPTIONS.map(([id, text]) => { const activeFields = selectedFieldIds(filters.capFields); const checked = activeFields.includes(id); return <label key={id}><input type="checkbox" checked={checked} disabled={!checked && activeFields.length >= MAX_ROW_FIELDS} onChange={() => toggleRowField(id)} /><span>{text}</span></label>; })}</div>
+      </details>
+    </fieldset>
+    <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
+      <legend>Data</legend>
+      <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={11} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
+      <span className="capture-gantt-feed-status" role="status">{feedStatusText}</span>
+    </fieldset>
+  </div>;
+
   return (
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page>
       <section className="capture-hero">
@@ -1567,15 +1596,21 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <SingleSelectFilter className="capture-filter--advanced" title="Timeline rows" value={filters.capRows} options={[["25", "25 rows"], ["50", "50 rows"], ["100", "100 rows"], ["all", "All rows"]]} onChange={(capRows) => setFilters({ capRows })} />
       </section>
 
-      <section className="capture-metrics" aria-label="Filtered calendar metrics">
-        <SummaryMetric label="Matching records" value={filtered.length.toLocaleString()} helper={`${filtered.filter((record) => record.mode === "contract-performance").length} contracts · ${filtered.filter((record) => record.ingestionMethod === "automated").length} automated`} />
-        <SummaryMetric label="Observed obligations" value={formatMoney(totals.obligated)} helper={`${totals.matched} refreshed award-bundle matches`} tone="green" />
-        <SummaryMetric label="Potential / high value" value={formatMoney(totals.potential)} helper="Reported potential values and published ranges" tone="purple" />
-        <SummaryMetric label="Evidence coverage" value={`${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`} helper={`${totals.sourced} rows with external sources`} tone="orange" />
-        <SummaryMetric label="FPDS actions" value={totals.actions.toLocaleString()} helper={`${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`} tone="green" />
-        <SummaryMetric label="Subawards" value={totals.subawards.toLocaleString()} helper={`${formatMoney(totals.subawardAmount)} retained-detail sample · exact prime IDs`} tone="purple" />
-        <SummaryMetric label="Near-term endpoints" value={totals.endingWithinYear.toLocaleString()} helper={`Reported current ends within 12 months of ${formatDate(asOf)}`} tone="orange" />
-      </section>
+      <ControlMetricStrip
+        className="capture-metrics"
+        label="Filtered transaction metrics"
+        mobileScroll
+        compactMobile
+        items={[
+          { id: "records", label: "Matching records", value: filtered.length.toLocaleString(), meta: `${filtered.filter((record) => record.mode === "contract-performance").length} contracts · ${filtered.filter((record) => record.ingestionMethod === "automated").length} automated`, tone: "info" },
+          { id: "obligations", label: "Observed obligations", value: formatMoney(totals.obligated), meta: `${totals.matched} refreshed award-bundle matches`, tone: "success" },
+          { id: "potential", label: "Potential / high value", value: formatMoney(totals.potential), meta: "Reported potential values and published ranges", tone: "purple" },
+          { id: "evidence", label: "Evidence coverage", value: `${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`, meta: `${totals.sourced} rows with external sources`, tone: "warning" },
+          { id: "fpds", label: "FPDS actions", value: totals.actions.toLocaleString(), meta: `${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`, tone: "success" },
+          { id: "subawards", label: "Subawards", value: totals.subawards.toLocaleString(), meta: `${formatMoney(totals.subawardAmount)} retained-detail sample · exact prime IDs`, tone: "purple" },
+          { id: "endpoints", label: "Near-term endpoints", value: totals.endingWithinYear.toLocaleString(), meta: `Reported current ends within 12 months of ${formatDate(asOf)}`, tone: "warning" },
+        ]}
+      />
 
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
@@ -1588,31 +1623,17 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
       <section className="capture-section capture-gantt-section">
         <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
-        <details className="capture-gantt-tools" data-capture-gantt-tools>
-          <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
-          <div className="capture-gantt-tools__grid">
-          <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
-            <legend>Time</legend>
-            <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
-            <div className="capture-gantt-window" aria-label="Timeline windows"><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 1)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 2)) })}>Current</button><button type="button" onClick={() => setFilters({ capFrom: String(Math.max(2023, Number(asOf.slice(0, 4)) - 3)), capTo: String(Math.min(2034, Number(asOf.slice(0, 4)) + 3)) })}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: "2023", capTo: "2034" })}>All</button></div>
-          </fieldset>
-          <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--display">
-            <legend>Display</legend>
-            <SingleSelectFilter title="Density" ariaLabel="Row density" value={filters.capDensity} options={[["comfortable", "Comfortable"], ["compact", "Compact"]]} onChange={(capDensity) => setFilters({ capDensity })} />
-            <SingleSelectFilter title="Group" ariaLabel="Grouping" value={filters.capGroup} options={GROUP_BY_OPTIONS} onChange={(capGroup) => setFilters({ capGroup })} />
-            <SingleSelectFilter title="Bar text" ariaLabel="Bar labels" value={filters.capLabels} options={[["dates", "Date ranges"], ["obligations", "Observed obligations"], ["potential", "Potential / high value"], ["utilization", "Obligation ratio"], ["actions", "FPDS action count"], ["none", "No labels"]]} onChange={(capLabels) => setFilters({ capLabels })} />
-            <details className="capture-gantt-fields" data-capture-field-picker>
-              <summary>Row fields ({selectedFieldIds(filters.capFields).length})</summary>
-              <div role="group" aria-label="Visible Gantt row fields"><p>Choose up to four fields. Full detail remains available on hover or focus.</p>{ROW_FIELD_OPTIONS.map(([id, text]) => { const activeFields = selectedFieldIds(filters.capFields); const checked = activeFields.includes(id); return <label key={id}><input type="checkbox" checked={checked} disabled={!checked && activeFields.length >= MAX_ROW_FIELDS} onChange={() => toggleRowField(id)} /><span>{text}</span></label>; })}</div>
-            </details>
-          </fieldset>
-          <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
-            <legend>Data</legend>
-            <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={11} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} />
-            <span className="capture-gantt-feed-status" role="status">{feedStatusText}</span>
-          </fieldset>
+        {isMobileViewport ? <>
+          <div className="capture-gantt-tools" data-capture-gantt-tools>
+            <button type="button" className="capture-gantt-tools__mobile-trigger" data-capture-gantt-mobile-trigger onClick={() => setGanttToolsOpen(true)}><span>Timeline controls</span><small>Time · display · overlays</small></button>
           </div>
-        </details>
+          {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} title="Timeline controls" eyebrow="Transactions" summary="Adjust the visible time window, row density, grouping, labels, and evidence overlays." size="wide" closeLabel="Close Timeline controls" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
+            <div className="capture-gantt-tools capture-gantt-tools--dialog">{ganttControlGroups}</div>
+          </ControlDialog> : null}
+        </> : <details className="capture-gantt-tools" data-capture-gantt-tools>
+          <summary><span>Timeline controls</span><small>Time · display · overlays</small></summary>
+          {ganttControlGroups}
+        </details>}
         {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} /> : <p className="capture-empty">No public records match these filters.</p>}
       </section>
 
