@@ -12607,9 +12607,6 @@ td .dot {
 }
 .ops-wall-calendar__bar span { flex: 1 1 auto; }
 .ops-wall-calendar__bar .ops-wall-calendar__bar-attendees { display: flex; flex: 0 0 auto; align-items: center; align-self: center; overflow: visible; padding-left: 3px; }
-.ops-wall-calendar__bar-attendees .user-avatar { flex: 0 0 24px; width: 24px !important; height: 24px !important; margin-left: -7px; border: 2px solid #fff; font-size: 8px; box-shadow: 0 1px 3px rgba(16, 45, 68, .2); }
-.ops-wall-calendar__bar-attendees .user-avatar:first-child { margin-left: 0; }
-.ops-wall-calendar__bar .ops-wall-calendar__bar-attendees > b { display: grid; width: 24px; height: 24px; margin-left: -6px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #244d6d; color: #fff; font-size: 8px; }
 @container (max-width: 185px) { .ops-wall-calendar__bar-attendees { display: none !important; } }
 .ops-wall-calendar-tooltip { width: min(380px, calc(100vw - 16px)); border-top-color: #075b96; }
 .ops-wall-calendar-tooltip[data-kind="milestone"] { border-top-color: #5c4d9b; }

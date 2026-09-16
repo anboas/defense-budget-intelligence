@@ -1220,6 +1220,18 @@ code {
   font-size: var(--if-font-size-md);
 }
 
+.if-profile-avatar-stack {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 0.35rem;
+}
+
+.if-profile-avatar-stack .if-profile-avatar {
+  margin-left: -0.35rem;
+  border-color: var(--if-bg-surface);
+  box-shadow: 0 0 0 1px var(--if-border);
+}
+
 .if-loading-dots {
   --if-loading-dot-size: 0.42rem;
   --if-loading-dot-gap: 0.22rem;
@@ -2713,6 +2725,75 @@ code {
   }
 }
 
+.if-stepper--interactive {
+  display: grid;
+  grid-template-columns: repeat(var(--step-count, 4), minmax(0, 1fr));
+  gap: var(--if-space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.if-stepper--interactive .if-stepper__step {
+  position: relative;
+  min-width: 0;
+}
+
+.if-stepper--interactive .if-stepper__step::before {
+  content: "";
+  position: absolute;
+  top: 1rem;
+  right: calc(50% + 1.35rem);
+  left: calc(-50% + 1.35rem);
+  height: 1px;
+  background: var(--if-border);
+}
+
+.if-stepper--interactive .if-stepper__step:first-child::before {
+  display: none;
+}
+
+.if-stepper--interactive button {
+  display: grid;
+  justify-items: center;
+  gap: var(--if-space-1);
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--if-text-muted);
+  font: inherit;
+  font-size: var(--if-font-size-xs);
+  cursor: pointer;
+}
+
+.if-stepper--interactive .if-stepper__step.is-active button,
+.if-stepper--interactive .if-stepper__step.is-complete button {
+  color: var(--if-text-strong);
+}
+
+.if-stepper--interactive .if-stepper__dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--if-border-strong);
+  border-radius: var(--if-radius-pill);
+  background: var(--if-bg-surface);
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-xs);
+  font-weight: var(--if-font-weight-bold);
+}
+
+.if-stepper--interactive .if-stepper__step.is-active .if-stepper__dot,
+.if-stepper--interactive .if-stepper__step.is-complete .if-stepper__dot {
+  border-color: var(--if-accent);
+  background: var(--if-accent);
+  color: var(--if-color-white);
+}
+
 .if-stepper--semantic {
   --step-complete: var(--if-success);
   --step-active: var(--if-accent);
@@ -2840,6 +2921,17 @@ code {
 .if-stepper--compact .if-stepper__dot {
   width: 1.55rem;
   height: 1.55rem;
+}
+
+@media (max-width: 52rem) {
+
+  .if-stepper--interactive {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .if-stepper--interactive .if-stepper__step::before {
+    display: none;
+  }
 }
 
 /* Diagram stress-test surface: dense research intelligence composition. */

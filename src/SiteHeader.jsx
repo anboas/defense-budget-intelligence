@@ -6,8 +6,9 @@ import NotificationCenter from "./NotificationCenter.jsx";
 
 const PRIMARY_IDS = ["calendar", "wallboard"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
-const WORKSPACE_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspace-settings", "agents"]);
-const SUPER_ADMIN_IDS = new Set(["workspaces"]);
+const WORK_IDS = new Set(["watchlist", "events", "tasks"]);
+const WORKSPACE_ADMIN_IDS = new Set(["integrations", "activity", "workspace-settings", "agents"]);
+const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 
 const ANALYTICS_ITEMS = [
   { id: "analytics-overview", tabId: "analytics", label: "Overview", href: "#/budget-spend/analytics", badge: "6 views", description: "Composition, schedule activity, value distribution, recipients, and work categories." },
@@ -27,6 +28,7 @@ const MONEY_META = {
 const ADMIN_META = {
   watchlist: { badge: "Track", description: "Starred records, notes, review dates, and wallboard visibility." },
   events: { badge: "Schedule", description: "Operator events, checkpoints, linked records, and display timing." },
+  tasks: { badge: "Progress", description: "Background augmentation and API tasks, stages, outcomes, and review." },
   integrations: { badge: "7 feeds", description: "Connector health, refresh cadence, yields, and unavailable probes." },
   activity: { badge: "Audit", description: "Append-only human and agent API activity across the shared workspace." },
   users: { badge: "RBAC", description: "Create human accounts, assign roles, suspend access, and reset passwords." },
@@ -65,22 +67,26 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const workspaceIds = ["watchlist", "events", "integrations", "activity", ...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.canManageWorkspaces ? ["workspace-settings"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])];
-  const workspaceItems = workspaceIds.map((id) => {
+  const workItems = ["watchlist", "events", "tasks"].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
-  const superAdminItems = auth?.user?.roleId === "super_user" ? ["workspaces"].map((id) => {
+  const workspaceAdminItems = ["integrations", "activity", ...(auth?.user?.canManageWorkspaces ? ["workspace-settings"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
-  }).filter(Boolean) : [];
+  }).filter(Boolean);
+  const platformAdminItems = [...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.roleId === "super_user" ? ["workspaces"] : [])].map((id) => {
+    const tab = tabById.get(id);
+    return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
+  }).filter(Boolean);
   const groups = [
     { id: "analytics", label: "Analytics", items: ANALYTICS_ITEMS },
     { id: "money", label: "Money flow", items: moneyItems },
-    { id: "workspace", label: "Workspace", items: workspaceItems },
-    ...(superAdminItems.length ? [{ id: "super-admin", label: "Super admin", items: superAdminItems }] : []),
+    { id: "work", label: "Workspace", items: workItems },
+    ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace admin", items: workspaceAdminItems }] : []),
+    ...(platformAdminItems.length ? [{ id: "platform-admin", label: "Platform admin", items: platformAdminItems }] : []),
   ];
-  const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORKSPACE_IDS.has(activeTab) ? "workspace" : SUPER_ADMIN_IDS.has(activeTab) ? "super-admin" : "";
+  const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
 
   function activeChildLabel(group) {
     return group.items.find(isItemActive)?.label || "";
@@ -170,8 +176,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
             {desktopGroup(groups[0])}
             {desktopGroup(groups[1])}
             <span className="if-operations-topnav__divider ci-domain-nav-separator ci-header-nav__desktop-menu" aria-hidden="true">|</span>
-            {desktopGroup(groups[2])}
-            {groups[3] ? desktopGroup(groups[3]) : null}
+            {groups.slice(2).map(desktopGroup)}
           </div>
           <div className="if-operations-topnav__secondary ci-header-nav__mobile-more">
             <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`if-operations-topnav__secondary-button${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {

@@ -35,7 +35,7 @@ function notificationForJob(job, readIds) {
     at: job.completedAt || job.updatedAt || job.createdAt,
     unread: ATTENTION_STATUSES.has(job.status) && !readIds.has(`event-ai:${job.id}:${job.status}`),
     requiresAction: ATTENTION_STATUSES.has(job.status),
-    href: `#/budget-spend/events?aiJob=${encodeURIComponent(job.id)}`,
+    href: `#/budget-spend/tasks?task=${encodeURIComponent(`event-ai:${job.id}`)}`,
     job,
     active,
   };
@@ -60,7 +60,7 @@ export default function NotificationProvider({ children }) {
   }, [auth]);
 
   const openNotification = useCallback((jobId) => {
-    window.location.hash = `#/budget-spend/events?aiJob=${encodeURIComponent(jobId)}`;
+    window.location.hash = `#/budget-spend/tasks?task=${encodeURIComponent(`event-ai:${jobId}`)}`;
   }, []);
 
   const acceptJobs = useCallback((nextJobs, announce = true) => {

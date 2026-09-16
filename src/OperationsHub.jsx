@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   Database,
   Link2,
+  ListChecks,
   MapPin,
   Maximize2,
   Minimize2,
@@ -42,6 +43,7 @@ import { useNotifications } from "./NotificationContext.jsx";
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
   ["events", "Events", CalendarDays],
+  ["tasks", "Task Center", ListChecks],
   ["integrations", "Integrations", Database],
   ["activity", "API Log", Activity],
   ["users", "Users", UsersRound],
@@ -54,6 +56,7 @@ const VIEWS = [
 const VIEW_COPY = {
   watchlist: ["Management", "Watchlist", "Tracked records, private notes, review dates, and wallboard visibility."],
   events: ["Management", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
+  tasks: ["Workspace work", "Task Center", "Background augmentation and API tasks, progress, outcomes, and review."],
   integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
   activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
   users: ["Administration", "Users", "Human accounts, roles, status, sessions, and password recovery."],
@@ -62,10 +65,10 @@ const VIEW_COPY = {
   agents: ["Administration", "Agent access", "Issue and govern narrowly scoped credentials for trusted agents."],
 };
 
-const ADMIN_VIEWS = VIEWS.filter(([id]) => id !== "wallboard");
 const ADMIN_ROUTES = {
   watchlist: "#/budget-spend/watchlist",
   events: "#/budget-spend/events",
+  tasks: "#/budget-spend/tasks",
   integrations: "#/budget-spend/integrations",
   users: "#/budget-spend/users",
   workspaces: "#/budget-spend/workspaces",
@@ -73,6 +76,34 @@ const ADMIN_ROUTES = {
   agents: "#/budget-spend/agents",
   activity: "#/budget-spend/api-log",
 };
+
+const CONTROL_AREAS = {
+  work: {
+    ids: ["watchlist", "events", "tasks"],
+    eyebrow: "Workspace work",
+    title: "Workspace operations",
+    description: "Tracked records, operator events, and background task progress for the active workspace.",
+    tone: "if-status--info",
+  },
+  workspace: {
+    ids: ["integrations", "activity", "workspace-settings", "agents"],
+    eyebrow: "Workspace administration",
+    title: "Workspace controls",
+    description: "Connections, audit visibility, workspace identity, membership, and scoped agent access.",
+    tone: "if-status--warning",
+  },
+  platform: {
+    ids: ["users", "workspaces"],
+    eyebrow: "Platform administration",
+    title: "Platform controls",
+    description: "Global human accounts and workspace boundaries across the full deployment.",
+    tone: "if-status--danger",
+  },
+};
+
+function controlAreaForView(view) {
+  return Object.entries(CONTROL_AREAS).find(([, area]) => area.ids.includes(view))?.[0] || "work";
+}
 
 const EVENT_MILESTONE_TYPES = [
   ["registration_deadline", "Registration closes"],
@@ -242,9 +273,10 @@ function eventAiDiffRows(job) {
   })).filter((row) => row.before !== row.after);
 }
 
-function EventAiLauncher({ event, onClear }) {
+function EventAiLauncher({ event, onClose }) {
   const auth = useAuth();
   const notifications = useNotifications();
+  const dialogRef = useRef(null);
   const [draft, setDraft] = useState(() => event || newEventDraft());
   const [capability, setCapability] = useState(null);
   const [credential, setCredential] = useState("");
@@ -294,7 +326,8 @@ function EventAiLauncher({ event, onClear }) {
     ...(capability?.workspaceDefault?.available ? [["workspace", capability.workspaceDefault.lastFour ? `Workspace default · ••••${capability.workspaceDefault.lastFour}` : "Workspace default"]] : []),
   ];
   const modelOptions = (inventory?.models || []).map((model) => ({ value: model.id, label: model.id, description: `${model.ownedBy || "OpenAI"}${model.created ? ` · ${new Date(model.created * 1000).toLocaleDateString()}` : ""}` }));
-  async function launch() {
+  async function launch(submitEvent) {
+    submitEvent?.preventDefault();
     setError("");
     if (draft.title.trim().length < 2) { setError("Enter an event name before starting AI research."); return; }
     if (!credential || !producerModel || !verifierModel) { setError("Choose a configured credential and both available models."); return; }
@@ -305,32 +338,41 @@ function EventAiLauncher({ event, onClear }) {
       notifications?.registerJob(result.job);
       setDraft(newEventDraft());
       setDirection("");
-      onClear?.();
+      onClose();
     } catch (requestError) { setError(requestError.message); }
     finally { setBusy(false); }
   }
-  return <section className="if-analytics-panel" data-event-ai-launcher>
-    <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className="if-status if-status--info if-status--sm">Background workflow</span><h3 className="if-analytics-panel__title"><Sparkles size={18} aria-hidden="true" />AI event research</h3><p className="if-analytics-panel__summary">Give DBI an event name and optional direction. You can leave immediately; Notifications will bring you back only when review is needed.</p></div>{event ? <button type="button" className="if-btn if-btn--sm" onClick={onClear}>Clear selected event</button> : null}</header>
-    <div className="if-form-grid">
+  return <ControlDialog
+    open
+    onClose={() => { if (!busy) onClose(); }}
+    title="Research and augment event"
+    eyebrow="Background task"
+    summary={`Research missing public details for ${event?.title || "this event"}. Starting the task closes this launcher; progress remains in Task Center and Notifications.`}
+    size="wide"
+    dialogRef={dialogRef}
+    closeLabel="Close event augmentation"
+    surfaceProps={{ "data-event-ai-launcher-dialog": true }}
+    footer={<><button type="button" className="if-btn" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" form="event-ai-launcher-form" className={`if-btn if-btn--ai if-touch-target${busy ? " is-loading" : ""}`} disabled={busy || modelsBusy || !capability?.available || !credential || !producerModel || !verifierModel}>{busy ? <span className="if-btn__spinner" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{busy ? "Starting background task…" : "Start augmentation"}</button></>}
+  >
+    <form id="event-ai-launcher-form" className="if-form-grid" data-event-ai-launcher aria-busy={busy} onSubmit={launch}>
       <label className="if-field if-field--full"><span className="if-field__label">Event name or research target</span><input className="if-input" value={draft.title} placeholder="Air, Space & Cyber Conference" onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
       <label className="if-field if-field--full"><span className="if-field__label">Specific direction <small>(optional)</small></span><textarea className="if-input if-touch-target" value={direction} maxLength={2000} placeholder="Default: fill missing verified public details, links, categories, and published deadlines." onChange={(e) => setDirection(e.target.value)} /></label>
-      <div className="if-field"><span className="if-field__label">Credential</span>{credentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={credential} searchable options={credentialOptions} onChange={(value) => { setCredential(value); setInventory(null); setProducerModel(""); setVerifierModel(""); setModelsBusy(Boolean(value)); }} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
-      <div className="if-field"><span className="if-field__label">Research model</span><ControlSelect ariaLabel="Research model" value={producerModel} searchable options={modelOptions} onChange={setProducerModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
-      <div className="if-field"><span className="if-field__label">Verification model</span><ControlSelect ariaLabel="Verification model" value={verifierModel} searchable options={modelOptions} onChange={setVerifierModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
+      <div className="if-field"><span className="if-field__label">Credential</span>{credentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={credential} searchable options={credentialOptions} portalTarget={dialogRef} onChange={(value) => { setCredential(value); setInventory(null); setProducerModel(""); setVerifierModel(""); setModelsBusy(Boolean(value)); }} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
+      <div className="if-field"><span className="if-field__label">Research model</span><ControlSelect ariaLabel="Research model" value={producerModel} searchable options={modelOptions} portalTarget={dialogRef} onChange={setProducerModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
+      <div className="if-field"><span className="if-field__label">Verification model</span><ControlSelect ariaLabel="Verification model" value={verifierModel} searchable options={modelOptions} portalTarget={dialogRef} onChange={setVerifierModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
       <div className="if-field if-field--full">
         <span className="if-field__label">What happens after launch</span>
-        <ol className="if-stepper if-stepper--semantic if-stepper--unboxed if-stepper--compact" aria-label="Event AI workflow">
+        <ol className="if-stepper if-stepper--interactive if-stepper--semantic if-stepper--unboxed if-stepper--compact" style={{ "--step-count": 3 }} aria-label="Event AI workflow">
           <li className="if-stepper__step is-active"><span className="if-stepper__item"><span className="if-stepper__dot">1</span><span className="if-stepper__label">Research</span><span className="if-stepper__meta">Public sources and citations</span></span></li>
           <li className="if-stepper__step"><span className="if-stepper__item"><span className="if-stepper__dot">2</span><span className="if-stepper__label">Verify</span><span className="if-stepper__meta">Independent schema and evidence check</span></span></li>
           <li className="if-stepper__step"><span className="if-stepper__item"><span className="if-stepper__dot">3</span><span className="if-stepper__label">Review</span><span className="if-stepper__meta">Notification tray holds the verified draft</span></span></li>
         </ol>
         <p className="if-field__hint">Verified changes, conflicts, rejected claims, sources, models, and the trace will appear in a dedicated review workspace. Nothing saves automatically.</p>
       </div>
-      <div className="if-field--full if-cluster"><button type="button" className={`if-btn if-btn--ai if-touch-target${busy ? " is-loading" : ""}`} disabled={busy || modelsBusy || !capability?.available || !credential || !producerModel || !verifierModel} onClick={() => void launch()}>{busy ? <span className="if-btn__spinner" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{busy ? "Starting background research…" : "Start research and move on"}</button></div>
       {inventory ? <p className="if-field__hint if-field--full">{inventory.capabilityNotice} {modelOptions.length} compatible text model{modelOptions.length === 1 ? "" : "s"} shown from this credential’s project.</p> : null}
       {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
-    </div>
-  </section>;
+    </form>
+  </ControlDialog>;
 }
 
 function EventEditor({ event, review = false, records, categories, onSave, onClose }) {
@@ -531,8 +573,8 @@ function EventAiReview({ jobId, onOpenDraft }) {
   const reviewStepClass = ["completed", "needs_review"].includes(job?.status) ? "is-active" : "";
   return <section className="if-operations-workspace" data-event-ai-review={job?.status || "loading"}>
     <section className="if-analytics-panel">
-      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={`if-status if-status--sm ${job?.status === "failed" ? "if-status--danger" : job?.status === "needs_review" ? "if-status--warning" : job?.status === "completed" ? "if-status--success" : "if-status--info"}`}>{statusLabel}</span><h2 className="if-analytics-panel__title">{job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"}</h2><p className="if-analytics-panel__summary">Research: {job?.producerModel || "Loading"} · Verification: {job?.verifierModel || "Loading"}{job?.traceId ? ` · Trace ${job.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/events">Back to events</a></header>
-      <ol className="if-stepper if-stepper--semantic if-stepper--unboxed" aria-label="Event AI workflow status">
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={`if-status if-status--sm ${job?.status === "failed" ? "if-status--danger" : job?.status === "needs_review" ? "if-status--warning" : job?.status === "completed" ? "if-status--success" : "if-status--info"}`}>{statusLabel}</span><h2 className="if-analytics-panel__title">{job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"}</h2><p className="if-analytics-panel__summary">Research: {job?.producerModel || "Loading"} · Verification: {job?.verifierModel || "Loading"}{job?.traceId ? ` · Trace ${job.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a></header>
+      <ol className="if-stepper if-stepper--interactive if-stepper--semantic if-stepper--unboxed" style={{ "--step-count": 3 }} aria-label="Event AI workflow status">
         <li className={`if-stepper__step ${researchStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">1</span><span className="if-stepper__label">Research</span><span className="if-stepper__meta">{failedStage === "research" ? "Stopped by evidence gate" : "Cited public details"}</span></span></li>
         <li className={`if-stepper__step ${verificationStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">2</span><span className="if-stepper__label">Verify</span><span className="if-stepper__meta">{failedStage === "research" ? "Not started" : failedStage === "verification" ? "Stopped during verification" : "Independent schema and evidence check"}</span></span></li>
         <li className={`if-stepper__step ${reviewStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">3</span><span className="if-stepper__label">Review</span><span className="if-stepper__meta">{job?.status === "failed" ? "No draft produced" : "Human decision before save"}</span></span></li>
@@ -568,6 +610,120 @@ function EventAiReview({ jobId, onOpenDraft }) {
   </section>;
 }
 
+const TASK_ACTIVE_STATUSES = new Set(["researching", "verifying", "running", "pending"]);
+const TASK_ATTENTION_STATUSES = new Set(["needs_review", "failed", "rejected", "rate_limited"]);
+
+function taskStatusLabel(status) {
+  return ({ researching: "Researching", verifying: "Verifying", needs_review: "Needs review", completed: "Completed", succeeded: "Completed", failed: "Failed", rejected: "Rejected", rate_limited: "Rate limited", running: "Running", pending: "Pending" })[status] || String(status || "Unknown").replaceAll("_", " ");
+}
+
+function taskStatusClass(status) {
+  if (["failed", "rejected", "rate_limited"].includes(status)) return "if-status if-status--sm if-status--danger";
+  if (status === "needs_review") return "if-status if-status--sm if-status--warning";
+  if (TASK_ACTIVE_STATUSES.has(status)) return "if-status if-status--sm if-status--info";
+  return "if-status if-status--sm if-status--success";
+}
+
+function eventTaskRecord(job) {
+  const title = job.inputSnapshot?.title || job.mergeResult?.mergedDraft?.title || "Event research";
+  const stoppedStage = job.status === "failed" ? stoppedEventAiStage(job) : "";
+  const missingCitations = job.error?.code === "missing_citations";
+  return {
+    id: `event-ai:${job.id}`,
+    sourceId: job.id,
+    type: "Event augmentation",
+    title,
+    status: job.status,
+    stage: job.status === "researching" ? "Public research" : job.status === "verifying" ? "Independent verification" : job.status === "failed" ? (stoppedStage === "research" ? "Evidence gate" : "Verification") : "Operator review",
+    detail: missingCitations ? "Structured research rejected: no verifiable web-search citations." : job.status === "failed" ? (job.error?.message || "The workflow stopped without changing the event.") : job.status === "completed" ? "Verified changes are ready for review." : job.status === "needs_review" ? "Operator validation is required before saving." : "Background work is in progress.",
+    startedAt: job.createdAt,
+    updatedAt: job.completedAt || job.updatedAt || job.createdAt,
+    traceId: job.traceId || "",
+    provider: "OpenAI",
+    model: [job.producerModel, job.verifierModel].filter(Boolean).join(" → "),
+    job,
+  };
+}
+
+function apiTaskRecords(apiRequests, eventJobs) {
+  const eventTraceIds = new Set(eventJobs.map((job) => job.traceId).filter(Boolean));
+  const groups = new Map();
+  for (const entry of apiRequests) {
+    if (entry.traceId && eventTraceIds.has(entry.traceId)) continue;
+    const groupId = entry.traceId || entry.providerRequestId || entry.id;
+    const group = groups.get(groupId) || [];
+    group.push(entry);
+    groups.set(groupId, group);
+  }
+  return [...groups.entries()].map(([groupId, entries]) => {
+    const ordered = entries.slice().sort((left, right) => String(right.at).localeCompare(String(left.at)));
+    const latest = ordered[0];
+    const terminal = ordered.find((entry) => ["failed", "rejected", "rate_limited"].includes(entry.status)) || latest;
+    const status = ["failed", "rejected", "rate_limited"].includes(terminal.status) ? terminal.status : TASK_ACTIVE_STATUSES.has(terminal.status) ? terminal.status : "completed";
+    return {
+      id: `api:${groupId}`,
+      sourceId: groupId,
+      type: latest.requestKind === "agent" ? "Agent API" : latest.provider === "openai" ? "AI provider" : "API operation",
+      title: String(latest.operation || latest.route || "API request").replaceAll("_", " "),
+      status,
+      stage: latest.stage || `${entries.length} request${entries.length === 1 ? "" : "s"}`,
+      detail: terminal.errorMessage || `${entries.length} retained request stage${entries.length === 1 ? "" : "s"}; ${entries.reduce((total, entry) => total + Number(entry.inputTokens || 0) + Number(entry.outputTokens || 0), 0).toLocaleString()} tokens.`,
+      startedAt: ordered.at(-1)?.startedAt || ordered.at(-1)?.at,
+      updatedAt: latest.at,
+      traceId: latest.traceId || "",
+      provider: latest.provider,
+      model: latest.model,
+      entries: ordered,
+    };
+  });
+}
+
+function ApiTaskDetail({ task }) {
+  return <section className="if-analytics-panel" data-api-task-detail>
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</span><h2 className="if-analytics-panel__title">{task.title}</h2><p className="if-analytics-panel__summary">{task.type}{task.traceId ? ` · Trace ${task.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a></header>
+    <div className="if-management-grid">
+      <article className="if-management-card if-tone-info"><span className="if-management-card__label">Stage</span><strong className="if-management-card__value">{task.stage}</strong><small className="if-management-card__meta">Latest retained stage</small></article>
+      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Requests</span><strong className="if-management-card__value">{task.entries.length}</strong><small className="if-management-card__meta">Redacted ledger entries</small></article>
+      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Provider</span><strong className="if-management-card__value">{task.provider || "DBI"}</strong><small className="if-management-card__meta">{task.model || "No model recorded"}</small></article>
+      <article className={`if-management-card ${TASK_ATTENTION_STATUSES.has(task.status) ? "if-tone-danger" : "if-tone-success"}`}><span className="if-management-card__label">Outcome</span><strong className="if-management-card__value">{taskStatusLabel(task.status)}</strong><small className="if-management-card__meta">{task.detail}</small></article>
+    </div>
+  </section>;
+}
+
+function TasksView({ apiRequests, selectedTaskId, onOpenDraft }) {
+  const notifications = useNotifications();
+  const notificationJobs = notifications?.jobs;
+  const tasks = useMemo(() => {
+    const eventJobs = notificationJobs || [];
+    return [...eventJobs.map(eventTaskRecord), ...apiTaskRecords(apiRequests, eventJobs)].sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)));
+  }, [apiRequests, notificationJobs]);
+  const selected = tasks.find((task) => task.id === selectedTaskId);
+  const columns = [
+    { key: "task", label: "Task", required: true, sticky: true, minWidth: 300, value: (task) => task.title, searchValue: (task) => [task.title, task.type, task.stage, task.detail, task.traceId], render: (task) => <><strong>{task.title}</strong><small>{task.detail}</small></> },
+    { key: "type", label: "Type", facet: true, minWidth: 145, value: (task) => task.type },
+    { key: "status", label: "Status", facet: true, minWidth: 120, value: (task) => taskStatusLabel(task.status), render: (task) => <span className={taskStatusClass(task.status)}>{TASK_ACTIVE_STATUSES.has(task.status) ? workingSpinner("") : null}{taskStatusLabel(task.status)}</span> },
+    { key: "stage", label: "Current stage", facet: true, minWidth: 160, value: (task) => task.stage },
+    { key: "updated", label: "Updated", minWidth: 165, value: (task) => task.updatedAt || task.startedAt || "", render: (task) => dateTime(task.updatedAt || task.startedAt) },
+    { key: "trace", label: "Trace", minWidth: 170, value: (task) => task.traceId || "Not recorded" },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (task) => <div className="dbi-table-actions"><a href={`#/budget-spend/tasks?task=${encodeURIComponent(task.id)}`}>Open</a></div> },
+  ];
+  const activeCount = tasks.filter((task) => TASK_ACTIVE_STATUSES.has(task.status)).length;
+  const attentionCount = tasks.filter((task) => TASK_ATTENTION_STATUSES.has(task.status)).length;
+  const completedCount = tasks.filter((task) => ["completed", "succeeded"].includes(task.status)).length;
+  const failedCount = tasks.filter((task) => ["failed", "rejected", "rate_limited"].includes(task.status)).length;
+  return <section className="ops-panel" data-task-center>
+    <header className="ops-panel__header"><div><span>Workspace work</span><h2>Task Center</h2><p>One progress surface for augmentation, provider, and authenticated API tasks.</p></div><button type="button" className="if-btn if-btn--secondary" onClick={() => void notifications?.refresh()}>Refresh</button></header>
+    <div className="if-management-grid" aria-label="Task summary">
+      <article className="if-management-card if-tone-info"><span className="if-management-card__label">In progress</span><strong className="if-management-card__value">{activeCount}</strong><small className="if-management-card__meta">Background stages running</small></article>
+      <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Needs attention</span><strong className="if-management-card__value">{attentionCount}</strong><small className="if-management-card__meta">Review or failure detail available</small></article>
+      <article className="if-management-card if-tone-success"><span className="if-management-card__label">Completed</span><strong className="if-management-card__value">{completedCount}</strong><small className="if-management-card__meta">Finished retained tasks</small></article>
+      <article className="if-management-card if-tone-danger"><span className="if-management-card__label">Stopped</span><strong className="if-management-card__value">{failedCount}</strong><small className="if-management-card__meta">No silent writes or partial merges</small></article>
+    </div>
+    {tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} wrapperProps={{ "data-task-table": true }} /> : <div className="ops-empty"><ListChecks size={22} /><strong>No retained tasks</strong><p>Augmentation and API work will appear here after it starts.</p></div>}
+    {selected?.job ? <EventAiReview jobId={selected.sourceId} onOpenDraft={onOpenDraft} /> : selected?.entries ? <ApiTaskDetail task={selected} /> : selectedTaskId ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Task not found</strong><p>The task is outside the retained workspace window or is no longer available.</p></div></div> : null}
+  </section>;
+}
+
 function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories }) {
   const [researchEvent, setResearchEvent] = useState(null);
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
@@ -583,8 +739,8 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
-  const actions = <>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>;
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header><EventAiLauncher key={researchEvent?.id || "new-event-ai"} event={researchEvent} onClear={() => setResearchEvent(null)} />{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
+  const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Task Center</a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Workspace work</span><h2>Events</h2><p>Schedule, filter, edit, or launch augmentation from a specific event row.</p></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
 function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -917,7 +1073,7 @@ function WallboardCalendar({ events, categories, month, onMonthChange, now, work
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
             return <div key={item.id} role="button" tabIndex="0" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter" || keyEvent.key === " ") { keyEvent.preventDefault(); setHover(null); setDetail({ event, milestone }); } }} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} size={24} />)}{event.attendees.length > 3 ? <b>+{event.attendees.length - 3}</b> : null}</span> : null}
+              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} className="if-profile-avatar" />)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
         </section>;
@@ -970,15 +1126,22 @@ function WallboardRecords({ records, asOf, watchById }) {
 
 export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
   const auth = useAuth();
+  const notifications = useNotifications();
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
   const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
-  const [aiReviewId, setAiReviewId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("aiJob") || "");
+  const [selectedTaskId, setSelectedTaskId] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    return params.get("task") || (params.get("aiJob") ? `event-ai:${params.get("aiJob")}` : "");
+  });
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   useEffect(() => {
-    const sync = () => setAiReviewId(new URLSearchParams(window.location.hash.split("?")[1] || "").get("aiJob") || "");
+    const sync = () => {
+      const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+      setSelectedTaskId(params.get("task") || (params.get("aiJob") ? `event-ai:${params.get("aiJob")}` : ""));
+    };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
@@ -990,24 +1153,27 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   }, [dataset.metadata.asOf]);
   const dueReviews = state.watchlist.filter((entry) => entry.reviewAt && entry.reviewAt <= reviewHorizon).length;
   const copy = VIEW_COPY[view];
+  const areaKey = controlAreaForView(view);
+  const area = CONTROL_AREAS[areaKey];
+  const visibleAreaViews = VIEWS.filter(([id]) => area.ids.includes(id));
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
-    {view !== "wallboard" ? <section className="if-admin-control-surface admin-console" data-admin-control-surface data-admin-workspace>
+    {view !== "wallboard" ? <section className="if-admin-control-surface admin-console" data-admin-control-surface data-admin-workspace data-control-area={areaKey}>
       <header className="admin-console__header">
         <div>
-          <span>Admin control center</span>
-          <h2>Workspace administration</h2>
-          <p>One place for tracked work, operator events, source health, agent credentials, and the shared audit trail.</p>
+          <span>{area.eyebrow}</span>
+          <h2>{area.title}</h2>
+          <p>{area.description}</p>
         </div>
-        <span className={`admin-console__status ${state.remote ? "is-connected" : "is-local"}`}><i aria-hidden="true" />{state.remote ? "D1 workspace" : "Browser-local fallback"}</span>
+        <span className={`if-status if-status--sm ${area.tone}`}>{area.eyebrow}</span>
       </header>
-      <div className="admin-console__metrics" aria-label="Administration summary">
+      {areaKey === "work" ? <div className="admin-console__metrics" aria-label="Workspace work summary">
         <article><span>Tracked</span><strong>{state.watchlist.length}</strong><small>records</small></article>
         <article><span>Reviews due</span><strong>{dueReviews}</strong><small>within 30 days</small></article>
         <article><span>Events</span><strong>{state.events.length}</strong><small>scheduled</small></article>
-        <article><span>Sources online</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>last probe</small></article>
-      </div>
-      <nav className="admin-console__nav" aria-label="Administration sections">
-        {ADMIN_VIEWS.filter(([id]) => !["users", "workspaces", "workspace-settings", "agents"].includes(id)
+        <article><span>Tasks running</span><strong>{notifications?.activeCount || 0}</strong><small>background work</small></article>
+      </div> : null}
+      <nav className="admin-console__nav" aria-label={`${area.eyebrow} sections`}>
+        {visibleAreaViews.filter(([id]) => !["users", "workspaces", "workspace-settings", "agents"].includes(id)
           || (id === "users" ? auth?.user?.canManageUsers
             : id === "workspaces" ? auth?.user?.roleId === "super_user"
               : id === "workspace-settings" ? auth?.user?.canManageWorkspaces
@@ -1017,7 +1183,8 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     </section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
-    {view === "events" ? aiReviewId ? <EventAiReview jobId={aiReviewId} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
+    {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
+    {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
     {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}

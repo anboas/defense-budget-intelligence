@@ -53,6 +53,7 @@ const TABS = [
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "watchlist", label: "Watchlist", icon: Star },
   { id: "events", label: "Events", icon: CalendarClock },
+  { id: "tasks", label: "Task Center", icon: ListChecks },
   { id: "integrations", label: "Integrations", icon: Database },
   { id: "activity", label: "API Log", icon: ListChecks },
   { id: "users", label: "Users", icon: Building2 },
@@ -75,6 +76,7 @@ const HASH_ROUTES = {
   analytics: "#/budget-spend/analytics",
   watchlist: "#/budget-spend/watchlist",
   events: "#/budget-spend/events",
+  tasks: "#/budget-spend/tasks",
   integrations: "#/budget-spend/integrations",
   activity: "#/budget-spend/api-log",
   users: "#/budget-spend/users",
@@ -426,7 +428,7 @@ let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0,
 let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
-const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents"]);
+const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents"]);
 const OPERATIONS_TAB_IDS = new Set(["wallboard", ...ADMINISTRATION_TAB_IDS]);
 const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
@@ -4623,7 +4625,7 @@ function App() {
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
   const evidenceRecords = records.filter((record) => record.justificationEvidence);
   const confirmedEvidenceRecords = evidenceRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length);
-  const activeTitle = ADMINISTRATION_TAB_IDS.has(activeTab) ? "Administration" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
+  const activeTitle = TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const needsCore = CORE_TAB_IDS.has(activeTab);
   const showBudgetControls = activeTab === "overview" && coreReady;
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";

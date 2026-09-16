@@ -39,7 +39,8 @@ async function openSurface(page, route, selector) {
     if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
       const group = route.startsWith("#/budget-spend/analytics") ? "analytics"
         : ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/sources"].includes(route) ? "money"
-          : route === "#/budget-spend/workspaces" ? "super-admin" : "workspace";
+          : ["#/budget-spend/watchlist", "#/budget-spend/events", "#/budget-spend/tasks"].includes(route) ? "work"
+            : ["#/budget-spend/users", "#/budget-spend/workspaces"].includes(route) ? "platform-admin" : "workspace-admin";
       await page.locator(`[data-nav-group-trigger="${group}"]`).click();
     } else {
       await page.locator("[data-mobile-more-menu-button]").click();
@@ -99,7 +100,7 @@ async function assertFlowShell(page) {
     const dividerOrder = await page.evaluate(() => {
       const money = document.querySelector('[data-nav-group-trigger="money"]')?.getBoundingClientRect();
       const separator = document.querySelector(".ci-header-nav__desktop-groups > .if-operations-topnav__divider")?.getBoundingClientRect();
-      const workspace = document.querySelector('[data-nav-group-trigger="workspace"]')?.getBoundingClientRect();
+      const workspace = document.querySelector('[data-nav-group-trigger="work"]')?.getBoundingClientRect();
       return { moneyRight: money?.right, separatorLeft: separator?.left, separatorRight: separator?.right, workspaceLeft: workspace?.left };
     });
     assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.workspaceLeft, "Workspace divider should sit between Money flow and Workspace");
@@ -111,14 +112,18 @@ async function assertFlowShell(page) {
     assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 5, "Money flow should contain every non-Transactions stage plus lineage");
     assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Source Lineage/i);
     await page.locator('[data-nav-group-trigger="money"]').click();
-    await page.locator('[data-nav-group-trigger="workspace"]').click();
-    assert.ok(await page.locator('[data-budget-nav-menu="workspace"] a[data-budget-nav]').count() >= 4, "Workspace should expose browser-local management and audit surfaces");
-    assert.match(await page.locator('[data-budget-nav-menu="workspace"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Integrations[\s\S]*API Log/i);
-    await page.locator('[data-nav-group-trigger="workspace"]').click();
+    await page.locator('[data-nav-group-trigger="work"]').click();
+    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 3, "Workspace should expose work surfaces without administrative controls");
+    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Task Center/i);
+    await page.locator('[data-nav-group-trigger="work"]').click();
+    await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
+    assert.ok(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count() >= 2, "Workspace admin should expose workspace-scoped management and audit surfaces");
+    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Integrations[\s\S]*API Log/i);
+    await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
-    assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should contain analytics, money-flow, and management routes");
-    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should retain all three grouped menus");
+    assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 14, "Mobile More should contain analytics, money-flow, work, and administration routes");
+    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Workspace admin/i, "Mobile More should keep work and administration visibly separated");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -273,7 +278,7 @@ try {
   await assertActiveGroupState(page, "money", "Source Lineage");
   assert.equal(await page.locator('[data-nav-group-trigger="analytics"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Analytics should not show stale child context");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
-  await assertActiveGroupState(page, "workspace", "API Log");
+  await assertActiveGroupState(page, "workspace-admin", "API Log");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "API Log should render inside the persistent Admin control-center shell");
   assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "API Log", "Admin shell should identify API Log as its active in-place section");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
@@ -458,7 +463,7 @@ try {
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Administration", "Every Admin section should retain one stable workspace title");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Watchlist", "The masthead should identify the active workspace surface rather than flatten every area into Administration");
   assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "Watchlist should project the tracked stable-ID working set");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "Watchlist should preserve the exact Gantt stable ID");
   const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
@@ -679,7 +684,7 @@ try {
   const calendarAttendeeAvatar = page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-attendees .user-avatar').first();
   assert.equal(await calendarAttendeeAvatar.count(), 1, "Calendar bars should render the attendee identity rail");
   const calendarAttendeeAvatarBox = await calendarAttendeeAvatar.boundingBox();
-  assert.ok(calendarAttendeeAvatarBox?.width >= 23.5 && calendarAttendeeAvatarBox?.height >= 23.5, `Calendar attendee images should be at least 24px, got ${calendarAttendeeAvatarBox?.width}×${calendarAttendeeAvatarBox?.height}`);
+  assert.ok(calendarAttendeeAvatarBox?.width >= 31.5 && calendarAttendeeAvatarBox?.height >= 31.5, `Calendar attendee images should use the larger 32px profile primitive, got ${calendarAttendeeAvatarBox?.width}×${calendarAttendeeAvatarBox?.height}`);
   await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').click();
   await page.waitForSelector("[data-calendar-event-detail]");
   assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Air, Space & Cyber Conference[\s\S]*National Harbor[\s\S]*Attendees/i, "Clicking a calendar bar should open the complete event detail modal");
@@ -1340,7 +1345,7 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 92, "Mobile masthead should use the Control Surface condensed variant while preserving 44px navigation targets");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose every Analytics, Money flow, and Workspace route in grouped Control Framework cards");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Mobile More should expose every Analytics, Money flow, Workspace, and Workspace admin route in grouped Control Framework cards");
   assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
@@ -1472,7 +1477,7 @@ try {
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
   const mobileAdminShellHeight = await mobile.locator("[data-admin-workspace]").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileAdminShellHeight <= 360, `Mobile Admin control center should stay compact enough to expose working content, got ${mobileAdminShellHeight}px`);
-  assert.equal(await mobile.locator(".admin-console__nav a").count(), 4, "Static mobile Admin should keep every browser-local management section in one shell");
+  assert.equal(await mobile.locator(".admin-console__nav a").count(), 3, "Static mobile Workspace work should keep Watchlist, Events, and Task Center in its own shell");
   const mobileAdminTargetHeights = await mobile.locator(".admin-console__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileAdminTargetHeights.every((height) => height >= 43.5), `Mobile Admin sections should keep 44px touch targets: ${mobileAdminTargetHeights.join(", ")}`);
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
@@ -1504,7 +1509,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 admin_routes=4 wallboard=primary watchlist=stable-id events=operator-local integrations=8 contract_monitor>=500 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=14 analytics_workspaces=4 money_flow_routes=5 workspace_routes=3 workspace_admin_routes=2 wallboard=primary watchlist=stable-id events=operator-local tasks=unified integrations=8 contract_monitor>=500 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");
