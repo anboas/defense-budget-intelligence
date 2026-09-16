@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, RotateCcw, Search, X } from "lucide-react";
+import { ControlAsyncState } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 
 const DENSITIES = {
@@ -380,7 +381,13 @@ export default function OperationalDataTable({
               onClick={(event) => { if (renderDetail && !event.target.closest("a,button,input,select,textarea,label")) activateRow(row); }}
               onKeyDown={(event) => { if (renderDetail && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); activateRow(row); } }}
             >{selectable ? <td className="dbi-data-table__select" data-ui-table-card-label="Select"><label className="dbi-data-table__check"><input type="checkbox" checked={selected.has(key)} onChange={() => toggleRowSelection(key)} aria-label={`Select ${searchableValue(columns[0].value?.(row) ?? row[columns[0].key])}`} /></label></td> : null}{cells}</tr>, renderDetail && expanded ? <tr key={`${key}-detail`} className="if-table-detail" data-if-table-detail><td colSpan={visibleColumns.length + (selectable ? 1 : 0)}>{renderDetail(row)}</td></tr> : null];
-          }) : <tr data-if-table-empty><td colSpan={visibleColumns.length + (selectable ? 1 : 0)}><div className="dbi-data-table__empty">{empty}</div></td></tr>}</tbody>
+          }) : <tr data-if-table-empty><td colSpan={visibleColumns.length + (selectable ? 1 : 0)}><ControlAsyncState
+            compact
+            state="empty"
+            title={query.trim() || activeFilterCount ? "No matching records" : empty}
+            message={query.trim() || activeFilterCount ? "Clear the current search and filters to restore the complete working set." : undefined}
+            action={query.trim() || activeFilterCount ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => { setQuery(""); setFilters({}); setPage(1); }}><RotateCcw size={14} />Reset table controls</button> : null}
+          /></td></tr>}</tbody>
         </table>
       </div>
       <footer className="if-table-footer dbi-data-table__footer"><span>Showing <strong>{filteredRows.length ? start + 1 : 0}</strong>–<strong>{Math.min(start + pageSize, filteredRows.length)}</strong> of <strong>{filteredRows.length}</strong></span><nav className="if-pagination" aria-label={`${label} pagination`}><button className="if-page-btn dbi-page-edge" type="button" onClick={() => setPage(1)} disabled={safePage <= 1} aria-label="First table page"><ChevronsLeft size={15} /></button><button className="if-page-btn" type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={safePage <= 1} aria-label="Previous table page"><ChevronLeft size={15} /></button><span>Page {safePage} of {pages}</span><button className="if-page-btn" type="button" onClick={() => setPage((value) => Math.min(pages, value + 1))} disabled={safePage >= pages} aria-label="Next table page"><ChevronRight size={15} /></button><button className="if-page-btn dbi-page-edge" type="button" onClick={() => setPage(pages)} disabled={safePage >= pages} aria-label="Last table page"><ChevronsRight size={15} /></button><ControlSelect compact className="dbi-data-table__page-size" value={String(pageSize)} options={availablePageSizes.map((value) => [String(value), `${value} / page`])} onChange={(nextValue) => { const key = compactTable ? "mobilePageSize" : "pageSize"; setPreferences((current) => ({ ...current, [key]: Number(nextValue) })); setPage(1); }} ariaLabel="Rows per page" /></nav></footer>
