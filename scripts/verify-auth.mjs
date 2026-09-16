@@ -570,6 +570,14 @@ try {
   const firstMobileRequest = page.locator("[data-api-request-table] [data-if-table-row]").first();
   assert.equal(await firstMobileRequest.locator('td[data-table-mobile-visible="true"]').count(), 4, "Mobile API request cards should show only the four decision-useful summary fields");
   assert.equal(await firstMobileRequest.locator('td[data-table-mobile-visible="false"]:visible').count(), 0, "Secondary API request diagnostics must stay behind disclosure on mobile");
+  const mobileRequestCardGeometry = await firstMobileRequest.evaluate((row) => ({
+    height: row.getBoundingClientRect().height,
+    primary: row.querySelectorAll('[data-table-mobile-layout="primary"]:not([data-table-mobile-visible="false"])').length,
+    compact: row.querySelectorAll('[data-table-mobile-layout="compact"]:not([data-table-mobile-visible="false"])').length,
+    wide: row.querySelectorAll('[data-table-mobile-layout="wide"]:not([data-table-mobile-visible="false"])').length,
+  }));
+  assert.deepEqual({ primary: mobileRequestCardGeometry.primary, compact: mobileRequestCardGeometry.compact, wide: mobileRequestCardGeometry.wide }, { primary: 1, compact: 2, wide: 1 }, `Mobile API request cards should use a compact two-column fact rhythm: ${JSON.stringify(mobileRequestCardGeometry)}`);
+  assert.ok(mobileRequestCardGeometry.height <= 250, `Mobile API request cards should stay compact, got ${mobileRequestCardGeometry.height}px`);
   await page.screenshot({ path: "test-results/admin-api-log-mobile.png", fullPage: true });
   await firstMobileRequest.click();
   await page.waitForSelector("[data-api-request-table] [data-if-table-detail]");
@@ -751,7 +759,7 @@ try {
     height: row.getBoundingClientRect().height,
   }));
   assert.ok(mobileEventCardGeometry.visibleCells <= 5, `Mobile Events should expose only the scan-and-act fields, got ${mobileEventCardGeometry.visibleCells} visible cells`);
-  assert.ok(mobileEventCardGeometry.height <= 340, `Mobile Events cards should stay compact before detail expansion, got ${mobileEventCardGeometry.height}px`);
+  assert.ok(mobileEventCardGeometry.height <= 260, `Mobile Events cards should stay compact before detail expansion, got ${mobileEventCardGeometry.height}px`);
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();

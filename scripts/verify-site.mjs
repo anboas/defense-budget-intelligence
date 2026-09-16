@@ -1428,9 +1428,17 @@ try {
   await openSurface(mobile, "#/budget-spend/awards", "[data-awards-page]");
   assert.ok(await mobile.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile awards intro should stay compact");
   assert.equal(await mobile.locator("[data-award-record-table] [data-if-table-row]").count(), 5, "Mobile DataTables should default to five readable record cards instead of a 25-card wall");
+  const mobileAwardCard = await mobile.locator("[data-award-record-table] [data-if-table-row]").first().evaluate((row) => ({
+    height: row.getBoundingClientRect().height,
+    primary: row.querySelectorAll('[data-table-mobile-layout="primary"]:not([data-table-mobile-visible="false"])').length,
+    compact: row.querySelectorAll('[data-table-mobile-layout="compact"]:not([data-table-mobile-visible="false"])').length,
+    wide: row.querySelectorAll('[data-table-mobile-layout="wide"]:not([data-table-mobile-visible="false"])').length,
+  }));
+  assert.deepEqual({ primary: mobileAwardCard.primary, compact: mobileAwardCard.compact, wide: mobileAwardCard.wide }, { primary: 1, compact: 3, wide: 1 }, `Mobile award cards should use one identity row, a compact fact grid, and one action row: ${JSON.stringify(mobileAwardCard)}`);
+  assert.ok(mobileAwardCard.height <= 260, `Mobile award cards should stay compact, got ${mobileAwardCard.height}px`);
   const mobileAwardTableControls = await mobile.locator("[data-award-record-table] .dbi-data-table__tools .if-btn, [data-award-record-table] .dbi-data-table__columns > summary, [data-award-record-table] .dbi-data-table__footer .if-page-btn, [data-award-record-table] .dbi-data-table__footer .if-select").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileAwardTableControls.every((height) => height >= 43.5), `Mobile DataTable controls should preserve 44px touch targets: ${mobileAwardTableControls.join(", ")}`);
-  assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 4600, "Mobile Awards should stay within a bounded five-card working surface");
+  assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 3000, "Mobile Awards should stay within a bounded five-card working surface");
   await mobile.screenshot({ path: `${OUT_DIR}/awards-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile awards");
 

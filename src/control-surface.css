@@ -4364,6 +4364,14 @@ button.if-chart-bar.is-selected {
   box-shadow: var(--if-shadow-xs);
 }
 
+.if-analytics-panel--flat {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .if-analytics-panel__header {
   display: flex;
   flex-wrap: wrap;

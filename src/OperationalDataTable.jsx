@@ -357,7 +357,17 @@ export default function OperationalDataTable({
           <tbody>{pageRows.length ? pageRows.flatMap((row, index) => {
             const key = String(rowKey(row));
             const expanded = expandedId === key;
-            const cells = visibleColumns.map((column) => <td key={`${key}-${column.key}`} data-ui-table-card-label={column.label} data-ui-table-cell-role={column.role || "data"} data-table-mobile-visible={!mobileColumns || mobileColumns.includes(column.key) ? "true" : "false"} className={column.sticky ? "is-sticky" : ""} style={{ textAlign: column.align }}>{column.render ? column.render(row) : searchableValue(column.value?.(row) ?? row[column.key]) || "—"}</td>);
+            const mobilePrimaryKey = visibleColumns.find((column) => column.mobilePrimary)?.key
+              || visibleColumns.find((column) => column.required && column.sticky)?.key
+              || visibleColumns.find((column) => !mobileColumns || mobileColumns.includes(column.key))?.key;
+            const cells = visibleColumns.map((column) => {
+              const mobileLayout = column.key === mobilePrimaryKey
+                ? "primary"
+                : column.mobileWide || ["actions", "prose"].includes(column.role)
+                  ? "wide"
+                  : "compact";
+              return <td key={`${key}-${column.key}`} data-ui-table-card-label={column.label} data-ui-table-cell-role={column.role || "data"} data-table-mobile-layout={mobileLayout} data-table-mobile-visible={!mobileColumns || mobileColumns.includes(column.key) ? "true" : "false"} className={column.sticky ? "is-sticky" : ""} style={{ textAlign: column.align }}>{column.render ? column.render(row) : searchableValue(column.value?.(row) ?? row[column.key]) || "—"}</td>;
+            });
             return [<tr
               key={key}
               data-if-table-row
