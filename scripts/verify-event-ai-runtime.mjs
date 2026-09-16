@@ -3,11 +3,13 @@ import {
   EVENT_AI_PROPOSAL_SCHEMA,
   EVENT_AI_VERIFICATION_SCHEMA,
   buildEventAiProducerRequest,
+  buildEventAiVerifierRequest,
   citedEventAiDetails,
   eventAiEvidenceDiagnostic,
   eventAiProviderError,
   isRetryableEventAiError,
   mergeVerifiedEventDraft,
+  resolveEventAiVerificationOutcome,
   normalizeEventAiDetails,
   parseOpenAiStructuredResponse,
   retrieveOpenAiResponse,
@@ -52,10 +54,23 @@ const request = buildEventAiProducerRequest({
 assert.equal(request.background, true);
 assert.equal(request.store, true, "Background responses must remain resumable until DBI accepts and deletes each stage");
 assert.equal(request.tools[0].type, "web_search");
+assert.equal(request.tools[0].search_context_size, "low", "Event lookup should use the bounded web-search context");
 assert.equal(request.tool_choice, "required", "Evidence-gated research must force at least one web-search tool call");
+assert.equal(request.reasoning.effort, "low", "Event lookup must prefer bounded low-effort reasoning over deep research latency");
 assert.deepEqual(request.include, ["web_search_call.action.sources"], "Research must retain the provider's consulted-source inventory");
 assert.equal(request.text.format.strict, true);
 assert.doesNotMatch(request.input, /attendees|displayName|avatar/i, "Provider input must omit human profile data");
+
+const verifierRequest = buildEventAiVerifierRequest({
+  draft: { title: "Industry day", startsAt: "2027-06-01T09:00" },
+  proposal: {},
+  direction: "Verify only additive event details.",
+  categories: [{ id: "industry-day", name: "Industry day" }],
+});
+assert.equal(verifierRequest.reasoning.effort, "low", "Verification must not repeat event research at high reasoning effort");
+assert.equal(verifierRequest.tools[0].search_context_size, "low", "Verification should use bounded search context");
+assert.match(verifierRequest.instructions, /no more than three focused web searches/i, "Verification must have a bounded search scope");
+assert.match(verifierRequest.instructions, /not a rejected claim/i, "Merge conflicts must remain distinct from factual rejection");
 
 let retrievedUrl = "";
 await retrieveOpenAiResponse("verification-key", "resp_background", async (url, options) => {
@@ -126,6 +141,20 @@ assert.deepEqual(merged.mergedDraft.attendeeIds, ["user-1"]);
 assert.deepEqual(merged.mergedDraft.recordIds, ["record-1"]);
 assert.deepEqual(merged.mergedDraft.categoryIds, ["industry-day"]);
 assert.equal(merged.conflicts.some((conflict) => conflict.field === "notes"), true, "Conflicting researched notes must be disclosed, not overwritten");
+
+const partialOutcome = resolveEventAiVerificationOutcome({
+  draft: { title: "Industry day", startsAt: "2027-06-01T09:00", location: "Operator venue", notes: "", links: [] },
+  verification: {
+    decision: "needs_review",
+    approved: { ...cited, location: "Verified venue", notes: "Verified public summary." },
+    rejectedClaims: [{ field: "endsAt", value: "agenda-derived", reason: "Not an event-wide timestamp" }],
+  },
+  categories: [{ id: "industry-day", name: "Industry day" }],
+});
+assert.equal(partialOutcome.status, "needs_review", "Material review decisions remain visible to the operator");
+assert.equal(partialOutcome.mergeResult.mergedDraft.location, "Operator venue", "Partial review must preserve populated operator fields");
+assert.equal(partialOutcome.mergeResult.mergedDraft.notes, "Verified public summary.", "Verified additive fields must survive a separate rejected claim");
+assert.equal(partialOutcome.mergeResult.changes.includes("notes"), true, "A needs-review result must still expose safe additions");
 
 assert.throws(() => citedEventAiDetails({ status: "completed", output: [] }, details, {}), (error) => {
   assert.match(error.message, /without verifiable web-search citations/i);

@@ -10,7 +10,7 @@ import {
   eventAiEvidenceDiagnostic,
   eventAiProviderError,
   isRetryableEventAiError,
-  mergeVerifiedEventDraft,
+  resolveEventAiVerificationOutcome,
   mockEventAiProposal,
   mockEventAiVerification,
   normalizeEventAiDetails,
@@ -1919,6 +1919,13 @@ function eventAiJobFromRow(row) {
   const parse = (value, fallback) => {
     try { return JSON.parse(value || ""); } catch { return fallback; }
   };
+  const inputSnapshot = parse(row.input_snapshot_json, {});
+  const verification = parse(row.verification_json, {});
+  const categories = parse(row.categories_json, []);
+  const storedMergeResult = parse(row.merge_result_json, {});
+  const mergeResult = storedMergeResult?.mergedDraft || verification?.decision === "rejected"
+    ? storedMergeResult
+    : resolveEventAiVerificationOutcome({ draft: inputSnapshot, verification, categories }).mergeResult;
   return {
     id: row.id,
     status: row.status,
@@ -1927,10 +1934,10 @@ function eventAiJobFromRow(row) {
     producerModel: row.producer_model,
     verifierModel: row.verifier_model,
     direction: row.direction || "",
-    inputSnapshot: parse(row.input_snapshot_json, {}),
+    inputSnapshot,
     proposal: parse(row.proposal_json, {}),
-    verification: parse(row.verification_json, {}),
-    mergeResult: parse(row.merge_result_json, {}),
+    verification,
+    mergeResult,
     error: row.error_message ? { code: row.error_code || "event_ai_failed", message: row.error_message } : null,
     diagnostic: parse(row.diagnostic_metadata_json, {})?.evidence || null,
     providerRequestId: row.diagnostic_provider_request_id || null,
@@ -2140,7 +2147,6 @@ async function advanceEventAiJob(db, row, env) {
         providerLatencyMs = retrieved.latencyMs;
         providerRequestId = retrieved.requestId;
         if (["queued", "in_progress"].includes(providerResponse.status)) {
-          await logEventAiProviderResult(db, row, providerResponse, "research", "accepted", providerLatencyMs, providerRequestId, null, "GET");
           return row;
         }
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
@@ -2173,7 +2179,6 @@ async function advanceEventAiJob(db, row, env) {
         providerLatencyMs = retrieved.latencyMs;
         providerRequestId = retrieved.requestId;
         if (["queued", "in_progress"].includes(providerResponse.status)) {
-          await logEventAiProviderResult(db, row, providerResponse, "verification", "accepted", providerLatencyMs, providerRequestId, null, "GET");
           return row;
         }
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Verification");
@@ -2187,14 +2192,12 @@ async function advanceEventAiJob(db, row, env) {
       }
       await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
-      const mergeResult = verification.decision === "approved" ? mergeVerifiedEventDraft(draft, verification.approved, categories) : {};
-      const complete = verification.decision === "approved" && mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt;
-      const status = complete ? "completed" : "needs_review";
+      const outcome = resolveEventAiVerificationOutcome({ draft, verification, categories });
       const now = new Date().toISOString();
       await db.prepare("UPDATE dbi_event_ai_jobs SET status = ?, current_step = ?, verification_json = ?, merge_result_json = ?, updated_at = ?, completed_at = ? WHERE id = ?")
-        .bind(status, complete ? "operator_review" : "review_required", JSON.stringify(verification), JSON.stringify(mergeResult), now, now, row.id).run();
+        .bind(outcome.status, outcome.currentStep, JSON.stringify(verification), JSON.stringify(outcome.mergeResult), now, now, row.id).run();
       await db.prepare("UPDATE dbi_openai_keys SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(now, now, row.credential_id).run();
-      await recordActivity(db, { type: "user", id: row.user_id, workspaceId: row.workspace_id }, "event_ai_completed", "event_ai_job", row.id, { status, changes: mergeResult.changes || [] });
+      await recordActivity(db, { type: "user", id: row.user_id, workspaceId: row.workspace_id }, "event_ai_completed", "event_ai_job", row.id, { status: outcome.status, changes: outcome.mergeResult.changes || [] });
       return db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE id = ?").bind(row.id).first();
     }
   } catch (error) {

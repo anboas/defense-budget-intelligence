@@ -9,7 +9,7 @@ import {
   eventAiEvidenceDiagnostic,
   eventAiProviderError,
   isRetryableEventAiError,
-  mergeVerifiedEventDraft,
+  resolveEventAiVerificationOutcome,
   mockEventAiProposal,
   mockEventAiVerification,
   normalizeEventAiDetails,
@@ -274,6 +274,11 @@ function canRunEventAi(user) {
 }
 
 function eventAiJob(row) {
+  const verification = row.verification_json || {};
+  const storedMergeResult = row.merge_result_json || {};
+  const mergeResult = storedMergeResult?.mergedDraft || verification?.decision === "rejected"
+    ? storedMergeResult
+    : resolveEventAiVerificationOutcome({ draft: row.input_snapshot_json || {}, verification, categories: row.categories_json || EVENT_AI_CATEGORIES }).mergeResult;
   return {
     id: row.id,
     status: row.status,
@@ -284,8 +289,8 @@ function eventAiJob(row) {
     direction: row.direction || "",
     inputSnapshot: row.input_snapshot_json || {},
     proposal: row.proposal_json || {},
-    verification: row.verification_json || {},
-    mergeResult: row.merge_result_json || {},
+    verification,
+    mergeResult,
     error: row.error_message ? { code: row.error_code || "event_ai_failed", message: row.error_message } : null,
     diagnostic: row.diagnostic_metadata_json?.evidence || null,
     providerRequestId: row.diagnostic_provider_request_id || null,
@@ -446,7 +451,6 @@ async function advanceEventAiJob(pool, row) {
         providerLatencyMs = retrieved.latencyMs;
         providerRequestId = retrieved.requestId;
         if (["queued", "in_progress"].includes(providerResponse.status)) {
-          await logEventAiProvider(pool, row, providerResponse, "research", "accepted", providerLatencyMs, providerRequestId, null, "GET");
           return row;
         }
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
@@ -476,7 +480,6 @@ async function advanceEventAiJob(pool, row) {
         providerLatencyMs = retrieved.latencyMs;
         providerRequestId = retrieved.requestId;
         if (["queued", "in_progress"].includes(providerResponse.status)) {
-          await logEventAiProvider(pool, row, providerResponse, "verification", "accepted", providerLatencyMs, providerRequestId, null, "GET");
           return row;
         }
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Verification");
@@ -489,12 +492,11 @@ async function advanceEventAiJob(pool, row) {
       }
       await logEventAiProvider(pool, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
-      const mergeResult = verification.decision === "approved" ? mergeVerifiedEventDraft(draft, verification.approved, categories) : {};
-      const completed = verification.decision === "approved" && mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt;
+      const outcome = resolveEventAiVerificationOutcome({ draft, verification, categories });
       const result = await pool.query(`UPDATE app_event_ai_jobs SET status = $1, current_step = $2, verification_json = $3::jsonb,
         merge_result_json = $4::jsonb, updated_at = NOW(), completed_at = NOW() WHERE id = $5 RETURNING *`, [
-        completed ? "completed" : "needs_review", completed ? "operator_review" : "review_required",
-        JSON.stringify(verification), JSON.stringify(mergeResult), row.id,
+        outcome.status, outcome.currentStep,
+        JSON.stringify(verification), JSON.stringify(outcome.mergeResult), row.id,
       ]);
       await pool.query("UPDATE app_openai_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [row.credential_id]);
       return result.rows[0];

@@ -257,8 +257,8 @@ export function buildEventAiProducerRequest({ draft, direction, categories, mode
     model,
     background: true,
     store: true,
-    reasoning: { effort: "medium" },
-    tools: [{ type: "web_search" }],
+    reasoning: { effort: "low" },
+    tools: [{ type: "web_search", search_context_size: "low" }],
     tool_choice: "required",
     include: ["web_search_call.action.sources"],
     text: { format: { type: "json_schema", name: "event_enrichment_proposal", strict: true, schema: EVENT_AI_PROPOSAL_SCHEMA } },
@@ -266,6 +266,9 @@ export function buildEventAiProducerRequest({ draft, direction, categories, mode
       "You research public event information for Defense Budget Intelligence.",
       "Return only facts supported by public HTTP(S) sources. Do not infer dates, venues, links, deadlines, attendees, or categories.",
       "Prefer an official organizer, government, venue, or registration source over aggregators.",
+      "Use no more than four focused web searches. Stop once the event identity and the requested missing details are supported.",
+      "Focus on empty fields and additive links, milestones, categories, and notes. Never propose replacing a populated operator field.",
+      "Only return exact event-wide start or end timestamps when an official source publishes them; never derive them from the earliest or latest agenda item.",
       "Use empty strings and empty arrays when a field cannot be verified.",
       "Never add people, workspace records, internal status, or wallboard settings.",
       "Every non-empty researched field must have an evidence entry with at least one source URL.",
@@ -279,18 +282,20 @@ export function buildEventAiVerifierRequest({ draft, proposal, direction, catego
     model,
     background: true,
     store: true,
-    reasoning: { effort: "high" },
-    tools: [{ type: "web_search" }],
+    reasoning: { effort: "low" },
+    tools: [{ type: "web_search", search_context_size: "low" }],
     tool_choice: "required",
     include: ["web_search_call.action.sources"],
     text: { format: { type: "json_schema", name: "event_enrichment_verification", strict: true, schema: EVENT_AI_VERIFICATION_SCHEMA } },
     instructions: [
       "You are the independent verification stage for an event-enrichment workflow.",
-      "Re-check the producer proposal against public sources and the supplied original draft.",
+      "Verify only the producer's proposed claims against public sources and the supplied original draft; do not repeat open-ended event research.",
+      "Use no more than three focused web searches, prioritizing the proposal's official sources.",
       "Reject unsupported facts, malformed dates, non-HTTP(S) links, event-identity mismatches, and invented deadlines.",
       "Preserve operator-entered values. Approve only additive fields that can merge without overwriting the original draft.",
-      "The approved object must contain only facts you independently verified. Use empty values for rejected or unverified claims.",
-      "Choose needs_review when identity or material conflicts remain; choose rejected when the proposal is for the wrong event or lacks usable evidence.",
+      "The approved object must retain every independently verified additive fact, even when another claim is rejected or needs review. Use empty values only for unsupported claims.",
+      "Rejected claims are factually unsupported, malformed, or wrong-event claims. A verified value that merely conflicts with a populated operator field is a preserved merge conflict, not a rejected claim.",
+      "Choose approved when the event identity is sound and at least one verified additive fact is usable. Choose needs_review only for a material identity or factual conflict, and rejected only for the wrong event or no usable evidence.",
     ].join(" "),
     input: JSON.stringify({ task: "Verify the proposal and its merge safety", originalDraft: publicResearchSeed(draft), producerProposal: normalizeEventAiDetails(proposal), allowedCategoryNames: (categories || []).map((category) => category.name), direction: cleanText(direction, 2000) }),
   };
@@ -544,6 +549,17 @@ export function mergeVerifiedEventDraft(original, approved, categories = []) {
   if (milestones.length > current.milestones.length) changes.push("milestones");
   if (categoryIds.length > current.categoryIds.length) changes.push("categories");
   return { mergedDraft, changes, conflicts, reviewRequired: conflicts.length > 0 };
+}
+
+export function resolveEventAiVerificationOutcome({ draft, verification, categories = [] }) {
+  const decision = ["approved", "needs_review", "rejected"].includes(verification?.decision) ? verification.decision : "rejected";
+  const mergeResult = decision === "rejected" ? {} : mergeVerifiedEventDraft(draft, verification?.approved || {}, categories);
+  const complete = decision === "approved" && Boolean(mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt);
+  return {
+    mergeResult,
+    status: complete ? "completed" : "needs_review",
+    currentStep: complete ? "operator_review" : "review_required",
+  };
 }
 
 export function mockEventAiProposal(draft, categories = []) {
