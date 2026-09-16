@@ -628,6 +628,7 @@ try {
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should show its credential list before any creation form");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "Agent access should not repeat a second administration shell");
   assert.equal(await page.locator('[data-profile-agents] > .if-page-header').count(), 1, "Agent access should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-profile-agents] .if-analytics-panel--flat').count(), 1, "Agent access should not nest its only credential inventory inside another bordered panel");
   await page.locator('[data-profile-agents] .if-async-state').waitFor({ state: "detached" }).catch(() => {});
   const agentKeyList = page.locator('[data-profile-agents] .if-action-row-list');
   const agentEmptyState = page.locator('[data-profile-agents] [data-if-async-state="empty"]');
