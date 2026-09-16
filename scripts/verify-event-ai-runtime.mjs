@@ -104,7 +104,7 @@ assert.equal(cited.sources.length, 1);
 const consultedSourceResponse = {
   status: "completed",
   output: [
-    { type: "web_search_call", status: "completed", action: { type: "search", sources: [{ type: "url", url: sourceUrl }] } },
+    { type: "web_search_call", status: "completed", action: { type: "search", query: "official industry day schedule", sources: [{ type: "url", url: sourceUrl }] } },
     { type: "message", content: [{ type: "output_text", text: JSON.stringify(details), annotations: [] }] },
   ],
 };
@@ -112,6 +112,7 @@ const consultedSourceDiagnostic = eventAiEvidenceDiagnostic(consultedSourceRespo
 assert.equal(consultedSourceDiagnostic.webSearchCallCount, 1);
 assert.equal(consultedSourceDiagnostic.searchSourceCount, 1);
 assert.equal(consultedSourceDiagnostic.citationAnnotationCount, 0);
+assert.deepEqual(consultedSourceDiagnostic.searchQueries, ["official industry day schedule"], "Bounded provider search queries must be retained for the task activity chain");
 assert.equal(consultedSourceDiagnostic.matchedSourceCount, 1);
 assert.equal(citedEventAiDetails(consultedSourceResponse, details, {}).sources.length, 1, "Consulted web-search sources must satisfy provenance even when strict JSON output has no inline annotation slots");
 

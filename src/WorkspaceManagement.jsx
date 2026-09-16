@@ -20,7 +20,7 @@ import {
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlPageHeader, useToast } from "control-surface-ui/react";
+import { ControlDialog, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
@@ -146,6 +146,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
 
   return <section className="ops-panel workspace-management" data-workspace-management aria-labelledby="workspace-management-title">
     <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Workspaces"} summary={activeOnly ? "Identity, members, roles, requests, and shared inventory for the active workspace." : "Isolated workspace boundaries, membership, access requests, and ownership."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
+    <ControlPageBody compact>
 
     <div className="if-management-grid if-management-grid--strip" aria-label="Workspace summary"><article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Workspaces</span><strong className="if-management-card__value">{visibleWorkspaces.length}</strong></article><article className="if-management-card if-tone-warning"><span className="if-management-card__label">Pending</span><strong className="if-management-card__value">{pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id).length}</strong></article><article className="if-management-card if-tone-info"><span className="if-management-card__label">Users</span><strong className="if-management-card__value">{data.users.length}</strong></article><article className="if-management-card if-tone-purple"><span className="if-management-card__label">Tracked</span><strong className="if-management-card__value">{inventoryAvailable ? totals.tracked : "—"}</strong><small className="if-management-card__meta">{inventoryAvailable ? `${totals.events} events` : "Inventory unavailable"}</small></article></div>
 
@@ -205,5 +206,6 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
         <label className="if-field"><span className="if-field__label">Display title</span><input className="if-input" required minLength={2} value={editing.displayTitle} onChange={(event) => setEditing((current) => ({ ...current, displayTitle: event.target.value }))} /></label>
       </form>
     </ControlDialog> : null}
+    </ControlPageBody>
   </section>;
 }

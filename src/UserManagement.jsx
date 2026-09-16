@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlPageHeader } from "control-surface-ui/react";
+import { ControlDialog, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
 
 const ROLE_LABELS = {
   administrator: "Workspace manager",
@@ -141,6 +141,7 @@ export default function UserManagement({ auth }) {
 
   return <section className="ops-panel user-management" data-user-management aria-labelledby="user-management-title">
     <ControlPageHeader compact divided eyebrow="Platform administration" title="Users" summary="Human accounts, least-privilege roles, status, sessions, and password recovery." headingLevel={2} titleId="user-management-title" actions={<button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add user</button>} />
+    <ControlPageBody compact>
 
     <div className="if-management-grid if-management-grid--strip" aria-label="User access summary">
       <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Total users</span><strong className="if-management-card__value">{users.length}</strong></article>
@@ -197,5 +198,6 @@ export default function UserManagement({ auth }) {
       </article>)}
       {!busy && !users.length ? <div className="ops-empty"><UsersRound size={22} /><strong>No workspace users</strong></div> : null}
     </div>
+    </ControlPageBody>
   </section>;
 }

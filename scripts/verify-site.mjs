@@ -282,7 +282,7 @@ try {
   await assertActiveGroupState(page, "workspace-admin", "API Log");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should not repeat a secondary administration shell below global navigation");
   assert.equal(await page.locator('[data-ops-activity] > .if-page-header').count(), 1, "API Log should expose one framework-owned route header");
-  assert.equal(await page.locator('[data-ops-activity] > .if-tabs__list .if-tab').count(), 2, "API Log should separate requests from workspace changes without stacking both ledgers");
+  assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log should separate requests from workspace changes without stacking both ledgers");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 

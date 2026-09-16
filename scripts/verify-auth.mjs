@@ -17,6 +17,18 @@ async function chooseControlSelect(page, label, option) {
   await page.getByRole("option", { name: new RegExp(`^${option}`, "i") }).first().click();
 }
 
+async function assertPageBodyGutter(page, selector, label) {
+  const geometry = await page.locator(selector).evaluate((node) => {
+    const body = node.querySelector(":scope > .if-page-body");
+    const child = body?.firstElementChild;
+    const bodyBox = body?.getBoundingClientRect();
+    const childBox = child?.getBoundingClientRect();
+    return body && child ? { count: 1, left: childBox.left - bodyBox.left, right: bodyBox.right - childBox.right } : { count: 0, left: 0, right: 0 };
+  });
+  assert.equal(geometry.count, 1, `${label} must use the shared page-body contract`);
+  assert.ok(geometry.left >= 10 && geometry.right >= 10, `${label} content must not touch its page boundary (${geometry.left}px / ${geometry.right}px)`);
+}
+
 const executablePath = [
   process.env.CHROMIUM_PATH,
   "/usr/bin/google-chrome",
@@ -117,6 +129,7 @@ try {
   assert.equal(await page.locator('.profile-page__nav a:has-text("Agent access"), .profile-page__nav a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into the account settings rail");
   assert.equal(await page.locator('[data-profile-account] input:disabled').count(), 0, "Immutable account metadata should use compact key/value rows instead of oversized disabled inputs");
   assert.equal(await page.locator('[data-profile-account-meta] .if-kv').count(), 2, "Profile should expose email and role through the framework metadata primitive");
+  await assertPageBodyGutter(page, "[data-profile-page]", "Profile");
   assert.equal(await page.locator(".profile-photo-manager").count(), 1, "Profile should expose picture selection, replacement, and removal controls");
   const desktopProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
     const panel = node.querySelector(".profile-page__panel");
@@ -139,14 +152,14 @@ try {
     };
   });
   assert.equal(desktopProfileGeometry.pageHeaderBackground, "none", "Profile header should be flat, never a decorative gradient hero");
-  assert.ok(desktopProfileGeometry.pageHeaderHeight <= 84, `Profile header should stay operationally compact while retaining its route summary, got ${desktopProfileGeometry.pageHeaderHeight}px`);
+  assert.ok(desktopProfileGeometry.pageHeaderHeight <= 96, `Profile header should stay operationally compact while retaining its full framework inset and route summary, got ${desktopProfileGeometry.pageHeaderHeight}px`);
   assert.ok(desktopProfileGeometry.headingSize <= 20, `Profile route heading should use framework scale, got ${desktopProfileGeometry.headingSize}px`);
   assert.ok(desktopProfileGeometry.panelRadius <= 4, `Profile panel should use the framework's restrained radius, got ${desktopProfileGeometry.panelRadius}px`);
   assert.equal(desktopProfileGeometry.panelShadow, "none", "Profile panel should remain flat rather than float like a marketing card");
   assert.ok(desktopProfileGeometry.panelTitleSize <= 15, `Profile panel title should remain compact, got ${desktopProfileGeometry.panelTitleSize}px`);
   assert.ok(desktopProfileGeometry.inputHeight >= 29.5 && desktopProfileGeometry.inputHeight <= 34.5, `Desktop profile inputs should use compact framework controls, got ${desktopProfileGeometry.inputHeight}px`);
   assert.ok(desktopProfileGeometry.contentWidth <= 761, `Profile form should preserve a readable utility width, got ${desktopProfileGeometry.contentWidth}px`);
-  assert.ok(desktopProfileGeometry.panelBottom <= 620, `Profile picture and identity controls should fit high in a 1000px viewport, ending at ${desktopProfileGeometry.panelBottom}px`);
+  assert.ok(desktopProfileGeometry.panelBottom <= 640, `Profile picture and identity controls should fit high in a 1000px viewport while retaining the shared page-body gutter, ending at ${desktopProfileGeometry.panelBottom}px`);
   await page.screenshot({ path: "test-results/profile-page-desktop.png", fullPage: true });
   await page.locator("#profile-avatar-file").setInputFiles("public/icon-192.png");
   await page.locator(".profile-photo-manager .user-avatar img").waitFor();
@@ -179,12 +192,14 @@ try {
   await page.waitForSelector("[data-api-request-table]");
   assert.equal(await page.locator("[data-api-observability-charts] .if-chart-card").count(), 2, "API Log must visualize outcome mix and average latency with shared chart cards");
   assert.match(await page.locator("[data-ops-activity]").innerText(), /90-day retention[\s\S]*API requests[\s\S]*Workspace changes/i, "API Log must expose distinct request and workspace-change ledgers");
-  assert.equal(await page.locator('[data-ops-activity] > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
+  assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
+  await assertPageBodyGutter(page, "[data-ops-activity]", "API Log");
 
   await page.goto(`${BASE_URL}#/budget-spend/users`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="users"] [data-user-management]');
   assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Users should not repeat a second administration shell below global navigation");
   assert.equal(await page.locator('[data-user-management] > .if-page-header').count(), 1, "Users should expose one framework-owned route header");
+  await assertPageBodyGutter(page, "[data-user-management]", "Users");
   await page.getByRole("button", { name: "Add user" }).click();
   const addUser = page.locator("[data-user-create]");
   await addUser.getByLabel("Display name").fill("Browser teammate");
@@ -220,6 +235,7 @@ try {
   await page.waitForSelector("[data-workspace-management]");
   assert.equal(await page.locator('[data-nav-group-trigger="platform-admin"]').getAttribute("data-nav-group-active-child"), "Workspaces", "Workspace governance should activate the dedicated Platform admin dropdown");
   assert.equal(await page.locator('[data-workspace-management] > .if-page-header').count(), 1, "Workspace governance should expose one framework-owned route header");
+  await assertPageBodyGutter(page, "[data-workspace-management]", "Workspaces");
   assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Workspace governance should not repeat platform navigation inside the page");
   const workspaceAdmin = page.locator("[data-workspace-management]");
   await workspaceAdmin.getByRole("button", { name: "Create workspace" }).click();
@@ -410,15 +426,31 @@ try {
   await notificationCenter.getByText(/Browser AI assisted event (is ready|needs review)/, { exact: true }).click();
   await page.waitForSelector("[data-task-center]");
   assert.equal(await page.locator('[data-task-center] > .if-page-header').count(), 1, "Task Center should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-task-center] > .if-page-body').count(), 1, "Task Center content must use the shared page-body gutter");
   await page.waitForSelector('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   const aiReview = page.locator('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   assert.match(await aiReview.innerText(), /(Verified draft ready|Operator validation required)[\s\S]*Research: gpt-5\.4-mini · Verification: gpt-5\.4[\s\S]*Before \/ verified draft[\s\S]*Verified draft changes[\s\S]*Evidence & exclusions/i, "The dedicated review workspace must disclose stages, selected models, a diff preview, changes, and evidence");
   assert.equal(await aiReview.locator("[data-event-ai-diff-preview] .if-detail-card").count(), 2, "AI review must render side-by-side before and verified-draft diff panes");
-  assert.equal(await page.locator('[data-task-center] > .if-management-grid[aria-label="Task summary"]').count(), 0, "Selected task detail must replace the summary boxes instead of stacking beneath them");
+  assert.equal(await page.locator('[data-task-center] > .if-page-body > .if-management-grid[aria-label="Task summary"]').count(), 0, "Selected task detail must replace the summary boxes instead of stacking beneath them");
   assert.equal(await page.locator("[data-task-table]").count(), 0, "Selected task detail must replace the retained task table instead of stacking above it");
   assert.match(await aiReview.locator(".if-stepper").getAttribute("class"), /if-stepper--compact/, "Task progress must use the compact shared stepper");
+  assert.equal(await aiReview.locator("[data-task-activity] .if-activity-trail").count(), 1, "Task detail must expose one ordered framework activity trail");
+  assert.ok(await aiReview.locator("[data-task-exchange]").count() >= 2, "Task activity must retain expandable request and response pairs");
+  await aiReview.locator("[data-task-exchange] summary").first().click();
+  assert.match(await aiReview.locator("[data-task-exchange]").first().innerText(), /Request[\s\S]*Response[\s\S]*Research and augment event/i, "Task activity must disclose the submitted query and normalized response");
+  await assertPageBodyGutter(page, "[data-task-center]", "Task Center");
   assert.doesNotMatch(await aiReview.innerText(), /sk-browser|authorization|request body|response body/i, "AI review must never expose secrets or raw provider payloads");
   await page.screenshot({ path: "test-results/task-center-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const taskMobileGeometry = await page.locator("[data-task-center]").evaluate((node) => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+    codeWidths: [...node.querySelectorAll("[data-task-exchange] pre")].map((item) => item.getBoundingClientRect().width),
+  }));
+  assert.ok(taskMobileGeometry.documentWidth <= taskMobileGeometry.viewportWidth + 1, "Task request and response details must not create mobile document overflow");
+  assert.ok(taskMobileGeometry.codeWidths.every((width) => width < 350), "Task request and response inspectors must stay within the mobile page gutter");
+  await page.screenshot({ path: "test-results/task-center-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await aiReview.getByRole("button", { name: "Open verified draft" }).click();
   await page.waitForSelector("[data-ops-event-editor]");
   const eventEditor = page.locator("[data-ops-event-editor]");

@@ -393,6 +393,7 @@ function citationKey(value) {
 function providerEvidenceContext(response) {
   const citationUrls = new Set();
   const searchSourceUrls = new Set();
+  const searchQueries = new Set();
   const outputItemTypes = new Set();
   const webSearchActionTypes = new Set();
   let annotationCount = 0;
@@ -404,6 +405,10 @@ function providerEvidenceContext(response) {
     if (output?.type === "web_search_call") {
       webSearchCallCount += 1;
       if (output?.action?.type) webSearchActionTypes.add(cleanText(output.action.type, 80));
+      for (const query of [output?.action?.query, ...(Array.isArray(output?.action?.queries) ? output.action.queries : [])]) {
+        const cleaned = cleanText(query, 500);
+        if (cleaned) searchQueries.add(cleaned);
+      }
       for (const source of output?.action?.sources || []) {
         const url = citationKey(source?.url);
         if (url) searchSourceUrls.add(url);
@@ -422,6 +427,7 @@ function providerEvidenceContext(response) {
   return {
     citationUrls,
     searchSourceUrls,
+    searchQueries,
     providerUrls: new Set([...citationUrls, ...searchSourceUrls]),
     outputItemTypes,
     webSearchActionTypes,
@@ -453,6 +459,7 @@ export function eventAiEvidenceDiagnostic(response, details = {}) {
     matchedSourceCount: new Set(matchedSourceUrls).size,
     matchedEvidenceCount: new Set(matchedEvidenceUrls).size,
     searchSourceUrls: [...context.searchSourceUrls].slice(0, 20),
+    searchQueries: [...context.searchQueries].slice(0, 20),
     citationUrls: [...context.citationUrls].slice(0, 20),
     matchedSourceUrls: [...new Set(matchedSourceUrls)].slice(0, 20),
   };
