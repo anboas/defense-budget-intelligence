@@ -4629,20 +4629,6 @@ button.if-chart-bar.is-selected {
   overflow-wrap: anywhere;
 }
 
-
-.if-empty-state {
-  display: grid;
-  place-items: center;
-  min-height: 8rem;
-  padding: var(--if-space-5);
-  border: var(--if-divider);
-  border-radius: var(--if-radius-2);
-  background: var(--if-bg-subtle);
-  color: var(--if-text-muted);
-  font-size: var(--if-font-size-sm);
-  text-align: center;
-}
-
 .if-status-pill {
   display: inline-flex;
   align-items: center;
