@@ -243,7 +243,7 @@
 .workspace-card__members > div > b, .workspace-card__members > div > em { color: var(--brand); font-size: 9px; font-style: normal; }
 .profile-workspace-switcher__control { min-width: 0; }
 
-.account-gate__alternate { border: 0 !important; background: transparent !important; color: #075b96 !important; box-shadow: none !important; }
+.account-gate__alternate { justify-self: center; }
 .account-gate__card--workspace { width: min(620px, calc(100vw - 24px)); }
 .workspace-access-list { margin: var(--if-space-4) 0; text-align: left; }
 .workspace-access-list__mark { display: grid; width: 2.125rem; height: 2.125rem; place-items: center; overflow: hidden; border-radius: var(--if-radius-sm); background: var(--if-info-soft); color: var(--if-info); }
@@ -657,16 +657,14 @@ button {
 .account-gate h1 + p { margin: 9px 0 22px; color: var(--muted); line-height: 1.5; }
 .account-gate form,
 .profile-dialog form { display: grid; gap: 14px; }
-.account-gate label,
 .profile-dialog label { display: grid; gap: 5px; color: #26394d; font-size: 12px; font-weight: 800; }
-.account-gate label span,
 .profile-dialog label span { color: var(--quiet); font-weight: 500; }
-.account-gate input,
 .profile-dialog input { min-height: 44px; padding: 9px 11px; border: 1px solid #9eb2c5; border-radius: 6px; background: #fff; color: var(--text); }
-.account-gate form > button,
 .profile-dialog form > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 14px; border: 0; border-radius: 7px; background: var(--brand); color: #fff; font-weight: 850; }
-.account-form__error { margin: 0; color: var(--red); font-size: 12px; font-weight: 750; }
-.account-form__message { margin: 0; color: var(--brand-dark); font-size: 12px; font-weight: 750; }
+.account-gate .if-field__label { text-align: left; }
+.account-gate form > .if-btn { width: 100%; min-height: var(--if-control-height-lg); }
+.account-form__error,
+.account-form__message { margin: 0; font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); text-align: left; }
 
 .profile-dialog {
   position: fixed;

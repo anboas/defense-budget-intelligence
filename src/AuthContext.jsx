@@ -35,15 +35,15 @@ function AccountGate({ mode, onSubmit, onRegister, registrationEnabled, busy, er
           if (mismatch) return;
           (register ? onRegister : onSubmit)({ email, displayName, title, password });
         }}>
-          {identity ? <label>Display name<input required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label> : null}
-          <label>Email<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          {identity ? <label>Title <span>(optional)</span><input autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} /></label> : null}
-          <label>Password<input required minLength={12} type="password" autoComplete={identity ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-          {identity ? <label>Confirm password<input required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label> : null}
-          {mismatch ? <p className="account-form__error" role="alert">Passwords do not match.</p> : null}
-          {error ? <p className="account-form__error" role="alert">{error}</p> : null}
-          <button type="submit" disabled={busy || mismatch}>{register ? <UserPlus size={17} /> : <LockKeyhole size={17} />}{busy ? "Working…" : setup ? "Create super-user account" : register ? "Create account" : "Sign in"}</button>
-          {!setup && registrationEnabled ? <button className="account-gate__alternate" type="button" onClick={() => { setScreen(register ? "login" : "register"); setPassword(""); setConfirm(""); }} disabled={busy}>{register ? "Already have an account? Sign in" : "New here? Create an account"}</button> : null}
+          {identity ? <label className="if-field"><span className="if-field__label">Display name</span><input className="if-input" required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label> : null}
+          <label className="if-field"><span className="if-field__label">Email</span><input className="if-input" required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+          {identity ? <label className="if-field"><span className="if-field__label">Title <span className="if-field__hint">(optional)</span></span><input className="if-input" autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} /></label> : null}
+          <label className="if-field"><span className="if-field__label">Password</span><input className="if-input" required minLength={12} type="password" autoComplete={identity ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          {identity ? <label className="if-field"><span className="if-field__label">Confirm password</span><input className="if-input" required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label> : null}
+          {mismatch ? <p className="if-alert if-alert--danger account-form__error" role="alert">Passwords do not match.</p> : null}
+          {error ? <p className="if-alert if-alert--danger account-form__error" role="alert">{error}</p> : null}
+          <button className="if-btn if-btn--primary" type="submit" disabled={busy || mismatch}>{register ? <UserPlus size={17} /> : <LockKeyhole size={17} />}{busy ? "Working…" : setup ? "Create super-user account" : register ? "Create account" : "Sign in"}</button>
+          {!setup && registrationEnabled ? <button className="if-btn if-btn--ghost account-gate__alternate" type="button" onClick={() => { setScreen(register ? "login" : "register"); setPassword(""); setConfirm(""); }} disabled={busy}>{register ? "Already have an account? Sign in" : "New here? Create an account"}</button> : null}
         </form>
       </section>
     </main>
@@ -81,7 +81,7 @@ function WorkspaceAccessGate({ auth }) {
         {workspace.requestStatus === "pending" ? <span className="if-badge if-badge--warning">Pending</span> : null}
         <span className="if-action-row__actions">{workspace.roleId ? <button type="button" className="if-btn if-btn--primary if-btn--sm" onClick={() => void auth.switchWorkspace(workspace.id)}>Open</button> : workspace.requestStatus === "pending" ? null : <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => void requestAccess(workspace)}>Request access</button>}</span>
       </article>) : <ControlAsyncState compact state="empty" title="No workspaces available" message="No workspace is currently available for access requests. Ask the platform owner to create one." />}</div>
-      {message ? <p className="account-form__message" role="status">{message}</p> : null}
+      {message ? <p className="if-alert if-alert--info account-form__message" role="status">{message}</p> : null}
       <div className="workspace-access-actions"><button className="if-btn if-btn--secondary" type="button" onClick={() => void auth.listWorkspaces().then((result) => { setWorkspaces(result.workspaces || []); setMessage("Access status refreshed."); }).catch((requestError) => setMessage(requestError.message))}>Refresh access</button><button className="if-btn if-btn--ghost" type="button" onClick={() => void auth.logout()}>Sign out</button></div>
     </section>
   </main>;
@@ -104,12 +104,12 @@ function PasswordChangeGate({ user, onSubmit, busy, error }) {
           if (mismatch) return;
           onSubmit({ email: user.email, currentPassword, newPassword });
         }}>
-          <label>Temporary password<input required minLength={12} type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
-          <label>New password<input required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
-          <label>Confirm new password<input required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>
-          {mismatch ? <p className="account-form__error" role="alert">Passwords do not match.</p> : null}
-          {error ? <p className="account-form__error" role="alert">{error}</p> : null}
-          <button type="submit" disabled={busy || mismatch}><LockKeyhole size={17} />{busy ? "Updating…" : "Set password and continue"}</button>
+          <label className="if-field"><span className="if-field__label">Temporary password</span><input className="if-input" required minLength={12} type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+          <label className="if-field"><span className="if-field__label">New password</span><input className="if-input" required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
+          <label className="if-field"><span className="if-field__label">Confirm new password</span><input className="if-input" required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label>
+          {mismatch ? <p className="if-alert if-alert--danger account-form__error" role="alert">Passwords do not match.</p> : null}
+          {error ? <p className="if-alert if-alert--danger account-form__error" role="alert">{error}</p> : null}
+          <button className="if-btn if-btn--primary" type="submit" disabled={busy || mismatch}><LockKeyhole size={17} />{busy ? "Updating…" : "Set password and continue"}</button>
         </form>
       </section>
     </main>
