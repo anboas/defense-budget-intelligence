@@ -283,6 +283,10 @@
 }
 
 @media (max-width: 520px) {
+  .source-health-grid:not(.is-expanded) > details:nth-child(n + 4) {
+    display: none;
+  }
+
   .ci-header-nav > a[data-primary-nav="calendar"],
   .ci-header-nav > a[data-primary-nav="wallboard"] { display: inline-flex !important; }
 }

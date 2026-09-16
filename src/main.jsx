@@ -4593,7 +4593,7 @@ function AnalyticsSources() {
         </div>
       </Section>
       <Section title="Source health" meta={`point-in-time probe ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
-        <div className="source-health-grid" data-source-health-monitor>
+        <div className={`source-health-grid${showAllSourceHealth ? " is-expanded" : ""}`} data-source-health-monitor>
           {visibleHealthSources.map((source) => (
             <details key={source.id} className={`source-health-card source-health-card--${source.health.toLowerCase()}`}>
               <summary className="source-health-card__summary"><div><span>{source.group} · {source.layer}</span><strong>{source.name}</strong></div><b>{source.health}</b></summary>

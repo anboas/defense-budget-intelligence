@@ -1578,6 +1578,7 @@ try {
   assert.ok(mobileSourcesHeroHeight <= 185, `Mobile Sources should surface lineage without a tall introductory wall, got ${mobileSourcesHeroHeight}px`);
   assert.equal(await mobile.locator("[data-source-flow] .if-ingest-stage").count(), 6);
   assert.equal(await mobile.locator("[data-source-health-monitor] details").count(), 5, "Mobile Sources should not render the full health inventory by default");
+  assert.equal(await mobile.locator("[data-source-health-monitor] details").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").length), 3, "Mobile Sources should show only three priority probes before explicit expansion");
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
