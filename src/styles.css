@@ -8559,34 +8559,6 @@ td .dot {
   box-shadow: none;
 }
 
-.target-workboard__status {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  border-bottom: 1px solid var(--border-soft);
-  background: #fbfcfd;
-}
-
-.target-workboard__status span {
-  display: grid;
-  min-width: 0;
-  padding: 8px 5px;
-  border-right: 1px solid var(--border-soft);
-  color: var(--quiet);
-  font-size: 7px;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.target-workboard__status span:last-child { border-right: 0; }
-.target-workboard__status b { color: var(--brand-dark); font-size: 16px; line-height: 1; }
-.target-workboard__status [data-stage="verify"] b { color: #66408a; }
-.target-workboard__status [data-stage="qualify"] b { color: #0067a3; }
-.target-workboard__status [data-stage="shape"] b,
-.target-workboard__status [data-stage="bid"] b { color: #9d5200; }
-.target-workboard__status [data-stage="complete"] b { color: #167247; }
-.target-workboard__status [data-stage="due"] b { color: #9f251d; }
-
 .target-workboard__hidden {
   margin: 0;
   padding: 8px 12px;
@@ -11067,13 +11039,6 @@ td .dot {
   .target-workboard__fields select,
   .target-workboard__fields textarea { min-height: 44px; }
 
-  .target-workboard__status {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .target-workboard__status span:nth-child(4) { border-right: 0; }
-  .target-workboard__status span:nth-child(n + 5) { border-top: 1px solid var(--border-soft); }
-
   .target-workboard__record b {
     overflow: visible;
     text-overflow: clip;
@@ -12252,7 +12217,7 @@ td .dot {
   .ops-integration-list em { grid-column: 2; }
   .ops-activity-list li { grid-template-columns: 10px minmax(0, 1fr); }
   .ops-activity-list time { grid-column: 2; }
-  .ops-wallboard { height: auto; min-height: 640px; border-radius: 7px; }
+  .ops-wallboard { height: auto; min-height: 0; border-radius: 7px; }
   .ops-wallboard__masthead { min-height: 76px; padding: 11px 12px; border-bottom-width: 3px; }
   .ops-wallboard__brand { gap: 9px; }
   .ops-wallboard__brand > img { width: 42px; height: 42px; border-radius: 7px; }
@@ -12274,6 +12239,7 @@ td .dot {
   .ops-wallboard > .ops-wallboard__section { margin: 0 9px 9px; }
   .ops-wallboard__section > header { min-height: 60px; padding: 10px 12px; }
   .ops-wallboard__section > header strong { font-size: 17px; }
+  .ops-wallboard__empty { flex: 0 0 auto; min-height: 180px; padding: 24px 16px; }
   .ops-wallboard__record { grid-template-columns: minmax(0, 1fr) auto; min-height: 94px; padding: 11px; }
   .ops-wallboard__record-copy > strong,
   .ops-wallboard__event > div > strong { font-size: 14px; }

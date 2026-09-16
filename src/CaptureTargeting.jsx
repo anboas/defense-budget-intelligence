@@ -11,6 +11,7 @@ import {
   treemap,
 } from "d3";
 import { useEffect, useMemo, useState } from "react";
+import { ControlMetricStrip } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 
 const DAY = 86_400_000;
@@ -532,10 +533,10 @@ function TargetWorkboard({ signals, active, asOf, onSelect }) {
           <button type="button" onClick={() => exportWorkboard(visibleRows, asOf)} disabled={!visibleRows.length}>Export board</button>
         </div>
       </header>
-      <div className="target-workboard__status" aria-label="Target workboard status">
-        {stageCounts.map(({ stage, count }) => <span key={stage} data-stage={stage}><b>{count}</b>{stage}</span>)}
-        <span data-stage="due"><b>{dueSoon}</b>due ≤30d</span>
-      </div>
+      <ControlMetricStrip className="target-workboard__status" label="Target workboard status" mobileScroll compactMobile items={[
+        ...stageCounts.map(({ stage, count }) => ({ id: stage, label: stage, value: count, tone: stage === "complete" ? "success" : stage === "verify" ? "purple" : stage === "qualify" ? "info" : stage === "monitor" ? "neutral" : "warning" })),
+        { id: "due", label: "Due ≤30d", value: dueSoon, tone: "danger" },
+      ]} />
       {hiddenCount ? <p className="target-workboard__hidden">{hiddenCount} tracked {hiddenCount === 1 ? "target is" : "targets are"} outside the current filters. Reset filters to manage the full board.</p> : null}
       {visibleRows.length ? <div className="target-workboard__rows">
         {visibleRows.map(({ task, signal }, index) => <article key={task.opportunityId} data-workboard-row={signal.opportunityId}>

@@ -1522,8 +1522,20 @@ try {
   const mobileWorkHeaderHeight = await mobile.locator("[data-ops-watchlist] > .if-page-header").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileWorkHeaderHeight <= 120, `Mobile Watchlist should expose a compact route header before the table, got ${mobileWorkHeaderHeight}px`);
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
+  const mobileWorkboardStatus = mobile.locator(".target-workboard__status");
+  if (await mobileWorkboardStatus.count()) {
+    const statusGeometry = await mobileWorkboardStatus.evaluate((node) => ({ cards: node.children.length, height: node.getBoundingClientRect().height, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
+    assert.equal(statusGeometry.cards, 7, "Target workboard should retain all six workflow stages and the due-soon count");
+    assert.ok(statusGeometry.height <= 112, `Mobile target status should stay in one compact rail, got ${statusGeometry.height}px`);
+    assert.ok(statusGeometry.scrollWidth > statusGeometry.clientWidth, "Mobile target status should use contained horizontal scrolling instead of another vertical card wall");
+  }
   await assertNoPageOverflow(mobile, "Mobile Watchlist");
   await openSurface(mobile, "#/budget-spend/wallboard", "[data-ops-wallboard]");
+  const mobileWallboardEmpty = mobile.locator(".ops-wallboard__empty");
+  if (await mobileWallboardEmpty.count()) {
+    const emptyHeight = await mobileWallboardEmpty.first().evaluate((node) => node.getBoundingClientRect().height);
+    assert.ok(emptyHeight <= 220, `Mobile wallboard empty states should stay concise, got ${emptyHeight}px`);
+  }
   await assertNoPageOverflow(mobile, "Mobile wallboard");
   await mobile.screenshot({ path: `${OUT_DIR}/wallboard-mobile.png`, fullPage: true });
 
