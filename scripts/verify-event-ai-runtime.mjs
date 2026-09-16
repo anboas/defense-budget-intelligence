@@ -4,6 +4,7 @@ import {
   EVENT_AI_VERIFICATION_SCHEMA,
   buildEventAiProducerRequest,
   citedEventAiDetails,
+  eventAiEvidenceDiagnostic,
   eventAiProviderError,
   isRetryableEventAiError,
   mergeVerifiedEventDraft,
@@ -50,6 +51,8 @@ const request = buildEventAiProducerRequest({
 assert.equal(request.background, true);
 assert.equal(request.store, true, "Background responses must remain resumable until DBI accepts and deletes each stage");
 assert.equal(request.tools[0].type, "web_search");
+assert.equal(request.tool_choice, "required", "Evidence-gated research must force at least one web-search tool call");
+assert.deepEqual(request.include, ["web_search_call.action.sources"], "Research must retain the provider's consulted-source inventory");
 assert.equal(request.text.format.strict, true);
 assert.doesNotMatch(request.input, /attendees|displayName|avatar/i, "Provider input must omit human profile data");
 
@@ -82,6 +85,20 @@ const cited = citedEventAiDetails(providerResponse, parsed, { title: "Industry d
 assert.equal(cited.location, "Mission center");
 assert.equal(cited.sources.length, 1);
 
+const consultedSourceResponse = {
+  status: "completed",
+  output: [
+    { type: "web_search_call", status: "completed", action: { type: "search", sources: [{ type: "url", url: sourceUrl }] } },
+    { type: "message", content: [{ type: "output_text", text: JSON.stringify(details), annotations: [] }] },
+  ],
+};
+const consultedSourceDiagnostic = eventAiEvidenceDiagnostic(consultedSourceResponse, details);
+assert.equal(consultedSourceDiagnostic.webSearchCallCount, 1);
+assert.equal(consultedSourceDiagnostic.searchSourceCount, 1);
+assert.equal(consultedSourceDiagnostic.citationAnnotationCount, 0);
+assert.equal(consultedSourceDiagnostic.matchedSourceCount, 1);
+assert.equal(citedEventAiDetails(consultedSourceResponse, details, {}).sources.length, 1, "Consulted web-search sources must satisfy provenance even when strict JSON output has no inline annotation slots");
+
 const merged = mergeVerifiedEventDraft({
   title: "Industry day", startsAt: "", location: "", notes: "Operator note", attendeeIds: ["user-1"], recordIds: ["record-1"], status: "scheduled", wallboard: true,
 }, cited, [{ id: "industry-day", name: "Industry day" }]);
@@ -93,7 +110,12 @@ assert.deepEqual(merged.mergedDraft.recordIds, ["record-1"]);
 assert.deepEqual(merged.mergedDraft.categoryIds, ["industry-day"]);
 assert.equal(merged.conflicts.some((conflict) => conflict.field === "notes"), true, "Conflicting researched notes must be disclosed, not overwritten");
 
-assert.throws(() => citedEventAiDetails({ status: "completed", output: [] }, details, {}), /without verifiable web-search citations/i);
+assert.throws(() => citedEventAiDetails({ status: "completed", output: [] }, details, {}), (error) => {
+  assert.match(error.message, /without verifiable web-search citations/i);
+  assert.equal(error.diagnostic.webSearchCallCount, 0);
+  assert.equal(error.diagnostic.structuredSourceCount, 1);
+  return true;
+});
 assert.throws(() => parseOpenAiStructuredResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "{malformed" }] }] }, normalizeEventAiDetails), /strict JSON parsing/i);
 
 const rateLimitFailure = eventAiProviderError({

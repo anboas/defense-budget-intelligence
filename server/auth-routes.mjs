@@ -6,6 +6,7 @@ import {
   buildEventAiVerifierRequest,
   citedEventAiDetails,
   deleteOpenAiResponse,
+  eventAiEvidenceDiagnostic,
   eventAiProviderError,
   isRetryableEventAiError,
   mergeVerifiedEventDraft,
@@ -310,12 +311,35 @@ function eventAiJob(row) {
     verification: row.verification_json || {},
     mergeResult: row.merge_result_json || {},
     error: row.error_message ? { code: row.error_code || "event_ai_failed", message: row.error_message } : null,
+    diagnostic: row.diagnostic_metadata_json?.evidence || null,
+    providerRequestId: row.diagnostic_provider_request_id || null,
+    responseId: row.diagnostic_response_id || null,
     retryCount: Number(row.retry_count || 0),
     traceId: row.trace_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at || null,
   };
+}
+
+const EVENT_AI_JOB_DIAGNOSTIC_SELECT = `
+  SELECT j.*,
+    diagnostic.metadata_json AS diagnostic_metadata_json,
+    diagnostic.provider_request_id AS diagnostic_provider_request_id,
+    diagnostic.response_id AS diagnostic_response_id
+  FROM app_event_ai_jobs j
+  LEFT JOIN LATERAL (
+    SELECT metadata_json, provider_request_id, response_id
+    FROM app_api_request_log candidate
+    WHERE candidate.trace_id = j.trace_id::text
+      AND candidate.request_kind = 'openai'
+    ORDER BY candidate.completed_at DESC
+    LIMIT 1
+  ) diagnostic ON TRUE`;
+
+async function eventAiJobWithDiagnostic(pool, id, workspaceId, userId) {
+  const result = await pool.query(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.id = $1 AND j.workspace_id = $2 AND j.user_id = $3`, [id, workspaceId, userId]);
+  return result.rows[0] || null;
 }
 
 async function resolveEventAiCredential(pool, user, scope, credentialId = "") {
@@ -403,7 +427,7 @@ async function failEventAiJob(pool, row, error) {
   return result.rows[0];
 }
 
-async function logEventAiProvider(pool, row, response, stage, status, latencyMs = 0, requestId = "", error = null, method = "POST") {
+async function logEventAiProvider(pool, row, response, stage, status, latencyMs = 0, requestId = "", error = null, method = "POST", evidenceDiagnostic = null) {
   const usage = response?.usage || {};
   await recordApiRequest(pool, {
     workspaceId: row.workspace_id, userId: row.user_id, principalType: "user", principalId: row.user_id,
@@ -413,7 +437,7 @@ async function logEventAiProvider(pool, row, response, stage, status, latencyMs 
     credentialScope: row.credential_scope, providerRequestId: requestId, traceId: row.trace_id, responseId: response?.id,
     latencyMs, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, retryCount: row.retry_count,
     retryable: isRetryableEventAiError(error),
-    errorCode: error?.code, errorMessage: error?.message, metadata: { jobId: row.id, workflow: "event_enrichment" },
+    errorCode: error?.code, errorMessage: error?.message, metadata: { jobId: row.id, workflow: "event_enrichment", evidence: error?.diagnostic || evidenceDiagnostic || null },
   });
 }
 
@@ -435,7 +459,11 @@ async function advanceEventAiJob(pool, row) {
           ? { id: row.producer_response_id || `mock-producer-${row.id}`, status: "failed", error: { code: "rate_limit_exceeded", message: "Verification-only provider rate limit." }, usage: { input_tokens: 0, output_tokens: 0 } }
           : { id: row.producer_response_id || `mock-producer-${row.id}`, status: "completed", usage: { input_tokens: 120, output_tokens: 80 } };
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
-        proposal = mockEventAiProposal(draft, categories);
+        const mockProposal = mockEventAiProposal(draft, categories);
+        if (row.direction === "__mock_missing_citations__") {
+          providerResponse.output = [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(mockProposal), annotations: [] }] }];
+          proposal = citedEventAiDetails(providerResponse, mockProposal, draft);
+        } else proposal = mockProposal;
       } else {
         const retrieved = await retrieveOpenAiResponse(credential.apiKey, row.producer_response_id);
         providerResponse = retrieved.response;
@@ -449,7 +477,7 @@ async function advanceEventAiJob(pool, row) {
         proposal = citedEventAiDetails(providerResponse, parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails), draft);
       }
       if (!proposal?.sources?.length) throw Object.assign(new Error("Research completed without a cited public source."), { code: "missing_sources" });
-      await logEventAiProvider(pool, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET");
+      await logEventAiProvider(pool, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, proposal));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.producer_response_id).catch(() => false);
       let verifierResponseId = `mock-verifier-${row.id}`;
       if (!mockMode) {
@@ -483,7 +511,7 @@ async function advanceEventAiJob(pool, row) {
           mergeNotes: Array.isArray(value?.mergeNotes) ? value.mergeNotes.slice(0, 20) : [],
         }));
       }
-      await logEventAiProvider(pool, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET");
+      await logEventAiProvider(pool, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
       const mergeResult = verification.decision === "approved" ? mergeVerifiedEventDraft(draft, verification.approved, categories) : {};
       const completed = verification.decision === "approved" && mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt;
@@ -1132,7 +1160,7 @@ export async function registerAuthRoutes(app, pool) {
     const user = await authenticated(pool, request);
     if (!user) return reply.code(401).send({ error: "sign in required" });
     if (!user.active_workspace_id) return { jobs: [] };
-    const result = await pool.query("SELECT * FROM app_event_ai_jobs WHERE workspace_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 20", [user.active_workspace_id, user.user_id]);
+    const result = await pool.query(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.workspace_id = $1 AND j.user_id = $2 ORDER BY j.created_at DESC LIMIT 20`, [user.active_workspace_id, user.user_id]);
     return { jobs: result.rows.map(eventAiJob) };
   });
 
@@ -1191,7 +1219,9 @@ export async function registerAuthRoutes(app, pool) {
     if (!user) return reply.code(401).send({ error: "sign in required" });
     const result = await pool.query("SELECT * FROM app_event_ai_jobs WHERE id = $1 AND workspace_id = $2 AND user_id = $3", [request.params.jobId, user.active_workspace_id, user.user_id]);
     if (!result.rowCount) return reply.code(404).send({ error: "event-enrichment job not found" });
-    return { job: eventAiJob(await advanceEventAiJob(pool, result.rows[0])) };
+    const advanced = await advanceEventAiJob(pool, result.rows[0]);
+    const decorated = await eventAiJobWithDiagnostic(pool, advanced.id, user.active_workspace_id, user.user_id);
+    return { job: eventAiJob(decorated || advanced) };
   });
 
   app.post("/api/v1/auth/openai-keys", async (request, reply) => {

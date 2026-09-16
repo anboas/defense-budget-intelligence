@@ -492,8 +492,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.doesNotMatch(JSON.stringify(body), /sk-verification|authorization|requestBody|responseBody|prompt/i, "AI job responses must not expose credentials or raw provider payloads");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
       method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
-      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_provider_failure__", draft: {
-        title: "AI provider failure verification event", startsAt: "2027-03-11T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true,
+      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_missing_citations__", draft: {
+        title: "AI evidence diagnostic verification event", startsAt: "2027-03-11T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true,
       } },
     });
     assert.equal(response.status, 202);
@@ -503,9 +503,11 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.job.status, "failed", "A terminal provider failure must fail safely before verification");
     assert.equal(body.job.currentStep, "public_research", "A stopped job must preserve the stage that failed");
-    assert.equal(body.job.inputSnapshot.title, "AI provider failure verification event", "A stopped job must retain its safe original draft for explicit no-change reporting");
-    assert.equal(body.job.error.code, "rate_limit_exceeded", "The job must preserve the provider error code");
-    assert.equal(body.job.error.message, "Verification-only provider rate limit.", "The job must preserve the safe provider error message");
+    assert.equal(body.job.inputSnapshot.title, "AI evidence diagnostic verification event", "A stopped job must retain its safe original draft for explicit no-change reporting");
+    assert.equal(body.job.error.code, "missing_citations", "The job must preserve the evidence-gate error code");
+    assert.equal(body.job.diagnostic.webSearchCallCount, 0, "Stopped jobs must disclose whether web search actually ran");
+    assert.equal(body.job.diagnostic.structuredSourceCount, 1, "Stopped jobs must disclose whether structured source claims were returned");
+    assert.deepEqual(body.job.diagnostic.outputItemTypes, ["message"], "Stopped jobs must retain the safe provider output shape without raw content");
     response = await apiRequest(baseUrl, "/api/v1/agent/api-requests?limit=500", { cookie: ownerCookie });
     assert.equal(response.status, 200, "Workspace managers must be able to inspect redacted API request metadata");
     body = await response.json();
@@ -516,9 +518,10 @@ async function verifyApiLifecycle(persistPath) {
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"), "Verifier-stage metadata must be logged independently");
     assert.ok(body.data.some((entry) => entry.operation === "model_inventory.list" && entry.status === "succeeded"), "Credential-specific model inventory requests must be logged safely");
     const failedProviderEntry = body.data.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "failed" && entry.metadata?.jobId === failedEventAiJobId);
-    assert.equal(failedProviderEntry?.errorCode, "rate_limit_exceeded", "D1 logs must preserve the provider failure code");
-    assert.equal(failedProviderEntry?.errorMessage, "Verification-only provider rate limit.", "D1 logs must preserve the safe provider failure message");
-    assert.equal(failedProviderEntry?.retryable, true, "D1 logs must classify retryable provider failures");
+    assert.equal(failedProviderEntry?.errorCode, "missing_citations", "D1 logs must preserve the evidence-gate failure code");
+    assert.equal(failedProviderEntry?.metadata?.evidence?.webSearchCallCount, 0, "D1 logs must preserve redacted evidence-shape diagnostics");
+    assert.equal(failedProviderEntry?.metadata?.evidence?.structuredSourceCount, 1, "D1 logs must distinguish structured claims from provider citations");
+    assert.equal(failedProviderEntry?.retryable, false, "D1 logs must classify evidence-contract failures as non-retryable without a corrected request");
     assert.match(failedProviderEntry?.responseId || "", /^mock-producer-/, "D1 logs must retain the failed provider response ID");
     assert.equal(body.meta.retentionDays, 90);
     assert.doesNotMatch(JSON.stringify(body.data), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-verification/i, "D1 request logs must not expose secrets, prompts, headers, or bodies");

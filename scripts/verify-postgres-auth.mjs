@@ -115,6 +115,7 @@ assert.equal(body.job.producerModel, "gpt-5.4-mini");
 assert.equal(body.job.verifierModel, "gpt-5.4");
 response = await request(`/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
 body = await response.json();
+assert.equal(response.status, 200, `PostgreSQL research advancement failed: ${JSON.stringify(body)}`);
 assert.equal(body.job.status, "verifying");
 response = await request(`/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
 body = await response.json();
@@ -122,19 +123,21 @@ assert.equal(body.job.status, "completed");
 assert.equal(body.job.mergeResult.mergedDraft.location, "Verified test venue");
 assert.doesNotMatch(JSON.stringify(body), /sk-postgres|authorization|requestBody|responseBody|prompt/i);
 response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {
-  credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_provider_failure__",
-  draft: { title: "PostgreSQL provider failure event", startsAt: "2027-04-13T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true },
+  credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_missing_citations__",
+  draft: { title: "PostgreSQL evidence diagnostic event", startsAt: "2027-04-13T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true },
 } });
 assert.equal(response.status, 202);
 body = await response.json();
 const failedEventAiJobId = body.job.id;
 response = await request(`/api/v1/auth/event-ai/${failedEventAiJobId}`, { cookie: ownerCookie });
 body = await response.json();
+assert.equal(response.status, 200, `PostgreSQL evidence diagnostic advancement failed: ${JSON.stringify(body)}`);
 assert.equal(body.job.status, "failed");
 assert.equal(body.job.currentStep, "public_research");
-assert.equal(body.job.inputSnapshot.title, "PostgreSQL provider failure event");
-assert.equal(body.job.error.code, "rate_limit_exceeded");
-assert.equal(body.job.error.message, "Verification-only provider rate limit.");
+assert.equal(body.job.inputSnapshot.title, "PostgreSQL evidence diagnostic event");
+assert.equal(body.job.error.code, "missing_citations");
+assert.equal(body.job.diagnostic.webSearchCallCount, 0);
+assert.equal(body.job.diagnostic.structuredSourceCount, 1);
 response = await request("/api/v1/auth/api-requests", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL workspace managers must be able to inspect redacted request metadata");
 body = await response.json();
@@ -144,9 +147,10 @@ assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.re
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"));
 assert.ok(body.requests.some((entry) => entry.operation === "model_inventory.list" && entry.status === "succeeded"));
 const failedProviderEntry = body.requests.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "failed" && entry.metadata?.jobId === failedEventAiJobId);
-assert.equal(failedProviderEntry?.errorCode, "rate_limit_exceeded");
-assert.equal(failedProviderEntry?.errorMessage, "Verification-only provider rate limit.");
-assert.equal(failedProviderEntry?.retryable, true);
+assert.equal(failedProviderEntry?.errorCode, "missing_citations");
+assert.equal(failedProviderEntry?.metadata?.evidence?.webSearchCallCount, 0);
+assert.equal(failedProviderEntry?.metadata?.evidence?.structuredSourceCount, 1);
+assert.equal(failedProviderEntry?.retryable, false);
 assert.match(failedProviderEntry?.responseId || "", /^mock-producer-/);
 assert.equal(body.summary.retentionDays, 90);
 assert.doesNotMatch(JSON.stringify(body.requests), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-postgres/i, "PostgreSQL request logs must not expose secrets, prompts, headers, or bodies");

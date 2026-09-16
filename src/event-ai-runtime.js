@@ -259,6 +259,8 @@ export function buildEventAiProducerRequest({ draft, direction, categories, mode
     store: true,
     reasoning: { effort: "medium" },
     tools: [{ type: "web_search" }],
+    tool_choice: "required",
+    include: ["web_search_call.action.sources"],
     text: { format: { type: "json_schema", name: "event_enrichment_proposal", strict: true, schema: EVENT_AI_PROPOSAL_SCHEMA } },
     instructions: [
       "You research public event information for Defense Budget Intelligence.",
@@ -279,6 +281,8 @@ export function buildEventAiVerifierRequest({ draft, proposal, direction, catego
     store: true,
     reasoning: { effort: "high" },
     tools: [{ type: "web_search" }],
+    tool_choice: "required",
+    include: ["web_search_call.action.sources"],
     text: { format: { type: "json_schema", name: "event_enrichment_verification", strict: true, schema: EVENT_AI_VERIFICATION_SCHEMA } },
     instructions: [
       "You are the independent verification stage for an event-enrichment workflow.",
@@ -375,28 +379,100 @@ export function parseOpenAiStructuredResponse(response, normalizer) {
   throw error;
 }
 
-export function citedEventAiDetails(response, details, original = {}) {
-  const citations = new Set();
+function citationKey(value) {
+  const cleaned = cleanHttpUrl(value);
+  if (!cleaned) return "";
+  const url = new URL(cleaned);
+  url.hash = "";
+  if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
+  return url.toString();
+}
+
+function providerEvidenceContext(response) {
+  const citationUrls = new Set();
+  const searchSourceUrls = new Set();
+  const outputItemTypes = new Set();
+  const webSearchActionTypes = new Set();
+  let annotationCount = 0;
+  let webSearchCallCount = 0;
+  let messageCount = 0;
+  let outputTextCount = 0;
   for (const output of response?.output || []) {
+    if (output?.type) outputItemTypes.add(cleanText(output.type, 80));
+    if (output?.type === "web_search_call") {
+      webSearchCallCount += 1;
+      if (output?.action?.type) webSearchActionTypes.add(cleanText(output.action.type, 80));
+      for (const source of output?.action?.sources || []) {
+        const url = citationKey(source?.url);
+        if (url) searchSourceUrls.add(url);
+      }
+    }
+    if (output?.type === "message") messageCount += 1;
     for (const content of output?.content || []) {
+      if (content?.type === "output_text") outputTextCount += 1;
       for (const annotation of content?.annotations || []) {
-        const url = cleanHttpUrl(annotation?.url || annotation?.url_citation?.url);
-        if (url) citations.add(url);
+        annotationCount += 1;
+        const url = citationKey(annotation?.url || annotation?.url_citation?.url);
+        if (url) citationUrls.add(url);
       }
     }
   }
-  if (!citations.size) {
+  return {
+    citationUrls,
+    searchSourceUrls,
+    providerUrls: new Set([...citationUrls, ...searchSourceUrls]),
+    outputItemTypes,
+    webSearchActionTypes,
+    annotationCount,
+    webSearchCallCount,
+    messageCount,
+    outputTextCount,
+  };
+}
+
+export function eventAiEvidenceDiagnostic(response, details = {}) {
+  const context = providerEvidenceContext(response);
+  const normalized = normalizeEventAiDetails(details);
+  const structuredSourceUrls = normalized.sources.map((source) => citationKey(source.url)).filter(Boolean);
+  const structuredEvidenceUrls = normalized.evidence.flatMap((entry) => entry.sourceUrls.map(citationKey)).filter(Boolean);
+  const matchedSourceUrls = structuredSourceUrls.filter((url) => context.providerUrls.has(url));
+  const matchedEvidenceUrls = structuredEvidenceUrls.filter((url) => context.providerUrls.has(url));
+  return {
+    outputItemTypes: [...context.outputItemTypes],
+    webSearchActionTypes: [...context.webSearchActionTypes],
+    webSearchCallCount: context.webSearchCallCount,
+    searchSourceCount: context.searchSourceUrls.size,
+    citationAnnotationCount: context.citationUrls.size,
+    annotationCount: context.annotationCount,
+    messageCount: context.messageCount,
+    outputTextCount: context.outputTextCount,
+    structuredSourceCount: structuredSourceUrls.length,
+    structuredEvidenceCount: normalized.evidence.length,
+    matchedSourceCount: new Set(matchedSourceUrls).size,
+    matchedEvidenceCount: new Set(matchedEvidenceUrls).size,
+    searchSourceUrls: [...context.searchSourceUrls].slice(0, 20),
+    citationUrls: [...context.citationUrls].slice(0, 20),
+    matchedSourceUrls: [...new Set(matchedSourceUrls)].slice(0, 20),
+  };
+}
+
+export function citedEventAiDetails(response, details, original = {}) {
+  const normalized = normalizeEventAiDetails(details);
+  const context = providerEvidenceContext(response);
+  const diagnostic = eventAiEvidenceDiagnostic(response, normalized);
+  if (!context.providerUrls.size) {
     const error = new Error("The provider returned structured data without verifiable web-search citations.");
     error.code = "missing_citations";
+    error.diagnostic = diagnostic;
     throw error;
   }
-  const normalized = normalizeEventAiDetails(details);
-  const sources = normalized.sources.filter((source) => citations.has(source.url));
-  const evidence = normalized.evidence.map((entry) => ({ ...entry, sourceUrls: entry.sourceUrls.filter((url) => citations.has(url)) }))
+  const sources = normalized.sources.filter((source) => context.providerUrls.has(citationKey(source.url)));
+  const evidence = normalized.evidence.map((entry) => ({ ...entry, sourceUrls: entry.sourceUrls.filter((url) => context.providerUrls.has(citationKey(url))) }))
     .filter((entry) => entry.sourceUrls.length);
   if (!sources.length || !evidence.length) {
     const error = new Error("The provider result did not bind its event claims to cited public sources.");
     error.code = "uncited_structured_output";
+    error.diagnostic = diagnostic;
     throw error;
   }
   const originalDraft = normalizeEventAiDraft(original);

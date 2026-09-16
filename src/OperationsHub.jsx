@@ -55,7 +55,7 @@ const VIEWS = [
 
 const VIEW_COPY = {
   watchlist: ["Management", "Watchlist", "Tracked records, private notes, review dates, and wallboard visibility."],
-  events: ["Management", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
+  events: ["Primary surface", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
   tasks: ["Workspace work", "Task Center", "Background augmentation and API tasks, progress, outcomes, and review."],
   integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
   activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
@@ -79,10 +79,10 @@ const ADMIN_ROUTES = {
 
 const CONTROL_AREAS = {
   work: {
-    ids: ["watchlist", "events", "tasks"],
+    ids: ["watchlist", "tasks"],
     eyebrow: "Workspace work",
     title: "Workspace operations",
-    description: "Tracked records, operator events, and background task progress for the active workspace.",
+    description: "Tracked records and background task progress for the active workspace.",
     tone: "if-status--info",
   },
   workspace: {
@@ -558,7 +558,8 @@ function EventAiReview({ jobId, onOpenDraft }) {
     void auth.getEventAiJob(jobId).then((result) => { if (active) setFetchedJob(result.job); }).catch((requestError) => { if (active) setError(requestError.message); });
     return () => { active = false; };
   }, [auth, jobId]);
-  const job = notifications?.jobs?.find((item) => item.id === jobId) || fetchedJob;
+  const notificationJob = notifications?.jobs?.find((item) => item.id === jobId);
+  const job = fetchedJob ? { ...(notificationJob || {}), ...fetchedJob } : notificationJob;
   useEffect(() => {
     if (!job || !["completed", "needs_review", "failed"].includes(job.status)) return;
     notifications?.markRead(`event-ai:${job.id}`, job.status);
@@ -566,6 +567,7 @@ function EventAiReview({ jobId, onOpenDraft }) {
   }, [job?.id, job?.status]);
   const active = ["researching", "verifying"].includes(job?.status);
   const failedStage = job?.status === "failed" ? stoppedEventAiStage(job) : "";
+  const evidenceDiagnostic = job?.diagnostic || null;
   const diffRows = eventAiDiffRows(job);
   const statusLabel = job?.status === "completed" ? "Verified draft ready" : job?.status === "needs_review" ? "Operator validation required" : job?.status === "failed" ? "AI workflow stopped safely" : job?.currentStep === "independent_verification" ? "Independent verification" : "Public-source research";
   const researchStepClass = job?.status === "failed" && failedStage === "research" ? "is-blocked" : job?.status === "researching" ? "is-active" : job ? "is-complete" : "is-active";
@@ -574,27 +576,34 @@ function EventAiReview({ jobId, onOpenDraft }) {
   return <section className="if-operations-workspace" data-event-ai-review={job?.status || "loading"}>
     <section className="if-analytics-panel">
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={`if-status if-status--sm ${job?.status === "failed" ? "if-status--danger" : job?.status === "needs_review" ? "if-status--warning" : job?.status === "completed" ? "if-status--success" : "if-status--info"}`}>{statusLabel}</span><h2 className="if-analytics-panel__title">{job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"}</h2><p className="if-analytics-panel__summary">Research: {job?.producerModel || "Loading"} · Verification: {job?.verifierModel || "Loading"}{job?.traceId ? ` · Trace ${job.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a></header>
-      <ol className="if-stepper if-stepper--interactive if-stepper--semantic if-stepper--unboxed" style={{ "--step-count": 3 }} aria-label="Event AI workflow status">
+      <ol className="if-stepper if-stepper--interactive if-stepper--semantic if-stepper--unboxed if-stepper--compact" style={{ "--step-count": 3 }} aria-label="Event AI workflow status">
         <li className={`if-stepper__step ${researchStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">1</span><span className="if-stepper__label">Research</span><span className="if-stepper__meta">{failedStage === "research" ? "Stopped by evidence gate" : "Cited public details"}</span></span></li>
         <li className={`if-stepper__step ${verificationStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">2</span><span className="if-stepper__label">Verify</span><span className="if-stepper__meta">{failedStage === "research" ? "Not started" : failedStage === "verification" ? "Stopped during verification" : "Independent schema and evidence check"}</span></span></li>
         <li className={`if-stepper__step ${reviewStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">3</span><span className="if-stepper__label">Review</span><span className="if-stepper__meta">{job?.status === "failed" ? "No draft produced" : "Human decision before save"}</span></span></li>
       </ol>
     </section>
     {error ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Review unavailable</strong><p>{error}</p></div></div> : null}
-    {active || !job ? <section className="if-analytics-panel" aria-busy="true" data-event-ai-review-placeholder>
-      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">{workingSpinner()}Verified changes will appear here</h3><p className="if-analytics-panel__summary">This workspace will fill with proposed additions, preserved conflicts, rejected claims, and cited sources after both stages finish. You can leave this page; the notification remains available.</p></div></header>
-      <div className="if-adapter-state if-adapter-state--loading"><span className="if-adapter-state__icon">{workingSpinner("")}</span><div><strong>{statusLabel}</strong><p>No operator action is required yet.</p></div></div>
-    </section> : null}
+    {active || !job ? <div className="if-alert if-alert--info" aria-busy="true" data-event-ai-review-progress>{workingSpinner("")}<div><strong>{statusLabel}</strong><p>Background work is running. You can leave this page and return from Notifications or Task Center.</p></div></div> : null}
     {job?.status === "failed" ? <>
-      <div className="if-management-grid" aria-label="Stopped AI workflow outcome" data-event-ai-stopped-outcome>
+      <div className="if-management-grid if-management-grid--strip" aria-label="Stopped AI workflow outcome" data-event-ai-stopped-outcome>
         <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Research</span><strong className="if-management-card__value">{failedStage === "research" ? "Rejected" : "Completed"}</strong><small className="if-management-card__meta">{failedStage === "research" ? "Provider output failed the citation gate" : "Cited proposal reached verification"}</small></article>
         <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Verification</span><strong className="if-management-card__value">{failedStage === "research" ? "Not started" : "Stopped"}</strong><small className="if-management-card__meta">No independently verified result</small></article>
         <article className="if-management-card if-tone-success"><span className="if-management-card__label">Event record</span><strong className="if-management-card__value">Unchanged</strong><small className="if-management-card__meta">Nothing merged · nothing saved</small></article>
       </div>
-      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Why it stopped</h3><p className="if-analytics-panel__summary">{failedStage === "research" ? "The research model returned output, but DBI rejected it before independent verification because the evidence contract was not met." : "Research completed, but independent verification did not produce an eligible draft."}</p></div></header><div className="if-alert if-alert--danger"><CircleAlert size={17} aria-hidden="true" /><div><strong>{job.error?.code || "provider_failed"}</strong><p>{job.error?.message || "The provider stopped before returning a verified result."}</p></div></div></section>
+      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Why it stopped</h3><p className="if-analytics-panel__summary">{failedStage === "research" ? "The research model returned output, but DBI rejected it before independent verification because the evidence contract was not met." : "Research completed, but independent verification did not produce an eligible draft."}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/api-log">Open API Log</a></header><div className="if-alert if-alert--danger"><CircleAlert size={17} aria-hidden="true" /><div><strong>{job.error?.code || "provider_failed"}</strong><p>{job.error?.message || "The provider stopped before returning a verified result."}</p></div></div>{evidenceDiagnostic ? <div className="if-meta-grid" data-event-ai-evidence-diagnostic>
+        <dl className="if-kv"><dt>Web-search calls</dt><dd>{evidenceDiagnostic.webSearchCallCount ?? 0}</dd></dl>
+        <dl className="if-kv"><dt>Consulted sources</dt><dd>{evidenceDiagnostic.searchSourceCount ?? 0}</dd></dl>
+        <dl className="if-kv"><dt>Citation annotations</dt><dd>{evidenceDiagnostic.citationAnnotationCount ?? 0}</dd></dl>
+        <dl className="if-kv"><dt>Structured sources</dt><dd>{evidenceDiagnostic.structuredSourceCount ?? 0}</dd></dl>
+        <dl className="if-kv"><dt>Matched sources</dt><dd>{evidenceDiagnostic.matchedSourceCount ?? 0}</dd></dl>
+        <dl className="if-kv"><dt>Matched evidence</dt><dd>{evidenceDiagnostic.matchedEvidenceCount ?? 0}</dd></dl>
+        <dl className="if-kv"><dt>Provider request</dt><dd><code>{job.providerRequestId || "Not returned"}</code></dd></dl>
+        <dl className="if-kv"><dt>Response</dt><dd><code>{job.responseId || "Not returned"}</code></dd></dl>
+        <dl className="if-kv"><dt>Output shape</dt><dd>{evidenceDiagnostic.outputItemTypes?.join(" · ") || "None"}</dd></dl>
+      </div> : <p className="if-analytics-panel__summary" data-event-ai-evidence-diagnostic-unavailable>Evidence-shape diagnostics were not retained for this earlier run. The trace remains searchable in API Log.</p>}</section>
     </> : null}
     {["completed", "needs_review"].includes(job?.status) ? <>
-      <div className="if-management-grid" aria-label="AI review summary">
+      <div className="if-management-grid if-management-grid--strip" aria-label="AI review summary">
         <article className="if-management-card if-tone-success"><span className="if-management-card__label">Verified additions</span><strong className="if-management-card__value">{job.mergeResult?.changes?.length || 0}</strong><small className="if-management-card__meta">Eligible for the draft</small></article>
         <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Preserved conflicts</span><strong className="if-management-card__value">{job.mergeResult?.conflicts?.length || 0}</strong><small className="if-management-card__meta">Operator values kept</small></article>
         <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Rejected claims</span><strong className="if-management-card__value">{job.verification?.rejectedClaims?.length || 0}</strong><small className="if-management-card__meta">Excluded before merge</small></article>
@@ -713,14 +722,14 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft }) {
   const failedCount = tasks.filter((task) => ["failed", "rejected", "rate_limited"].includes(task.status)).length;
   return <section className="ops-panel" data-task-center>
     <header className="ops-panel__header"><div><span>Workspace work</span><h2>Task Center</h2><p>One progress surface for augmentation, provider, and authenticated API tasks.</p></div><button type="button" className="if-btn if-btn--secondary" onClick={() => void notifications?.refresh()}>Refresh</button></header>
-    <div className="if-management-grid" aria-label="Task summary">
+    {!selectedTaskId ? <div className="if-management-grid if-management-grid--strip" aria-label="Task summary">
       <article className="if-management-card if-tone-info"><span className="if-management-card__label">In progress</span><strong className="if-management-card__value">{activeCount}</strong><small className="if-management-card__meta">Background stages running</small></article>
       <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Needs attention</span><strong className="if-management-card__value">{attentionCount}</strong><small className="if-management-card__meta">Review or failure detail available</small></article>
       <article className="if-management-card if-tone-success"><span className="if-management-card__label">Completed</span><strong className="if-management-card__value">{completedCount}</strong><small className="if-management-card__meta">Finished retained tasks</small></article>
       <article className="if-management-card if-tone-danger"><span className="if-management-card__label">Stopped</span><strong className="if-management-card__value">{failedCount}</strong><small className="if-management-card__meta">No silent writes or partial merges</small></article>
-    </div>
-    {tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} wrapperProps={{ "data-task-table": true }} /> : <div className="ops-empty"><ListChecks size={22} /><strong>No retained tasks</strong><p>Augmentation and API work will appear here after it starts.</p></div>}
+    </div> : null}
     {selected?.job ? <EventAiReview jobId={selected.sourceId} onOpenDraft={onOpenDraft} /> : selected?.entries ? <ApiTaskDetail task={selected} /> : selectedTaskId ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Task not found</strong><p>The task is outside the retained workspace window or is no longer available.</p></div></div> : null}
+    {tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} wrapperProps={{ "data-task-table": true }} /> : <div className="ops-empty"><ListChecks size={22} /><strong>No retained tasks</strong><p>Augmentation and API work will appear here after it starts.</p></div>}
   </section>;
 }
 
@@ -740,7 +749,7 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
   const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Task Center</a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>;
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Workspace work</span><h2>Events</h2><p>Schedule, filter, edit, or launch augmentation from a specific event row.</p></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Primary surface</span><h2>Events</h2><p>Schedule, filter, edit, or launch augmentation from a specific event row.</p></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
 function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -1165,7 +1174,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const area = CONTROL_AREAS[areaKey];
   const visibleAreaViews = VIEWS.filter(([id]) => area.ids.includes(id));
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
-    {view !== "wallboard" ? <section className="if-admin-control-surface admin-console" data-admin-control-surface data-admin-workspace data-control-area={areaKey}>
+    {!(["wallboard", "events"].includes(view)) ? <section className="if-admin-control-surface admin-console" data-admin-control-surface data-admin-workspace data-control-area={areaKey}>
       <header className="admin-console__header">
         <div>
           <span>{area.eyebrow}</span>
@@ -1177,7 +1186,6 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
       {areaKey === "work" ? <div className="admin-console__metrics" aria-label="Workspace work summary">
         <article><span>Tracked</span><strong>{state.watchlist.length}</strong><small>records</small></article>
         <article><span>Reviews due</span><strong>{dueReviews}</strong><small>within 30 days</small></article>
-        <article><span>Events</span><strong>{state.events.length}</strong><small>scheduled</small></article>
         <article><span>Tasks running</span><strong>{notifications?.activeCount || 0}</strong><small>background work</small></article>
       </div> : null}
       <nav className="admin-console__nav" aria-label={`${area.eyebrow} sections`}>

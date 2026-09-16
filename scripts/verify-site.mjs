@@ -39,7 +39,7 @@ async function openSurface(page, route, selector) {
     if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
       const group = route.startsWith("#/budget-spend/analytics") ? "analytics"
         : ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/sources"].includes(route) ? "money"
-          : ["#/budget-spend/watchlist", "#/budget-spend/events", "#/budget-spend/tasks"].includes(route) ? "work"
+          : ["#/budget-spend/watchlist", "#/budget-spend/tasks"].includes(route) ? "work"
             : ["#/budget-spend/users", "#/budget-spend/workspaces"].includes(route) ? "platform-admin" : "workspace-admin";
       await page.locator(`[data-nav-group-trigger="${group}"]`).click();
     } else {
@@ -89,8 +89,8 @@ async function assertActiveGroupState(page, group, childLabel) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 2, "Header should expose only Transactions and Wallboard as primary links");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Transactions", "Wallboard"], "Primary navigation should contain only the two working surfaces");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose Transactions, Wallboard, and Events as primary links");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Transactions", "Wallboard", "Events"], "Primary navigation should contain the three working surfaces");
   assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 3, "Header should expose Analytics, Money flow, and Workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
@@ -113,8 +113,9 @@ async function assertFlowShell(page) {
     assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Source Lineage/i);
     await page.locator('[data-nav-group-trigger="money"]').click();
     await page.locator('[data-nav-group-trigger="work"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 3, "Workspace should expose work surfaces without administrative controls");
-    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Task Center/i);
+    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Workspace should expose supporting work surfaces without primary or administrative surfaces");
+    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center/i);
+    assert.doesNotMatch(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Events/i, "Events must remain a primary surface outside the Workspace menu");
     await page.locator('[data-nav-group-trigger="work"]').click();
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
     assert.ok(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count() >= 2, "Workspace admin should expose workspace-scoped management and audit surfaces");
@@ -122,7 +123,7 @@ async function assertFlowShell(page) {
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
-    assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 14, "Mobile More should contain analytics, money-flow, work, and administration routes");
+    assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 13, "Mobile More should contain analytics, money-flow, supporting work, and administration routes without duplicating primary Events");
     assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Workspace admin/i, "Mobile More should keep work and administration visibly separated");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
@@ -1345,11 +1346,11 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 92, "Mobile masthead should use the Control Surface condensed variant while preserving 44px navigation targets");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Mobile More should expose every Analytics, Money flow, Workspace, and Workspace admin route in grouped Control Framework cards");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose grouped routes without duplicating primary Events");
   assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.deepEqual(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents(), ["Transactions", "Wallboard"], "Mobile should keep only Transactions and Wallboard as direct routes");
+  assert.deepEqual(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents(), ["Transactions", "Wallboard", "Events"], "Mobile should keep all three primary surfaces as direct routes");
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents().then((items) => items.every((item) => item.trim().length > 0)), true, "Every visible mobile route tab should have a text label");
   await openSurface(mobile, "#/budget-spend", "[data-pdb-request-page]");
   const mobileRequestChrome = await mobile.evaluate(() => ({
@@ -1477,7 +1478,7 @@ try {
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
   const mobileAdminShellHeight = await mobile.locator("[data-admin-workspace]").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileAdminShellHeight <= 360, `Mobile Admin control center should stay compact enough to expose working content, got ${mobileAdminShellHeight}px`);
-  assert.equal(await mobile.locator(".admin-console__nav a").count(), 3, "Static mobile Workspace work should keep Watchlist, Events, and Task Center in its own shell");
+  assert.equal(await mobile.locator(".admin-console__nav a").count(), 2, "Static mobile Workspace work should keep only Watchlist and Task Center in its shell");
   const mobileAdminTargetHeights = await mobile.locator(".admin-console__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileAdminTargetHeights.every((height) => height >= 43.5), `Mobile Admin sections should keep 44px touch targets: ${mobileAdminTargetHeights.join(", ")}`);
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
@@ -1509,7 +1510,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 grouped_routes=14 analytics_workspaces=4 money_flow_routes=5 workspace_routes=3 workspace_admin_routes=2 wallboard=primary watchlist=stable-id events=operator-local tasks=unified integrations=8 contract_monitor>=500 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 workspace_routes=2 workspace_admin_routes=2 wallboard=primary events=primary watchlist=stable-id tasks=unified integrations=8 contract_monitor>=500 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

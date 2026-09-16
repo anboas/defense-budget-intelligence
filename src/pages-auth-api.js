@@ -7,6 +7,7 @@ import {
   buildEventAiVerifierRequest,
   citedEventAiDetails,
   deleteOpenAiResponse,
+  eventAiEvidenceDiagnostic,
   eventAiProviderError,
   isRetryableEventAiError,
   mergeVerifiedEventDraft,
@@ -1967,12 +1968,35 @@ function eventAiJobFromRow(row) {
     verification: parse(row.verification_json, {}),
     mergeResult: parse(row.merge_result_json, {}),
     error: row.error_message ? { code: row.error_code || "event_ai_failed", message: row.error_message } : null,
+    diagnostic: parse(row.diagnostic_metadata_json, {})?.evidence || null,
+    providerRequestId: row.diagnostic_provider_request_id || null,
+    responseId: row.diagnostic_response_id || null,
     retryCount: Number(row.retry_count || 0),
     traceId: row.trace_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     completedAt: row.completed_at || null,
   };
+}
+
+const EVENT_AI_JOB_DIAGNOSTIC_SELECT = `
+  SELECT j.*,
+    l.metadata_json AS diagnostic_metadata_json,
+    l.provider_request_id AS diagnostic_provider_request_id,
+    l.response_id AS diagnostic_response_id
+  FROM dbi_event_ai_jobs j
+  LEFT JOIN dbi_api_request_log l ON l.id = (
+    SELECT candidate.id
+    FROM dbi_api_request_log candidate
+    WHERE candidate.trace_id = j.trace_id
+      AND candidate.request_kind = 'openai'
+    ORDER BY candidate.completed_at DESC
+    LIMIT 1
+  )`;
+
+async function eventAiJobWithDiagnostic(db, id, workspaceId, userId) {
+  return db.prepare(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.id = ? AND j.workspace_id = ? AND j.user_id = ?`)
+    .bind(id, workspaceId, userId).first();
 }
 
 async function eventAiCategories(db, workspaceId) {
@@ -2091,7 +2115,7 @@ async function failEventAiJob(db, row, error) {
   return db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE id = ?").bind(row.id).first();
 }
 
-async function logEventAiProviderResult(db, row, response, stage, status, latencyMs, requestId, error = null, method = "POST") {
+async function logEventAiProviderResult(db, row, response, stage, status, latencyMs, requestId, error = null, method = "POST", evidenceDiagnostic = null) {
   const usage = response?.usage || {};
   await recordApiRequest(db, {
     workspaceId: row.workspace_id,
@@ -2119,7 +2143,7 @@ async function logEventAiProviderResult(db, row, response, stage, status, latenc
     retryable: isRetryableEventAiError(error),
     errorCode: error?.code || "",
     errorMessage: error?.message || "",
-    metadata: { jobId: row.id, workflow: "event_enrichment" },
+    metadata: { jobId: row.id, workflow: "event_enrichment", evidence: error?.diagnostic || evidenceDiagnostic || null },
   });
 }
 
@@ -2141,7 +2165,11 @@ async function advanceEventAiJob(db, row, env) {
           ? { id: row.producer_response_id || `mock-producer-${row.id}`, status: "failed", error: { code: "rate_limit_exceeded", message: "Verification-only provider rate limit." }, usage: { input_tokens: 0, output_tokens: 0 } }
           : { id: row.producer_response_id || `mock-producer-${row.id}`, status: "completed", usage: { input_tokens: 120, output_tokens: 80 } };
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
-        proposal = mockEventAiProposal(draft, categories);
+        const mockProposal = mockEventAiProposal(draft, categories);
+        if (row.direction === "__mock_missing_citations__") {
+          providerResponse.output = [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(mockProposal), annotations: [] }] }];
+          proposal = citedEventAiDetails(providerResponse, mockProposal, draft);
+        } else proposal = mockProposal;
       } else {
         const retrieved = await retrieveOpenAiResponse(credential.apiKey, row.producer_response_id);
         providerResponse = retrieved.response;
@@ -2155,7 +2183,7 @@ async function advanceEventAiJob(db, row, env) {
         proposal = citedEventAiDetails(providerResponse, parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails), draft);
       }
       if (!proposal?.sources?.length) throw Object.assign(new Error("Research completed without a cited public source."), { code: "missing_sources" });
-      await logEventAiProviderResult(db, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET");
+      await logEventAiProviderResult(db, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, proposal));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.producer_response_id).catch(() => false);
       let verifierResponseId = `mock-verifier-${row.id}`;
       if (!mockMode) {
@@ -2193,7 +2221,7 @@ async function advanceEventAiJob(db, row, env) {
           mergeNotes: Array.isArray(value?.mergeNotes) ? value.mergeNotes.slice(0, 20) : [],
         }));
       }
-      await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET");
+      await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
       const mergeResult = verification.decision === "approved" ? mergeVerifiedEventDraft(draft, verification.approved, categories) : {};
       const complete = verification.decision === "approved" && mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt;
@@ -2267,7 +2295,7 @@ async function eventAiResponse(request, db, env) {
   }
 
   if (request.method === "GET" && !suffix) {
-    const result = await db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE workspace_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 20").bind(session.active_workspace_id, session.user_id).all();
+    const result = await db.prepare(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.workspace_id = ? AND j.user_id = ? ORDER BY j.created_at DESC LIMIT 20`).bind(session.active_workspace_id, session.user_id).all();
     return json({ jobs: (result.results || []).map(eventAiJobFromRow) });
   }
 
@@ -2328,7 +2356,11 @@ async function eventAiResponse(request, db, env) {
   const jobId = cleanText(decodeURIComponent(suffix), 100);
   const row = jobId ? await db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE id = ? AND workspace_id = ? AND user_id = ?").bind(jobId, session.active_workspace_id, session.user_id).first() : null;
   if (!row) return json({ error: "Event-enrichment job not found" }, 404);
-  if (request.method === "GET") return json({ job: eventAiJobFromRow(await advanceEventAiJob(db, row, env)) });
+  if (request.method === "GET") {
+    const advanced = await advanceEventAiJob(db, row, env);
+    const decorated = await eventAiJobWithDiagnostic(db, advanced.id, session.active_workspace_id, session.user_id);
+    return json({ job: eventAiJobFromRow(decorated || advanced) });
+  }
   return json({ error: "Method not allowed" }, 405);
 }
 

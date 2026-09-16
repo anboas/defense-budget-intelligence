@@ -1484,6 +1484,12 @@ code {
   color: var(--if-text);
 }
 
+.if-alert--info {
+  border-color: #93c5fd;
+  background: var(--if-info-soft);
+  color: var(--if-info);
+}
+
 .if-alert--success {
   border-color: #99d8ad;
   background: var(--if-success-soft);

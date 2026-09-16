@@ -4,9 +4,9 @@ import { useAuth } from "./AuthContext.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 
-const PRIMARY_IDS = ["calendar", "wallboard"];
+const PRIMARY_IDS = ["calendar", "wallboard", "events"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
-const WORK_IDS = new Set(["watchlist", "events", "tasks"]);
+const WORK_IDS = new Set(["watchlist", "tasks"]);
 const WORKSPACE_ADMIN_IDS = new Set(["integrations", "activity", "workspace-settings", "agents"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 
@@ -67,7 +67,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const workItems = ["watchlist", "events", "tasks"].map((id) => {
+  const workItems = ["watchlist", "tasks"].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);

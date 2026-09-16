@@ -71,8 +71,9 @@ try {
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator('[data-nav-group-trigger="work"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 3, "Workspace work should contain only Watchlist, Events, and Task Center");
-  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Events[\s\S]*Task Center/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Workspace work should contain only Watchlist and Task Center");
+  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center/i);
+  assert.doesNotMatch(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Events/i, "Events must not be nested under Workspace work");
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count(), 4, "Workspace administration should contain only workspace-scoped controls");
@@ -361,11 +362,8 @@ try {
   assert.equal(browserAiCredential.status, 201, "Authenticated event AI browser proof requires a personal encrypted key");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
-  assert.equal(await page.locator('[data-control-area="work"]').count(), 1, "Events must live in a distinct Workspace work control area");
-  const workNavigation = page.locator('[data-control-area="work"] .admin-console__nav');
-  assert.equal(await workNavigation.locator("a").count(), 3, "Workspace work navigation must contain only Watchlist, Events, and Task Center");
-  assert.match(await workNavigation.innerText(), /Watchlist[\s\S]*Events[\s\S]*Task Center/i, "Workspace work navigation must expose its three owned surfaces");
-  assert.doesNotMatch(await workNavigation.innerText(), /Integrations|API Log|Users|Workspaces|Agent Access/i, "Workspace work must not mix in administrative surfaces");
+  assert.equal(await page.locator('[data-control-area]').count(), 0, "Events must render as a primary surface without a management shell");
+  assert.equal(await page.locator('[data-primary-nav="events"][aria-current="page"]').count(), 1, "Events must own a direct primary-navigation position");
   assert.equal(await page.locator('[data-ops-events] > [data-event-ai-launcher]').count(), 0, "Events must not place the augmentation launcher above the data table");
   await page.getByRole("button", { name: /^Research and augment / }).first().click();
   await page.waitForSelector("[data-event-ai-launcher-dialog]");
@@ -413,6 +411,13 @@ try {
   const aiReview = page.locator('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   assert.match(await aiReview.innerText(), /(Verified draft ready|Operator validation required)[\s\S]*Research: gpt-5\.4-mini · Verification: gpt-5\.4[\s\S]*Before \/ verified draft[\s\S]*Verified draft changes[\s\S]*Evidence & exclusions/i, "The dedicated review workspace must disclose stages, selected models, a diff preview, changes, and evidence");
   assert.equal(await aiReview.locator("[data-event-ai-diff-preview] .if-detail-card").count(), 2, "AI review must render side-by-side before and verified-draft diff panes");
+  assert.equal(await page.locator('[data-task-center] > .if-management-grid[aria-label="Task summary"]').count(), 0, "Selected task detail must replace the summary boxes instead of stacking beneath them");
+  const taskDetailOrder = await page.evaluate(() => ({
+    reviewTop: document.querySelector("[data-event-ai-review]")?.getBoundingClientRect().top,
+    tableTop: document.querySelector("[data-task-table]")?.getBoundingClientRect().top,
+  }));
+  assert.ok(taskDetailOrder.reviewTop < taskDetailOrder.tableTop, "Selected task detail must appear before the retained task table");
+  assert.match(await aiReview.locator(".if-stepper").getAttribute("class"), /if-stepper--compact/, "Task progress must use the compact shared stepper");
   assert.doesNotMatch(await aiReview.innerText(), /sk-browser|authorization|request body|response body/i, "AI review must never expose secrets or raw provider payloads");
   await page.screenshot({ path: "test-results/task-center-desktop.png", fullPage: true });
   await aiReview.getByRole("button", { name: "Open verified draft" }).click();
@@ -634,7 +639,7 @@ try {
   assert.ok(authenticatedHeader.height <= 92, `Authenticated mobile masthead should remain within the 92px Control Surface contract, got ${authenticatedHeader.height}px`);
   assert.equal(authenticatedHeader.eyebrow, "none", "Authenticated mobile masthead should suppress only the secondary eyebrow");
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 18, "Authenticated mobile More should retain all grouped routes across work, workspace administration, and platform administration");
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile More should retain grouped routes without duplicating primary Events");
   assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
