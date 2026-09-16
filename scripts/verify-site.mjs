@@ -495,7 +495,7 @@ try {
   await openSurface(page, "#/budget-spend/integrations", "[data-ops-integrations]");
   assert.equal(await page.locator("[data-ops-integrations] [data-ops-integration-table] [data-if-table-row]").count(), 8, "Operations should summarize each current ingestion layer");
   assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 4, "Budget, award, source, and contract-monitor freshness should live with Admin integration health");
-  assert.equal(await page.locator("[data-contract-monitor-summary] .if-metric").count(), 4, "Contract monitoring should expose target, coverage, gap, and freshness metrics");
+  assert.equal(await page.locator("[data-contract-monitor-summary] .if-management-card").count(), 4, "Contract monitoring should expose target, coverage, gap, and freshness metrics through the shared metric strip");
   assert.ok(await page.locator("[data-contract-monitor-table] [data-if-table-row]").count() > 0, "Contract monitoring should expose its active and upcoming records");
   const contractMonitorPayload = await page.evaluate(() => fetch(new URL("data/contract-monitor.json", document.baseURI)).then((response) => response.json()));
   assert.ok(contractMonitorPayload.metadata.targetCount >= 500, "Contract monitor should cover the complete known non-historical universe");

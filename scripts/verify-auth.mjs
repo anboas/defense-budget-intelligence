@@ -130,7 +130,7 @@ try {
   assert.equal(await page.locator('[data-profile-account] input:disabled').count(), 0, "Immutable account metadata should use compact key/value rows instead of oversized disabled inputs");
   assert.equal(await page.locator('[data-profile-account-meta] .if-kv').count(), 2, "Profile should expose email and role through the framework metadata primitive");
   await assertPageBodyGutter(page, "[data-profile-page]", "Profile");
-  assert.equal(await page.locator(".profile-photo-manager").count(), 1, "Profile should expose picture selection, replacement, and removal controls");
+  assert.equal(await page.locator(".if-identity-editor").count(), 1, "Profile should expose the shared identity editor for picture selection, replacement, and removal");
   const desktopProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
     const panel = node.querySelector(".profile-page__panel");
     const pageHeader = node.querySelector(":scope > .if-page-header");
@@ -162,18 +162,18 @@ try {
   assert.ok(desktopProfileGeometry.panelBottom <= 640, `Profile picture and identity controls should fit high in a 1000px viewport while retaining the shared page-body gutter, ending at ${desktopProfileGeometry.panelBottom}px`);
   await page.screenshot({ path: "test-results/profile-page-desktop.png", fullPage: true });
   await page.locator("#profile-avatar-file").setInputFiles("public/icon-192.png");
-  await page.locator(".profile-photo-manager .user-avatar img").waitFor();
+  await page.locator(".if-identity-editor .user-avatar img").waitFor();
   await page.getByLabel("Display name").fill(finalName);
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByText("Profile saved.").waitFor();
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.locator(".profile-photo-manager .user-avatar img").waitFor();
+  await page.locator(".if-identity-editor .user-avatar img").waitFor();
   await page.locator("[data-profile-menu-trigger] .user-avatar img").waitFor();
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-openai-key-vault="user"]');
   const personalVault = page.locator('[data-openai-key-vault="user"]');
   await personalVault.getByText("Loading key metadata…").waitFor({ state: "detached" });
-  assert.match(await personalVault.innerText(), /My OpenAI keys[\s\S]*write-only encrypted vault[\s\S]*Configured credentials/i, "Personal settings should expose the structured write-only OpenAI credential manager");
+  assert.match(await personalVault.innerText(), /Credential vault[\s\S]*write-only encrypted vault[\s\S]*Configured credentials/i, "Personal settings should expose the structured write-only OpenAI credential manager without a duplicate route header");
   assert.equal(await personalVault.locator(".if-management-card").count(), 4, "The vault summary must use the shared four-card management grid");
   assert.equal(await personalVault.locator(".if-analytics-panel").count(), 1, "The vault should reserve panel chrome for the credential list instead of nesting its summary in another box");
   assert.equal(await personalVault.locator(".if-page-header").count(), 1, "The vault must use the shared compact section header");
@@ -186,10 +186,23 @@ try {
   assert.ok(keyDialogBounds && keyDialogBounds.x >= 0 && keyDialogBounds.y >= 0 && keyDialogBounds.x + keyDialogBounds.width <= 1440 && keyDialogBounds.y + keyDialogBounds.height <= 1000, "Credential dialog must remain inside the desktop viewport");
   await keyDialog.getByRole("button", { name: "Close OpenAI key form" }).click();
 
+  await page.goto(`${BASE_URL}#/budget-spend/integrations`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-ops-integrations][data-integration-surface="coverage"]');
+  assert.equal(await page.locator("[data-ops-integration-table]").count(), 1, "Integrations should open on the source coverage work surface");
+  assert.equal(await page.locator('[data-openai-key-vault="workspace"]').count(), 0, "Workspace credentials should not compete with source coverage by default");
+  assert.equal(await page.locator('[data-contract-monitor-disclosure][open]').count(), 0, "Deep contract-monitor diagnostics should stay collapsed until requested");
+  await page.screenshot({ path: "test-results/admin-integrations-coverage-desktop.png", fullPage: true });
+  await page.getByRole("button", { name: "Credentials" }).click();
+  await page.waitForSelector('[data-ops-integrations][data-integration-surface="credentials"] [data-openai-key-vault="workspace"]');
+  assert.equal(await page.locator("[data-ops-integration-table]").count(), 0, "Credential management should replace the source ledger instead of stacking below it");
+  assert.equal(await page.locator('[data-openai-key-vault="workspace"] .if-page-header').count(), 1, "Embedded workspace credentials should use one compact section header");
+  await page.screenshot({ path: "test-results/admin-integrations-credentials-desktop.png", fullPage: true });
+
   await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary]");
   assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 4, "API Log must summarize request volume, success, latency, and tokens");
   await page.waitForSelector("[data-api-request-table]");
+  assert.ok(await page.locator('[data-api-request-table] tbody tr').count() <= 10, "API Log should default to a scannable ten-row desktop page");
   assert.equal(await page.locator("[data-api-observability-charts] .if-chart-card").count(), 2, "API Log must visualize outcome mix and average latency with shared chart cards");
   assert.match(await page.locator("[data-ops-activity]").innerText(), /90-day retention[\s\S]*API requests[\s\S]*Workspace changes/i, "API Log must expose distinct request and workspace-change ledgers");
   assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
@@ -595,7 +608,14 @@ try {
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "Agent access should not repeat a second administration shell");
   assert.equal(await page.locator('[data-profile-agents] > .if-page-header').count(), 1, "Agent access should expose one framework-owned route header");
   await page.locator('[data-profile-agents] .if-async-state').waitFor({ state: "detached" }).catch(() => {});
-  await page.locator('[data-profile-agents] .agent-key-list').waitFor();
+  const agentKeyList = page.locator('[data-profile-agents] .if-action-row-list');
+  const agentEmptyState = page.locator('[data-profile-agents] [data-if-async-state="empty"]');
+  await agentKeyList.or(agentEmptyState).first().waitFor();
+  if (await agentKeyList.count()) {
+    assert.ok(await agentKeyList.locator('.if-action-row').count() >= 1, "Agent access should render credentials through the shared action-row list");
+  } else {
+    assert.equal(await agentEmptyState.getByRole("button", { name: "Add credential" }).count(), 1, "Empty Agent access should expose one focused creation action");
+  }
   await page.screenshot({ path: "test-results/admin-agent-access-desktop.png", fullPage: true });
   await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="activity"] [data-ops-activity]');
@@ -656,7 +676,7 @@ try {
   await page.getByLabel("New password", { exact: true }).fill(nextPassword);
   await page.getByLabel("Confirm new password").fill(nextPassword);
   await page.getByRole("button", { name: "Update password" }).click();
-  await page.getByText(/Other sessions were signed out/).waitFor();
+  await page.getByText(/Every other active session was signed out/i).waitFor();
 
   const cookies = await context.cookies();
   const sessionCookie = cookies.find((cookie) => cookie.name === "dbi_session");

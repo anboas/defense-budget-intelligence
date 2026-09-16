@@ -32,10 +32,10 @@ import { useManagementState } from "./management-state.js";
 import UserManagement from "./UserManagement.jsx";
 import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
-import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
+import IntegrationManagement from "./IntegrationManagement.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlChangeList, ControlDialog, ControlMetricStrip, ControlMultiSelect, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
+import { ControlChangeList, ControlDialog, ControlMetricStrip, ControlMultiSelect, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
 import { useNotifications } from "./NotificationContext.jsx";
 
 const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
@@ -70,47 +70,6 @@ function dateTime(value) {
   return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function freshnessState(timestamp, maxAgeDays) {
-  if (!timestamp) return { label: "Unavailable", tone: "unavailable" };
-  const ageDays = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 86400000);
-  return ageDays <= maxAgeDays ? { label: "Current", tone: "current" } : { label: "Review", tone: "stale" };
-}
-
-function IntegrationFreshness({ budgetGeneratedAt, awardGeneratedAt, contractMonitor }) {
-  const layers = [
-    { id: "budget", label: "Budget books", mobileLabel: "Budget", at: budgetGeneratedAt, maxAgeDays: 400 },
-    { id: "awards", label: "Award execution", mobileLabel: "Awards", at: awardGeneratedAt, maxAgeDays: 14 },
-    { id: "health", label: "Source health", mobileLabel: "Sources", at: sourceHealth.metadata.checkedAt, maxAgeDays: 7 },
-    { id: "contracts", label: "Contract monitor", mobileLabel: "Contracts", at: contractMonitor.metadata.generatedAt, maxAgeDays: 2 },
-  ];
-  return <section className="freshness-strip" aria-label="Data freshness" data-freshness-strip data-integration-freshness>{layers.map((layer) => {
-    const state = freshnessState(layer.at, layer.maxAgeDays);
-    return <span key={layer.id} className={`freshness-chip freshness-chip--${state.tone}`} title={`${layer.label}: ${state.label} · ${layer.at ? dateTime(layer.at) : "No snapshot"}`}><strong data-mobile-label={layer.mobileLabel}>{layer.label}</strong><em>{state.label}</em><small>{layer.at ? dateTime(layer.at) : "No snapshot"}</small></span>;
-  })}</section>;
-}
-
-function ContractMonitorCoverage({ contractMonitor }) {
-  const metadata = contractMonitor.metadata || {};
-  const rows = contractMonitor.records || [];
-  const columns = [
-    { key: "contract", label: "Contract", required: true, sticky: true, minWidth: 260, value: (row) => `${row.reference || "Unidentified"} ${row.title}`, render: (row) => <><strong>{row.reference || "Identifier unavailable"}</strong><small>{row.title}</small></> },
-    { key: "lifecycle", label: "Lifecycle", facet: true, minWidth: 135, value: (row) => row.lifecycle, render: (row) => row.lifecycle.replaceAll("-", " ") },
-    { key: "status", label: "Automation", facet: true, minWidth: 135, value: (row) => row.status, render: (row) => <span className={`dbi-status-badge is-${row.status}`}>{row.status.replaceAll("-", " ")}</span> },
-    { key: "method", label: "Method", facet: true, minWidth: 200, value: (row) => row.method, render: (row) => <><strong>{row.method.replaceAll("-", " ")}</strong><small>{row.generatedAwardId || row.sourceSystem || "No exact automated key"}</small></> },
-    { key: "checked", label: "Checked", minWidth: 165, value: (row) => row.checkedAt || row.lastAttemptAt || "", render: (row) => row.checkedAt || row.lastAttemptAt ? dateTime(row.checkedAt || row.lastAttemptAt) : "Not refreshable" },
-    { key: "diagnostic", label: "Coverage note", minWidth: 260, role: "prose", value: (row) => row.diagnostic?.message || "Exact public record refreshed.", render: (row) => row.diagnostic?.message || "Exact public record refreshed." },
-  ];
-  return <section className="if-panel" data-contract-monitor>
-    <header className="if-panel__header"><div><span>Known contract universe</span><h3>Automated active &amp; upcoming coverage</h3><p>{metadata.methodology}</p></div><a href={metadata.sourceUrls?.[0]} target="_blank" rel="noreferrer">USAspending source<ChevronRight size={15} /></a></header>
-    <div className="if-metric-grid if-operations-signal-grid if-operations-signal-grid--compact" data-contract-monitor-summary>
-      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-info"><div className="if-metric__top"><p className="if-metric__label">Known targets</p></div><p className="if-metric__value">{Number(metadata.targetCount || 0).toLocaleString()}</p><div className="if-metric__meta"><span>{Number(metadata.byLifecycle?.active || 0).toLocaleString()} active</span><span>{Number(metadata.byLifecycle?.upcoming || 0).toLocaleString()} upcoming</span></div></article>
-      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-success"><div className="if-metric__top"><p className="if-metric__label">Automated coverage</p></div><p className="if-metric__value">{metadata.coveragePercent || 0}%</p><div className="if-metric__meta"><span>{Number(metadata.currentCount || 0).toLocaleString()} current</span><span>{Number(metadata.staleCount || 0).toLocaleString()} stale</span></div></article>
-      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-warning"><div className="if-metric__top"><p className="if-metric__label">Exact-key gaps</p></div><p className="if-metric__value">{Number(metadata.gapCount || 0).toLocaleString()}</p><div className="if-metric__meta"><span>{Number(metadata.byLifecycle?.["unresolved-schedule"] || 0).toLocaleString()} unscheduled</span><span>SAM key can close notice gaps</span></div></article>
-      <article className="if-card if-metric if-operations-signal if-operations-signal--compact if-tone-neutral"><div className="if-metric__top"><p className="if-metric__label">Last completed</p></div><p className="if-metric__value">{metadata.generatedAt ? compactDate(metadata.generatedAt) : "Unavailable"}</p><div className="if-metric__meta"><span>{metadata.status || "unknown"}</span><span>Prior verified facts retained on failure</span></div></article>
-    </div>
-    <OperationalDataTable id="contract-monitor" label="Active and upcoming contract automation" rows={rows} columns={columns} rowKey={(row) => row.opportunityId} defaultSort={{ key: "status", direction: "asc" }} searchPlaceholder="Search monitored contracts, identifiers, lifecycle, methods, and gaps…" exportFilename="contract-monitor.csv" selectable={false} wrapperProps={{ "data-contract-monitor-table": true }} />
-  </section>;
-}
 
 function money(value) {
   const amount = Number(value || 0);
@@ -701,26 +660,6 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
   return <section className="ops-panel" data-ops-events><ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /><ControlPageBody compact>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</ControlPageBody>{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
-function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor }) {
-  const rows = [
-    { name: "PDB display books", status: "current", count: "3,888 request lines", detail: "Scheduled workbook and justification build" },
-    { name: "USAspending prime awards", status: "current", count: `${dataset.metadata?.coverage?.totalPublicRecords?.toLocaleString?.() || "875"} assembled records`, detail: "Automatic award feed plus normalized source records" },
-    { name: "FPDS actions", status: "current", count: `${Number(dataset.metadata?.coverage?.fpdsActions || 0).toLocaleString()} actions`, detail: "Deferred exact action payload" },
-    { name: "USAspending subawards", status: subawardSnapshot.metadata?.status || "unavailable", count: `${Number(subawardSnapshot.metadata?.reportedSubawardCount || 0).toLocaleString()} reported`, detail: `${Number(subawardSnapshot.metadata?.failedPrimeCount || 0).toLocaleString()} unavailable prime probes disclosed` },
-    { name: "SAM.gov opportunities", status: samOpportunities.metadata?.status || "unavailable", count: `${Number(samOpportunities.metadata?.recordCount || samOpportunities.records?.length || 0).toLocaleString()} records`, detail: "Credentialed rolling-window importer" },
-    { name: "Manual / CRM imports", status: "ready", count: `${Number(manualProcurement.records?.length || 0).toLocaleString()} records`, detail: "Stable procurement identifiers required" },
-    { name: "Change detection", status: procurementDelta.metadata?.status || "baseline", count: `${Number(procurementDelta.summary?.added || 0) + Number(procurementDelta.summary?.updated || 0)} changes`, detail: "Deterministic consecutive-snapshot comparison" },
-    { name: "Known contract monitor", status: contractMonitor.metadata?.status || "unavailable", count: `${Number(contractMonitor.metadata?.coveredCount || 0).toLocaleString()} of ${Number(contractMonitor.metadata?.targetCount || 0).toLocaleString()} covered`, detail: "Exact award-detail refresh across active, upcoming, option-horizon, and unresolved records" },
-  ];
-  const columns = [
-    { key: "name", label: "Integration", required: true, sticky: true, minWidth: 230, value: (row) => row.name, render: (row) => <><strong>{row.name}</strong><small>{row.detail}</small></> },
-    { key: "status", label: "Status", facet: true, minWidth: 110, value: (row) => row.status, render: (row) => <span className={`dbi-status-badge is-${String(row.status).toLowerCase().replaceAll(" ", "-")}`}>{row.status}</span> },
-    { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
-    { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
-  ];
-  return <section className="ops-panel" data-ops-integrations><ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a>} /><ControlPageBody compact><OpenAiKeyManagement auth={auth} scope="workspace" embedded />{contractMonitorState === "loading" ? <ControlAsyncState compact state="loading" title="Loading contract coverage" message="Reading the current automated coverage snapshot." /> : contractMonitorState === "error" ? <ControlAsyncState compact state="error" title="Contract coverage unavailable" message="The retained integration summary remains available." action={<button type="button" className="if-btn if-btn--secondary" onClick={onRetryContractMonitor}>Retry</button>} /> : <><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} /><ContractMonitorCoverage contractMonitor={contractMonitor} /></>}<div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></ControlPageBody></section>;
-}
-
 function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {
   const [requestFilters, setRequestFilters] = useState({});
   const [chartTooltip, setChartTooltip] = useState(null);
@@ -820,7 +759,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     </div> : null}
     <section className="if-analytics-panel" aria-labelledby="api-request-log-title">
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="api-request-log-title">API requests</h3><p className="if-analytics-panel__summary">Agent API calls today; OpenAI provider IDs, token counts, retries, latency, and safe errors will appear here when contextual actions are enabled.</p></div><strong className="if-analytics-panel__count">{apiRequests.length}</strong></header>
-      {apiRequests.length ? <OperationalDataTable id="api-requests" label="API request log" rows={apiRequests} columns={requestColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search operations, routes, principals, traces, and diagnostics…" exportFilename="api-request-log.csv" selectable={false} filterValues={requestFilters} onFilterChange={setRequestFilters} mobileColumns={["at", "status", "operation", "latency"]} renderDetail={requestDetail} wrapperProps={{ "data-api-request-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API requests retained</strong><p>Authenticated Agent API calls and future OpenAI requests will appear here.</p></div>}
+      {apiRequests.length ? <OperationalDataTable id="api-requests" label="API request log" rows={apiRequests} columns={requestColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} defaultPageSize={10} searchPlaceholder="Search operations, routes, principals, traces, and diagnostics…" exportFilename="api-request-log.csv" selectable={false} filterValues={requestFilters} onFilterChange={setRequestFilters} mobileColumns={["at", "status", "operation", "latency"]} renderDetail={requestDetail} wrapperProps={{ "data-api-request-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API requests retained</strong><p>Authenticated Agent API calls and future OpenAI requests will appear here.</p></div>}
     </section></> : <section className="if-analytics-panel" aria-labelledby="workspace-activity-title">
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="workspace-activity-title">Workspace changes</h3><p className="if-analytics-panel__summary">Append-only human and agent mutations across the shared workspace.</p></div><strong className="if-analytics-panel__count">{activity.length}</strong></header>
       {activity.length ? <OperationalDataTable id="workspace-activity" label="Workspace activity log" rows={activity} columns={activityColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="workspace-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}
@@ -1149,7 +1088,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
-    {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} /> : null}
+    {view === "integrations" ? <IntegrationManagement auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Cross-workspace administration is limited to the immutable Super user.</p></section> : null}
