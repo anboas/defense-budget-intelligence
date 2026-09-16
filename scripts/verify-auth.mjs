@@ -750,6 +750,23 @@ try {
   assert.equal(authenticatedHeader.condensed, true, "Authenticated mobile navigation should consume the Control Surface condensed header variant");
   assert.ok(authenticatedHeader.height <= 92, `Authenticated mobile masthead should remain within the 92px Control Surface contract, got ${authenticatedHeader.height}px`);
   assert.equal(authenticatedHeader.eyebrow, "none", "Authenticated mobile masthead should suppress only the secondary eyebrow");
+  await page.goto(`${BASE_URL}#/budget-spend/users`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-user-management]');
+  await page.getByRole("button", { name: "Add user" }).click();
+  const mobileUserDialog = page.locator("[data-user-create]");
+  await mobileUserDialog.waitFor();
+  const mobileUserEditorGeometry = await mobileUserDialog.evaluate((node) => ({
+    overflow: Math.max(node.scrollWidth - node.clientWidth, 0),
+    inputs: [...node.querySelectorAll("input")].map((input) => ({ visible: getComputedStyle(input).display !== "none", height: input.getBoundingClientRect().height })),
+    roleHeight: node.querySelector(".if-picker__trigger")?.getBoundingClientRect().height || 0,
+  }));
+  assert.equal(mobileUserEditorGeometry.inputs.length, 5, `Mobile Add user should retain all five identity and password fields: ${JSON.stringify(mobileUserEditorGeometry)}`);
+  assert.ok(mobileUserEditorGeometry.inputs.every((input) => input.visible && input.height >= 43.5), `Mobile Add user fields must remain visible with 44px controls: ${JSON.stringify(mobileUserEditorGeometry)}`);
+  assert.ok(mobileUserEditorGeometry.roleHeight >= 43.5, `Mobile Add user role picker must retain a 44px target, got ${mobileUserEditorGeometry.roleHeight}px`);
+  assert.ok(mobileUserEditorGeometry.overflow <= 2, `Mobile Add user dialog should not overflow horizontally: ${JSON.stringify(mobileUserEditorGeometry)}`);
+  await page.screenshot({ path: "test-results/admin-users-mobile-dialog.png", fullPage: true });
+  await mobileUserDialog.getByRole("button", { name: "Close dialog" }).click();
+  await mobileUserDialog.waitFor({ state: "detached" });
   const mobileEventId = await page.evaluate(async () => {
     const response = await fetch("/api/v1/agent/events", {
       method: "POST",
@@ -759,6 +776,7 @@ try {
     return (await response.json()).data.id;
   });
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
   const mobileEventFilterToggle = page.locator('[data-ops-event-table] .dbi-data-table__mobile-filter-toggle');
   assert.ok(await mobileEventFilterToggle.evaluate((button) => button.getBoundingClientRect().height >= 43.5), "Mobile DataTable filters should use a 44px disclosure control");

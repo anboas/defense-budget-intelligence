@@ -252,9 +252,9 @@
 
 @media (max-width: 740px) {
   .user-management__form-grid { grid-template-columns: 1fr; }
-  .user-management__form-grid input,
-  .user-management__form-grid select,
   .user-management__list-header { display: none; }
+  .user-management__form-grid input,
+  .user-management__form-grid .if-picker__trigger { min-height: 44px; }
   .user-management__row { grid-template-columns: 42px minmax(0, 1fr); gap: 8px 10px; padding: 12px 10px; }
   .user-management__role,
   .user-management__access,
