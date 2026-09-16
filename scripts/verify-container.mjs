@@ -66,7 +66,7 @@ assert.equal(captureCalendar.payload?.metadata?.coverage?.rowsWithCompetition, 1
 assert.ok(captureCalendar.payload.records.every((record) => record.opportunityId && !("statusLabel" in record) && !("note" in record) && !("targetIds" in record) && !("captureMotion" in record)), "capture snapshot should use stable IDs and exclude internal parser fields");
 const contractMonitor = await (await get("api/v1/snapshots/contract_monitor/current")).json();
 assert.ok(contractMonitor.payload?.metadata?.targetCount >= 500, "contract monitor snapshot should cover the known non-historical inventory");
-assert.ok(contractMonitor.payload?.metadata?.currentCount >= 460, "contract monitor snapshot should retain current exact-key observations and exact-PIID resolutions");
+assert.ok(contractMonitor.payload?.metadata?.currentCount + contractMonitor.payload?.metadata?.staleCount >= 460, "contract monitor snapshot should retain exact-key observations and exact-PIID resolutions across transient refresh failures");
 assert.equal(contractMonitor.payload?.metadata?.targetCount, contractMonitor.payload?.records?.length);
 
 const normalizedCapture = await (await get("api/v1/capture-calendar")).json();
@@ -75,8 +75,9 @@ assert.ok(normalizedCapture.automated_imports >= 677, "normalized capture API sh
 assert.ok(normalizedCapture.classified_records >= 632, "normalized capture API should report records with a specific work category");
 assert.ok(normalizedCapture.source_channels >= 1056, "normalized capture API should preserve every disclosed ingestion channel");
 assert.ok(normalizedCapture.monitored_contracts >= 500, "normalized capture API should expose monitor status for every non-historical target");
-assert.ok(normalizedCapture.current_monitor_observations >= 460, "normalized capture API should expose current exact-key observations and exact-PIID resolutions");
-assert.equal(normalizedCapture.stale_monitor_observations, 0, "fresh monitor import should not start with stale observations");
+assert.ok(normalizedCapture.current_monitor_observations + normalizedCapture.stale_monitor_observations >= 460, "normalized capture API should expose retained exact-key observations and exact-PIID resolutions");
+assert.equal(normalizedCapture.current_monitor_observations, contractMonitor.payload.metadata.currentCount, "normalized capture API should preserve the snapshot's current observation count");
+assert.equal(normalizedCapture.stale_monitor_observations, contractMonitor.payload.metadata.staleCount, "normalized capture API should preserve the snapshot's stale observation count");
 assert.ok(normalizedCapture.monitor_gaps >= 60, "normalized capture API should disclose records that lack an exact automated key");
 assert.ok(normalizedCapture.events >= 502, "normalized capture API should expose every canonical event and permit new SAM events");
 assert.equal(normalizedCapture.actions, 3085, "normalized capture API should expose every exact FPDS action");

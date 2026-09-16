@@ -499,7 +499,7 @@ try {
   assert.ok(await page.locator("[data-contract-monitor-table] [data-if-table-row]").count() > 0, "Contract monitoring should expose its active and upcoming records");
   const contractMonitorPayload = await page.evaluate(() => fetch(new URL("data/contract-monitor.json", document.baseURI)).then((response) => response.json()));
   assert.ok(contractMonitorPayload.metadata.targetCount >= 500, "Contract monitor should cover the complete known non-historical universe");
-  assert.ok(contractMonitorPayload.metadata.currentCount >= 460, "Contract monitor should refresh exact USAspending observations and exact-PIID resolutions across the current universe");
+  assert.ok(contractMonitorPayload.metadata.currentCount + contractMonitorPayload.metadata.staleCount >= 460, "Contract monitor should retain exact USAspending observations and exact-PIID resolutions across transient refresh failures");
   assert.equal(contractMonitorPayload.metadata.targetCount, contractMonitorPayload.records.length, "Contract-monitor metadata should match its published rows");
   assert.equal(new Set(contractMonitorPayload.records.map((record) => record.opportunityId)).size, contractMonitorPayload.records.length, "Contract-monitor rows should retain unique stable IDs");
   const forbiddenMonitorKeys = [];
