@@ -205,6 +205,12 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
   const [error, setError] = useState("");
   const [aiCapability, setAiCapability] = useState(null);
   const [aiCredential, setAiCredential] = useState("");
+  const [aiModelInventory, setAiModelInventory] = useState(null);
+  const [aiProducerModel, setAiProducerModel] = useState("");
+  const [aiVerifierModel, setAiVerifierModel] = useState("");
+  const [aiModelsBusy, setAiModelsBusy] = useState(false);
+  const [aiDefaultsBusy, setAiDefaultsBusy] = useState(false);
+  const [aiModelNotice, setAiModelNotice] = useState("");
   const [aiDirection, setAiDirection] = useState("");
   const [aiJob, setAiJob] = useState(null);
   const [aiError, setAiError] = useState("");
@@ -220,6 +226,26 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
     return () => { active = false; };
   }, [auth]);
   useEffect(() => {
+    if (!aiCredential || !auth?.listEventAiModels) return undefined;
+    let active = true;
+    const [credentialScope, credentialId = ""] = aiCredential.split(":");
+    void auth.listEventAiModels({ credentialScope, credentialId }).then((result) => {
+      if (!active) return;
+      const inventory = result.inventory || null;
+      setAiModelInventory(inventory);
+      setAiProducerModel(inventory?.producerModel || "");
+      setAiVerifierModel(inventory?.verifierModel || "");
+      setAiError("");
+    }).catch((requestError) => {
+      if (!active) return;
+      setAiModelInventory(null);
+      setAiProducerModel("");
+      setAiVerifierModel("");
+      setAiError(requestError.message);
+    }).finally(() => { if (active) setAiModelsBusy(false); });
+    return () => { active = false; };
+  }, [aiCredential, auth]);
+  useEffect(() => {
     if (!auth?.enabled || !auth?.user || !auth?.getEventAiCapability) return undefined;
     let active = true;
     void auth.getEventAiCapability().then((result) => {
@@ -227,7 +253,9 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
       const capability = result.capability || null;
       setAiCapability(capability);
       const personal = capability?.personalKeys?.find((key) => key.isDefault) || capability?.personalKeys?.[0];
-      setAiCredential(personal ? `user:${personal.id}` : capability?.workspaceDefault?.available ? "workspace" : "");
+      const credential = personal ? `user:${personal.id}` : capability?.workspaceDefault?.available ? "workspace" : "";
+      setAiCredential(credential);
+      setAiModelsBusy(Boolean(credential));
       setAiError("");
     }).catch((requestError) => { if (active) setAiError(requestError.message); });
     return () => { active = false; };
@@ -271,6 +299,19 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
     ...(aiCapability?.personalKeys || []).map((key) => [`user:${key.id}`, `${key.label}${key.isDefault ? " · default" : ""} · ••••${key.lastFour}`]),
     ...(aiCapability?.workspaceDefault?.available ? [["workspace", aiCapability.workspaceDefault.lastFour ? `Workspace default · ••••${aiCapability.workspaceDefault.lastFour}` : "Workspace default"]] : []),
   ];
+  function selectAiCredential(value) {
+    setAiCredential(value);
+    setAiModelInventory(null);
+    setAiProducerModel("");
+    setAiVerifierModel("");
+    setAiModelNotice("");
+    setAiModelsBusy(Boolean(value));
+  }
+  const aiModelOptions = (aiModelInventory?.models || []).map((model) => ({
+    value: model.id,
+    label: model.id,
+    description: `${model.ownedBy || "OpenAI"}${model.created ? ` · ${new Date(model.created * 1000).toLocaleDateString()}` : ""}`,
+  }));
   async function startAiEnrichment() {
     setAiError("");
     if (draft.title.trim().length < 2) {
@@ -283,9 +324,19 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
     }
     try {
       const [credentialScope, credentialId = ""] = aiCredential.split(":");
-      const result = await auth.startEventAiJob({ draft, direction: aiDirection, credentialScope, credentialId });
+      const result = await auth.startEventAiJob({ draft, direction: aiDirection, credentialScope, credentialId, producerModel: aiProducerModel, verifierModel: aiVerifierModel });
       setAiJob(result.job);
     } catch (requestError) { setAiError(requestError.message); }
+  }
+  async function saveWorkspaceModelDefaults() {
+    setAiError("");
+    setAiModelNotice("");
+    setAiDefaultsBusy(true);
+    try {
+      await auth.saveEventAiModelDefaults({ producerModel: aiProducerModel, verifierModel: aiVerifierModel });
+      setAiModelNotice("Workspace AI model defaults saved.");
+    } catch (requestError) { setAiError(requestError.message); }
+    finally { setAiDefaultsBusy(false); }
   }
   function submit(formEvent) {
     formEvent.preventDefault();
@@ -324,9 +375,16 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
           <label className="ops-field ops-field--wide"><span>Title</span><input autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
           {auth?.enabled && auth?.user ? <section className="if-card if-form-grid if-field--full" data-event-ai-assistant>
             <header className="if-field--full"><span className="if-field__label">AI-assisted event research</span><h3>Research, verify, then merge</h3><p className="if-field__hint">A research worker proposes cited public details. A separate verifier checks identity, evidence, dates, and merge safety before verified additions enter this draft.</p></header>
-            <div className="if-field"><span className="if-field__label">Credential</span>{aiCredentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={aiCredential} options={aiCredentialOptions} onChange={setAiCredential} portalTarget={dialogRef} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
+            <div className="if-field"><span className="if-field__label">Credential</span>{aiCredentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={aiCredential} searchable options={aiCredentialOptions} onChange={selectAiCredential} portalTarget={dialogRef} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
             <label className="if-field"><span className="if-field__label">Direction <small>(optional)</small></span><textarea className="if-input" value={aiDirection} maxLength={2000} placeholder="Default: fill missing verified public details and published deadlines." onChange={(e) => setAiDirection(e.target.value)} /></label>
-            <div className="if-field--full"><button type="button" className="if-btn if-btn--primary" disabled={!aiCapability?.available || !aiCredential || ["researching", "verifying"].includes(aiJob?.status)} onClick={() => void startAiEnrichment()}>{["researching", "verifying"].includes(aiJob?.status) ? <LoaderCircle size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{aiJob?.status === "researching" ? "Researching public sources…" : aiJob?.status === "verifying" ? "Independently verifying…" : "Research and augment"}</button></div>
+            <div className="if-field" data-event-ai-model-picker="research"><span className="if-field__label">Research model</span><ControlSelect ariaLabel="Research model" value={aiProducerModel} searchable options={aiModelOptions} onChange={setAiProducerModel} disabled={aiModelsBusy || !aiModelOptions.length} placeholder={aiModelsBusy ? "Loading available models…" : "Choose a model"} portalTarget={dialogRef} /></div>
+            <div className="if-field" data-event-ai-model-picker="verification"><span className="if-field__label">Verification model</span><ControlSelect ariaLabel="Verification model" value={aiVerifierModel} searchable options={aiModelOptions} onChange={setAiVerifierModel} disabled={aiModelsBusy || !aiModelOptions.length} placeholder={aiModelsBusy ? "Loading available models…" : "Choose a model"} portalTarget={dialogRef} /></div>
+            <p className="if-field__hint if-field--full">{aiModelInventory?.capabilityNotice || "Model availability is loaded from the selected OpenAI credential and project."}{aiModelInventory ? ` ${aiModelOptions.length} compatible text model${aiModelOptions.length === 1 ? "" : "s"} from ${aiModelInventory.inventoryCount} available model${aiModelInventory.inventoryCount === 1 ? "" : "s"}.` : ""}</p>
+            <div className="if-field--full if-cluster">
+              <button type="button" className="if-btn if-btn--ai" disabled={!aiCapability?.available || !aiCredential || !aiProducerModel || !aiVerifierModel || aiModelsBusy || ["researching", "verifying"].includes(aiJob?.status)} onClick={() => void startAiEnrichment()}>{["researching", "verifying"].includes(aiJob?.status) ? <LoaderCircle size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{aiJob?.status === "researching" ? "Researching public sources…" : aiJob?.status === "verifying" ? "Independently verifying…" : "Research and augment"}</button>
+              {aiCredential === "workspace" && aiCapability?.canManageWorkspaceDefaults ? <button type="button" className="if-btn if-btn--secondary" disabled={!aiProducerModel || !aiVerifierModel || aiModelsBusy || aiDefaultsBusy} onClick={() => void saveWorkspaceModelDefaults()}>{aiDefaultsBusy ? <LoaderCircle size={16} aria-hidden="true" /> : null}Save as workspace defaults</button> : null}
+            </div>
+            {aiModelNotice ? <p className="if-field__hint if-field--full" role="status">{aiModelNotice}</p> : null}
             {aiJob ? <div className="if-card if-field--full" role="status" data-event-ai-job={aiJob.status}>
               <strong>{aiJob.status === "completed" ? "Verified additions merged into this draft" : aiJob.status === "needs_review" ? "Verification needs operator review" : aiJob.status === "failed" ? "AI workflow stopped safely" : aiJob.currentStep === "independent_verification" ? "Independent verification in progress" : "Public-source research in progress"}</strong>
               <p className="if-field__hint">Research: {aiJob.producerModel} · Verification: {aiJob.verifierModel} · Trace {aiJob.traceId}</p>

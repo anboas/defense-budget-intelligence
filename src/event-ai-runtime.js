@@ -1,5 +1,5 @@
-export const EVENT_AI_PRODUCER_MODEL = "gpt-5.6-terra";
-export const EVENT_AI_VERIFIER_MODEL = "gpt-5.6-sol";
+export const EVENT_AI_PRODUCER_MODEL = "gpt-5.4";
+export const EVENT_AI_VERIFIER_MODEL = "gpt-5.4";
 export const EVENT_AI_STATUSES = Object.freeze([
   "researching",
   "verifying",

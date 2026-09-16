@@ -17,6 +17,13 @@ import {
   retrieveOpenAiResponse,
   startOpenAiBackgroundResponse,
 } from "../src/event-ai-runtime.js";
+import {
+  MOCK_EVENT_AI_MODELS,
+  assertEventAiModels,
+  chooseEventAiModel,
+  eventAiModelCandidates,
+  fetchOpenAiModels,
+} from "../src/openai-models.js";
 
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
@@ -322,6 +329,69 @@ async function resolveEventAiCredential(pool, user, scope, credentialId = "") {
   const row = result.rows[0];
   const apiKey = decryptOpenAiKey(row);
   return row && apiKey ? { id: row.id, scope: row.scope_type, apiKey } : null;
+}
+
+async function eventAiWorkspaceModelDefaults(pool, workspaceId) {
+  if (!workspaceId) return { producerModel: "", verifierModel: "" };
+  const result = await pool.query("SELECT event_research_model, event_verification_model FROM app_workspace_ai_settings WHERE workspace_id = $1", [workspaceId]);
+  return {
+    producerModel: cleanText(result.rows[0]?.event_research_model, 180),
+    verifierModel: cleanText(result.rows[0]?.event_verification_model, 180),
+  };
+}
+
+async function eventAiModelInventory(pool, user, scope, credentialId = "") {
+  const credential = await resolveEventAiCredential(pool, user, scope, credentialId);
+  if (!credential) {
+    const error = new Error(`No active ${scope === "workspace" ? "workspace default" : "personal"} OpenAI key is available.`);
+    error.code = "credential_unavailable";
+    error.httpStatus = 409;
+    throw error;
+  }
+  const mockMode = String(process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
+  const startedAt = new Date();
+  let inventory;
+  try {
+    inventory = mockMode
+      ? { models: MOCK_EVENT_AI_MODELS, requestId: "", latencyMs: 0, retrievedAt: startedAt.toISOString() }
+      : await fetchOpenAiModels(credential.apiKey);
+    await recordApiRequest(pool, {
+      workspaceId: user.active_workspace_id, userId: user.user_id, principalType: "user", principalId: user.user_id,
+      requestKind: "openai", provider: "openai", operation: "model_inventory.list", method: "GET", route: "/v1/models",
+      status: "succeeded", httpStatus: 200, stage: "model_inventory", credentialId: credential.id,
+      credentialScope: credential.scope, providerRequestId: inventory.requestId, latencyMs: inventory.latencyMs,
+      metadata: { inventoryCount: inventory.models.length, candidateCount: eventAiModelCandidates(inventory.models).length }, startedAt,
+    });
+  } catch (error) {
+    await recordApiRequest(pool, {
+      workspaceId: user.active_workspace_id, userId: user.user_id, principalType: "user", principalId: user.user_id,
+      requestKind: "openai", provider: "openai", operation: "model_inventory.list", method: "GET", route: "/v1/models",
+      status: "failed", httpStatus: error?.httpStatus || 502, stage: "model_inventory", credentialId: credential.id,
+      credentialScope: credential.scope, providerRequestId: error?.requestId || "", latencyMs: error?.latencyMs || 0,
+      retryable: Number(error?.httpStatus || 0) >= 500 || Number(error?.httpStatus || 0) === 429,
+      errorCode: error?.code || "model_inventory_failed", errorMessage: error?.message || "OpenAI model inventory failed.", startedAt,
+    }).catch(() => {});
+    throw error;
+  }
+  const candidates = eventAiModelCandidates(inventory.models);
+  if (!candidates.length) {
+    const error = new Error("The selected OpenAI credential has no compatible text models in its live model inventory.");
+    error.code = "no_compatible_models";
+    error.httpStatus = 409;
+    throw error;
+  }
+  const workspaceDefaults = credential.scope === "workspace"
+    ? await eventAiWorkspaceModelDefaults(pool, user.active_workspace_id)
+    : { producerModel: "", verifierModel: "" };
+  return {
+    credential,
+    models: candidates,
+    inventoryCount: inventory.models.length,
+    retrievedAt: inventory.retrievedAt,
+    producerModel: chooseEventAiModel(candidates, workspaceDefaults.producerModel || EVENT_AI_PRODUCER_MODEL),
+    verifierModel: chooseEventAiModel(candidates, workspaceDefaults.verifierModel || EVENT_AI_VERIFIER_MODEL),
+    workspaceDefaults,
+  };
 }
 
 async function failEventAiJob(pool, row, error) {
@@ -995,11 +1065,12 @@ export async function registerAuthRoutes(app, pool) {
   app.get("/api/v1/auth/event-ai/capability", async (request, reply) => {
     const user = await authenticated(pool, request);
     if (!user) return reply.code(401).send({ error: "sign in required" });
-    const [personal, workspace] = await Promise.all([
+    const [personal, workspace, workspaceDefaults] = await Promise.all([
       pool.query("SELECT id, label, key_last_four, is_default FROM app_openai_keys WHERE scope_type = 'user' AND user_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC", [user.user_id]),
       user.active_workspace_id
         ? pool.query("SELECT id, label, key_last_four FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL AND is_default = TRUE ORDER BY created_at DESC LIMIT 1", [user.active_workspace_id])
         : Promise.resolve({ rows: [] }),
+      eventAiWorkspaceModelDefaults(pool, user.active_workspace_id),
     ]);
     const mockMode = String(process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     const encryptionReady = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "").length >= 32;
@@ -1008,9 +1079,52 @@ export async function registerAuthRoutes(app, pool) {
       canRun: canRunEventAi(user), mockMode,
       personalKeys: personal.rows.map((row) => ({ id: row.id, label: row.label, lastFour: row.key_last_four, isDefault: row.is_default })),
       workspaceDefault: workspace.rowCount ? { available: true, label: "Workspace default", lastFour: canAdministerWorkspaces(user) ? workspace.rows[0].key_last_four : "" } : { available: false, label: "Workspace default", lastFour: "" },
+      canManageWorkspaceDefaults: canAdministerWorkspaces(user), workspaceModelDefaults: workspaceDefaults,
       producerModel: EVENT_AI_PRODUCER_MODEL, verifierModel: EVENT_AI_VERIFIER_MODEL, retentionDays: 90,
       workflow: ["research", "independent verification", "deterministic safe merge", "operator review and save"],
     } };
+  });
+
+  app.get("/api/v1/auth/event-ai/models", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    if (!user.active_workspace_id) return reply.code(409).send({ error: "select a workspace before using AI assistance" });
+    if (!canRunEventAi(user)) return reply.code(403).send({ error: "event write access is required" });
+    const credentialScope = request.query?.credentialScope === "workspace" ? "workspace" : "user";
+    try {
+      const inventory = await eventAiModelInventory(pool, user, credentialScope, cleanText(request.query?.credentialId, 100));
+      return { inventory: {
+        models: inventory.models, inventoryCount: inventory.inventoryCount, retrievedAt: inventory.retrievedAt,
+        producerModel: inventory.producerModel, verifierModel: inventory.verifierModel, workspaceDefaults: inventory.workspaceDefaults,
+        credentialScope: inventory.credential.scope, source: "openai_models_api",
+        capabilityNotice: "Availability is credential-specific. Compatibility with web search and structured outputs is proven when the workflow runs.",
+      } };
+    } catch (error) {
+      return reply.code(error?.httpStatus || 502).send({ error: cleanText(error?.message || "OpenAI model inventory is unavailable", 500), code: cleanText(error?.code, 120) });
+    }
+  });
+
+  app.patch("/api/v1/auth/event-ai/model-defaults", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    if (!user.active_workspace_id) return reply.code(409).send({ error: "select a workspace before configuring AI defaults" });
+    if (!await canAdministerWorkspace(pool, user, user.active_workspace_id)) return reply.code(403).send({ error: "Workspace manager access is required" });
+    try {
+      const inventory = await eventAiModelInventory(pool, user, "workspace");
+      const producerModel = cleanText(request.body?.producerModel, 180);
+      const verifierModel = cleanText(request.body?.verifierModel, 180);
+      assertEventAiModels(inventory.models, producerModel, verifierModel);
+      const result = await pool.query(`INSERT INTO app_workspace_ai_settings
+        (workspace_id, event_research_model, event_verification_model, updated_by, updated_at)
+        VALUES ($1,$2,$3,$4,NOW())
+        ON CONFLICT(workspace_id) DO UPDATE SET event_research_model = EXCLUDED.event_research_model,
+          event_verification_model = EXCLUDED.event_verification_model, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+        RETURNING updated_at`, [user.active_workspace_id, producerModel, verifierModel, user.user_id]);
+      return { defaults: { producerModel, verifierModel, updatedAt: result.rows[0].updated_at } };
+    } catch (error) {
+      return reply.code(error?.httpStatus || 502).send({ error: cleanText(error?.message || "Workspace model defaults could not be saved", 500), code: cleanText(error?.code, 120) });
+    }
   });
 
   app.get("/api/v1/auth/event-ai", async (request, reply) => {
@@ -1034,8 +1148,14 @@ export async function registerAuthRoutes(app, pool) {
     const daily = await pool.query("SELECT COUNT(*)::int AS count FROM app_event_ai_jobs WHERE workspace_id = $1 AND user_id = $2 AND created_at >= NOW() - INTERVAL '24 hours'", [user.active_workspace_id, user.user_id]);
     if (daily.rows[0].count >= 20) return reply.code(429).send({ error: "daily event-enrichment limit reached; try again after the oldest job is 24 hours old" });
     const credentialScope = request.body?.credentialScope === "workspace" ? "workspace" : "user";
-    const credential = await resolveEventAiCredential(pool, user, credentialScope, cleanText(request.body?.credentialId, 100));
-    if (!credential) return reply.code(409).send({ error: `no active ${credentialScope === "workspace" ? "workspace default" : "personal"} OpenAI key is available` });
+    let inventory;
+    try { inventory = await eventAiModelInventory(pool, user, credentialScope, cleanText(request.body?.credentialId, 100)); }
+    catch (error) { return reply.code(error?.httpStatus || 502).send({ error: cleanText(error?.message || "OpenAI model inventory is unavailable", 500), code: cleanText(error?.code, 120) }); }
+    const credential = inventory.credential;
+    const producerModel = cleanText(request.body?.producerModel, 180) || inventory.producerModel;
+    const verifierModel = cleanText(request.body?.verifierModel, 180) || inventory.verifierModel;
+    try { assertEventAiModels(inventory.models, producerModel, verifierModel); }
+    catch (error) { return reply.code(error.httpStatus || 409).send({ error: error.message, code: error.code }); }
     const id = randomUUID();
     const traceId = randomUUID();
     const direction = cleanText(request.body?.direction, 2000);
@@ -1044,7 +1164,7 @@ export async function registerAuthRoutes(app, pool) {
       (id, workspace_id, user_id, status, current_step, credential_id, credential_scope, producer_model, verifier_model,
        direction, input_snapshot_json, categories_json, trace_id)
       VALUES ($1,$2,$3,'researching','public_research',$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11) RETURNING *`, [
-      id, user.active_workspace_id, user.user_id, credential.id, credential.scope, EVENT_AI_PRODUCER_MODEL, EVENT_AI_VERIFIER_MODEL,
+      id, user.active_workspace_id, user.user_id, credential.id, credential.scope, producerModel, verifierModel,
       direction, JSON.stringify(draft), JSON.stringify(EVENT_AI_CATEGORIES), traceId,
     ]);
     let row = result.rows[0];
@@ -1052,7 +1172,7 @@ export async function registerAuthRoutes(app, pool) {
     try {
       let responseId = `mock-producer-${id}`;
       if (!mockMode) {
-        const started = await startOpenAiBackgroundResponse(credential.apiKey, buildEventAiProducerRequest({ draft, direction, categories: EVENT_AI_CATEGORIES, model: EVENT_AI_PRODUCER_MODEL }));
+        const started = await startOpenAiBackgroundResponse(credential.apiKey, buildEventAiProducerRequest({ draft, direction, categories: EVENT_AI_CATEGORIES, model: producerModel }));
         responseId = started.response.id;
         await logEventAiProvider(pool, row, started.response, "research", "accepted", started.latencyMs, started.requestId);
       }

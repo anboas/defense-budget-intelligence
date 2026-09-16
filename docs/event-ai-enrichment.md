@@ -11,10 +11,10 @@ AI does not directly save an event. The verified result is merged into the open 
 1. **Public research**
    - Input: public event fields, workspace category names, and an optional operator direction.
    - Excluded from provider input: attendee IDs/profiles, linked workspace record IDs, internal status, wallboard settings, credentials, and authorization data.
-   - Runtime: background Responses API call using `gpt-5.6-terra`, web search, and a strict JSON Schema.
+   - Runtime: background Responses API call using the operator-selected research model, web search, and a strict JSON Schema.
 2. **Independent verification**
    - Input: the public draft, producer proposal, allowed category names, and operator direction.
-   - Runtime: a separate background Responses API call using `gpt-5.6-sol`, web search, and a separate strict JSON Schema.
+   - Runtime: a separate background Responses API call using the operator-selected verification model, web search, and a separate strict JSON Schema.
    - Checks: event identity, dates, venue, links, milestones, categories, evidence, and merge safety.
 3. **Deterministic merge**
    - Only source URLs present in provider web-search citation annotations are accepted.
@@ -61,6 +61,16 @@ Provider responses remain stored only while their background stage is pending or
 - Workspace actions use the active workspace's default credential without exposing its secret or identifier to unauthorized users.
 - Secrets are decrypted only on the server for the provider request.
 
+## Model inventory and defaults
+
+- `GET /api/v1/auth/event-ai/models` resolves the selected personal or workspace credential on the server and reads its live OpenAI `GET /v1/models` inventory.
+- Only safe model metadata is returned to the browser. The credential is never returned or placed in a URL.
+- Research and verification models are selected independently and persisted on the durable job.
+- A requested model must appear in the selected credential/project inventory before DBI creates a job or submits a Responses request. Unavailable models fail with `409 model_not_available`.
+- Workspace managers may persist separate research and verification defaults for the active workspace. Personal-key selections remain run-specific.
+- The Models API proves credential/project availability, not tool or schema compatibility. DBI discloses that distinction and retains any execution failure in the redacted API ledger.
+- Model inventory requests are logged with status, latency, safe provider request ID, credential reference, and counts only. The returned inventory and credential secret are not written to the log.
+
 ## Audit and redaction
 
 Research and verification are separate `dbi_api_request_log` / `app_api_request_log` entries. Logs include model, stage, status, latency, token counts, provider/trace/response IDs, retry metadata, and safe errors.
@@ -71,7 +81,7 @@ Logs never retain keys, authorization headers, cookies, prompts, input snapshots
 
 ## Verification
 
-- `npm run verify:event-ai`: strict schemas, citation binding, malformed-output rejection, provider-error extraction, and non-destructive merge.
+- `npm run verify:event-ai`: strict schemas, citation binding, malformed-output rejection, provider-error extraction, model filtering/selection, entitlement rejection, and non-destructive merge.
 - `npm run verify:pages-auth`: D1 persistence, two-stage transition, editor merge, credential ownership, provider-failure diagnostics, audit entries, and redaction.
 - `npm run verify:postgres-auth:local`: disposable PostgreSQL parity, including provider-failure diagnostics.
 - `npm run verify`: public UI, responsive presentation, Control Surface conformance, and build contract.

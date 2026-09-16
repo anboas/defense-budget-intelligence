@@ -86,6 +86,8 @@ export const authApi = {
   updateOpenAiKey: (id, values) => request(`/openai-keys/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(values) }),
   revokeOpenAiKey: (id) => request(`/openai-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   getEventAiCapability: () => request("/event-ai/capability", { method: "GET", headers: {} }),
+  listEventAiModels: ({ credentialScope, credentialId = "" }) => request(`/event-ai/models?credentialScope=${encodeURIComponent(credentialScope)}&credentialId=${encodeURIComponent(credentialId)}`, { method: "GET", headers: {} }),
+  saveEventAiModelDefaults: (values) => request("/event-ai/model-defaults", { method: "PATCH", body: JSON.stringify(values) }),
   listEventAiJobs: () => request("/event-ai", { method: "GET", headers: {} }),
   startEventAiJob: (values) => request("/event-ai", { method: "POST", body: JSON.stringify(values) }),
   getEventAiJob: (id) => request(`/event-ai/${encodeURIComponent(id)}`, { method: "GET", headers: {} }),

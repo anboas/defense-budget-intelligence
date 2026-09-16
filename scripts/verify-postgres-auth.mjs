@@ -73,28 +73,46 @@ assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey));
 response = await request(`/api/v1/auth/openai-keys/${personalOpenAiKeyId}`, { method: "PATCH", cookie: ownerCookie,
   body: { label: "PostgreSQL personal renamed" } });
 assert.equal(response.status, 200);
-response = await request(`/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, { method: "DELETE", cookie: ownerCookie });
-assert.equal(response.status, 200);
 response = await request("/api/v1/auth/openai-keys", { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.personalKeys[0].label, "PostgreSQL personal renamed");
-assert.equal(body.workspaceKeys[0].status, "revoked");
+assert.equal(body.workspaceKeys[0].status, "active");
 assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null });
 assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "PostgreSQL credential listings must expose metadata only");
 response = await request("/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
 assert.equal(response.status, 200);
 body = await response.json();
 assert.equal(body.capability.available, true);
-assert.equal(body.capability.producerModel, "gpt-5.6-terra");
-assert.equal(body.capability.verifierModel, "gpt-5.6-sol");
+assert.equal(body.capability.producerModel, "gpt-5.4");
+assert.equal(body.capability.verifierModel, "gpt-5.4");
+response = await request(`/api/v1/auth/event-ai/models?credentialScope=user&credentialId=${personalOpenAiKeyId}`, { cookie: ownerCookie });
+assert.equal(response.status, 200);
+body = await response.json();
+assert.deepEqual(body.inventory.models.map((model) => model.id), ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"]);
 response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {
-  credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "Verify venue and source.",
+  credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.6-terra", verifierModel: "gpt-5.4",
+  draft: { title: "Unavailable model guard", startsAt: "2027-04-11T09:00", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [] },
+} });
+assert.equal(response.status, 409, "PostgreSQL must reject an unavailable model before job creation");
+assert.match((await response.json()).error, /not available to the selected OpenAI credential/i);
+response = await request("/api/v1/auth/event-ai/model-defaults", { method: "PATCH", cookie: ownerCookie,
+  body: { producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4" } });
+assert.equal(response.status, 200);
+response = await request("/api/v1/auth/event-ai/models?credentialScope=workspace", { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.inventory.producerModel, "gpt-5.4-mini");
+response = await request(`/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, { method: "DELETE", cookie: ownerCookie });
+assert.equal(response.status, 200);
+response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {
+  credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4", direction: "Verify venue and source.",
   draft: { title: "PostgreSQL AI verification event", startsAt: "2027-04-12T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true },
 } });
 assert.equal(response.status, 202);
 body = await response.json();
 const eventAiJobId = body.job.id;
 assert.equal(body.job.status, "researching");
+assert.equal(body.job.producerModel, "gpt-5.4-mini");
+assert.equal(body.job.verifierModel, "gpt-5.4");
 response = await request(`/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.job.status, "verifying");
@@ -122,6 +140,7 @@ assert.ok(body.requests.some((entry) => entry.operation === "credential.created"
 assert.ok(body.requests.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"));
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"));
+assert.ok(body.requests.some((entry) => entry.operation === "model_inventory.list" && entry.status === "succeeded"));
 const failedProviderEntry = body.requests.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "failed" && entry.metadata?.jobId === failedEventAiJobId);
 assert.equal(failedProviderEntry?.errorCode, "rate_limit_exceeded");
 assert.equal(failedProviderEntry?.errorMessage, "Verification-only provider rate limit.");

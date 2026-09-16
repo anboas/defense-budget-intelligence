@@ -430,25 +430,47 @@ async function verifyApiLifecycle(persistPath) {
       method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Owner rotated label" },
     });
     assert.equal(response.status, 200, "Users must be able to update personal key metadata without resubmitting the secret");
-    response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, {
-      method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
-    });
-    assert.equal(response.status, 200, "Workspace managers must be able to revoke a workspace OpenAI key");
     response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.personalKeys[0].label, "Owner rotated label");
-    assert.equal(body.workspaceKeys[0].status, "revoked");
+    assert.equal(body.workspaceKeys[0].status, "active");
     assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null }, "New credentials must expose an empty aggregate usage boundary without inventing calls");
     assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "Credential listings must expose metadata only");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
     assert.equal(response.status, 200);
     body = await response.json();
     assert.equal(body.capability.available, true, "Event AI must be available when an encrypted personal credential exists");
-    assert.equal(body.capability.producerModel, "gpt-5.6-terra");
-    assert.equal(body.capability.verifierModel, "gpt-5.6-sol");
+    assert.equal(body.capability.producerModel, "gpt-5.4");
+    assert.equal(body.capability.verifierModel, "gpt-5.4");
+    response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/models?credentialScope=user&credentialId=${personalOpenAiKeyId}`, { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Event AI must expose the selected credential's live model inventory");
+    body = await response.json();
+    assert.deepEqual(body.inventory.models.map((model) => model.id), ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"]);
+    assert.equal(body.inventory.source, "openai_models_api");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+        credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.6-terra", verifierModel: "gpt-5.4",
+        draft: { title: "Unavailable model guard", startsAt: "2027-03-09T09:00", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [] },
+      },
+    });
+    assert.equal(response.status, 409, "An unavailable project model must be rejected before a job is created");
+    assert.match((await response.json()).error, /not available to the selected OpenAI credential/i);
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/model-defaults", {
+      method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4" },
+    });
+    assert.equal(response.status, 200, "Workspace managers must be able to save separate research and verification defaults");
+    body = await response.json();
+    assert.equal(body.defaults.producerModel, "gpt-5.4-mini");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/models?credentialScope=workspace", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.inventory.producerModel, "gpt-5.4-mini", "Workspace model inventory must apply persisted workspace defaults");
+    response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, {
+      method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Workspace managers must be able to revoke a workspace OpenAI key");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
       method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
-      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "Verify the public venue and official link.", draft: {
+      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4", direction: "Verify the public venue and official link.", draft: {
         title: "AI workflow verification event", startsAt: "2027-03-10T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [ownerId], recordIds: [], status: "scheduled", wallboard: true,
       } },
     });
@@ -456,6 +478,8 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     const eventAiJobId = body.job.id;
     assert.equal(body.job.status, "researching");
+    assert.equal(body.job.producerModel, "gpt-5.4-mini");
+    assert.equal(body.job.verifierModel, "gpt-5.4");
     response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.job.status, "verifying", "A separate verification stage must follow research");
@@ -488,6 +512,7 @@ async function verifyApiLifecycle(persistPath) {
     assert.ok(credentialEntries.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"), "Research-stage metadata must be logged");
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"), "Verifier-stage metadata must be logged independently");
+    assert.ok(body.data.some((entry) => entry.operation === "model_inventory.list" && entry.status === "succeeded"), "Credential-specific model inventory requests must be logged safely");
     const failedProviderEntry = body.data.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "failed" && entry.metadata?.jobId === failedEventAiJobId);
     assert.equal(failedProviderEntry?.errorCode, "rate_limit_exceeded", "D1 logs must preserve the provider failure code");
     assert.equal(failedProviderEntry?.errorMessage, "Verification-only provider rate limit.", "D1 logs must preserve the safe provider failure message");

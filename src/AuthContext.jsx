@@ -208,6 +208,8 @@ export default function AuthProvider({ children }) {
     updateOpenAiKey: (id, values) => authApi.updateOpenAiKey(id, values),
     revokeOpenAiKey: (id) => authApi.revokeOpenAiKey(id),
     getEventAiCapability: () => authApi.getEventAiCapability(),
+    listEventAiModels: (values) => authApi.listEventAiModels(values),
+    saveEventAiModelDefaults: (values) => authApi.saveEventAiModelDefaults(values),
     listEventAiJobs: () => authApi.listEventAiJobs(),
     startEventAiJob: (values) => authApi.startEventAiJob(values),
     getEventAiJob: (id) => authApi.getEventAiJob(id),

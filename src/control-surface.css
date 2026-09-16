@@ -75,6 +75,11 @@
   --if-danger-soft: var(--if-color-red-100);
   --if-purple: var(--if-color-violet-700);
   --if-purple-soft: var(--if-color-violet-100);
+  --if-ai-action: var(--if-color-violet-700);
+  --if-ai-action-hover: #4c1d95;
+  --if-ai-action-soft: #faf5ff;
+  --if-ai-action-border: #c4b5fd;
+  --if-ai-action-text: #ffffff;
 }
 
 
@@ -647,6 +652,14 @@ code {
   --if-btn-bg: var(--if-danger-soft);
   --if-btn-border: #fca5a5;
   --if-btn-color: var(--if-danger);
+}
+
+.if-btn--ai {
+  --if-btn-bg: var(--if-ai-action);
+  --if-btn-border: var(--if-ai-action);
+  --if-btn-color: var(--if-ai-action-text);
+  --if-btn-hover-bg: var(--if-ai-action-hover);
+  --if-btn-hover-border: var(--if-ai-action-hover);
 }
 
 .if-btn--sm {
@@ -3100,6 +3113,14 @@ code {
   .if-operations-signal-grid--compact.if-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.if-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  gap: var(--if-space-2);
 }
 
 .if-text-muted {

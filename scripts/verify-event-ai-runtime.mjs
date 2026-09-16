@@ -10,6 +10,24 @@ import {
   normalizeEventAiDetails,
   parseOpenAiStructuredResponse,
 } from "../src/event-ai-runtime.js";
+import {
+  MOCK_EVENT_AI_MODELS,
+  assertEventAiModels,
+  chooseEventAiModel,
+  eventAiModelCandidates,
+  normalizeOpenAiModels,
+} from "../src/openai-models.js";
+
+const normalizedModels = normalizeOpenAiModels({ data: [
+  { id: "text-embedding-3-large", created: 3, owned_by: "openai" },
+  { id: "gpt-5.4", created: 2, owned_by: "openai" },
+  { id: "gpt-5.4-mini", created: 1, owned_by: "openai" },
+] });
+assert.deepEqual(eventAiModelCandidates(normalizedModels).map((model) => model.id), ["gpt-5.4", "gpt-5.4-mini"]);
+assert.equal(chooseEventAiModel(normalizedModels, "gpt-5.4-mini"), "gpt-5.4-mini");
+assert.equal(chooseEventAiModel(MOCK_EVENT_AI_MODELS), "gpt-5.4");
+assert.doesNotThrow(() => assertEventAiModels(normalizedModels, "gpt-5.4", "gpt-5.4-mini"));
+assert.throws(() => assertEventAiModels(normalizedModels, "gpt-5.6-terra", "gpt-5.4"), /not available to the selected OpenAI credential/i);
 
 function assertStrictObjects(schema, path = "schema") {
   if (!schema || typeof schema !== "object") return;

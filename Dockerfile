@@ -20,6 +20,7 @@ COPY server ./server
 COPY src/data ./src/data
 COPY src/procurement-taxonomy.js ./src/procurement-taxonomy.js
 COPY src/event-ai-runtime.js ./src/event-ai-runtime.js
+COPY src/openai-models.js ./src/openai-models.js
 
 USER node
 EXPOSE 8080
