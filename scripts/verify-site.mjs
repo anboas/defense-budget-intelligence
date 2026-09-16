@@ -520,6 +520,7 @@ try {
   await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
   await openSurface(page, "#/budget-spend/integrations", "[data-ops-integrations]");
+  await page.waitForSelector("[data-ops-integrations] [data-integration-freshness] .freshness-chip", { state: "attached" });
   assert.equal(await page.locator("[data-ops-integrations] [data-ops-integration-table] [data-if-table-row]").count(), 8, "Operations should summarize each current ingestion layer");
   assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 4, "Budget, award, source, and contract-monitor freshness should live with Admin integration health");
   assert.equal(await page.locator("[data-contract-monitor-summary] .if-management-card").count(), 4, "Contract monitoring should expose target, coverage, gap, and freshness metrics through the shared metric strip");
