@@ -848,6 +848,12 @@ code {
   --if-btn-hover-bg: var(--if-accent-soft);
 }
 
+.if-btn--danger {
+  --if-btn-bg: var(--if-danger-soft);
+  --if-btn-border: #fca5a5;
+  --if-btn-color: var(--if-danger);
+}
+
 .if-btn--ai {
   --if-btn-bg: var(--if-ai-action);
   --if-btn-border: var(--if-ai-action);
@@ -3500,6 +3506,18 @@ button.if-chart-bar.is-selected {
   padding-block: 0.25rem;
   padding-inline: 0.625rem;
   font-size: var(--if-font-size-xs);
+}
+
+.if-btn--danger {
+  border-color: color-mix(in srgb, var(--if-danger) 34%, var(--if-border));
+  background: var(--if-danger-soft);
+  color: var(--if-danger);
+}
+
+.if-btn--danger.if-btn--primary {
+  border-color: var(--if-danger);
+  background: var(--if-danger);
+  color: #fff;
 }
 
 .if-meta-grid--dense {
