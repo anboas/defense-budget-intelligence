@@ -450,7 +450,44 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary] .if-sparkline svg");
   assert.equal(await page.locator("[data-api-request-summary] .if-sparkline svg").count(), 4, "API Log summary metrics must use the shared sparkline component when retained history is available");
+  assert.equal(await page.locator("[data-api-request-summary].if-management-grid--strip").count(), 1, "API Log metrics must use one flat summary strip instead of four boxed cards");
+  assert.equal(await page.locator("[data-api-observability-charts].if-chart-grid--band .if-chart-card--flat").count(), 2, "API Log charts must use one flat chart band instead of nested chart cards");
+  const summaryGeometry = await page.locator("[data-api-request-summary]").evaluate((node) => ({
+    width: node.getBoundingClientRect().width,
+    sparklineWidths: [...node.querySelectorAll(".if-sparkline")].map((sparkline) => sparkline.getBoundingClientRect().width),
+    cardBorders: [...node.querySelectorAll(".if-management-card")].map((card) => getComputedStyle(card).borderTopWidth),
+  }));
+  assert.ok(summaryGeometry.sparklineWidths.every((width) => width <= 145 && width < summaryGeometry.width / 4), "Summary sparklines must stay compact and proportional instead of stretching across their metric cell");
+  assert.ok(summaryGeometry.cardBorders.every((width) => width === "0px"), "Flat summary cells must remove redundant card borders");
+  const firstSparklineSample = page.locator("[data-api-request-summary] .if-sparkline__sample").first();
+  await firstSparklineSample.hover();
+  assert.match(await page.locator("[data-api-request-summary] .if-sparkline__tooltip").first().innerText(), /requests/i, "Sparkline samples must expose visible hover values");
+  const outcomeBar = page.locator("[data-api-observability-charts] .if-chart-card").first().locator("button.if-chart-bar").first();
+  await outcomeBar.hover();
+  assert.match(await page.locator("[data-api-observability-charts] .if-chart-tooltip").innerText(), /click to filter/i, "Chart bars must expose a visible hover value and action");
+  await outcomeBar.click();
+  assert.equal(await outcomeBar.getAttribute("aria-pressed"), "true", "Clicking an outcome bar must select it");
+  assert.match(await page.getByRole("button", { name: /Status filter:/ }).getAttribute("aria-label"), /succeeded|failed|rejected|rate limited/i, "Outcome selection must synchronize the request-table status filter");
+  await outcomeBar.click();
+  assert.equal(await outcomeBar.getAttribute("aria-pressed"), "false", "Clicking the selected outcome again must clear it");
+  const latencyBar = page.locator("[data-api-observability-charts] .if-chart-card").nth(1).locator("button.if-chart-bar").first();
+  await latencyBar.click();
+  assert.equal(await latencyBar.getAttribute("aria-pressed"), "true", "Clicking a latency bar must select its operation filter");
+  assert.doesNotMatch(await page.getByRole("button", { name: /Operation filter:/ }).getAttribute("aria-label"), /: All$/i, "Latency selection must synchronize the request-table operation filter");
+  await latencyBar.click();
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-api-request-summary] .if-sparkline svg");
+  const mobileApiLogGeometry = await page.locator("[data-ops-activity]").evaluate((node) => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+    chartColumns: getComputedStyle(node.querySelector("[data-api-observability-charts]")).gridTemplateColumns.split(" ").length,
+    minimumBarHeight: Math.min(...[...node.querySelectorAll("button.if-chart-bar")].map((bar) => bar.getBoundingClientRect().height)),
+  }));
+  assert.ok(mobileApiLogGeometry.documentWidth <= mobileApiLogGeometry.viewportWidth, "Compact API Log must not create mobile document overflow");
+  assert.equal(mobileApiLogGeometry.chartColumns, 1, "Compact API Log charts must stack into one clean mobile band");
+  assert.ok(mobileApiLogGeometry.minimumBarHeight >= 44, "Interactive mobile chart bars must retain 44px touch targets");
+  await page.screenshot({ path: "test-results/admin-api-log-mobile.png", fullPage: true });
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: /^Research and augment / }).first().click();
   await page.waitForSelector("[data-event-ai-launcher]");

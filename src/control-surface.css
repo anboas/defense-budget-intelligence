@@ -2052,6 +2052,18 @@ code {
   color: var(--if-accent);
 }
 
+.if-sparkline--summary {
+  justify-self: end;
+  width: min(100%, 8.75rem);
+  height: 2rem;
+  overflow: visible;
+}
+
+.if-sparkline:has(.if-sparkline__tooltip) {
+  z-index: 4;
+  overflow: visible;
+}
+
 .if-sparkline svg {
   display: block;
   width: 100%;
@@ -2074,6 +2086,13 @@ code {
 
 .if-sparkline__sample {
   pointer-events: auto;
+  outline: 0;
+  cursor: crosshair;
+}
+
+.if-sparkline__hit {
+  fill: transparent;
+  stroke: transparent;
 }
 
 .if-sparkline__point {
@@ -2086,6 +2105,45 @@ code {
 .if-sparkline__point--latest {
   fill: currentColor;
   stroke: var(--if-bg-surface);
+}
+
+.if-sparkline__sample:hover .if-sparkline__point,
+.if-sparkline__sample:focus-visible .if-sparkline__point,
+.if-sparkline__sample.is-active .if-sparkline__point {
+  fill: currentColor;
+  stroke: var(--if-bg-surface);
+  stroke-width: 3;
+}
+
+.if-sparkline__tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--if-space-1));
+  display: grid;
+  gap: 0.1rem;
+  min-width: 6.5rem;
+  padding: var(--if-space-1) var(--if-space-2);
+  border: 1px solid var(--if-border-selected);
+  border-radius: var(--if-radius-2);
+  background: var(--if-bg-surface);
+  box-shadow: var(--if-shadow-sm);
+  color: var(--if-text);
+  pointer-events: none;
+  text-align: left;
+  transform: translateX(-50%);
+}
+
+.if-sparkline__tooltip strong {
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-xs);
+  line-height: 1;
+}
+
+.if-sparkline__tooltip span {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+  font-weight: var(--if-font-weight-semibold);
+  white-space: nowrap;
 }
 
 .if-sparkline.is-streaming::after {
@@ -2134,6 +2192,14 @@ code {
   min-width: 0;
 }
 
+.if-chart-grid.if-chart-grid--band {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border-block: var(--if-divider);
+  background: var(--if-bg-surface);
+}
+
 @container (min-width: 54rem) {
   .if-chart-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2157,6 +2223,24 @@ code {
   border: var(--if-outline);
   border-radius: var(--if-card-radius);
   background: var(--if-bg-surface);
+}
+
+.if-chart-card--flat {
+  grid-template-rows: auto minmax(7.5rem, 1fr);
+  gap: var(--if-space-2);
+  padding: var(--if-space-3);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.if-chart-grid--band > .if-chart-card--flat + .if-chart-card--flat {
+  border-inline-start: var(--if-divider);
+}
+
+.if-chart-card--flat .if-chart,
+.if-chart-card--flat .if-chart__bars {
+  min-height: 7.5rem;
 }
 
 .if-chart-card__header {
@@ -2230,6 +2314,24 @@ code {
   transition: opacity var(--if-duration-fast) var(--if-ease-standard), transform var(--if-duration-fast) var(--if-ease-standard);
 }
 
+button.if-chart-bar {
+  width: 100%;
+  padding: var(--if-space-1);
+  border: 0;
+  border-radius: var(--if-radius-1);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+button.if-chart-bar:hover,
+button.if-chart-bar:focus-visible,
+button.if-chart-bar.is-selected {
+  background: var(--if-bg-selected);
+  box-shadow: inset 0 0 0 1px var(--if-border-selected);
+}
+
 .if-chart-bar:hover,
 .if-chart-bar:focus-visible,
 .if-chart-bar.is-active,
@@ -2278,73 +2380,6 @@ code {
   font-size: var(--if-font-size-xs);
 }
 
-.if-chart-legend {
-  display: grid;
-  gap: var(--if-space-2);
-  align-content: center;
-}
-
-.if-chart-legend span {
-  display: flex;
-  min-width: 0;
-  max-width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--if-space-2);
-  color: var(--if-text);
-  font-size: var(--if-font-size-xs);
-  font-weight: var(--if-font-weight-semibold);
-}
-
-.if-chart-legend button {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
-  align-items: center;
-  gap: var(--if-space-1);
-  min-height: 1.75rem;
-  padding: 0 var(--if-space-2);
-  border: var(--if-outline);
-  border-radius: var(--if-radius-pill);
-  background: var(--if-bg-surface);
-  color: var(--if-text);
-  font: inherit;
-  font-size: var(--if-font-size-xs);
-  font-weight: var(--if-font-weight-semibold);
-  cursor: pointer;
-}
-
-.if-chart-legend button:hover,
-.if-chart-legend button:focus-visible {
-  border-color: var(--if-border-selected);
-  background: var(--if-bg-selected);
-}
-
-.if-chart-legend i {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: var(--if-radius-pill);
-  background: var(--if-chart-color, var(--if-accent));
-}
-
-.if-chart-legend button i {
-  background: var(--if-chart-color, var(--if-chart-series-color, var(--if-accent)));
-}
-
-.if-chart-legend strong {
-  margin-left: auto;
-  flex: 0 0 auto;
-  color: var(--if-text-strong);
-}
-
-.if-chart-legend span > span,
-.if-chart-legend button > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @container (max-width: 30rem) {
   .if-chart-card {
     grid-template-rows: auto minmax(9rem, auto) auto;
@@ -2361,22 +2396,6 @@ code {
   }
 }
 
-.if-chart-legend button:nth-child(1) {
-  --if-chart-series-color: var(--if-accent);
-}
-
-.if-chart-legend button:nth-child(2) {
-  --if-chart-series-color: var(--if-success);
-}
-
-.if-chart-legend button:nth-child(3) {
-  --if-chart-series-color: var(--if-warning);
-}
-
-.if-chart-legend button:nth-child(4) {
-  --if-chart-series-color: var(--if-danger);
-}
-
 .if-chart-summary {
   display: flex;
   flex-wrap: wrap;
@@ -2386,6 +2405,39 @@ code {
   color: var(--if-text-muted);
   font-size: var(--if-font-size-xs);
   font-weight: var(--if-font-weight-semibold);
+}
+
+.if-chart-tooltip {
+  position: absolute;
+  right: var(--if-space-2);
+  top: var(--if-space-2);
+  z-index: 3;
+  display: inline-grid;
+  gap: 0.15rem;
+  min-width: 7rem;
+  padding: var(--if-space-2);
+  border: 1px solid var(--if-border-selected);
+  border-radius: var(--if-radius-2);
+  background: color-mix(in srgb, var(--if-bg-surface) 94%, white);
+  box-shadow: var(--if-shadow-sm);
+  color: var(--if-text);
+  pointer-events: none;
+}
+
+.if-chart-tooltip[hidden] {
+  display: none;
+}
+
+.if-chart-tooltip strong {
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-xs);
+  line-height: var(--if-line-height-snug);
+}
+
+.if-chart-tooltip span {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+  font-weight: var(--if-font-weight-bold);
 }
 
 @keyframes if-chart-grow {
@@ -3678,6 +3730,71 @@ code {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr));
   gap: var(--if-space-2);
   min-width: 0;
+}
+
+.if-management-grid--strip {
+  gap: 0;
+  overflow: visible;
+  border-block: var(--if-divider);
+  background: var(--if-bg-surface);
+}
+
+.if-management-grid--strip > .if-management-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label"
+    "value sparkline"
+    "meta meta";
+  align-items: center;
+  gap: 0.2rem var(--if-space-2);
+  padding: var(--if-space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.if-management-grid--strip > .if-management-card + .if-management-card {
+  border-inline-start: var(--if-divider);
+}
+
+.if-management-grid--strip .if-management-card__label { grid-area: label; }
+.if-management-grid--strip .if-management-card__value { grid-area: value; }
+.if-management-grid--strip .if-management-card__meta { grid-area: meta; }
+.if-management-grid--strip .if-sparkline { grid-area: sparkline; }
+
+@media (max-width: 52rem) {
+  .if-management-grid--strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .if-management-grid--strip > .if-management-card:nth-child(odd) {
+    border-inline-start: 0;
+  }
+
+  .if-management-grid--strip > .if-management-card:nth-child(n + 3) {
+    border-block-start: var(--if-divider);
+  }
+
+  .if-chart-grid--band > .if-chart-card--flat + .if-chart-card--flat {
+    border-block-start: var(--if-divider);
+    border-inline-start: 0;
+  }
+
+  .if-chart-grid.if-chart-grid--band {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 32rem) {
+  .if-management-grid--strip > .if-management-card {
+    grid-template-columns: 1fr;
+    grid-template-areas: "label" "value" "sparkline" "meta";
+  }
+
+  .if-management-grid--strip .if-sparkline {
+    justify-self: start;
+  }
 }
 
 .if-management-card {

@@ -89,6 +89,8 @@ export default function OperationalDataTable({
   wrapperProps = {},
   queryValue,
   onQueryChange,
+  filterValues,
+  onFilterChange,
   showSearch = true,
   showFacets = true,
 }) {
@@ -105,7 +107,7 @@ export default function OperationalDataTable({
   }), [columnKeys, defaultMobilePageSize, defaultPageSize]);
   const [preferences, setPreferences] = useState(() => readPreferences(id, defaults));
   const [internalQuery, setInternalQuery] = useState("");
-  const [filters, setFilters] = useState({});
+  const [internalFilters, setInternalFilters] = useState({});
   const [sort, setSort] = useState(defaultSort || { key: columns.find((column) => column.sortable !== false)?.key, direction: "asc" });
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(() => new Set());
@@ -115,6 +117,8 @@ export default function OperationalDataTable({
   const columnsRef = useRef(null);
   const query = queryValue ?? internalQuery;
   const setQuery = onQueryChange ?? setInternalQuery;
+  const filters = filterValues ?? internalFilters;
+  const setFilters = onFilterChange ?? setInternalFilters;
 
   const orderedKeys = useMemo(() => {
     const saved = Array.isArray(preferences.order) ? preferences.order.filter((key) => columnKeys.includes(key)) : [];
