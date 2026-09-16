@@ -30,7 +30,7 @@ import {
 import { useManagementState } from "./management-state.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlDisclosure, ControlMetricStrip, ControlMultiSelect } from "control-surface-ui/react";
+import { ControlDialog, ControlDisclosure, ControlFactGrid, ControlMetricStrip, ControlMultiSelect } from "control-surface-ui/react";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -599,12 +599,12 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
   const utilization = potential ? Math.min((observed / potential) * 100, 100) : null;
   const durationDays = dateDiffDays(record.start, record.currentEnd);
   const primaryFacts = [
-    { label: "Company / sponsor", value: liveAward?.recipient || record.party, meta: liveAward ? "Current award analytics match" : "Source record" },
+    { label: "Company / sponsor", value: liveAward?.recipient || record.party, meta: liveAward ? "Current award analytics match" : "Source record", wide: true },
     { label: "Reference", value: record.reference || "Not published", meta: record.context },
     { label: "Reported term", value: `${compactDate(record.start)} to ${compactDate(record.currentEnd)}`, meta: `Potential through ${compactDate(record.potentialEnd)}` },
     { label: "USAspending money", value: formatMoney(observed), meta: `Potential / high ${formatMoney(potential)}` },
     { label: "Obligation posture", value: utilization == null ? "Not calculable" : `${Math.round(utilization)}% of potential`, meta: potential ? `${formatMoney(Math.max(potential - observed, 0))} reported headroom` : "No potential value published" },
-    { label: "Type of work", value: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", meta: (record.workCategories || []).slice(1).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || record.workCategoryConfidence || "No secondary category" },
+    { label: "Type of work", value: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", meta: (record.workCategories || []).slice(1).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || record.workCategoryConfidence || "No secondary category", wide: true },
   ];
   const secondaryFacts = [
     { label: "FPDS public action sum", value: formatMoney(record.fpdsObligatedAmount), meta: `Potential ${formatMoney(record.fpdsPotentialAmount)}` },
@@ -621,7 +621,6 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
     { label: "Latest refresh comparison", value: record.changeStatus === "unchanged" ? "No detected change" : label(record.changeStatus), meta: record.changeSourceSystem || "Current baseline or unchanged public record" },
     { label: "Source posture", value: `${record.sourceRoleCount} source role${record.sourceRoleCount === 1 ? "" : "s"}`, meta: `${label(record.validationStatus)} · checked ${formatDate(record.validationCheckedAt?.slice(0, 10))}` },
   ].filter(Boolean);
-  const renderFact = (fact) => <article key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong><small>{fact.meta}</small></article>;
   return (
     <aside className="capture-detail" data-capture-detail aria-label={`${record.title} evidence details`}>
       <div className="capture-detail__heading">
@@ -635,9 +634,9 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           <button type="button" autoFocus onClick={onClose} aria-label="Close record details"><X size={18} /></button>
         </div>
       </div>
-      <div className="capture-detail__grid capture-detail__grid--primary" data-capture-primary-facts>{primaryFacts.map(renderFact)}</div>
+      <ControlFactGrid label="Primary transaction facts" mobileTwoColumn items={primaryFacts} data-capture-primary-facts />
       <ControlDisclosure className="capture-detail__secondary" title="Procurement and provenance details" summary={`${secondaryFacts.length} published fields · offices, competition, instrument, coding, and source posture`}>
-        <div className="capture-detail__grid" data-capture-secondary-facts>{secondaryFacts.map(renderFact)}</div>
+        <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
       </ControlDisclosure>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
       {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}

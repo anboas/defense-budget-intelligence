@@ -1122,10 +1122,10 @@ try {
   assert.equal(transactionRequests, 1, "Opening an award should reuse the already-loaded FPDS history");
   assert.equal(await page.locator("[data-capture-action-chart]").count(), 1, "Selected award should expose cumulative obligations");
   assert.ok(await page.locator("[data-capture-action-table] tbody tr").count() >= 1, "Selected award should expose exact action rows");
-  assert.equal(await page.locator("[data-capture-primary-facts] > article").count(), 6, "Record detail should lead with six decision-critical facts");
+  assert.equal(await page.locator("[data-capture-primary-facts] > .if-fact-grid__item").count(), 6, "Record detail should lead with six decision-critical facts");
   assert.equal(await page.locator(".capture-detail__secondary").getAttribute("open"), null, "Secondary procurement diagnostics should stay collapsed by default");
   await page.locator(".capture-detail__secondary > summary").click();
-  assert.ok(await page.locator("[data-capture-secondary-facts] > article").count() >= 9, "Expanded procurement diagnostics should retain the complete supporting metadata");
+  assert.ok(await page.locator("[data-capture-secondary-facts] > .if-fact-grid__item").count() >= 9, "Expanded procurement diagnostics should retain the complete supporting metadata");
   await page.locator(".capture-detail__secondary > summary").click();
   const recordModalHeader = await page.locator("[data-capture-detail] .capture-detail__heading").evaluate((header) => {
     const title = header.querySelector("h2").getBoundingClientRect();
@@ -1292,7 +1292,10 @@ try {
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-modal][open]');
   assert.match(await page.locator('[data-analytics-record-modal][open]').innerText(), /Observed obligations|Reported potential/i);
+  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
+  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
   assert.match(await page.locator('[data-analytics-record-modal][open] footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  await page.screenshot({ path: `${OUT_DIR}/analytics-record-detail-desktop.png`, fullPage: true });
   assert.equal(await page.locator('[data-analytics-record-modal][open] .if-dialog__close').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
   await page.keyboard.press("Shift+Tab");
   assert.equal(await page.locator('[data-analytics-record-modal][open]').evaluate((dialog) => dialog.contains(document.activeElement)), true, "Shift+Tab must wrap within analytical detail");
@@ -1403,17 +1406,23 @@ try {
   assert.ok(mobileRequestChrome.metrics <= 115, `Mobile request KPIs should use one horizontal strip, got ${mobileRequestChrome.metrics}px`);
   assert.equal(mobileRequestChrome.freshnessCount, 0, "Money-flow pages should not carry the integration-health strip");
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
+  assert.ok(await mobile.locator(".rank-list article").count() > 0, "Mobile request overview should render its current color-of-money records");
+  await mobile.screenshot({ path: `${OUT_DIR}/request-overview-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile request");
 
   await openSurface(mobile, "#/budget-spend/trends", "[data-request-history-page]");
   assert.ok(await mobile.locator("[data-request-history-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request-history intro should stay compact");
   assert.ok(await mobile.locator(".trend-metrics").evaluate((node) => node.getBoundingClientRect().height) <= 115, "Mobile request-history KPIs should use one compact horizontal strip");
+  assert.ok(await mobile.locator("[data-request-history-timeline]").evaluate((node) => node.getBoundingClientRect().height) <= 760, "Mobile request vintages should use compact rows instead of nested fact-card walls");
+  await mobile.screenshot({ path: `${OUT_DIR}/request-history-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile request history");
 
   await openSurface(mobile, "#/budget-spend/lifecycle", "[data-account-spine-page]");
   const accountHeight = await mobile.getByRole("button", { name: /^Federal account:/ }).evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(accountHeight >= 43.5, `Mobile account selector should be 44px, got ${accountHeight}`);
   assert.ok(await mobile.locator("[data-account-spine-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile account-flow intro should stay compact");
+  assert.ok(await mobile.locator("[data-lifecycle-waterfall]").evaluate((node) => node.getBoundingClientRect().height) <= 360, "Mobile account stages should read as one divided flow instead of four detached cards");
+  await mobile.screenshot({ path: `${OUT_DIR}/account-flow-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile account flow");
 
   await openSurface(mobile, "#/budget-spend/awards", "[data-awards-page]");
@@ -1422,6 +1431,7 @@ try {
   const mobileAwardTableControls = await mobile.locator("[data-award-record-table] .dbi-data-table__tools .if-btn, [data-award-record-table] .dbi-data-table__columns > summary, [data-award-record-table] .dbi-data-table__footer .if-page-btn, [data-award-record-table] .dbi-data-table__footer .if-select").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileAwardTableControls.every((height) => height >= 43.5), `Mobile DataTable controls should preserve 44px touch targets: ${mobileAwardTableControls.join(", ")}`);
   assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 4600, "Mobile Awards should stay within a bounded five-card working surface");
+  await mobile.screenshot({ path: `${OUT_DIR}/awards-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile awards");
 
   await openSurface(mobile, "#/budget-spend/transactions", "[data-transaction-analytics-page]");

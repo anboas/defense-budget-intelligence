@@ -27,7 +27,7 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
-import { ControlDialog, ControlDisclosure, ControlMetricStrip } from "control-surface-ui/react";
+import { ControlDialog, ControlDisclosure, ControlFactGrid, ControlMetricStrip } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import {
@@ -1750,16 +1750,18 @@ function RecordExplorer({ records, metricId, onSelect }) {
 }
 
 function AnalyticsRecordModal({ record, onClose }) {
-  const facts = record ? [
-    ["Recipient / sponsor", record.party || "Not published"],
-    ["Type of work", WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", record.workCategoryBasis || "No classification basis published"],
-    ["Observed obligations", money(recordObligations(record))],
-    ["Reported potential", money(recordValue(record))],
-    ["Reported schedule", `${record.start || record.solicitationStart || "Unknown"} → ${record.currentEnd || record.solicitationEnd || "Unknown"}`],
-    ["Acquisition structure", [record.vehicle, record.pricingType, record.awardType].filter(Boolean).join(" · ") || "Not published", record.setAside || record.competitionType || "Competition not published"],
-    ["FPDS actions", Number(record.transactionSummary?.actions || 0).toLocaleString()],
-    ["Reported subawards", Number(record.subawardSummary?.reportedCount || 0).toLocaleString(), record.subawardSummary?.detailTruncated ? "Recent detail is sampled" : "Exact prime count where available"],
-    ["Ingestion provenance", record.ingestionLabel || record.ingestionMethod || "Not published", record.sourceSystem || "Source system not published"],
+  const primaryFacts = record ? [
+    { id: "party", label: "Recipient / sponsor", value: record.party || "Not published", wide: true },
+    { id: "work", label: "Type of work", value: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", meta: record.workCategoryBasis || "No classification basis published", wide: true },
+    { id: "obligations", label: "Observed obligations", value: money(recordObligations(record)) },
+    { id: "potential", label: "Reported potential", value: money(recordValue(record)) },
+  ] : [];
+  const secondaryFacts = record ? [
+    { id: "schedule", label: "Reported schedule", value: `${record.start || record.solicitationStart || "Unknown"} → ${record.currentEnd || record.solicitationEnd || "Unknown"}`, wide: true },
+    { id: "structure", label: "Acquisition structure", value: [record.vehicle, record.pricingType, record.awardType].filter(Boolean).join(" · ") || "Not published", meta: record.setAside || record.competitionType || "Competition not published", wide: true },
+    { id: "actions", label: "FPDS actions", value: Number(record.transactionSummary?.actions || 0).toLocaleString() },
+    { id: "subawards", label: "Reported subawards", value: Number(record.subawardSummary?.reportedCount || 0).toLocaleString(), meta: record.subawardSummary?.detailTruncated ? "Recent detail is sampled" : "Exact prime count where available" },
+    { id: "provenance", label: "Ingestion provenance", value: record.ingestionLabel || record.ingestionMethod || "Not published", meta: record.sourceSystem || "Source system not published", wide: true },
   ] : [];
   return (
     <ControlDialog
@@ -1773,15 +1775,10 @@ function AnalyticsRecordModal({ record, onClose }) {
       bodyProps={{ className: "if-record-detail if-record-detail--intelligence" }}
       footer={record ? <><a className="if-btn if-btn--primary" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Transactions</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</> : null}
     >
-      <div className="if-record-detail__facts">
-        {facts.map(([label, value, detail]) => (
-          <article key={label} className="if-detail-card if-detail-card--neutral">
-            <header className="if-detail-card__header"><h3 className="if-detail-card__title">{label}</h3></header>
-            <strong>{value}</strong>
-            {detail ? <p className="if-detail-card__summary">{detail}</p> : null}
-          </article>
-        ))}
-      </div>
+      <ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} />
+      <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>
+        <ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} />
+      </ControlDisclosure>
     </ControlDialog>
   );
 }

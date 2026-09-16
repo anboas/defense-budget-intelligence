@@ -2268,10 +2268,10 @@ function FilterShell({ filters, setFilters }) {
   );
 }
 
-function useFilteredRecords(filters) {
+function useFilteredRecords(filters, sourceRecords = []) {
   return useMemo(() => {
     const query = filters.query.trim().toLowerCase();
-    return data.records.filter((record) => {
+    return sourceRecords.filter((record) => {
       if (filters.book !== "all" && record.bookId !== filters.book) return false;
       if (filters.group !== "all" && record.orgGroup !== filters.group) return false;
       if (filters.signal !== "all" && !record.signals.includes(filters.signal)) return false;
@@ -2286,7 +2286,7 @@ function useFilteredRecords(filters) {
         record.lineCode,
       ].join(" ").toLowerCase().includes(query);
     });
-  }, [filters]);
+  }, [filters, sourceRecords]);
 }
 
 function Overview({ records }) {
@@ -2397,24 +2397,12 @@ function RequestTrends() {
                 <b>{money(row.requestValue)}</b>
               </header>
               <Bar value={row.requestValue} max={maxRequest} color="#005ea2" label={`${row.label} request value`} />
-              <dl>
-                <div>
-                  <dt>Source versions</dt>
-                  <dd>{row.sourceVersions}</dd>
-                </div>
-                <div>
-                  <dt>Records</dt>
-                  <dd>{row.records.toLocaleString()}</dd>
-                </div>
-                <div>
-                  <dt>Values present</dt>
-                  <dd>{yearList(row.fiscalYears)}</dd>
-                </div>
-                <div>
-                  <dt>Comparable books</dt>
-                  <dd>{money(row.comparableRequestValue)}</dd>
-                </div>
-              </dl>
+              <div className="trend-year-card__meta" aria-label={`${row.label} request metadata`}>
+                <span><strong>{row.sourceVersions}</strong> source versions</span>
+                <span><strong>{row.records.toLocaleString()}</strong> records</span>
+                <span><strong>{yearList(row.fiscalYears)}</strong> values present</span>
+                <span><strong>{money(row.comparableRequestValue)}</strong> comparable set</span>
+              </div>
             </article>
           ))}
         </div>
@@ -4634,7 +4622,7 @@ function App() {
   const [coreRevision, setCoreRevision] = useState(0);
   const [coreLoadAttempt, setCoreLoadAttempt] = useState(0);
   const [coreError, setCoreError] = useState("");
-  const records = useFilteredRecords(filters);
+  const records = useFilteredRecords(filters, data.records);
   const total = aggregate(records, () => ({ id: "filtered", label: "Filtered portfolio" }))[0] || { fy2025: 0, fy2026: 0, fy2027: 0, records: 0 };
   const ai = aggregate(records.filter((record) => record.signals.includes("ai-autonomy")), () => ({ id: "ai", label: "AI / Autonomy" }))[0] || { fy2027: 0, records: 0 };
   const fourth = aggregate(records.filter((record) => record.orgGroup === "fourth-estate"), () => ({ id: "fourth", label: "Fourth Estate" }))[0] || { fy2027: 0, records: 0 };
