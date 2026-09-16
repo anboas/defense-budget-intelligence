@@ -924,7 +924,6 @@ button {
 .analysis-actions button,
 .mobile-disclosure-toggle,
 .reset-filters,
-.runtime-state button,
 .runtime-loading button {
   display: inline-flex;
   align-items: center;
@@ -944,7 +943,6 @@ button {
 .analysis-actions button:hover,
 .mobile-disclosure-toggle:hover,
 .reset-filters:hover,
-.runtime-state button:hover,
 .runtime-loading button:hover {
   border-color: var(--brand);
   background: var(--brand);
@@ -968,7 +966,6 @@ button {
   display: none;
 }
 
-.runtime-state,
 .runtime-loading {
   display: flex;
   gap: 10px;
@@ -992,7 +989,6 @@ button {
   background: #071a31;
 }
 
-.runtime-state p,
 .runtime-loading p {
   margin: 4px 0 0;
   color: var(--muted);
@@ -7033,7 +7029,6 @@ td .dot {
   .analysis-actions button,
   .mobile-disclosure-toggle,
   .reset-filters,
-  .runtime-state button,
   .runtime-loading button,
   .watch-list button,
   .app__content a[target="_blank"] {

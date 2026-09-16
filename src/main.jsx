@@ -4695,7 +4695,7 @@ function App() {
           {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
         </p>
         {needsCore && !coreReady ? (
-          <RuntimeDataState className="runtime-state" data-budget-core-loading error={coreError} errorTitle="Budget request data unavailable" loadingTitle="Loading budget request data" loadingMessage="The detailed budget request dataset is loading for this workspace." onRetry={() => { setCoreError(""); setCoreLoadAttempt((value) => value + 1); }} />
+          <RuntimeDataState data-budget-core-loading error={coreError} errorTitle="Budget request data unavailable" loadingTitle="Loading budget request data" loadingMessage="The detailed budget request dataset is loading for this workspace." onRetry={() => { setCoreError(""); setCoreLoadAttempt((value) => value + 1); }} />
         ) : null}
         {showBudgetControls ? (
           <>
@@ -4713,15 +4713,15 @@ function App() {
         ) : null}
 
         {needsExecution && !executionReady ? (
-          <RuntimeDataState className="runtime-state" data-execution-loading error={executionError} errorTitle="Award data unavailable" loadingTitle="Loading award data" loadingMessage="Published USAspending award records are loading on demand." onRetry={() => { setExecutionError(""); setExecutionLoadAttempt((value) => value + 1); }} />
+          <RuntimeDataState data-execution-loading error={executionError} errorTitle="Award data unavailable" loadingTitle="Loading award data" loadingMessage="Published USAspending award records are loading on demand." onRetry={() => { setExecutionError(""); setExecutionLoadAttempt((value) => value + 1); }} />
         ) : null}
 
         {needsAccountSpine && !accountSpineReady ? (
-          <RuntimeDataState className="runtime-state" data-account-spine-loading error={accountSpineError} errorTitle="Money-flow data unavailable" loadingTitle="Loading money-flow data" loadingMessage="OMB apportionments and USAspending account execution are loading on demand." onRetry={() => { setAccountSpineError(""); setAccountSpineLoadAttempt((value) => value + 1); }} />
+          <RuntimeDataState data-account-spine-loading error={accountSpineError} errorTitle="Money-flow data unavailable" loadingTitle="Loading money-flow data" loadingMessage="OMB apportionments and USAspending account execution are loading on demand." onRetry={() => { setAccountSpineError(""); setAccountSpineLoadAttempt((value) => value + 1); }} />
         ) : null}
 
         {needsCaptureCalendar && !captureCalendarReady ? (
-          <RuntimeDataState className="runtime-state" data-capture-calendar-loading error={captureCalendarError} errorTitle="Transaction timeline unavailable" loadingTitle="Loading transaction timeline" loadingMessage="Public award actions and reported contract periods are loading on demand." onRetry={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }} />
+          <RuntimeDataState data-capture-calendar-loading error={captureCalendarError} errorTitle="Transaction timeline unavailable" loadingTitle="Loading transaction timeline" loadingMessage="Public award actions and reported contract periods are loading on demand." onRetry={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }} />
         ) : null}
 
         {coreReady && activeTab === "overview" ? <Overview records={records} /> : null}
@@ -4729,8 +4729,8 @@ function App() {
         {coreReady && activeTab === "trends" ? <RequestTrends /> : null}
         {executionReady && activeTab === "awards" ? <Awards /> : null}
         {executionReady && captureCalendarReady && activeTab === "calendar" ? <CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /> : null}
-        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading D3 analytics</strong><p>Descriptive contract and transaction visualizations are loading.</p></div></section>}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
-        {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<section className="runtime-state" role="status"><RefreshCcw size={18} aria-hidden="true" /><div><strong>Loading {activeTitle.toLowerCase()}</strong><p>The shared management workspace is loading.</p></div></section>}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
+        {executionReady && captureCalendarReady && accountSpineReady && activeTab === "analytics" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading analytics" loadingMessage="Descriptive contract and transaction visualizations are loading." />}><TransactionAnalytics dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
+        {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
         {coreReady && executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <AnalyticsSources /> : null}
         {PROFILE_TAB_IDS.has(activeTab) ? <ProfilePage section={activeTab} /> : null}
       </div>
