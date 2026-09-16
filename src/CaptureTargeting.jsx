@@ -11,7 +11,7 @@ import {
   treemap,
 } from "d3";
 import { useEffect, useMemo, useState } from "react";
-import { ControlMetricStrip } from "control-surface-ui/react";
+import { ControlAsyncState, ControlMetricStrip } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 
 const DAY = 86_400_000;
@@ -557,7 +557,7 @@ function TargetWorkboard({ signals, active, asOf, onSelect }) {
             </div>
           </details>
         </article>)}
-      </div> : <div className="target-workboard__empty"><strong>No targets tracked yet.</strong><p>Track the selected record or seed the five highest non-monitor signals, then assign a stage, owner, checkpoint, and private note.</p></div>}
+      </div> : <ControlAsyncState compact state="empty" title="No targets tracked" message="Track the selected record or seed the five highest non-monitor signals, then assign a stage, owner, checkpoint, and private note." />}
       <small className="target-workboard__boundary">Suggested checkpoints are analyst planning dates derived from the snapshot horizon. They are not government deadlines, customer commitments, or evidence of a procurement.</small>
     </section>
   );
