@@ -1981,11 +1981,11 @@ export default function TransactionAnalytics({
   </button> : null;
   return (
     <div className="transaction-analytics-page" data-transaction-d3-page>
-      <section className="transaction-analytics-hero">
+      <section className="transaction-analytics-hero if-analytics-panel">
         <div>
-          <span>Factual analytical workbench</span>
-          <h2>Contract & Transaction Analytics</h2>
-          <p>
+          <span className="if-page-header__eyebrow">Factual analytical workbench</span>
+          <h2 className="if-page-header__title">Contract & Transaction Analytics</h2>
+          <p className="if-page-header__summary">
             Cross-filter schedules, reported values, recipients, offices,
             acquisition structure, provenance, FPDS actions, and exact
             prime-to-subaward counts. Every visual uses published or explicitly
@@ -2092,7 +2092,7 @@ export default function TransactionAnalytics({
       </div>{mobileChartToggle}</> : null}
 
       <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={setSelectedRecord} />
-      <details className="transaction-analytics-note">
+      <details className="transaction-analytics-note if-detail-card if-detail-card--neutral">
         <summary>Coverage boundary</summary>
         <p>
           These views currently show {scopedRecords.length.toLocaleString()} of {records.length.toLocaleString()} public records:{" "}
