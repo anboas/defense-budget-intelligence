@@ -4,6 +4,8 @@ import {
   EVENT_AI_VERIFICATION_SCHEMA,
   buildEventAiProducerRequest,
   citedEventAiDetails,
+  eventAiProviderError,
+  isRetryableEventAiError,
   mergeVerifiedEventDraft,
   normalizeEventAiDetails,
   parseOpenAiStructuredResponse,
@@ -76,4 +78,19 @@ assert.equal(merged.conflicts.some((conflict) => conflict.field === "notes"), tr
 assert.throws(() => citedEventAiDetails({ status: "completed", output: [] }, details, {}), /without verifiable web-search citations/i);
 assert.throws(() => parseOpenAiStructuredResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "{malformed" }] }] }, normalizeEventAiDetails), /strict JSON parsing/i);
 
-console.log("Verified strict event AI schemas, cited evidence, malformed-output rejection, and deterministic non-destructive merge");
+const rateLimitFailure = eventAiProviderError({
+  id: "resp_failed_rate_limit",
+  status: "failed",
+  error: { code: "rate_limit_exceeded", message: "Project rate limit reached." },
+}, "Research");
+assert.equal(rateLimitFailure.code, "rate_limit_exceeded", "Terminal Responses must preserve the provider error code");
+assert.equal(rateLimitFailure.message, "Project rate limit reached.", "Terminal Responses must preserve the provider safe error message");
+assert.equal(rateLimitFailure.responseId, "resp_failed_rate_limit");
+assert.equal(isRetryableEventAiError(rateLimitFailure), true, "Rate-limit and server failures must be marked retryable");
+
+const genericFailure = eventAiProviderError({ id: "resp_failed_unknown", status: "failed", error: null }, "Verification");
+assert.equal(genericFailure.code, "provider_failed");
+assert.match(genericFailure.message, /Verification stage ended with provider status failed/i);
+assert.equal(isRetryableEventAiError(genericFailure), false);
+
+console.log("Verified strict event AI schemas, cited evidence, provider-failure diagnostics, malformed-output rejection, and deterministic non-destructive merge");

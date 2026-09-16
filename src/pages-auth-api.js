@@ -7,6 +7,8 @@ import {
   buildEventAiVerifierRequest,
   citedEventAiDetails,
   deleteOpenAiResponse,
+  eventAiProviderError,
+  isRetryableEventAiError,
   mergeVerifiedEventDraft,
   mockEventAiProposal,
   mockEventAiVerification,
@@ -2033,7 +2035,7 @@ async function logEventAiProviderResult(db, row, response, stage, status, latenc
     inputTokens: Number(usage.input_tokens || 0),
     outputTokens: Number(usage.output_tokens || 0),
     retryCount: Number(row.retry_count || 0),
-    retryable: Boolean(error && [408, 409, 429, 500, 502, 503, 504].includes(error.httpStatus)),
+    retryable: isRetryableEventAiError(error),
     errorCode: error?.code || "",
     errorMessage: error?.message || "",
     metadata: { jobId: row.id, workflow: "event_enrichment" },
@@ -2047,29 +2049,32 @@ async function advanceEventAiJob(db, row, env) {
   const mockMode = String(env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
   const credential = await resolveEventAiCredential(db, { user_id: row.user_id, active_workspace_id: row.workspace_id }, row.credential_scope, row.credential_id, env);
   if (!credential) return failEventAiJob(db, row, { code: "credential_unavailable", message: "The selected OpenAI credential is unavailable or could not be decrypted." });
+  let providerResponse = null;
+  let providerLatencyMs = 0;
+  let providerRequestId = "";
   try {
     if (row.status === "researching") {
       let proposal;
-      let providerResponse = null;
-      let latencyMs = 0;
-      let requestId = "";
       if (mockMode) {
+        providerResponse = row.direction === "__mock_provider_failure__"
+          ? { id: row.producer_response_id || `mock-producer-${row.id}`, status: "failed", error: { code: "rate_limit_exceeded", message: "Verification-only provider rate limit." }, usage: { input_tokens: 0, output_tokens: 0 } }
+          : { id: row.producer_response_id || `mock-producer-${row.id}`, status: "completed", usage: { input_tokens: 120, output_tokens: 80 } };
+        if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
         proposal = mockEventAiProposal(draft, categories);
-        providerResponse = { id: row.producer_response_id || `mock-producer-${row.id}`, status: "completed", usage: { input_tokens: 120, output_tokens: 80 } };
       } else {
         const retrieved = await retrieveOpenAiResponse(credential.apiKey, row.producer_response_id);
         providerResponse = retrieved.response;
-        latencyMs = retrieved.latencyMs;
-        requestId = retrieved.requestId;
+        providerLatencyMs = retrieved.latencyMs;
+        providerRequestId = retrieved.requestId;
         if (["queued", "in_progress"].includes(providerResponse.status)) {
-          await logEventAiProviderResult(db, row, providerResponse, "research", "accepted", latencyMs, requestId, null, "GET");
+          await logEventAiProviderResult(db, row, providerResponse, "research", "accepted", providerLatencyMs, providerRequestId, null, "GET");
           return row;
         }
-        if (providerResponse.status !== "completed") throw Object.assign(new Error(`Research stage ended with provider status ${providerResponse.status}.`), { code: `provider_${providerResponse.status}` });
+        if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
         proposal = citedEventAiDetails(providerResponse, parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails), draft);
       }
       if (!proposal?.sources?.length) throw Object.assign(new Error("Research completed without a cited public source."), { code: "missing_sources" });
-      await logEventAiProviderResult(db, row, providerResponse, "research", "succeeded", latencyMs, requestId, null, "GET");
+      await logEventAiProviderResult(db, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET");
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.producer_response_id).catch(() => false);
       let verifierResponseId = `mock-verifier-${row.id}`;
       if (!mockMode) {
@@ -2086,22 +2091,19 @@ async function advanceEventAiJob(db, row, env) {
     if (row.status === "verifying") {
       const proposal = (() => { try { return JSON.parse(row.proposal_json || "{}"); } catch { return {}; } })();
       let verification;
-      let providerResponse = null;
-      let latencyMs = 0;
-      let requestId = "";
       if (mockMode) {
         verification = mockEventAiVerification(proposal);
         providerResponse = { id: row.verifier_response_id || `mock-verifier-${row.id}`, status: "completed", usage: { input_tokens: 100, output_tokens: 70 } };
       } else {
         const retrieved = await retrieveOpenAiResponse(credential.apiKey, row.verifier_response_id);
         providerResponse = retrieved.response;
-        latencyMs = retrieved.latencyMs;
-        requestId = retrieved.requestId;
+        providerLatencyMs = retrieved.latencyMs;
+        providerRequestId = retrieved.requestId;
         if (["queued", "in_progress"].includes(providerResponse.status)) {
-          await logEventAiProviderResult(db, row, providerResponse, "verification", "accepted", latencyMs, requestId, null, "GET");
+          await logEventAiProviderResult(db, row, providerResponse, "verification", "accepted", providerLatencyMs, providerRequestId, null, "GET");
           return row;
         }
-        if (providerResponse.status !== "completed") throw Object.assign(new Error(`Verification stage ended with provider status ${providerResponse.status}.`), { code: `provider_${providerResponse.status}` });
+        if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Verification");
         verification = parseOpenAiStructuredResponse(providerResponse, (value) => ({
           decision: ["approved", "needs_review", "rejected"].includes(value?.decision) ? value.decision : "rejected",
           approved: citedEventAiDetails(providerResponse, value?.approved, draft),
@@ -2110,7 +2112,7 @@ async function advanceEventAiJob(db, row, env) {
           mergeNotes: Array.isArray(value?.mergeNotes) ? value.mergeNotes.slice(0, 20) : [],
         }));
       }
-      await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", latencyMs, requestId, null, "GET");
+      await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET");
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
       const mergeResult = verification.decision === "approved" ? mergeVerifiedEventDraft(draft, verification.approved, categories) : {};
       const complete = verification.decision === "approved" && mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt;
@@ -2123,7 +2125,7 @@ async function advanceEventAiJob(db, row, env) {
       return db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE id = ?").bind(row.id).first();
     }
   } catch (error) {
-    await logEventAiProviderResult(db, row, null, row.status === "researching" ? "research" : "verification", "failed", 0, "", error, "GET").catch(() => {});
+    await logEventAiProviderResult(db, row, providerResponse, row.status === "researching" ? "research" : "verification", "failed", providerLatencyMs, providerRequestId, error, "GET").catch(() => {});
     return failEventAiJob(db, row, error);
   }
   return row;

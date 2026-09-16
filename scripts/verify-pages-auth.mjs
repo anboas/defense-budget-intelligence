@@ -466,6 +466,20 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.job.mergeResult.mergedDraft.attendeeIds[0], ownerId, "AI merge must preserve operator-controlled attendees");
     assert.ok(body.job.mergeResult.changes.includes("location"));
     assert.doesNotMatch(JSON.stringify(body), /sk-verification|authorization|requestBody|responseBody|prompt/i, "AI job responses must not expose credentials or raw provider payloads");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_provider_failure__", draft: {
+        title: "AI provider failure verification event", startsAt: "2027-03-11T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true,
+      } },
+    });
+    assert.equal(response.status, 202);
+    body = await response.json();
+    const failedEventAiJobId = body.job.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${failedEventAiJobId}`, { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.job.status, "failed", "A terminal provider failure must fail safely before verification");
+    assert.equal(body.job.error.code, "rate_limit_exceeded", "The job must preserve the provider error code");
+    assert.equal(body.job.error.message, "Verification-only provider rate limit.", "The job must preserve the safe provider error message");
     response = await apiRequest(baseUrl, "/api/v1/agent/api-requests?limit=500", { cookie: ownerCookie });
     assert.equal(response.status, 200, "Workspace managers must be able to inspect redacted API request metadata");
     body = await response.json();
@@ -474,6 +488,11 @@ async function verifyApiLifecycle(persistPath) {
     assert.ok(credentialEntries.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"), "Research-stage metadata must be logged");
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"), "Verifier-stage metadata must be logged independently");
+    const failedProviderEntry = body.data.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "failed" && entry.metadata?.jobId === failedEventAiJobId);
+    assert.equal(failedProviderEntry?.errorCode, "rate_limit_exceeded", "D1 logs must preserve the provider failure code");
+    assert.equal(failedProviderEntry?.errorMessage, "Verification-only provider rate limit.", "D1 logs must preserve the safe provider failure message");
+    assert.equal(failedProviderEntry?.retryable, true, "D1 logs must classify retryable provider failures");
+    assert.match(failedProviderEntry?.responseId || "", /^mock-producer-/, "D1 logs must retain the failed provider response ID");
     assert.equal(body.meta.retentionDays, 90);
     assert.doesNotMatch(JSON.stringify(body.data), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-verification/i, "D1 request logs must not expose secrets, prompts, headers, or bodies");
 

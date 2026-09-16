@@ -65,11 +65,13 @@ Provider responses remain stored only while their background stage is pending or
 
 Research and verification are separate `dbi_api_request_log` / `app_api_request_log` entries. Logs include model, stage, status, latency, token counts, provider/trace/response IDs, retry metadata, and safe errors.
 
+When OpenAI returns a terminal failed response, DBI preserves the provider's bounded error code and safe message in both the durable job and its stage log. The corresponding provider response ID, request ID, and retryability classification remain available for diagnosis instead of being collapsed into a generic `provider_failed` result.
+
 Logs never retain keys, authorization headers, cookies, prompts, input snapshots, request/response bodies, or raw model output.
 
 ## Verification
 
-- `npm run verify:event-ai`: strict schemas, citation binding, malformed-output rejection, and non-destructive merge.
-- `npm run verify:pages-auth`: D1 persistence, two-stage transition, editor merge, credential ownership, audit entries, and redaction.
-- `npm run verify:postgres-auth:local`: disposable PostgreSQL parity.
+- `npm run verify:event-ai`: strict schemas, citation binding, malformed-output rejection, provider-error extraction, and non-destructive merge.
+- `npm run verify:pages-auth`: D1 persistence, two-stage transition, editor merge, credential ownership, provider-failure diagnostics, audit entries, and redaction.
+- `npm run verify:postgres-auth:local`: disposable PostgreSQL parity, including provider-failure diagnostics.
 - `npm run verify`: public UI, responsive presentation, Control Surface conformance, and build contract.

@@ -103,6 +103,18 @@ body = await response.json();
 assert.equal(body.job.status, "completed");
 assert.equal(body.job.mergeResult.mergedDraft.location, "Verified test venue");
 assert.doesNotMatch(JSON.stringify(body), /sk-postgres|authorization|requestBody|responseBody|prompt/i);
+response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {
+  credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_provider_failure__",
+  draft: { title: "PostgreSQL provider failure event", startsAt: "2027-04-13T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true },
+} });
+assert.equal(response.status, 202);
+body = await response.json();
+const failedEventAiJobId = body.job.id;
+response = await request(`/api/v1/auth/event-ai/${failedEventAiJobId}`, { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.job.status, "failed");
+assert.equal(body.job.error.code, "rate_limit_exceeded");
+assert.equal(body.job.error.message, "Verification-only provider rate limit.");
 response = await request("/api/v1/auth/api-requests", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL workspace managers must be able to inspect redacted request metadata");
 body = await response.json();
@@ -110,6 +122,11 @@ assert.ok(body.requests.some((entry) => entry.operation === "credential.created"
 assert.ok(body.requests.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"));
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"));
+const failedProviderEntry = body.requests.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "failed" && entry.metadata?.jobId === failedEventAiJobId);
+assert.equal(failedProviderEntry?.errorCode, "rate_limit_exceeded");
+assert.equal(failedProviderEntry?.errorMessage, "Verification-only provider rate limit.");
+assert.equal(failedProviderEntry?.retryable, true);
+assert.match(failedProviderEntry?.responseId || "", /^mock-producer-/);
 assert.equal(body.summary.retentionDays, 90);
 assert.doesNotMatch(JSON.stringify(body.requests), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-postgres/i, "PostgreSQL request logs must not expose secrets, prompts, headers, or bodies");
 

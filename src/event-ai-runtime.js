@@ -9,6 +9,12 @@ export const EVENT_AI_STATUSES = Object.freeze([
   "cancelled",
 ]);
 
+const RETRYABLE_PROVIDER_ERROR_CODES = new Set([
+  "rate_limit_exceeded",
+  "server_error",
+  "vector_store_timeout",
+]);
+
 const MILESTONE_TYPES = [
   "registration_deadline",
   "refund_deadline",
@@ -317,6 +323,22 @@ export async function retrieveOpenAiResponse(apiKey, responseId, fetchImpl = fet
     throw error;
   }
   return { response: payload, latencyMs: Date.now() - startedAt, requestId: response.headers.get("x-request-id") || "" };
+}
+
+export function eventAiProviderError(response, stage = "Provider") {
+  const status = cleanText(response?.status, 40) || "failed";
+  const providerCode = cleanText(response?.error?.code, 120);
+  const providerMessage = cleanText(response?.error?.message, 500);
+  const error = new Error(providerMessage || `${cleanText(stage, 80) || "Provider"} stage ended with provider status ${status}.`);
+  error.code = providerCode || `provider_${status}`;
+  error.retryable = RETRYABLE_PROVIDER_ERROR_CODES.has(error.code);
+  error.providerStatus = status;
+  error.responseId = cleanText(response?.id, 180);
+  return error;
+}
+
+export function isRetryableEventAiError(error) {
+  return Boolean(error?.retryable || [408, 409, 429, 500, 502, 503, 504].includes(Number(error?.httpStatus || 0)) || RETRYABLE_PROVIDER_ERROR_CODES.has(cleanText(error?.code, 120)));
 }
 
 export async function deleteOpenAiResponse(apiKey, responseId, fetchImpl = fetch) {
