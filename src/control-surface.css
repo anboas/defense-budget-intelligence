@@ -2842,6 +2842,58 @@ button.if-chart-bar.is-selected {
   }
 }
 
+.if-empty,
+.if-loading,
+.if-error-state {
+  display: grid;
+  min-height: 10rem;
+  place-items: center;
+  gap: var(--if-space-3);
+  padding: var(--if-space-6);
+  color: var(--if-text-muted);
+  text-align: center;
+}
+
+.if-async-state--compact {
+  min-height: 6rem;
+  padding: var(--if-space-4);
+}
+
+.if-async-state__copy {
+  display: grid;
+  gap: var(--if-space-1);
+  max-width: 42rem;
+}
+
+.if-async-state__copy > strong {
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-sm);
+}
+
+.if-async-state__copy > p {
+  margin: 0;
+  line-height: var(--if-line-height-normal);
+}
+
+.if-async-state__action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--if-space-2);
+}
+
+.if-empty__icon,
+.if-error-state__icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border: 1px solid var(--if-border-strong);
+  border-radius: var(--if-radius-3);
+  background: var(--if-bg-subtle);
+  color: var(--if-text-subtle);
+}
+
 @keyframes if-skeleton {
   from {
     background-position: 100% 0;

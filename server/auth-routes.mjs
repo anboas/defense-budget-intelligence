@@ -25,6 +25,16 @@ import {
   eventAiModelCandidates,
   fetchOpenAiModels,
 } from "../src/openai-models.js";
+import {
+  cleanText,
+  safeLogMetadata,
+  safeLogText,
+  sameOriginValues,
+  validAvatarDataUrl,
+  validEmail,
+  validOpenAiKey,
+  validPasswordProof,
+} from "../src/security-policy.js";
 
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
@@ -64,27 +74,12 @@ function clearCookie() {
   return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`;
 }
 
-function cleanText(value, maxLength) {
-  return Array.from(String(value || ""), (character) => {
-    const code = character.charCodeAt(0);
-    return code < 32 || code === 127 ? " " : character;
-  }).join("").trim().slice(0, maxLength);
-}
-
-function validEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
-}
-
 function validProof(value) {
-  return /^[a-f0-9]{64}$/i.test(value || "");
+  return validPasswordProof(value);
 }
 
 function assertSameOrigin(request, reply) {
-  const origin = request.headers.origin;
-  if (!origin) return true;
-  const forwardedHost = request.headers["x-forwarded-host"] || request.headers.host;
-  const forwardedProto = request.headers["x-forwarded-proto"] || request.protocol;
-  if (origin !== `${forwardedProto}://${forwardedHost}`) {
+  if (!sameOriginValues(`${request.protocol}://${request.host}${request.url}`, request.headers.origin || "", request.headers["sec-fetch-site"] || "")) {
     reply.code(403).send({ error: "cross-origin request rejected" });
     return false;
   }
@@ -101,6 +96,7 @@ async function account(pool) {
 async function issueSession(pool, reply, userId, preferredWorkspaceId = null) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
+  await pool.query("DELETE FROM app_auth_sessions WHERE expires_at <= NOW()");
   const membership = await pool.query(`SELECT workspace_id FROM app_workspace_memberships
     WHERE user_id = $1 AND ($2::uuid IS NULL OR workspace_id = $2)
     ORDER BY CASE WHEN workspace_id = $2 THEN 0 ELSE 1 END, created_at LIMIT 1`, [userId, preferredWorkspaceId]);
@@ -152,15 +148,7 @@ function publicUser(row) {
   } : null;
 }
 
-function validAvatar(value) {
-  const avatar = cleanText(value, 14_000);
-  return !avatar || /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/]+=*$/i.test(avatar) ? avatar : null;
-}
-
-function validOpenAiKey(value) {
-  const key = String(value || "").trim();
-  return /^sk-[A-Za-z0-9_-]{20,240}$/.test(key) ? key : "";
-}
+const validAvatar = validAvatarDataUrl;
 
 function encryptOpenAiKey(value) {
   const secret = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "");
@@ -223,19 +211,7 @@ async function openAiKeyUsage(pool, credentialIds) {
 async function recordApiRequest(pool, input = {}) {
   const now = new Date();
   const id = randomUUID();
-  const sensitiveField = /(authorization|cookie|secret|password|api.?key|token|prompt|request.?body|response.?body|raw.?request|raw.?response)/i;
-  const safeLogText = (value, limit = 500) => cleanText(value, limit)
-    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted-key]")
-    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]");
-  const safeMetadata = (value, depth = 0) => {
-    if (depth > 3 || value === null || value === undefined) return null;
-    if (["string", "number", "boolean"].includes(typeof value)) return typeof value === "string" ? safeLogText(value, 500) : value;
-    if (Array.isArray(value)) return value.slice(0, 25).map((item) => safeMetadata(item, depth + 1));
-    if (typeof value !== "object") return null;
-    return Object.fromEntries(Object.entries(value).filter(([key]) => !sensitiveField.test(key)).slice(0, 50)
-      .map(([key, item]) => [safeLogText(key, 80), safeMetadata(item, depth + 1)]));
-  };
-  const metadata = safeMetadata(input.metadata) || {};
+  const metadata = safeLogMetadata(input.metadata) || {};
   await pool.query(`INSERT INTO app_api_request_log
     (id, workspace_id, user_id, principal_type, principal_id, request_kind, provider, operation, method, route,
      status, http_status, stage, model, credential_id, credential_scope, provider_request_id, trace_id, response_id,
@@ -643,6 +619,7 @@ export async function registerAuthRoutes(app, pool) {
     const user = result.rows[0];
     const ok = user && validProof(proof) && equalDigest(user.password_proof_hash, sha256(proof));
     await pool.query("INSERT INTO app_login_attempts (identity_hash, succeeded) VALUES ($1, $2)", [identityHash, Boolean(ok)]);
+    await pool.query("DELETE FROM app_login_attempts WHERE attempted_at < NOW() - INTERVAL '24 hours'");
     if (!ok) return reply.code(401).send({ error: "email or password is incorrect" });
     await pool.query("UPDATE app_users SET last_login_at = NOW() WHERE user_id = $1", [user.user_id]);
     const session = await issueSession(pool, reply, user.user_id);

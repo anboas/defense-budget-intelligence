@@ -28,6 +28,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    cap_drop:
+      - ALL
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
     healthcheck:
       test:
         [
@@ -42,6 +50,7 @@ services:
     ports:
       - "${BUDGET_APP_PORT:-8080}:8080"
     restart: unless-stopped
+    stop_grace_period: 20s
 
 volumes:
   budget_intelligence_db:

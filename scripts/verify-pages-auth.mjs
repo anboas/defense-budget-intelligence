@@ -137,6 +137,10 @@ async function verifyApiLifecycle(persistPath) {
     assert.match(response.headers.get("strict-transport-security") || "", /max-age=63072000/, "Pages responses must advertise long-lived HTTPS transport security");
     assert.match(response.headers.get("permissions-policy") || "", /camera=\(\)/, "Pages responses must disable unnecessary browser capabilities");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff", "Pages responses must disable MIME sniffing");
+    assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin", "Pages responses must isolate the top-level browsing context");
+    assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin", "Pages responses must restrict cross-origin resource reuse");
+    assert.equal(response.headers.get("origin-agent-cluster"), "?1", "Pages responses must request origin-keyed process isolation");
+    assert.equal(response.headers.get("cache-control"), "no-store", "Account API responses must never be cached");
     assert.deepEqual(await response.json(), {
       authVersion: "dbi-pages-auth-v1",
       enabled: true,

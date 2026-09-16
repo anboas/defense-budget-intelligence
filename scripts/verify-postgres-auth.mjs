@@ -14,11 +14,11 @@ async function waitForStatus() {
   throw error || new Error("PostgreSQL auth runtime did not become ready");
 }
 
-async function request(path, { method = "GET", body, cookie = "" } = {}) {
+async function request(path, { method = "GET", body, cookie = "", origin = ORIGIN } = {}) {
   const headers = {};
   if (body !== undefined) headers["content-type"] = "application/json";
   if (cookie) headers.cookie = cookie;
-  if (method !== "GET") headers.origin = ORIGIN;
+  if (method !== "GET") headers.origin = origin;
   return fetch(new URL(path.replace(/^\//, ""), BASE_URL), { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
 }
 
@@ -35,6 +35,8 @@ let body = await response.json();
 assert.equal(body.claimed, false, "Fresh PostgreSQL auth contract must begin unclaimed");
 
 const owner = identity("Owner");
+response = await request("/api/v1/auth/claim", { method: "POST", body: owner, origin: "https://attacker.example" });
+assert.equal(response.status, 403, "PostgreSQL must reject cross-origin first-claim writes");
 response = await request("/api/v1/auth/claim", { method: "POST", body: owner });
 assert.equal(response.status, 201, "PostgreSQL must support atomic first claim");
 const ownerCookie = cookie(response);

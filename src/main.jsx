@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ToastProvider } from "control-surface-ui/react";
+import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-surface-ui/react";
 import "./control-surface.css";
 import {
   BarChart3,
@@ -628,6 +628,18 @@ function Metric({ label, value, helper, tone = "blue" }) {
       <p>{helper}</p>
     </article>
   );
+}
+
+function RuntimeDataState({ error = "", loadingTitle, loadingMessage, errorTitle, onRetry, ...props }) {
+  return <ControlAsyncState
+    {...props}
+    compact
+    state={error ? "error" : "loading"}
+    icon={<RefreshCcw size={18} />}
+    title={error ? errorTitle : loadingTitle}
+    message={error || loadingMessage}
+    action={error ? <button type="button" className="if-btn if-btn--secondary" onClick={onRetry}>Retry</button> : null}
+  />;
 }
 
 function PhaseIntro({ eyebrow, description, facts = [], tone = "blue", dataAttribute = {} }) {
@@ -4687,14 +4699,7 @@ function App() {
           {activeTitle} view loaded.{showBudgetControls ? ` ${records.length.toLocaleString()} budget records match the current filters.` : ""}
         </p>
         {needsCore && !coreReady ? (
-          <section className="runtime-state" data-budget-core-loading role="status">
-            <RefreshCcw size={18} aria-hidden="true" />
-            <div>
-              <strong>{coreError ? "Budget request data unavailable" : "Loading budget request data"}</strong>
-              <p>{coreError || "The detailed budget request dataset is loading for this workspace."}</p>
-              {coreError ? <button type="button" onClick={() => { setCoreError(""); setCoreLoadAttempt((value) => value + 1); }}>Retry</button> : null}
-            </div>
-          </section>
+          <RuntimeDataState className="runtime-state" data-budget-core-loading error={coreError} errorTitle="Budget request data unavailable" loadingTitle="Loading budget request data" loadingMessage="The detailed budget request dataset is loading for this workspace." onRetry={() => { setCoreError(""); setCoreLoadAttempt((value) => value + 1); }} />
         ) : null}
         {showBudgetControls ? (
           <>
@@ -4717,36 +4722,15 @@ function App() {
         ) : null}
 
         {needsExecution && !executionReady ? (
-          <section className="runtime-state" data-execution-loading role="status">
-            <RefreshCcw size={18} aria-hidden="true" />
-            <div>
-              <strong>{executionError ? "Award data unavailable" : "Loading award data"}</strong>
-              <p>{executionError || "Published USAspending award records are loading on demand."}</p>
-              {executionError ? <button type="button" onClick={() => { setExecutionError(""); setExecutionLoadAttempt((value) => value + 1); }}>Retry</button> : null}
-            </div>
-          </section>
+          <RuntimeDataState className="runtime-state" data-execution-loading error={executionError} errorTitle="Award data unavailable" loadingTitle="Loading award data" loadingMessage="Published USAspending award records are loading on demand." onRetry={() => { setExecutionError(""); setExecutionLoadAttempt((value) => value + 1); }} />
         ) : null}
 
         {needsAccountSpine && !accountSpineReady ? (
-          <section className="runtime-state" data-account-spine-loading role="status">
-            <RefreshCcw size={18} aria-hidden="true" />
-            <div>
-              <strong>{accountSpineError ? "Money-flow data unavailable" : "Loading money-flow data"}</strong>
-              <p>{accountSpineError || "OMB apportionments and USAspending account execution are loading on demand."}</p>
-              {accountSpineError ? <button type="button" onClick={() => { setAccountSpineError(""); setAccountSpineLoadAttempt((value) => value + 1); }}>Retry</button> : null}
-            </div>
-          </section>
+          <RuntimeDataState className="runtime-state" data-account-spine-loading error={accountSpineError} errorTitle="Money-flow data unavailable" loadingTitle="Loading money-flow data" loadingMessage="OMB apportionments and USAspending account execution are loading on demand." onRetry={() => { setAccountSpineError(""); setAccountSpineLoadAttempt((value) => value + 1); }} />
         ) : null}
 
         {needsCaptureCalendar && !captureCalendarReady ? (
-          <section className="runtime-state" data-capture-calendar-loading role="status">
-            <RefreshCcw size={18} aria-hidden="true" />
-            <div>
-              <strong>{captureCalendarError ? "Transaction timeline unavailable" : "Loading transaction timeline"}</strong>
-              <p>{captureCalendarError || "Public award actions and reported contract periods are loading on demand."}</p>
-              {captureCalendarError ? <button type="button" onClick={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }}>Retry</button> : null}
-            </div>
-          </section>
+          <RuntimeDataState className="runtime-state" data-capture-calendar-loading error={captureCalendarError} errorTitle="Transaction timeline unavailable" loadingTitle="Loading transaction timeline" loadingMessage="Public award actions and reported contract periods are loading on demand." onRetry={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }} />
         ) : null}
 
         {coreReady && activeTab === "overview" ? <Overview records={records} /> : null}
@@ -4801,4 +4785,4 @@ function RuntimeApp() {
   return <App />;
 }
 
-createRoot(document.getElementById("root")).render(<ToastProvider placement="masthead"><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ToastProvider>);
+createRoot(document.getElementById("root")).render(<ToastProvider placement="masthead"><ControlErrorBoundary title="Defense Budget Intelligence could not render" message="Retry the application. If the problem continues, check the current deployment and request logs."><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ControlErrorBoundary></ToastProvider>);

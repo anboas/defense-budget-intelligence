@@ -22,7 +22,6 @@ import {
   UsersRound,
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
-import contractMonitor from "./data/contract-monitor.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -35,7 +34,7 @@ import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlMultiSelect, ControlPageHeader, ControlSparkline } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlMultiSelect, ControlPageHeader, ControlSparkline } from "control-surface-ui/react";
 import { useNotifications } from "./NotificationContext.jsx";
 
 const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
@@ -76,7 +75,7 @@ function freshnessState(timestamp, maxAgeDays) {
   return ageDays <= maxAgeDays ? { label: "Current", tone: "current" } : { label: "Review", tone: "stale" };
 }
 
-function IntegrationFreshness({ budgetGeneratedAt, awardGeneratedAt }) {
+function IntegrationFreshness({ budgetGeneratedAt, awardGeneratedAt, contractMonitor }) {
   const layers = [
     { id: "budget", label: "Budget books", mobileLabel: "Budget", at: budgetGeneratedAt, maxAgeDays: 400 },
     { id: "awards", label: "Award execution", mobileLabel: "Awards", at: awardGeneratedAt, maxAgeDays: 14 },
@@ -89,7 +88,7 @@ function IntegrationFreshness({ budgetGeneratedAt, awardGeneratedAt }) {
   })}</section>;
 }
 
-function ContractMonitorCoverage() {
+function ContractMonitorCoverage({ contractMonitor }) {
   const metadata = contractMonitor.metadata || {};
   const rows = contractMonitor.records || [];
   const columns = [
@@ -687,7 +686,7 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
   return <section className="ops-panel" data-ops-events><ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} />{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
-function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
+function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor }) {
   const rows = [
     { name: "PDB display books", status: "current", count: "3,888 request lines", detail: "Scheduled workbook and justification build" },
     { name: "USAspending prime awards", status: "current", count: `${dataset.metadata?.coverage?.totalPublicRecords?.toLocaleString?.() || "875"} assembled records`, detail: "Automatic award feed plus normalized source records" },
@@ -704,7 +703,7 @@ function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, 
     { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];
-  return <section className="ops-panel" data-ops-integrations><ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a>} /><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><ContractMonitorCoverage /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
+  return <section className="ops-panel" data-ops-integrations><ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a>} /><OpenAiKeyManagement auth={auth} scope="workspace" embedded />{contractMonitorState === "loading" ? <ControlAsyncState compact state="loading" title="Loading contract coverage" message="Reading the current automated coverage snapshot." /> : contractMonitorState === "error" ? <ControlAsyncState compact state="error" title="Contract coverage unavailable" message="The retained integration summary remains available." action={<button type="button" className="if-btn if-btn--secondary" onClick={onRetryContractMonitor}>Retry</button>} /> : <><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} /><ContractMonitorCoverage contractMonitor={contractMonitor} /></>}<div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
 }
 
 function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {
@@ -1092,6 +1091,8 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     return params.get("task") || (params.get("aiJob") ? `event-ai:${params.get("aiJob")}` : "");
   });
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const [contractMonitor, setContractMonitor] = useState(null);
+  const [contractMonitorState, setContractMonitorState] = useState("idle");
   useEffect(() => {
     const sync = () => {
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
@@ -1100,13 +1101,31 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
+  useEffect(() => {
+    if (view !== "integrations" || contractMonitorState !== "idle") return undefined;
+    const controller = new AbortController();
+    const url = new URL(`${import.meta.env.BASE_URL}data/contract-monitor.json`, window.location.origin);
+    void fetch(url, { headers: { accept: "application/json" }, signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Contract monitor request failed (${response.status})`);
+        return response.json();
+      })
+      .then((payload) => {
+        setContractMonitor(payload);
+        setContractMonitorState("ready");
+      })
+      .catch((error) => {
+        if (error?.name !== "AbortError") setContractMonitorState("error");
+      });
+    return () => controller.abort();
+  }, [contractMonitorState, view]);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
-    {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
+    {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Cross-workspace administration is limited to the immutable Super user.</p></section> : null}

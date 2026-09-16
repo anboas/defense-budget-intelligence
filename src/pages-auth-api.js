@@ -26,6 +26,19 @@ import {
   eventAiModelCandidates,
   fetchOpenAiModels,
 } from "./openai-models.js";
+import {
+  cleanHttpUrl,
+  cleanText,
+  normalizeEmail,
+  readBoundedJson,
+  safeLogMetadata,
+  safeLogText,
+  sameOriginRequest,
+  validAvatarDataUrl,
+  validOpenAiKey,
+  validPasswordProof,
+  validSalt,
+} from "./security-policy.js";
 
 export const PAGES_AUTH_VERSION = "dbi-pages-auth-v1";
 export const PASSWORD_ITERATIONS = 310_000;
@@ -608,18 +621,6 @@ function json(payload, status = 200, headers = {}) {
   });
 }
 
-function cleanText(value, maxLength) {
-  return Array.from(String(value || ""), (character) => {
-    const code = character.charCodeAt(0);
-    return code < 32 || code === 127 ? " " : character;
-  }).join("").trim().slice(0, maxLength);
-}
-
-function normalizeEmail(value) {
-  const email = cleanText(value, 254).toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
-}
-
 function bytesToHex(bytes) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -631,14 +632,6 @@ function randomHex(byteLength = 32) {
 async function hashValue(value) {
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(String(value || "")));
   return bytesToHex(new Uint8Array(digest));
-}
-
-function validPasswordProof(value) {
-  return /^[a-f0-9]{64}$/i.test(String(value || ""));
-}
-
-function validSalt(value) {
-  return /^[a-f0-9]{32,128}$/i.test(String(value || ""));
 }
 
 function constantTimeEqual(left, right) {
@@ -672,19 +665,8 @@ function sessionCookie(token, request, env, maxAge = SESSION_MAX_AGE_SECONDS) {
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
 }
 
-function sameOrigin(request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
-}
-
 async function safeJson(request, maxBytes = MAX_BODY_BYTES) {
-  const length = Number(request.headers.get("content-length") || 0);
-  if (length > maxBytes) return null;
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
+  return readBoundedJson(request, maxBytes);
 }
 
 function publicUser(row) {
@@ -705,16 +687,6 @@ function publicUser(row) {
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
   } : null;
-}
-
-function validAvatarDataUrl(value) {
-  const avatar = cleanText(value, 14_000);
-  return !avatar || /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/]+=*$/i.test(avatar) ? avatar : null;
-}
-
-function validOpenAiKey(value) {
-  const key = String(value || "").trim();
-  return /^sk-[A-Za-z0-9_-]{20,240}$/.test(key) ? key : "";
 }
 
 function bytesToBase64(bytes) {
@@ -903,6 +875,11 @@ async function createSession(db, userId, preferredWorkspaceId = "") {
   const rawToken = randomHex(32);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
+  await db.batch([
+    db.prepare(`DELETE FROM dbi_session_workspaces WHERE session_id IN
+      (SELECT id FROM dbi_sessions WHERE expires_at <= ? OR revoked_at <> '')`).bind(now.toISOString()),
+    db.prepare("DELETE FROM dbi_sessions WHERE expires_at <= ? OR revoked_at <> ''").bind(now.toISOString()),
+  ]);
   const preferred = preferredWorkspaceId ? await db.prepare(`
     SELECT membership.workspace_id FROM dbi_workspace_memberships membership
     JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id
@@ -952,10 +929,14 @@ async function loginBlocked(db, client) {
 }
 
 async function recordLoginAttempt(db, client, succeeded) {
+  const now = new Date();
   await db.prepare(`
     INSERT INTO dbi_login_attempts (id, client_hash, succeeded, attempted_at)
     VALUES (?, ?, ?, ?)
-  `).bind(crypto.randomUUID(), client, succeeded ? 1 : 0, new Date().toISOString()).run();
+  `).bind(crypto.randomUUID(), client, succeeded ? 1 : 0, now.toISOString()).run();
+  await db.prepare("DELETE FROM dbi_login_attempts WHERE attempted_at < ?")
+    .bind(new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
+    .run();
 }
 
 async function statusResponse(request, db, env) {
@@ -974,7 +955,7 @@ async function claimResponse(request, db, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (await superUser(db)) return json({ error: "The super-user account has already been claimed" }, 409);
   if (env.DBI_ALLOW_FIRST_CLAIM !== "1") return json({ error: "Initial account claim is unavailable" }, 403);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin account claim is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin account claim is not allowed" }, 403);
 
   const body = await safeJson(request);
   const email = normalizeEmail(body?.email);
@@ -1038,7 +1019,7 @@ async function claimResponse(request, db, env) {
 
 async function registrationResponse(request, db, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin registration is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin registration is not allowed" }, 403);
   if (!await superUser(db)) return json({ error: "The Super user must claim the service before registration opens" }, 409);
   const body = await safeJson(request);
   const email = normalizeEmail(body?.email);
@@ -1068,7 +1049,7 @@ async function registrationResponse(request, db, env) {
 
 async function loginConfigResponse(request, db) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin login is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin login is not allowed" }, 403);
   const body = await safeJson(request);
   const email = normalizeEmail(body?.email);
   const user = email ? await userByEmail(db, email) : null;
@@ -1082,7 +1063,7 @@ async function loginConfigResponse(request, db) {
 
 async function loginResponse(request, db, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin login is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin login is not allowed" }, 403);
   const body = await safeJson(request);
   const email = normalizeEmail(body?.email);
   const passwordProof = cleanText(body?.passwordProof, 64).toLowerCase();
@@ -1113,7 +1094,7 @@ async function loginResponse(request, db, env) {
 
 async function logoutResponse(request, db, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin logout is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin logout is not allowed" }, 403);
   const rawToken = cookies(request)[SESSION_COOKIE] || "";
   if (rawToken) {
     await db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at = ''")
@@ -1125,7 +1106,7 @@ async function logoutResponse(request, db, env) {
 
 async function profileResponse(request, db) {
   if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin profile changes are not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin profile changes are not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
   const body = await safeJson(request, 16_384);
@@ -1150,7 +1131,7 @@ async function profileResponse(request, db) {
 
 async function passwordResponse(request, db, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!sameOrigin(request)) return json({ error: "Cross-origin password changes are not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin password changes are not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
   const body = await safeJson(request);
@@ -1196,7 +1177,7 @@ function managedUser(row) {
 }
 
 async function usersResponse(request, db) {
-  if (!sameOrigin(request)) return json({ error: "Cross-origin user management is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin user management is not allowed" }, 403);
   const administrator = await sessionUser(db, request);
   if (!administrator) return json({ error: "Sign in required" }, 401);
   if (!canAdministerUsers(administrator)) return json({ error: "Administrator access is required" }, 403);
@@ -1354,7 +1335,7 @@ function workspaceSummary(row, membership = null, request = null) {
 }
 
 async function workspacesResponse(request, db) {
-  if (!sameOrigin(request)) return json({ error: "Cross-origin workspace access is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin workspace access is not allowed" }, 403);
   const user = await sessionUser(db, request);
   if (!user) return json({ error: "Sign in required" }, 401);
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
@@ -1414,7 +1395,7 @@ async function workspacesResponse(request, db) {
 }
 
 async function workspaceAdminResponse(request, db) {
-  if (!sameOrigin(request)) return json({ error: "Cross-origin workspace administration is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin workspace administration is not allowed" }, 403);
   const owner = await sessionUser(db, request);
   if (!owner) return json({ error: "Sign in required" }, 401);
   if (!canAdministerWorkspaces(owner)) return json({ error: "Workspace manager access is required" }, 403);
@@ -1715,23 +1696,6 @@ function safeObject(value) {
   }
 }
 
-const API_LOG_SENSITIVE_FIELD = /(authorization|cookie|secret|password|api.?key|token|prompt|request.?body|response.?body|raw.?request|raw.?response)/i;
-
-function safeApiLogText(value, limit = 500) {
-  return cleanText(value, limit)
-    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted-key]")
-    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]");
-}
-
-function safeApiLogMetadata(value, depth = 0) {
-  if (depth > 3 || value === null || value === undefined) return null;
-  if (["string", "number", "boolean"].includes(typeof value)) return typeof value === "string" ? safeApiLogText(value, 500) : value;
-  if (Array.isArray(value)) return value.slice(0, 25).map((item) => safeApiLogMetadata(item, depth + 1));
-  if (typeof value !== "object") return null;
-  return Object.fromEntries(Object.entries(value).filter(([key]) => !API_LOG_SENSITIVE_FIELD.test(key)).slice(0, 50)
-    .map(([key, item]) => [safeApiLogText(key, 80), safeApiLogMetadata(item, depth + 1)]));
-}
-
 function apiRequestFromRow(row) {
   return {
     id: row.id,
@@ -1770,7 +1734,7 @@ async function recordApiRequest(db, entry = {}) {
   const completedAt = cleanDate(entry.completedAt) || new Date().toISOString();
   const startedAt = cleanDate(entry.startedAt) || completedAt;
   const status = ["succeeded", "accepted", "failed", "rejected", "rate_limited", "cancelled"].includes(entry.status) ? entry.status : "failed";
-  const metadata = safeApiLogMetadata(entry.metadata) || {};
+  const metadata = safeLogMetadata(entry.metadata) || {};
   await db.prepare(`INSERT INTO dbi_api_request_log
     (id, workspace_id, user_id, principal_type, principal_id, request_kind, provider, operation, method, route,
       status, http_status, stage, model, credential_id, credential_scope, provider_request_id, trace_id, response_id,
@@ -1785,7 +1749,7 @@ async function recordApiRequest(db, entry = {}) {
       cleanText(entry.providerRequestId, 180), cleanText(entry.traceId, 180), cleanText(entry.responseId, 180),
       boundedInteger(entry.latencyMs, 0, 0, 86_400_000), boundedInteger(entry.inputTokens, 0, 0, 1_000_000_000),
       boundedInteger(entry.outputTokens, 0, 0, 1_000_000_000), boundedInteger(entry.retryCount, 0, 0, 25), entry.retryable ? 1 : 0,
-      safeApiLogText(entry.errorCode, 120), safeApiLogText(entry.errorMessage, 500), JSON.stringify(metadata).slice(0, 8_000), startedAt, completedAt,
+      safeLogText(entry.errorCode, 120), safeLogText(entry.errorMessage, 500), JSON.stringify(metadata).slice(0, 8_000), startedAt, completedAt,
     ).run();
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
   await db.prepare("DELETE FROM dbi_api_request_log WHERE completed_at < ?").bind(cutoff).run();
@@ -1819,7 +1783,7 @@ function publicAgentKey(row) {
 }
 
 async function openAiKeysResponse(request, db, env) {
-  if (!sameOrigin(request)) return json({ error: "Cross-origin credential management is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin credential management is not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
   const workspaceId = session.active_workspace_id || "";
@@ -2111,7 +2075,7 @@ async function eventAiModelInventory(db, session, scope, credentialId, env) {
 async function failEventAiJob(db, row, error) {
   const now = new Date().toISOString();
   await db.prepare("UPDATE dbi_event_ai_jobs SET status = 'failed', error_code = ?, error_message = ?, updated_at = ?, completed_at = ? WHERE id = ?")
-    .bind(cleanText(error?.code, 120) || "event_ai_failed", safeApiLogText(error?.message, 500) || "Event enrichment failed.", now, now, row.id).run();
+    .bind(cleanText(error?.code, 120) || "event_ai_failed", safeLogText(error?.message, 500) || "Event enrichment failed.", now, now, row.id).run();
   return db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE id = ?").bind(row.id).first();
 }
 
@@ -2241,7 +2205,7 @@ async function advanceEventAiJob(db, row, env) {
 }
 
 async function eventAiResponse(request, db, env) {
-  if (!sameOrigin(request)) return json({ error: "Cross-origin AI requests are not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin AI requests are not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
   if (!session.active_workspace_id) return json({ error: "Select a workspace before using AI assistance" }, 409);
@@ -2268,7 +2232,7 @@ async function eventAiResponse(request, db, env) {
         capabilityNotice: "Availability is credential-specific. Compatibility with web search and structured outputs is proven when the workflow runs.",
       } });
     } catch (error) {
-      return json({ error: safeApiLogText(error?.message, 500) || "OpenAI model inventory is unavailable", code: cleanText(error?.code, 120) }, error?.httpStatus || 502);
+      return json({ error: safeLogText(error?.message, 500) || "OpenAI model inventory is unavailable", code: cleanText(error?.code, 120) }, error?.httpStatus || 502);
     }
   }
 
@@ -2290,7 +2254,7 @@ async function eventAiResponse(request, db, env) {
       await recordActivity(db, { type: "user", id: session.user_id, workspaceId: session.active_workspace_id }, "event_ai_models_updated", "workspace_ai_settings", session.active_workspace_id, { producerModel, verifierModel });
       return json({ defaults: { producerModel, verifierModel, updatedAt: now } });
     } catch (error) {
-      return json({ error: safeApiLogText(error?.message, 500) || "Workspace model defaults could not be saved", code: cleanText(error?.code, 120) }, error?.httpStatus || 502);
+      return json({ error: safeLogText(error?.message, 500) || "Workspace model defaults could not be saved", code: cleanText(error?.code, 120) }, error?.httpStatus || 502);
     }
   }
 
@@ -2314,7 +2278,7 @@ async function eventAiResponse(request, db, env) {
     try {
       inventory = await eventAiModelInventory(db, session, credentialScope, cleanText(body?.credentialId, 100), env);
     } catch (error) {
-      return json({ error: safeApiLogText(error?.message, 500) || "OpenAI model inventory is unavailable", code: cleanText(error?.code, 120) }, error?.httpStatus || 502);
+      return json({ error: safeLogText(error?.message, 500) || "OpenAI model inventory is unavailable", code: cleanText(error?.code, 120) }, error?.httpStatus || 502);
     }
     const credential = inventory.credential;
     const producerModel = cleanText(body?.producerModel, 180) || inventory.producerModel;
@@ -2365,7 +2329,7 @@ async function eventAiResponse(request, db, env) {
 }
 
 async function agentKeysResponse(request, db) {
-  if (!sameOrigin(request)) return json({ error: "Cross-origin credential management is not allowed" }, 403);
+  if (!sameOriginRequest(request)) return json({ error: "Cross-origin credential management is not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
   if (!canAdministerUsers(session)) return json({ error: "Administrator access is required" }, 403);
@@ -2593,17 +2557,6 @@ function cleanEventMilestones(value) {
     milestones.push({ id, type, label, occursAt, notes });
   }
   return { milestones, valid: value.length <= 24 };
-}
-
-function cleanHttpUrl(value) {
-  const text = cleanText(value, 2_000);
-  if (!text) return "";
-  try {
-    const url = new URL(text);
-    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
-  } catch {
-    return "";
-  }
 }
 
 function cleanEventLinks(value) {
@@ -3187,7 +3140,7 @@ async function agentApiResponse(request, env, db) {
   let response;
   let thrownError = null;
   try {
-    if (principal.type === "user" && !["GET", "HEAD"].includes(request.method) && !sameOrigin(request)) {
+    if (principal.type === "user" && !["GET", "HEAD"].includes(request.method) && !sameOriginRequest(request)) {
       response = agentError("cross_origin_forbidden", "Cross-origin workspace mutations are not allowed", 403, requestId);
     } else if (await rateLimited(db, principal)) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);

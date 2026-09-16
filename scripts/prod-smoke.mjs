@@ -64,6 +64,9 @@ assert.match(homeResponse.headers.get("content-security-policy") || "", /frame-a
 assert.equal(homeResponse.headers.get("x-frame-options"), "DENY", "Production must prevent legacy framing");
 assert.match(homeResponse.headers.get("strict-transport-security") || "", /max-age=63072000/, "Production must advertise long-lived HTTPS transport security");
 assert.equal(homeResponse.headers.get("x-content-type-options"), "nosniff", "Production must disable MIME sniffing");
+assert.equal(homeResponse.headers.get("cross-origin-opener-policy"), "same-origin", "Production must isolate the top-level browsing context");
+assert.equal(homeResponse.headers.get("cross-origin-resource-policy"), "same-origin", "Production must restrict cross-origin resource reuse");
+assert.equal(homeResponse.headers.get("origin-agent-cluster"), "?1", "Production must request origin-keyed process isolation");
 
 const html = await homeResponse.text();
 assert.match(html, /Defense Budget & Spend Analytics/, "Homepage should identify the app");
@@ -74,6 +77,7 @@ assert.ok(assets.scripts.length > 0, "Homepage should reference at least one Jav
 for (const assetUrl of [...assets.scripts, ...assets.stylesheets]) {
   const assetResponse = await fetchWithCheck(assetUrl, { method: "HEAD" });
   assert.equal(assetResponse.status, 200, `Asset should return 200: ${assetUrl} got ${statusText(assetResponse)}`);
+  assert.match(assetResponse.headers.get("cache-control") || "", /immutable/, `Hashed asset must be immutable: ${assetUrl}`);
 }
 
 const scriptResponse = await fetchWithCheck(assets.scripts[0]);
@@ -90,6 +94,7 @@ assert.ok(styleBytes <= 350000, `Production CSS should stay below 350KB, got ${s
 
 const manifestResponse = await fetchWithCheck(new URL("data/runtime-manifest.json", baseUrl));
 assert.equal(manifestResponse.status, 200, `Runtime manifest should return 200, got ${statusText(manifestResponse)}`);
+assert.match(manifestResponse.headers.get("cache-control") || "", /stale-while-revalidate/, "Runtime data should use bounded revalidation caching");
 const manifest = await manifestResponse.json();
 assert.ok(manifest.metadata?.recordCount > 3000, "Runtime manifest should expose the request-line count without loading the detailed corpus");
 

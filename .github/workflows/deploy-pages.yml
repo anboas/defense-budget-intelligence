@@ -6,16 +6,23 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: dbi-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   container-contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Build and start container stack
@@ -38,16 +45,23 @@ jobs:
   deploy:
     needs: container-contract
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
       - name: Install
         run: npm ci
+      - name: Audit dependency graph
+        run: npm audit --audit-level=high
+      - name: Build CycloneDX SBOM
+        run: mkdir -p test-results/security && npm sbom --sbom-format=cyclonedx > test-results/security/defense-budget-intelligence.sbom.cdx.json
       - name: Install browser contract runtime
         run: npx playwright-core install --with-deps chromium
       - name: Verify Cloudflare Pages and D1 account lifecycle
@@ -56,8 +70,15 @@ jobs:
         run: npm run verify:agent-api
       - name: Verify and build
         run: npm run verify
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dbi-security-evidence
+          path: test-results/security
+          if-no-files-found: warn
       - name: Publish gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@329bcc8f12caed2cefe5a5b80781499a6f3b361b # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist

@@ -11,16 +11,16 @@ GitHub Pages fallback: <https://anboas.github.io/defense-budget-intelligence/>
 - Services: Army, Navy / Marine Corps, Air Force / Space Force.
 - Fourth Estate: OSD / Defense-Wide, defense agencies, combatant commands, and joint organizations.
 - Colors of money: M-1, O-1, P-1, R-1, RF-1, and C-1 display books.
-- Primary surfaces: Transactions and Wallboard. Analytics, Money flow, and Admin are grouped Control Framework menus rather than additional top-level tabs.
+- Primary work surfaces: Transactions, Wallboard, and Events. Workspace administration, platform administration, and personal settings remain distinct ownership areas.
 - Drilldown levels: request vintage, service / Fourth Estate, organization, appropriation account, budget activity, budget line item, Treasury account, award, modification, and source evidence.
 - Classifications: color of money and keyword-derived mission categories remain labeled as classifications, not recommendations.
 
 ## Analytics contract
 
-Defense Budget & Spend Analytics uses two primary working surfaces plus three grouped menus:
+Defense Budget & Spend Analytics uses three primary working surfaces plus grouped analytical and administrative menus:
 
 - Compact operations workspace with dense scan-first cards, filters, metrics, tables, and source provenance.
-- Direct Transactions and Wallboard routes; Analytics groups four query-addressable views; Money flow groups PDB Request, Request History, Account Flow, Awards, and Source Lineage; Admin groups Watchlist, Events, Integrations, API Log, human user management, Super-user workspace administration, and authenticated agent administration.
+- Direct Transactions, Wallboard, and Events routes; Analytics groups query-addressable views; Money flow groups PDB Request, Request History, Account Flow, Awards, and Source Lineage; workspace administration groups Integrations, API Log, Workspace Settings, and Agent Access; platform administration groups Users and Workspaces.
 - Hash-route deep links for every working, analytical, money-flow, management, and account surface. Profile, Security, and Agent Access are full pages rather than dialogs.
 - Validated URL-backed filters and selections, explicit Reset and Retry actions, browser-local saved views, and deterministic snapshots.
 - CSV and JSON exports carry the exact view URL, snapshot timestamp, extraction methodology, and row-level official-source lineage.
@@ -79,6 +79,8 @@ Container health contracts:
 The release workflow treats both stateful implementations as gates. It proves the full first-account lifecycle against a fresh local D1 database, then builds the Docker images, starts a fresh PostgreSQL database, applies migrations, imports snapshots, and verifies the portable API before publishing the static fallback.
 
 Cloudflare deployment and first-claim operations are documented in [Cloudflare Pages and D1](docs/CLOUDFLARE_PAGES.md). The scoped R/W automation contract is documented in [Agent API](docs/AGENT_API.md). The two-stage Responses API workflow, evidence rules, merge contract, and runtime parity for event research are documented in [Event AI enrichment](docs/event-ai-enrichment.md).
+
+The maintained trust boundaries, performance budgets, maintenance seams, release controls, and incident-logging rules are documented in [Architecture, Performance, and Security Baseline](docs/architecture-security.md). Private vulnerability reports follow [SECURITY.md](SECURITY.md).
 
 ## Data Sources
 

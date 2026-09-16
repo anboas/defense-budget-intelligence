@@ -31,7 +31,8 @@
     "lint": "eslint .",
     "verify:ui-conformance": "node scripts/check-ui-conformance.mjs",
     "verify:event-ai": "node scripts/verify-event-ai-runtime.mjs",
-    "verify": "npm run lint && npm run verify:ui-conformance && npm run verify:event-ai && npm run build && node scripts/verify-site.mjs",
+    "verify:security": "node scripts/verify-security-runtime.mjs",
+    "verify": "npm run lint && npm run verify:ui-conformance && npm run verify:event-ai && npm run build && npm run verify:security && node scripts/verify-site.mjs",
     "verify:auth": "node scripts/verify-auth.mjs",
     "verify:pages-auth": "npm run build:cloudflare && node scripts/verify-pages-auth.mjs",
     "verify:agent-api": "npm run build:cloudflare && node scripts/verify-agent-api.mjs",
@@ -45,24 +46,24 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.3",
-    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/69f3ad8690276d16da554dbf5a7cb874d2cd6bec.tar.gz",
-    "fastify": "^5.12.4",
+    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/46c45a9c96a49c1845672f1b4d7ebc034340b0c4.tar.gz",
+    "fastify": "^5.12.5",
     "pg": "^8.23.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-react": "^6.0.2",
     "d3": "^7.9.0",
-    "eslint": "^10.4.1",
+    "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.6.0",
+    "globals": "^17.12.0",
     "lucide-react": "^0.542.0",
-    "playwright-core": "^1.61.0",
-    "purgecss": "^7.0.2",
+    "playwright-core": "^1.63.0",
+    "purgecss": "^8.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.9.2",
     "vite": "^8.0.16",
-    "wrangler": "^4.131.1"
+    "wrangler": "^4.132.0"
   }
 }
