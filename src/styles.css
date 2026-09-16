@@ -11470,7 +11470,6 @@ td .dot {
 .operations-tabs button,
 .ops-primary,
 .ops-panel__header > a,
-.ops-empty a,
 .ops-event-list button,
 .ops-wallboard button {
   display: inline-flex;
@@ -11516,9 +11515,6 @@ td .dot {
 .ops-watch-table input[type="date"] { min-height: 32px; border: 1px solid var(--border); border-radius: 3px; font: inherit; font-size: 9px; }
 .ops-switch { display: inline-flex; align-items: center; gap: 5px; }
 .ops-icon-button { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: #fff4cf; color: #805500; cursor: pointer; }
-.ops-empty { display: grid; justify-items: center; gap: 7px; padding: 42px 18px; color: var(--muted); text-align: center; }
-.ops-empty strong { color: var(--brand-dark); }
-.ops-empty p { max-width: 520px; margin: 0; font-size: 10px; }
 .ops-event-list { display: grid; }
 .ops-event-list article { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 74px; padding: 10px 14px; border-bottom: 1px solid var(--border-soft); }
 .ops-event-list article > time { color: var(--brand); font-size: 10px; font-weight: 850; }
@@ -12152,7 +12148,6 @@ td .dot {
   .operations-tabs button,
   .ops-primary,
   .ops-panel__header > a,
-  .ops-empty a,
   .ops-event-list button,
   .ops-wallboard button { min-height: 44px; }
   .ops-panel__header { align-items: stretch; flex-direction: column; }

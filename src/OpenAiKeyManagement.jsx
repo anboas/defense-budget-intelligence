@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, CheckCircle2, KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
-import { ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 function dateLabel(value) {
   if (!value) return "Never used";
@@ -123,7 +123,7 @@ export default function OpenAiKeyManagement({ auth, scope = "workspace", embedde
 
     <section className="if-analytics-panel" aria-busy={busy}>
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h4 className="if-analytics-panel__title">Configured credentials</h4><p className="if-analytics-panel__summary">Only labels, scope, final four characters, lifecycle dates, and aggregate usage are visible.</p></div><strong className="if-analytics-panel__count">{active.length}</strong></header>
-      {busy && !keys.length ? <div className="ops-empty"><KeyRound size={22} aria-hidden="true" /><strong>Loading key metadata…</strong></div> : !active.length ? <div className="ops-empty"><KeyRound size={22} aria-hidden="true" /><strong>No active {personal ? "personal" : "workspace"} OpenAI keys</strong><p>Add a credential when you are ready to enable approved contextual actions.</p></div> : <div className="if-action-row-list" data-openai-active-keys>
+      {busy && !keys.length ? <ControlAsyncState compact state="loading" icon={<KeyRound size={22} />} title="Loading key metadata" message="Reading the encrypted credential inventory." /> : !active.length ? <ControlAsyncState compact state="empty" icon={<KeyRound size={22} />} title={`No active ${personal ? "personal" : "workspace"} OpenAI keys`} message="Add a credential when you are ready to enable approved contextual actions." /> : <div className="if-action-row-list" data-openai-active-keys>
         {active.map((key) => <article key={key.id} className="if-action-row">
           <span className="if-icon-slot" aria-hidden="true"><KeyRound size={16} /></span>
           <span><strong>{key.label} · •••• {key.lastFour}</strong><em>{key.isDefault ? "Default credential" : "Active credential"} · Added {dateLabel(key.createdAt)} · {key.lastUsedAt ? `Last used ${dateLabel(key.lastUsedAt)}` : "Never used"}</em></span>

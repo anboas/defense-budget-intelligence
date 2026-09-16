@@ -185,7 +185,7 @@ try {
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-openai-key-vault="user"]');
   const personalVault = page.locator('[data-openai-key-vault="user"]');
-  await personalVault.getByText("Loading key metadata…").waitFor({ state: "detached" });
+  await personalVault.locator('[data-if-async-state="loading"]').waitFor({ state: "detached" });
   assert.match(await personalVault.innerText(), /Credential vault[\s\S]*write-only encrypted vault[\s\S]*Configured credentials/i, "Personal settings should expose the structured write-only OpenAI credential manager without a duplicate route header");
   assert.equal(await personalVault.locator(".if-management-card").count(), 4, "The vault summary must use the shared four-card management grid");
   assert.equal(await personalVault.locator(".if-analytics-panel").count(), 1, "The vault should reserve panel chrome for the credential list instead of nesting its summary in another box");

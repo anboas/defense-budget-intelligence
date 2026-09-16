@@ -38,6 +38,7 @@ const retiredFamilies = [
   "workspace-management__create",
   "workspace-card__editor",
   "user-management__metrics",
+  "ops-empty",
 ];
 for (const family of retiredFamilies) {
   const cssPattern = new RegExp(`\\.${family}(?:__|--|\\b)`);
