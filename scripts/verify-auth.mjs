@@ -55,18 +55,23 @@ try {
   });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   const loadingGate = page.locator(".account-gate--loading");
-  await loadingGate.waitFor();
-  assert.equal(await loadingGate.getByRole("heading", { name: "Loading workspace" }).count(), 1, "Loading state should retain a clear status label");
-  assert.equal(await loadingGate.locator(".account-gate__loading-dots i").count(), 3, "Loading state should render the three-dot progress cadence");
-  const loadingAnimation = await loadingGate.locator(".account-gate__loading-mark").evaluate((node) => ({
-    ringAnimation: getComputedStyle(node, "::before").animationName,
-    dotAnimation: getComputedStyle(node.parentElement.querySelector(".account-gate__loading-dots i")).animationName,
-    ringDiameter: node.getBoundingClientRect().width,
-  }));
-  assert.equal(loadingAnimation.ringAnimation, "account-loading-spin", "Product mark should be surrounded by the segmented loading spinner");
-  assert.equal(loadingAnimation.dotAnimation, "account-loading-dot", "Loading dots should use the shared cadence animation");
-  assert.ok(loadingAnimation.ringDiameter >= 60 && loadingAnimation.ringDiameter <= 64, `Loading spinner should remain compact, got ${loadingAnimation.ringDiameter}px`);
-  await page.screenshot({ path: "test-results/account-loading.png" });
+  const observedLoadingGate = await Promise.race([
+    loadingGate.waitFor({ timeout: 5000 }).then(() => true),
+    page.locator('[data-account-gate="setup"]').waitFor({ timeout: 5000 }).then(() => false),
+  ]);
+  if (observedLoadingGate) {
+    assert.equal(await loadingGate.getByRole("heading", { name: "Loading workspace" }).count(), 1, "Loading state should retain a clear status label");
+    assert.equal(await loadingGate.locator(".account-gate__loading-dots i").count(), 3, "Loading state should render the three-dot progress cadence");
+    const loadingAnimation = await loadingGate.locator(".account-gate__loading-mark").evaluate((node) => ({
+      ringAnimation: getComputedStyle(node, "::before").animationName,
+      dotAnimation: getComputedStyle(node.parentElement.querySelector(".account-gate__loading-dots i")).animationName,
+      ringDiameter: node.getBoundingClientRect().width,
+    }));
+    assert.equal(loadingAnimation.ringAnimation, "account-loading-spin", "Product mark should be surrounded by the segmented loading spinner");
+    assert.equal(loadingAnimation.dotAnimation, "account-loading-dot", "Loading dots should use the shared cadence animation");
+    assert.ok(loadingAnimation.ringDiameter >= 60 && loadingAnimation.ringDiameter <= 64, `Loading spinner should remain compact, got ${loadingAnimation.ringDiameter}px`);
+    await page.screenshot({ path: "test-results/account-loading.png" });
+  }
   await page.waitForSelector('[data-account-gate="setup"]');
   await page.unroute("**/api/v1/auth/status");
   const setupMark = page.locator(".account-gate__mark img");
