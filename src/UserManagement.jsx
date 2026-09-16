@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 const ROLE_LABELS = {
   administrator: "Workspace manager",
@@ -36,6 +36,11 @@ export default function UserManagement({ auth }) {
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState("");
   const dialogRef = useRef(null);
+  const { showToast } = useToast();
+
+  const notify = useCallback((title, text, tone = "success") => {
+    showToast({ tone, title, message: text });
+  }, [showToast]);
 
   async function refresh() {
     const result = await auth.listUsers();
@@ -49,9 +54,9 @@ export default function UserManagement({ auth }) {
       if (!active) return;
       setUsers(result.users || []);
       setRoles(result.availableRoles || []);
-    }).catch((error) => setMessage(error.message)).finally(() => { if (active) setBusy(false); });
+    }).catch((error) => notify("Users unavailable", error.message, "danger")).finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [auth]);
+  }, [auth, notify]);
 
   const selected = users.find((user) => user.id === selectedId);
   const activeCount = users.filter((user) => user.status === "active").length;
@@ -77,7 +82,7 @@ export default function UserManagement({ auth }) {
       await refresh();
       setCreateDraft(EMPTY_CREATE);
       setMode("");
-      setMessage("User created. Share the temporary password through a secure channel; the user must replace it at first sign-in.");
+      notify("User created", "Share the temporary password through a secure channel; the user must replace it at first sign-in.");
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
@@ -92,7 +97,7 @@ export default function UserManagement({ auth }) {
       setMode("");
       setSelectedId("");
       setEditDraft(null);
-      setMessage("User updated.");
+      notify("User updated", `${editDraft.displayName}'s account changes are active.`);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
@@ -104,8 +109,8 @@ export default function UserManagement({ auth }) {
     try {
       await auth.updateUser(user.id, { email: user.email, displayName: user.displayName, title: user.title, role: user.roleId, status });
       await refresh();
-      setMessage(status === "suspended" ? `${user.displayName} suspended; active sessions were revoked.` : `${user.displayName} reactivated.`);
-    } catch (error) { setMessage(error.message); }
+      notify(status === "suspended" ? "User suspended" : "User reactivated", status === "suspended" ? `${user.displayName}'s active sessions were revoked.` : `${user.displayName} can sign in again.`);
+    } catch (error) { notify("User status unchanged", error.message, "danger"); }
     finally { setBusy(false); }
   }
 
@@ -120,7 +125,7 @@ export default function UserManagement({ auth }) {
       setMode("");
       setSelectedId("");
       setResetDraft({ password: "", confirm: "" });
-      setMessage("Temporary password set. Existing sessions were revoked and the user must replace it at next sign-in.");
+      notify("Temporary password set", "Existing sessions were revoked and the user must replace it at next sign-in.");
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
@@ -179,8 +184,6 @@ export default function UserManagement({ auth }) {
       </div>
       {message ? <p className="account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
-
-    {message ? <p className="account-form__message user-management__message" role="status">{message}</p> : null}
 
     <div className="user-management__list" aria-label="Workspace users">
       {users.length ? <div className="user-management__list-header" aria-hidden="true"><span>User</span><span>Role</span><span>Access</span><span>Actions</span></div> : null}
