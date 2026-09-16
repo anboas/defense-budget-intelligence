@@ -1,6 +1,7 @@
 node_modules/
 src/styles.generated.css
 dist/
+.wrangler/
 .DS_Store
 test-results/
 public/data/

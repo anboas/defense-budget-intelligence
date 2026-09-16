@@ -226,8 +226,13 @@ async function recordApiRequest(pool, input = {}) {
     Math.max(0, Number(input.retryCount || 0)), Boolean(input.retryable), safeLogText(input.errorCode, 120) || null, safeLogText(input.errorMessage, 500) || null,
     JSON.stringify(metadata).slice(0, 8_000), input.startedAt || now, input.completedAt || now,
   ]);
-  await pool.query("DELETE FROM app_api_request_log WHERE completed_at < NOW() - INTERVAL '90 days'");
   return id;
+}
+
+export async function runAuthRetentionMaintenance(pool) {
+  await pool.query("DELETE FROM app_api_request_log WHERE completed_at < NOW() - INTERVAL '90 days'");
+  await pool.query("DELETE FROM app_event_ai_jobs WHERE completed_at < NOW() - INTERVAL '90 days'");
+  await pool.query("DELETE FROM app_login_attempts WHERE attempted_at < NOW() - INTERVAL '24 hours'");
 }
 
 async function hydratedUser(pool, row) {
@@ -317,6 +322,29 @@ const EVENT_AI_JOB_DIAGNOSTIC_SELECT = `
     ORDER BY candidate.completed_at DESC
     LIMIT 1
   ) diagnostic ON TRUE`;
+
+const EVENT_AI_RECENT_JOBS_SELECT = `
+  WITH recent_jobs AS (
+    SELECT *
+    FROM app_event_ai_jobs
+    WHERE workspace_id = $1 AND user_id = $2
+    ORDER BY created_at DESC
+    LIMIT 20
+  )
+  SELECT j.*,
+    diagnostic.metadata_json AS diagnostic_metadata_json,
+    diagnostic.provider_request_id AS diagnostic_provider_request_id,
+    diagnostic.response_id AS diagnostic_response_id
+  FROM recent_jobs j
+  LEFT JOIN LATERAL (
+    SELECT metadata_json, provider_request_id, response_id
+    FROM app_api_request_log candidate
+    WHERE candidate.trace_id = j.trace_id::text
+      AND candidate.request_kind = 'openai'
+    ORDER BY candidate.completed_at DESC
+    LIMIT 1
+  ) diagnostic ON TRUE
+  ORDER BY j.created_at DESC`;
 
 async function eventAiJobWithDiagnostic(pool, id, workspaceId, userId) {
   const result = await pool.query(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.id = $1 AND j.workspace_id = $2 AND j.user_id = $3`, [id, workspaceId, userId]);
@@ -621,7 +649,6 @@ export async function registerAuthRoutes(app, pool) {
     const user = result.rows[0];
     const ok = user && validProof(proof) && equalDigest(user.password_proof_hash, sha256(proof));
     await pool.query("INSERT INTO app_login_attempts (identity_hash, succeeded) VALUES ($1, $2)", [identityHash, Boolean(ok)]);
-    await pool.query("DELETE FROM app_login_attempts WHERE attempted_at < NOW() - INTERVAL '24 hours'");
     if (!ok) return reply.code(401).send({ error: "email or password is incorrect" });
     await pool.query("UPDATE app_users SET last_login_at = NOW() WHERE user_id = $1", [user.user_id]);
     const session = await issueSession(pool, reply, user.user_id);
@@ -1139,7 +1166,7 @@ export async function registerAuthRoutes(app, pool) {
     const user = await authenticated(pool, request);
     if (!user) return reply.code(401).send({ error: "sign in required" });
     if (!user.active_workspace_id) return { jobs: [] };
-    const result = await pool.query(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.workspace_id = $1 AND j.user_id = $2 ORDER BY j.created_at DESC LIMIT 20`, [user.active_workspace_id, user.user_id]);
+    const result = await pool.query(EVENT_AI_RECENT_JOBS_SELECT, [user.active_workspace_id, user.user_id]);
     return { jobs: result.rows.map(eventAiJob) };
   });
 
@@ -1167,7 +1194,6 @@ export async function registerAuthRoutes(app, pool) {
     const id = randomUUID();
     const traceId = randomUUID();
     const direction = cleanText(request.body?.direction, 2000);
-    await pool.query("DELETE FROM app_event_ai_jobs WHERE completed_at < NOW() - INTERVAL '90 days'");
     let result = await pool.query(`INSERT INTO app_event_ai_jobs
       (id, workspace_id, user_id, status, current_step, credential_id, credential_scope, producer_model, verifier_model,
        direction, input_snapshot_json, categories_json, trace_id)

@@ -47,6 +47,8 @@ export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 const MAX_ATTEMPTS = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const RETENTION_MAINTENANCE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const RETENTION_DAYS = 90;
 const MAX_BODY_BYTES = 16_384;
 const AGENT_API_VERSION = "dbi-agent-v1";
 const AGENT_TOKEN_PREFIX = "dbi_agent_";
@@ -136,6 +138,7 @@ const SCHEMA = Object.freeze([
     attempted_at TEXT NOT NULL
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_login_attempts_client ON dbi_login_attempts (client_hash, attempted_at)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_login_attempts_time ON dbi_login_attempts (attempted_at)",
   `CREATE TABLE IF NOT EXISTS dbi_agent_keys (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -384,6 +387,8 @@ const SCHEMA = Object.freeze([
   "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_user ON dbi_api_request_log (user_id, completed_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_credential ON dbi_api_request_log (credential_id, completed_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_status ON dbi_api_request_log (workspace_id, status, completed_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_trace_kind_time ON dbi_api_request_log (trace_id, request_kind, completed_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_api_request_log_completed ON dbi_api_request_log (completed_at)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_ai_settings (
     workspace_id TEXT PRIMARY KEY,
     event_research_model TEXT NOT NULL DEFAULT '',
@@ -419,6 +424,11 @@ const SCHEMA = Object.freeze([
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_workspace ON dbi_event_ai_jobs (workspace_id, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_user ON dbi_event_ai_jobs (user_id, created_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_completed ON dbi_event_ai_jobs (completed_at)",
+  `CREATE TABLE IF NOT EXISTS dbi_maintenance_state (
+    task TEXT PRIMARY KEY,
+    last_run_at TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_agent_keys (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -612,6 +622,23 @@ async function ensureSchema(db) {
     schemaInitialization.set(db, initialization);
   }
   await initialization;
+}
+
+async function runD1RetentionMaintenance(db, now = new Date()) {
+  const task = "retention-v1";
+  const state = await db.prepare("SELECT last_run_at FROM dbi_maintenance_state WHERE task = ?").bind(task).first();
+  const lastRunAt = Date.parse(state?.last_run_at || "");
+  if (Number.isFinite(lastRunAt) && now.getTime() - lastRunAt < RETENTION_MAINTENANCE_INTERVAL_MS) return false;
+  const completedCutoff = new Date(now.getTime() - RETENTION_DAYS * 86_400_000).toISOString();
+  const loginCutoff = new Date(now.getTime() - 86_400_000).toISOString();
+  await db.batch([
+    db.prepare("DELETE FROM dbi_api_request_log WHERE completed_at < ?").bind(completedCutoff),
+    db.prepare("DELETE FROM dbi_event_ai_jobs WHERE completed_at <> '' AND completed_at < ?").bind(completedCutoff),
+    db.prepare("DELETE FROM dbi_login_attempts WHERE attempted_at < ?").bind(loginCutoff),
+    db.prepare(`INSERT INTO dbi_maintenance_state (task, last_run_at) VALUES (?, ?)
+      ON CONFLICT(task) DO UPDATE SET last_run_at = excluded.last_run_at`).bind(task, now.toISOString()),
+  ]);
+  return true;
 }
 
 function json(payload, status = 200, headers = {}) {
@@ -934,13 +961,13 @@ async function recordLoginAttempt(db, client, succeeded) {
     INSERT INTO dbi_login_attempts (id, client_hash, succeeded, attempted_at)
     VALUES (?, ?, ?, ?)
   `).bind(crypto.randomUUID(), client, succeeded ? 1 : 0, now.toISOString()).run();
-  await db.prepare("DELETE FROM dbi_login_attempts WHERE attempted_at < ?")
-    .bind(new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
-    .run();
 }
 
 async function statusResponse(request, db, env) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+  await runD1RetentionMaintenance(db).catch((error) => {
+    console.error("D1 retention maintenance failed", safeLogText(error?.message, 240));
+  });
   const [owner, session] = await Promise.all([superUser(db), sessionUser(db, request)]);
   return json({
     enabled: true,
@@ -1751,8 +1778,6 @@ async function recordApiRequest(db, entry = {}) {
       boundedInteger(entry.outputTokens, 0, 0, 1_000_000_000), boundedInteger(entry.retryCount, 0, 0, 25), entry.retryable ? 1 : 0,
       safeLogText(entry.errorCode, 120), safeLogText(entry.errorMessage, 500), JSON.stringify(metadata).slice(0, 8_000), startedAt, completedAt,
     ).run();
-  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
-  await db.prepare("DELETE FROM dbi_api_request_log WHERE completed_at < ?").bind(cutoff).run();
 }
 
 function cleanDate(value) {
@@ -1964,6 +1989,29 @@ const EVENT_AI_JOB_DIAGNOSTIC_SELECT = `
     ORDER BY candidate.completed_at DESC
     LIMIT 1
   )`;
+
+const EVENT_AI_RECENT_JOBS_SELECT = `
+  WITH recent_jobs AS (
+    SELECT *
+    FROM dbi_event_ai_jobs
+    WHERE workspace_id = ? AND user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 20
+  )
+  SELECT j.*,
+    l.metadata_json AS diagnostic_metadata_json,
+    l.provider_request_id AS diagnostic_provider_request_id,
+    l.response_id AS diagnostic_response_id
+  FROM recent_jobs j
+  LEFT JOIN dbi_api_request_log l ON l.id = (
+    SELECT candidate.id
+    FROM dbi_api_request_log candidate
+    WHERE candidate.trace_id = j.trace_id
+      AND candidate.request_kind = 'openai'
+    ORDER BY candidate.completed_at DESC
+    LIMIT 1
+  )
+  ORDER BY j.created_at DESC`;
 
 async function eventAiJobWithDiagnostic(db, id, workspaceId, userId) {
   return db.prepare(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.id = ? AND j.workspace_id = ? AND j.user_id = ?`)
@@ -2262,7 +2310,7 @@ async function eventAiResponse(request, db, env) {
   }
 
   if (request.method === "GET" && !suffix) {
-    const result = await db.prepare(`${EVENT_AI_JOB_DIAGNOSTIC_SELECT} WHERE j.workspace_id = ? AND j.user_id = ? ORDER BY j.created_at DESC LIMIT 20`).bind(session.active_workspace_id, session.user_id).all();
+    const result = await db.prepare(EVENT_AI_RECENT_JOBS_SELECT).bind(session.active_workspace_id, session.user_id).all();
     return json({ jobs: (result.results || []).map(eventAiJobFromRow) });
   }
 
@@ -2293,7 +2341,6 @@ async function eventAiResponse(request, db, env) {
     const now = new Date().toISOString();
     const traceId = crypto.randomUUID();
     const mockMode = String(env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
-    await db.prepare("DELETE FROM dbi_event_ai_jobs WHERE completed_at <> '' AND completed_at < ?").bind(new Date(Date.now() - 90 * 86400000).toISOString()).run();
     await db.prepare(`INSERT INTO dbi_event_ai_jobs
       (id, workspace_id, user_id, status, current_step, credential_id, credential_scope, producer_model, verifier_model,
        producer_response_id, verifier_response_id, direction, input_snapshot_json, categories_json, proposal_json,

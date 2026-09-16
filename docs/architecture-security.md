@@ -49,8 +49,12 @@ The implementations differ only at persistence and platform adapters. Validation
 - Large route-specific snapshots must be fetched on demand, never imported into JavaScript bundles.
 - Runtime JSON uses short revalidation; content-hashed assets use one-year immutable caching.
 - Data requests must be abortable when their owning surface unmounts or changes.
+- D1 list/detail joins must bound the owning rows before enrichment and use purpose-built composite indexes for every correlated lookup.
+- Retention pruning is indexed and scheduled at most once per day; request, login, and task writes must never trigger table-wide cleanup.
 
 The contract monitor is intentionally emitted as `data/contract-monitor.json` and loaded only by Integrations. Re-importing it from React source is a release-blocking architecture regression.
+
+`npm run verify:d1-efficiency` executes real SQLite query plans through Wrangler. It blocks Task Center request-log scans, unindexed retention deletes, and per-write pruning regressions.
 
 ## Maintainability budgets
 

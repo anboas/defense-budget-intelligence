@@ -13,7 +13,7 @@ import {
 import { registerStateRoutes } from "./state-routes.mjs";
 import { importAccountSpine, registerAccountSpineRoutes } from "./account-spine.mjs";
 import { importCaptureCalendar, registerCaptureCalendarRoutes } from "./capture-calendar.mjs";
-import { registerAuthRoutes } from "./auth-routes.mjs";
+import { registerAuthRoutes, runAuthRetentionMaintenance } from "./auth-routes.mjs";
 import { MAX_JSON_BODY_BYTES, securityHeadersForPath } from "../src/security-policy.js";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -36,6 +36,7 @@ const app = Fastify({
 const pool = createPool();
 
 await migrate(pool);
+await runAuthRetentionMaintenance(pool);
 const imported = await importCommittedSnapshots(pool);
 app.log.info({ imported }, "committed intelligence snapshots synchronized");
 const accountSpine = await importAccountSpine(pool);
