@@ -2168,60 +2168,66 @@ function Hypotheses() {
               </div>
             </Section>
 
-            <div className="grid grid--sources">
-              <Section title="Evidence" meta={`${selected.evidence?.length || 0} supporting points`} icon={FileText}>
-                <div className="hypothesis-list hypothesis-list--evidence" data-hypothesis-evidence>
-                  {(selected.evidence || []).map((item) => <article key={item}>{item}</article>)}
-                </div>
-              </Section>
+            <ControlDisclosure
+              title="Decision evidence"
+              summary={`${selected.evidence?.length || 0} supporting points · ${selected.counterpoints?.length || 0} counterpoints · ${selected.validationTasks?.length || 0} validation steps`}
+              icon={<ListChecks size={16} />}
+            >
+              <div className="grid grid--sources">
+                <Section title="Evidence" meta={`${selected.evidence?.length || 0} supporting points`} icon={FileText}>
+                  <div className="hypothesis-list hypothesis-list--evidence" data-hypothesis-evidence>
+                    {(selected.evidence || []).map((item) => <article key={item}>{item}</article>)}
+                  </div>
+                </Section>
 
-              <Section title="Counterpoints" meta="what can break the thesis" icon={Filter}>
-                <div className="hypothesis-list hypothesis-list--counterpoints" data-hypothesis-counterpoints>
-                  {(selected.counterpoints || []).map((item) => <article key={item}>{item}</article>)}
-                </div>
-              </Section>
-            </div>
-
-            <Section title="Validation Plan" meta="turn the thesis into a capture decision" icon={ListChecks}>
-              <div className="hypothesis-validation-grid" data-hypothesis-validation>
-                {(selected.validationTasks || []).map((task, index) => (
-                  <article key={task}>
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <strong>{task}</strong>
-                  </article>
-                ))}
+                <Section title="Counterpoints" meta="what can break the thesis" icon={Filter}>
+                  <div className="hypothesis-list hypothesis-list--counterpoints" data-hypothesis-counterpoints>
+                    {(selected.counterpoints || []).map((item) => <article key={item}>{item}</article>)}
+                  </div>
+                </Section>
               </div>
-            </Section>
 
-            <div className="grid grid--sources">
-              <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
-                <div className="relationship-line-list" data-hypothesis-budget-lines>
-                  {(selected.linkedBudgetLines || []).map((line) => (
-                    <article key={line.id}>
-                      <div>
-                        <strong>{line.title}</strong>
-                        <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
-                      </div>
-                      <b>{money(line.fy2027)}</b>
+              <Section title="Validation Plan" meta="turn the thesis into a capture decision" icon={ListChecks}>
+                <div className="hypothesis-validation-grid" data-hypothesis-validation>
+                  {(selected.validationTasks || []).map((task, index) => (
+                    <article key={task}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{task}</strong>
                     </article>
                   ))}
                 </div>
               </Section>
 
-              <Section title="Linked Awards" meta={`${selected.linkedAwards?.length || 0} award examples`} icon={FileSpreadsheet}>
-                <div className="relationship-award-list" data-hypothesis-awards>
-                  {(selected.linkedAwards || []).map((award) => (
-                    <article key={award.id}>
-                      <div>
-                        <strong>{award.awardId || award.id}</strong>
-                        <span>{award.recipient} · {award.endDate ? `ends ${award.endDate}` : "end unknown"}</span>
-                      </div>
-                      <b>{money(award.awardAmount)}</b>
-                    </article>
-                  ))}
-                </div>
-              </Section>
-            </div>
+              <div className="grid grid--sources">
+                <Section title="Linked Budget Lines" meta={`${selected.linkedBudgetLines?.length || 0} source examples`} icon={FileText}>
+                  <div className="relationship-line-list" data-hypothesis-budget-lines>
+                    {(selected.linkedBudgetLines || []).map((line) => (
+                      <article key={line.id}>
+                        <div>
+                          <strong>{line.title}</strong>
+                          <span>{line.orgName} · {line.colorShort} · {line.justificationEvidence?.confidenceLabel || "Title-tagged only"}</span>
+                        </div>
+                        <b>{money(line.fy2027)}</b>
+                      </article>
+                    ))}
+                  </div>
+                </Section>
+
+                <Section title="Linked Awards" meta={`${selected.linkedAwards?.length || 0} award examples`} icon={FileSpreadsheet}>
+                  <div className="relationship-award-list" data-hypothesis-awards>
+                    {(selected.linkedAwards || []).map((award) => (
+                      <article key={award.id}>
+                        <div>
+                          <strong>{award.awardId || award.id}</strong>
+                          <span>{award.recipient} · {award.endDate ? `ends ${award.endDate}` : "end unknown"}</span>
+                        </div>
+                        <b>{money(award.awardAmount)}</b>
+                      </article>
+                    ))}
+                  </div>
+                </Section>
+              </div>
+            </ControlDisclosure>
           </div>
         ) : null}
       </div>
