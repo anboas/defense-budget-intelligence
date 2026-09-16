@@ -4582,7 +4582,7 @@ function AnalyticsSources() {
           </article>)}
         </div>
       </Section>
-      <Section title="Join policy" meta="amounts remain at their published grains" icon={Network}>
+      <ControlDisclosure className="source-join-policy" icon={<Network size={16} />} title="Join policy" summary="Six relationship rules; amounts remain at their published grains">
         <div className="if-relationship-bundle-grid if-relationship-bundle-grid--mobile-scroll">
           <article className="if-relationship-bundle"><h3>Request → federal account</h3><p>Derived only when normalized account titles match exactly.</p></article>
           <article className="if-relationship-bundle"><h3>OMB → Treasury account</h3><p>Exact full TAFS/TAS identifier.</p></article>
@@ -4591,7 +4591,7 @@ function AnalyticsSources() {
           <article className="if-relationship-bundle"><h3>Prime award → subaward</h3><p>Exact USAspending generated prime-award identifier. Subaward dollars remain separate from prime-award and FPDS totals.</p></article>
           <article className="if-relationship-bundle"><h3>Budget line → award</h3><p>Unlinked unless a public identifier or cited source supports the edge.</p></article>
         </div>
-      </Section>
+      </ControlDisclosure>
       <Section title="Source health" meta={`point-in-time probe ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className={`source-health-grid${showAllSourceHealth ? " is-expanded" : ""}`} data-source-health-monitor>
           {visibleHealthSources.map((source) => (

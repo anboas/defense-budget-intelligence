@@ -1317,6 +1317,10 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
   assert.equal(await page.locator("[data-source-flow] .if-ingest-stage").count(), 6, "Sources should trace six published data layers with the shared ingest-flow pattern");
   assert.equal(await page.locator(".if-relationship-bundle-grid .if-relationship-bundle").count(), 6, "Sources should disclose six join rules with the shared relationship pattern");
+  const sourceJoinPolicy = page.locator(".source-join-policy");
+  assert.equal(await sourceJoinPolicy.getAttribute("open"), null, "Secondary join methodology should start collapsed");
+  await sourceJoinPolicy.locator("summary").click();
+  assert.notEqual(await sourceJoinPolicy.getAttribute("open"), null, "Join methodology should remain available on demand");
   assert.equal(await page.locator("[data-source-health-monitor] details").count(), 5, "Sources should start with a bounded health summary instead of an eleven-card wall");
   await page.getByRole("button", { name: /Show all .* sources/ }).click();
   assert.ok(await page.locator("[data-source-health-monitor] details").count() > 5, "Sources should expose the full health inventory on demand");
