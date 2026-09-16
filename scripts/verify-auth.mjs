@@ -120,8 +120,8 @@ try {
   assert.equal(await page.locator(".profile-photo-manager").count(), 1, "Profile should expose picture selection, replacement, and removal controls");
   const desktopProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
     const panel = node.querySelector(".profile-page__panel");
-    const pageHeader = node.querySelector(".profile-page__header");
-    const heading = node.querySelector(".profile-page__heading h2");
+    const pageHeader = node.querySelector(":scope > .if-page-header");
+    const heading = pageHeader.querySelector(".if-page-header__title");
     const panelTitle = node.querySelector(".profile-page__panel .if-panel__title");
     const input = node.querySelector(".profile-page__panel .if-input");
     const content = node.querySelector(".profile-page__content");
@@ -139,7 +139,7 @@ try {
     };
   });
   assert.equal(desktopProfileGeometry.pageHeaderBackground, "none", "Profile header should be flat, never a decorative gradient hero");
-  assert.ok(desktopProfileGeometry.pageHeaderHeight <= 64, `Profile header should stay operationally compact, got ${desktopProfileGeometry.pageHeaderHeight}px`);
+  assert.ok(desktopProfileGeometry.pageHeaderHeight <= 84, `Profile header should stay operationally compact while retaining its route summary, got ${desktopProfileGeometry.pageHeaderHeight}px`);
   assert.ok(desktopProfileGeometry.headingSize <= 20, `Profile route heading should use framework scale, got ${desktopProfileGeometry.headingSize}px`);
   assert.ok(desktopProfileGeometry.panelRadius <= 4, `Profile panel should use the framework's restrained radius, got ${desktopProfileGeometry.panelRadius}px`);
   assert.equal(desktopProfileGeometry.panelShadow, "none", "Profile panel should remain flat rather than float like a marketing card");
@@ -162,7 +162,8 @@ try {
   await personalVault.getByText("Loading key metadata…").waitFor({ state: "detached" });
   assert.match(await personalVault.innerText(), /My OpenAI keys[\s\S]*write-only encrypted vault[\s\S]*Configured credentials/i, "Personal settings should expose the structured write-only OpenAI credential manager");
   assert.equal(await personalVault.locator(".if-management-card").count(), 4, "The vault summary must use the shared four-card management grid");
-  assert.equal(await personalVault.locator(".if-analytics-panel").count(), 2, "The vault must use shared Control Surface analytics panels rather than local shells");
+  assert.equal(await personalVault.locator(".if-analytics-panel").count(), 1, "The vault should reserve panel chrome for the credential list instead of nesting its summary in another box");
+  assert.equal(await personalVault.locator(".if-page-header").count(), 1, "The vault must use the shared compact section header");
   await personalVault.getByRole("button", { name: "Add key" }).click();
   const keyDialog = page.locator('[data-openai-key-dialog="user"]');
   await keyDialog.waitFor();
@@ -177,12 +178,13 @@ try {
   assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 4, "API Log must summarize request volume, success, latency, and tokens");
   await page.waitForSelector("[data-api-request-table]");
   assert.equal(await page.locator("[data-api-observability-charts] .if-chart-card").count(), 2, "API Log must visualize outcome mix and average latency with shared chart cards");
-  assert.match(await page.locator("[data-ops-activity]").innerText(), /90-day API retention[\s\S]*API requests[\s\S]*Workspace changes/i, "API Log must separate redacted request observability from workspace mutations");
+  assert.match(await page.locator("[data-ops-activity]").innerText(), /90-day retention[\s\S]*API requests[\s\S]*Workspace changes/i, "API Log must expose distinct request and workspace-change ledgers");
+  assert.equal(await page.locator('[data-ops-activity] > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
 
   await page.goto(`${BASE_URL}#/budget-spend/users`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="users"] [data-user-management]');
-  assert.equal(await page.locator('[data-admin-workspace]').count(), 1, "Users should render inside the persistent Admin workspace");
-  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Users", "Admin workspace should retain Users as its active section");
+  assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Users should not repeat a second administration shell below global navigation");
+  assert.equal(await page.locator('[data-user-management] > .if-page-header').count(), 1, "Users should expose one framework-owned route header");
   await page.getByRole("button", { name: "Add user" }).click();
   const addUser = page.locator("[data-user-create]");
   await addUser.getByLabel("Display name").fill("Browser teammate");
@@ -217,16 +219,18 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-workspace-management]");
   assert.equal(await page.locator('[data-nav-group-trigger="platform-admin"]').getAttribute("data-nav-group-active-child"), "Workspaces", "Workspace governance should activate the dedicated Platform admin dropdown");
-  assert.equal(await page.locator('[data-control-area="platform"]').count(), 1, "Workspace governance must live in a distinct Platform administration area");
-  const platformNavigation = page.locator('[data-control-area="platform"] .admin-console__nav');
-  assert.equal(await platformNavigation.locator("a").count(), 2, "Platform administration navigation must contain only Users and Workspaces");
-  assert.doesNotMatch(await platformNavigation.innerText(), /Watchlist|Events|Task Center|Integrations|API Log|Agent Access/i, "Platform administration must not mix workspace work or workspace administration links");
+  assert.equal(await page.locator('[data-workspace-management] > .if-page-header').count(), 1, "Workspace governance should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Workspace governance should not repeat platform navigation inside the page");
   const workspaceAdmin = page.locator("[data-workspace-management]");
-  await workspaceAdmin.getByLabel("Name").fill("Browser verification");
-  await workspaceAdmin.getByLabel("Description").fill("Browser-tested isolated workspace");
   await workspaceAdmin.getByRole("button", { name: "Create workspace" }).click();
+  const createWorkspaceDialog = page.locator("[data-workspace-create]");
+  await createWorkspaceDialog.getByLabel("Name").fill("Browser verification");
+  await createWorkspaceDialog.getByLabel("Description").fill("Browser-tested isolated workspace");
+  await createWorkspaceDialog.getByRole("button", { name: "Create workspace" }).click();
   const createdWorkspace = workspaceAdmin.locator('[data-workspace]', { hasText: "Browser verification" });
   await createdWorkspace.waitFor();
+  assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"]').count(), 0, "Global workspace rows should stay collapsed until explicitly managed");
+  await createdWorkspace.getByRole("button", { name: "Manage" }).click();
   await chooseControlSelect(page, "User to add to Browser verification", "Browser teammate");
   await chooseControlSelect(page, "Role for new member in Browser verification", "Viewer");
   await createdWorkspace.getByRole("button", { name: "Add member" }).click();
@@ -236,14 +240,14 @@ try {
   await page.getByText(/Browser teammate is now Analyst/).waitFor();
   assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"] article').count(), 6, "Each workspace should present its isolated content inventory");
   await createdWorkspace.getByRole("button", { name: "Configure" }).click();
-  const workspaceEditor = createdWorkspace.locator("[data-workspace-editor]");
+  const workspaceEditor = page.locator("[data-workspace-editor]");
   await workspaceEditor.getByLabel("Workspace name").fill("Browser command");
   await workspaceEditor.getByLabel("Description").fill("Renamed browser-tested workspace");
   await workspaceEditor.getByLabel("Header eyebrow").fill("Sabre workspace intelligence");
   await workspaceEditor.getByLabel("Display title").fill("Sabre BD");
   await workspaceEditor.locator('input[type="file"]').setInputFiles("public/icon-192.png");
   await workspaceEditor.locator(".workspace-card__branding > img").waitFor();
-  await workspaceEditor.getByRole("button", { name: "Save" }).click();
+  await workspaceEditor.getByRole("button", { name: "Save workspace" }).click();
   await page.getByText("Browser command updated.", { exact: true }).waitFor();
   const workspaceToast = page.locator(".if-toast").filter({ hasText: "Browser command updated." });
   assert.match(await workspaceToast.innerText(), /Workspace updated[\s\S]*Browser command updated/);
@@ -405,18 +409,13 @@ try {
   assert.match(await notificationCenter.innerText(), /Needs attention[\s\S]*(Verified additions are ready for your review|resolve the remaining validation issue)/i, "Completed background work must remain in the notification tray until reviewed");
   await notificationCenter.getByText(/Browser AI assisted event (is ready|needs review)/, { exact: true }).click();
   await page.waitForSelector("[data-task-center]");
-  assert.equal(await page.locator('[data-control-area="work"]').count(), 1, "Task Center must remain in the Workspace work area");
-  assert.ok(await page.locator("[data-task-table]").count(), "Task Center must expose a generic task table");
+  assert.equal(await page.locator('[data-task-center] > .if-page-header').count(), 1, "Task Center should expose one framework-owned route header");
   await page.waitForSelector('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   const aiReview = page.locator('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   assert.match(await aiReview.innerText(), /(Verified draft ready|Operator validation required)[\s\S]*Research: gpt-5\.4-mini · Verification: gpt-5\.4[\s\S]*Before \/ verified draft[\s\S]*Verified draft changes[\s\S]*Evidence & exclusions/i, "The dedicated review workspace must disclose stages, selected models, a diff preview, changes, and evidence");
   assert.equal(await aiReview.locator("[data-event-ai-diff-preview] .if-detail-card").count(), 2, "AI review must render side-by-side before and verified-draft diff panes");
   assert.equal(await page.locator('[data-task-center] > .if-management-grid[aria-label="Task summary"]').count(), 0, "Selected task detail must replace the summary boxes instead of stacking beneath them");
-  const taskDetailOrder = await page.evaluate(() => ({
-    reviewTop: document.querySelector("[data-event-ai-review]")?.getBoundingClientRect().top,
-    tableTop: document.querySelector("[data-task-table]")?.getBoundingClientRect().top,
-  }));
-  assert.ok(taskDetailOrder.reviewTop < taskDetailOrder.tableTop, "Selected task detail must appear before the retained task table");
+  assert.equal(await page.locator("[data-task-table]").count(), 0, "Selected task detail must replace the retained task table instead of stacking above it");
   assert.match(await aiReview.locator(".if-stepper").getAttribute("class"), /if-stepper--compact/, "Task progress must use the compact shared stepper");
   assert.doesNotMatch(await aiReview.innerText(), /sk-browser|authorization|request body|response body/i, "AI review must never expose secrets or raw provider payloads");
   await page.screenshot({ path: "test-results/task-center-desktop.png", fullPage: true });
@@ -535,29 +534,30 @@ try {
 
   await page.goto(`${BASE_URL}#/budget-spend/agents`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
-  await page.getByText("records:read", { exact: true }).waitFor();
-  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should render inside the persistent Admin workspace");
-  assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "Agent access should use the shared Admin control-center shell");
-  assert.equal(await page.locator('[data-control-area="workspace"]').count(), 1, "Agent access must live in a distinct Workspace administration area");
-  assert.doesNotMatch(await page.locator('[data-control-area="workspace"] .admin-console__nav').innerText(), /Watchlist|Events|Task Center|Users|Workspaces/i, "Workspace administration must not mix workspace work or platform administration links");
-  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "Agent Access", "Admin workspace should retain its active section in place");
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should show its credential list before any creation form");
+  assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "Agent access should not repeat a second administration shell");
+  assert.equal(await page.locator('[data-profile-agents] > .if-page-header').count(), 1, "Agent access should expose one framework-owned route header");
   await page.screenshot({ path: "test-results/admin-agent-access-desktop.png", fullPage: true });
-  await page.locator('.admin-console__nav a[href="#/budget-spend/api-log"]').click();
+  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="activity"] [data-ops-activity]');
-  assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "API Log should remain inside the same Admin control-center shell");
+  assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should stay a direct route without a repeated administration shell");
   assert.equal(await page.locator("[data-profile-page]").count(), 0, "API Log should not jump into or out of the account-settings page");
   await page.screenshot({ path: "test-results/admin-api-log-desktop.png", fullPage: true });
-  await page.locator('.admin-console__nav a[href="#/budget-spend/agents"]').click();
+  await page.goto(`${BASE_URL}#/budget-spend/agents`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
   const activeAdminTrigger = page.locator('[data-nav-group-trigger="workspace-admin"]');
   assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Agent Access", "Authenticated Workspace trigger should name the active routed child");
   assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Agent Access", "Authenticated Workspace should render the active child in the lighter context label");
   assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").evaluate((node) => getComputedStyle(node).color), "rgb(183, 229, 255)", "Authenticated Workspace active child should use the established light-blue treatment");
   assert.equal(await page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider").innerText(), "|", "Authenticated header should retain the platform-admin divider");
-  await page.getByLabel("Name").fill("Browser verifier");
-  await page.getByRole("button", { name: "Create credential" }).click();
+  await page.getByRole("button", { name: "Add credential" }).click();
+  const agentDialog = page.locator("[data-agent-key-dialog]");
+  await agentDialog.getByText("records:read", { exact: true }).waitFor();
+  await agentDialog.getByLabel("Name").fill("Browser verifier");
+  await agentDialog.getByRole("button", { name: "Create credential" }).click();
   await page.locator(".agent-token-once code").waitFor();
   assert.match(await page.locator(".agent-token-once code").textContent(), /^dbi_agent_/, "Agent credential must be shown exactly once after creation");
+  await agentDialog.getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: "Revoke Browser verifier" }).click();
   await page.getByText("Revoked", { exact: true }).waitFor();
 
@@ -580,7 +580,7 @@ try {
   assert.equal(workspaceSeed.trackingStatus, 201);
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
   await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
-  await page.getByText("authenticated D1 workspace").waitFor();
+  assert.equal(await page.locator(".operations-boundary").count(), 0, "Working routes should not repeat the storage contract as persistent page chrome");
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
   await page.getByText("Shared D1 verification event").waitFor();
@@ -640,7 +640,7 @@ try {
   assert.equal(authenticatedHeader.eyebrow, "none", "Authenticated mobile masthead should suppress only the secondary eyebrow");
   await page.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile More should retain grouped routes without duplicating primary Events");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();
@@ -684,14 +684,14 @@ try {
     return {
       panelHeight: panel.getBoundingClientRect().height,
       panelRadius: parseFloat(getComputedStyle(panel).borderRadius),
-      identityCopyDisplay: getComputedStyle(node.querySelector(".profile-page__identity-copy")).display,
+      routeHeaderActions: node.querySelectorAll(":scope > .if-page-header > .if-page-header__actions").length,
       inputHeights: inputs.map((input) => input.getBoundingClientRect().height),
       buttonHeights: buttons.map((button) => button.getBoundingClientRect().height),
     };
   });
   assert.ok(mobileProfileGeometry.panelHeight <= 620, `Mobile Profile picture and identity controls should fit within one screen, got ${mobileProfileGeometry.panelHeight}px`);
   assert.ok(mobileProfileGeometry.panelRadius <= 4, `Mobile Profile should retain the framework radius, got ${mobileProfileGeometry.panelRadius}px`);
-  assert.equal(mobileProfileGeometry.identityCopyDisplay, "none", "Mobile Profile should avoid duplicating full account metadata in the route header");
+  assert.equal(mobileProfileGeometry.routeHeaderActions, 0, "Mobile Profile should avoid duplicating account identity inside the route header");
   assert.ok(mobileProfileGeometry.inputHeights.every((height) => height >= 43.5), `Mobile Profile inputs must retain 44px touch geometry: ${mobileProfileGeometry.inputHeights.join(", ")}`);
   assert.ok(mobileProfileGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Profile actions must retain 44px touch geometry: ${mobileProfileGeometry.buttonHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });

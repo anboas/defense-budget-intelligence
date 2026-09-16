@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, CheckCircle2, KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
-import { ControlDialog, useToast } from "control-surface-ui/react";
+import { ControlDialog, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 function dateLabel(value) {
   if (!value) return "Never used";
@@ -110,12 +110,9 @@ export default function OpenAiKeyManagement({ auth, scope = "workspace", embedde
   const Icon = personal ? UserRound : Building2;
   const headingId = `openai-${scope}-keys-title`;
   return <section className="if-operations-workspace" data-openai-key-vault={scope} data-openai-key-embedded={embedded ? "true" : "false"} aria-labelledby={headingId}>
-    <section className="if-analytics-panel">
-      <header className="if-analytics-panel__header">
-        <div className="if-analytics-panel__heading"><span className="if-status if-status--info if-status--sm">{personal ? "Personal credential vault" : "Workspace credential vault"}</span><h3 className="if-analytics-panel__title" id={headingId}><Icon size={18} aria-hidden="true" />{personal ? "My OpenAI keys" : `${workspace?.name || "Workspace"} OpenAI keys`}</h3><p className="if-analytics-panel__summary">{personal ? "Available only to contextual requests you initiate." : "Shared server-side credentials for approved workspace actions."}</p></div>
-        {canManage ? <button type="button" className="if-btn if-btn--primary" onClick={() => setAdding(true)} disabled={busy}><Plus size={15} aria-hidden="true" />Add key</button> : null}
-      </header>
-      <div className="if-management-grid" aria-label="OpenAI key summary">
+    <section className="if-region">
+      <ControlPageHeader compact divided eyebrow={personal ? "Personal credential vault" : "Workspace credential vault"} title={<><Icon size={18} aria-hidden="true" />{personal ? "My OpenAI keys" : `${workspace?.name || "Workspace"} OpenAI keys`}</>} summary={personal ? "Available only to contextual requests you initiate." : "Shared server-side credentials for approved workspace actions."} headingLevel={3} titleId={headingId} actions={canManage ? <button type="button" className="if-btn if-btn--primary" onClick={() => setAdding(true)} disabled={busy}><Plus size={15} aria-hidden="true" />Add key</button> : null} />
+      <div className="if-management-grid if-management-grid--strip" aria-label="OpenAI key summary">
         <article className="if-management-card if-tone-info"><span className="if-management-card__label">Active keys</span><strong className="if-management-card__value">{active.length}</strong><small className="if-management-card__meta">{active.find((key) => key.isDefault)?.label || "No default selected"}</small></article>
         <article className={`if-management-card ${capability?.encryptionReady ? "if-tone-success" : "if-tone-danger"}`}><span className="if-management-card__label">Vault</span><strong className="if-management-card__value">{capability?.encryptionReady ? "Ready" : "Unavailable"}</strong><small className="if-management-card__meta">Encrypted, write-only storage</small></article>
         <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Logged calls</span><strong className="if-management-card__value">{usage.requests.toLocaleString()}</strong><small className="if-management-card__meta">{usage.failures.toLocaleString()} failed in retained window</small></article>

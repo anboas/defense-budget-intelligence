@@ -32,6 +32,12 @@ const retiredFamilies = [
   "workspace-toast",
   "profile-workspace-menu",
   "ops-dialog",
+  "admin-console",
+  "operations-boundary",
+  "profile-page__header",
+  "workspace-management__create",
+  "workspace-card__editor",
+  "user-management__metrics",
 ];
 for (const family of retiredFamilies) {
   const cssPattern = new RegExp(`\\.${family}(?:__|--|\\b)`);

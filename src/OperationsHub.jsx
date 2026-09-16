@@ -7,13 +7,11 @@ import {
   Building2,
   ChevronRight,
   ChevronLeft,
-  Database,
   Link2,
   ListChecks,
   MapPin,
   Maximize2,
   Minimize2,
-  MonitorUp,
   Plus,
   ShieldCheck,
   Sparkles,
@@ -37,73 +35,10 @@ import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlMultiSelect, ControlSparkline } from "control-surface-ui/react";
+import { ControlDialog, ControlMultiSelect, ControlPageHeader, ControlSparkline } from "control-surface-ui/react";
 import { useNotifications } from "./NotificationContext.jsx";
 
-const VIEWS = [
-  ["watchlist", "Watchlist", Star],
-  ["events", "Events", CalendarDays],
-  ["tasks", "Task Center", ListChecks],
-  ["integrations", "Integrations", Database],
-  ["activity", "API Log", Activity],
-  ["users", "Users", UsersRound],
-  ["workspaces", "Workspaces", Building2],
-  ["workspace-settings", "Workspace settings", Building2],
-  ["agents", "Agent Access", Bot],
-  ["wallboard", "Wallboard", MonitorUp],
-];
-
-const VIEW_COPY = {
-  watchlist: ["Management", "Watchlist", "Tracked records, private notes, review dates, and wallboard visibility."],
-  events: ["Primary surface", "Events", "Operator meetings, checkpoints, linked records, and display timing."],
-  tasks: ["Workspace work", "Task Center", "Background augmentation and API tasks, progress, outcomes, and review."],
-  integrations: ["Administration", "Integrations", "Connector health, refresh cadence, yields, and unavailable probes."],
-  activity: ["Administration", "API & activity log", "Append-only human and agent changes across the shared workspace."],
-  users: ["Administration", "Users", "Human accounts, roles, status, sessions, and password recovery."],
-  workspaces: ["Administration", "Workspaces", "Isolated data boundaries, membership, and access-request decisions."],
-  "workspace-settings": ["Workspace", "Workspace settings", "Identity, membership, access requests, roles, and workspace inventory."],
-  agents: ["Administration", "Agent access", "Issue and govern narrowly scoped credentials for trusted agents."],
-};
-
-const ADMIN_ROUTES = {
-  watchlist: "#/budget-spend/watchlist",
-  events: "#/budget-spend/events",
-  tasks: "#/budget-spend/tasks",
-  integrations: "#/budget-spend/integrations",
-  users: "#/budget-spend/users",
-  workspaces: "#/budget-spend/workspaces",
-  "workspace-settings": "#/budget-spend/workspace",
-  agents: "#/budget-spend/agents",
-  activity: "#/budget-spend/api-log",
-};
-
-const CONTROL_AREAS = {
-  work: {
-    ids: ["watchlist", "tasks"],
-    eyebrow: "Workspace work",
-    title: "Workspace operations",
-    description: "Tracked records and background task progress for the active workspace.",
-    tone: "if-status--info",
-  },
-  workspace: {
-    ids: ["integrations", "activity", "workspace-settings", "agents"],
-    eyebrow: "Workspace administration",
-    title: "Workspace controls",
-    description: "Connections, audit visibility, workspace identity, membership, and scoped agent access.",
-    tone: "if-status--warning",
-  },
-  platform: {
-    ids: ["users", "workspaces"],
-    eyebrow: "Platform administration",
-    title: "Platform controls",
-    description: "Global human accounts and workspace boundaries across the full deployment.",
-    tone: "if-status--danger",
-  },
-};
-
-function controlAreaForView(view) {
-  return Object.entries(CONTROL_AREAS).find(([, area]) => area.ids.includes(view))?.[0] || "work";
-}
+const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
 
 const EVENT_MILESTONE_TYPES = [
   ["registration_deadline", "Registration closes"],
@@ -483,7 +418,7 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
   ];
   return (
     <section className="ops-panel" data-ops-watchlist>
-      <header className="ops-panel__header"><div><span>Stable-ID working set</span><h2>Tracked records</h2></div></header>
+      <ControlPageHeader compact divided eyebrow="Workspace work" title="Watchlist" summary="Tracked records, private notes, review dates, and wallboard visibility." headingLevel={2} />
       {rows.length ? <OperationalDataTable id="watchlist" label="Tracked records" rows={rows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "date", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked records…" exportFilename="tracked-records.csv" wrapperProps={{ "data-ops-watch-table": true }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <label className="dbi-table-note"><span>Private workspace note</span><textarea key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label>; }} /> : <div className="ops-empty"><Star size={22} /><strong>No tracked records yet</strong><p>Use the star on any Transactions Gantt row to build this working set.</p><a href="#/budget-spend/transactions">Open Transactions</a></div>}
     </section>
   );
@@ -721,7 +656,7 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft }) {
   const completedCount = tasks.filter((task) => ["completed", "succeeded"].includes(task.status)).length;
   const failedCount = tasks.filter((task) => ["failed", "rejected", "rate_limited"].includes(task.status)).length;
   return <section className="ops-panel" data-task-center>
-    <header className="ops-panel__header"><div><span>Workspace work</span><h2>Task Center</h2><p>One progress surface for augmentation, provider, and authenticated API tasks.</p></div><button type="button" className="if-btn if-btn--secondary" onClick={() => void notifications?.refresh()}>Refresh</button></header>
+    <ControlPageHeader compact divided eyebrow="Workspace work" title="Task Center" summary="Augmentation, provider, and authenticated API tasks in one place." headingLevel={2} actions={<button type="button" className="if-btn if-btn--secondary" onClick={() => void notifications?.refresh()}>Refresh</button>} />
     {!selectedTaskId ? <div className="if-management-grid if-management-grid--strip" aria-label="Task summary">
       <article className="if-management-card if-tone-info"><span className="if-management-card__label">In progress</span><strong className="if-management-card__value">{activeCount}</strong><small className="if-management-card__meta">Background stages running</small></article>
       <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Needs attention</span><strong className="if-management-card__value">{attentionCount}</strong><small className="if-management-card__meta">Review or failure detail available</small></article>
@@ -729,7 +664,7 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft }) {
       <article className="if-management-card if-tone-danger"><span className="if-management-card__label">Stopped</span><strong className="if-management-card__value">{failedCount}</strong><small className="if-management-card__meta">No silent writes or partial merges</small></article>
     </div> : null}
     {selected?.job ? <EventAiReview jobId={selected.sourceId} onOpenDraft={onOpenDraft} /> : selected?.entries ? <ApiTaskDetail task={selected} /> : selectedTaskId ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Task not found</strong><p>The task is outside the retained workspace window or is no longer available.</p></div></div> : null}
-    {tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} wrapperProps={{ "data-task-table": true }} /> : <div className="ops-empty"><ListChecks size={22} /><strong>No retained tasks</strong><p>Augmentation and API work will appear here after it starts.</p></div>}
+    {!selectedTaskId && tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} wrapperProps={{ "data-task-table": true }} /> : !selectedTaskId ? <div className="ops-empty"><ListChecks size={22} /><strong>No retained tasks</strong><p>Augmentation and API work will appear here after it starts.</p></div> : null}
   </section>;
 }
 
@@ -749,7 +684,7 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
   const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Task Center</a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>;
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Primary surface</span><h2>Events</h2><p>Schedule, filter, edit, or launch augmentation from a specific event row.</p></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
+  return <section className="ops-panel" data-ops-events><ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} />{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
 function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -769,12 +704,13 @@ function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, 
     { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];
-  return <section className="ops-panel" data-ops-integrations><header className="ops-panel__header"><div><span>Connector operations</span><h2>Integrations</h2></div><a href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a></header><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><ContractMonitorCoverage /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
+  return <section className="ops-panel" data-ops-integrations><ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a>} /><OpenAiKeyManagement auth={auth} scope="workspace" embedded /><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /><ContractMonitorCoverage /><div className="ops-integration-summary"><article><strong>{sourceHealth.totals?.online || 0}</strong><span>sources online</span></article><article><strong>{sourceHealth.totals?.unavailable || 0}</strong><span>unavailable at probe</span></article><article><strong>{dateTime(sourceHealth.metadata?.checkedAt)}</strong><span>health checked</span></article></div><OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} /></section>;
 }
 
 function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {
   const [requestFilters, setRequestFilters] = useState({});
   const [chartTooltip, setChartTooltip] = useState(null);
+  const [ledger, setLedger] = useState("requests");
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const activityColumns = [
     { key: "at", label: "Time", required: true, sticky: true, minWidth: 170, value: (entry) => entry.at, render: (entry) => dateTime(entry.at) },
@@ -838,9 +774,13 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     }
     return { ...current, [key]: value };
   });
-  return <section className="ops-panel if-operations-workspace" data-ops-activity>
-    <header className="ops-panel__header"><div><span>Redacted workspace observability</span><h2>API & activity log</h2><p>Request metadata and append-only changes are retained without secrets, authorization headers, prompts, or response bodies.</p></div><small>90-day API retention</small></header>
-    <div className="if-management-grid if-management-grid--strip" aria-label="API request summary" data-api-request-summary>
+  return <section className="ops-panel if-operations-workspace" data-ops-activity data-ledger={ledger}>
+    <ControlPageHeader compact divided eyebrow="Workspace administration" title="API Log" summary="Redacted request diagnostics and append-only workspace changes." headingLevel={2} meta={<span className="if-badge if-badge--info">90-day retention</span>} />
+    <nav className="if-tabs__list" aria-label="Log type">
+      <button type="button" className={`if-tab${ledger === "requests" ? " is-active" : ""}`} aria-pressed={ledger === "requests"} onClick={() => setLedger("requests")}>API requests <span className="if-badge">{apiRequests.length}</span></button>
+      <button type="button" className={`if-tab${ledger === "changes" ? " is-active" : ""}`} aria-pressed={ledger === "changes"} onClick={() => setLedger("changes")}>Workspace changes <span className="if-badge">{activity.length}</span></button>
+    </nav>
+    {ledger === "requests" ? <><div className="if-management-grid if-management-grid--strip" aria-label="API request summary" data-api-request-summary>
       <article className="if-management-card if-tone-info"><span className="if-management-card__label">Requests</span><strong className="if-management-card__value">{Number(summary.requests || 0).toLocaleString()}</strong>{trend ? <ControlSparkline className="if-sparkline--summary" values={trend.requests} labels={trend.labels} label="Requests over the retained window" formatValue={(value) => `${value} requests`} /> : null}<small className="if-management-card__meta">{Number(summary.retained || 0).toLocaleString()} retained entries</small></article>
       <article className={`if-management-card ${summary.successRate === null || summary.successRate >= 99 ? "if-tone-success" : summary.successRate >= 95 ? "if-tone-warning" : "if-tone-danger"}`}><span className="if-management-card__label">Success rate</span><strong className="if-management-card__value">{summary.successRate === null ? "No calls" : `${summary.successRate}%`}</strong>{trend ? <ControlSparkline className="if-sparkline--summary" values={trend.success} labels={trend.labels} label="Success rate over the retained window" formatValue={(value) => `${value}%`} /> : null}<small className="if-management-card__meta">Current retained window</small></article>
       <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Average latency</span><strong className="if-management-card__value">{Number(summary.averageLatencyMs || 0).toLocaleString()} ms</strong>{trend ? <ControlSparkline className="if-sparkline--summary" values={trend.latency} labels={trend.labels} label="Average latency over the retained window" formatValue={(value) => `${value} ms`} /> : null}<small className="if-management-card__meta">P95 {Number(summary.p95LatencyMs || 0).toLocaleString()} ms</small></article>
@@ -859,11 +799,10 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     <section className="if-analytics-panel" aria-labelledby="api-request-log-title">
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="api-request-log-title">API requests</h3><p className="if-analytics-panel__summary">Agent API calls today; OpenAI provider IDs, token counts, retries, latency, and safe errors will appear here when contextual actions are enabled.</p></div><strong className="if-analytics-panel__count">{apiRequests.length}</strong></header>
       {apiRequests.length ? <OperationalDataTable id="api-requests" label="API request log" rows={apiRequests} columns={requestColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search operations, routes, principals, traces, and diagnostics…" exportFilename="api-request-log.csv" selectable={false} filterValues={requestFilters} onFilterChange={setRequestFilters} wrapperProps={{ "data-api-request-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No API requests retained</strong><p>Authenticated Agent API calls and future OpenAI requests will appear here.</p></div>}
-    </section>
-    <section className="if-analytics-panel" aria-labelledby="workspace-activity-title">
+    </section></> : <section className="if-analytics-panel" aria-labelledby="workspace-activity-title">
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="workspace-activity-title">Workspace changes</h3><p className="if-analytics-panel__summary">Append-only human and agent mutations across the shared workspace.</p></div><strong className="if-analytics-panel__count">{activity.length}</strong></header>
       {activity.length ? <OperationalDataTable id="workspace-activity" label="Workspace activity log" rows={activity} columns={activityColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="workspace-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <div className="ops-empty"><Activity size={22} /><strong>No operator activity</strong><p>Human and agent changes will be recorded here.</p></div>}
-    </section>
+    </section>}
   </section>;
 }
 
@@ -1143,10 +1082,9 @@ function WallboardRecords({ records, asOf, watchById }) {
 
 export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
   const auth = useAuth();
-  const notifications = useNotifications();
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
-  const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
+  const view = VIEWS.has(requestedView) ? requestedView : "watchlist";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(() => {
@@ -1163,46 +1101,13 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     return () => window.removeEventListener("hashchange", sync);
   }, []);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
-  const reviewHorizon = useMemo(() => {
-    const horizon = new Date(`${dataset.metadata.asOf}T00:00:00Z`);
-    horizon.setUTCDate(horizon.getUTCDate() + 30);
-    return horizon.toISOString().slice(0, 10);
-  }, [dataset.metadata.asOf]);
-  const dueReviews = state.watchlist.filter((entry) => entry.reviewAt && entry.reviewAt <= reviewHorizon).length;
-  const copy = VIEW_COPY[view];
-  const areaKey = controlAreaForView(view);
-  const area = CONTROL_AREAS[areaKey];
-  const visibleAreaViews = VIEWS.filter(([id]) => area.ids.includes(id));
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
-    {!(["wallboard", "events"].includes(view)) ? <section className="if-admin-control-surface admin-console" data-admin-control-surface data-admin-workspace data-control-area={areaKey}>
-      <header className="admin-console__header">
-        <div>
-          <span>{area.eyebrow}</span>
-          <h2>{area.title}</h2>
-          <p>{area.description}</p>
-        </div>
-        <span className={`if-status if-status--sm ${area.tone}`}>{area.eyebrow}</span>
-      </header>
-      {areaKey === "work" ? <div className="admin-console__metrics" aria-label="Workspace work summary">
-        <article><span>Tracked</span><strong>{state.watchlist.length}</strong><small>records</small></article>
-        <article><span>Reviews due</span><strong>{dueReviews}</strong><small>within 30 days</small></article>
-        <article><span>Tasks running</span><strong>{notifications?.activeCount || 0}</strong><small>background work</small></article>
-      </div> : null}
-      <nav className="admin-console__nav" aria-label={`${area.eyebrow} sections`}>
-        {visibleAreaViews.filter(([id]) => !["users", "workspaces", "workspace-settings", "agents"].includes(id)
-          || (id === "users" ? auth?.user?.canManageUsers
-            : id === "workspaces" ? auth?.user?.roleId === "super_user"
-              : id === "workspace-settings" ? auth?.user?.canManageWorkspaces
-                : auth?.user?.canManageAgents)).map(([id, label, Icon]) => <a key={id} href={ADMIN_ROUTES[id]} className={view === id ? "is-active" : ""} aria-current={view === id ? "page" : undefined}><Icon size={15} aria-hidden="true" /><span>{label}</span></a>)}
-      </nav>
-      <div className="admin-console__context" aria-live="polite"><span>{copy[0]}</span><strong>{copy[1]}</strong><small>{copy[2]}</small></div>
-    </section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
     {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
-    {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} remote={state.remote} /> : null}
+    {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Super user access required</strong><p>Cross-workspace administration is limited to the immutable Super user.</p></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure this workspace.</p></section> : null}
@@ -1210,6 +1115,5 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
     {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
-    {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;
 }

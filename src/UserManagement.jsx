@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { ControlDialog, ControlPageHeader } from "control-surface-ui/react";
 
 const ROLE_LABELS = {
   administrator: "Workspace manager",
@@ -34,6 +35,7 @@ export default function UserManagement({ auth }) {
   const [resetDraft, setResetDraft] = useState({ password: "", confirm: "" });
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState("");
+  const dialogRef = useRef(null);
 
   async function refresh() {
     const result = await auth.listUsers();
@@ -138,50 +140,44 @@ export default function UserManagement({ auth }) {
   }
 
   return <section className="ops-panel user-management" data-user-management aria-labelledby="user-management-title">
-    <header className="ops-panel__header user-management__header">
-      <div><span>Human access control</span><h2 id="user-management-title">Users</h2><p>Create accounts, assign least-privilege roles, revoke sessions, and require secure password replacement.</p></div>
-      <button type="button" className="if-btn if-btn--primary if-btn--sm" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add user</button>
-    </header>
+    <ControlPageHeader compact divided eyebrow="Platform administration" title="Users" summary="Human accounts, least-privilege roles, status, sessions, and password recovery." headingLevel={2} titleId="user-management-title" actions={<button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add user</button>} />
 
-    <div className="user-management__metrics" aria-label="User access summary">
-      <article><span>Total users</span><strong>{users.length}</strong></article>
-      <article><span>Active</span><strong>{activeCount}</strong></article>
-      <article><span>Workspace managers</span><strong>{adminCount}</strong></article>
-      <article><span>Active sessions</span><strong>{sessionCount}</strong></article>
+    <div className="if-management-grid if-management-grid--strip" aria-label="User access summary">
+      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Total users</span><strong className="if-management-card__value">{users.length}</strong></article>
+      <article className="if-management-card if-tone-success"><span className="if-management-card__label">Active</span><strong className="if-management-card__value">{activeCount}</strong></article>
+      <article className="if-management-card if-tone-info"><span className="if-management-card__label">Managers</span><strong className="if-management-card__value">{adminCount}</strong></article>
+      <article className="if-management-card if-tone-purple"><span className="if-management-card__label">Sessions</span><strong className="if-management-card__value">{sessionCount}</strong></article>
     </div>
 
-    {mode === "create" ? <form className="user-management__editor" data-user-create onSubmit={createUser}>
-      <header><div><strong>Add user</strong><span>A temporary password is transformed in this browser before transmission.</span></div><button type="button" aria-label="Close add user" onClick={closeEditor}><X size={16} /></button></header>
+    {mode === "create" ? <ControlDialog open onClose={closeEditor} title="Add user" eyebrow="Platform administration" summary="Create an account with a temporary password that must be replaced at first sign-in." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-create": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-create-form" className="if-btn if-btn--primary" disabled={busy}><UserPlus size={15} />{busy ? "Creating…" : "Create user"}</button></>}><form id="user-create-form" className="user-management__editor if-form-grid" onSubmit={createUser}>
       <div className="user-management__form-grid">
         <label>Display name<input required minLength={2} autoComplete="off" value={createDraft.displayName} onChange={(event) => setCreateDraft((draft) => ({ ...draft, displayName: event.target.value }))} /></label>
         <label>Email<input required type="email" autoComplete="off" value={createDraft.email} onChange={(event) => setCreateDraft((draft) => ({ ...draft, email: event.target.value }))} /></label>
         <label>Title <span>(optional)</span><input autoComplete="off" value={createDraft.title} onChange={(event) => setCreateDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
-        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="New user role" value={createDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setCreateDraft((draft) => ({ ...draft, role }))} /><small>{roleDescription(createDraft.role)}</small></div>
+        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="New user role" value={createDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setCreateDraft((draft) => ({ ...draft, role }))} portalTarget={dialogRef} /><small>{roleDescription(createDraft.role)}</small></div>
         <label>Temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.password} onChange={(event) => setCreateDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
         <label>Confirm temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.confirm} onChange={(event) => setCreateDraft((draft) => ({ ...draft, confirm: event.target.value }))} /></label>
       </div>
-      <footer><button type="button" onClick={closeEditor}>Cancel</button><button type="submit" className="is-primary" disabled={busy}><UserPlus size={15} />{busy ? "Creating…" : "Create user"}</button></footer>
-    </form> : null}
+      {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+    </form></ControlDialog> : null}
 
-    {mode === "edit" && selected && editDraft ? <form className="user-management__editor" data-user-edit onSubmit={saveUser}>
-      <header><div><strong>Edit {selected.displayName}</strong><span>Role changes apply to the next request.</span></div><button type="button" aria-label="Close edit user" onClick={closeEditor}><X size={16} /></button></header>
+    {mode === "edit" && selected && editDraft ? <ControlDialog open onClose={closeEditor} title={`Edit ${selected.displayName}`} eyebrow="Platform administration" summary="Identity and role changes apply to the next request." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-edit": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-edit-form" className="if-btn if-btn--primary" disabled={busy}><Check size={15} />{busy ? "Saving…" : "Save user"}</button></>}><form id="user-edit-form" className="user-management__editor if-form-grid" onSubmit={saveUser}>
       <div className="user-management__form-grid">
         <label>Display name<input required minLength={2} value={editDraft.displayName} onChange={(event) => setEditDraft((draft) => ({ ...draft, displayName: event.target.value }))} /></label>
         <label>Email<input required type="email" value={editDraft.email} onChange={(event) => setEditDraft((draft) => ({ ...draft, email: event.target.value }))} /></label>
         <label>Title <span>(optional)</span><input value={editDraft.title} onChange={(event) => setEditDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
-        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="User role" value={editDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setEditDraft((draft) => ({ ...draft, role }))} /><small>{roleDescription(editDraft.role)}</small></div>
+        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="User role" value={editDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setEditDraft((draft) => ({ ...draft, role }))} portalTarget={dialogRef} /><small>{roleDescription(editDraft.role)}</small></div>
       </div>
-      <footer><button type="button" onClick={closeEditor}>Cancel</button><button type="submit" className="is-primary" disabled={busy}><Check size={15} />{busy ? "Saving…" : "Save user"}</button></footer>
-    </form> : null}
+      {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+    </form></ControlDialog> : null}
 
-    {mode === "reset" && selected ? <form className="user-management__editor user-management__editor--reset" data-user-password-reset onSubmit={resetPassword}>
-      <header><div><strong>Reset password for {selected.displayName}</strong><span>This immediately revokes every active session for this user.</span></div><button type="button" aria-label="Close password reset" onClick={closeEditor}><X size={16} /></button></header>
+    {mode === "reset" && selected ? <ControlDialog open onClose={closeEditor} title={`Reset password for ${selected.displayName}`} eyebrow="Security action" summary="This immediately revokes every active session for this user." dialogRef={dialogRef} surfaceProps={{ "data-user-password-reset": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-reset-form" className="if-btn if-btn--primary" disabled={busy}><KeyRound size={15} />{busy ? "Resetting…" : "Reset password"}</button></>}><form id="user-reset-form" className="user-management__editor user-management__editor--reset if-form-grid" onSubmit={resetPassword}>
       <div className="user-management__form-grid">
         <label>Temporary password<input required minLength={12} type="password" autoComplete="new-password" value={resetDraft.password} onChange={(event) => setResetDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
         <label>Confirm temporary password<input required minLength={12} type="password" autoComplete="new-password" value={resetDraft.confirm} onChange={(event) => setResetDraft((draft) => ({ ...draft, confirm: event.target.value }))} /></label>
       </div>
-      <footer><button type="button" onClick={closeEditor}>Cancel</button><button type="submit" className="is-primary" disabled={busy}><KeyRound size={15} />{busy ? "Resetting…" : "Reset password"}</button></footer>
-    </form> : null}
+      {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+    </form></ControlDialog> : null}
 
     {message ? <p className="account-form__message user-management__message" role="status">{message}</p> : null}
 

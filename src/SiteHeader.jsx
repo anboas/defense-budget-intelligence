@@ -82,7 +82,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   const groups = [
     { id: "analytics", label: "Analytics", items: ANALYTICS_ITEMS },
     { id: "money", label: "Money flow", items: moneyItems },
-    { id: "work", label: "Workspace", items: workItems },
+    { id: "work", label: "Work", items: workItems },
     ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace admin", items: workspaceAdminItems }] : []),
     ...(platformAdminItems.length ? [{ id: "platform-admin", label: "Platform admin", items: platformAdminItems }] : []),
   ];

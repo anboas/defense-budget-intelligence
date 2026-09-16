@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bot,
@@ -20,7 +20,7 @@ import {
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { useToast } from "control-surface-ui/react";
+import { ControlDialog, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
@@ -79,6 +79,9 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   const [memberDrafts, setMemberDrafts] = useState({});
   const [requestRoles, setRequestRoles] = useState({});
   const [busy, setBusy] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [expandedId, setExpandedId] = useState(() => activeOnly ? auth.user?.activeWorkspace?.id || "" : "");
+  const dialogRef = useRef(null);
   const { showToast } = useToast();
   const isSuperUser = auth.user?.roleId === "super_user";
   const visibleWorkspaces = activeOnly
@@ -126,7 +129,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   function createWorkspace(event) {
     event.preventDefault();
     void mutate(() => auth.createWorkspace(draft), "Workspace created.")
-      .then(() => setDraft({ name: "", description: "" }))
+      .then(() => { setDraft({ name: "", description: "" }); setCreating(false); })
       .catch(() => {});
   }
 
@@ -142,15 +145,14 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   }
 
   return <section className="ops-panel workspace-management" data-workspace-management aria-labelledby="workspace-management-title">
-    <header className="ops-panel__header workspace-management__header"><div><span>{activeOnly ? "Active workspace" : "Super-user control"}</span><h2 id="workspace-management-title">{activeOnly ? "Workspace management" : "Super admin"}</h2><p>{activeOnly ? "Configure this workspace's identity, members, roles, requests, and shared inventory." : "Inspect and govern every isolated workspace boundary from one global console."}</p></div><span className="if-badge if-badge--info if-badge--sm">{activeOnly ? "Scoped manager" : "Super user"}</span></header>
+    <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Workspaces"} summary={activeOnly ? "Identity, members, roles, requests, and shared inventory for the active workspace." : "Isolated workspace boundaries, membership, access requests, and ownership."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
 
-    <div className="workspace-management__metrics"><article><span>Workspaces</span><strong>{visibleWorkspaces.length}</strong></article><article><span>Pending requests</span><strong>{pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id).length}</strong></article><article><span>Registered users</span><strong>{data.users.length}</strong></article><article><span>Tracked records</span><strong>{inventoryAvailable ? totals.tracked : "—"}</strong></article><article><span>Events</span><strong>{inventoryAvailable ? totals.events : "—"}</strong></article></div>
+    <div className="if-management-grid if-management-grid--strip" aria-label="Workspace summary"><article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Workspaces</span><strong className="if-management-card__value">{visibleWorkspaces.length}</strong></article><article className="if-management-card if-tone-warning"><span className="if-management-card__label">Pending</span><strong className="if-management-card__value">{pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id).length}</strong></article><article className="if-management-card if-tone-info"><span className="if-management-card__label">Users</span><strong className="if-management-card__value">{data.users.length}</strong></article><article className="if-management-card if-tone-purple"><span className="if-management-card__label">Tracked</span><strong className="if-management-card__value">{inventoryAvailable ? totals.tracked : "—"}</strong><small className="if-management-card__meta">{inventoryAvailable ? `${totals.events} events` : "Inventory unavailable"}</small></article></div>
 
-    {isSuperUser && !activeOnly ? <form className="workspace-management__create" onSubmit={createWorkspace}>
-      <label>Name<input required minLength={2} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Program intelligence" /></label>
-      <label>Description<input value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="What this workspace covers" /></label>
-      <button className="if-btn if-btn--primary" type="submit" disabled={busy}><Plus size={15} />Create workspace</button>
-    </form> : null}
+    {creating ? <ControlDialog open onClose={() => setCreating(false)} title="Create workspace" eyebrow="Platform administration" summary="Create a new isolated data and access boundary." dialogRef={dialogRef} surfaceProps={{ "data-workspace-create": true }} footer={<><button type="button" className="if-btn" onClick={() => setCreating(false)}>Cancel</button><button className="if-btn if-btn--primary" type="submit" form="workspace-create-form" disabled={busy}><Plus size={15} />Create workspace</button></>}><form id="workspace-create-form" className="if-form-grid" onSubmit={createWorkspace}>
+      <label className="if-field"><span className="if-field__label">Name</span><input className="if-input" required minLength={2} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Program intelligence" /></label>
+      <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="What this workspace covers" /></label>
+    </form></ControlDialog> : null}
 
     {visiblePending.length ? <section className="workspace-request-queue" aria-labelledby="workspace-requests-title"><header><div><span>Approval queue</span><h3 id="workspace-requests-title">Access requests</h3></div><b>{visiblePending.length}</b></header>{visiblePending.map((request) => <article key={request.id} data-workspace-request={request.id}>
       <UserAvatar user={request} size={38} />
@@ -167,25 +169,15 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       const isCurrent = auth.user?.activeWorkspace?.id === workspace.id;
       const workspacePending = Number(workspace.pendingRequestCount || 0);
       const roleCounts = workspace.members.reduce((counts, member) => ({ ...counts, [member.roleId]: (counts[member.roleId] || 0) + 1 }), {});
-      const isEditing = editing?.id === workspace.id;
+      const expanded = activeOnly || expandedId === workspace.id;
       return <article className={`workspace-card${isCurrent ? " is-current" : ""}`} key={workspace.id} data-workspace={workspace.id} data-workspace-current={isCurrent ? "true" : "false"}>
         <header>
           <span><WorkspaceMark workspace={workspace} /></span>
           <div><div className="workspace-card__title"><h3>{workspace.name}</h3>{isCurrent ? <b>Current</b> : null}</div><p>{workspace.description || "Shared intelligence workspace"}</p><small>{displayDate(workspace.lastActivityAt)}</small></div>
-          <div className="workspace-card__header-actions"><span>{workspace.members.length} member{workspace.members.length === 1 ? "" : "s"}{workspacePending ? ` · ${workspacePending} pending` : ""}</span>{!isCurrent ? <button type="button" disabled={busy} onClick={() => void auth.switchWorkspace(workspace.id).catch((error) => showNotice(error.message, "error"))}><ExternalLink size={14} />Open</button> : null}<button type="button" disabled={busy} onClick={() => beginEdit(workspace)}><Pencil size={14} />Configure</button></div>
+          <div className="workspace-card__header-actions"><span>{workspace.members.length} member{workspace.members.length === 1 ? "" : "s"}{workspacePending ? ` · ${workspacePending} pending` : ""}</span>{!isCurrent ? <button type="button" disabled={busy} onClick={() => void auth.switchWorkspace(workspace.id).catch((error) => showNotice(error.message, "error"))}><ExternalLink size={14} />Open</button> : null}<button type="button" disabled={busy} onClick={() => setExpandedId((current) => current === workspace.id ? "" : workspace.id)} aria-expanded={expanded}>{expanded ? "Hide details" : "Manage"}</button><button type="button" disabled={busy} onClick={() => beginEdit(workspace)}><Pencil size={14} />Configure</button></div>
         </header>
 
-        {isEditing ? <form className="workspace-card__editor" onSubmit={(event) => saveWorkspace(event, workspace)} data-workspace-editor={workspace.id}>
-          <div className="workspace-card__branding"><WorkspaceMark workspace={editing} /><span><label className="if-btn if-btn--sm" htmlFor={`workspace-icon-${workspace.id}`}><ImagePlus size={14} />{editing.iconDataUrl ? "Replace icon" : "Choose icon"}</label><input id={`workspace-icon-${workspace.id}`} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void squareWorkspaceIcon(event.target.files?.[0]).then((iconDataUrl) => setEditing((current) => ({ ...current, iconDataUrl }))).catch((error) => showNotice(error.message, "error"))} />{editing.iconDataUrl ? <button type="button" onClick={() => setEditing((current) => ({ ...current, iconDataUrl: "" }))}>Use default</button> : null}</span></div>
-          <label>Workspace name<input required minLength={2} value={editing.name} onChange={(event) => setEditing((current) => ({ ...current, name: event.target.value }))} /></label>
-          <label>Description<input value={editing.description} onChange={(event) => setEditing((current) => ({ ...current, description: event.target.value }))} /></label>
-          <label>Header eyebrow<input required minLength={2} value={editing.headerEyebrow} onChange={(event) => setEditing((current) => ({ ...current, headerEyebrow: event.target.value }))} /></label>
-          <label>Display title<input required minLength={2} value={editing.displayTitle} onChange={(event) => setEditing((current) => ({ ...current, displayTitle: event.target.value }))} /></label>
-          <button type="submit" disabled={busy}><Save size={14} />Save</button>
-          <button type="button" disabled={busy} onClick={() => setEditing(null)}><X size={14} />Cancel</button>
-        </form> : null}
-
-        <section className="workspace-card__contents" aria-label={`${workspace.name} contents`}>
+        {expanded ? <><section className="workspace-card__contents" aria-label={`${workspace.name} contents`}>
           <header><div><span>Workspace inventory</span><strong>What lives here</strong></div><small>{workspace.contents?.wallboardEvents === null || workspace.contents?.wallboardEvents === undefined ? "Hosted counts unavailable locally" : `${workspace.contents.wallboardEvents} event${workspace.contents.wallboardEvents === 1 ? "" : "s"} on wallboard`}</small></header>
           <div>{CONTENT_METRICS.map(([key, label, Icon]) => <article key={key}><Icon size={15} aria-hidden="true" /><span>{label}</span><strong>{displayCount(workspace.contents?.[key])}</strong></article>)}</div>
         </section>
@@ -201,8 +193,17 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
           <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>
           {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
           {member.roleId !== "super_user" ? <button type="button" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
-        </div>)}</div>
+        </div>)}</div></> : null}
       </article>;
     })}</div>
+    {editing ? <ControlDialog open onClose={() => setEditing(null)} title={`Configure ${editing.name}`} eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} summary="Update the identity shown in navigation and wallboard surfaces." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-workspace-editor": editing.id }} footer={<><button type="button" className="if-btn" disabled={busy} onClick={() => setEditing(null)}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="workspace-configure-form" disabled={busy}><Save size={14} />Save workspace</button></>}>
+      <form id="workspace-configure-form" className="if-form-grid" onSubmit={(event) => saveWorkspace(event, editing)}>
+        <div className="workspace-card__branding if-field--full"><WorkspaceMark workspace={editing} /><span><label className="if-btn if-btn--sm" htmlFor={`workspace-icon-${editing.id}`}><ImagePlus size={14} />{editing.iconDataUrl ? "Replace icon" : "Choose icon"}</label><input id={`workspace-icon-${editing.id}`} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void squareWorkspaceIcon(event.target.files?.[0]).then((iconDataUrl) => setEditing((current) => ({ ...current, iconDataUrl }))).catch((error) => showNotice(error.message, "error"))} />{editing.iconDataUrl ? <button className="if-btn if-btn--sm" type="button" onClick={() => setEditing((current) => ({ ...current, iconDataUrl: "" }))}>Use default</button> : null}</span></div>
+        <label className="if-field"><span className="if-field__label">Workspace name</span><input className="if-input" required minLength={2} value={editing.name} onChange={(event) => setEditing((current) => ({ ...current, name: event.target.value }))} /></label>
+        <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={editing.description} onChange={(event) => setEditing((current) => ({ ...current, description: event.target.value }))} /></label>
+        <label className="if-field"><span className="if-field__label">Header eyebrow</span><input className="if-input" required minLength={2} value={editing.headerEyebrow} onChange={(event) => setEditing((current) => ({ ...current, headerEyebrow: event.target.value }))} /></label>
+        <label className="if-field"><span className="if-field__label">Display title</span><input className="if-input" required minLength={2} value={editing.displayTitle} onChange={(event) => setEditing((current) => ({ ...current, displayTitle: event.target.value }))} /></label>
+      </form>
+    </ControlDialog> : null}
   </section>;
 }

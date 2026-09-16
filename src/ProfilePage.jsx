@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Clipboard, ImagePlus, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
+import { ControlDialog, ControlPageHeader } from "control-surface-ui/react";
 
 const DEFAULT_AGENT_SCOPES = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "integrations:read"];
 
@@ -159,6 +160,8 @@ export function AgentAccessPanel({ auth, embedded = false }) {
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const dialogRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -194,18 +197,26 @@ export function AgentAccessPanel({ auth, embedded = false }) {
     finally { setBusy(false); }
   }
 
-  return <section className={`${embedded ? "ops-panel admin-console__agent-panel" : "profile-page__panel profile-page__panel--wide"}`} data-profile-agents aria-labelledby="profile-agents-title">
-    {embedded ? <header className="ops-panel__header"><div><span>Agent control plane</span><h2 id="profile-agents-title">Agent access</h2><p>Create narrowly scoped credentials for trusted agents. Tokens are displayed once; the server stores only a SHA-256 hash.</p></div></header> : <header><span>Agent control plane</span><h2 id="profile-agents-title">Agent access</h2><p>Create narrowly scoped credentials for trusted agents. Tokens are displayed once; the server stores only a SHA-256 hash.</p></header>}
+  function closeCreate() {
+    setAdding(false);
+    setCreatedToken("");
+    setCopied(false);
+    setMessage("");
+  }
+
+  return <section className={`${embedded ? "ops-panel" : "profile-page__panel profile-page__panel--wide"}`} data-profile-agents aria-labelledby="profile-agents-title">
+    <ControlPageHeader compact divided eyebrow={embedded ? "Workspace administration" : "Account settings"} title="Agent access" summary="Issue and revoke narrowly scoped credentials for trusted agents." headingLevel={2} titleId="profile-agents-title" actions={<button type="button" className="if-btn if-btn--primary" disabled={busy} onClick={() => setAdding(true)}><Plus size={15} />Add credential</button>} />
     <div className="agent-access-body">
-      {createdToken ? <section className="agent-token-once" role="status"><strong>Copy this token now</strong><p>It cannot be retrieved again. Save it directly in the agent’s protected Secret Store, never in chat or source files.</p><code>{createdToken}</code><button type="button" onClick={() => void navigator.clipboard.writeText(createdToken).then(() => setCopied(true))}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied" : "Copy token"}</button></section> : null}
-      <form className="profile-page__form agent-key-form" onSubmit={create}>
-        <div className="profile-page__form-row"><label>Name<input required minLength={2} placeholder="Research agent" value={name} onChange={(event) => setName(event.target.value)} /></label><label>Expires <span>(optional)</span><input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label></div>
-        <fieldset><legend>Scopes</legend>{scopes.map((scope) => <label key={scope}><input type="checkbox" checked={selected.includes(scope)} onChange={() => setSelected((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])} /><span>{scope}</span></label>)}</fieldset>
-        <button type="submit" disabled={busy || !selected.length}><Plus size={15} />Create credential</button>
-      </form>
       {message ? <p className="account-form__message" role="alert">{message}</p> : null}
       <section className="agent-key-list" aria-label="Agent credentials"><h3>Credentials</h3>{busy && !keys.length ? <p>Loading…</p> : keys.length ? keys.map((key) => <article key={key.id} className={key.revokedAt ? "is-revoked" : ""}><div><strong>{key.name}</strong><span>{key.scopes.join(" · ")}</span><small>{key.revokedAt ? "Revoked" : key.lastUsedAt ? `Last used ${new Date(key.lastUsedAt).toLocaleString()}` : "Never used"}</small></div>{!key.revokedAt ? <button type="button" aria-label={`Revoke ${key.name}`} onClick={() => void revoke(key.id)}><Trash2 size={15} />Revoke</button> : null}</article>) : <p>No agent credentials yet.</p>}</section>
     </div>
+    {adding ? <ControlDialog open onClose={closeCreate} title={createdToken ? "Credential created" : "Add agent credential"} eyebrow="Workspace administration" summary={createdToken ? "This token is visible once. Store it now before closing." : "Choose only the scopes this agent needs."} size="wide" dialogRef={dialogRef} closeLabel="Close agent credential form" surfaceProps={{ "data-agent-key-dialog": true }} footer={createdToken ? <button type="button" className="if-btn if-btn--primary" onClick={closeCreate}>Done</button> : <><button type="button" className="if-btn" onClick={closeCreate}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="agent-key-create-form" disabled={busy || !selected.length}><Plus size={15} />{busy ? "Creating…" : "Create credential"}</button></>}>
+      {createdToken ? <section className="agent-token-once" role="status"><strong>Copy this token now</strong><p>It cannot be retrieved again. Save it directly in the agent’s protected Secret Store, never in chat or source files.</p><code>{createdToken}</code><button type="button" onClick={() => void navigator.clipboard.writeText(createdToken).then(() => setCopied(true))}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied" : "Copy token"}</button></section> : <form id="agent-key-create-form" className="profile-page__form agent-key-form" onSubmit={create}>
+        <div className="profile-page__form-row"><label>Name<input required minLength={2} placeholder="Research agent" value={name} onChange={(event) => setName(event.target.value)} /></label><label>Expires <span>(optional)</span><input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label></div>
+        <fieldset><legend>Scopes</legend>{scopes.map((scope) => <label key={scope}><input type="checkbox" checked={selected.includes(scope)} onChange={() => setSelected((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])} /><span>{scope}</span></label>)}</fieldset>
+        {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+      </form>}
+    </ControlDialog> : null}
   </section>;
 }
 
@@ -215,18 +226,7 @@ export default function ProfilePage({ section = "profile" }) {
   if (!auth || auth.staticHost || !auth.enabled || !user) return <section className="profile-page profile-page--unavailable" data-profile-page><ShieldCheck size={28} /><h2>Account service unavailable</h2><p>Profile and agent administration are available on the authenticated Cloudflare application.</p></section>;
 
   return <div className="profile-page" data-profile-page data-profile-section={section} data-density="compact">
-    <header className="profile-page__header">
-      <div className="profile-page__heading">
-        <span className="profile-page__eyebrow">Account settings</span>
-        <h2>{section === "security" ? "Security" : section === "personal-ai" ? "Personal OpenAI keys" : "Profile"}</h2>
-        <p>{section === "security" ? "Manage the password for this workspace account." : section === "personal-ai" ? "Manage credentials available only to requests you initiate." : "Manage the identity shown across the workspace."}</p>
-      </div>
-      <div className="profile-page__identity" aria-label="Current account">
-        <UserAvatar user={user} className="profile-avatar profile-avatar--page" />
-        <span className="profile-page__identity-copy"><strong>{user.displayName}</strong><small>{user.email}</small></span>
-        <span className="if-badge if-badge--info if-badge--sm">{user.role}</span>
-      </div>
-    </header>
+    <ControlPageHeader compact divided eyebrow="Account settings" title={section === "security" ? "Security" : section === "personal-ai" ? "Personal OpenAI keys" : "Profile"} summary={section === "security" ? "Manage the password for this workspace account." : section === "personal-ai" ? "Manage credentials available only to requests you initiate." : "Manage the identity shown across the workspace."} headingLevel={2} />
     <nav className="if-tabs__list profile-page__nav" aria-label="Profile sections">
       <a role="tab" href="#/profile" className={`if-tab${section === "profile" ? " is-active" : ""}`} aria-selected={section === "profile"} aria-current={section === "profile" ? "page" : undefined}><UserRound size={14} />Profile</a>
       <a role="tab" href="#/profile/security" className={`if-tab${section === "security" ? " is-active" : ""}`} aria-selected={section === "security"} aria-current={section === "security" ? "page" : undefined}><KeyRound size={14} />Security</a>

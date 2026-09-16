@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.3",
-    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/8d9e24622d85022c6e0ae9be0f70c6752eefe69a.tar.gz",
+    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/69f3ad8690276d16da554dbf5a7cb874d2cd6bec.tar.gz",
     "fastify": "^5.12.4",
     "pg": "^8.23.0"
   },

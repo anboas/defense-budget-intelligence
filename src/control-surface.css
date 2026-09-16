@@ -464,6 +464,76 @@ code {
   gap: var(--if-gap-density);
 }
 
+.if-page-header {
+  display: grid;
+  gap: var(--if-space-2);
+  align-items: start;
+}
+
+.if-page-header--compact {
+  gap: var(--if-space-1) var(--if-space-3);
+}
+
+.if-page-header--divided {
+  padding-bottom: var(--if-space-3);
+  border-bottom: var(--if-divider);
+}
+
+.if-page-header__heading {
+  display: grid;
+  min-width: 0;
+  gap: var(--if-space-1);
+}
+
+.if-page-header[id] {
+  scroll-margin-top: calc(var(--if-topbar-height) + var(--if-space-4));
+}
+
+.if-page-header__eyebrow {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-xs);
+  font-weight: var(--if-font-weight-bold);
+  text-transform: uppercase;
+}
+
+.if-page-header__title {
+  margin: 0;
+  color: var(--if-text-strong);
+  font-size: clamp(1.35rem, 2vw, var(--if-font-size-2xl));
+  line-height: var(--if-line-height-tight);
+  letter-spacing: 0;
+}
+
+.if-page-header--compact .if-page-header__title {
+  font-size: clamp(1.2rem, 1.6vw, var(--if-font-size-xl));
+}
+
+.if-page-header__summary {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-sm);
+  line-height: var(--if-line-height-snug);
+}
+
+.if-page-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--if-space-2);
+}
+
+.if-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--if-space-2);
+  align-items: center;
+}
+
+.if-region {
+  display: grid;
+  gap: var(--if-gap-density);
+}
+
 .if-panel,
 .if-card {
   min-width: 0;
@@ -540,20 +610,17 @@ code {
   display: none;
 }
 
+@media (min-width: 720px) {
+  .if-page-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 @media (min-width: 960px) {
 
   .if-desktop-only {
     display: inline-flex !important;
   }
-}
-
-.if-admin-control-surface,
-.if-admin-control-surface * {
-  min-width: 0;
-}
-
-.if-admin-control-surface {
-  container-type: inline-size;
 }
 
 .if-icon-slot {
@@ -592,7 +659,8 @@ code {
   min-width: 0;
 }
 
-.if-section-heading .if-panel__title {
+.if-section-heading .if-panel__title,
+.if-section-heading .if-page-header__title {
   margin: 0;
 }
 

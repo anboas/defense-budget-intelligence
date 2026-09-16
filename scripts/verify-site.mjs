@@ -124,7 +124,7 @@ async function assertFlowShell(page) {
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
     assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 13, "Mobile More should contain analytics, money-flow, supporting work, and administration routes without duplicating primary Events");
-    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace[\s\S]*Workspace admin/i, "Mobile More should keep work and administration visibly separated");
+    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Workspace admin/i, "Mobile More should keep work and administration visibly separated");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -280,8 +280,9 @@ try {
   assert.equal(await page.locator('[data-nav-group-trigger="analytics"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Analytics should not show stale child context");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
   await assertActiveGroupState(page, "workspace-admin", "API Log");
-  assert.equal(await page.locator("[data-admin-workspace]").count(), 1, "API Log should render inside the persistent Admin control-center shell");
-  assert.equal(await page.locator('.admin-console__nav a[aria-current="page"]').innerText(), "API Log", "Admin shell should identify API Log as its active in-place section");
+  assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should not repeat a secondary administration shell below global navigation");
+  assert.equal(await page.locator('[data-ops-activity] > .if-page-header').count(), 1, "API Log should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-ops-activity] > .if-tabs__list .if-tab').count(), 2, "API Log should separate requests from workspace changes without stacking both ledgers");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
@@ -512,6 +513,7 @@ try {
   }(contractMonitorPayload));
   assert.deepEqual(forbiddenMonitorKeys, [], "Contract-monitor output must not contain credential or header fields");
   await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
+  await page.getByRole("button", { name: /Workspace changes/ }).click();
   assert.ok(await page.locator("[data-ops-activity] [data-ops-activity-table] [data-if-table-row]").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
   await page.evaluate((recordIds) => {
     const at = "2026-09-13T12:00:00.000Z";
@@ -1476,13 +1478,11 @@ try {
   await assertNoPageOverflow(mobile, "Mobile evidence-risk analytics");
 
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
-  const mobileAdminShellHeight = await mobile.locator("[data-admin-workspace]").evaluate((node) => node.getBoundingClientRect().height);
-  assert.ok(mobileAdminShellHeight <= 360, `Mobile Admin control center should stay compact enough to expose working content, got ${mobileAdminShellHeight}px`);
-  assert.equal(await mobile.locator(".admin-console__nav a").count(), 2, "Static mobile Workspace work should keep only Watchlist and Task Center in its shell");
-  const mobileAdminTargetHeights = await mobile.locator(".admin-console__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.ok(mobileAdminTargetHeights.every((height) => height >= 43.5), `Mobile Admin sections should keep 44px touch targets: ${mobileAdminTargetHeights.join(", ")}`);
+  assert.equal(await mobile.locator("[data-admin-workspace]").count(), 0, "Mobile work surfaces should not repeat ownership navigation below the masthead");
+  const mobileWorkHeaderHeight = await mobile.locator("[data-ops-watchlist] > .if-page-header").evaluate((node) => node.getBoundingClientRect().height);
+  assert.ok(mobileWorkHeaderHeight <= 120, `Mobile Watchlist should expose a compact route header before the table, got ${mobileWorkHeaderHeight}px`);
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
-  await assertNoPageOverflow(mobile, "Mobile Admin control center");
+  await assertNoPageOverflow(mobile, "Mobile Watchlist");
   await openSurface(mobile, "#/budget-spend/wallboard", "[data-ops-wallboard]");
   await assertNoPageOverflow(mobile, "Mobile wallboard");
   await mobile.screenshot({ path: `${OUT_DIR}/wallboard-mobile.png`, fullPage: true });
