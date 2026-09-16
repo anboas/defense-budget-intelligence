@@ -68,7 +68,9 @@ await retrieveOpenAiResponse("verification-key", "resp_background", async (url, 
     json: async () => ({ id: "resp_background", status: "completed", output: [] }),
   };
 });
-assert.equal(new URL(retrievedUrl).searchParams.get("include"), "web_search_call.action.sources", "Background response retrieval must request the consulted-source inventory again");
+const retrievedQuery = new URL(retrievedUrl).searchParams;
+assert.equal(retrievedQuery.has("include"), false, "Background response retrieval must not collapse the include array into a scalar query parameter");
+assert.deepEqual(retrievedQuery.getAll("include[]"), ["web_search_call.action.sources"], "Background response retrieval must encode the consulted-source inventory as an array");
 
 const sourceUrl = "https://example.gov/events/industry-day";
 const details = normalizeEventAiDetails({

@@ -316,7 +316,7 @@ export async function startOpenAiBackgroundResponse(apiKey, body, fetchImpl = fe
 export async function retrieveOpenAiResponse(apiKey, responseId, fetchImpl = fetch) {
   const startedAt = Date.now();
   const responseUrl = new URL(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}`);
-  responseUrl.searchParams.set("include", "web_search_call.action.sources");
+  responseUrl.searchParams.append("include[]", "web_search_call.action.sources");
   const response = await fetchImpl(responseUrl, {
     method: "GET",
     headers: { authorization: `Bearer ${apiKey}` },
