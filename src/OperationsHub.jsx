@@ -36,7 +36,7 @@ import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import IntegrationManagement from "./IntegrationManagement.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlChangeList, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlMultiSelect, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
+import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlMultiSelect, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
 import { useNotifications } from "./NotificationContext.jsx";
 
 const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
@@ -321,46 +321,60 @@ function EventEditor({ event, review = false, records, categories, onSave, onClo
     surfaceProps={{ "data-ops-event-editor": true }}
     footer={<><button type="button" className="if-btn" onClick={onClose}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="ops-event-editor-form">Save event</button></>}
   >
-      <form id="ops-event-editor-form" className="ops-event-form" onSubmit={submit}>
+      <form id="ops-event-editor-form" className="if-form-grid" onSubmit={submit}>
           {error ? <p role="alert" className="ops-alert">{error}</p> : null}
-          <label className="ops-field ops-field--wide"><span>Title</span><input autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
-          <label className="ops-field"><span>Starts</span><input type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
-          <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
-          <label className="ops-field"><span>Location</span><input value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
-          <div className="ops-field"><span>Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
-          <div className="ops-attendee-picker ops-field--wide">
+          <label className="if-field if-field--full"><span className="if-field__label">Title</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Starts</span><input className="if-input" type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Ends</span><input className="if-input" type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Location</span><input className="if-input" value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
+          <div className="if-field"><span className="if-field__label">Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
+          <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Event categories" allLabel="Select event types" value={JSON.stringify(draft.categoryIds || [])} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description }))} onChange={(categoryIds) => setDraft((value) => ({ ...value, categoryIds }))} portalTarget={dialogRef} />
             {!categories.length ? <small>No workspace event categories are available.</small> : null}
           </div>
-          <div className="ops-attendee-picker ops-field--wide">
+          <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
           </div>
-          <label className="ops-field ops-field--wide"><span>Notes</span><textarea value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
-          <fieldset className="if-card if-form-grid if-field--full" data-event-links>
-            <legend className="if-field__label">Event links</legend>
-            <p className="if-field__hint if-field--full">Add the official event page, registration, agenda, lodging, or other relevant links.</p>
-            {(draft.links || []).map((link, index) => <div className="if-card if-form-grid if-field--full" key={link.id}>
-              <label className="if-field"><span className="if-field__label">Label</span><input className="if-input" aria-label={`Event link ${index + 1} label`} value={link.label || ""} placeholder="Registration" onChange={(e) => setDraft((value) => ({ ...value, links: value.links.map((item) => item.id === link.id ? { ...item, label: e.target.value } : item) }))} /></label>
-              <label className="if-field"><span className="if-field__label">URL</span><input className="if-input" aria-label={`Event link ${index + 1} URL`} type="url" value={link.url || ""} placeholder="https://…" onChange={(e) => setDraft((value) => ({ ...value, links: value.links.map((item) => item.id === link.id ? { ...item, url: e.target.value } : item) }))} /></label>
-              <button type="button" className="if-btn if-field--full" aria-label={`Remove event link ${index + 1}`} onClick={() => setDraft((value) => ({ ...value, links: value.links.filter((item) => item.id !== link.id) }))}><Trash2 size={15} aria-hidden="true" />Remove link</button>
-            </div>)}
-            <button type="button" className="if-btn if-btn--secondary" onClick={() => setDraft((value) => ({ ...value, links: [...(value.links || []), { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label: "", url: "" }] }))}><Plus size={15} aria-hidden="true" />Add link</button>
-          </fieldset>
-          <fieldset className="if-card if-form-grid if-field--full" data-event-milestones>
-            <legend className="if-field__label">Deadlines &amp; milestones</legend>
-            <p className="if-field__hint if-field--full">Add only published or operator-confirmed dates. Missing dates stay absent from the calendar.</p>
-            {(draft.milestones || []).map((milestone, index) => <div className="if-card if-form-grid if-field--full" key={milestone.id}>
-              <div className="if-field"><span className="if-field__label">Type</span><ControlSelect ariaLabel={`Milestone ${index + 1} type`} value={milestone.type} options={EVENT_MILESTONE_TYPES} onChange={(type) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type } : item) }))} portalTarget={dialogRef} /></div>
-              <label className="if-field"><span className="if-field__label">Date</span><input className="if-input" aria-label={`Milestone ${index + 1} date`} type="date" value={String(milestone.occursAt || "").slice(0, 10)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, occursAt: e.target.value } : item) }))} /></label>
-              <label className="if-field"><span className="if-field__label">Display label</span><input className="if-input" aria-label={`Milestone ${index + 1} label`} value={milestone.label || ""} placeholder={milestoneTypeLabel(milestone.type)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, label: e.target.value } : item) }))} /></label>
-              <label className="if-field"><span className="if-field__label">Context</span><input className="if-input" aria-label={`Milestone ${index + 1} context`} value={milestone.notes || ""} placeholder="Optional source or policy note" onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, notes: e.target.value } : item) }))} /></label>
-              <button type="button" className="if-btn if-field--full" aria-label={`Remove milestone ${index + 1}`} onClick={() => setDraft((value) => ({ ...value, milestones: value.milestones.filter((item) => item.id !== milestone.id) }))}><Trash2 size={15} aria-hidden="true" />Remove milestone</button>
-            </div>)}
-            <button type="button" className="if-btn if-btn--secondary" onClick={() => setDraft((value) => ({ ...value, milestones: [...(value.milestones || []), { id: `milestone-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "registration_deadline", label: "", occursAt: "", notes: "" }] }))}><Plus size={15} aria-hidden="true" />Add deadline or milestone</button>
-          </fieldset>
-          <label className="ops-check ops-field--wide"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><b>Show on wallboard</b><small>Read-only display projection</small></span></label>
-          <fieldset className="ops-event-links ops-field--wide"><legend>Linked watched records</legend>{records.length ? records.map((record) => <label key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><b>{record.id}</b>{record.title}</span></label>) : <p>Star records in Transactions to link them here.</p>}</fieldset>
+          <label className="if-field if-field--full"><span className="if-field__label">Notes</span><textarea className="if-textarea" value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
+          <section className="ops-event-collection if-field--full" data-event-links>
+            <header><span><strong>Event links</strong><small>Official page, registration, agenda, lodging, or other useful destinations.</small></span><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setDraft((value) => ({ ...value, links: [...(value.links || []), { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label: "", url: "" }] }))}><Plus size={15} aria-hidden="true" />Add link</button></header>
+            <ControlCollectionEditor
+              label="Event links"
+              items={draft.links || []}
+              getKey={(link) => link.id}
+              empty={<p className="if-field__hint">No links added.</p>}
+              renderSummary={(link, index) => <><strong>{link.label || `Link ${index + 1}`}</strong><small>{link.url || "URL not entered"}</small></>}
+              renderEditor={(link, index) => <>
+                <label className="if-field"><span className="if-field__label">Label</span><input className="if-input" aria-label={`Event link ${index + 1} label`} value={link.label || ""} placeholder="Registration" onChange={(e) => setDraft((value) => ({ ...value, links: value.links.map((item) => item.id === link.id ? { ...item, label: e.target.value } : item) }))} /></label>
+                <label className="if-field"><span className="if-field__label">URL</span><input className="if-input" aria-label={`Event link ${index + 1} URL`} type="url" value={link.url || ""} placeholder="https://…" onChange={(e) => setDraft((value) => ({ ...value, links: value.links.map((item) => item.id === link.id ? { ...item, url: e.target.value } : item) }))} /></label>
+              </>}
+              onRemove={(link) => setDraft((value) => ({ ...value, links: value.links.filter((item) => item.id !== link.id) }))}
+              removeLabel="Remove link"
+            />
+          </section>
+          <section className="ops-event-collection if-field--full" data-event-milestones>
+            <header><span><strong>Deadlines &amp; milestones</strong><small>Only published or operator-confirmed dates. Missing dates stay absent.</small></span><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setDraft((value) => ({ ...value, milestones: [...(value.milestones || []), { id: `milestone-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: "registration_deadline", label: "", occursAt: "", notes: "" }] }))}><Plus size={15} aria-hidden="true" />Add milestone</button></header>
+            <ControlCollectionEditor
+              label="Event deadlines and milestones"
+              items={draft.milestones || []}
+              getKey={(milestone) => milestone.id}
+              empty={<p className="if-field__hint">No milestones added.</p>}
+              renderSummary={(milestone, index) => <><strong>{milestone.label || milestoneTypeLabel(milestone.type) || `Milestone ${index + 1}`}</strong><small>{milestone.occursAt ? compactDate(milestone.occursAt) : "Date not set"}</small></>}
+              renderEditor={(milestone, index) => <>
+                <div className="if-field"><span className="if-field__label">Type</span><ControlSelect ariaLabel={`Milestone ${index + 1} type`} value={milestone.type} options={EVENT_MILESTONE_TYPES} onChange={(type) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, type } : item) }))} portalTarget={dialogRef} /></div>
+                <label className="if-field"><span className="if-field__label">Date</span><input className="if-input" aria-label={`Milestone ${index + 1} date`} type="date" value={String(milestone.occursAt || "").slice(0, 10)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, occursAt: e.target.value } : item) }))} /></label>
+                <label className="if-field"><span className="if-field__label">Display label</span><input className="if-input" aria-label={`Milestone ${index + 1} label`} value={milestone.label || ""} placeholder={milestoneTypeLabel(milestone.type)} onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, label: e.target.value } : item) }))} /></label>
+                <label className="if-field"><span className="if-field__label">Context</span><input className="if-input" aria-label={`Milestone ${index + 1} context`} value={milestone.notes || ""} placeholder="Optional source or policy note" onChange={(e) => setDraft((value) => ({ ...value, milestones: value.milestones.map((item) => item.id === milestone.id ? { ...item, notes: e.target.value } : item) }))} /></label>
+              </>}
+              onRemove={(milestone) => setDraft((value) => ({ ...value, milestones: value.milestones.filter((item) => item.id !== milestone.id) }))}
+              removeLabel="Remove milestone"
+            />
+          </section>
+          <label className="if-checkbox ops-event-wallboard if-field--full"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><strong>Show on wallboard</strong><small>Include this event in the read-only display projection.</small></span></label>
+          <ControlDisclosure className="if-field--full" title={`Linked watched records${linked.size ? ` (${linked.size})` : ""}`} summary="Optional opportunity context for this event" data-event-record-links>
+            {records.length ? <div className="ops-event-record-links">{records.map((record) => <label className="if-checkbox" key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><strong>{record.id}</strong><small>{record.title}</small></span></label>)}</div> : <p className="if-field__hint">Star records in Transactions to link them here.</p>}
+          </ControlDisclosure>
       </form>
   </ControlDialog>;
 }

@@ -524,19 +524,44 @@ try {
   await page.getByLabel("Search Attendees").fill("Browser teammate");
   await page.getByRole("option", { name: /Browser teammate/ }).click();
   assert.match(await attendeePicker.getAttribute("aria-label"), /Attendees \(1\)/, "Event attendees should use the searchable workspace-user multiselect");
+  const initialLinkCount = await eventEditor.locator("[data-event-links] .if-collection-editor__item").count();
   await page.getByRole("button", { name: "Add link" }).click();
-  await page.getByLabel("Event link 1 label").fill("Official page");
-  await page.getByLabel("Event link 1 URL").fill("https://example.test/customer-forum");
-  await page.getByRole("button", { name: "Add deadline or milestone" }).click();
-  await chooseControlSelect(page, "Milestone 1 type", "Refund deadline");
-  await page.getByLabel("Milestone 1 date").fill("2026-10-01");
-  await page.getByLabel("Milestone 1 label").fill("Last day for refunds");
-  assert.equal(await page.locator("[data-event-milestones] > .if-card").count(), 1, "Event editor should support typed, optional deadline overlays through Control Surface cards");
-  const milestoneAction = page.getByRole("button", { name: "Add deadline or milestone" });
+  assert.equal(await eventEditor.locator("[data-event-links] .if-collection-editor__item").count(), initialLinkCount + 1, "Adding an event link must append one shared collection-editor item");
+  assert.equal(await eventEditor.locator("[data-event-links] .if-collection-editor__body:visible").count(), 1, "A newly added event link must open for immediate editing");
+  await page.getByLabel(`Event link ${initialLinkCount + 1} label`).fill("Official page");
+  await page.getByLabel(`Event link ${initialLinkCount + 1} URL`).fill("https://example.test/customer-forum");
+  const initialMilestoneCount = await eventEditor.locator("[data-event-milestones] .if-collection-editor__item").count();
+  await page.getByRole("button", { name: "Add milestone" }).click();
+  const newMilestoneNumber = initialMilestoneCount + 1;
+  await chooseControlSelect(page, `Milestone ${newMilestoneNumber} type`, "Refund deadline");
+  await page.getByLabel(`Milestone ${newMilestoneNumber} date`).fill("2026-10-01");
+  await page.getByLabel(`Milestone ${newMilestoneNumber} label`).fill("Last day for refunds");
+  assert.equal(await eventEditor.locator("[data-event-milestones] .if-collection-editor__item").count(), newMilestoneNumber, "Adding an event milestone must append one shared collection-editor item");
+  assert.equal(await eventEditor.locator(".if-card .if-card").count(), 0, "Event editing must not nest bordered cards inside bordered cards");
+  assert.equal(await eventEditor.locator("[data-event-record-links][open]").count(), 0, "Secondary watched-record linking must remain collapsed by default");
+  const milestoneAction = page.getByRole("button", { name: "Add milestone" });
   assert.match(await milestoneAction.getAttribute("class"), /if-btn--secondary/, "The milestone action must use the shared secondary button contract");
   const milestoneActionBox = await milestoneAction.boundingBox();
-  assert.ok(milestoneActionBox?.height >= 34 && milestoneActionBox?.width > 150, "The milestone action must retain a complete readable control shape");
+  const milestoneActionContentFits = await milestoneAction.evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
+  assert.ok(milestoneActionBox?.height >= 30 && milestoneActionBox?.width >= 110 && milestoneActionContentFits, "The compact milestone action must retain a complete readable control shape");
   await page.screenshot({ path: "test-results/event-ai-review-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const eventEditorMobileGeometry = await eventEditor.evaluate((node) => {
+    const body = node.querySelector(".if-dialog__body").getBoundingClientRect();
+    const collections = [...node.querySelectorAll(".if-collection-editor")].map((item) => item.getBoundingClientRect());
+    return {
+      documentOverflow: document.documentElement.scrollWidth - innerWidth,
+      collectionsContained: collections.every((item) => item.left >= body.left - 1 && item.right <= body.right + 1),
+      visibleEditors: node.querySelectorAll(".if-collection-editor__body:not([hidden])").length,
+      minimumControlHeight: Math.min(...[...node.querySelectorAll(".if-btn, .if-input, .if-textarea, .if-picker__trigger, .if-collection-editor__summary")].filter((item) => item.offsetParent !== null).map((item) => item.getBoundingClientRect().height)),
+    };
+  });
+  assert.ok(eventEditorMobileGeometry.documentOverflow <= 1, "The sleek event editor must not create mobile document overflow");
+  assert.ok(eventEditorMobileGeometry.collectionsContained, "Event collections must stay within the measured mobile dialog gutters");
+  assert.equal(eventEditorMobileGeometry.visibleEditors, 2, "Each independent event collection must expose only its single active editor");
+  assert.ok(eventEditorMobileGeometry.minimumControlHeight >= 43.5, `Visible event editor controls must retain 44px mobile geometry, got ${eventEditorMobileGeometry.minimumControlHeight}px`);
+  await page.screenshot({ path: "test-results/event-editor-sleek-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Close event editor" }).click();
   await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary] .if-sparkline svg");

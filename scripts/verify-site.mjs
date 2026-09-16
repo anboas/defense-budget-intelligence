@@ -514,7 +514,7 @@ try {
   await eventCategoryPicker.click();
   await page.getByRole("option", { name: /Workshop/ }).click();
   await page.keyboard.press("Escape");
-  const milestoneButton = page.getByRole("button", { name: "Add deadline or milestone" });
+  const milestoneButton = page.getByRole("button", { name: "Add milestone" });
   assert.match(await milestoneButton.getAttribute("class"), /if-btn--secondary/, "The milestone action must use the Control Surface secondary button");
   await page.getByRole("button", { name: "Save event" }).click();
   await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });

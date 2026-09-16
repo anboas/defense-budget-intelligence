@@ -11448,24 +11448,23 @@ td .dot {
 .ops-event-list article p,
 .ops-event-list article small { margin: 0; color: var(--muted); font-size: 9px; }
 .ops-event-list article > div:last-child { display: flex; gap: 5px; }
-.ops-event-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.ops-field { display: grid; gap: 4px; color: var(--quiet); font-size: 9px; font-weight: 800; }
-.ops-field--wide { grid-column: 1 / -1; }
-.ops-field input,
-.ops-field select,
-.ops-field textarea { width: 100%; min-height: 34px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font: inherit; color: var(--text); }
-.ops-field textarea { min-height: 80px; resize: vertical; }
 .ops-attendee-picker { display: grid; gap: 4px; }
 .ops-attendee-picker > .capture-filter { width: 100%; }
 .ops-attendee-picker > small { color: var(--muted); font-size: 9px; font-weight: 600; }
-.ops-check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 10px; }
-.ops-check span { display: grid; }
-.ops-check small { color: var(--muted); font-size: 9px; font-weight: 500; }
-.ops-event-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 190px; overflow: auto; padding: 10px; border: 1px solid var(--border); }
-.ops-event-links legend { color: var(--brand-dark); font-size: 10px; font-weight: 850; }
-.ops-event-links label { display: flex; align-items: flex-start; gap: 6px; padding: 5px; color: var(--muted); font-size: 9px; }
-.ops-event-links label span { display: grid; }
-.ops-event-links label b { color: var(--brand); }
+.ops-event-collection { display: grid; gap: var(--if-space-2); }
+.ops-event-collection > header { display: flex; align-items: center; justify-content: space-between; gap: var(--if-space-3); }
+.ops-event-collection > header > span,
+.ops-event-wallboard > span,
+.ops-event-record-links .if-checkbox > span { display: grid; min-width: 0; gap: 2px; }
+.ops-event-collection > header strong,
+.ops-event-wallboard strong,
+.ops-event-record-links strong { color: var(--if-text-strong); font-size: var(--if-font-size-sm); }
+.ops-event-collection > header small,
+.ops-event-wallboard small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-normal); }
+.ops-event-record-links small { overflow: hidden; color: var(--if-text-muted); font-size: var(--if-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.ops-event-wallboard { min-height: var(--if-control-height, 2.75rem); padding: var(--if-space-2) var(--if-space-3); border: var(--if-divider); border-radius: var(--if-radius-2); background: var(--if-bg-subtle); }
+.ops-event-record-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--if-space-2); max-height: 15rem; overflow: auto; }
+.ops-event-record-links .if-checkbox { align-items: flex-start; padding: var(--if-space-2); border: var(--if-outline); border-radius: var(--if-radius-2); background: var(--if-bg-subtle); }
 .ops-alert { grid-column: 1 / -1; margin: 0; padding: 8px; background: #fff1f0; color: #8b1e17; font-size: 10px; }
 .ops-integration-list article { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 90px; align-items: center; gap: 10px; min-height: 54px; padding: 8px 14px; border-bottom: 1px solid var(--border-soft); }
 .ops-integration-list i { width: 8px; height: 8px; border-radius: 50%; background: #687f91; }
@@ -12080,9 +12079,9 @@ td .dot {
   .ops-watch-table input[type="date"] { min-height: 44px; }
   .ops-event-list article { grid-template-columns: 1fr auto; }
   .ops-event-list article > time { grid-column: 1 / -1; }
-  .ops-event-form { grid-template-columns: 1fr; }
-  .ops-field--wide { grid-column: auto; }
-  .ops-event-links { grid-template-columns: 1fr; }
+  .ops-event-collection > header { align-items: stretch; flex-direction: column; }
+  .ops-event-collection > header .if-btn { width: 100%; min-height: 44px; }
+  .ops-event-record-links { grid-template-columns: 1fr; }
   .ops-integration-list article { grid-template-columns: 8px minmax(0, 1fr); }
   .ops-integration-list b,
   .ops-integration-list em { grid-column: 2; }
