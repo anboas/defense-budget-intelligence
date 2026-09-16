@@ -2697,7 +2697,7 @@ code {
 
 @media (max-width: 719px) {
 
-  
+
   .if-chart-grid,
   .if-meta-grid--dense {
     grid-template-columns: 1fr;

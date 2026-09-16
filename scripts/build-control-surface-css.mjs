@@ -1,10 +1,14 @@
 import { writeFileSync } from "node:fs";
 import { PurgeCSS } from "purgecss";
 
+const content = ["index.html", "src/**/*.{js,jsx}"];
+const extractor = (source) => source.match(/[A-Za-z0-9_:/-]+/g) || [];
+const cleanCss = (source) => source.replace(/[ \t]+$/gm, "").trim();
+
 const [result] = await new PurgeCSS().purge({
-  content: ["index.html", "src/**/*.{js,jsx}", "node_modules/control-surface-ui/src/react/**/*.{js,jsx}"],
+  content: [...content, "node_modules/control-surface-ui/src/react/**/*.{js,jsx}"],
   css: ["node_modules/control-surface-ui/dist/interface-framework.css"],
-  defaultExtractor: (content) => content.match(/[A-Za-z0-9_:/-]+/g) || [],
+  defaultExtractor: extractor,
   safelist: {
     standard: [
       "if-table--compact",
@@ -26,6 +30,36 @@ const [result] = await new PurgeCSS().purge({
 
 if (!result?.css) throw new Error("Control Surface CSS extraction produced no output");
 
+const [application] = await new PurgeCSS().purge({
+  content,
+  css: ["src/styles.css"],
+  defaultExtractor: extractor,
+  safelist: {
+    greedy: [
+      /^is-/,
+      /^has-/,
+      /^continues-/,
+      /^metric--/,
+      /^phase-intro--/,
+      /^analytic-card--/,
+      /^evidence-class--/,
+      /^tone-/,
+      /^visual-/,
+      /^source-/,
+      /^target-/,
+      /^app__content--/,
+      /^operations-hub--/,
+      /^freshness-chip--/,
+      /^dbi-status-badge/,
+      /^ops-wall-/,
+      /^capture-/,
+    ],
+  },
+});
+
+if (!application?.css) throw new Error("Application CSS extraction produced no output");
+
 const banner = "/* Generated from control-surface-ui for the classes used by this application. */\n";
-writeFileSync("src/control-surface.css", `${banner}${result.css.trim()}\n`);
-console.log(`Built scoped Control Surface CSS: ${Buffer.byteLength(result.css).toLocaleString()} bytes`);
+writeFileSync("src/control-surface.css", `${banner}${cleanCss(result.css)}\n`);
+writeFileSync("src/styles.generated.css", `/* Generated from styles.css for the classes used by this application. */\n${cleanCss(application.css)}\n`);
+console.log(`Built scoped CSS: framework=${Buffer.byteLength(result.css).toLocaleString()} bytes application=${Buffer.byteLength(application.css).toLocaleString()} bytes`);

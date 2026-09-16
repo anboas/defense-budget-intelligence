@@ -38,7 +38,7 @@ import SiteHeader from "./SiteHeader.jsx";
 import ProfilePage from "./ProfilePage.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import "./styles.css";
+import "./styles.generated.css";
 
 const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
 const OperationsHub = lazy(() => import("./OperationsHub.jsx"));
