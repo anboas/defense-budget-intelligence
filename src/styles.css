@@ -10361,8 +10361,7 @@ td .dot {
 .transaction-viz__segmented { display: flex; gap: 4px; padding: 8px 10px 0; }
 .transaction-viz__segmented button { min-height: 32px; padding: 4px 9px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: var(--brand-dark); font-size: 10px; font-weight: 800; }
 .transaction-viz__segmented button.is-active { border-color: var(--brand); background: #e8f3fa; color: var(--brand); }
-.analytics-commandbar,
-.analytics-records {
+.analytics-commandbar {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -10497,26 +10496,6 @@ td .dot {
 .transaction-viz [role="button"]:focus-visible { filter: drop-shadow(0 0 2px rgba(240, 179, 35, 0.85)); }
 .transaction-viz [role="button"].is-selected text { fill: #6f4d00; font-weight: 900; }
 
-.analytics-records > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 48px;
-  padding: 8px 11px;
-  cursor: pointer;
-  list-style: none;
-}
-.analytics-records > summary::-webkit-details-marker { display: none; }
-.analytics-records > summary > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.analytics-records > summary svg { flex: 0 0 auto; color: var(--brand); }
-.analytics-records > summary span { display: grid; gap: 2px; color: var(--muted); font-size: 10px; font-weight: 750; }
-.analytics-records > summary strong { color: var(--brand-dark); font-size: 13px; }
-.analytics-records[open] > summary { border-bottom: 1px solid var(--border-soft); }
-.trend-history-details__body { padding: 10px; }
-.award-rollup-details__body { padding: 10px; }
-.request-signal-details__body { padding: 10px; }
-.lifecycle-detail-disclosure__body { padding: 10px; }
 .analytics-mobile-chart-toggle { display: none; }
 
 /* Operational DataTable: shared Control Framework table surface */

@@ -27,7 +27,7 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
-import { ControlDialog, ControlMetricStrip } from "control-surface-ui/react";
+import { ControlDialog, ControlDisclosure, ControlMetricStrip } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import {
@@ -1732,11 +1732,7 @@ function RecordExplorer({ records, metricId, onSelect }) {
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Transactions</a></div> },
   ];
   return (
-    <details className="analytics-records" data-analytics-records>
-      <summary>
-        <div><TableProperties size={18} aria-hidden="true" /><span><strong>Record explorer</strong><small>Complete filtered set ranked by {metric.label.toLowerCase()}</small></span></div>
-        <span>{records.length.toLocaleString()} in scope</span>
-      </summary>
+    <ControlDisclosure className="analytics-records" data-analytics-records icon={<TableProperties size={18} />} title="Record explorer" summary={`${records.length.toLocaleString()} in scope · complete filtered set ranked by ${metric.label.toLowerCase()}`}>
       <OperationalDataTable
         key={metricId}
         id="analytics-record-explorer"
@@ -1749,7 +1745,7 @@ function RecordExplorer({ records, metricId, onSelect }) {
         exportFilename="defense-analytics-records.csv"
         defaultPageSize={25}
       />
-    </details>
+    </ControlDisclosure>
   );
 }
 

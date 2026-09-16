@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ControlAsyncState, ControlErrorBoundary, ControlMetricStrip, ToastProvider } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlErrorBoundary, ControlMetricStrip, ToastProvider } from "control-surface-ui/react";
 import "./control-surface.css";
 import {
   BarChart3,
@@ -1123,9 +1123,8 @@ function AccountLifecycle() {
         </div>
       </Section>
 
-      <details className="analytics-records lifecycle-detail-disclosure">
-        <summary><div><GitBranch size={16} aria-hidden="true" /><span><strong>Execution history and evidence</strong><small>Award links, five-year totals, obligation burn, and source policy</small></span></div></summary>
-        <div className="grid lifecycle-detail-disclosure__body">
+      <ControlDisclosure className="lifecycle-detail-disclosure" icon={<GitBranch size={16} />} title="Execution history and evidence" summary="Award links, five-year totals, obligation burn, and source policy">
+        <div className="grid">
       <Section title="Award-to-Account Flow" meta={`${selectedAwardRows.length} highest-obligation sampled awards shown`} icon={GitBranch}>
         <div className="award-account-flow" data-award-account-flow>
           {selectedAwardRows.length ? selectedAwardRows.map((award) => (
@@ -1203,7 +1202,7 @@ function AccountLifecycle() {
         <p className="lifecycle-caveat">Award-to-account edges are exact. No budget-line or program-element-to-award link is asserted; that last-mile relationship remains unlinked until a public identifier or cited source supports it.</p>
       </Section>
         </div>
-      </details>
+      </ControlDisclosure>
     </div>
   );
 }
@@ -2338,10 +2337,8 @@ function Overview({ records }) {
           </div>
         </Section>
       </div>
-      <details className="analytics-records request-signal-details">
-        <summary><div><Filter size={16} aria-hidden="true" /><span><strong>Mission-signal classifications</strong><small>Keyword-derived categories from line titles</small></span></div></summary>
-        <div className="request-signal-details__body">
-          <div className="signal-grid">
+      <ControlDisclosure className="request-signal-details" icon={<Filter size={16} />} title="Mission-signal classifications" summary="Keyword-derived categories from line titles">
+        <div className="signal-grid">
             {bySignal.map((row) => (
               <article key={row.id}>
                 <strong>{row.label}</strong>
@@ -2349,9 +2346,8 @@ function Overview({ records }) {
                 <span>{money(row.fy2027)} · {pct(growth(row))}</span>
               </article>
             ))}
-          </div>
         </div>
-      </details>
+      </ControlDisclosure>
     </div>
   );
 }
@@ -2456,9 +2452,8 @@ function RequestTrends() {
         </Section>
       </div>
 
-      <details className="analytics-records trend-history-details">
-        <summary><div><TrendingUp size={16} aria-hidden="true" /><span><strong>Detailed request history</strong><small>Largest changes, color-of-money vintages, and mission-signal movement</small></span></div></summary>
-        <div className="grid trend-history-details__body">
+      <ControlDisclosure className="trend-history-details" icon={<TrendingUp size={16} />} title="Detailed request history" summary="Largest changes, color-of-money vintages, and mission-signal movement">
+        <div className="grid">
       <Section title="Largest Request Changes" meta="largest FY2026-FY2027 changes by keyword-derived mission signal" icon={TrendingUp}>
         <div className="momentum-grid" data-momentum-leaders>
           {(ANALYTICS.signalMomentum || []).slice(0, 6).map((row) => (
@@ -2526,7 +2521,7 @@ function RequestTrends() {
         </div>
       </Section>
         </div>
-      </details>
+      </ControlDisclosure>
     </div>
   );
 }
@@ -3189,14 +3184,13 @@ function Awards() {
         <AwardTable awards={visibleAwards} />
       </Section>
 
-      <details className="analytics-records award-rollup-details">
-        <summary><div><BarChart3 size={16} aria-hidden="true" /><span><strong>Market rollups</strong><small>Top buyers, vendors, and coded work types for the current filters</small></span></div></summary>
-        <div className="grid grid--sources award-rollup-details__body">
+      <ControlDisclosure className="award-rollup-details" icon={<BarChart3 size={16} />} title="Market rollups" summary="Top buyers, vendors, and coded work types for the current filters">
+        <div className="grid grid--sources">
           <AwardRollup title="Top Buyers" rows={topBuyer} />
           <AwardRollup title="Top Vendors" rows={topVendor} />
           <AwardRollup title="Top Work Types" rows={topWork} />
         </div>
-      </details>
+      </ControlDisclosure>
     </div>
   );
 }
