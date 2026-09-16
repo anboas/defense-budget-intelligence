@@ -1962,6 +1962,7 @@ function eventAiJobFromRow(row) {
     producerModel: row.producer_model,
     verifierModel: row.verifier_model,
     direction: row.direction || "",
+    inputSnapshot: parse(row.input_snapshot_json, {}),
     proposal: parse(row.proposal_json, {}),
     verification: parse(row.verification_json, {}),
     mergeResult: parse(row.merge_result_json, {}),
@@ -2085,7 +2086,7 @@ async function eventAiModelInventory(db, session, scope, credentialId, env) {
 
 async function failEventAiJob(db, row, error) {
   const now = new Date().toISOString();
-  await db.prepare("UPDATE dbi_event_ai_jobs SET status = 'failed', current_step = 'failed', error_code = ?, error_message = ?, updated_at = ?, completed_at = ? WHERE id = ?")
+  await db.prepare("UPDATE dbi_event_ai_jobs SET status = 'failed', error_code = ?, error_message = ?, updated_at = ?, completed_at = ? WHERE id = ?")
     .bind(cleanText(error?.code, 120) || "event_ai_failed", safeApiLogText(error?.message, 500) || "Event enrichment failed.", now, now, row.id).run();
   return db.prepare("SELECT * FROM dbi_event_ai_jobs WHERE id = ?").bind(row.id).first();
 }

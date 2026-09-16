@@ -13025,7 +13025,6 @@ td .dot {
 @media (max-width: 520px) {
   .masthead.if-product-header--masthead.if-product-header--compact {
     z-index: 230;
-    padding: 7px 12px;
   }
 
   .masthead .masthead__inner {

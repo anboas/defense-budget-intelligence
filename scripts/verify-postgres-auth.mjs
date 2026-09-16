@@ -131,6 +131,8 @@ const failedEventAiJobId = body.job.id;
 response = await request(`/api/v1/auth/event-ai/${failedEventAiJobId}`, { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.job.status, "failed");
+assert.equal(body.job.currentStep, "public_research");
+assert.equal(body.job.inputSnapshot.title, "PostgreSQL provider failure event");
 assert.equal(body.job.error.code, "rate_limit_exceeded");
 assert.equal(body.job.error.message, "Verification-only provider rate limit.");
 response = await request("/api/v1/auth/api-requests", { cookie: ownerCookie });

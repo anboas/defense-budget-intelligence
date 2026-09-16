@@ -502,6 +502,8 @@ async function verifyApiLifecycle(persistPath) {
     response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${failedEventAiJobId}`, { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.job.status, "failed", "A terminal provider failure must fail safely before verification");
+    assert.equal(body.job.currentStep, "public_research", "A stopped job must preserve the stage that failed");
+    assert.equal(body.job.inputSnapshot.title, "AI provider failure verification event", "A stopped job must retain its safe original draft for explicit no-change reporting");
     assert.equal(body.job.error.code, "rate_limit_exceeded", "The job must preserve the provider error code");
     assert.equal(body.job.error.message, "Verification-only provider rate limit.", "The job must preserve the safe provider error message");
     response = await apiRequest(baseUrl, "/api/v1/agent/api-requests?limit=500", { cookie: ownerCookie });

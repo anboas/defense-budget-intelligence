@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ProfileMenu from "./ProfileMenu.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
+import NotificationCenter from "./NotificationCenter.jsx";
 
 const PRIMARY_IDS = ["calendar", "wallboard"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
@@ -180,7 +181,10 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
             {openMenu === "mobile" ? <div ref={(node) => { menuRefs.current.mobile = node; }} id="budget-mobile-navigation-menu" className="if-operations-topnav__menu ci-header-nav__mobile-menu" data-mobile-more-menu role="menu" aria-label="All sections" onKeyDown={(event) => handleMenuKeyDown(event, "mobile")}>{groups.map((group) => <div key={group.id} className="ci-mobile-menu-group"><div className="if-operations-topnav__menu-label">{group.label}</div><div className="ci-mobile-menu-group__items">{group.items.map(richMenuItem)}</div></div>)}</div> : null}
           </div>
         </nav>
-        <ProfileMenu />
+        <div className="if-cluster if-cluster--nowrap if-utility-cluster if-product-header__account">
+          <NotificationCenter />
+          <ProfileMenu />
+        </div>
       </div>
     </header>
   );

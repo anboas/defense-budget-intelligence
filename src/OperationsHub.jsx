@@ -16,8 +16,8 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
+  CircleAlert,
   CircleCheck,
-  LoaderCircle,
   Star,
   Trash2,
   UsersRound,
@@ -36,7 +36,8 @@ import WorkspaceManagement from "./WorkspaceManagement.jsx";
 import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlMultiSelect } from "control-surface-ui/react";
+import { ControlDialog, ControlMultiSelect, ControlSparkline } from "control-surface-ui/react";
+import { useNotifications } from "./NotificationContext.jsx";
 
 const VIEWS = [
   ["watchlist", "Watchlist", Star],
@@ -181,10 +182,8 @@ function validEventLinkUrl(value) {
   }
 }
 
-function EventEditor({ event, records, categories, onSave, onClose }) {
-  const auth = useAuth();
-  const dialogRef = useRef(null);
-  const [draft, setDraft] = useState(() => event || {
+function newEventDraft() {
+  return {
     id: `event-${Date.now()}`,
     title: "",
     startsAt: "",
@@ -199,22 +198,148 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
     attendeeIds: [],
     milestones: [],
     wallboard: true,
-  });
+  };
+}
+
+function workingSpinner(size = "sm") {
+  return <span className={`if-loading-dots if-loading-dots--orbit${size ? ` if-loading-dots--${size}` : ""}`} aria-hidden="true"><span /><span /><span /></span>;
+}
+
+function stoppedEventAiStage(job) {
+  if (job?.currentStep === "independent_verification") return "verification";
+  if (job?.currentStep === "public_research") return "research";
+  return Object.keys(job?.proposal || {}).length ? "verification" : "research";
+}
+
+const EVENT_DIFF_FIELDS = [
+  ["title", "Title"],
+  ["startsAt", "Starts"],
+  ["endsAt", "Ends"],
+  ["location", "Location"],
+  ["notes", "Notes"],
+  ["links", "Links"],
+  ["milestones", "Milestones"],
+  ["categoryIds", "Categories"],
+];
+
+function eventDiffValue(field, value) {
+  if (field === "links") return value?.length ? value.map((item) => item.label || item.url).join(" · ") : "None";
+  if (field === "milestones") return value?.length ? value.map((item) => `${milestoneLabel(item)} · ${compactDate(item.occursAt)}`).join(" · ") : "None";
+  if (field === "categoryIds") return value?.length ? value.join(" · ") : "Uncategorized";
+  if (["startsAt", "endsAt"].includes(field)) return value ? dateTime(value) : "Not set";
+  return String(value || "Not set");
+}
+
+function eventAiDiffRows(job) {
+  const before = job?.inputSnapshot || {};
+  const after = job?.mergeResult?.mergedDraft || {};
+  if (!Object.keys(after).length) return [];
+  return EVENT_DIFF_FIELDS.map(([field, label]) => ({
+    field,
+    label,
+    before: eventDiffValue(field, before[field]),
+    after: eventDiffValue(field, after[field]),
+  })).filter((row) => row.before !== row.after);
+}
+
+function EventAiLauncher({ event, onClear }) {
+  const auth = useAuth();
+  const notifications = useNotifications();
+  const [draft, setDraft] = useState(() => event || newEventDraft());
+  const [capability, setCapability] = useState(null);
+  const [credential, setCredential] = useState("");
+  const [inventory, setInventory] = useState(null);
+  const [producerModel, setProducerModel] = useState("");
+  const [verifierModel, setVerifierModel] = useState("");
+  const [direction, setDirection] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!auth?.enabled || !auth?.user) return undefined;
+    let active = true;
+    void auth.getEventAiCapability().then((result) => {
+      if (!active) return;
+      const next = result.capability || null;
+      const personal = next?.personalKeys?.find((key) => key.isDefault) || next?.personalKeys?.[0];
+      const selected = personal ? `user:${personal.id}` : next?.workspaceDefault?.available ? "workspace" : "";
+      setCapability(next);
+      setCredential(selected);
+      setModelsBusy(Boolean(selected));
+    }).catch((requestError) => { if (active) setError(requestError.message); });
+    return () => { active = false; };
+  }, [auth]);
+  useEffect(() => {
+    if (!credential) return undefined;
+    let active = true;
+    const [credentialScope, credentialId = ""] = credential.split(":");
+    void auth.listEventAiModels({ credentialScope, credentialId }).then((result) => {
+      if (!active) return;
+      const next = result.inventory || null;
+      setInventory(next);
+      setProducerModel(next?.producerModel || "");
+      setVerifierModel(next?.verifierModel || "");
+      setError("");
+    }).catch((requestError) => {
+      if (!active) return;
+      setInventory(null);
+      setProducerModel("");
+      setVerifierModel("");
+      setError(requestError.message);
+    }).finally(() => { if (active) setModelsBusy(false); });
+    return () => { active = false; };
+  }, [auth, credential]);
+  const credentialOptions = [
+    ...(capability?.personalKeys || []).map((key) => [`user:${key.id}`, `${key.label}${key.isDefault ? " · default" : ""} · ••••${key.lastFour}`]),
+    ...(capability?.workspaceDefault?.available ? [["workspace", capability.workspaceDefault.lastFour ? `Workspace default · ••••${capability.workspaceDefault.lastFour}` : "Workspace default"]] : []),
+  ];
+  const modelOptions = (inventory?.models || []).map((model) => ({ value: model.id, label: model.id, description: `${model.ownedBy || "OpenAI"}${model.created ? ` · ${new Date(model.created * 1000).toLocaleDateString()}` : ""}` }));
+  async function launch() {
+    setError("");
+    if (draft.title.trim().length < 2) { setError("Enter an event name before starting AI research."); return; }
+    if (!credential || !producerModel || !verifierModel) { setError("Choose a configured credential and both available models."); return; }
+    setBusy(true);
+    try {
+      const [credentialScope, credentialId = ""] = credential.split(":");
+      const result = await auth.startEventAiJob({ draft, direction, credentialScope, credentialId, producerModel, verifierModel });
+      notifications?.registerJob(result.job);
+      setDraft(newEventDraft());
+      setDirection("");
+      onClear?.();
+    } catch (requestError) { setError(requestError.message); }
+    finally { setBusy(false); }
+  }
+  return <section className="if-analytics-panel" data-event-ai-launcher>
+    <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className="if-status if-status--info if-status--sm">Background workflow</span><h3 className="if-analytics-panel__title"><Sparkles size={18} aria-hidden="true" />AI event research</h3><p className="if-analytics-panel__summary">Give DBI an event name and optional direction. You can leave immediately; Notifications will bring you back only when review is needed.</p></div>{event ? <button type="button" className="if-btn if-btn--sm" onClick={onClear}>Clear selected event</button> : null}</header>
+    <div className="if-form-grid">
+      <label className="if-field if-field--full"><span className="if-field__label">Event name or research target</span><input className="if-input" value={draft.title} placeholder="Air, Space & Cyber Conference" onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
+      <label className="if-field if-field--full"><span className="if-field__label">Specific direction <small>(optional)</small></span><textarea className="if-input if-touch-target" value={direction} maxLength={2000} placeholder="Default: fill missing verified public details, links, categories, and published deadlines." onChange={(e) => setDirection(e.target.value)} /></label>
+      <div className="if-field"><span className="if-field__label">Credential</span>{credentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={credential} searchable options={credentialOptions} onChange={(value) => { setCredential(value); setInventory(null); setProducerModel(""); setVerifierModel(""); setModelsBusy(Boolean(value)); }} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
+      <div className="if-field"><span className="if-field__label">Research model</span><ControlSelect ariaLabel="Research model" value={producerModel} searchable options={modelOptions} onChange={setProducerModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
+      <div className="if-field"><span className="if-field__label">Verification model</span><ControlSelect ariaLabel="Verification model" value={verifierModel} searchable options={modelOptions} onChange={setVerifierModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
+      <div className="if-field if-field--full">
+        <span className="if-field__label">What happens after launch</span>
+        <ol className="if-stepper if-stepper--semantic if-stepper--unboxed if-stepper--compact" aria-label="Event AI workflow">
+          <li className="if-stepper__step is-active"><span className="if-stepper__item"><span className="if-stepper__dot">1</span><span className="if-stepper__label">Research</span><span className="if-stepper__meta">Public sources and citations</span></span></li>
+          <li className="if-stepper__step"><span className="if-stepper__item"><span className="if-stepper__dot">2</span><span className="if-stepper__label">Verify</span><span className="if-stepper__meta">Independent schema and evidence check</span></span></li>
+          <li className="if-stepper__step"><span className="if-stepper__item"><span className="if-stepper__dot">3</span><span className="if-stepper__label">Review</span><span className="if-stepper__meta">Notification tray holds the verified draft</span></span></li>
+        </ol>
+        <p className="if-field__hint">Verified changes, conflicts, rejected claims, sources, models, and the trace will appear in a dedicated review workspace. Nothing saves automatically.</p>
+      </div>
+      <div className="if-field--full if-cluster"><button type="button" className={`if-btn if-btn--ai if-touch-target${busy ? " is-loading" : ""}`} disabled={busy || modelsBusy || !capability?.available || !credential || !producerModel || !verifierModel} onClick={() => void launch()}>{busy ? <span className="if-btn__spinner" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{busy ? "Starting background research…" : "Start research and move on"}</button></div>
+      {inventory ? <p className="if-field__hint if-field--full">{inventory.capabilityNotice} {modelOptions.length} compatible text model{modelOptions.length === 1 ? "" : "s"} shown from this credential’s project.</p> : null}
+      {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
+    </div>
+  </section>;
+}
+
+function EventEditor({ event, review = false, records, categories, onSave, onClose }) {
+  const auth = useAuth();
+  const dialogRef = useRef(null);
+  const [draft, setDraft] = useState(() => event || newEventDraft());
   const [directory, setDirectory] = useState([]);
   const [directoryError, setDirectoryError] = useState("");
   const [error, setError] = useState("");
-  const [aiCapability, setAiCapability] = useState(null);
-  const [aiCredential, setAiCredential] = useState("");
-  const [aiModelInventory, setAiModelInventory] = useState(null);
-  const [aiProducerModel, setAiProducerModel] = useState("");
-  const [aiVerifierModel, setAiVerifierModel] = useState("");
-  const [aiModelsBusy, setAiModelsBusy] = useState(false);
-  const [aiDefaultsBusy, setAiDefaultsBusy] = useState(false);
-  const [aiModelNotice, setAiModelNotice] = useState("");
-  const [aiDirection, setAiDirection] = useState("");
-  const [aiJob, setAiJob] = useState(null);
-  const [aiError, setAiError] = useState("");
-  const appliedAiJob = useRef("");
   useEffect(() => {
     if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
     let active = true;
@@ -225,119 +350,7 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
     }).catch((requestError) => { if (active) setDirectoryError(requestError.message); });
     return () => { active = false; };
   }, [auth]);
-  useEffect(() => {
-    if (!aiCredential || !auth?.listEventAiModels) return undefined;
-    let active = true;
-    const [credentialScope, credentialId = ""] = aiCredential.split(":");
-    void auth.listEventAiModels({ credentialScope, credentialId }).then((result) => {
-      if (!active) return;
-      const inventory = result.inventory || null;
-      setAiModelInventory(inventory);
-      setAiProducerModel(inventory?.producerModel || "");
-      setAiVerifierModel(inventory?.verifierModel || "");
-      setAiError("");
-    }).catch((requestError) => {
-      if (!active) return;
-      setAiModelInventory(null);
-      setAiProducerModel("");
-      setAiVerifierModel("");
-      setAiError(requestError.message);
-    }).finally(() => { if (active) setAiModelsBusy(false); });
-    return () => { active = false; };
-  }, [aiCredential, auth]);
-  useEffect(() => {
-    if (!auth?.enabled || !auth?.user || !auth?.getEventAiCapability) return undefined;
-    let active = true;
-    void auth.getEventAiCapability().then((result) => {
-      if (!active) return;
-      const capability = result.capability || null;
-      setAiCapability(capability);
-      const personal = capability?.personalKeys?.find((key) => key.isDefault) || capability?.personalKeys?.[0];
-      const credential = personal ? `user:${personal.id}` : capability?.workspaceDefault?.available ? "workspace" : "";
-      setAiCredential(credential);
-      setAiModelsBusy(Boolean(credential));
-      setAiError("");
-    }).catch((requestError) => { if (active) setAiError(requestError.message); });
-    return () => { active = false; };
-  }, [auth]);
-  useEffect(() => {
-    if (!aiJob?.id || !["researching", "verifying"].includes(aiJob.status) || !auth?.getEventAiJob) return undefined;
-    let active = true;
-    const timer = window.setTimeout(() => {
-      void auth.getEventAiJob(aiJob.id).then((result) => { if (active) setAiJob(result.job); })
-        .catch((requestError) => { if (active) setAiError(requestError.message); });
-    }, 1800);
-    return () => { active = false; window.clearTimeout(timer); };
-  }, [aiJob, auth]);
-  useEffect(() => {
-    const merged = aiJob?.mergeResult?.mergedDraft;
-    if (!merged || appliedAiJob.current === aiJob.id) return;
-    appliedAiJob.current = aiJob.id;
-    setDraft((current) => {
-      const byUrl = new Map((current.links || []).map((link) => [link.url, link]));
-      for (const link of merged.links || []) if (!byUrl.has(link.url)) byUrl.set(link.url, link);
-      const byMilestone = new Map((current.milestones || []).map((milestone) => [`${milestone.type}|${milestone.occursAt}|${milestone.label || ""}`, milestone]));
-      for (const milestone of merged.milestones || []) {
-        const key = `${milestone.type}|${milestone.occursAt}|${milestone.label || ""}`;
-        if (!byMilestone.has(key)) byMilestone.set(key, milestone);
-      }
-      return {
-        ...current,
-        title: current.title || merged.title || "",
-        startsAt: current.startsAt || merged.startsAt || "",
-        endsAt: current.endsAt || merged.endsAt || "",
-        location: current.location || merged.location || "",
-        notes: current.notes || merged.notes || "",
-        links: [...byUrl.values()],
-        milestones: [...byMilestone.values()],
-        categoryIds: [...new Set([...(current.categoryIds || []), ...(merged.categoryIds || [])])],
-      };
-    });
-  }, [aiJob]);
   const linked = new Set(draft.recordIds || []);
-  const aiCredentialOptions = [
-    ...(aiCapability?.personalKeys || []).map((key) => [`user:${key.id}`, `${key.label}${key.isDefault ? " · default" : ""} · ••••${key.lastFour}`]),
-    ...(aiCapability?.workspaceDefault?.available ? [["workspace", aiCapability.workspaceDefault.lastFour ? `Workspace default · ••••${aiCapability.workspaceDefault.lastFour}` : "Workspace default"]] : []),
-  ];
-  function selectAiCredential(value) {
-    setAiCredential(value);
-    setAiModelInventory(null);
-    setAiProducerModel("");
-    setAiVerifierModel("");
-    setAiModelNotice("");
-    setAiModelsBusy(Boolean(value));
-  }
-  const aiModelOptions = (aiModelInventory?.models || []).map((model) => ({
-    value: model.id,
-    label: model.id,
-    description: `${model.ownedBy || "OpenAI"}${model.created ? ` · ${new Date(model.created * 1000).toLocaleDateString()}` : ""}`,
-  }));
-  async function startAiEnrichment() {
-    setAiError("");
-    if (draft.title.trim().length < 2) {
-      setAiError("Enter an event name before starting AI research.");
-      return;
-    }
-    if (!aiCredential) {
-      setAiError("Choose a configured personal or workspace OpenAI key.");
-      return;
-    }
-    try {
-      const [credentialScope, credentialId = ""] = aiCredential.split(":");
-      const result = await auth.startEventAiJob({ draft, direction: aiDirection, credentialScope, credentialId, producerModel: aiProducerModel, verifierModel: aiVerifierModel });
-      setAiJob(result.job);
-    } catch (requestError) { setAiError(requestError.message); }
-  }
-  async function saveWorkspaceModelDefaults() {
-    setAiError("");
-    setAiModelNotice("");
-    setAiDefaultsBusy(true);
-    try {
-      await auth.saveEventAiModelDefaults({ producerModel: aiProducerModel, verifierModel: aiVerifierModel });
-      setAiModelNotice("Workspace AI model defaults saved.");
-    } catch (requestError) { setAiError(requestError.message); }
-    finally { setAiDefaultsBusy(false); }
-  }
   function submit(formEvent) {
     formEvent.preventDefault();
     if (!draft.title.trim() || !draft.startsAt) {
@@ -362,9 +375,10 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
   return <ControlDialog
     open
     onClose={onClose}
-    title={event ? "Edit event" : "Add event"}
-    eyebrow="Workspace schedule"
-    size="wide"
+    title={review ? "Review AI-assisted event" : event ? "Edit event" : "Add event"}
+    eyebrow={review ? "Verified draft · unsaved" : "Workspace schedule"}
+    summary={review ? "Compare the verified proposal above, inspect every field here, then save only if it is correct." : undefined}
+    size="detail"
     dialogRef={dialogRef}
     closeLabel="Close event editor"
     surfaceProps={{ "data-ops-event-editor": true }}
@@ -373,29 +387,6 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
       <form id="ops-event-editor-form" className="ops-event-form" onSubmit={submit}>
           {error ? <p role="alert" className="ops-alert">{error}</p> : null}
           <label className="ops-field ops-field--wide"><span>Title</span><input autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
-          {auth?.enabled && auth?.user ? <section className="if-card if-form-grid if-field--full" data-event-ai-assistant>
-            <header className="if-field--full"><span className="if-field__label">AI-assisted event research</span><h3>Research, verify, then merge</h3><p className="if-field__hint">A research worker proposes cited public details. A separate verifier checks identity, evidence, dates, and merge safety before verified additions enter this draft.</p></header>
-            <div className="if-field"><span className="if-field__label">Credential</span>{aiCredentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={aiCredential} searchable options={aiCredentialOptions} onChange={selectAiCredential} portalTarget={dialogRef} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
-            <label className="if-field"><span className="if-field__label">Direction <small>(optional)</small></span><textarea className="if-input" value={aiDirection} maxLength={2000} placeholder="Default: fill missing verified public details and published deadlines." onChange={(e) => setAiDirection(e.target.value)} /></label>
-            <div className="if-field" data-event-ai-model-picker="research"><span className="if-field__label">Research model</span><ControlSelect ariaLabel="Research model" value={aiProducerModel} searchable options={aiModelOptions} onChange={setAiProducerModel} disabled={aiModelsBusy || !aiModelOptions.length} placeholder={aiModelsBusy ? "Loading available models…" : "Choose a model"} portalTarget={dialogRef} /></div>
-            <div className="if-field" data-event-ai-model-picker="verification"><span className="if-field__label">Verification model</span><ControlSelect ariaLabel="Verification model" value={aiVerifierModel} searchable options={aiModelOptions} onChange={setAiVerifierModel} disabled={aiModelsBusy || !aiModelOptions.length} placeholder={aiModelsBusy ? "Loading available models…" : "Choose a model"} portalTarget={dialogRef} /></div>
-            <p className="if-field__hint if-field--full">{aiModelInventory?.capabilityNotice || "Model availability is loaded from the selected OpenAI credential and project."}{aiModelInventory ? ` ${aiModelOptions.length} compatible text model${aiModelOptions.length === 1 ? "" : "s"} from ${aiModelInventory.inventoryCount} available model${aiModelInventory.inventoryCount === 1 ? "" : "s"}.` : ""}</p>
-            <div className="if-field--full if-cluster">
-              <button type="button" className="if-btn if-btn--ai" disabled={!aiCapability?.available || !aiCredential || !aiProducerModel || !aiVerifierModel || aiModelsBusy || ["researching", "verifying"].includes(aiJob?.status)} onClick={() => void startAiEnrichment()}>{["researching", "verifying"].includes(aiJob?.status) ? <LoaderCircle size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{aiJob?.status === "researching" ? "Researching public sources…" : aiJob?.status === "verifying" ? "Independently verifying…" : "Research and augment"}</button>
-              {aiCredential === "workspace" && aiCapability?.canManageWorkspaceDefaults ? <button type="button" className="if-btn if-btn--secondary" disabled={!aiProducerModel || !aiVerifierModel || aiModelsBusy || aiDefaultsBusy} onClick={() => void saveWorkspaceModelDefaults()}>{aiDefaultsBusy ? <LoaderCircle size={16} aria-hidden="true" /> : null}Save as workspace defaults</button> : null}
-            </div>
-            {aiModelNotice ? <p className="if-field__hint if-field--full" role="status">{aiModelNotice}</p> : null}
-            {aiJob ? <div className="if-card if-field--full" role="status" data-event-ai-job={aiJob.status}>
-              <strong>{aiJob.status === "completed" ? "Verified additions merged into this draft" : aiJob.status === "needs_review" ? "Verification needs operator review" : aiJob.status === "failed" ? "AI workflow stopped safely" : aiJob.currentStep === "independent_verification" ? "Independent verification in progress" : "Public-source research in progress"}</strong>
-              <p className="if-field__hint">Research: {aiJob.producerModel} · Verification: {aiJob.verifierModel} · Trace {aiJob.traceId}</p>
-              {aiJob.mergeResult?.changes?.length ? <p><CircleCheck size={15} aria-hidden="true" /> Added: {aiJob.mergeResult.changes.join(", ")}.</p> : null}
-              {aiJob.mergeResult?.conflicts?.length ? <p>Preserved {aiJob.mergeResult.conflicts.length} operator-entered value{aiJob.mergeResult.conflicts.length === 1 ? "" : "s"} that differed from the verified proposal.</p> : null}
-              {aiJob.verification?.rejectedClaims?.length ? <p>{aiJob.verification.rejectedClaims.length} unsupported claim{aiJob.verification.rejectedClaims.length === 1 ? " was" : "s were"} excluded.</p> : null}
-              {aiJob.proposal?.sources?.length ? <p>{aiJob.proposal.sources.slice(0, 4).map((source, index) => <span key={source.url}>{index ? " · " : ""}<a href={source.url} target="_blank" rel="noreferrer">{source.publisher || source.title || `Source ${index + 1}`}</a></span>)}</p> : null}
-              {aiJob.error ? <p role="alert">{aiJob.error.message}</p> : null}
-            </div> : null}
-            {aiError ? <p className="ops-alert if-field--full" role="alert">{aiError}</p> : null}
-          </section> : null}
           <label className="ops-field"><span>Starts</span><input type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Location</span><input value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
@@ -515,7 +506,70 @@ function eventCategoryLabels(event, categories) {
   return (event.categoryIds || []).map((id) => byId.get(id)).filter(Boolean);
 }
 
+function EventAiReview({ jobId, onOpenDraft }) {
+  const auth = useAuth();
+  const notifications = useNotifications();
+  const [fetchedJob, setFetchedJob] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    void auth.getEventAiJob(jobId).then((result) => { if (active) setFetchedJob(result.job); }).catch((requestError) => { if (active) setError(requestError.message); });
+    return () => { active = false; };
+  }, [auth, jobId]);
+  const job = notifications?.jobs?.find((item) => item.id === jobId) || fetchedJob;
+  useEffect(() => {
+    if (!job || !["completed", "needs_review", "failed"].includes(job.status)) return;
+    notifications?.markRead(`event-ai:${job.id}`, job.status);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.id, job?.status]);
+  const active = ["researching", "verifying"].includes(job?.status);
+  const failedStage = job?.status === "failed" ? stoppedEventAiStage(job) : "";
+  const diffRows = eventAiDiffRows(job);
+  const statusLabel = job?.status === "completed" ? "Verified draft ready" : job?.status === "needs_review" ? "Operator validation required" : job?.status === "failed" ? "AI workflow stopped safely" : job?.currentStep === "independent_verification" ? "Independent verification" : "Public-source research";
+  const researchStepClass = job?.status === "failed" && failedStage === "research" ? "is-blocked" : job?.status === "researching" ? "is-active" : job ? "is-complete" : "is-active";
+  const verificationStepClass = job?.status === "failed" && failedStage === "verification" ? "is-blocked" : job?.status === "verifying" ? "is-active" : ["completed", "needs_review"].includes(job?.status) ? "is-complete" : "";
+  const reviewStepClass = ["completed", "needs_review"].includes(job?.status) ? "is-active" : "";
+  return <section className="if-operations-workspace" data-event-ai-review={job?.status || "loading"}>
+    <section className="if-analytics-panel">
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={`if-status if-status--sm ${job?.status === "failed" ? "if-status--danger" : job?.status === "needs_review" ? "if-status--warning" : job?.status === "completed" ? "if-status--success" : "if-status--info"}`}>{statusLabel}</span><h2 className="if-analytics-panel__title">{job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"}</h2><p className="if-analytics-panel__summary">Research: {job?.producerModel || "Loading"} · Verification: {job?.verifierModel || "Loading"}{job?.traceId ? ` · Trace ${job.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/events">Back to events</a></header>
+      <ol className="if-stepper if-stepper--semantic if-stepper--unboxed" aria-label="Event AI workflow status">
+        <li className={`if-stepper__step ${researchStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">1</span><span className="if-stepper__label">Research</span><span className="if-stepper__meta">{failedStage === "research" ? "Stopped by evidence gate" : "Cited public details"}</span></span></li>
+        <li className={`if-stepper__step ${verificationStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">2</span><span className="if-stepper__label">Verify</span><span className="if-stepper__meta">{failedStage === "research" ? "Not started" : failedStage === "verification" ? "Stopped during verification" : "Independent schema and evidence check"}</span></span></li>
+        <li className={`if-stepper__step ${reviewStepClass}`}><span className="if-stepper__item"><span className="if-stepper__dot">3</span><span className="if-stepper__label">Review</span><span className="if-stepper__meta">{job?.status === "failed" ? "No draft produced" : "Human decision before save"}</span></span></li>
+      </ol>
+    </section>
+    {error ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Review unavailable</strong><p>{error}</p></div></div> : null}
+    {active || !job ? <section className="if-analytics-panel" aria-busy="true" data-event-ai-review-placeholder>
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">{workingSpinner()}Verified changes will appear here</h3><p className="if-analytics-panel__summary">This workspace will fill with proposed additions, preserved conflicts, rejected claims, and cited sources after both stages finish. You can leave this page; the notification remains available.</p></div></header>
+      <div className="if-adapter-state if-adapter-state--loading"><span className="if-adapter-state__icon">{workingSpinner("")}</span><div><strong>{statusLabel}</strong><p>No operator action is required yet.</p></div></div>
+    </section> : null}
+    {job?.status === "failed" ? <>
+      <div className="if-management-grid" aria-label="Stopped AI workflow outcome" data-event-ai-stopped-outcome>
+        <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Research</span><strong className="if-management-card__value">{failedStage === "research" ? "Rejected" : "Completed"}</strong><small className="if-management-card__meta">{failedStage === "research" ? "Provider output failed the citation gate" : "Cited proposal reached verification"}</small></article>
+        <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Verification</span><strong className="if-management-card__value">{failedStage === "research" ? "Not started" : "Stopped"}</strong><small className="if-management-card__meta">No independently verified result</small></article>
+        <article className="if-management-card if-tone-success"><span className="if-management-card__label">Event record</span><strong className="if-management-card__value">Unchanged</strong><small className="if-management-card__meta">Nothing merged · nothing saved</small></article>
+      </div>
+      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Why it stopped</h3><p className="if-analytics-panel__summary">{failedStage === "research" ? "The research model returned output, but DBI rejected it before independent verification because the evidence contract was not met." : "Research completed, but independent verification did not produce an eligible draft."}</p></div></header><div className="if-alert if-alert--danger"><CircleAlert size={17} aria-hidden="true" /><div><strong>{job.error?.code || "provider_failed"}</strong><p>{job.error?.message || "The provider stopped before returning a verified result."}</p></div></div></section>
+    </> : null}
+    {["completed", "needs_review"].includes(job?.status) ? <>
+      <div className="if-management-grid" aria-label="AI review summary">
+        <article className="if-management-card if-tone-success"><span className="if-management-card__label">Verified additions</span><strong className="if-management-card__value">{job.mergeResult?.changes?.length || 0}</strong><small className="if-management-card__meta">Eligible for the draft</small></article>
+        <article className="if-management-card if-tone-warning"><span className="if-management-card__label">Preserved conflicts</span><strong className="if-management-card__value">{job.mergeResult?.conflicts?.length || 0}</strong><small className="if-management-card__meta">Operator values kept</small></article>
+        <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Rejected claims</span><strong className="if-management-card__value">{job.verification?.rejectedClaims?.length || 0}</strong><small className="if-management-card__meta">Excluded before merge</small></article>
+        <article className="if-management-card if-tone-info"><span className="if-management-card__label">Cited sources</span><strong className="if-management-card__value">{job.proposal?.sources?.length || 0}</strong><small className="if-management-card__meta">Provider annotations retained</small></article>
+      </div>
+      <section className="if-analytics-panel" data-event-ai-diff-preview><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Before / verified draft</h3><p className="if-analytics-panel__summary">Only changed fields are shown. This preview is still unsaved.</p></div><span className="if-badge if-badge--info">{diffRows.length} change{diffRows.length === 1 ? "" : "s"}</span></header>{diffRows.length ? <div className="if-chart-grid" aria-label="Event draft difference preview"><section className="if-detail-card if-detail-card--neutral"><header className="if-detail-card__header"><h4 className="if-detail-card__title">Before</h4></header><div className="if-diff">{diffRows.map((row, index) => <div className="if-diff-line if-diff-line--removed" key={`before-${row.field}`}><span>{index + 1}</span><span><span className="if-badge">{row.label}</span> {row.before}</span></div>)}</div></section><section className="if-detail-card if-detail-card--success"><header className="if-detail-card__header"><h4 className="if-detail-card__title">Verified draft</h4></header><div className="if-diff">{diffRows.map((row, index) => <div className="if-diff-line if-diff-line--added" key={`after-${row.field}`}><span>{index + 1}</span><span><span className="if-badge">{row.label}</span> {row.after}</span></div>)}</div></section></div> : <div className="if-empty-state"><CircleCheck size={20} /><strong>No field differences</strong><p>The verifier did not produce a safe change to the original draft.</p></div>}</section>
+      <div className="if-chart-grid">
+        <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Verified draft changes</h3><p className="if-analytics-panel__summary">These changes remain unsaved until you open and save the draft.</p></div></header>{job.mergeResult?.changes?.length ? <ul className="if-notification-contract-list">{job.mergeResult.changes.map((change) => <li key={change}><CircleCheck size={15} aria-hidden="true" /><span>{change}</span></li>)}</ul> : <div className="if-empty-state"><CircleCheck size={20} /><strong>No safe additions</strong><p>The verifier did not find any cited missing fields to add.</p></div>}{job.mergeResult?.conflicts?.length ? <details className="if-detail-card if-detail-card--warning"><summary>Preserved operator values ({job.mergeResult.conflicts.length})</summary><ul>{job.mergeResult.conflicts.map((conflict, index) => <li key={`${conflict.field || "field"}-${index}`}>{conflict.field || String(conflict)}</li>)}</ul></details> : null}</section>
+        <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Evidence &amp; exclusions</h3><p className="if-analytics-panel__summary">Open cited sources or inspect claims excluded by verification.</p></div></header><div className="if-action-row-list">{(job.proposal?.sources || []).map((source, index) => <a key={source.url} className="if-action-row" href={source.url} target="_blank" rel="noreferrer"><span className="if-icon-slot"><Link2 size={15} /></span><span><strong>{source.publisher || source.title || `Source ${index + 1}`}</strong><em>{source.url}</em></span><span className="if-badge if-badge--info">Source</span></a>)}</div>{job.verification?.rejectedClaims?.length ? <details className="if-detail-card if-detail-card--neutral"><summary>Rejected claims ({job.verification.rejectedClaims.length})</summary><ul>{job.verification.rejectedClaims.map((claim, index) => <li key={index}>{typeof claim === "string" ? claim : claim.reason || claim.claim || "Unsupported claim"}</li>)}</ul></details> : null}</section>
+      </div>
+      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Operator decision</h3><p className="if-analytics-panel__summary">Opening the draft does not save it. Review every field, then use the normal Save event action.</p></div>{job.mergeResult?.mergedDraft ? <button type="button" className="if-btn if-btn--ai" onClick={() => onOpenDraft(job.mergeResult.mergedDraft)}><Sparkles size={16} aria-hidden="true" />Open verified draft</button> : null}</header></section>
+    </> : null}
+  </section>;
+}
+
 function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories }) {
+  const [researchEvent, setResearchEvent] = useState(null);
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
     { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, ...(event.links || []).flatMap((link) => [link.label, link.url]), ...eventCategoryLabels(event, categories), ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
@@ -527,10 +581,10 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "links", label: "Links", minWidth: 100, sortValue: (event) => event.links?.length || 0, value: (event) => `${event.links?.length || 0}`, render: (event) => <strong>{event.links?.length || 0}</strong> },
     { key: "milestones", label: "Milestones", minWidth: 120, sortValue: (event) => event.milestones?.length || 0, value: (event) => `${event.milestones?.length || 0}`, render: (event) => <strong>{event.milestones?.length || 0}</strong> },
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
-    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
   const actions = <>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>;
-  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
+  return <section className="ops-panel" data-ops-events><header className="ops-panel__header"><div><span>Operator schedule</span><h2>Events</h2></div></header><EventAiLauncher key={researchEvent?.id || "new-event-ai"} event={researchEvent} onClear={() => setResearchEvent(null)} />{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <div className="ops-empty"><CalendarDays size={22} /><strong>No operator events</strong><p>Add meetings, checkpoints, or reviews and optionally publish them to the wallboard.</p>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></div>}</section>;
 }
 
 function IntegrationsView({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt }) {
@@ -575,6 +629,25 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
   ];
   const summary = apiRequestSummary || { retained: apiRequests.length, requests: apiRequests.filter((entry) => entry.requestKind !== "credential_lifecycle").length, successRate: null, averageLatencyMs: 0, p95LatencyMs: 0, inputTokens: 0, outputTokens: 0 };
   const callEntries = apiRequests.filter((entry) => entry.requestKind !== "credential_lifecycle");
+  const trend = (() => {
+    const ordered = callEntries.map((entry) => ({ ...entry, timestamp: Date.parse(entry.at || "") })).filter((entry) => Number.isFinite(entry.timestamp)).sort((left, right) => left.timestamp - right.timestamp);
+    if (ordered.length < 2) return null;
+    const bucketCount = Math.min(8, Math.max(2, Math.ceil(Math.sqrt(ordered.length))));
+    const start = ordered[0].timestamp;
+    const end = Math.max(ordered.at(-1).timestamp, start + 1);
+    const span = end - start;
+    const buckets = Array.from({ length: bucketCount }, (_, index) => ({ index, entries: [] }));
+    ordered.forEach((entry) => buckets[Math.min(bucketCount - 1, Math.floor(((entry.timestamp - start) / span) * bucketCount))].entries.push(entry));
+    const dateOptions = span > 2 * 86400000 ? { month: "short", day: "numeric" } : { hour: "numeric", minute: "2-digit" };
+    const labels = buckets.map((bucket) => new Date(start + (bucket.index / Math.max(1, bucketCount - 1)) * span).toLocaleString([], dateOptions));
+    return {
+      labels,
+      requests: buckets.map((bucket) => bucket.entries.length),
+      success: buckets.map((bucket) => bucket.entries.length ? Math.round((bucket.entries.filter((entry) => entry.status === "succeeded").length / bucket.entries.length) * 100) : 0),
+      latency: buckets.map((bucket) => { const measured = bucket.entries.map((entry) => Number(entry.latencyMs || 0)).filter(Boolean); return measured.length ? Math.round(measured.reduce((total, value) => total + value, 0) / measured.length) : 0; }),
+      tokens: buckets.map((bucket) => bucket.entries.reduce((total, entry) => total + Number(entry.inputTokens || 0) + Number(entry.outputTokens || 0), 0)),
+    };
+  })();
   const outcomeRows = ["succeeded", "rejected", "failed", "rate_limited"].map((status) => ({
     id: status,
     label: status === "rate_limited" ? "Rate limited" : status[0].toUpperCase() + status.slice(1),
@@ -593,10 +666,10 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
   return <section className="ops-panel if-operations-workspace" data-ops-activity>
     <header className="ops-panel__header"><div><span>Redacted workspace observability</span><h2>API & activity log</h2><p>Request metadata and append-only changes are retained without secrets, authorization headers, prompts, or response bodies.</p></div><small>90-day API retention</small></header>
     <div className="if-management-grid" aria-label="API request summary" data-api-request-summary>
-      <article className="if-management-card if-tone-info"><span className="if-management-card__label">Requests</span><strong className="if-management-card__value">{Number(summary.requests || 0).toLocaleString()}</strong><small className="if-management-card__meta">{Number(summary.retained || 0).toLocaleString()} retained entries</small></article>
-      <article className={`if-management-card ${summary.successRate === null || summary.successRate >= 99 ? "if-tone-success" : summary.successRate >= 95 ? "if-tone-warning" : "if-tone-danger"}`}><span className="if-management-card__label">Success rate</span><strong className="if-management-card__value">{summary.successRate === null ? "No calls" : `${summary.successRate}%`}</strong><small className="if-management-card__meta">Current retained window</small></article>
-      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Average latency</span><strong className="if-management-card__value">{Number(summary.averageLatencyMs || 0).toLocaleString()} ms</strong><small className="if-management-card__meta">P95 {Number(summary.p95LatencyMs || 0).toLocaleString()} ms</small></article>
-      <article className="if-management-card if-tone-purple"><span className="if-management-card__label">Token usage</span><strong className="if-management-card__value">{(Number(summary.inputTokens || 0) + Number(summary.outputTokens || 0)).toLocaleString()}</strong><small className="if-management-card__meta">{Number(summary.inputTokens || 0).toLocaleString()} in · {Number(summary.outputTokens || 0).toLocaleString()} out</small></article>
+      <article className="if-management-card if-tone-info"><span className="if-management-card__label">Requests</span><strong className="if-management-card__value">{Number(summary.requests || 0).toLocaleString()}</strong>{trend ? <ControlSparkline values={trend.requests} labels={trend.labels} label="Requests over the retained window" formatValue={(value) => `${value} requests`} /> : null}<small className="if-management-card__meta">{Number(summary.retained || 0).toLocaleString()} retained entries</small></article>
+      <article className={`if-management-card ${summary.successRate === null || summary.successRate >= 99 ? "if-tone-success" : summary.successRate >= 95 ? "if-tone-warning" : "if-tone-danger"}`}><span className="if-management-card__label">Success rate</span><strong className="if-management-card__value">{summary.successRate === null ? "No calls" : `${summary.successRate}%`}</strong>{trend ? <ControlSparkline values={trend.success} labels={trend.labels} label="Success rate over the retained window" formatValue={(value) => `${value}%`} /> : null}<small className="if-management-card__meta">Current retained window</small></article>
+      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Average latency</span><strong className="if-management-card__value">{Number(summary.averageLatencyMs || 0).toLocaleString()} ms</strong>{trend ? <ControlSparkline values={trend.latency} labels={trend.labels} label="Average latency over the retained window" formatValue={(value) => `${value} ms`} /> : null}<small className="if-management-card__meta">P95 {Number(summary.p95LatencyMs || 0).toLocaleString()} ms</small></article>
+      <article className="if-management-card if-tone-purple"><span className="if-management-card__label">Token usage</span><strong className="if-management-card__value">{(Number(summary.inputTokens || 0) + Number(summary.outputTokens || 0)).toLocaleString()}</strong>{trend ? <ControlSparkline values={trend.tokens} labels={trend.labels} label="Token usage over the retained window" formatValue={(value) => `${value} tokens`} /> : null}<small className="if-management-card__meta">{Number(summary.inputTokens || 0).toLocaleString()} in · {Number(summary.outputTokens || 0).toLocaleString()} out</small></article>
     </div>
     {callEntries.length ? <div className="if-chart-grid" aria-label="API request charts" data-api-observability-charts>
       <article className="if-chart-card">
@@ -902,7 +975,13 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const view = VIEWS.some(([id]) => id === requestedView) ? requestedView : "watchlist";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
+  const [aiReviewId, setAiReviewId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("aiJob") || "");
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  useEffect(() => {
+    const sync = () => setAiReviewId(new URLSearchParams(window.location.hash.split("?")[1] || "").get("aiJob") || "");
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
   const reviewHorizon = useMemo(() => {
     const horizon = new Date(`${dataset.metadata.asOf}T00:00:00Z`);
@@ -938,7 +1017,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     </section> : null}
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
-    {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
+    {view === "events" ? aiReviewId ? <EventAiReview jobId={aiReviewId} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "integrations" ? <IntegrationsView auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} /> : null}
     {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} remote={state.remote} /> : null}
     {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel ops-empty" data-users-unavailable><UsersRound size={22} /><strong>Administrator access required</strong><p>Your role cannot manage human accounts.</p></section> : null}
@@ -946,7 +1025,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel ops-empty" data-workspaces-unavailable><Building2 size={22} /><strong>Workspace manager access required</strong><p>Your role cannot configure this workspace.</p></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel ops-empty" data-profile-agents-unavailable><Bot size={22} /><strong>Administrator access required</strong><p>Your role cannot issue or revoke agent credentials.</p></section> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
-    {editor ? <EventEditor event={editor.mode === "edit" ? editor.event : null} records={watchedRecords} categories={state.eventCategories} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
     {view !== "wallboard" ? <section className="operations-boundary"><Database size={17} /><p><strong>State boundary:</strong> {state.remote ? "stars, notes, review dates, events, and activity are stored in the authenticated D1 workspace and shared with scoped agents." : "this static fallback stores stars, notes, review dates, events, and activity only in this browser."} Operator state never changes source-backed evidence, public JSON, evidence exports, or shareable record URLs.</p></section> : null}
   </div>;

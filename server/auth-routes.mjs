@@ -305,6 +305,7 @@ function eventAiJob(row) {
     producerModel: row.producer_model,
     verifierModel: row.verifier_model,
     direction: row.direction || "",
+    inputSnapshot: row.input_snapshot_json || {},
     proposal: row.proposal_json || {},
     verification: row.verification_json || {},
     mergeResult: row.merge_result_json || {},
@@ -395,7 +396,7 @@ async function eventAiModelInventory(pool, user, scope, credentialId = "") {
 }
 
 async function failEventAiJob(pool, row, error) {
-  const result = await pool.query(`UPDATE app_event_ai_jobs SET status = 'failed', current_step = 'failed', error_code = $1,
+  const result = await pool.query(`UPDATE app_event_ai_jobs SET status = 'failed', error_code = $1,
     error_message = $2, updated_at = NOW(), completed_at = NOW() WHERE id = $3 RETURNING *`, [
     cleanText(error?.code || "event_ai_failed", 120), cleanText(error?.message || "Event enrichment failed.", 500), row.id,
   ]);

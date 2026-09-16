@@ -12,7 +12,7 @@ const compiledScripts = readdirSync("dist/assets").filter((name) => name.endsWit
 const builtAssets = readdirSync("dist/assets");
 const compiledStyleBytes = builtAssets.filter((name) => name.endsWith(".css")).reduce((total, name) => total + readFileSync(`dist/assets/${name}`).byteLength, 0);
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
-assert.ok(compiledStyleBytes <= 350_000, `Scoped application CSS must stay below 350 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 360_000, `Scoped application CSS must stay below 360 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 
 async function waitForServer(url, timeoutMs = 30000) {

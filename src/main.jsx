@@ -32,6 +32,7 @@ import sourceHealth from "./data/source-health.json";
 import refreshDelta from "./data/refresh-delta.json";
 import CaptureCalendar from "./CaptureCalendar.jsx";
 import AuthProvider from "./AuthContext.jsx";
+import NotificationProvider from "./NotificationContext.jsx";
 import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
 import ProfilePage from "./ProfilePage.jsx";
@@ -4798,4 +4799,4 @@ function RuntimeApp() {
   return <App />;
 }
 
-createRoot(document.getElementById("root")).render(<ToastProvider placement="masthead"><AuthProvider><RuntimeApp /></AuthProvider></ToastProvider>);
+createRoot(document.getElementById("root")).render(<ToastProvider placement="masthead"><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ToastProvider>);
