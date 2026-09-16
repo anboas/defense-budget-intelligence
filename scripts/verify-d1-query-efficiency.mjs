@@ -16,6 +16,7 @@ function sourceBetween(start, end) {
 assert.match(source, /idx_dbi_api_request_log_trace_kind_time[^\n]+trace_id, request_kind, completed_at DESC/, "Event AI diagnostics need a trace/kind/time index");
 assert.match(source, /idx_dbi_api_request_log_completed[^\n]+completed_at/, "API-log retention needs a cutoff index");
 assert.match(source, /idx_dbi_event_ai_jobs_completed[^\n]+completed_at/, "Event-job retention needs a cutoff index");
+assert.match(source, /idx_dbi_event_ai_jobs_workspace_user_time[^\n]+workspace_id, user_id, created_at DESC/, "Task Center needs an exact workspace/user/time index");
 assert.match(source, /idx_dbi_login_attempts_time[^\n]+attempted_at/, "Login-attempt retention needs a cutoff index");
 assert.match(source, /WITH recent_jobs AS[\s\S]+LIMIT 20[\s\S]+idx_dbi_api_request_log_trace_kind_time|WITH recent_jobs AS/, "Task Center must bound jobs before diagnostic lookup");
 assert.doesNotMatch(sourceBetween("async function recordApiRequest", "function cleanDate"), /DELETE FROM dbi_api_request_log/, "API-log retention must not scan after every insert");
@@ -64,6 +65,8 @@ try {
     );
     CREATE INDEX idx_dbi_event_ai_jobs_workspace
       ON dbi_event_ai_jobs (workspace_id, created_at DESC);
+    CREATE INDEX idx_dbi_event_ai_jobs_workspace_user_time
+      ON dbi_event_ai_jobs (workspace_id, user_id, created_at DESC);
     CREATE INDEX idx_dbi_event_ai_jobs_completed
       ON dbi_event_ai_jobs (completed_at);
     CREATE TABLE dbi_login_attempts (
@@ -89,6 +92,7 @@ try {
     ORDER BY j.created_at DESC
   `);
   assert.ok(taskPlan.some((detail) => detail.includes("idx_dbi_api_request_log_trace_kind_time")), `Task diagnostic plan must use the trace index: ${taskPlan.join(" | ")}`);
+  assert.ok(taskPlan.some((detail) => detail.includes("idx_dbi_event_ai_jobs_workspace_user_time")), `Task seed plan must use the workspace/user/time index: ${taskPlan.join(" | ")}`);
   assert.ok(taskPlan.every((detail) => !/SCAN candidate\b/.test(detail)), `Task diagnostic plan must not scan the request log: ${taskPlan.join(" | ")}`);
 
   for (const [table, column, index] of [

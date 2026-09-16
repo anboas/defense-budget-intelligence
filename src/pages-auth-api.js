@@ -424,6 +424,7 @@ const SCHEMA = Object.freeze([
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_workspace ON dbi_event_ai_jobs (workspace_id, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_user ON dbi_event_ai_jobs (user_id, created_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_workspace_user_time ON dbi_event_ai_jobs (workspace_id, user_id, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_completed ON dbi_event_ai_jobs (completed_at)",
   `CREATE TABLE IF NOT EXISTS dbi_maintenance_state (
     task TEXT PRIMARY KEY,
