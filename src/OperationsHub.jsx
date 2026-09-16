@@ -15,6 +15,9 @@ import {
   MonitorUp,
   Plus,
   ShieldCheck,
+  Sparkles,
+  CircleCheck,
+  LoaderCircle,
   Star,
   Trash2,
   UsersRound,
@@ -184,7 +187,7 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
   const [draft, setDraft] = useState(() => event || {
     id: `event-${Date.now()}`,
     title: "",
-    startsAt: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
+    startsAt: "",
     endsAt: "",
     location: "",
     links: [],
@@ -200,6 +203,12 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
   const [directory, setDirectory] = useState([]);
   const [directoryError, setDirectoryError] = useState("");
   const [error, setError] = useState("");
+  const [aiCapability, setAiCapability] = useState(null);
+  const [aiCredential, setAiCredential] = useState("");
+  const [aiDirection, setAiDirection] = useState("");
+  const [aiJob, setAiJob] = useState(null);
+  const [aiError, setAiError] = useState("");
+  const appliedAiJob = useRef("");
   useEffect(() => {
     if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
     let active = true;
@@ -210,7 +219,74 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
     }).catch((requestError) => { if (active) setDirectoryError(requestError.message); });
     return () => { active = false; };
   }, [auth]);
+  useEffect(() => {
+    if (!auth?.enabled || !auth?.user || !auth?.getEventAiCapability) return undefined;
+    let active = true;
+    void auth.getEventAiCapability().then((result) => {
+      if (!active) return;
+      const capability = result.capability || null;
+      setAiCapability(capability);
+      const personal = capability?.personalKeys?.find((key) => key.isDefault) || capability?.personalKeys?.[0];
+      setAiCredential(personal ? `user:${personal.id}` : capability?.workspaceDefault?.available ? "workspace" : "");
+      setAiError("");
+    }).catch((requestError) => { if (active) setAiError(requestError.message); });
+    return () => { active = false; };
+  }, [auth]);
+  useEffect(() => {
+    if (!aiJob?.id || !["researching", "verifying"].includes(aiJob.status) || !auth?.getEventAiJob) return undefined;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void auth.getEventAiJob(aiJob.id).then((result) => { if (active) setAiJob(result.job); })
+        .catch((requestError) => { if (active) setAiError(requestError.message); });
+    }, 1800);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [aiJob, auth]);
+  useEffect(() => {
+    const merged = aiJob?.mergeResult?.mergedDraft;
+    if (!merged || appliedAiJob.current === aiJob.id) return;
+    appliedAiJob.current = aiJob.id;
+    setDraft((current) => {
+      const byUrl = new Map((current.links || []).map((link) => [link.url, link]));
+      for (const link of merged.links || []) if (!byUrl.has(link.url)) byUrl.set(link.url, link);
+      const byMilestone = new Map((current.milestones || []).map((milestone) => [`${milestone.type}|${milestone.occursAt}|${milestone.label || ""}`, milestone]));
+      for (const milestone of merged.milestones || []) {
+        const key = `${milestone.type}|${milestone.occursAt}|${milestone.label || ""}`;
+        if (!byMilestone.has(key)) byMilestone.set(key, milestone);
+      }
+      return {
+        ...current,
+        title: current.title || merged.title || "",
+        startsAt: current.startsAt || merged.startsAt || "",
+        endsAt: current.endsAt || merged.endsAt || "",
+        location: current.location || merged.location || "",
+        notes: current.notes || merged.notes || "",
+        links: [...byUrl.values()],
+        milestones: [...byMilestone.values()],
+        categoryIds: [...new Set([...(current.categoryIds || []), ...(merged.categoryIds || [])])],
+      };
+    });
+  }, [aiJob]);
   const linked = new Set(draft.recordIds || []);
+  const aiCredentialOptions = [
+    ...(aiCapability?.personalKeys || []).map((key) => [`user:${key.id}`, `${key.label}${key.isDefault ? " · default" : ""} · ••••${key.lastFour}`]),
+    ...(aiCapability?.workspaceDefault?.available ? [["workspace", aiCapability.workspaceDefault.lastFour ? `Workspace default · ••••${aiCapability.workspaceDefault.lastFour}` : "Workspace default"]] : []),
+  ];
+  async function startAiEnrichment() {
+    setAiError("");
+    if (draft.title.trim().length < 2) {
+      setAiError("Enter an event name before starting AI research.");
+      return;
+    }
+    if (!aiCredential) {
+      setAiError("Choose a configured personal or workspace OpenAI key.");
+      return;
+    }
+    try {
+      const [credentialScope, credentialId = ""] = aiCredential.split(":");
+      const result = await auth.startEventAiJob({ draft, direction: aiDirection, credentialScope, credentialId });
+      setAiJob(result.job);
+    } catch (requestError) { setAiError(requestError.message); }
+  }
   function submit(formEvent) {
     formEvent.preventDefault();
     if (!draft.title.trim() || !draft.startsAt) {
@@ -246,6 +322,22 @@ function EventEditor({ event, records, categories, onSave, onClose }) {
       <form id="ops-event-editor-form" className="ops-event-form" onSubmit={submit}>
           {error ? <p role="alert" className="ops-alert">{error}</p> : null}
           <label className="ops-field ops-field--wide"><span>Title</span><input autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
+          {auth?.enabled && auth?.user ? <section className="if-card if-form-grid if-field--full" data-event-ai-assistant>
+            <header className="if-field--full"><span className="if-field__label">AI-assisted event research</span><h3>Research, verify, then merge</h3><p className="if-field__hint">A research worker proposes cited public details. A separate verifier checks identity, evidence, dates, and merge safety before verified additions enter this draft.</p></header>
+            <div className="if-field"><span className="if-field__label">Credential</span>{aiCredentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={aiCredential} options={aiCredentialOptions} onChange={setAiCredential} portalTarget={dialogRef} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
+            <label className="if-field"><span className="if-field__label">Direction <small>(optional)</small></span><textarea className="if-input" value={aiDirection} maxLength={2000} placeholder="Default: fill missing verified public details and published deadlines." onChange={(e) => setAiDirection(e.target.value)} /></label>
+            <div className="if-field--full"><button type="button" className="if-btn if-btn--primary" disabled={!aiCapability?.available || !aiCredential || ["researching", "verifying"].includes(aiJob?.status)} onClick={() => void startAiEnrichment()}>{["researching", "verifying"].includes(aiJob?.status) ? <LoaderCircle size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{aiJob?.status === "researching" ? "Researching public sources…" : aiJob?.status === "verifying" ? "Independently verifying…" : "Research and augment"}</button></div>
+            {aiJob ? <div className="if-card if-field--full" role="status" data-event-ai-job={aiJob.status}>
+              <strong>{aiJob.status === "completed" ? "Verified additions merged into this draft" : aiJob.status === "needs_review" ? "Verification needs operator review" : aiJob.status === "failed" ? "AI workflow stopped safely" : aiJob.currentStep === "independent_verification" ? "Independent verification in progress" : "Public-source research in progress"}</strong>
+              <p className="if-field__hint">Research: {aiJob.producerModel} · Verification: {aiJob.verifierModel} · Trace {aiJob.traceId}</p>
+              {aiJob.mergeResult?.changes?.length ? <p><CircleCheck size={15} aria-hidden="true" /> Added: {aiJob.mergeResult.changes.join(", ")}.</p> : null}
+              {aiJob.mergeResult?.conflicts?.length ? <p>Preserved {aiJob.mergeResult.conflicts.length} operator-entered value{aiJob.mergeResult.conflicts.length === 1 ? "" : "s"} that differed from the verified proposal.</p> : null}
+              {aiJob.verification?.rejectedClaims?.length ? <p>{aiJob.verification.rejectedClaims.length} unsupported claim{aiJob.verification.rejectedClaims.length === 1 ? " was" : "s were"} excluded.</p> : null}
+              {aiJob.proposal?.sources?.length ? <p>{aiJob.proposal.sources.slice(0, 4).map((source, index) => <span key={source.url}>{index ? " · " : ""}<a href={source.url} target="_blank" rel="noreferrer">{source.publisher || source.title || `Source ${index + 1}`}</a></span>)}</p> : null}
+              {aiJob.error ? <p role="alert">{aiJob.error.message}</p> : null}
+            </div> : null}
+            {aiError ? <p className="ops-alert if-field--full" role="alert">{aiError}</p> : null}
+          </section> : null}
           <label className="ops-field"><span>Starts</span><input type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Ends</span><input type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <label className="ops-field"><span>Location</span><input value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>

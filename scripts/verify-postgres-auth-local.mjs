@@ -21,11 +21,12 @@ try {
     "-e", "AUTH_REQUIRE_LOGIN=true",
     "-e", "AUTH_SECURE_COOKIE=false",
     "-e", "DBI_CREDENTIAL_ENCRYPTION_KEY",
+    "-e", "DBI_EVENT_AI_MOCK_MODE=true",
     "-e", `DATABASE_URL=postgresql://postgres@db:5432/${database}`,
     "-e", "PORT=8081",
     "-p", "18081:8081",
     "app",
-  ], { env: { ...process.env, DBI_CREDENTIAL_ENCRYPTION_KEY: encryptionKey } });
+  ], { env: { ...process.env, DBI_CREDENTIAL_ENCRYPTION_KEY: encryptionKey, DBI_EVENT_AI_MOCK_MODE: "true" } });
   run(process.execPath, ["scripts/verify-postgres-auth.mjs"], {
     env: { ...process.env, BUDGET_POSTGRES_AUTH_VERIFY_URL: "http://127.0.0.1:18081/" },
   });

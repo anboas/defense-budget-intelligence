@@ -53,7 +53,7 @@ const workspaceOpenAiKey = "sk-postgres_workspace_verification_0002";
 response = await request("/api/v1/auth/openai-keys", { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.capability.encryptionReady, true, "PostgreSQL must advertise the configured credential vault");
-assert.equal(body.capability.queryRuntimeEnabled, false, "OpenAI query execution must remain disabled in the management-only release");
+assert.equal(body.capability.queryRuntimeEnabled, true, "The encrypted credential vault must advertise the enabled AI runtime");
 assert.equal(body.capability.loggingReady, true, "PostgreSQL must advertise the redacted API request ledger");
 assert.equal(body.capability.retentionDays, 90);
 response = await request("/api/v1/auth/openai-keys", { method: "POST", cookie: ownerCookie,
@@ -81,11 +81,35 @@ assert.equal(body.personalKeys[0].label, "PostgreSQL personal renamed");
 assert.equal(body.workspaceKeys[0].status, "revoked");
 assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null });
 assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "PostgreSQL credential listings must expose metadata only");
+response = await request("/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
+assert.equal(response.status, 200);
+body = await response.json();
+assert.equal(body.capability.available, true);
+assert.equal(body.capability.producerModel, "gpt-5.6-terra");
+assert.equal(body.capability.verifierModel, "gpt-5.6-sol");
+response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {
+  credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "Verify venue and source.",
+  draft: { title: "PostgreSQL AI verification event", startsAt: "2027-04-12T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [], recordIds: [], status: "scheduled", wallboard: true },
+} });
+assert.equal(response.status, 202);
+body = await response.json();
+const eventAiJobId = body.job.id;
+assert.equal(body.job.status, "researching");
+response = await request(`/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.job.status, "verifying");
+response = await request(`/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.job.status, "completed");
+assert.equal(body.job.mergeResult.mergedDraft.location, "Verified test venue");
+assert.doesNotMatch(JSON.stringify(body), /sk-postgres|authorization|requestBody|responseBody|prompt/i);
 response = await request("/api/v1/auth/api-requests", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL workspace managers must be able to inspect redacted request metadata");
 body = await response.json();
 assert.ok(body.requests.some((entry) => entry.operation === "credential.created" && entry.credentialId === personalOpenAiKeyId));
 assert.ok(body.requests.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
+assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"));
+assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"));
 assert.equal(body.summary.retentionDays, 90);
 assert.doesNotMatch(JSON.stringify(body.requests), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-postgres/i, "PostgreSQL request logs must not expose secrets, prompts, headers, or bodies");
 

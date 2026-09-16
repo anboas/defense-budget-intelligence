@@ -19,6 +19,7 @@ COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY src/data ./src/data
 COPY src/procurement-taxonomy.js ./src/procurement-taxonomy.js
+COPY src/event-ai-runtime.js ./src/event-ai-runtime.js
 
 USER node
 EXPOSE 8080

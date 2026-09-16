@@ -30,7 +30,8 @@
     "source:health": "node scripts/check-source-health.mjs",
     "lint": "eslint .",
     "verify:ui-conformance": "node scripts/check-ui-conformance.mjs",
-    "verify": "npm run lint && npm run verify:ui-conformance && npm run build && node scripts/verify-site.mjs",
+    "verify:event-ai": "node scripts/verify-event-ai-runtime.mjs",
+    "verify": "npm run lint && npm run verify:ui-conformance && npm run verify:event-ai && npm run build && node scripts/verify-site.mjs",
     "verify:auth": "node scripts/verify-auth.mjs",
     "verify:pages-auth": "npm run build:cloudflare && node scripts/verify-pages-auth.mjs",
     "verify:agent-api": "npm run build:cloudflare && node scripts/verify-agent-api.mjs",
@@ -44,7 +45,7 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.3",
-    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/af5ebfd35466c29c71769a6198cc30d7e2f43d35.tar.gz",
+    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/bc59371f8a58bce361c22f5d99c5830f1531915b.tar.gz",
     "fastify": "^5.12.4",
     "pg": "^8.23.0"
   },

@@ -85,6 +85,10 @@ export const authApi = {
   createOpenAiKey: (values) => request("/openai-keys", { method: "POST", body: JSON.stringify(values) }),
   updateOpenAiKey: (id, values) => request(`/openai-keys/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(values) }),
   revokeOpenAiKey: (id) => request(`/openai-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
+  getEventAiCapability: () => request("/event-ai/capability", { method: "GET", headers: {} }),
+  listEventAiJobs: () => request("/event-ai", { method: "GET", headers: {} }),
+  startEventAiJob: (values) => request("/event-ai", { method: "POST", body: JSON.stringify(values) }),
+  getEventAiJob: (id) => request(`/event-ai/${encodeURIComponent(id)}`, { method: "GET", headers: {} }),
   async createUser({ email, displayName, title, role, password }) {
     const passwordSalt = createPasswordSalt();
     const passwordProof = await derivePasswordProof(password, passwordSalt);

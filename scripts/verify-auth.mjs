@@ -344,8 +344,23 @@ try {
   await page.getByRole("button", { name: "Add category" }).click();
   await page.waitForFunction(() => document.querySelectorAll("[data-event-category]").length === 7);
   await page.getByRole("button", { name: "Close event categories" }).click();
+  const browserAiKey = "sk-browser_event_ai_verification_00000001";
+  const browserAiCredential = await page.evaluate(async (apiKey) => {
+    const response = await fetch("/api/v1/auth/openai-keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "user", label: "Browser event AI", apiKey, isDefault: true }) });
+    return { status: response.status, body: await response.json() };
+  }, browserAiKey);
+  assert.equal(browserAiCredential.status, 201, "Authenticated event AI browser proof requires a personal encrypted key");
   await page.getByRole("button", { name: "Add event" }).click();
   await page.waitForSelector("[data-ops-event-editor]");
+  const eventEditor = page.locator("[data-ops-event-editor]");
+  assert.match(await eventEditor.locator("[data-event-ai-assistant]").innerText(), /Research, verify, then merge[\s\S]*separate verifier/i, "Event create/edit must explain the two-stage AI workflow");
+  await eventEditor.getByLabel("Title", { exact: true }).fill("Browser AI assisted event");
+  await eventEditor.getByRole("textbox", { name: "Starts", exact: true }).fill("2027-05-10T09:00");
+  await eventEditor.getByRole("button", { name: "Research and augment" }).click();
+  await eventEditor.locator('[data-event-ai-job="completed"]').waitFor({ timeout: 15_000 });
+  assert.equal(await eventEditor.getByLabel("Location", { exact: true }).inputValue(), "Verified test venue", "Verified AI additions must merge into the editor draft");
+  assert.match(await eventEditor.locator('[data-event-ai-job="completed"]').innerText(), /Added: location, notes, links, categories/i, "The editor must disclose exactly which fields were merged");
+  assert.doesNotMatch(await eventEditor.locator('[data-event-ai-job="completed"]').innerText(), /sk-browser|authorization|request body|response body/i, "AI status must never expose secrets or raw provider payloads");
   const categoryPicker = page.getByRole("button", { name: /^Event categories:/ });
   await categoryPicker.click();
   await page.getByLabel("Search Event categories").fill("Customer forum");
@@ -368,6 +383,19 @@ try {
   assert.match(await milestoneAction.getAttribute("class"), /if-btn--secondary/, "The milestone action must use the shared secondary button contract");
   const milestoneActionBox = await milestoneAction.boundingBox();
   assert.ok(milestoneActionBox?.height >= 34 && milestoneActionBox?.width > 150, "The milestone action must retain a complete readable control shape");
+  await page.screenshot({ path: "test-results/event-ai-editor-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileAiGeometry = await eventEditor.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const action = node.querySelector("[data-event-ai-assistant] .if-btn--primary")?.getBoundingClientRect();
+    const direction = node.querySelector("[data-event-ai-assistant] textarea")?.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, viewport: innerWidth, actionHeight: action?.height || 0, directionHeight: direction?.height || 0, documentOverflow: document.documentElement.scrollWidth - innerWidth };
+  });
+  assert.ok(mobileAiGeometry.left >= 0 && mobileAiGeometry.right <= mobileAiGeometry.viewport + 1, "The event AI editor must remain within the mobile viewport");
+  assert.ok(mobileAiGeometry.actionHeight >= 43.5 && mobileAiGeometry.directionHeight >= 43.5, "Event AI mobile controls must retain 44px touch geometry");
+  assert.ok(mobileAiGeometry.documentOverflow <= 1, "The event AI editor must not create document-level mobile overflow");
+  await page.screenshot({ path: "test-results/event-ai-editor-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Close event editor" }).click();
 
   const teammateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });

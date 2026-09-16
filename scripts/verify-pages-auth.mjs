@@ -50,6 +50,8 @@ async function startPages(persistPath) {
     persistPath,
     "--binding",
     "DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001",
+    "--binding",
+    "DBI_EVENT_AI_MOCK_MODE=true",
     "--log-level",
     "error",
   ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -403,7 +405,7 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200);
     body = await response.json();
     assert.equal(body.capability.encryptionReady, true, "D1 must advertise the configured credential vault");
-    assert.equal(body.capability.queryRuntimeEnabled, false, "Management must not imply that OpenAI query execution is enabled yet");
+    assert.equal(body.capability.queryRuntimeEnabled, true, "The encrypted credential vault must advertise the enabled AI runtime");
     assert.equal(body.capability.loggingReady, true, "Credential management must advertise the redacted request ledger");
     assert.equal(body.capability.retentionDays, 90);
     response = await apiRequest(baseUrl, "/api/v1/auth/openai-keys", {
@@ -438,12 +440,40 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.workspaceKeys[0].status, "revoked");
     assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null }, "New credentials must expose an empty aggregate usage boundary without inventing calls");
     assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "Credential listings must expose metadata only");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.equal(body.capability.available, true, "Event AI must be available when an encrypted personal credential exists");
+    assert.equal(body.capability.producerModel, "gpt-5.6-terra");
+    assert.equal(body.capability.verifierModel, "gpt-5.6-sol");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "Verify the public venue and official link.", draft: {
+        title: "AI workflow verification event", startsAt: "2027-03-10T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [ownerId], recordIds: [], status: "scheduled", wallboard: true,
+      } },
+    });
+    assert.equal(response.status, 202, "Event AI must start as a durable background job");
+    body = await response.json();
+    const eventAiJobId = body.job.id;
+    assert.equal(body.job.status, "researching");
+    response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.job.status, "verifying", "A separate verification stage must follow research");
+    response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.job.status, "completed", "Strict verified output must complete with a deterministic merge");
+    assert.equal(body.job.mergeResult.mergedDraft.location, "Verified test venue");
+    assert.equal(body.job.mergeResult.mergedDraft.attendeeIds[0], ownerId, "AI merge must preserve operator-controlled attendees");
+    assert.ok(body.job.mergeResult.changes.includes("location"));
+    assert.doesNotMatch(JSON.stringify(body), /sk-verification|authorization|requestBody|responseBody|prompt/i, "AI job responses must not expose credentials or raw provider payloads");
     response = await apiRequest(baseUrl, "/api/v1/agent/api-requests?limit=500", { cookie: ownerCookie });
     assert.equal(response.status, 200, "Workspace managers must be able to inspect redacted API request metadata");
     body = await response.json();
     const credentialEntries = body.data.filter((entry) => entry.requestKind === "credential_lifecycle");
     assert.ok(credentialEntries.some((entry) => entry.operation === "credential.created" && entry.credentialId === personalOpenAiKeyId));
     assert.ok(credentialEntries.some((entry) => entry.operation === "credential.revoked" && entry.credentialId === workspaceOpenAiKeyId));
+    assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"), "Research-stage metadata must be logged");
+    assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"), "Verifier-stage metadata must be logged independently");
     assert.equal(body.meta.retentionDays, 90);
     assert.doesNotMatch(JSON.stringify(body.data), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-verification/i, "D1 request logs must not expose secrets, prompts, headers, or bodies");
 
@@ -605,6 +635,10 @@ async function verifyApiLifecycle(persistPath) {
       origin: instance.baseUrl.slice(0, -1),
     });
     assert.equal(response.status, 200, "Persisted D1 credentials must remain usable after restart");
+    const restartedCookie = cookieFrom(response);
+    response = await apiRequest(instance.baseUrl, `/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: restartedCookie });
+    assert.equal(response.status, 200, "Completed event AI jobs must remain resumable and inspectable after runtime restart");
+    assert.equal((await response.json()).job.status, "completed");
   } finally {
     await stopPages(instance);
   }

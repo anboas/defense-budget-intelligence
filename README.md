@@ -78,7 +78,7 @@ Container health contracts:
 
 The release workflow treats both stateful implementations as gates. It proves the full first-account lifecycle against a fresh local D1 database, then builds the Docker images, starts a fresh PostgreSQL database, applies migrations, imports snapshots, and verifies the portable API before publishing the static fallback.
 
-Cloudflare deployment and first-claim operations are documented in [Cloudflare Pages and D1](docs/CLOUDFLARE_PAGES.md). The scoped R/W automation contract is documented in [Agent API](docs/AGENT_API.md).
+Cloudflare deployment and first-claim operations are documented in [Cloudflare Pages and D1](docs/CLOUDFLARE_PAGES.md). The scoped R/W automation contract is documented in [Agent API](docs/AGENT_API.md). The two-stage Responses API workflow, evidence rules, merge contract, and runtime parity for event research are documented in [Event AI enrichment](docs/event-ai-enrichment.md).
 
 ## Data Sources
 

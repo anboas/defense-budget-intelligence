@@ -1564,6 +1564,7 @@ code {
 
   .if-dialog__actions .if-btn,
   .if-dialog__close,
+  .if-dialog--mobile-sheet .if-dialog__body .if-btn,
   .if-dialog__footer .if-btn {
     min-height: 2.75rem;
   }

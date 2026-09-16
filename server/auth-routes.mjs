@@ -1,4 +1,20 @@
-import { createCipheriv, createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  EVENT_AI_PRODUCER_MODEL,
+  EVENT_AI_VERIFIER_MODEL,
+  buildEventAiProducerRequest,
+  buildEventAiVerifierRequest,
+  citedEventAiDetails,
+  deleteOpenAiResponse,
+  mergeVerifiedEventDraft,
+  mockEventAiProposal,
+  mockEventAiVerification,
+  normalizeEventAiDetails,
+  normalizeEventAiDraft,
+  parseOpenAiStructuredResponse,
+  retrieveOpenAiResponse,
+  startOpenAiBackgroundResponse,
+} from "../src/event-ai-runtime.js";
 
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
@@ -145,6 +161,20 @@ function encryptOpenAiKey(value) {
   return { encryptedKey: encrypted.toString("base64"), keyIv: iv.toString("base64"), keyVersion: 1 };
 }
 
+function decryptOpenAiKey(row) {
+  const secret = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "");
+  if (!row || secret.length < 32 || Number(row.key_version || 0) !== 1) return "";
+  try {
+    const payload = Buffer.from(row.encrypted_key, "base64");
+    if (payload.length <= 16) return "";
+    const decipher = createDecipheriv("aes-256-gcm", createHash("sha256").update(secret).digest(), Buffer.from(row.key_iv, "base64"));
+    decipher.setAuthTag(payload.subarray(payload.length - 16));
+    return Buffer.concat([decipher.update(payload.subarray(0, payload.length - 16)), decipher.final()]).toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
 function openAiKeyMetadata(row) {
   return {
     id: row.id,
@@ -242,6 +272,161 @@ async function canAdministerWorkspace(pool, user, workspaceId) {
   if (!user || String(user.active_workspace_id || "") !== String(workspaceId || "")) return false;
   const membership = await pool.query("SELECT role FROM app_workspace_memberships WHERE workspace_id = $1 AND user_id = $2", [workspaceId, user.user_id]);
   return membership.rows[0]?.role === "administrator";
+}
+
+const EVENT_AI_CATEGORIES = Object.freeze([
+  { id: "conference", name: "Conference" },
+  { id: "industry-day", name: "Industry day" },
+  { id: "workshop", name: "Workshop" },
+  { id: "immersion-day", name: "Immersion day" },
+  { id: "summit", name: "Summit" },
+  { id: "other", name: "Other" },
+]);
+
+function canRunEventAi(user) {
+  return ["super_user", "administrator", "analyst"].includes(publicUser(user)?.roleId);
+}
+
+function eventAiJob(row) {
+  return {
+    id: row.id,
+    status: row.status,
+    currentStep: row.current_step,
+    credentialScope: row.credential_scope,
+    producerModel: row.producer_model,
+    verifierModel: row.verifier_model,
+    direction: row.direction || "",
+    proposal: row.proposal_json || {},
+    verification: row.verification_json || {},
+    mergeResult: row.merge_result_json || {},
+    error: row.error_message ? { code: row.error_code || "event_ai_failed", message: row.error_message } : null,
+    retryCount: Number(row.retry_count || 0),
+    traceId: row.trace_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    completedAt: row.completed_at || null,
+  };
+}
+
+async function resolveEventAiCredential(pool, user, scope, credentialId = "") {
+  let result;
+  if (scope === "user") {
+    result = credentialId
+      ? await pool.query("SELECT * FROM app_openai_keys WHERE id = $1 AND scope_type = 'user' AND user_id = $2 AND revoked_at IS NULL", [credentialId, user.user_id])
+      : await pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'user' AND user_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [user.user_id]);
+  } else if (scope === "workspace" && user.active_workspace_id) {
+    result = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL AND is_default = TRUE ORDER BY created_at DESC LIMIT 1", [user.active_workspace_id]);
+  } else return null;
+  const row = result.rows[0];
+  const apiKey = decryptOpenAiKey(row);
+  return row && apiKey ? { id: row.id, scope: row.scope_type, apiKey } : null;
+}
+
+async function failEventAiJob(pool, row, error) {
+  const result = await pool.query(`UPDATE app_event_ai_jobs SET status = 'failed', current_step = 'failed', error_code = $1,
+    error_message = $2, updated_at = NOW(), completed_at = NOW() WHERE id = $3 RETURNING *`, [
+    cleanText(error?.code || "event_ai_failed", 120), cleanText(error?.message || "Event enrichment failed.", 500), row.id,
+  ]);
+  return result.rows[0];
+}
+
+async function logEventAiProvider(pool, row, response, stage, status, latencyMs = 0, requestId = "", error = null, method = "POST") {
+  const usage = response?.usage || {};
+  await recordApiRequest(pool, {
+    workspaceId: row.workspace_id, userId: row.user_id, principalType: "user", principalId: row.user_id,
+    requestKind: "openai", provider: "openai", operation: stage === "research" ? "event_enrichment.research" : "event_enrichment.verify",
+    method, route: method === "GET" ? `/v1/responses/${response?.id || (stage === "research" ? row.producer_response_id : row.verifier_response_id)}` : "/v1/responses", status, httpStatus: error?.httpStatus || (status === "succeeded" || method === "GET" ? 200 : 202),
+    stage, model: stage === "research" ? row.producer_model : row.verifier_model, credentialId: row.credential_id,
+    credentialScope: row.credential_scope, providerRequestId: requestId, traceId: row.trace_id, responseId: response?.id,
+    latencyMs, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, retryCount: row.retry_count,
+    retryable: Boolean(error && [408, 409, 429, 500, 502, 503, 504].includes(error.httpStatus)),
+    errorCode: error?.code, errorMessage: error?.message, metadata: { jobId: row.id, workflow: "event_enrichment" },
+  });
+}
+
+async function advanceEventAiJob(pool, row) {
+  if (["completed", "needs_review", "failed", "cancelled"].includes(row.status)) return row;
+  const draft = row.input_snapshot_json || {};
+  const categories = row.categories_json || EVENT_AI_CATEGORIES;
+  const mockMode = String(process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
+  const credential = await resolveEventAiCredential(pool, { user_id: row.user_id, active_workspace_id: row.workspace_id }, row.credential_scope, row.credential_id);
+  if (!credential) return failEventAiJob(pool, row, { code: "credential_unavailable", message: "The selected OpenAI credential is unavailable or could not be decrypted." });
+  try {
+    if (row.status === "researching") {
+      let proposal;
+      let providerResponse;
+      let latencyMs = 0;
+      let requestId = "";
+      if (mockMode) {
+        proposal = mockEventAiProposal(draft, categories);
+        providerResponse = { id: row.producer_response_id || `mock-producer-${row.id}`, status: "completed", usage: { input_tokens: 120, output_tokens: 80 } };
+      } else {
+        const retrieved = await retrieveOpenAiResponse(credential.apiKey, row.producer_response_id);
+        providerResponse = retrieved.response;
+        latencyMs = retrieved.latencyMs;
+        requestId = retrieved.requestId;
+        if (["queued", "in_progress"].includes(providerResponse.status)) {
+          await logEventAiProvider(pool, row, providerResponse, "research", "accepted", latencyMs, requestId, null, "GET");
+          return row;
+        }
+        if (providerResponse.status !== "completed") throw Object.assign(new Error(`Research stage ended with provider status ${providerResponse.status}.`), { code: `provider_${providerResponse.status}` });
+        proposal = citedEventAiDetails(providerResponse, parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails), draft);
+      }
+      if (!proposal?.sources?.length) throw Object.assign(new Error("Research completed without a cited public source."), { code: "missing_sources" });
+      await logEventAiProvider(pool, row, providerResponse, "research", "succeeded", latencyMs, requestId, null, "GET");
+      if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.producer_response_id).catch(() => false);
+      let verifierResponseId = `mock-verifier-${row.id}`;
+      if (!mockMode) {
+        const started = await startOpenAiBackgroundResponse(credential.apiKey, buildEventAiVerifierRequest({ draft, proposal, direction: row.direction, categories, model: row.verifier_model }));
+        verifierResponseId = started.response.id;
+        await logEventAiProvider(pool, row, started.response, "verification", "accepted", started.latencyMs, started.requestId);
+      }
+      const result = await pool.query(`UPDATE app_event_ai_jobs SET status = 'verifying', current_step = 'independent_verification',
+        proposal_json = $1::jsonb, verifier_response_id = $2, updated_at = NOW() WHERE id = $3 RETURNING *`, [JSON.stringify(proposal), verifierResponseId, row.id]);
+      return result.rows[0];
+    }
+    if (row.status === "verifying") {
+      let verification;
+      let providerResponse;
+      let latencyMs = 0;
+      let requestId = "";
+      if (mockMode) {
+        verification = mockEventAiVerification(row.proposal_json || {});
+        providerResponse = { id: row.verifier_response_id || `mock-verifier-${row.id}`, status: "completed", usage: { input_tokens: 100, output_tokens: 70 } };
+      } else {
+        const retrieved = await retrieveOpenAiResponse(credential.apiKey, row.verifier_response_id);
+        providerResponse = retrieved.response;
+        latencyMs = retrieved.latencyMs;
+        requestId = retrieved.requestId;
+        if (["queued", "in_progress"].includes(providerResponse.status)) {
+          await logEventAiProvider(pool, row, providerResponse, "verification", "accepted", latencyMs, requestId, null, "GET");
+          return row;
+        }
+        if (providerResponse.status !== "completed") throw Object.assign(new Error(`Verification stage ended with provider status ${providerResponse.status}.`), { code: `provider_${providerResponse.status}` });
+        verification = parseOpenAiStructuredResponse(providerResponse, (value) => ({
+          decision: ["approved", "needs_review", "rejected"].includes(value?.decision) ? value.decision : "rejected",
+          approved: citedEventAiDetails(providerResponse, value?.approved, draft), checks: Array.isArray(value?.checks) ? value.checks.slice(0, 12) : [],
+          rejectedClaims: Array.isArray(value?.rejectedClaims) ? value.rejectedClaims.slice(0, 30) : [],
+          mergeNotes: Array.isArray(value?.mergeNotes) ? value.mergeNotes.slice(0, 20) : [],
+        }));
+      }
+      await logEventAiProvider(pool, row, providerResponse, "verification", "succeeded", latencyMs, requestId, null, "GET");
+      if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
+      const mergeResult = verification.decision === "approved" ? mergeVerifiedEventDraft(draft, verification.approved, categories) : {};
+      const completed = verification.decision === "approved" && mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt;
+      const result = await pool.query(`UPDATE app_event_ai_jobs SET status = $1, current_step = $2, verification_json = $3::jsonb,
+        merge_result_json = $4::jsonb, updated_at = NOW(), completed_at = NOW() WHERE id = $5 RETURNING *`, [
+        completed ? "completed" : "needs_review", completed ? "operator_review" : "review_required",
+        JSON.stringify(verification), JSON.stringify(mergeResult), row.id,
+      ]);
+      await pool.query("UPDATE app_openai_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [row.credential_id]);
+      return result.rows[0];
+    }
+  } catch (error) {
+    await logEventAiProvider(pool, row, null, row.status === "researching" ? "research" : "verification", "failed", 0, "", error, "GET").catch(() => {});
+    return failEventAiJob(pool, row, error);
+  }
+  return row;
 }
 
 export async function registerAuthRoutes(app, pool) {
@@ -768,7 +953,7 @@ export async function registerAuthRoutes(app, pool) {
         encryptionReady: String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "").length >= 32,
         canManageWorkspaceKeys,
         activeWorkspaceId: workspaceId,
-        queryRuntimeEnabled: false,
+        queryRuntimeEnabled: String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "").length >= 32,
         loggingReady: true,
         retentionDays: 90,
         loggedFields: ["status", "latency", "tokens", "provider request ID", "trace ID", "retry count", "safe error"],
@@ -803,6 +988,87 @@ export async function registerAuthRoutes(app, pool) {
         inputTokens: calls.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0), outputTokens: calls.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0),
         retentionDays: 90, redaction: "Secrets, authorization headers, prompts, request bodies, and response bodies are never retained." },
     };
+  });
+
+  app.get("/api/v1/auth/event-ai/capability", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const [personal, workspace] = await Promise.all([
+      pool.query("SELECT id, label, key_last_four, is_default FROM app_openai_keys WHERE scope_type = 'user' AND user_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC", [user.user_id]),
+      user.active_workspace_id
+        ? pool.query("SELECT id, label, key_last_four FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL AND is_default = TRUE ORDER BY created_at DESC LIMIT 1", [user.active_workspace_id])
+        : Promise.resolve({ rows: [] }),
+    ]);
+    const mockMode = String(process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
+    const encryptionReady = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "").length >= 32;
+    return { capability: {
+      available: canRunEventAi(user) && encryptionReady && Boolean(personal.rowCount || workspace.rowCount),
+      canRun: canRunEventAi(user), mockMode,
+      personalKeys: personal.rows.map((row) => ({ id: row.id, label: row.label, lastFour: row.key_last_four, isDefault: row.is_default })),
+      workspaceDefault: workspace.rowCount ? { available: true, label: "Workspace default", lastFour: canAdministerWorkspaces(user) ? workspace.rows[0].key_last_four : "" } : { available: false, label: "Workspace default", lastFour: "" },
+      producerModel: EVENT_AI_PRODUCER_MODEL, verifierModel: EVENT_AI_VERIFIER_MODEL, retentionDays: 90,
+      workflow: ["research", "independent verification", "deterministic safe merge", "operator review and save"],
+    } };
+  });
+
+  app.get("/api/v1/auth/event-ai", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    if (!user.active_workspace_id) return { jobs: [] };
+    const result = await pool.query("SELECT * FROM app_event_ai_jobs WHERE workspace_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 20", [user.active_workspace_id, user.user_id]);
+    return { jobs: result.rows.map(eventAiJob) };
+  });
+
+  app.post("/api/v1/auth/event-ai", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    if (!user.active_workspace_id) return reply.code(409).send({ error: "select a workspace before using AI assistance" });
+    if (!canRunEventAi(user)) return reply.code(403).send({ error: "event write access is required" });
+    const draft = normalizeEventAiDraft(request.body?.draft || {});
+    if (draft.title.length < 2) return reply.code(400).send({ error: "enter an event name before starting AI research" });
+    const active = await pool.query("SELECT COUNT(*)::int AS count FROM app_event_ai_jobs WHERE workspace_id = $1 AND user_id = $2 AND status IN ('researching', 'verifying')", [user.active_workspace_id, user.user_id]);
+    if (active.rows[0].count >= 3) return reply.code(429).send({ error: "wait for an active event-enrichment job to finish before starting another" });
+    const daily = await pool.query("SELECT COUNT(*)::int AS count FROM app_event_ai_jobs WHERE workspace_id = $1 AND user_id = $2 AND created_at >= NOW() - INTERVAL '24 hours'", [user.active_workspace_id, user.user_id]);
+    if (daily.rows[0].count >= 20) return reply.code(429).send({ error: "daily event-enrichment limit reached; try again after the oldest job is 24 hours old" });
+    const credentialScope = request.body?.credentialScope === "workspace" ? "workspace" : "user";
+    const credential = await resolveEventAiCredential(pool, user, credentialScope, cleanText(request.body?.credentialId, 100));
+    if (!credential) return reply.code(409).send({ error: `no active ${credentialScope === "workspace" ? "workspace default" : "personal"} OpenAI key is available` });
+    const id = randomUUID();
+    const traceId = randomUUID();
+    const direction = cleanText(request.body?.direction, 2000);
+    await pool.query("DELETE FROM app_event_ai_jobs WHERE completed_at < NOW() - INTERVAL '90 days'");
+    let result = await pool.query(`INSERT INTO app_event_ai_jobs
+      (id, workspace_id, user_id, status, current_step, credential_id, credential_scope, producer_model, verifier_model,
+       direction, input_snapshot_json, categories_json, trace_id)
+      VALUES ($1,$2,$3,'researching','public_research',$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11) RETURNING *`, [
+      id, user.active_workspace_id, user.user_id, credential.id, credential.scope, EVENT_AI_PRODUCER_MODEL, EVENT_AI_VERIFIER_MODEL,
+      direction, JSON.stringify(draft), JSON.stringify(EVENT_AI_CATEGORIES), traceId,
+    ]);
+    let row = result.rows[0];
+    const mockMode = String(process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
+    try {
+      let responseId = `mock-producer-${id}`;
+      if (!mockMode) {
+        const started = await startOpenAiBackgroundResponse(credential.apiKey, buildEventAiProducerRequest({ draft, direction, categories: EVENT_AI_CATEGORIES, model: EVENT_AI_PRODUCER_MODEL }));
+        responseId = started.response.id;
+        await logEventAiProvider(pool, row, started.response, "research", "accepted", started.latencyMs, started.requestId);
+      }
+      result = await pool.query("UPDATE app_event_ai_jobs SET producer_response_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *", [responseId, id]);
+      row = result.rows[0];
+    } catch (error) {
+      row = await failEventAiJob(pool, row, error);
+      await logEventAiProvider(pool, row, null, "research", "failed", 0, "", error).catch(() => {});
+    }
+    return reply.code(202).send({ job: eventAiJob(row) });
+  });
+
+  app.get("/api/v1/auth/event-ai/:jobId", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const result = await pool.query("SELECT * FROM app_event_ai_jobs WHERE id = $1 AND workspace_id = $2 AND user_id = $3", [request.params.jobId, user.active_workspace_id, user.user_id]);
+    if (!result.rowCount) return reply.code(404).send({ error: "event-enrichment job not found" });
+    return { job: eventAiJob(await advanceEventAiJob(pool, result.rows[0])) };
   });
 
   app.post("/api/v1/auth/openai-keys", async (request, reply) => {
