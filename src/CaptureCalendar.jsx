@@ -30,7 +30,7 @@ import {
 import { useManagementState } from "./management-state.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlMetricStrip, ControlMultiSelect } from "control-surface-ui/react";
+import { ControlDialog, ControlDisclosure, ControlMetricStrip, ControlMultiSelect } from "control-surface-ui/react";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -598,6 +598,30 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
   const potential = Number(record.potentialAmount || record.valueHigh || 0);
   const utilization = potential ? Math.min((observed / potential) * 100, 100) : null;
   const durationDays = dateDiffDays(record.start, record.currentEnd);
+  const primaryFacts = [
+    { label: "Company / sponsor", value: liveAward?.recipient || record.party, meta: liveAward ? "Current award analytics match" : "Source record" },
+    { label: "Reference", value: record.reference || "Not published", meta: record.context },
+    { label: "Reported term", value: `${compactDate(record.start)} to ${compactDate(record.currentEnd)}`, meta: `Potential through ${compactDate(record.potentialEnd)}` },
+    { label: "USAspending money", value: formatMoney(observed), meta: `Potential / high ${formatMoney(potential)}` },
+    { label: "Obligation posture", value: utilization == null ? "Not calculable" : `${Math.round(utilization)}% of potential`, meta: potential ? `${formatMoney(Math.max(potential - observed, 0))} reported headroom` : "No potential value published" },
+    { label: "Type of work", value: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", meta: (record.workCategories || []).slice(1).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || record.workCategoryConfidence || "No secondary category" },
+  ];
+  const secondaryFacts = [
+    { label: "FPDS public action sum", value: formatMoney(record.fpdsObligatedAmount), meta: `Potential ${formatMoney(record.fpdsPotentialAmount)}` },
+    { label: "USAspending subawards", value: record.subawardSummary?.reportedCount ? `${record.subawardSummary.reportedCount.toLocaleString()} reported` : "None reported", meta: record.subawardSummary?.latestActionDate ? `${formatMoney(record.subawardSummary.sampledAmount)} in retained detail · latest ${formatDate(record.subawardSummary.latestActionDate)}` : "Exact prime-award join" },
+    { label: "Reported duration", value: durationDays == null ? "Not published" : `${Math.max(Math.round(durationDays / 30.44), 1)} months`, meta: label(record.lifecycleStatus) },
+    { label: "Funding office", value: record.fundingOffice || record.owner || "Not published", meta: "Distinct from contracting office" },
+    { label: "Contracting office", value: record.contractingOffice || "Not published", meta: record.vehicle || "Vehicle not identified" },
+    record.solicitationStart ? { label: "Solicitation window", value: `${formatDate(record.solicitationStart)} to ${formatDate(record.solicitationEnd)}`, meta: record.noticeType || "Published solicitation" } : null,
+    record.competitionType || record.setAside || record.eligibility ? { label: "Competition / eligibility", value: record.competitionType || "Competition not published", meta: [record.setAside, record.eligibility].filter(Boolean).join(" · ") || "Set-aside / eligibility not published" } : null,
+    record.vehicle ? { label: "Contract vehicle", value: record.vehicle, meta: record.parentReference ? `Parent / predecessor ${record.parentReference}` : "Published vehicle classification" } : null,
+    record.awardType || record.pricingType ? { label: "Award / pricing structure", value: record.pricingType || "Pricing not published", meta: record.awardType || "Award instrument type not published" } : null,
+    { label: "PSC / NAICS", value: record.pscCode ? `PSC ${record.pscCode}` : "PSC not published", meta: record.naicsCode ? `NAICS ${record.naicsCode}` : "NAICS not published" },
+    { label: "Ingestion provenance", value: record.ingestionLabel || "Not published", meta: (record.ingestionChannels || []).map((channel) => channel.label).join(" · ") || record.sourceSystem || "No ingestion channel recorded" },
+    { label: "Latest refresh comparison", value: record.changeStatus === "unchanged" ? "No detected change" : label(record.changeStatus), meta: record.changeSourceSystem || "Current baseline or unchanged public record" },
+    { label: "Source posture", value: `${record.sourceRoleCount} source role${record.sourceRoleCount === 1 ? "" : "s"}`, meta: `${label(record.validationStatus)} · checked ${formatDate(record.validationCheckedAt?.slice(0, 10))}` },
+  ].filter(Boolean);
+  const renderFact = (fact) => <article key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong><small>{fact.meta}</small></article>;
   return (
     <aside className="capture-detail" data-capture-detail aria-label={`${record.title} evidence details`}>
       <div className="capture-detail__heading">
@@ -611,27 +635,10 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
           <button type="button" autoFocus onClick={onClose} aria-label="Close record details"><X size={18} /></button>
         </div>
       </div>
-      <div className="capture-detail__grid">
-        <article><span>Company / sponsor</span><strong>{liveAward?.recipient || record.party}</strong><small>{liveAward ? "Current award analytics match" : "Source record"}</small></article>
-        <article><span>Reference</span><strong>{record.reference || "Not published"}</strong><small>{record.context}</small></article>
-        <article><span>Reported term</span><strong>{compactDate(record.start)} to {compactDate(record.currentEnd)}</strong><small>Potential through {compactDate(record.potentialEnd)}</small></article>
-        <article><span>USAspending money</span><strong>{formatMoney(observed)}</strong><small>Potential / high {formatMoney(potential)}</small></article>
-        <article><span>FPDS public action sum</span><strong>{formatMoney(record.fpdsObligatedAmount)}</strong><small>Potential {formatMoney(record.fpdsPotentialAmount)}</small></article>
-        <article><span>USAspending subawards</span><strong>{record.subawardSummary?.reportedCount ? `${record.subawardSummary.reportedCount.toLocaleString()} reported` : "None reported"}</strong><small>{record.subawardSummary?.latestActionDate ? `${formatMoney(record.subawardSummary.sampledAmount)} in retained detail · latest ${formatDate(record.subawardSummary.latestActionDate)}` : "Exact prime-award join"}</small></article>
-        <article><span>Obligation posture</span><strong>{utilization == null ? "Not calculable" : `${Math.round(utilization)}% of potential`}</strong><small>{potential ? `${formatMoney(Math.max(potential - observed, 0))} reported headroom` : "No potential value published"}</small></article>
-        <article><span>Reported duration</span><strong>{durationDays == null ? "Not published" : `${Math.max(Math.round(durationDays / 30.44), 1)} months`}</strong><small>{label(record.lifecycleStatus)}</small></article>
-        <article><span>Funding office</span><strong>{record.fundingOffice || record.owner || "Not published"}</strong><small>Distinct from contracting office</small></article>
-        <article><span>Contracting office</span><strong>{record.contractingOffice || "Not published"}</strong><small>{record.vehicle || "Vehicle not identified"}</small></article>
-        {record.solicitationStart ? <article><span>Solicitation window</span><strong>{formatDate(record.solicitationStart)} to {formatDate(record.solicitationEnd)}</strong><small>{record.noticeType || "Published solicitation"}</small></article> : null}
-        {record.competitionType || record.setAside || record.eligibility ? <article><span>Competition / eligibility</span><strong>{record.competitionType || "Competition not published"}</strong><small>{[record.setAside, record.eligibility].filter(Boolean).join(" · ") || "Set-aside / eligibility not published"}</small></article> : null}
-        {record.vehicle ? <article><span>Contract vehicle</span><strong>{record.vehicle}</strong><small>{record.parentReference ? `Parent / predecessor ${record.parentReference}` : "Published vehicle classification"}</small></article> : null}
-        {record.awardType || record.pricingType ? <article><span>Award / pricing structure</span><strong>{record.pricingType || "Pricing not published"}</strong><small>{record.awardType || "Award instrument type not published"}</small></article> : null}
-        <article><span>Type of work</span><strong>{WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified"}</strong><small>{(record.workCategories || []).slice(1).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || record.workCategoryConfidence || "No secondary category"}</small></article>
-        <article><span>PSC / NAICS</span><strong>{record.pscCode ? `PSC ${record.pscCode}` : "PSC not published"}</strong><small>{record.naicsCode ? `NAICS ${record.naicsCode}` : "NAICS not published"}</small></article>
-        <article><span>Ingestion provenance</span><strong>{record.ingestionLabel || "Not published"}</strong><small>{(record.ingestionChannels || []).map((channel) => channel.label).join(" · ") || record.sourceSystem || "No ingestion channel recorded"}</small></article>
-        <article><span>Latest refresh comparison</span><strong>{record.changeStatus === "unchanged" ? "No detected change" : label(record.changeStatus)}</strong><small>{record.changeSourceSystem || "Current baseline or unchanged public record"}</small></article>
-        <article><span>Source posture</span><strong>{record.sourceRoleCount} source role{record.sourceRoleCount === 1 ? "" : "s"}</strong><small>{label(record.validationStatus)} · checked {formatDate(record.validationCheckedAt?.slice(0, 10))}</small></article>
-      </div>
+      <div className="capture-detail__grid capture-detail__grid--primary" data-capture-primary-facts>{primaryFacts.map(renderFact)}</div>
+      <ControlDisclosure className="capture-detail__secondary" title="Procurement and provenance details" summary={`${secondaryFacts.length} published fields · offices, competition, instrument, coding, and source posture`}>
+        <div className="capture-detail__grid" data-capture-secondary-facts>{secondaryFacts.map(renderFact)}</div>
+      </ControlDisclosure>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
       {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
       {record.milestones.length ? (

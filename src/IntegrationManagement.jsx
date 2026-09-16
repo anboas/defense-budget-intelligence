@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { ControlAsyncState, ControlMetricStrip, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
 import sourceHealth from "./data/source-health.json";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -92,10 +92,13 @@ export default function IntegrationManagement({ auth, dataset, samOpportunities,
           { id: "checked", label: "Health checked", value: dateTime(sourceHealth.metadata?.checkedAt), meta: "Point-in-time source probe", tone: "info" },
         ]} />
         <OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} />
-        <details className="if-detail-card if-detail-card--info" data-contract-monitor-disclosure>
-          <summary>Contract monitor coverage <span className="if-badge">{contractMonitorState === "loading" ? "Loading" : contractMonitorState === "error" ? "Unavailable" : contractMonitor.metadata?.status || "Ready"}</span></summary>
+        <ControlDisclosure
+          data-contract-monitor-disclosure
+          title="Contract monitor coverage"
+          summary={contractMonitorState === "loading" ? "Loading the automated coverage snapshot" : contractMonitorState === "error" ? "Coverage unavailable · retained source summary remains usable" : `${Number(contractMonitor.metadata?.targetCount || 0).toLocaleString()} targets · ${contractMonitor.metadata?.coveragePercent || 0}% automated coverage · ${contractMonitor.metadata?.status || "ready"}`}
+        >
           {contractMonitorState === "loading" ? <ControlAsyncState compact state="loading" title="Loading contract coverage" message="Reading the current automated coverage snapshot." /> : contractMonitorState === "error" ? <ControlAsyncState compact state="error" title="Contract coverage unavailable" message="The retained integration summary remains available." action={<button type="button" className="if-btn if-btn--secondary" onClick={onRetryContractMonitor}>Retry</button>} /> : <><IntegrationFreshness budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} /><ContractMonitorCoverage contractMonitor={contractMonitor} /></>}
-        </details>
+        </ControlDisclosure>
       </>}
     </ControlPageBody>
   </section>;

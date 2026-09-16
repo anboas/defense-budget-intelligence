@@ -169,6 +169,19 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".if-identity-editor .user-avatar img").waitFor();
   await page.locator("[data-profile-menu-trigger] .user-avatar img").waitFor();
+  await page.goto(`${BASE_URL}#/profile/security`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-profile-page][data-profile-section="security"]');
+  const securityGeometry = await page.locator("[data-profile-security]").evaluate((node) => ({
+    width: node.getBoundingClientRect().width,
+    bottom: node.getBoundingClientRect().bottom,
+    fields: node.querySelectorAll(".if-field").length,
+    disabledFields: node.querySelectorAll("input:disabled").length,
+  }));
+  assert.ok(securityGeometry.width <= 761, `Security form should retain the same readable utility width as Profile, got ${securityGeometry.width}px`);
+  assert.ok(securityGeometry.bottom <= 620, `Security controls should remain high in the desktop viewport, ending at ${securityGeometry.bottom}px`);
+  assert.equal(securityGeometry.fields, 3, "Security should expose only current, new, and confirmation password fields");
+  assert.equal(securityGeometry.disabledFields, 0, "Security should not render decorative disabled inputs");
+  await page.screenshot({ path: "test-results/profile-security-desktop.png", fullPage: true });
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-openai-key-vault="user"]');
   const personalVault = page.locator('[data-openai-key-vault="user"]');
@@ -798,6 +811,18 @@ try {
   assert.ok(mobileProfileGeometry.inputHeights.every((height) => height >= 43.5), `Mobile Profile inputs must retain 44px touch geometry: ${mobileProfileGeometry.inputHeights.join(", ")}`);
   assert.ok(mobileProfileGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Profile actions must retain 44px touch geometry: ${mobileProfileGeometry.buttonHeights.join(", ")}`);
   await page.screenshot({ path: "test-results/profile-page-mobile.png", fullPage: true });
+
+  await page.goto(`${BASE_URL}#/profile/security`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-profile-page][data-profile-section="security"]');
+  const mobileSecurityGeometry = await page.locator("[data-profile-security]").evaluate((node) => ({
+    width: node.getBoundingClientRect().width,
+    inputHeights: [...node.querySelectorAll(".if-input")].map((input) => input.getBoundingClientRect().height),
+    buttonHeights: [...node.querySelectorAll(".if-btn")].map((button) => button.getBoundingClientRect().height),
+  }));
+  assert.ok(mobileSecurityGeometry.width <= 360, `Mobile Security should stay inside the shared page gutter, got ${mobileSecurityGeometry.width}px`);
+  assert.ok(mobileSecurityGeometry.inputHeights.every((height) => height >= 43.5), `Mobile Security inputs must retain 44px touch geometry: ${mobileSecurityGeometry.inputHeights.join(", ")}`);
+  assert.ok(mobileSecurityGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Security action must retain 44px touch geometry: ${mobileSecurityGeometry.buttonHeights.join(", ")}`);
+  await page.screenshot({ path: "test-results/profile-security-mobile.png", fullPage: true });
 
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-openai-key-vault="user"]');

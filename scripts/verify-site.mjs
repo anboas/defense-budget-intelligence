@@ -1034,7 +1034,9 @@ try {
   assert.match(solicitationHover, /Aug 31, 2026 to Sep 30, 2026/i);
   await applicationSolicitation.click();
   await page.waitForSelector("[data-capture-detail-modal][open]");
-  const applicationDetail = await page.locator("[data-capture-detail]").innerText();
+  assert.equal(await page.locator(".capture-detail__secondary").getAttribute("open"), null, "Procurement diagnostics should stay collapsed when a record opens");
+  await page.locator(".capture-detail__secondary > summary").click();
+  const applicationDetail = await page.locator("[data-capture-secondary-facts]").innerText();
   assert.match(applicationDetail, /Full and open competitive procurement/i);
   assert.match(applicationDetail, /SeaPort NxG contract holders only/i);
   assert.match(applicationDetail, /Cost Plus Fixed Fee \(CPFF\) Level of Effort/i);
@@ -1120,6 +1122,11 @@ try {
   assert.equal(transactionRequests, 1, "Opening an award should reuse the already-loaded FPDS history");
   assert.equal(await page.locator("[data-capture-action-chart]").count(), 1, "Selected award should expose cumulative obligations");
   assert.ok(await page.locator("[data-capture-action-table] tbody tr").count() >= 1, "Selected award should expose exact action rows");
+  assert.equal(await page.locator("[data-capture-primary-facts] > article").count(), 6, "Record detail should lead with six decision-critical facts");
+  assert.equal(await page.locator(".capture-detail__secondary").getAttribute("open"), null, "Secondary procurement diagnostics should stay collapsed by default");
+  await page.locator(".capture-detail__secondary > summary").click();
+  assert.ok(await page.locator("[data-capture-secondary-facts] > article").count() >= 9, "Expanded procurement diagnostics should retain the complete supporting metadata");
+  await page.locator(".capture-detail__secondary > summary").click();
   const recordModalHeader = await page.locator("[data-capture-detail] .capture-detail__heading").evaluate((header) => {
     const title = header.querySelector("h2").getBoundingClientRect();
     const actions = header.querySelector(".capture-detail__heading-actions").getBoundingClientRect();
@@ -1467,6 +1474,15 @@ try {
   });
   assert.ok(mobileModalGeometry.width <= mobileModalGeometry.viewportWidth, `Mobile detail modal must fit the viewport width, got ${mobileModalGeometry.width}px`);
   assert.ok(mobileModalGeometry.height <= mobileModalGeometry.viewportHeight, `Mobile detail modal must fit the viewport height, got ${mobileModalGeometry.height}px`);
+  const mobileFactGeometry = await mobile.locator("[data-capture-primary-facts]").evaluate((node) => ({
+    cards: node.children.length,
+    columns: getComputedStyle(node).gridTemplateColumns.split(" ").length,
+    height: node.getBoundingClientRect().height,
+  }));
+  assert.equal(mobileFactGeometry.cards, 6, "Mobile record detail should retain all six primary facts");
+  assert.equal(mobileFactGeometry.columns, 2, "Mobile primary facts should use a compact two-column metadata grid");
+  assert.ok(mobileFactGeometry.height <= 520, `Mobile primary facts should not become a vertical card wall, got ${mobileFactGeometry.height}px`);
+  assert.equal(await mobile.locator(".capture-detail__secondary").getAttribute("open"), null, "Mobile secondary procurement diagnostics should stay collapsed until requested");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-mobile.png` });
   await mobile.getByRole("button", { name: "Close record details" }).evaluate((button) => button.click());
   await mobile.waitForSelector("[data-capture-detail-modal]", { state: "detached" });

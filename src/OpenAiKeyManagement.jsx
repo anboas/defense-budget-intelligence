@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, CheckCircle2, KeyRound, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
-import { ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
+import { ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 function dateLabel(value) {
   if (!value) return "Never used";
@@ -131,7 +131,7 @@ export default function OpenAiKeyManagement({ auth, scope = "workspace", embedde
           {canManage ? <span className="if-action-row__actions">{!key.isDefault ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => void makeDefault(key)} disabled={busy}><CheckCircle2 size={15} aria-hidden="true" />Make default</button> : null}<button type="button" className="if-icon-btn" onClick={() => void revoke(key)} disabled={busy} aria-label={`Revoke ${key.label}`} title={`Revoke ${key.label}`}><Trash2 size={14} aria-hidden="true" /></button></span> : null}
         </article>)}
       </div>}
-      {revoked.length ? <details className="if-detail-card if-detail-card--neutral"><summary>{revoked.length} revoked key{revoked.length === 1 ? "" : "s"}</summary><div className="if-action-row-list">{revoked.map((key) => <article className="if-action-row" key={key.id}><span className="if-icon-slot"><KeyRound size={15} /></span><span><strong>{key.label} · •••• {key.lastFour}</strong><em>Revoked {dateLabel(key.revokedAt || key.updatedAt)}</em></span><span className="if-badge">Revoked</span></article>)}</div></details> : null}
+      {revoked.length ? <ControlDisclosure title={`${revoked.length} revoked key${revoked.length === 1 ? "" : "s"}`} summary="Inactive credentials retained for lifecycle audit"><div className="if-action-row-list">{revoked.map((key) => <article className="if-action-row" key={key.id}><span className="if-icon-slot"><KeyRound size={15} /></span><span><strong>{key.label} · •••• {key.lastFour}</strong><em>Revoked {dateLabel(key.revokedAt || key.updatedAt)}</em></span><span className="if-badge">Revoked</span></article>)}</div></ControlDisclosure> : null}
     </section>
     </ControlPageBody>
 

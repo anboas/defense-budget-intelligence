@@ -4365,24 +4365,12 @@ button.if-chart-bar.is-selected {
   box-shadow: var(--if-shadow-xs);
 }
 
-.if-detail-card--warning {
-  --if-card-accent: var(--if-warning);
-  --if-metric-accent: var(--if-warning);
-  --if-list-accent: var(--if-warning);
-}
-
 
 .if-analytics-panel.is-danger .if-analytics-panel__count {
   --if-card-accent: var(--if-danger);
   --if-metric-accent: var(--if-danger);
   --if-list-accent: var(--if-danger);
   color: var(--if-danger);
-}
-
-.if-detail-card--info {
-  --if-card-accent: var(--if-color-cyan-700, #0369a1);
-  --if-metric-accent: var(--if-color-cyan-700, #0369a1);
-  --if-list-accent: var(--if-color-cyan-700, #0369a1);
 }
 
 .if-detail-card--neutral {

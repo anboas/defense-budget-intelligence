@@ -1,4 +1,4 @@
-import { ControlActivityTrail } from "control-surface-ui/react";
+import { ControlActivityTrail, ControlDisclosure } from "control-surface-ui/react";
 
 function dateTime(value) {
   const date = new Date(value || "");
@@ -11,13 +11,12 @@ function statusLabel(status) {
 }
 
 function TaskExchange({ request, response }) {
-  return <details className="if-detail-card if-detail-card--neutral" data-task-exchange>
-    <summary>View request and response</summary>
+  return <ControlDisclosure data-task-exchange title="View request and response" summary="Redacted provider interface payloads for this task stage">
     <div className="if-chart-grid">
       <section><h4>Request</h4><pre className="if-code-block">{JSON.stringify(request, null, 2)}</pre></section>
       <section><h4>Response</h4><pre className="if-code-block">{JSON.stringify(response, null, 2)}</pre></section>
     </div>
-  </details>;
+  </ControlDisclosure>;
 }
 
 function apiExchange(entry) {
