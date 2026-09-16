@@ -247,18 +247,20 @@ try {
   await createdWorkspace.waitFor();
   assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"]').count(), 0, "Global workspace rows should stay collapsed until explicitly managed");
   await createdWorkspace.getByRole("button", { name: "Manage" }).click();
-  await createdWorkspace.getByRole("button", { name: "Add member" }).click();
+  const manageWorkspaceDialog = page.locator('[data-workspace-manage-dialog]');
+  await manageWorkspaceDialog.waitFor();
+  await manageWorkspaceDialog.getByRole("button", { name: "Add member" }).click();
   const addMemberDialog = page.locator('[data-workspace-member-dialog]');
   await addMemberDialog.waitFor();
   await chooseControlSelect(page, "User to add to Browser verification", "Browser teammate");
   await chooseControlSelect(page, "Role for new member in Browser verification", "Viewer");
   await addMemberDialog.getByRole("button", { name: "Add member" }).click();
-  await createdWorkspace.getByText("Browser teammate", { exact: true }).waitFor();
-  assert.match(await createdWorkspace.getByRole("button", { name: /^Role for Browser teammate.*:/ }).getAttribute("aria-label"), /Viewer/, "Super user should see the member's current workspace role");
+  await manageWorkspaceDialog.getByText("Browser teammate", { exact: true }).waitFor();
+  assert.match(await manageWorkspaceDialog.getByRole("button", { name: /^Role for Browser teammate.*:/ }).getAttribute("aria-label"), /Viewer/, "Super user should see the member's current workspace role");
   await chooseControlSelect(page, "Role for Browser teammate in Browser verification", "Analyst");
   await page.getByText(/Browser teammate is now Analyst/).waitFor();
-  assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"] article').count(), 6, "Each workspace should present its isolated content inventory");
-  await createdWorkspace.getByRole("button", { name: "Configure" }).click();
+  assert.equal(await manageWorkspaceDialog.locator('[aria-label="Browser verification contents"] article').count(), 6, "Each managed workspace should present its isolated content inventory");
+  await manageWorkspaceDialog.getByRole("button", { name: "Configure workspace" }).click();
   const workspaceEditor = page.locator("[data-workspace-editor]");
   await workspaceEditor.getByLabel("Workspace name").fill("Browser command");
   await workspaceEditor.getByLabel("Description").fill("Renamed browser-tested workspace");
@@ -274,16 +276,20 @@ try {
   const renamedWorkspace = workspaceAdmin.locator('[data-workspace]', { hasText: "Browser command" });
   await renamedWorkspace.waitFor();
   assert.equal(await renamedWorkspace.locator(':scope > header > span img[src^="data:image/webp"]').count(), 1, "Workspace cards should render their configured icon in the identity slot");
-  assert.match(await renamedWorkspace.innerText(), /What lives here[\s\S]*Tracked[\s\S]*Events[\s\S]*Milestones[\s\S]*Manual records[\s\S]*Audit entries[\s\S]*Agent keys/);
-  await renamedWorkspace.getByRole("button", { name: /Remove Browser teammate/ }).click();
+  assert.doesNotMatch(await renamedWorkspace.innerText(), /Workspace inventory|Manual records|Audit entries/, "Global workspace rows should stay concise after configuration");
+  await renamedWorkspace.getByRole("button", { name: "Manage" }).click();
+  const renamedManageDialog = page.locator('[data-workspace-manage-dialog]');
+  await renamedManageDialog.waitFor();
+  assert.match(await renamedManageDialog.innerText(), /Workspace inventory[\s\S]*Tracked[\s\S]*Events[\s\S]*Milestones[\s\S]*Manual records[\s\S]*Audit entries[\s\S]*Agent keys/i);
+  await renamedManageDialog.getByRole("button", { name: /Remove Browser teammate/ }).click();
   await page.getByText(/removed from Browser command/).waitFor();
-  const addMemberButton = renamedWorkspace.getByRole("button", { name: "Add member" });
+  const addMemberButton = renamedManageDialog.getByRole("button", { name: "Add member" });
   await addMemberButton.waitFor();
   await page.waitForFunction((button) => !button.disabled, await addMemberButton.elementHandle());
   await page.screenshot({ path: "test-results/admin-workspaces-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  const mobileWorkspaceGeometry = await workspaceAdmin.evaluate((node) => {
-    const inventory = node.querySelector(".workspace-card__contents > div");
+  const mobileWorkspaceGeometry = await renamedManageDialog.evaluate((node) => {
+    const inventory = node.querySelector('[aria-label="Browser command inventory"]');
     const controls = [...node.querySelectorAll("button, input")];
     return {
       documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
@@ -293,7 +299,7 @@ try {
     };
   });
   assert.ok(mobileWorkspaceGeometry.documentOverflow <= 2, `Mobile workspace command should not overflow the document, got ${mobileWorkspaceGeometry.documentOverflow}px`);
-  assert.equal(mobileWorkspaceGeometry.inventoryColumns, 2, "Mobile workspace inventory should use a readable two-column grid");
+  assert.equal(mobileWorkspaceGeometry.inventoryColumns, 2, "Mobile workspace inventory should use the shared two-column metric strip");
   assert.equal(mobileWorkspaceGeometry.inventoryItems, 6, "Mobile workspace inventory should preserve all six content categories");
   assert.ok(mobileWorkspaceGeometry.controlHeights.every((height) => height >= 43.5), `Mobile workspace controls must retain 44px targets: ${mobileWorkspaceGeometry.controlHeights.join(", ")}`);
   const addMemberPresentation = await addMemberButton.evaluate((button) => ({ text: button.innerText.trim(), opacity: getComputedStyle(button).opacity }));
@@ -302,6 +308,8 @@ try {
   assert.ok(await page.locator(".if-toast-stack .if-toast").count() <= 1, "Transient mutation feedback must never obscure the management surface with more than one toast");
   await page.screenshot({ path: "test-results/admin-workspaces-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await renamedManageDialog.getByRole("button", { name: "Close", exact: true }).click();
+  await renamedManageDialog.waitFor({ state: "detached" });
 
   await page.locator("[data-profile-menu-trigger]").click();
   const workspaceSwitcher = page.locator(workspaceTriggerSelector);
@@ -432,11 +440,11 @@ try {
   assert.equal(await page.locator('[data-task-center] > .if-page-body').count(), 1, "Task Center content must use the shared page-body gutter");
   await page.waitForSelector('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   const aiReview = page.locator('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
-  assert.match(await aiReview.innerText(), /(Verified draft ready|Operator validation required)[\s\S]*Research: gpt-5\.4-mini · Verification: gpt-5\.4[\s\S]*Before \/ verified draft[\s\S]*Verified draft changes[\s\S]*Evidence & exclusions/i, "The dedicated review workspace must disclose stages, selected models, a diff preview, changes, and evidence");
-  assert.equal(await aiReview.locator("[data-event-ai-diff-preview] .if-detail-card").count(), 2, "AI review must render side-by-side before and verified-draft diff panes");
+  assert.match(await aiReview.innerText(), /(Verified draft ready|Operator validation required)[\s\S]*Research: gpt-5\.4-mini · Verification: gpt-5\.4[\s\S]*Verified changes[\s\S]*Evidence & exclusions/i, "The dedicated review workspace must disclose stages, selected models, unified changes, and evidence");
+  assert.ok(await aiReview.locator("[data-event-ai-diff-preview] .if-change-list__item").count() >= 1, "AI review must render each changed field once in the shared change list");
   assert.equal(await page.locator('[data-task-center] > .if-page-body > .if-management-grid[aria-label="Task summary"]').count(), 0, "Selected task detail must replace the summary boxes instead of stacking beneath them");
   assert.equal(await page.locator("[data-task-table]").count(), 0, "Selected task detail must replace the retained task table instead of stacking above it");
-  assert.match(await aiReview.locator(".if-stepper").getAttribute("class"), /if-stepper--compact/, "Task progress must use the compact shared stepper");
+  assert.equal(await aiReview.locator(".if-progress-rail").count(), 1, "Task progress must use the compact shared progress rail");
   assert.equal(await aiReview.locator("[data-task-activity]").count(), 0, "Task review should not stack the full activity chain below the draft by default");
   await aiReview.getByRole("button", { name: /Activity/ }).click();
   assert.equal(await aiReview.locator("[data-task-activity] .if-activity-trail").count(), 1, "Task detail must expose one ordered framework activity trail");

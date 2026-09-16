@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
-  Bot,
-  CalendarDays,
   Check,
   ExternalLink,
-  FileStack,
-  Flag,
   ImagePlus,
   Pencil,
   Plus,
   Save,
-  Star,
   UserPlus,
-  UsersRound,
   UserX,
   X,
 } from "lucide-react";
@@ -24,12 +17,12 @@ import { ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, 
 
 const ROLE_LABELS = { administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const CONTENT_METRICS = [
-  ["trackedRecords", "Tracked", Star],
-  ["events", "Events", CalendarDays],
-  ["milestones", "Milestones", Flag],
-  ["manualRecords", "Manual records", FileStack],
-  ["activityEntries", "Audit entries", Activity],
-  ["activeAgentKeys", "Agent keys", Bot],
+  ["trackedRecords", "Tracked", "info"],
+  ["events", "Events", "purple"],
+  ["milestones", "Milestones", "warning"],
+  ["manualRecords", "Manual records", "neutral"],
+  ["activityEntries", "Audit entries", "success"],
+  ["activeAgentKeys", "Agent keys", "gold"],
 ];
 
 function displayCount(value) {
@@ -83,6 +76,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   const [addingMemberTo, setAddingMemberTo] = useState("");
   const [expandedId, setExpandedId] = useState(() => activeOnly ? auth.user?.activeWorkspace?.id || "" : "");
   const dialogRef = useRef(null);
+  const manageDialogRef = useRef(null);
   const { showToast } = useToast();
   const isSuperUser = auth.user?.roleId === "super_user";
   const visibleWorkspaces = activeOnly
@@ -120,6 +114,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   }), { tracked: 0, events: 0 }), [visibleWorkspaces]);
   const inventoryAvailable = visibleWorkspaces.some((workspace) => Number.isFinite(workspace.contents?.events));
   const addingWorkspace = data.workspaces.find((workspace) => workspace.id === addingMemberTo);
+  const managedWorkspace = !activeOnly ? data.workspaces.find((workspace) => workspace.id === expandedId) : null;
   const addingMemberIds = new Set((addingWorkspace?.members || []).map((member) => member.id));
   const addingCandidates = data.users.filter((user) => !addingMemberIds.has(user.id));
   const addingMemberDraft = memberDrafts[addingMemberTo] || { userId: addingCandidates[0]?.id || "", role: "viewer" };
@@ -149,6 +144,22 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       .catch(() => {});
   }
 
+  function workspaceDetails(workspace, portalTarget = null) {
+    const memberIds = new Set(workspace.members.map((member) => member.id));
+    const candidates = data.users.filter((user) => !memberIds.has(user.id));
+    return <div className="if-stack" data-workspace-detail={workspace.id}>
+      <section className="if-analytics-panel" aria-label={`${workspace.name} contents`}>
+        <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Workspace inventory</h3><p className="if-analytics-panel__summary">{workspace.contents?.wallboardEvents === null || workspace.contents?.wallboardEvents === undefined ? "Hosted counts unavailable locally" : `${workspace.contents.wallboardEvents} event${workspace.contents.wallboardEvents === 1 ? "" : "s"} on wallboard`}</p></div></header>
+        <ControlMetricStrip label={`${workspace.name} inventory`} items={CONTENT_METRICS.map(([key, label, tone]) => ({ id: key, label, value: displayCount(workspace.contents?.[key]), tone }))} />
+      </section>
+      <section className="workspace-card__members if-analytics-panel" aria-label={`${workspace.name} members`}><header><span>Members <strong>{workspace.members.length}</strong></span>{candidates.length ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setAddingMemberTo(workspace.id)} disabled={busy}><UserPlus size={14} />Add member</button> : null}</header>{workspace.members.map((member) => <div key={member.id}>
+        <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>
+        {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} portalTarget={portalTarget} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
+        {member.roleId !== "super_user" ? <button type="button" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
+      </div>)}</section>
+    </div>;
+  }
+
   return <section className="ops-panel workspace-management" data-workspace-management aria-labelledby="workspace-management-title">
     <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Workspaces"} summary={activeOnly ? "Identity, members, roles, requests, and shared inventory for the active workspace." : "Isolated workspace boundaries, membership, access requests, and ownership."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
     <ControlPageBody compact>
@@ -174,33 +185,18 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
     </article>)}</section> : null}
 
     <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <p>Loading workspaces…</p> : visibleWorkspaces.map((workspace) => {
-      const memberIds = new Set(workspace.members.map((member) => member.id));
-      const candidates = data.users.filter((user) => !memberIds.has(user.id));
       const isCurrent = auth.user?.activeWorkspace?.id === workspace.id;
       const workspacePending = Number(workspace.pendingRequestCount || 0);
-      const roleCounts = workspace.members.reduce((counts, member) => ({ ...counts, [member.roleId]: (counts[member.roleId] || 0) + 1 }), {});
-      const expanded = activeOnly || expandedId === workspace.id;
       return <article className={`workspace-card${isCurrent ? " is-current" : ""}`} key={workspace.id} data-workspace={workspace.id} data-workspace-current={isCurrent ? "true" : "false"}>
         <header>
           <span><WorkspaceMark workspace={workspace} /></span>
           <div><div className="workspace-card__title"><h3>{workspace.name}</h3>{isCurrent ? <b>Current</b> : null}</div><p>{workspace.description || "Shared intelligence workspace"}</p><small>{displayDate(workspace.lastActivityAt)}</small></div>
-          <div className="workspace-card__header-actions"><span>{workspace.members.length} member{workspace.members.length === 1 ? "" : "s"}{workspacePending ? ` · ${workspacePending} pending` : ""}</span>{!isCurrent ? <button type="button" disabled={busy} onClick={() => void auth.switchWorkspace(workspace.id).catch((error) => showNotice(error.message, "error"))}><ExternalLink size={14} />Open</button> : null}<button type="button" disabled={busy} onClick={() => setExpandedId((current) => current === workspace.id ? "" : workspace.id)} aria-expanded={expanded}>{expanded ? "Hide details" : "Manage"}</button><button type="button" disabled={busy} onClick={() => beginEdit(workspace)}><Pencil size={14} />Configure</button></div>
+          <div className="workspace-card__header-actions"><span>{workspace.members.length} member{workspace.members.length === 1 ? "" : "s"}{workspacePending ? ` · ${workspacePending} pending` : ""}</span>{!isCurrent ? <button type="button" disabled={busy} onClick={() => void auth.switchWorkspace(workspace.id).catch((error) => showNotice(error.message, "error"))}><ExternalLink size={14} />Open</button> : null}{!activeOnly ? <button type="button" disabled={busy} onClick={() => setExpandedId(workspace.id)} aria-haspopup="dialog">Manage</button> : null}<button type="button" disabled={busy} onClick={() => beginEdit(workspace)}><Pencil size={14} />Configure</button></div>
         </header>
-
-        {expanded ? <><section className="workspace-card__contents" aria-label={`${workspace.name} contents`}>
-          <header><div><span>Workspace inventory</span><strong>What lives here</strong></div><small>{workspace.contents?.wallboardEvents === null || workspace.contents?.wallboardEvents === undefined ? "Hosted counts unavailable locally" : `${workspace.contents.wallboardEvents} event${workspace.contents.wallboardEvents === 1 ? "" : "s"} on wallboard`}</small></header>
-          <div>{CONTENT_METRICS.map(([key, label, Icon]) => <article key={key}><Icon size={15} aria-hidden="true" /><span>{label}</span><strong>{displayCount(workspace.contents?.[key])}</strong></article>)}</div>
-        </section>
-
-        <div className="workspace-card__role-summary" aria-label={`${workspace.name} role distribution`}><UsersRound size={15} aria-hidden="true" /><span>{Number(roleCounts.super_user || 0)} owner</span><span>{Number(roleCounts.administrator || 0)} manager</span><span>{Number(roleCounts.analyst || 0)} analyst</span><span>{Number(roleCounts.viewer || 0)} viewer</span></div>
-
-        <div className="workspace-card__members"><header><span>Members <strong>{workspace.members.length}</strong></span>{candidates.length ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setAddingMemberTo(workspace.id)} disabled={busy}><UserPlus size={14} />Add member</button> : null}</header>{workspace.members.map((member) => <div key={member.id}>
-          <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>
-          {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
-          {member.roleId !== "super_user" ? <button type="button" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
-        </div>)}</div></> : null}
+        {activeOnly ? workspaceDetails(workspace) : null}
       </article>;
     })}</div>
+    {managedWorkspace ? <ControlDialog open onClose={() => setExpandedId("")} title={`Manage ${managedWorkspace.name}`} eyebrow="Platform administration" summary="Review inventory and manage workspace membership without expanding the workspace list." size="wide" dialogRef={manageDialogRef} surfaceProps={{ "data-workspace-manage-dialog": managedWorkspace.id }} footer={<><button type="button" className="if-btn" onClick={() => setExpandedId("")}>Close</button><button type="button" className="if-btn if-btn--secondary" onClick={() => { setExpandedId(""); beginEdit(managedWorkspace); }}><Pencil size={14} />Configure workspace</button></>}>{workspaceDetails(managedWorkspace, manageDialogRef)}</ControlDialog> : null}
     {addingWorkspace ? <ControlDialog open onClose={() => setAddingMemberTo("")} title={`Add member to ${addingWorkspace.name}`} eyebrow="Workspace administration" summary="Choose one account and grant only the role it needs." dialogRef={dialogRef} surfaceProps={{ "data-workspace-member-dialog": addingWorkspace.id }} footer={<><button type="button" className="if-btn" onClick={() => setAddingMemberTo("")}>Cancel</button><button type="submit" form="workspace-add-member-form" className="if-btn if-btn--primary" disabled={busy || !addingMemberDraft.userId}><UserPlus size={14} />Add member</button></>}>
       <form id="workspace-add-member-form" className="if-form-grid" onSubmit={(event) => { event.preventDefault(); void mutate(() => auth.addWorkspaceMember(addingWorkspace.id, addingMemberDraft), "Workspace member added.").then(() => setAddingMemberTo("")).catch(() => {}); }}>
         <div className="if-field"><span className="if-field__label">Account</span><ControlSelect ariaLabel={`User to add to ${addingWorkspace.name}`} value={addingMemberDraft.userId} searchable options={addingCandidates.map((user) => ({ value: user.id, label: user.displayName, description: user.email, icon: <UserAvatar user={user} size={24} /> }))} onChange={(userId) => setMemberDrafts((current) => ({ ...current, [addingWorkspace.id]: { ...addingMemberDraft, userId } }))} portalTarget={dialogRef} /></div>

@@ -1134,10 +1134,10 @@ try {
   assert.equal(await page.locator("[data-analytics-insight]").count(), 4, "Every analytics workspace should start with four recomputed factual signals");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Leading work category[\s\S]*Leading recipient[\s\S]*Schedule coverage/i, "Overview signals should summarize concentration, near-term schedule, and coverage");
   assert.equal(await page.locator("[data-analytics-legend]").count(), 6, "Every visible chart should explain its visual encoding");
-  const insightScopeBefore = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
+  const insightScopeBefore = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-analytics-insight="top-work"]').click();
   assert.match(await page.locator(".analytics-active-filters").innerText(), /Type of work:/, "Actionable factual signals should open their supporting slice");
-  assert.ok(Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, "")) < insightScopeBefore, "Insight drilldown should reduce the analytical universe");
+  assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < insightScopeBefore, "Insight drilldown should reduce the analytical universe");
   await page.locator('.analytics-active-filters button').click();
   const analyticsAccessibility = await page.evaluate(() => [...document.querySelectorAll("[data-d3-analytics]")].map((chart) => {
     const interactive = [...chart.querySelectorAll('[role="button"]')];
@@ -1184,14 +1184,14 @@ try {
   await page.getByRole("button", { name: /^Visible charts:/ }).click();
   await page.locator('[data-if-picker-menu] [role="option"]').filter({ hasText: "Reported value distribution" }).click();
   await page.keyboard.press("Escape");
-  const overviewScopeBefore = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
+  const overviewScopeBefore = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-d3-analytics="value-distribution"] [role="button"]').filter({ hasText: "Under $1M" }).click();
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Under \$1M/, "Value bands should filter every analytical view");
-  assert.ok(Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Value-band filtering should reduce the record scope");
+  assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Value-band filtering should reduce the record scope");
   await page.locator('.analytics-active-filters button').click();
   await page.locator('[data-d3-analytics="dimension-explorer"] [role="button"]').first().click();
   assert.equal(await page.locator('.analytics-active-filters button').count(), 1, "A dimension bar should cross-filter the analytical workspace");
-  const overviewScopeAfter = Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, ""));
+  const overviewScopeAfter = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   assert.ok(overviewScopeAfter < overviewScopeBefore, "Chart-driven filtering should reduce the record scope");
   await page.locator('.analytics-active-filters button').click();
   await page.getByRole("button", { name: "Schedule" }).click();
@@ -1230,7 +1230,7 @@ try {
   await chooseControlSelect(page, "Measure", "Records");
   assert.match(await page.locator('[data-d3-analytics="dimension-explorer"] header').innerText(), /Pricing type by records/i, "Dimension and measure controls should reconfigure the shared ranking");
   await page.locator('.analytics-search input').fill('Application Arsenal');
-  assert.ok(Number((await page.locator('[data-analytics-records] > header > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Search should cross-filter the record explorer and charts");
+  assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Search should cross-filter the record explorer and charts");
   assert.match(await page.locator('.analytics-export').innerText(), /Export/, "Filtered analytical slices should be exportable");
   await page.locator('.analytics-reset').click();
   await page.getByRole("button", { name: "Coverage & lineage" }).click();
@@ -1253,6 +1253,7 @@ try {
   await page.locator('[data-d3-analytics="source-coverage"] [role="button"]').first().click();
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Source system:/, "Coverage cells should filter the record universe by source system");
   await page.locator('.analytics-active-filters button').click();
+  await page.locator('[data-analytics-records] > summary').click();
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-modal][open]');
@@ -1267,7 +1268,7 @@ try {
   await page.waitForSelector('[data-analytics-record-modal][open]', { state: "detached" });
   assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
-  assert.match(await page.locator("[data-transaction-d3-page]").innerText(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
+  assert.match(await page.locator(".transaction-analytics-note").textContent(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
   await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
 
   await page.goto(`${BASE_URL}#/budget-spend/analytics?analyticsView=bogus`, { waitUntil: "domcontentloaded" });
@@ -1277,8 +1278,8 @@ try {
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
-  assert.equal(await page.locator("[data-source-flow] .source-flow__step").count(), 6, "Sources should trace six published data layers");
-  assert.equal(await page.locator(".join-policy-grid article").count(), 6, "Sources should disclose six join rules");
+  assert.equal(await page.locator("[data-source-flow] .if-ingest-stage").count(), 6, "Sources should trace six published data layers with the shared ingest-flow pattern");
+  assert.equal(await page.locator(".if-relationship-bundle-grid .if-relationship-bundle").count(), 6, "Sources should disclose six join rules with the shared relationship pattern");
   assert.equal(await page.locator("[data-source-health-monitor] details").count(), 5, "Sources should start with a bounded health summary instead of an eleven-card wall");
   await page.getByRole("button", { name: /Show all .* sources/ }).click();
   assert.ok(await page.locator("[data-source-health-monitor] details").count() > 5, "Sources should expose the full health inventory on demand");
@@ -1442,6 +1443,8 @@ try {
 
   await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
   assert.equal(await mobile.locator("[data-d3-analytics]").count(), 6);
+  assert.equal(await mobile.locator("[data-d3-analytics]:visible").count(), 2, "Mobile Analytics should foreground two primary charts before optional analysis");
+  assert.match(await mobile.locator(".analytics-mobile-chart-toggle").innerText(), /Show 4 additional charts/, "Mobile Analytics should expose the remaining views through deliberate disclosure");
   const compactAnalyticsGeometry = await mobile.evaluate(() => ({
     hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
     controls: document.querySelector(".analytics-commandbar")?.getBoundingClientRect().height || 0,
@@ -1492,7 +1495,7 @@ try {
   await openSurface(mobile, "#/budget-spend/sources", "[data-analytics-sources-page]");
   const mobileSourcesHeroHeight = await mobile.locator(".analytics-sources .request-hero").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileSourcesHeroHeight <= 185, `Mobile Sources should surface lineage without a tall introductory wall, got ${mobileSourcesHeroHeight}px`);
-  assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 6);
+  assert.equal(await mobile.locator("[data-source-flow] .if-ingest-stage").count(), 6);
   assert.equal(await mobile.locator("[data-source-health-monitor] details").count(), 5, "Mobile Sources should not render the full health inventory by default");
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });

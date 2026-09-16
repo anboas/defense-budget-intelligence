@@ -4,7 +4,6 @@ import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-
 import "./control-surface.css";
 import {
   BarChart3,
-  ArrowRight,
   Bookmark,
   BrainCircuit,
   Building2,
@@ -4578,29 +4577,22 @@ function AnalyticsSources() {
         </div>
       </section>
       <Section title="Money-flow lineage" meta="left to right from request to public subaward actions" icon={Database}>
-        <div className="source-flow" data-source-flow>
-          {layers.map((layer, index) => (
-            <div className="source-flow__step" key={layer.id}>
-              <article>
-                <span>Stage {layer.stage} · {layer.relationship}</span>
-                <strong>{layer.title}</strong>
-                <b>{layer.count}</b>
-                <p>{layer.system}<br />{layer.detail}</p>
-                {layer.href ? <a href={layer.href} target="_blank" rel="noreferrer">Open source <ExternalLink size={13} aria-hidden="true" /></a> : null}
-              </article>
-              {index < layers.length - 1 ? <ArrowRight size={18} aria-hidden="true" /> : null}
-            </div>
-          ))}
+        <div className="if-ingest-flow if-ingest-flow--mobile-scroll" data-source-flow>
+          {layers.map((layer) => <article className="if-ingest-stage" key={layer.id}>
+            <span className="if-ingest-stage__index">{layer.stage}</span>
+            <div><h3>{layer.title}</h3><p>{layer.system} · {layer.relationship}</p></div>
+            <div className="if-ingest-stage__metric"><div><strong>{layer.count}</strong><p>{layer.detail}</p></div>{layer.href ? <a className="if-btn if-btn--secondary if-btn--sm" href={layer.href} target="_blank" rel="noreferrer">Open source <ExternalLink size={13} aria-hidden="true" /></a> : null}</div>
+          </article>)}
         </div>
       </Section>
       <Section title="Join policy" meta="amounts remain at their published grains" icon={Network}>
-        <div className="join-policy-grid">
-          <article><strong>Request → federal account</strong><span>Derived only when normalized account titles match exactly.</span></article>
-          <article><strong>OMB → Treasury account</strong><span>Exact full TAFS/TAS identifier.</span></article>
-          <article><strong>Award → federal account</strong><span>Exact USAspending transaction funding-account relationship.</span></article>
-          <article><strong>Award → FPDS action</strong><span>Exact PIID, agency/parent, modification, and transaction context.</span></article>
-          <article><strong>Prime award → subaward</strong><span>Exact USAspending generated prime-award identifier. Subaward dollars remain separate from prime-award and FPDS totals.</span></article>
-          <article><strong>Budget line → award</strong><span>Unlinked unless a public identifier or cited source supports the edge.</span></article>
+        <div className="if-relationship-bundle-grid if-relationship-bundle-grid--mobile-scroll">
+          <article className="if-relationship-bundle"><h3>Request → federal account</h3><p>Derived only when normalized account titles match exactly.</p></article>
+          <article className="if-relationship-bundle"><h3>OMB → Treasury account</h3><p>Exact full TAFS/TAS identifier.</p></article>
+          <article className="if-relationship-bundle"><h3>Award → federal account</h3><p>Exact USAspending transaction funding-account relationship.</p></article>
+          <article className="if-relationship-bundle"><h3>Award → FPDS action</h3><p>Exact PIID, agency/parent, modification, and transaction context.</p></article>
+          <article className="if-relationship-bundle"><h3>Prime award → subaward</h3><p>Exact USAspending generated prime-award identifier. Subaward dollars remain separate from prime-award and FPDS totals.</p></article>
+          <article className="if-relationship-bundle"><h3>Budget line → award</h3><p>Unlinked unless a public identifier or cited source supports the edge.</p></article>
         </div>
       </Section>
       <Section title="Source health" meta={`point-in-time probe ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>

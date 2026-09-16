@@ -27,7 +27,7 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
-import { ControlDialog } from "control-surface-ui/react";
+import { ControlDialog, ControlMetricStrip } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import {
@@ -1732,11 +1732,11 @@ function RecordExplorer({ records, metricId, onSelect }) {
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Transactions</a></div> },
   ];
   return (
-    <section className="analytics-records" data-analytics-records>
-      <header>
+    <details className="analytics-records" data-analytics-records>
+      <summary>
         <div><TableProperties size={18} aria-hidden="true" /><span><strong>Record explorer</strong><small>Complete filtered set ranked by {metric.label.toLowerCase()}</small></span></div>
         <span>{records.length.toLocaleString()} in scope</span>
-      </header>
+      </summary>
       <OperationalDataTable
         key={metricId}
         id="analytics-record-explorer"
@@ -1749,7 +1749,7 @@ function RecordExplorer({ records, metricId, onSelect }) {
         exportFilename="defense-analytics-records.csv"
         defaultPageSize={25}
       />
-    </section>
+    </details>
   );
 }
 
@@ -1837,6 +1837,7 @@ export default function TransactionAnalytics({
   const [paretoDimension, setParetoDimension] = useState("recipient");
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [treemapMetric, setTreemapMetric] = useState("obligations");
+  const [expandedMobileViews, setExpandedMobileViews] = useState({});
   const [filterValues, setFilterValues] = useState({
     work: "all",
     buyer: "all",
@@ -1969,6 +1970,15 @@ export default function TransactionAnalytics({
   const chartOptions = VIEW_CHARTS[activeView];
   const activeChartIds = visibleCharts[activeView] || DEFAULT_VISIBLE_CHARTS[activeView];
   const chartVisible = (id) => activeChartIds.includes(id);
+  const mobileChartsExpanded = Boolean(expandedMobileViews[activeView]);
+  const mobileChartToggle = activeChartIds.length > 2 ? <button
+    type="button"
+    className="if-btn if-btn--secondary analytics-mobile-chart-toggle"
+    aria-expanded={mobileChartsExpanded}
+    onClick={() => setExpandedMobileViews((current) => ({ ...current, [activeView]: !current[activeView] }))}
+  >
+    {mobileChartsExpanded ? "Show primary charts only" : `Show ${activeChartIds.length - 2} additional charts`}
+  </button> : null;
   return (
     <div className="transaction-analytics-page" data-transaction-d3-page>
       <section className="transaction-analytics-hero">
@@ -1982,32 +1992,14 @@ export default function TransactionAnalytics({
             derived measures.
           </p>
         </div>
-        <dl>
-          <div>
-            <dt>Records in scope</dt>
-            <dd>{scopedRecords.length.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Observed obligations</dt>
-            <dd>{money(totals.obligations)}</dd>
-          </div>
-          <div>
-            <dt>Reported potential</dt>
-            <dd>{money(totals.potential)}</dd>
-          </div>
-          <div>
-            <dt>FPDS actions</dt>
-            <dd>{totals.actions.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Reported subawards</dt>
-            <dd>{totals.subawards.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Active filters</dt>
-            <dd>{activeFilters}</dd>
-          </div>
-        </dl>
+        <ControlMetricStrip mobileScroll label="Current analytical scope" items={[
+          { id: "records", label: "Records", value: scopedRecords.length.toLocaleString() },
+          { id: "obligations", label: "Obligations", value: money(totals.obligations), tone: "info" },
+          { id: "potential", label: "Potential", value: money(totals.potential) },
+          { id: "actions", label: "FPDS actions", value: totals.actions.toLocaleString() },
+          { id: "subawards", label: "Subawards", value: totals.subawards.toLocaleString() },
+          { id: "filters", label: "Filters", value: activeFilters, tone: activeFilters ? "warning" : "neutral" },
+        ]} />
       </section>
       <section className="analytics-commandbar" aria-label="Analytics controls">
         <nav aria-label="Analytics view">
@@ -2063,24 +2055,24 @@ export default function TransactionAnalytics({
 
       <AnalyticsBrief insights={insights} activeView={activeView} onAction={applyInsight} />
 
-      {activeView === "overview" ? <div className="transaction-viz-grid">
+      {activeView === "overview" ? <><div className={`transaction-viz-grid${mobileChartsExpanded ? " is-mobile-expanded" : ""}`}>
         {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer" legend={[`Bar length = ${metric.label.toLowerCase()}`, "Labels = record count"]}><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly" legend={["Blue = reported term ends", "Gold = acquisition events"]}><EventTimeline records={scopedRecords} /></ChartFrame> : null}
         {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
         {chartVisible("value-distribution") ? <ChartFrame icon={CircleDollarSign} title="Reported value distribution" note="Logarithmic bands preserve the small and large award populations; click to filter" testId="value-distribution" legend={["Bars = record count", "Bands use reported potential or observed value"]}><ValueDistribution records={scopedRecords} activeBand={valueBand} onBand={setValueBand} /></ChartFrame> : null}
         {chartVisible("treemap") ? <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure; click a recipient to filter every view" testId="treemap" legend={[`Area = ${treemapMetric}`, "Color = portfolio", "Nested labels = recipients"]}><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} onRecipient={(value) => setFacet({ dimensionId: "recipient", value })} /></ChartFrame> : null}
         {chartVisible("work-categories") ? <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit; click to filter" testId="work-categories" legend={["Area = record count", "Color = work category", "Unknowns remain explicit"]}><WorkCategoryTreemap records={scopedRecords} onCategory={(value) => setFacet({ dimensionId: "work", value })} /></ChartFrame> : null}
-      </div> : null}
+      </div>{mobileChartToggle}</> : null}
 
-      {activeView === "schedule" ? <div className="transaction-viz-grid">
+      {activeView === "schedule" ? <><div className={`transaction-viz-grid${mobileChartsExpanded ? " is-mobile-expanded" : ""}`}>
         {chartVisible("schedule-horizon") ? <div className="transaction-viz--wide"><ChartFrame icon={CalendarClock} title="Reported schedule horizon" note="Click a year to filter records by current, solicitation, or conditional potential endpoint" testId="schedule-horizon" legend={["Current = reported term/solicitation end", "Potential = conditional endpoint", "Bars = records"]}><ScheduleHorizon records={scopedRecords} onYear={(year) => setEndYear(endYear === year ? null : year)} /></ChartFrame></div> : null}
         {chartVisible("endpoint-seasonality") ? <ChartFrame icon={CalendarClock} title="Endpoint seasonality" note="Current, solicitation, and conditional endpoints by calendar month; click to filter" testId="endpoint-seasonality" legend={["Blue = current endpoints", "Gold = potential endpoints", "Columns = calendar month"]}><EndpointSeasonality records={scopedRecords} activeMonth={endMonth} onMonth={setEndMonth} /></ChartFrame> : null}
         {chartVisible("duration-distribution") ? <ChartFrame icon={BarChart3} title="Reported term duration" note="Published start-to-current-end duration; undated terms remain outside the distribution" testId="duration-distribution" legend={["Bars = dated records", "Duration = published start to current end"]}><DurationDistribution records={scopedRecords} activeBand={durationBand} onBand={setDurationBand} /></ChartFrame> : null}
         {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly" legend={["Blue = reported term ends", "Gold = acquisition events"]}><EventTimeline records={scopedRecords} /></ChartFrame> : null}
         {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
-      </div> : null}
+      </div>{mobileChartToggle}</> : null}
 
-      {activeView === "spend" ? <div className="transaction-viz-grid">
+      {activeView === "spend" ? <><div className={`transaction-viz-grid${mobileChartsExpanded ? " is-mobile-expanded" : ""}`}>
         {chartVisible("concentration-pareto") ? <div className="transaction-viz--wide"><ChartFrame icon={BarChart3} title="Obligation concentration Pareto" note="Ranked observed obligations with cumulative share; switch between recipients and funding offices" testId="concentration-pareto" legend={["Blue bars = observed obligations", "Gold line = cumulative share", "Dashed marker = 80% concentration threshold"]}><ConcentrationPareto records={scopedRecords} dimensionId={paretoDimension} onDimensionChange={(next) => { setParetoDimension(next); setFacet(null); }} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} by ${metric.label.toLowerCase()}`} note="The shared dimension and measure controls drive this ranking and the record explorer" testId="dimension-explorer" legend={[`Bar length = ${metric.label.toLowerCase()}`, "Labels = record count"]}><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("fiscal-trend") ? <div className="transaction-viz--wide"><ChartFrame icon={CircleDollarSign} title={`Fiscal obligation trend by ${dimensionLabel.toLowerCase()}`} note="Top five groups in the selected dimension; click a segment to filter every view" testId="fiscal-trend" legend={["Segments = selected dimension", "Height = annual net obligations", "Top five groups shown"]}><FiscalObligationTrend records={scopedRecords} dimensionId={dimensionId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
@@ -2088,20 +2080,20 @@ export default function TransactionAnalytics({
         {chartVisible("acquisition-matrix") ? <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix" legend={["Darker cell = more records", "Rows = pricing type", "Columns = competition structure"]}><AcquisitionMatrix records={scopedRecords} /></ChartFrame> : null}
         {chartVisible("vehicle-pricing") ? <ChartFrame icon={Layers3} title="Vehicle and pricing mix" note="Top published contract vehicles split by fixed-price, cost-type, T&M, and unpublished pricing" testId="vehicle-pricing" legend={["Stack length = records", "Color = pricing family", "Top published vehicles shown"]}><VehiclePricingMix records={scopedRecords} onVehicle={(vehicle) => setFacet({ dimensionId: "vehicle", value: vehicle })} /></ChartFrame> : null}
         {chartVisible("subawards") ? <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards" legend={["Bars = reported subaward count", "Dollars = retained recent sample", "Prime joins are exact"]}><SubawardConcentration records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
-      </div> : null}
+      </div>{mobileChartToggle}</> : null}
 
-      {activeView === "coverage" ? <div className="transaction-viz-grid">
+      {activeView === "coverage" ? <><div className={`transaction-viz-grid${mobileChartsExpanded ? " is-mobile-expanded" : ""}`}>
         {chartVisible("evidence-risk") ? <div className="transaction-viz--wide"><ChartFrame icon={Grid3X3} title="Evidence exposure matrix" note="Reported value bands crossed with missing public source, schedule, and acquisition-structure fields" testId="evidence-risk" legend={["Rows = explicit evidence-gap count", "Columns = reported value bands", "Color = reported value exposure", "Cell labels = records and exposure"]}><EvidenceRiskMatrix records={baseScopedRecords} activeCell={evidenceCell} onCell={setEvidenceCell} /></ChartFrame></div> : null}
         {chartVisible("field-coverage") ? <ChartFrame icon={BarChart3} title="Field coverage" note="Coverage across the current filtered public record universe" testId="field-coverage" legend={["Bar length = records with field", "Percent = current-scope completeness"]}><FieldCoverageBars records={scopedRecords} /></ChartFrame> : null}
         {chartVisible("source-coverage") ? <ChartFrame icon={Grid3X3} title="Source-system coverage" note="Published field completeness by source system; click a cell to filter the active universe" testId="source-coverage" legend={["Darker cell = higher coverage", "Rows = source systems", "Columns = published fields"]}><SourceCoverageMatrix records={scopedRecords} onSource={(source) => setFacet({ dimensionId: "source", value: source })} /></ChartFrame> : null}
         {chartVisible("provenance") ? <ChartFrame icon={BarChart3} title="Ingestion provenance" note="Automatic public feeds, normalized source files, and curated imports remain distinct; click to filter" testId="provenance" legend={["Bars = record count", "Categories = ingestion method"]}><ProvenanceBars records={scopedRecords} onProvenance={(value) => setFacet({ dimensionId: "provenance", value })} /></ChartFrame> : null}
         {chartVisible("money-lineage") ? <ChartFrame icon={Network} title="Money lineage and public join gaps" note="Counts encode records and links, not additive dollars; relationship class is explicit" testId="money-lineage" legend={["Solid = exact public join", "Dashed = derived relationship", "Red = unresolved gap"]}><MoneyLineageMap accountSpine={accountSpine} requestLineCount={requestLineCount} captureCoverage={dataset.metadata.coverage} /></ChartFrame> : null}
         {chartVisible("changes") ? <ChartFrame icon={CalendarClock} title="Changed since prior snapshot" note="Stable identifiers distinguish added, updated, and no-longer-returned records" testId="changes" legend={["Green = added", "Blue = updated", "Gray = removed"]}><ChangeBars summary={procurementDelta.summary} /></ChartFrame> : null}
-      </div> : null}
+      </div>{mobileChartToggle}</> : null}
 
       <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={setSelectedRecord} />
-      <section className="transaction-analytics-note">
-        <strong>Coverage boundary</strong>
+      <details className="transaction-analytics-note">
+        <summary>Coverage boundary</summary>
         <p>
           These views currently show {scopedRecords.length.toLocaleString()} of {records.length.toLocaleString()} public records:{" "}
           {dataset.metadata.coverage.publicRows} normalized capture rows plus{" "}
@@ -2118,7 +2110,7 @@ export default function TransactionAnalytics({
           PDB-to-account relationship remains derived; no universal public
           crosswalk connects every request line, award, and action.
         </p>
-      </section>
+      </details>
       <AnalyticsRecordModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
     </div>
   );
