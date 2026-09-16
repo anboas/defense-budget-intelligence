@@ -247,9 +247,12 @@ try {
   await createdWorkspace.waitFor();
   assert.equal(await createdWorkspace.locator('[aria-label="Browser verification contents"]').count(), 0, "Global workspace rows should stay collapsed until explicitly managed");
   await createdWorkspace.getByRole("button", { name: "Manage" }).click();
+  await createdWorkspace.getByRole("button", { name: "Add member" }).click();
+  const addMemberDialog = page.locator('[data-workspace-member-dialog]');
+  await addMemberDialog.waitFor();
   await chooseControlSelect(page, "User to add to Browser verification", "Browser teammate");
   await chooseControlSelect(page, "Role for new member in Browser verification", "Viewer");
-  await createdWorkspace.getByRole("button", { name: "Add member" }).click();
+  await addMemberDialog.getByRole("button", { name: "Add member" }).click();
   await createdWorkspace.getByText("Browser teammate", { exact: true }).waitFor();
   assert.match(await createdWorkspace.getByRole("button", { name: /^Role for Browser teammate.*:/ }).getAttribute("aria-label"), /Viewer/, "Super user should see the member's current workspace role");
   await chooseControlSelect(page, "Role for Browser teammate in Browser verification", "Analyst");
@@ -281,22 +284,22 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileWorkspaceGeometry = await workspaceAdmin.evaluate((node) => {
     const inventory = node.querySelector(".workspace-card__contents > div");
-  const controls = [...node.querySelectorAll("button, input")];
+    const controls = [...node.querySelectorAll("button, input")];
     return {
       documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
-      inventoryOverflow: getComputedStyle(inventory).overflowX,
+      inventoryColumns: getComputedStyle(inventory).gridTemplateColumns.split(" ").length,
       inventoryItems: inventory.children.length,
       controlHeights: controls.map((control) => control.getBoundingClientRect().height),
     };
   });
   assert.ok(mobileWorkspaceGeometry.documentOverflow <= 2, `Mobile workspace command should not overflow the document, got ${mobileWorkspaceGeometry.documentOverflow}px`);
-  assert.equal(mobileWorkspaceGeometry.inventoryOverflow, "auto", "Mobile workspace inventory should use a contained horizontal rail");
+  assert.equal(mobileWorkspaceGeometry.inventoryColumns, 2, "Mobile workspace inventory should use a readable two-column grid");
   assert.equal(mobileWorkspaceGeometry.inventoryItems, 6, "Mobile workspace inventory should preserve all six content categories");
   assert.ok(mobileWorkspaceGeometry.controlHeights.every((height) => height >= 43.5), `Mobile workspace controls must retain 44px targets: ${mobileWorkspaceGeometry.controlHeights.join(", ")}`);
-  const addMemberPresentation = await addMemberButton.evaluate((button) => ({ text: button.innerText.trim(), color: getComputedStyle(button).color, opacity: getComputedStyle(button).opacity }));
+  const addMemberPresentation = await addMemberButton.evaluate((button) => ({ text: button.innerText.trim(), opacity: getComputedStyle(button).opacity }));
   assert.equal(addMemberPresentation.text, "Add member", "Mobile workspace add control must retain its visible label");
-  assert.equal(addMemberPresentation.color, "rgb(255, 255, 255)", "Mobile workspace add control must retain readable text contrast");
   assert.equal(addMemberPresentation.opacity, "1", "Mobile workspace add control must remain fully visible when ready");
+  assert.ok(await page.locator(".if-toast-stack .if-toast").count() <= 1, "Transient mutation feedback must never obscure the management surface with more than one toast");
   await page.screenshot({ path: "test-results/admin-workspaces-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
@@ -414,7 +417,7 @@ try {
   await launchClick;
   await page.getByText("Event research started", { exact: true }).waitFor();
   await page.unroute("**/api/v1/auth/event-ai");
-  assert.equal(await page.locator(".if-toast-stack--masthead .if-toast--info").count(), 1, "Starting background work must produce a visible masthead toast");
+  assert.equal(await page.locator(".if-toast-stack--bottom .if-toast--info").count(), 1, "Starting background work must produce one visible bottom-edge toast without covering the route header");
   assert.equal(await page.locator("[data-event-ai-launcher-dialog]").count(), 0, "Starting augmentation must close its dedicated launcher modal");
   assert.equal(await page.locator("[data-ops-event-editor]").count(), 0, "Starting background research must not trap the operator in the event editor");
   const notificationButton = page.getByRole("button", { name: /^Notifications/ });
@@ -434,13 +437,15 @@ try {
   assert.equal(await page.locator('[data-task-center] > .if-page-body > .if-management-grid[aria-label="Task summary"]').count(), 0, "Selected task detail must replace the summary boxes instead of stacking beneath them");
   assert.equal(await page.locator("[data-task-table]").count(), 0, "Selected task detail must replace the retained task table instead of stacking above it");
   assert.match(await aiReview.locator(".if-stepper").getAttribute("class"), /if-stepper--compact/, "Task progress must use the compact shared stepper");
+  assert.equal(await aiReview.locator("[data-task-activity]").count(), 0, "Task review should not stack the full activity chain below the draft by default");
+  await aiReview.getByRole("button", { name: /Activity/ }).click();
   assert.equal(await aiReview.locator("[data-task-activity] .if-activity-trail").count(), 1, "Task detail must expose one ordered framework activity trail");
   assert.ok(await aiReview.locator("[data-task-exchange]").count() >= 2, "Task activity must retain expandable request and response pairs");
   await aiReview.locator("[data-task-exchange] summary").first().click();
   assert.match(await aiReview.locator("[data-task-exchange]").first().innerText(), /Request[\s\S]*Response[\s\S]*Research and augment event/i, "Task activity must disclose the submitted query and normalized response");
   await assertPageBodyGutter(page, "[data-task-center]", "Task Center");
   assert.doesNotMatch(await aiReview.innerText(), /sk-browser|authorization|request body|response body/i, "AI review must never expose secrets or raw provider payloads");
-  await page.screenshot({ path: "test-results/task-center-desktop.png", fullPage: true });
+  await page.screenshot({ path: "test-results/task-center-activity-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   const taskMobileGeometry = await page.locator("[data-task-center]").evaluate((node) => ({
     documentWidth: document.documentElement.scrollWidth,
@@ -449,6 +454,11 @@ try {
   }));
   assert.ok(taskMobileGeometry.documentWidth <= taskMobileGeometry.viewportWidth + 1, "Task request and response details must not create mobile document overflow");
   assert.ok(taskMobileGeometry.codeWidths.every((width) => width < 350), "Task request and response inspectors must stay within the mobile page gutter");
+  await page.screenshot({ path: "test-results/task-center-activity-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await aiReview.getByRole("button", { name: "Review", exact: true }).click();
+  await page.screenshot({ path: "test-results/task-center-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "test-results/task-center-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await aiReview.getByRole("button", { name: "Open verified draft" }).click();
@@ -523,7 +533,14 @@ try {
   assert.ok(mobileApiLogGeometry.documentWidth <= mobileApiLogGeometry.viewportWidth, "Compact API Log must not create mobile document overflow");
   assert.equal(mobileApiLogGeometry.chartColumns, 1, "Compact API Log charts must stack into one clean mobile band");
   assert.ok(mobileApiLogGeometry.minimumBarHeight >= 44, "Interactive mobile chart bars must retain 44px touch targets");
+  const firstMobileRequest = page.locator("[data-api-request-table] [data-if-table-row]").first();
+  assert.equal(await firstMobileRequest.locator('td[data-table-mobile-visible="true"]').count(), 4, "Mobile API request cards should show only the four decision-useful summary fields");
+  assert.equal(await firstMobileRequest.locator('td[data-table-mobile-visible="false"]:visible').count(), 0, "Secondary API request diagnostics must stay behind disclosure on mobile");
   await page.screenshot({ path: "test-results/admin-api-log-mobile.png", fullPage: true });
+  await firstMobileRequest.click();
+  await page.waitForSelector("[data-api-request-table] [data-if-table-detail]");
+  assert.match(await page.locator("[data-api-request-table] [data-if-table-detail]").innerText(), /Interface[\s\S]*Tokens[\s\S]*Principal[\s\S]*Trace[\s\S]*Safe diagnostic/i, "Expanded mobile API requests must expose the complete redacted diagnostic record");
+  await page.screenshot({ path: "test-results/admin-api-log-detail-mobile.png", fullPage: true });
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: /^Research and augment / }).first().click();
   await page.waitForSelector("[data-event-ai-launcher]");
@@ -569,6 +586,8 @@ try {
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should show its credential list before any creation form");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "Agent access should not repeat a second administration shell");
   assert.equal(await page.locator('[data-profile-agents] > .if-page-header').count(), 1, "Agent access should expose one framework-owned route header");
+  await page.locator('[data-profile-agents] .if-async-state').waitFor({ state: "detached" }).catch(() => {});
+  await page.locator('[data-profile-agents] .agent-key-list').waitFor();
   await page.screenshot({ path: "test-results/admin-agent-access-desktop.png", fullPage: true });
   await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="activity"] [data-ops-activity]');

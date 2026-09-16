@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlDialog, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
 
 const ROLE_LABELS = {
   administrator: "Workspace manager",
@@ -143,12 +143,12 @@ export default function UserManagement({ auth }) {
     <ControlPageHeader compact divided eyebrow="Platform administration" title="Users" summary="Human accounts, least-privilege roles, status, sessions, and password recovery." headingLevel={2} titleId="user-management-title" actions={<button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add user</button>} />
     <ControlPageBody compact>
 
-    <div className="if-management-grid if-management-grid--strip" aria-label="User access summary">
-      <article className="if-management-card if-tone-neutral"><span className="if-management-card__label">Total users</span><strong className="if-management-card__value">{users.length}</strong></article>
-      <article className="if-management-card if-tone-success"><span className="if-management-card__label">Active</span><strong className="if-management-card__value">{activeCount}</strong></article>
-      <article className="if-management-card if-tone-info"><span className="if-management-card__label">Managers</span><strong className="if-management-card__value">{adminCount}</strong></article>
-      <article className="if-management-card if-tone-purple"><span className="if-management-card__label">Sessions</span><strong className="if-management-card__value">{sessionCount}</strong></article>
-    </div>
+    <ControlMetricStrip label="User access summary" items={[
+      { id: "total", label: "Total users", value: users.length },
+      { id: "active", label: "Active", value: activeCount, tone: "success" },
+      { id: "managers", label: "Managers", value: adminCount, tone: "info" },
+      { id: "sessions", label: "Sessions", value: sessionCount, tone: "purple" },
+    ]} />
 
     {mode === "create" ? <ControlDialog open onClose={closeEditor} title="Add user" eyebrow="Platform administration" summary="Create an account with a temporary password that must be replaced at first sign-in." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-create": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-create-form" className="if-btn if-btn--primary" disabled={busy}><UserPlus size={15} />{busy ? "Creating…" : "Create user"}</button></>}><form id="user-create-form" className="user-management__editor if-form-grid" onSubmit={createUser}>
       <div className="user-management__form-grid">
@@ -183,7 +183,8 @@ export default function UserManagement({ auth }) {
     {message ? <p className="account-form__message user-management__message" role="status">{message}</p> : null}
 
     <div className="user-management__list" aria-label="Workspace users">
-      {busy && !users.length ? <p className="ops-empty">Loading users…</p> : users.map((user) => <article key={user.id} className={`user-management__row${user.status === "suspended" ? " is-suspended" : ""}`} data-user-row={user.id}>
+      {users.length ? <div className="user-management__list-header" aria-hidden="true"><span>User</span><span>Role</span><span>Access</span><span>Actions</span></div> : null}
+      {busy && !users.length ? <ControlAsyncState compact state="loading" title="Loading users" message="Reading workspace accounts and active sessions." /> : users.map((user) => <article key={user.id} className={`user-management__row${user.status === "suspended" ? " is-suspended" : ""}`} data-user-row={user.id}>
         <UserAvatar user={user} className="user-management__avatar" />
         <div className="user-management__identity"><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.title || "No title"}</small></div>
         <div className="user-management__role"><span className="if-badge if-badge--info if-badge--sm">{user.role}</span><small>{roleDescription(user.roleId)}</small></div>
@@ -196,7 +197,7 @@ export default function UserManagement({ auth }) {
           </>}
         </div>
       </article>)}
-      {!busy && !users.length ? <div className="ops-empty"><UsersRound size={22} /><strong>No workspace users</strong></div> : null}
+      {!busy && !users.length ? <ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="No workspace users" message="Create the first managed account for this platform." action={<button type="button" className="if-btn if-btn--primary" onClick={() => setMode("create")}><UserPlus size={15} />Add user</button>} /> : null}
     </div>
     </ControlPageBody>
   </section>;

@@ -93,6 +93,7 @@ export default function OperationalDataTable({
   onFilterChange,
   showSearch = true,
   showFacets = true,
+  mobileColumns = null,
 }) {
   const tableRef = useRef(null);
   const compactTable = useCompactTable(recordListAt, tableRef);
@@ -352,7 +353,7 @@ export default function OperationalDataTable({
           <tbody>{pageRows.length ? pageRows.flatMap((row, index) => {
             const key = String(rowKey(row));
             const expanded = expandedId === key;
-            const cells = visibleColumns.map((column) => <td key={`${key}-${column.key}`} data-ui-table-card-label={column.label} data-ui-table-cell-role={column.role || "data"} className={column.sticky ? "is-sticky" : ""} style={{ textAlign: column.align }}>{column.render ? column.render(row) : searchableValue(column.value?.(row) ?? row[column.key]) || "—"}</td>);
+            const cells = visibleColumns.map((column) => <td key={`${key}-${column.key}`} data-ui-table-card-label={column.label} data-ui-table-cell-role={column.role || "data"} data-table-mobile-visible={!mobileColumns || mobileColumns.includes(column.key) ? "true" : "false"} className={column.sticky ? "is-sticky" : ""} style={{ textAlign: column.align }}>{column.render ? column.render(row) : searchableValue(column.value?.(row) ?? row[column.key]) || "—"}</td>);
             return [<tr
               key={key}
               data-if-table-row

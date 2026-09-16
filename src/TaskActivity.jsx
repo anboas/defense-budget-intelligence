@@ -76,9 +76,9 @@ export function EventTaskActivity({ job, entries = [] }) {
     detail: job?.error?.message || (job?.mergeResult ? `${job.mergeResult.changes?.length || 0} verified changes; the event remains unsaved.` : "The next provider stage has not completed."),
     content: <TaskExchange request={{ evidenceGate: "Provider citations must support every accepted source and claim." }} response={job?.status === "failed" ? { status: job.status, error: job.error, diagnostic: job.diagnostic } : { status: job?.status, research: job?.proposal, verification: job?.verification, merge: job?.mergeResult }} />,
   }];
-  return <ControlActivityTrail label="Task activity chain" items={items} />;
+  return <ControlActivityTrail compact label="Task activity chain" items={items} />;
 }
 
 export function ApiTaskActivity({ entries = [] }) {
-  return <ControlActivityTrail label="API task activity chain" items={providerItems(entries)} />;
+  return <ControlActivityTrail compact label="API task activity chain" items={providerItems(entries)} />;
 }

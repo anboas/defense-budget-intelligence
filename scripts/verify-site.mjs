@@ -1279,7 +1279,9 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
   assert.equal(await page.locator("[data-source-flow] .source-flow__step").count(), 6, "Sources should trace six published data layers");
   assert.equal(await page.locator(".join-policy-grid article").count(), 6, "Sources should disclose six join rules");
-  assert.ok(await page.locator("[data-source-health-monitor] article").count() >= 1, "Sources should expose source health");
+  assert.equal(await page.locator("[data-source-health-monitor] details").count(), 5, "Sources should start with a bounded health summary instead of an eleven-card wall");
+  await page.getByRole("button", { name: /Show all .* sources/ }).click();
+  assert.ok(await page.locator("[data-source-health-monitor] details").count() > 5, "Sources should expose the full health inventory on demand");
   assert.doesNotMatch(await page.locator("[data-analytics-sources-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
 
   await page.goto(`${BASE_URL}#/budget-spend/strategy`, { waitUntil: "domcontentloaded" });
@@ -1491,6 +1493,7 @@ try {
   const mobileSourcesHeroHeight = await mobile.locator(".analytics-sources .request-hero").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileSourcesHeroHeight <= 185, `Mobile Sources should surface lineage without a tall introductory wall, got ${mobileSourcesHeroHeight}px`);
   assert.equal(await mobile.locator("[data-source-flow] .source-flow__step").count(), 6);
+  assert.equal(await mobile.locator("[data-source-health-monitor] details").count(), 5, "Mobile Sources should not render the full health inventory by default");
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 

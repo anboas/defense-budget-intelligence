@@ -4494,6 +4494,12 @@ function AnalyticsSources() {
   const accountCoverage = ACCOUNT_SPINE?.metadata?.coverage || {};
   const transactionCoverage = CAPTURE_CALENDAR?.metadata?.coverage || {};
   const healthTotals = sourceHealth.totals || {};
+  const [showAllSourceHealth, setShowAllSourceHealth] = useState(false);
+  const orderedHealthSources = [...(sourceHealth.sources || [])].sort((left, right) => {
+    const severity = { unavailable: 0, redirected: 1, online: 2 };
+    return (severity[left.health?.toLowerCase()] ?? 3) - (severity[right.health?.toLowerCase()] ?? 3);
+  });
+  const visibleHealthSources = showAllSourceHealth ? orderedHealthSources : orderedHealthSources.slice(0, 5);
   const layers = [
     {
       id: "request",
@@ -4599,13 +4605,14 @@ function AnalyticsSources() {
       </Section>
       <Section title="Source health" meta={`point-in-time probe ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className="source-health-grid" data-source-health-monitor>
-          {(sourceHealth.sources || []).map((source) => (
-            <article key={source.id} className={`source-health-card source-health-card--${source.health.toLowerCase()}`}>
-              <header><div><span>{source.group} · {source.layer}</span><strong>{source.name}</strong></div><b>{source.health}</b></header>
+          {visibleHealthSources.map((source) => (
+            <details key={source.id} className={`source-health-card source-health-card--${source.health.toLowerCase()}`}>
+              <summary className="source-health-card__summary"><div><span>{source.group} · {source.layer}</span><strong>{source.name}</strong></div><b>{source.health}</b></summary>
               <dl><div><dt>Status</dt><dd>{source.status} {source.statusText}</dd></div><div><dt>Probe</dt><dd>{source.method} · {source.responseMs}ms</dd></div><div><dt>Publisher</dt><dd>{source.publisher}</dd></div></dl>
-            </article>
+            </details>
           ))}
         </div>
+        {orderedHealthSources.length > 5 ? <button type="button" className="if-btn if-btn--secondary source-health-disclosure" aria-expanded={showAllSourceHealth} onClick={() => setShowAllSourceHealth((current) => !current)}>{showAllSourceHealth ? "Show fewer sources" : `Show all ${orderedHealthSources.length} sources`}</button> : null}
       </Section>
     </div>
   );
@@ -4785,4 +4792,4 @@ function RuntimeApp() {
   return <App />;
 }
 
-createRoot(document.getElementById("root")).render(<ToastProvider placement="masthead"><ControlErrorBoundary title="Defense Budget Intelligence could not render" message="Retry the application. If the problem continues, check the current deployment and request logs."><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ControlErrorBoundary></ToastProvider>);
+createRoot(document.getElementById("root")).render(<ToastProvider placement="bottom" maxVisible={1}><ControlErrorBoundary title="Defense Budget Intelligence could not render" message="Retry the application. If the problem continues, check the current deployment and request logs."><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ControlErrorBoundary></ToastProvider>);

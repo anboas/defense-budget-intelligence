@@ -2861,6 +2861,26 @@ button.if-chart-bar.is-selected {
   padding-top: var(--if-space-1);
 }
 
+.if-activity-trail--compact .if-activity-trail__item {
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: var(--if-space-2);
+  padding: var(--if-space-2) var(--if-space-3);
+}
+
+.if-activity-trail--compact .if-activity-trail__marker {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.if-activity-trail--compact .if-activity-trail__item:not(:last-child)::after {
+  top: 2rem;
+  left: calc(var(--if-space-3) + 0.69rem);
+}
+
+.if-activity-trail--compact .if-activity-trail__detail {
+  margin-block-start: 0;
+}
+
 @media (max-width: 40rem) {
   .if-activity-trail__item {
     grid-template-columns: 1.5rem minmax(0, 1fr);
@@ -3405,6 +3425,16 @@ button.if-chart-bar.is-selected {
   .if-toast__action,
   .if-toast__dismiss {
     min-height: 2.75rem;
+  }
+
+  .if-toast {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: var(--if-space-2) var(--if-space-3);
+  }
+
+  .if-toast__action {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 
