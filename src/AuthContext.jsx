@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { LockKeyhole, UserPlus } from "lucide-react";
+import { ControlAsyncState } from "control-surface-ui/react";
 import { authApi, isKnownStaticHost } from "./auth-client.js";
 import ProductMark from "./ProductMark.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
@@ -74,11 +75,11 @@ function WorkspaceAccessGate({ auth }) {
       <p className="account-gate__eyebrow">Workspace access</p>
       <h1 id="workspace-access-title">Choose a workspace</h1>
       <p>Your account is ready. Request access below and the Super user will review it.</p>
-      <div className="workspace-access-list">{loading ? <p>Loading workspaces…</p> : workspaces.map((workspace) => <article key={workspace.id}>
+      <div className="workspace-access-list">{loading ? <ControlAsyncState compact state="loading" title="Loading workspaces" message="Reading available workspace boundaries and your access status." /> : workspaces.length ? workspaces.map((workspace) => <article key={workspace.id}>
         <span><WorkspaceMark workspace={workspace} /></span>
         <div><strong>{workspace.name}</strong><small>{workspace.description || "Shared intelligence workspace"}</small></div>
         {workspace.roleId ? <button type="button" onClick={() => void auth.switchWorkspace(workspace.id)}>Open</button> : workspace.requestStatus === "pending" ? <b>Pending</b> : <button type="button" onClick={() => void requestAccess(workspace)}>Request access</button>}
-      </article>)}</div>
+      </article>) : <ControlAsyncState compact state="empty" title="No workspaces available" message="No workspace is currently available for access requests. Ask the platform owner to create one." />}</div>
       {message ? <p className="account-form__message" role="status">{message}</p> : null}
       <div className="workspace-access-actions"><button type="button" onClick={() => void auth.listWorkspaces().then((result) => { setWorkspaces(result.workspaces || []); setMessage("Access status refreshed."); }).catch((requestError) => setMessage(requestError.message))}>Refresh access</button><button className="account-gate__alternate" type="button" onClick={() => void auth.logout()}>Sign out</button></div>
     </section>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Clipboard, ImagePlus, KeyRound, Plus, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { Check, Clipboard, ImagePlus, KeyRound, Plus, Save, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
@@ -222,7 +222,7 @@ export function AgentAccessPanel({ auth, embedded = false }) {
 export default function ProfilePage({ section = "profile" }) {
   const auth = useAuth();
   const user = auth?.user;
-  if (!auth || auth.staticHost || !auth.enabled || !user) return <section className="profile-page profile-page--unavailable" data-profile-page><ShieldCheck size={28} /><h2>Account service unavailable</h2><p>Profile and agent administration are available on the authenticated Cloudflare application.</p></section>;
+  if (!auth || auth.staticHost || !auth.enabled || !user) return <section className="profile-page" data-profile-page><ControlAsyncState state="empty" title="Account service unavailable" message="Profile and agent administration are available on the authenticated Cloudflare application." /></section>;
 
   return <div className="profile-page" data-profile-page data-profile-section={section} data-density="compact">
     <ControlPageHeader compact divided eyebrow="Account settings" title={section === "security" ? "Security" : section === "personal-ai" ? "Personal OpenAI keys" : "Profile"} summary={section === "security" ? "Manage the password for this workspace account." : section === "personal-ai" ? "Manage credentials available only to requests you initiate." : "Manage the identity shown across the workspace."} headingLevel={2} />

@@ -159,10 +159,6 @@
 .user-avatar { display: inline-grid; flex: 0 0 auto; place-items: center; overflow: hidden; border-radius: 50%; background: #e7f3ff; color: #005ea8; font-weight: 800; }
 .user-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .profile-page__panel--wide .profile-page__form { max-width: none; }
-.profile-page--unavailable { place-items: center; min-height: 50vh; text-align: center; }
-.profile-page--unavailable h2,
-.profile-page--unavailable p { margin: 0; }
-
 .ops-activity-list small { color: var(--quiet); font-size: 9px; text-transform: capitalize; }
 .operations-hub--wallboard { margin-top: 0; }
 
@@ -1145,8 +1141,7 @@ button {
   margin: 4px 0;
 }
 
-.changes-hero p,
-.empty-state {
+.changes-hero p {
   margin: 0;
   color: var(--muted);
 }

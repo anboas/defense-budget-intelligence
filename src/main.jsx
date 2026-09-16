@@ -1086,7 +1086,7 @@ function AccountLifecycle() {
   }).join(" ");
   const coverage = ACCOUNT_SPINE?.metadata?.coverage || {};
 
-  if (!selected) return <p className="empty-state">No account-spine data is available.</p>;
+  if (!selected) return <ControlAsyncState compact state="empty" title="No account flow available" message="The current dataset does not include a federal account spine to inspect." />;
 
   return (
     <div className="grid lifecycle-page" data-account-spine-page>
@@ -1143,7 +1143,7 @@ function AccountLifecycle() {
                 <strong>{federalMoney(award.accountObligatedAmount)}</strong>
               </div>
             </article>
-          )) : <p className="empty-state">No exact award-account links are present for this account in the ranked technology-award sample.</p>}
+          )) : <ControlAsyncState compact state="empty" title="No exact award links" message="This account has no exact award links in the ranked technology-award sample." />}
         </div>
         <p className="lifecycle-caveat">Each edge is reported by USAspending from award transactions to a federal account. The set is limited to the {coverage.sampledAwards || 0} highest-value awards in the current technology sample and is not a complete account ledger.</p>
       </Section>
@@ -4424,7 +4424,7 @@ function ChangeList({ title, rows, kind }) {
             </article>
           ))}
         </div>
-      ) : <p className="empty-state">No changes were recorded between the two most recent verified snapshots.</p>}
+      ) : <ControlAsyncState compact state="empty" title="No verified changes" message="No changes were recorded between the two most recent verified snapshots." />}
     </Section>
   );
 }
@@ -4470,7 +4470,7 @@ function Changes() {
               </article>
             ))}
           </div>
-        ) : <p className="empty-state">No watched views yet. Use Watch beside any exportable analysis.</p>}
+        ) : <ControlAsyncState compact state="empty" title="No saved watches" message="Use Watch beside any exportable analysis to keep a local shortcut here." />}
       </Section>
 
       <ChangeList title="Budget Line Changes" rows={refreshDelta.budgetChanges || []} kind="budget" />
