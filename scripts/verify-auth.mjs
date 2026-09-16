@@ -317,15 +317,21 @@ try {
   const mobileWorkspaceGeometry = await renamedManageDialog.evaluate((node) => {
     const inventory = node.querySelector('[aria-label="Browser command inventory"]');
     const controls = [...node.querySelectorAll("button, input")];
+    const inventoryStyle = getComputedStyle(inventory);
     return {
       documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
-      inventoryColumns: getComputedStyle(inventory).gridTemplateColumns.split(" ").length,
+      inventoryDisplay: inventoryStyle.display,
+      inventoryOverflow: inventoryStyle.overflowX,
+      inventoryScrollWidth: inventory.scrollWidth,
+      inventoryClientWidth: inventory.clientWidth,
       inventoryItems: inventory.children.length,
       controlHeights: controls.map((control) => control.getBoundingClientRect().height),
     };
   });
   assert.ok(mobileWorkspaceGeometry.documentOverflow <= 2, `Mobile workspace command should not overflow the document, got ${mobileWorkspaceGeometry.documentOverflow}px`);
-  assert.equal(mobileWorkspaceGeometry.inventoryColumns, 2, "Mobile workspace inventory should use the shared two-column metric strip");
+  assert.equal(mobileWorkspaceGeometry.inventoryDisplay, "flex", "Mobile workspace inventory should use the shared horizontal metric rail");
+  assert.equal(mobileWorkspaceGeometry.inventoryOverflow, "auto", "Mobile workspace inventory should keep overflow inside the metric rail");
+  assert.ok(mobileWorkspaceGeometry.inventoryScrollWidth > mobileWorkspaceGeometry.inventoryClientWidth, "Mobile workspace inventory should expose all metrics through contained horizontal scrolling");
   assert.equal(mobileWorkspaceGeometry.inventoryItems, 6, "Mobile workspace inventory should preserve all six content categories");
   assert.ok(mobileWorkspaceGeometry.controlHeights.every((height) => height >= 43.5), `Mobile workspace controls must retain 44px targets: ${mobileWorkspaceGeometry.controlHeights.join(", ")}`);
   const addMemberPresentation = await addMemberButton.evaluate((button) => ({ text: button.innerText.trim(), opacity: getComputedStyle(button).opacity }));
