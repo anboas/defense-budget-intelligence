@@ -784,6 +784,13 @@ try {
   await mobileEventFilterToggle.click();
   assert.equal(await page.locator('[data-ops-event-table] [data-table-filters]:visible').count(), 1, "Mobile DataTable facets should remain available on demand");
   await mobileEventFilterToggle.click();
+  const mobileEventSearch = page.locator('[data-ops-event-table] input[type="search"]');
+  await mobileEventSearch.fill("no-event-can-match-this-control");
+  await page.locator('[data-ops-event-table] [data-if-table-empty]').waitFor();
+  assert.match(await page.locator('[data-ops-event-table] [data-if-table-empty]').innerText(), /No matching records[\s\S]*Reset table controls/i, "A filtered-empty table should explain the state and offer one-step recovery");
+  assert.equal(await page.locator('[data-ops-event-table] .dbi-data-table__footer').count(), 0, "A filtered-empty table should not render inert pagination");
+  await page.locator('[data-ops-event-table]').getByRole("button", { name: "Reset table controls" }).click();
+  await page.locator('[data-ops-event-table] [data-if-table-row]').first().waitFor();
   const mobileEventCardGeometry = await page.locator('[data-ops-event-table] [data-if-table-row]').first().evaluate((row) => ({
     visibleCells: [...row.querySelectorAll("td")].filter((cell) => getComputedStyle(cell).display !== "none").length,
     height: row.getBoundingClientRect().height,
