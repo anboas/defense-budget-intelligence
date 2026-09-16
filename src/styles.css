@@ -654,77 +654,28 @@ button {
 .account-gate__eyebrow { margin: 16px 0 3px; color: var(--brand); font-size: 11px; font-weight: 850; text-transform: uppercase; }
 .account-gate h1 { margin: 0; font-size: clamp(24px, 6vw, 32px); }
 .account-gate h1 + p { margin: 9px 0 22px; color: var(--muted); line-height: 1.5; }
-.account-gate form,
-.profile-dialog form { display: grid; gap: 14px; }
-.profile-dialog label { display: grid; gap: 5px; color: #26394d; font-size: 12px; font-weight: 800; }
-.profile-dialog label span { color: var(--quiet); font-weight: 500; }
-.profile-dialog input { min-height: 44px; padding: 9px 11px; border: 1px solid #9eb2c5; border-radius: 6px; background: #fff; color: var(--text); }
-.profile-dialog form > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 14px; border: 0; border-radius: 7px; background: var(--brand); color: #fff; font-weight: 850; }
+.account-gate form { display: grid; gap: 14px; }
 .account-gate .if-field__label { text-align: left; }
 .account-gate form > .if-btn { width: 100%; min-height: var(--if-control-height-lg); }
 .account-form__error,
 .account-form__message { margin: 0; font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); text-align: left; }
 
-.profile-dialog {
-  position: fixed;
-  z-index: 200;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background: rgba(4, 16, 28, .68);
-}
-
-.profile-dialog > section {
-  width: min(480px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 12px;
-  background: #fff;
-  color: var(--text);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .36);
-}
-
-.profile-dialog > .agent-access-dialog { width: min(720px, 100%); }
 .agent-token-once {
   display: grid;
   gap: 8px;
-  padding: 14px;
-  border: 1px solid #e0aa2d;
-  border-radius: 8px;
-  background: #fff8e5;
 }
-.agent-token-once p { margin: 0; color: #604c1e; font-size: 12px; }
+.agent-token-once p { margin: 0; font-size: var(--if-font-size-xs); }
 .agent-token-once code {
   overflow-wrap: anywhere;
   padding: 10px;
-  border-radius: 6px;
-  background: #172c40;
-  color: #eaf7ff;
-  font-size: 12px;
+  border-radius: var(--if-radius-sm);
+  background: var(--if-bg-inverse);
+  color: var(--if-text-inverse);
+  font-size: var(--if-font-size-xs);
   line-height: 1.5;
   user-select: all;
 }
-.agent-token-once button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 42px;
-  padding: 8px 11px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--text);
-  font-weight: 800;
-}
 .agent-token-once button { justify-self: start; }
-
-.profile-dialog header { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.profile-dialog header p { margin: 0 0 2px; color: var(--brand); font-size: 10px; font-weight: 850; text-transform: uppercase; }
-.profile-dialog header h2 { margin: 0; font-size: 22px; }
-.profile-dialog header button { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; min-height: 42px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); }
 
 @media (max-width: 1050px) {
   .masthead .masthead__inner { grid-template-columns: minmax(220px, 1fr) auto; }
