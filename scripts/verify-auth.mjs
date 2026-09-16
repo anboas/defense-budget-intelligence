@@ -578,6 +578,7 @@ try {
   assert.ok(mobileApiLogGeometry.documentWidth <= mobileApiLogGeometry.viewportWidth, "Compact API Log must not create mobile document overflow");
   assert.equal(mobileApiLogGeometry.chartColumns, 1, "Compact API Log charts must stack into one clean mobile band");
   assert.ok(mobileApiLogGeometry.minimumBarHeight >= 44, "Interactive mobile chart bars must retain 44px touch targets");
+  assert.ok(await page.locator("[data-api-request-table] [data-if-table-row]").count() <= 3, "Mobile API Log should default to three request cards before pagination");
   const firstMobileRequest = page.locator("[data-api-request-table] [data-if-table-row]").first();
   assert.equal(await firstMobileRequest.locator('td[data-table-mobile-visible="true"]').count(), 4, "Mobile API request cards should show only the four decision-useful summary fields");
   assert.equal(await firstMobileRequest.locator('td[data-table-mobile-visible="false"]:visible').count(), 0, "Secondary API request diagnostics must stay behind disclosure on mobile");
