@@ -10,6 +10,7 @@ import {
   mergeVerifiedEventDraft,
   normalizeEventAiDetails,
   parseOpenAiStructuredResponse,
+  retrieveOpenAiResponse,
 } from "../src/event-ai-runtime.js";
 import {
   MOCK_EVENT_AI_MODELS,
@@ -55,6 +56,19 @@ assert.equal(request.tool_choice, "required", "Evidence-gated research must forc
 assert.deepEqual(request.include, ["web_search_call.action.sources"], "Research must retain the provider's consulted-source inventory");
 assert.equal(request.text.format.strict, true);
 assert.doesNotMatch(request.input, /attendees|displayName|avatar/i, "Provider input must omit human profile data");
+
+let retrievedUrl = "";
+await retrieveOpenAiResponse("verification-key", "resp_background", async (url, options) => {
+  retrievedUrl = String(url);
+  assert.equal(options.method, "GET");
+  assert.equal(options.headers.authorization, "Bearer verification-key");
+  return {
+    ok: true,
+    headers: new Headers({ "x-request-id": "req_retrieve" }),
+    json: async () => ({ id: "resp_background", status: "completed", output: [] }),
+  };
+});
+assert.equal(new URL(retrievedUrl).searchParams.get("include"), "web_search_call.action.sources", "Background response retrieval must request the consulted-source inventory again");
 
 const sourceUrl = "https://example.gov/events/industry-day";
 const details = normalizeEventAiDetails({

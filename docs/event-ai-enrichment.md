@@ -54,6 +54,8 @@ Polling `GET /api/v1/auth/event-ai/:jobId` advances a non-terminal job. Provider
 
 Provider responses remain stored only while their background stage is pending or waiting to be resumed. After DBI accepts and normalizes a completed producer or verifier stage, it deletes that raw provider response. DBI retains the normalized schema-bound result and audit metadata, not the raw Responses payload.
 
+Because the consulted-source inventory is an opt-in Responses API field, DBI requests `web_search_call.action.sources` both when creating a background response and on every later retrieval. The completed response must expose the same provider provenance channel that the evidence gate evaluates.
+
 ## Credentials and permissions
 
 - Workspace manager, analyst, and Super user roles may run event AI because those roles have event write access.
