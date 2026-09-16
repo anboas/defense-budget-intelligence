@@ -164,7 +164,7 @@ export default function UserManagement({ auth }) {
         <label>Temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.password} onChange={(event) => setCreateDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
         <label>Confirm temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.confirm} onChange={(event) => setCreateDraft((draft) => ({ ...draft, confirm: event.target.value }))} /></label>
       </div>
-      {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+      {message ? <p className="if-alert if-alert--danger account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
 
     {mode === "edit" && selected && editDraft ? <ControlDialog open onClose={closeEditor} title={`Edit ${selected.displayName}`} eyebrow="Platform administration" summary="Identity and role changes apply to the next request." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-edit": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-edit-form" className="if-btn if-btn--primary" disabled={busy}><Check size={15} />{busy ? "Saving…" : "Save user"}</button></>}><form id="user-edit-form" className="user-management__editor if-form-grid" onSubmit={saveUser}>
@@ -174,7 +174,7 @@ export default function UserManagement({ auth }) {
         <label>Title <span>(optional)</span><input value={editDraft.title} onChange={(event) => setEditDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
         <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="User role" value={editDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setEditDraft((draft) => ({ ...draft, role }))} portalTarget={dialogRef} /><small>{roleDescription(editDraft.role)}</small></div>
       </div>
-      {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+      {message ? <p className="if-alert if-alert--danger account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
 
     {mode === "reset" && selected ? <ControlDialog open onClose={closeEditor} title={`Reset password for ${selected.displayName}`} eyebrow="Security action" summary="This immediately revokes every active session for this user." dialogRef={dialogRef} surfaceProps={{ "data-user-password-reset": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-reset-form" className="if-btn if-btn--primary" disabled={busy}><KeyRound size={15} />{busy ? "Resetting…" : "Reset password"}</button></>}><form id="user-reset-form" className="user-management__editor user-management__editor--reset if-form-grid" onSubmit={resetPassword}>
@@ -182,7 +182,7 @@ export default function UserManagement({ auth }) {
         <label>Temporary password<input required minLength={12} type="password" autoComplete="new-password" value={resetDraft.password} onChange={(event) => setResetDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
         <label>Confirm temporary password<input required minLength={12} type="password" autoComplete="new-password" value={resetDraft.confirm} onChange={(event) => setResetDraft((draft) => ({ ...draft, confirm: event.target.value }))} /></label>
       </div>
-      {message ? <p className="account-form__message" role="alert">{message}</p> : null}
+      {message ? <p className="if-alert if-alert--danger account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
 
     <div className="user-management__list" aria-label="Workspace users">
@@ -191,12 +191,12 @@ export default function UserManagement({ auth }) {
         <UserAvatar user={user} className="user-management__avatar" />
         <div className="user-management__identity"><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.title || "No title"}</small></div>
         <div className="user-management__role"><span className="if-badge if-badge--info if-badge--sm">{user.role}</span><small>{roleDescription(user.roleId)}</small></div>
-        <div className="user-management__access"><strong>{user.status === "active" ? "Active" : "Suspended"}</strong><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>
+        <div className="user-management__access"><span className={`if-status if-status--sm ${user.status === "active" ? "if-status--info" : "if-status--danger"}`}>{user.status === "active" ? "Active" : "Suspended"}</span><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>
         <div className="user-management__actions">
           {user.isOwner ? <span className="user-management__owner"><ShieldCheck size={15} />Permanent owner</span> : <>
-            <button type="button" onClick={() => openEdit(user)} disabled={busy}><Pencil size={14} />Edit</button>
-            <button type="button" onClick={() => openReset(user)} disabled={busy}><KeyRound size={14} />Reset</button>
-            <button type="button" className={user.status === "active" ? "is-danger" : ""} onClick={() => void toggleStatus(user)} disabled={busy}>{user.status === "active" ? <UserX size={14} /> : <UserCheck size={14} />}{user.status === "active" ? "Suspend" : "Reactivate"}</button>
+            <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => openEdit(user)} disabled={busy}><Pencil size={14} />Edit</button>
+            <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => openReset(user)} disabled={busy}><KeyRound size={14} />Reset</button>
+            <button type="button" className={`if-btn if-btn--sm ${user.status === "active" ? "if-btn--danger" : "if-btn--secondary"}`} onClick={() => void toggleStatus(user)} disabled={busy}>{user.status === "active" ? <UserX size={14} /> : <UserCheck size={14} />}{user.status === "active" ? "Suspend" : "Reactivate"}</button>
           </>}
         </div>
       </article>)}

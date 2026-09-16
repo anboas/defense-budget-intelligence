@@ -184,7 +184,7 @@
 .user-management__list-header { display: grid; grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1.2fr) minmax(165px, .9fr) auto; gap: 12px; padding: 8px 14px; border-block: var(--if-divider); background: var(--if-bg-subtle); color: var(--if-text-muted); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-black); letter-spacing: .04em; text-transform: uppercase; }
 .user-management__list-header span:first-child { grid-column: 1 / 3; }
 .user-management__row { display: grid; grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1.2fr) minmax(165px, .9fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 12px 14px; border-bottom: var(--if-divider); }
-.user-management__row.is-suspended { background: var(--if-bg-subtle); opacity: .76; }
+.user-management__row.is-suspended { background: var(--if-bg-subtle); }
 .user-management__avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--if-info-soft); color: var(--if-info); font-size: var(--if-font-size-xs); font-weight: 800; }
 .user-management__identity,
 .user-management__role,
@@ -198,8 +198,7 @@
 .user-management__access small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-normal); }
 .user-management__role .if-badge { justify-self: start; }
 .user-management__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
-.user-management__actions button { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 5px 9px; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-surface); color: var(--if-text); font: inherit; font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); cursor: pointer; }
-.user-management__actions button.is-danger { border-color: color-mix(in srgb, var(--if-danger) 40%, var(--if-border)); color: var(--if-danger); }
+.user-management__actions .if-btn { min-height: 36px; }
 .user-management__owner { display: inline-flex; align-items: center; gap: 5px; color: var(--if-info); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); white-space: nowrap; }
 
 .workspace-management { overflow: hidden; }
