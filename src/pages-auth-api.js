@@ -2202,7 +2202,7 @@ async function advanceEventAiJob(db, row, env) {
         proposal = citedEventAiDetails(providerResponse, parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails), draft);
       }
       if (!proposal?.sources?.length) throw Object.assign(new Error("Research completed without a cited public source."), { code: "missing_sources" });
-      await logEventAiProviderResult(db, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, proposal));
+      await logEventAiProviderResult(db, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? { searchQueries: [`${draft.title || "event"} official event details`], webSearchCallCount: 1, searchSourceCount: proposal.sources?.length || 0, structuredSourceCount: proposal.sources?.length || 0, matchedSourceCount: proposal.sources?.length || 0, matchedEvidenceCount: proposal.evidence?.length || 0 } : eventAiEvidenceDiagnostic(providerResponse, proposal));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.producer_response_id).catch(() => false);
       let verifierResponseId = `mock-verifier-${row.id}`;
       if (!mockMode) {
@@ -2239,7 +2239,7 @@ async function advanceEventAiJob(db, row, env) {
           mergeNotes: Array.isArray(value?.mergeNotes) ? value.mergeNotes.slice(0, 20) : [],
         }));
       }
-      await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
+      await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? { searchQueries: [`${draft.title || "event"} verify official dates and venue`], webSearchCallCount: 1, searchSourceCount: proposal.sources?.length || 0, structuredSourceCount: proposal.sources?.length || 0, matchedSourceCount: proposal.sources?.length || 0, matchedEvidenceCount: verification.approved?.length || 0 } : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
       const outcome = resolveEventAiVerificationOutcome({ draft, verification, categories });
       const now = new Date().toISOString();

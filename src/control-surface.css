@@ -2977,6 +2977,176 @@ button.if-chart-bar.is-selected {
   margin-block-start: 0;
 }
 
+.if-activity-inspector {
+  display: grid;
+  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: var(--if-divider);
+  border-radius: var(--if-radius-2);
+  background: var(--if-bg-surface);
+}
+
+.if-activity-inspector__rail {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  border-inline-end: var(--if-divider);
+  background: var(--if-bg-subtle);
+}
+
+.if-activity-inspector__stage {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: var(--if-space-2);
+  align-items: center;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: var(--if-space-2) var(--if-space-3);
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  background: transparent;
+  color: var(--if-text);
+  font: inherit;
+  text-align: start;
+}
+
+.if-activity-inspector__stage + .if-activity-inspector__stage {
+  border-block-start: var(--if-divider);
+}
+
+.if-activity-inspector__stage:hover,
+.if-activity-inspector__stage:focus-visible,
+.if-activity-inspector__stage.is-active {
+  background: var(--if-bg-selected);
+}
+
+.if-activity-inspector__stage:focus-visible {
+  outline: 2px solid var(--if-focus-ring);
+  outline-offset: -2px;
+}
+
+.if-activity-inspector__stage.is-active {
+  border-inline-start-color: var(--if-accent);
+}
+
+.if-activity-inspector__stage-copy,
+.if-activity-inspector__heading {
+  display: grid;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.if-activity-inspector__stage-copy strong,
+.if-activity-inspector__heading strong {
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-sm);
+  line-height: var(--if-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.if-activity-inspector__stage-copy small,
+.if-activity-inspector__heading small,
+.if-activity-inspector__detail {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-xs);
+  line-height: var(--if-line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+.if-activity-inspector__marker {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 1px solid var(--if-border-selected);
+  border-radius: var(--if-radius-pill);
+  background: var(--if-bg-selected);
+  color: var(--if-accent);
+  font-size: var(--if-font-size-2xs);
+  font-weight: var(--if-font-weight-black);
+}
+
+.if-activity-inspector__stage.is-danger .if-activity-inspector__marker,
+.if-activity-inspector__panel.is-danger .if-activity-inspector__marker {
+  border-color: color-mix(in srgb, var(--if-danger) 42%, var(--if-border));
+  background: var(--if-danger-soft);
+  color: var(--if-danger);
+}
+
+.if-activity-inspector__panel {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: var(--if-space-3);
+  padding: var(--if-space-4);
+}
+
+.if-activity-inspector__header {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  gap: var(--if-space-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.if-activity-inspector__detail {
+  margin: 0;
+}
+
+.if-activity-inspector__content {
+  display: grid;
+  min-width: 0;
+  gap: var(--if-space-3);
+  padding-block-start: var(--if-space-1);
+  border-block-start: var(--if-divider);
+}
+
+@media (max-width: 48rem) {
+  .if-activity-inspector {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .if-activity-inspector__rail {
+    display: flex;
+    overflow-x: auto;
+    border-inline-end: 0;
+    border-block-end: var(--if-divider);
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .if-activity-inspector__stage {
+    flex: 0 0 min(10rem, 44vw);
+    min-height: 3.25rem;
+    border-inline-start: 0;
+    border-block-end: 3px solid transparent;
+    scroll-snap-align: start;
+  }
+
+  .if-activity-inspector__stage + .if-activity-inspector__stage {
+    border-block-start: 0;
+    border-inline-start: var(--if-divider);
+  }
+
+  .if-activity-inspector__stage.is-active {
+    border-block-end-color: var(--if-accent);
+  }
+
+  .if-activity-inspector__panel {
+    padding: var(--if-space-3);
+  }
+
+  .if-activity-inspector__header {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+  }
+
+  .if-activity-inspector__header .if-status-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
 .if-disclosure {
   min-width: 0;
   overflow: hidden;

@@ -484,10 +484,21 @@ try {
   assert.equal(await aiReview.locator(".if-progress-rail").count(), 1, "Task progress must use the compact shared progress rail");
   assert.equal(await aiReview.locator("[data-task-activity]").count(), 0, "Task review should not stack the full activity chain below the draft by default");
   await aiReview.getByRole("button", { name: /Activity/ }).click();
-  assert.equal(await aiReview.locator("[data-task-activity] .if-activity-trail").count(), 1, "Task detail must expose one ordered framework activity trail");
-  assert.ok(await aiReview.locator("[data-task-exchange]").count() >= 2, "Task activity must retain expandable request and response pairs");
-  await aiReview.locator("[data-task-exchange] summary").first().click();
-  assert.match(await aiReview.locator("[data-task-exchange]").first().innerText(), /Request[\s\S]*Response[\s\S]*Research and augment event/i, "Task activity must disclose the submitted query and normalized response");
+  const taskInspector = aiReview.locator("[data-task-activity] .if-activity-inspector");
+  assert.equal(await taskInspector.count(), 1, "Task detail must expose one ordered framework activity inspector");
+  const researchStage = taskInspector.getByRole("tab", { name: /Research/ });
+  await researchStage.waitFor({ state: "visible", timeout: 10_000 });
+  assert.ok(await taskInspector.getByRole("tab").count() >= 3, "Task activity must retain submission, every logged provider exchange, and the terminal outcome");
+  assert.equal(await aiReview.locator("[data-task-exchange]").count(), 1, "Task activity must render only the selected request and response stage");
+  assert.match(await aiReview.locator("[data-task-exchange]").first().innerText(), /Request[\s\S]*Research and augment event[\s\S]*Response/i, "Task activity must disclose the submitted query and normalized response");
+  await researchStage.click();
+  assert.equal(await aiReview.locator("[data-task-exchange]").count(), 1, "Selecting another stage must replace rather than stack the request and response inspector");
+  assert.match(await aiReview.locator("[data-task-exchange]").innerText(), /searchQueries[\s\S]*official event details[\s\S]*Response[\s\S]*(succeeded|completed)/i, "Research activity must expose the bounded search query and normalized provider response");
+  await researchStage.focus();
+  await researchStage.press("ArrowRight");
+  assert.equal(await taskInspector.locator('[role="tab"][aria-selected="true"]').count(), 1, "Arrow keys must retain one selected activity stage");
+  assert.notEqual(await researchStage.getAttribute("aria-selected"), "true", "Arrow keys must move selection to the next retained activity stage");
+  await taskInspector.getByRole("tab", { name: /Research/ }).click();
   await assertPageBodyGutter(page, "[data-task-center]", "Task Center");
   assert.doesNotMatch(await aiReview.innerText(), /sk-browser|authorization|request body|response body/i, "AI review must never expose secrets or raw provider payloads");
   await page.screenshot({ path: "test-results/task-center-activity-desktop.png", fullPage: true });
@@ -496,9 +507,13 @@ try {
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: document.documentElement.clientWidth,
     codeWidths: [...node.querySelectorAll("[data-task-exchange] pre")].map((item) => item.getBoundingClientRect().width),
+    stageHeights: [...node.querySelectorAll('.if-activity-inspector__stage')].map((item) => item.getBoundingClientRect().height),
+    activityHeight: node.querySelector('[data-task-activity]')?.getBoundingClientRect().height || 0,
   }));
   assert.ok(taskMobileGeometry.documentWidth <= taskMobileGeometry.viewportWidth + 1, "Task request and response details must not create mobile document overflow");
   assert.ok(taskMobileGeometry.codeWidths.every((width) => width < 350), "Task request and response inspectors must stay within the mobile page gutter");
+  assert.ok(taskMobileGeometry.stageHeights.every((height) => height >= 44), "Every mobile activity stage must remain a touch-safe selector");
+  assert.ok(taskMobileGeometry.activityHeight < 1250, `Selected-stage activity must stay below 1250 px on mobile, got ${taskMobileGeometry.activityHeight}px`);
   await page.screenshot({ path: "test-results/task-center-activity-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await aiReview.getByRole("button", { name: "Review", exact: true }).click();

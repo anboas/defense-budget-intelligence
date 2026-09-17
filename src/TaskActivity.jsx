@@ -1,4 +1,4 @@
-import { ControlActivityTrail, ControlDisclosure } from "control-surface-ui/react";
+import { ControlActivityInspector } from "control-surface-ui/react";
 
 function dateTime(value) {
   const date = new Date(value || "");
@@ -11,12 +11,10 @@ function statusLabel(status) {
 }
 
 function TaskExchange({ request, response }) {
-  return <ControlDisclosure data-task-exchange title="View request and response" summary="Redacted provider interface payloads for this task stage">
-    <div className="if-chart-grid">
-      <section><h4>Request</h4><pre className="if-code-block">{JSON.stringify(request, null, 2)}</pre></section>
-      <section><h4>Response</h4><pre className="if-code-block">{JSON.stringify(response, null, 2)}</pre></section>
-    </div>
-  </ControlDisclosure>;
+  return <div className="task-exchange" data-task-exchange aria-label="Redacted request and response">
+    <section className="task-exchange__payload"><h4>Request</h4><pre className="if-code-block">{JSON.stringify(request, null, 2)}</pre></section>
+    <section className="task-exchange__payload"><h4>Response</h4><pre className="if-code-block">{JSON.stringify(response, null, 2)}</pre></section>
+  </div>;
 }
 
 function apiExchange(entry) {
@@ -27,6 +25,7 @@ function apiExchange(entry) {
       stage: entry.stage || "Not recorded",
       model: entry.model || undefined,
       retry: entry.retryCount || 0,
+      searchQueries: entry.metadata?.evidence?.searchQueries || undefined,
     },
     response: {
       status: entry.status,
@@ -41,13 +40,20 @@ function apiExchange(entry) {
   };
 }
 
+function providerStageTitle(entry) {
+  const stage = String(entry.stage || "").toLowerCase();
+  if (stage === "research") return "Research";
+  if (stage === "verification" || stage === "verify") return "Independent verification";
+  return String(entry.stage || entry.operation || "Provider request").replaceAll("_", " ").replaceAll(".", " · ");
+}
+
 function providerItems(entries) {
   return entries.slice().sort((left, right) => String(left.startedAt || left.at).localeCompare(String(right.startedAt || right.at))).map((entry) => {
     const exchange = apiExchange(entry);
     const danger = ["failed", "rejected", "rate_limited"].includes(entry.status);
     return {
       id: entry.id,
-      title: `${entry.stage || "Provider"} · ${String(entry.operation || "request").replaceAll("_", " ")}`,
+      title: providerStageTitle(entry),
       status: statusLabel(entry.status),
       tone: danger ? "danger" : entry.status === "succeeded" ? "success" : "info",
       meta: [dateTime(entry.startedAt || entry.at), entry.model, entry.latencyMs ? `${entry.latencyMs.toLocaleString()} ms` : ""].filter(Boolean).join(" · "),
@@ -73,11 +79,11 @@ export function EventTaskActivity({ job, entries = [] }) {
     tone: job?.status === "failed" ? "danger" : ["completed", "needs_review"].includes(job?.status) ? "success" : "info",
     meta: dateTime(job?.completedAt || job?.updatedAt || job?.createdAt),
     detail: job?.error?.message || (job?.mergeResult ? `${job.mergeResult.changes?.length || 0} verified changes; the event remains unsaved.` : "The next provider stage has not completed."),
-    content: <TaskExchange request={{ evidenceGate: "Provider citations must support every accepted source and claim." }} response={job?.status === "failed" ? { status: job.status, error: job.error, diagnostic: job.diagnostic } : { status: job?.status, research: job?.proposal, verification: job?.verification, merge: job?.mergeResult }} />,
+    content: <TaskExchange request={{ evidenceGate: "Provider citations must support every accepted source and claim." }} response={job?.status === "failed" ? { status: job.status, error: job.error, diagnostic: job.diagnostic } : { status: job?.status, decision: job?.verification?.decision, verifiedFields: job?.mergeResult?.changes?.map((change) => change.field), preservedConflicts: job?.mergeResult?.conflicts?.length || 0, rejectedClaims: job?.verification?.rejectedClaims?.length || 0, citedSources: job?.proposal?.sources?.map((source) => source.url).filter(Boolean) }} />,
   }];
-  return <ControlActivityTrail compact label="Task activity chain" items={items} />;
+  return <ControlActivityInspector label="Task activity chain" items={items} />;
 }
 
 export function ApiTaskActivity({ entries = [] }) {
-  return <ControlActivityTrail compact label="API task activity chain" items={providerItems(entries)} />;
+  return <ControlActivityInspector label="API task activity chain" items={providerItems(entries)} />;
 }

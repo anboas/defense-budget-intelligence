@@ -7001,6 +7001,41 @@ td .dot {
 
 .task-review-tabs .if-tab { min-height: 40px; }
 
+.task-exchange {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  overflow: hidden;
+  border: var(--if-divider);
+  border-radius: var(--if-radius-2);
+  background: var(--if-bg-surface);
+}
+
+.task-exchange__payload {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--if-space-2);
+  padding: var(--if-space-3);
+}
+
+.task-exchange__payload + .task-exchange__payload {
+  border-inline-start: var(--if-divider);
+}
+
+.task-exchange__payload h4 {
+  margin: 0;
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.task-exchange__payload .if-code-block {
+  max-height: 18rem;
+  margin: 0;
+}
+
 @media (max-width: 800px) {
   .analytics-sources .source-health-card {
     gap: var(--if-space-2);
@@ -7010,6 +7045,15 @@ td .dot {
   .task-review-tabs {
     top: var(--if-product-header-height-mobile, 3.5rem);
     overflow-x: auto;
+  }
+
+  .task-exchange {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-exchange__payload + .task-exchange__payload {
+    border-inline-start: 0;
+    border-block-start: var(--if-divider);
   }
 }
 
