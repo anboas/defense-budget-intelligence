@@ -7695,7 +7695,7 @@ td .dot {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ops-wall-calendar__bar span {
+.ops-wall-calendar__bar-copy > span {
   overflow: hidden;
   color: #46657c;
   font-size: clamp(8px, calc(5px + .35vw), 18px);
@@ -7703,7 +7703,6 @@ td .dot {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ops-wall-calendar__bar span { flex: 1 1 auto; }
 .ops-wall-calendar__bar .ops-wall-calendar__bar-attendees { display: flex; flex: 0 0 auto; align-items: center; align-self: center; overflow: visible; padding-left: 3px; }
 @container (max-width: 185px) { .ops-wall-calendar__bar-attendees { display: none !important; } }
 .ops-wall-calendar-tooltip { width: min(380px, calc(100vw - 16px)); border-top-color: #075b96; }
@@ -8517,7 +8516,7 @@ td .dot {
   color: #fff;
   background: linear-gradient(145deg, #1f5f8b, #59359a);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
-  font-size: calc(var(--team-avatar-size) * .34);
+  font-size: clamp(10px, calc(var(--team-avatar-size) * .34), 14px);
   font-weight: 800;
   letter-spacing: .02em;
 }
@@ -8574,7 +8573,8 @@ td .dot {
 .ops-calendar-overlays button.is-active { color: var(--if-text); border-color: var(--if-border-selected); background: var(--if-accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--if-border-selected) 32%, transparent); }
 .ops-calendar-overlay__state { display: inline-flex; align-items: center; gap: 3px; padding-left: 6px; border-left: 1px solid var(--if-border); color: var(--if-text-muted); font-size: 10px; font-weight: 750; }
 .ops-calendar-overlays button.is-active .ops-calendar-overlay__state { color: var(--if-accent); }
-.ops-wall-calendar__bar-team { display: inline-flex; align-items: center; margin-inline: 3px 1px; }
+.ops-wall-calendar__bar-team { display: inline-flex; flex: 0 0 auto; align-items: center; width: max-content; overflow: visible; margin-inline: 3px 1px; }
+.ops-wall-calendar__bar-team .team-avatar { color: #fff; }
 .ops-wall-calendar__bar-team b { margin-left: -5px; padding: 1px 4px; border-radius: 999px; background: var(--if-bg-surface); font-size: 9px; }
 
 @media (max-width: 720px) {

@@ -347,6 +347,16 @@ try {
   assert.match(await browserHrOverlay.innerText(), /Browser HR[\s\S]*Shown/i, "Visible calendar overlays must state their shown status without relying on opacity");
   assert.equal(await overlayRail.getByRole("button", { name: /Workspace-wide/ }).count(), 1, "The calendar must retain a workspace-wide overlay beside team overlays");
   await page.getByText("Browser HR private planning", { exact: true }).waitFor();
+  const calendarTeamAvatar = page.locator(`[data-calendar-event="${browserOverlayEvent.id}"] .ops-wall-calendar__bar-team .team-avatar`);
+  await calendarTeamAvatar.waitFor();
+  const calendarTeamAvatarGeometry = await calendarTeamAvatar.evaluate((node) => {
+    const bounds = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return { width: bounds.width, height: bounds.height, color: style.color, flexGrow: style.flexGrow };
+  });
+  assert.ok(calendarTeamAvatarGeometry.width <= 21 && calendarTeamAvatarGeometry.height <= 21, `Calendar team initials must stay compact: ${JSON.stringify(calendarTeamAvatarGeometry)}`);
+  assert.equal(calendarTeamAvatarGeometry.color, "rgb(255, 255, 255)", "Calendar team initials must render in white");
+  assert.equal(calendarTeamAvatarGeometry.flexGrow, "0", "Calendar team avatars must never stretch across an event bar");
   await browserHrOverlay.click();
   assert.equal(await browserHrOverlay.getAttribute("aria-pressed"), "false", "Calendar overlays must be independently toggleable");
   assert.match(await browserHrOverlay.innerText(), /Browser HR[\s\S]*Hidden/i, "Disabled calendar overlays must retain readable text and state");
