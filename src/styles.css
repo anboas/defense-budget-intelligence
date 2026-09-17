@@ -7527,6 +7527,7 @@ td .dot {
 .ops-wall-calendar__identity { display: flex !important; align-items: center; gap: clamp(8px, .55vw, 13px) !important; }
 .ops-wall-calendar__identity > img { width: clamp(34px, 2.2vw, 52px); height: clamp(34px, 2.2vw, 52px); border: 1px solid #719ab7; border-radius: 5px; object-fit: cover; background: #071a31; }
 .ops-wall-calendar__identity > span { display: grid; gap: 2px; }
+.ops-wall-calendar__month-compact { display: none; }
 .ops-wall-calendar__identity small { color: #526f84; font-size: clamp(8px, .45vw, 13px); font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .ops-wall-calendar__controls {
   display: flex !important;
@@ -8645,4 +8646,168 @@ td .dot {
   .ops-calendar-overlays > span small { display: none; }
   .ops-calendar-overlays > div { width: 100%; }
   .ops-calendar-overlays button { min-height: 44px; }
+}
+
+/* Compact routed wallboard: the application masthead already owns product identity. */
+@media (max-width: 1100px) {
+  .ops-wallboard[data-wallboard-fullscreen="false"] {
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__masthead { display: none; }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar {
+    min-height: 52px;
+    flex-flow: row nowrap;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav::-webkit-scrollbar { display: none; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar > div { flex: 0 0 auto; gap: 4px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar button { min-height: 44px; padding: 5px 10px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar [data-wallboard-action] {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar [data-wallboard-action] > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] > .ops-wallboard__section {
+    margin: 0;
+    border-inline: 0;
+    border-bottom: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__section--calendar > header {
+    min-height: 52px;
+    flex-flow: row nowrap;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    background: #fff;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity {
+    flex: 1 1 auto;
+    min-width: 122px;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity > img,
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity small { display: none; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity strong {
+    overflow: hidden;
+    font-size: 16px;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity strong > span {
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__month-full { display: none; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__month-compact { display: inline; }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 4px !important;
+    overflow: visible;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls .if-picker { width: 88px; min-width: 88px; flex: 0 0 88px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls [data-calendar-category-filter] {
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls .if-picker__trigger-copy strong {
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls > button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 0;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls > button:nth-of-type(2) {
+    width: auto;
+    min-width: 52px;
+    padding-inline: 7px;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls > b { display: none; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-calendar-overlays {
+    min-height: 52px;
+    align-items: center;
+    flex-direction: row;
+    gap: 0;
+    padding: 4px 6px;
+    background: #fff;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-calendar-overlays > span { display: none; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-calendar-overlays > div { width: 100%; gap: 4px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-calendar-overlays button {
+    min-height: 44px;
+    gap: 6px;
+    padding-right: 7px;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-calendar-overlay__state {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-calendar-overlay__state > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav button { padding-inline: 9px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity { min-width: 112px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity strong { font-size: 15px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls .if-picker { width: 76px; min-width: 76px; }
 }

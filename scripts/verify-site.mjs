@@ -896,7 +896,57 @@ try {
   assert.ok(mobileCalendarGeometry.dateTopInset <= 1, `Mobile calendar dates should not carry extra top inset, got ${mobileCalendarGeometry.dateTopInset}px`);
   assert.equal(mobileCalendarGeometry.lanesContained, true, `Two mobile event lanes should fit completely inside the September 16 week: ${JSON.stringify(mobileCalendarGeometry.laneBoxes)}`);
   assert.ok(mobileCalendarGeometry.laneBoxes.every((box) => box.height <= 31), `Mobile event lanes should remain compact: ${JSON.stringify(mobileCalendarGeometry.laneBoxes)}`);
+  const mobileWallboardChrome = await page.locator("[data-ops-wallboard]").evaluate((node) => {
+    const bounds = node.getBoundingClientRect();
+    const masthead = node.querySelector(".ops-wallboard__masthead");
+    const toolbar = node.querySelector(".ops-wallboard__toolbar").getBoundingClientRect();
+    const calendarHeader = node.querySelector("[data-wallboard-calendar] > header").getBoundingClientRect();
+    const overlays = node.querySelector("[data-calendar-overlays]").getBoundingClientRect();
+    const calendarViewport = node.querySelector(".ops-wall-calendar__viewport").getBoundingClientRect();
+    const actions = [...node.querySelectorAll("[data-wallboard-action]")].map((button) => {
+      const box = button.getBoundingClientRect();
+      return { width: box.width, height: box.height };
+    });
+    return {
+      mastheadVisible: getComputedStyle(masthead).display !== "none",
+      toolbarHeight: toolbar.height,
+      toolbarRows: new Set([...node.querySelectorAll(".ops-wallboard__toolbar button")].map((button) => Math.round(button.getBoundingClientRect().top))).size,
+      calendarHeaderHeight: calendarHeader.height,
+      overlayHeight: overlays.height,
+      chromeBeforeCalendar: calendarViewport.top - bounds.top,
+      countVisible: node.querySelector(".ops-wall-calendar__controls > b").getBoundingClientRect().height > 0,
+      actions,
+    };
+  });
+  assert.equal(mobileWallboardChrome.mastheadVisible, false, "The routed mobile wallboard must not repeat product identity below the application masthead");
+  assert.ok(mobileWallboardChrome.toolbarHeight <= 53, `Mobile wallboard modes and actions should share one compact row, got ${mobileWallboardChrome.toolbarHeight}px`);
+  assert.equal(mobileWallboardChrome.toolbarRows, 1, "Mobile wallboard navigation must not create a second action row");
+  assert.ok(mobileWallboardChrome.calendarHeaderHeight <= 53, `Mobile month navigation should stay in one command row, got ${mobileWallboardChrome.calendarHeaderHeight}px`);
+  assert.ok(mobileWallboardChrome.overlayHeight <= 53, `Mobile overlays should stay in one compact rail, got ${mobileWallboardChrome.overlayHeight}px`);
+  assert.ok(mobileWallboardChrome.chromeBeforeCalendar <= 160, `The month grid should begin within 160px of the routed wallboard, got ${mobileWallboardChrome.chromeBeforeCalendar}px`);
+  assert.equal(mobileWallboardChrome.countVisible, false, "Mobile wallboard should omit the redundant event-count bubble");
+  assert.ok(mobileWallboardChrome.actions.every(({ width, height }) => width <= 45 && height >= 43.5), `Mobile wallboard actions should be compact 44px icon controls: ${JSON.stringify(mobileWallboardChrome.actions)}`);
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-mobile.png`, fullPage: true });
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  const landscapeWallboardGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
+    const bounds = node.getBoundingClientRect();
+    const viewport = node.querySelector(".ops-wall-calendar__viewport").getBoundingClientRect();
+    return {
+      mastheadVisible: getComputedStyle(node.querySelector(".ops-wallboard__masthead")).display !== "none",
+      toolbarHeight: node.querySelector(".ops-wallboard__toolbar").getBoundingClientRect().height,
+      calendarHeaderHeight: node.querySelector("[data-wallboard-calendar] > header").getBoundingClientRect().height,
+      overlayHeight: node.querySelector("[data-calendar-overlays]").getBoundingClientRect().height,
+      chromeBeforeCalendar: viewport.top - bounds.top,
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: innerWidth,
+    };
+  });
+  assert.equal(landscapeWallboardGeometry.mastheadVisible, false, "Landscape mobile must not repeat the application identity inside Wallboard");
+  assert.ok(landscapeWallboardGeometry.toolbarHeight <= 53 && landscapeWallboardGeometry.calendarHeaderHeight <= 53 && landscapeWallboardGeometry.overlayHeight <= 53, `Landscape wallboard command bands must stay compact: ${JSON.stringify(landscapeWallboardGeometry)}`);
+  assert.ok(landscapeWallboardGeometry.chromeBeforeCalendar <= 160, `Landscape month content should begin within 160px of Wallboard, got ${landscapeWallboardGeometry.chromeBeforeCalendar}px`);
+  assert.ok(landscapeWallboardGeometry.documentWidth <= landscapeWallboardGeometry.viewportWidth + 1, "Landscape wallboard controls must not overflow the document");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-mobile-landscape.png`, fullPage: true });
 
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "Overview" }).click();

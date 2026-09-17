@@ -10,6 +10,7 @@ import {
   Maximize2,
   Minimize2,
   Plus,
+  RotateCw,
   ShieldCheck,
   Sparkles,
   CircleAlert,
@@ -855,8 +856,8 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
       <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small data-wallboard-last-refresh>{lastRefreshedAt ? `Updated ${new Date(lastRefreshedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Updating…"}</small> : null}{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
     </header>
     {!isFullscreen ? <div className="ops-wallboard__toolbar">
-      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button></nav>
-      <div><button type="button" aria-pressed={rotate} onClick={() => setRotate((value) => !value)}>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</button><button type="button" aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</button></div>
+      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Records</button></nav>
+      <div><button type="button" data-wallboard-action="rotate" aria-label={rotate ? "Auto-cycle on" : "Auto-cycle off"} title={rotate ? "Auto-cycle on" : "Auto-cycle off"} aria-pressed={rotate} onClick={() => setRotate((value) => !value)}><RotateCw size={17} aria-hidden="true" /><span>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</span></button><button type="button" data-wallboard-action="kiosk" aria-label={isFullscreen ? "Exit kiosk" : "Enter kiosk"} title={isFullscreen ? "Exit kiosk" : "Enter kiosk"} aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}<span>{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</span></button></div>
     </div> : null}
     {!isFullscreen ? <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
       <article><span>Tracked records</span><strong>{visibleRecords.length}</strong><small>Enabled for this display</small></article>

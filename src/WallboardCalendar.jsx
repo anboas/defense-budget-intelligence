@@ -210,6 +210,7 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
   const currentMonth = today.slice(0, 7);
   const monthDate = new Date(`${month}-01T00:00:00Z`);
   const monthLabel = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const compactMonthLabel = monthDate.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
   const monthStart = `${month}-01`;
   const monthEnd = `${month}-${String(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).getUTCDate()).padStart(2, "0")}`;
   const monthEvents = filteredEvents.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
@@ -224,9 +225,9 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
   }
   return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
     <header>
-      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading>{monthLabel}</strong></span></div>
+      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading><span className="ops-wall-calendar__month-full">{monthLabel}</span><span className="ops-wall-calendar__month-compact">{compactMonthLabel}</span></strong></span></div>
       <div className="ops-wall-calendar__controls">
-        <ControlMultiSelect label="Event types" placeholder="All event types" value={selectedCategoryIds} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description, meta: `${category.assignedEventCount || 0}` }))} onChange={setSelectedCategoryIds} searchable clearable compact triggerProps={{ "data-calendar-category-filter": true }} />
+        <ControlMultiSelect label="Event types" placeholder="Types" value={selectedCategoryIds} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description, meta: `${category.assignedEventCount || 0}` }))} onChange={setSelectedCategoryIds} searchable clearable compact triggerProps={{ "data-calendar-category-filter": true }} />
         <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
         <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
         <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
@@ -235,7 +236,7 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
     </header>
     <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Calendar overlays</strong><small>Toggle visible schedules.</small></span><div>{overlayOptions.map((team) => {
       const active = !hiddenOverlaySet.has(team.id);
-      return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}{active ? "Shown" : "Hidden"}</small></button>;
+      return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}<span>{active ? "Shown" : "Hidden"}</span></small></button>;
     })}</div></div>
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
       <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
