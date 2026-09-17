@@ -42,6 +42,7 @@ assert.equal(response.status, 201, "PostgreSQL must support atomic first claim")
 const ownerCookie = cookie(response);
 body = await response.json();
 assert.equal(body.user.canManageWorkspaces, true);
+const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
 
 const avatarDataUrl = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA==";
@@ -182,6 +183,33 @@ response = await request("/api/v1/auth/status", { cookie: signupCookie });
 body = await response.json();
 assert.equal(body.user.activeWorkspace.id, defaultWorkspaceId);
 assert.equal(body.user.role, "Analyst");
+
+response = await request("/api/v1/auth/teams", { method: "POST", cookie: ownerCookie, body: { name: "PostgreSQL HR", description: "Team overlay contract" } });
+assert.equal(response.status, 201, "PostgreSQL Super user must create workspace teams");
+const postgresTeamId = (await response.json()).team.id;
+response = await request(`/api/v1/auth/teams/${postgresTeamId}/members`, { method: "PUT", cookie: ownerCookie, body: { userIds: [signupId] } });
+assert.equal(response.status, 200, "PostgreSQL must persist team membership");
+response = await request("/api/v1/auth/teams", { cookie: signupCookie });
+body = await response.json();
+assert.deepEqual(body.memberTeamIds.map(String), [String(postgresTeamId)]);
+assert.deepEqual(body.teams.map((team) => String(team.id)), [String(postgresTeamId)], "Analysts must enumerate only their own team overlays");
+
+response = await request("/api/v1/auth/emulation", { method: "POST", cookie: ownerCookie, body: { userId: signupId } });
+assert.equal(response.status, 200, "PostgreSQL Super user must emulate an active managed user");
+body = await response.json();
+assert.equal(body.user.isEmulating, true);
+assert.equal(String(body.user.id), String(signupId));
+assert.equal(String(body.user.actor.id), String(ownerId), "PostgreSQL emulation must retain the real actor identity");
+response = await request("/api/v1/auth/teams", { method: "POST", cookie: ownerCookie, body: { name: "Privilege leak" } });
+assert.equal(response.status, 403, "Emulation must use the target user's workspace permissions");
+response = await request("/api/v1/auth/profile", { method: "PATCH", cookie: ownerCookie, body: { displayName: "Emulated mutation" } });
+assert.equal(response.status, 403, "PostgreSQL identity changes must be blocked during emulation");
+response = await request("/api/v1/auth/emulation", { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 200);
+assert.equal((await response.json()).user.isEmulating, false, "PostgreSQL must restore the real Super user after emulation");
+response = await request(`/api/v1/auth/teams/${postgresTeamId}`, { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 204, "Unassigned PostgreSQL teams must be removable");
+
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, { method: "POST", cookie: ownerCookie,
   body: { userId: signupId, role: "administrator" } });
 assert.equal(response.status, 200);
@@ -232,4 +260,4 @@ assert.equal(response.status, 200, "Super user must remove non-owner workspace m
 response = await request("/api/v1/auth/status", { cookie: signupCookie });
 assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removing the selected membership must clear that session's workspace boundary");
 
-console.log("Verified PostgreSQL profile pictures, OpenAI credential vaults, self-signup, workspace branding, scoped workspace managers, role assignment, switching, and removal");
+console.log("Verified PostgreSQL profile pictures, OpenAI credential vaults, self-signup, workspace branding, teams, effective-user emulation, scoped workspace managers, role assignment, switching, and removal");

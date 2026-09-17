@@ -173,6 +173,13 @@ export default function AuthProvider({ children }) {
     listWorkspaces: () => authApi.listWorkspaces(),
     requestWorkspaceAccess: (workspaceId, note) => authApi.requestWorkspaceAccess(workspaceId, note),
     switchWorkspace: async (workspaceId) => { const result = await authApi.switchWorkspace(workspaceId); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
+    startEmulation: async (userId) => { const result = await authApi.startEmulation(userId); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
+    stopEmulation: async () => { const result = await authApi.stopEmulation(); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
+    listTeams: () => authApi.listTeams(),
+    createTeam: (values) => authApi.createTeam(values),
+    updateTeam: (id, values) => authApi.updateTeam(id, values),
+    updateTeamMembers: (id, userIds) => authApi.updateTeamMembers(id, userIds),
+    deleteTeam: (id) => authApi.deleteTeam(id),
     getWorkspaceAdmin: () => authApi.getWorkspaceAdmin(),
     createWorkspace: async (values) => {
       const result = await authApi.createWorkspace(values);
@@ -232,5 +239,5 @@ export default function AuthProvider({ children }) {
   if (status.enabled && status.required && !status.user) return <AccountGate mode="login" registrationEnabled={status.registrationEnabled} busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} onRegister={(values) => void value.register(values).catch(() => {})} />;
   if (status.enabled && status.user?.mustChangePassword) return <PasswordChangeGate user={status.user} busy={busy} error={error} onSubmit={(values) => void run(() => authApi.changePassword(values)).catch(() => {})} />;
   if (status.enabled && status.required && status.user && !status.user.hasWorkspaceAccess) return <AuthContext.Provider value={value}><WorkspaceAccessGate auth={value} /></AuthContext.Provider>;
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{status.user?.isEmulating ? <div className="emulation-banner" role="status" data-emulation-banner><span><strong>Viewing as {status.user.displayName}</strong><small>Signed in as {status.user.actor?.displayName || "Super user"}. Permissions and team visibility match this user.</small></span><button type="button" className="if-btn if-btn--primary if-btn--sm" onClick={() => void value.stopEmulation().catch(() => {})} disabled={busy}>Exit view</button></div> : null}{children}</AuthContext.Provider>;
 }

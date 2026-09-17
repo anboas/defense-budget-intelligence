@@ -87,6 +87,8 @@ function normalizeEvent(entry = {}) {
     return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active", avatarDataUrl: cleanText(attendee?.avatarDataUrl, 14_000) };
   }).filter((attendee) => attendee.displayName);
   const attendeeIds = [...new Set((Array.isArray(entry.attendeeIds) ? entry.attendeeIds : attendees.map((attendee) => attendee.id)).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 30);
+  const teams = (Array.isArray(entry.teams) ? entry.teams : []).map((team) => ({ id: cleanText(team?.id, 80), name: cleanText(team?.name, 80), description: cleanText(team?.description, 240), iconDataUrl: cleanText(team?.iconDataUrl, 14_000) })).filter((team) => team.id && team.name);
+  const teamIds = [...new Set((Array.isArray(entry.teamIds) ? entry.teamIds : teams.map((team) => team.id)).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 12);
   const linkIds = new Set();
   const linkUrls = new Set();
   const links = (Array.isArray(entry.links) ? entry.links : []).map((link, index) => {
@@ -124,6 +126,8 @@ function normalizeEvent(entry = {}) {
     recordIds: [...new Set((Array.isArray(entry.recordIds) ? entry.recordIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 50),
     attendees: attendees.slice(0, 30),
     attendeeIds,
+    teams,
+    teamIds,
     links,
     categoryIds: [...new Set((Array.isArray(entry.categoryIds) ? entry.categoryIds : []).map((value) => cleanText(value, 80)).filter(Boolean))].slice(0, 8),
     milestones,
@@ -275,6 +279,8 @@ export function useManagementState(records = []) {
   const [watchlist, setWatchlist] = useState(() => readWatchlist(validIds));
   const [events, setEvents] = useState(() => readManagementEvents(validIds));
   const [eventCategories, setEventCategories] = useState(() => readEventCategories());
+  const [teams, setTeams] = useState([]);
+  const [memberTeamIds, setMemberTeamIds] = useState([]);
   const [activity, setActivity] = useState(() => readOperatorActivity(validIds));
   const [apiRequests, setApiRequests] = useState([]);
   const [apiRequestSummary, setApiRequestSummary] = useState(null);
@@ -290,12 +296,13 @@ export function useManagementState(records = []) {
   }, [validIds]);
 
   const syncRemote = useCallback(async () => {
-    const [trackingPayload, eventPayload, categoryPayload, activityPayload, apiRequestPayload] = await Promise.all([
+    const [trackingPayload, eventPayload, categoryPayload, activityPayload, apiRequestPayload, teamPayload] = await Promise.all([
       workspaceRequest("/tracking"),
       workspaceRequest("/events"),
       workspaceRequest("/event-categories"),
       workspaceRequest("/activity?limit=200"),
       workspaceRequest("/api-requests?limit=500"),
+      auth.listTeams(),
     ]);
     const allowed = new Set(validIds);
     setWatchlist((trackingPayload.data || []).map(normalizeWatch).filter((entry) => entry && allowed.has(entry.recordId)));
@@ -304,9 +311,11 @@ export function useManagementState(records = []) {
     setActivity((activityPayload.data || []).map(remoteActivity).filter(Boolean));
     setApiRequests((apiRequestPayload.data || []).map(normalizeApiRequest).filter(Boolean));
     setApiRequestSummary(apiRequestPayload.meta?.summary || null);
+    setTeams(teamPayload.teams || []);
+    setMemberTeamIds(teamPayload.memberTeamIds || []);
     setError("");
     setLastRefreshedAt(new Date().toISOString());
-  }, [validIds]);
+  }, [auth, validIds]);
 
   useEffect(() => {
     if (remote) {
@@ -463,6 +472,8 @@ export function useManagementState(records = []) {
     watchedIds: useMemo(() => new Set(watchlist.map((entry) => entry.recordId)), [watchlist]),
     events,
     eventCategories: eventCategoriesWithCounts,
+    teams,
+    memberTeamIds,
     activity,
     apiRequests,
     apiRequestSummary,

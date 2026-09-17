@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
+import WorkspaceTeams from "./WorkspaceTeams.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
@@ -157,6 +158,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
         {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} portalTarget={portalTarget} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
         {member.roleId !== "super_user" ? <button type="button" className="if-btn if-btn--danger if-btn--sm" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
       </div>)}</section>
+      {workspace.id === auth.user?.activeWorkspace?.id ? <WorkspaceTeams auth={auth} users={workspace.members} /> : null}
     </div>;
   }
 

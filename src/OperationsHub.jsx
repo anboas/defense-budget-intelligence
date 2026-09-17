@@ -25,6 +25,7 @@ import {
 import sourceHealth from "./data/source-health.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
+import TeamAvatar from "./TeamAvatar.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { AgentAccessPanel } from "./ProfilePage.jsx";
 import { useAuth } from "./AuthContext.jsx";
@@ -122,6 +123,7 @@ function newEventDraft() {
     recordIds: [],
     attendees: [],
     attendeeIds: [],
+    teamIds: [],
     milestones: [],
     wallboard: true,
   };
@@ -270,7 +272,7 @@ function EventAiLauncher({ event, onClose }) {
   </ControlDialog>;
 }
 
-function EventEditor({ event, review = false, records, categories, onSave, onClose }) {
+function EventEditor({ event, review = false, records, categories, teams, onSave, onClose }) {
   const auth = useAuth();
   const dialogRef = useRef(null);
   const [draft, setDraft] = useState(() => event || newEventDraft());
@@ -331,6 +333,10 @@ function EventEditor({ event, review = false, records, categories, onSave, onClo
           <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Event categories" allLabel="Select event types" value={JSON.stringify(draft.categoryIds || [])} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description }))} onChange={(categoryIds) => setDraft((value) => ({ ...value, categoryIds }))} portalTarget={dialogRef} />
             {!categories.length ? <small>No workspace event categories are available.</small> : null}
+          </div>
+          <div className="ops-attendee-picker if-field--full" data-event-team-picker>
+            <SearchMultiSelect title="Team visibility" allLabel="Workspace-wide (no team restriction)" value={JSON.stringify(draft.teamIds || [])} options={(teams || []).map((team) => ({ value: team.id, label: team.name, description: team.description }))} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} portalTarget={dialogRef} />
+            <small>{draft.teamIds?.length ? "Only members of the selected teams can see this event. Multi-team members see the union." : "Visible to every member of this workspace."}</small>
           </div>
           <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
@@ -688,13 +694,14 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "augmentation", label: "AI augmentation", facet: true, minWidth: 190, value: eventAugmentationValue, sortValue: (event) => event.lastAugmentedAt || "", render: (event) => <EventAugmentationState event={event} /> },
     { key: "display", label: "Wallboard", facet: true, value: (event) => event.wallboard ? "Shown" : "Hidden" },
     { key: "categories", label: "Categories", facet: true, minWidth: 150, value: (event) => eventCategoryLabels(event, categories).join(" · ") || "Uncategorized" },
+    { key: "teams", label: "Visibility", facet: true, minWidth: 180, value: (event) => event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide", render: (event) => event.teams?.length ? <span className="event-team-stack">{event.teams.slice(0, 3).map((team) => <span key={team.id}><TeamAvatar team={team} size={24} />{team.name}</span>)}</span> : <span className="if-badge if-badge--neutral">Workspace-wide</span> },
     { key: "links", label: "Links", minWidth: 100, sortValue: (event) => event.links?.length || 0, value: (event) => `${event.links?.length || 0}`, render: (event) => <strong>{event.links?.length || 0}</strong> },
     { key: "milestones", label: "Milestones", minWidth: 120, sortValue: (event) => event.milestones?.length || 0, value: (event) => `${event.milestones?.length || 0}`, render: (event) => <strong>{event.milestones?.length || 0}</strong> },
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" onClick={() => onEdit(event)}>Edit</button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event.id)}><Trash2 size={14} />Delete</button></div> },
   ];
   const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks" aria-label="Task Center" title="Task Center"><ListChecks size={15} aria-hidden="true" /><span>Task Center</span></a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" aria-label="Manage categories" title="Manage categories" onClick={onManageCategories}><Tags size={15} aria-hidden="true" /><span>Manage categories</span></button> : null}<button type="button" className="if-btn if-btn--primary" aria-label="Add event" title="Add event" onClick={onAdd}><Plus size={15} aria-hidden="true" /><span>Add event</span></button></>;
-  return <section className="ops-panel" data-ops-events><ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /><ControlPageBody compact>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "starts", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the wallboard." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />}</ControlPageBody>{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
+  return <section className="ops-panel" data-ops-events><ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /><ControlPageBody compact>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the wallboard." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />}</ControlPageBody>{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
 function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {
@@ -805,7 +812,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
   </section>;
 }
 
-function WallboardView({ records, watchlist, events, categories, asOf, workspace, lastRefreshedAt }) {
+function WallboardView({ records, watchlist, events, categories, teams, asOf, workspace, lastRefreshedAt }) {
   const [mode, setMode] = useState("events");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -862,7 +869,7 @@ function WallboardView({ records, watchlist, events, categories, asOf, workspace
       <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
     </div> : null}
-    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} categories={categories} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
 }
 
@@ -978,14 +985,33 @@ function CalendarEventModal({ detail, categories, onClose }) {
   </ControlDialog>;
 }
 
-function WallboardCalendar({ events, categories, month, onMonthChange, now, workspace }) {
+function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace }) {
   const [hover, setHover] = useState(null);
   const [detail, setDetail] = useState(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
+  const overlayStorageKey = `dbi:calendar-overlays:hidden:${workspace?.id || "workspace"}`;
+  const [hiddenOverlayIds, setHiddenOverlayIds] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem(overlayStorageKey) || "[]"); } catch { return []; }
+  });
   const selectedCategorySet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
-  const filteredEvents = selectedCategoryIds.length
-    ? events.filter((event) => (event.categoryIds || []).some((categoryId) => selectedCategorySet.has(categoryId)))
-    : events;
+  const overlayOptions = useMemo(() => {
+    const map = new Map(teams.map((team) => [team.id, team]));
+    for (const event of events) for (const team of event.teams || []) map.set(team.id, team);
+    return [{ id: "workspace", name: "Workspace-wide", description: "Visible to every workspace member", iconDataUrl: "" }, ...[...map.values()].sort((left, right) => left.name.localeCompare(right.name))];
+  }, [events, teams]);
+  const hiddenOverlaySet = useMemo(() => new Set(hiddenOverlayIds), [hiddenOverlayIds]);
+  const filteredEvents = events.filter((event) => {
+    const categoryVisible = !selectedCategoryIds.length || (event.categoryIds || []).some((categoryId) => selectedCategorySet.has(categoryId));
+    const overlayIds = event.teamIds?.length ? event.teamIds : ["workspace"];
+    return categoryVisible && overlayIds.some((overlayId) => !hiddenOverlaySet.has(overlayId));
+  });
+  function toggleOverlay(id) {
+    setHiddenOverlayIds((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      window.localStorage.setItem(overlayStorageKey, JSON.stringify(next));
+      return next;
+    });
+  }
   const days = monthCalendarDays(month);
   const today = now.toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
@@ -1014,6 +1040,7 @@ function WallboardCalendar({ events, categories, month, onMonthChange, now, work
         <b aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}>{monthEvents.length}<small>+{monthMilestones.length}</small></b>
       </div>
     </header>
+    <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Overlays</strong><small>Show only the teams you want to focus on.</small></span><div>{overlayOptions.map((team) => <button key={team.id} type="button" className={hiddenOverlaySet.has(team.id) ? "" : "is-active"} aria-pressed={!hiddenOverlaySet.has(team.id)} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span></button>)}</div></div>
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
       <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
       <div className="ops-wall-calendar__weeks">{weeks.map((week) => {
@@ -1028,7 +1055,7 @@ function WallboardCalendar({ events, categories, month, onMonthChange, now, work
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
             return <div key={item.id} role="button" tabIndex="0" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter" || keyEvent.key === " ") { keyEvent.preventDefault(); setHover(null); setDetail({ event, milestone }); } }} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" /><div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} className="if-profile-avatar" />)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
+              <i aria-hidden="true" />{!milestone && event.teams?.length ? <span className="ops-wall-calendar__bar-team"><TeamAvatar team={event.teams[0]} size={22} />{event.teams.length > 1 ? <b>+{event.teams.length - 1}</b> : null}</span> : null}<div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} className="if-profile-avatar" />)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
         </section>;
@@ -1120,6 +1147,9 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     return () => controller.abort();
   }, [contractMonitorState, view]);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
+  const calendarTeams = auth?.user?.roleId === "super_user" && !auth?.user?.isEmulating
+    ? state.teams
+    : state.teams.filter((team) => state.memberTeamIds.includes(team.id));
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
@@ -1131,8 +1161,8 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
     {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel" data-profile-agents-unavailable><ControlAsyncState compact state="empty" icon={<Bot size={22} />} title="Administrator access required" message="Your role cannot issue or revoke agent credentials." /></section> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
-    {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} teams={calendarTeams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
+    {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
   </div>;
 }

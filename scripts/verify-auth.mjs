@@ -262,6 +262,79 @@ try {
   await page.getByText("User reactivated", { exact: true }).waitFor();
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
 
+  await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-workspace-teams]");
+  const teamSurface = page.locator("[data-workspace-teams]");
+  assert.match(await teamSurface.innerText(), /Teams & calendar overlays[\s\S]*multiple teams see the union/i, "Workspace settings must explain team-overlay union visibility");
+  await teamSurface.getByRole("button", { name: "Add team" }).click();
+  const teamDialog = page.getByRole("dialog", { name: "Create team" });
+  await teamDialog.getByLabel("Team name").fill("Browser HR");
+  await teamDialog.getByLabel("Description").fill("Private people operations calendar");
+  await teamDialog.getByLabel(/Browser teammate/).check();
+  await teamDialog.getByRole("button", { name: "Save team" }).click();
+  await page.getByText("Team saved", { exact: true }).waitFor();
+  const browserTeam = teamSurface.locator("[data-team]", { hasText: "Browser HR" });
+  await browserTeam.waitFor();
+  assert.equal(await browserTeam.locator('[aria-label="Browser HR"]').innerText(), "BH", "Teams without an uploaded icon must use name initials");
+  assert.match(await browserTeam.innerText(), /Browser HR[\s\S]*Private people operations calendar[\s\S]*0 events/i);
+  const browserTeamId = await browserTeam.getAttribute("data-team");
+  assert.ok(browserTeamId, "Team rows must retain a stable team identity");
+  await page.screenshot({ path: "test-results/workspace-teams-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileTeamGeometry = await teamSurface.evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    buttons: [...node.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => button.getBoundingClientRect().height),
+  }));
+  assert.ok(mobileTeamGeometry.overflow <= 1, `Team administration must not overflow the mobile viewport: ${JSON.stringify(mobileTeamGeometry)}`);
+  assert.ok(mobileTeamGeometry.buttons.every((height) => height >= 43.5), `Visible mobile team actions must retain 44px targets: ${mobileTeamGeometry.buttons.join(", ")}`);
+  await page.screenshot({ path: "test-results/workspace-teams-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const browserOverlayEvent = await page.evaluate(async (teamId) => {
+    const response = await fetch("/api/v1/agent/events", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+      body: JSON.stringify({ title: "Browser HR private planning", startsAt: "2026-01-05T09:00", endsAt: "2026-01-05T10:00", teamIds: [teamId] }),
+    });
+    return { status: response.status, body: await response.json() };
+  }, browserTeamId);
+  assert.equal(browserOverlayEvent.status, 201, "A workspace manager must create a team-scoped event");
+  assert.deepEqual(browserOverlayEvent.body.data.teamIds, [browserTeamId]);
+  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-ops-event-table]");
+  await page.locator('[data-ops-event-table] input[type="search"]').fill("Browser HR private planning");
+  assert.match(await page.locator("[data-ops-event-table]").innerText(), /Browser HR private planning[\s\S]*Browser HR/i, "The Events grid must expose team visibility without opening event details");
+
+  await page.goto(`${BASE_URL}#/budget-spend/wallboard`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-ops-wallboard]");
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  const overlayRail = page.locator("[data-calendar-overlays]");
+  await overlayRail.waitFor();
+  const browserHrOverlay = overlayRail.getByRole("button", { name: /Browser HR/ });
+  assert.equal(await browserHrOverlay.getAttribute("aria-pressed"), "true");
+  assert.equal(await overlayRail.getByRole("button", { name: /Workspace-wide/ }).count(), 1, "The calendar must retain a workspace-wide overlay beside team overlays");
+  await page.getByText("Browser HR private planning", { exact: true }).waitFor();
+  await browserHrOverlay.click();
+  assert.equal(await browserHrOverlay.getAttribute("aria-pressed"), "false", "Calendar overlays must be independently toggleable");
+  assert.equal(await page.getByText("Browser HR private planning", { exact: true }).count(), 0, "Disabling a team overlay must remove its events from the calendar");
+  await browserHrOverlay.click();
+  await page.getByText("Browser HR private planning", { exact: true }).waitFor();
+  await page.screenshot({ path: "test-results/calendar-team-overlays-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileOverlayGeometry = await overlayRail.evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    buttons: [...node.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height),
+  }));
+  assert.ok(mobileOverlayGeometry.overflow <= 1, `Calendar overlays must not overflow the mobile viewport: ${JSON.stringify(mobileOverlayGeometry)}`);
+  assert.ok(mobileOverlayGeometry.buttons.every((height) => height >= 43.5), `Mobile overlay toggles must retain 44px targets: ${mobileOverlayGeometry.buttons.join(", ")}`);
+  await page.screenshot({ path: "test-results/calendar-team-overlays-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(async ({ eventId, teamId }) => {
+    await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" });
+    await fetch(`/api/v1/auth/teams/${encodeURIComponent(teamId)}`, { method: "DELETE" });
+  }, { eventId: browserOverlayEvent.body.data.id, teamId: browserTeamId });
+
   await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-workspace-management]");
   assert.equal(await page.locator('[data-nav-group-trigger="platform-admin"]').getAttribute("data-nav-group-active-child"), "Workspaces", "Workspace governance should activate the dedicated Platform admin dropdown");

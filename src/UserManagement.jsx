@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
+import { Check, Eye, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
@@ -194,6 +194,7 @@ export default function UserManagement({ auth }) {
         <div className="user-management__access"><span className={`if-status if-status--sm ${user.status === "active" ? "if-status--info" : "if-status--danger"}`}>{user.status === "active" ? "Active" : "Suspended"}</span><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>
         <div className="user-management__actions">
           {user.isOwner ? <span className="user-management__owner"><ShieldCheck size={15} />Permanent owner</span> : <>
+            {auth.user?.roleId === "super_user" && user.status === "active" && !user.mustChangePassword ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => void auth.startEmulation(user.id).catch((error) => notify("View unavailable", error.message, "danger"))} disabled={busy}><Eye size={14} />View as</button> : null}
             <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => openEdit(user)} disabled={busy}><Pencil size={14} />Edit</button>
             <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => openReset(user)} disabled={busy}><KeyRound size={14} />Reset</button>
             <button type="button" className={`if-btn if-btn--sm ${user.status === "active" ? "if-btn--danger" : "if-btn--secondary"}`} onClick={() => void toggleStatus(user)} disabled={busy}>{user.status === "active" ? <UserX size={14} /> : <UserCheck size={14} />}{user.status === "active" ? "Suspend" : "Reactivate"}</button>

@@ -34,6 +34,8 @@ The implementations differ only at persistence and platform adapters. Validation
 | Boundary | Required controls |
 | --- | --- |
 | Browser to authenticated API | HttpOnly, Secure, SameSite=Strict sessions; same-origin and Fetch Metadata rejection; bounded JSON; no-store responses; role and active-workspace checks |
+| Effective-user emulation | Only the real, non-emulating Super user can start or stop emulation; authorization and team visibility use the target user; audit records retain the real actor plus the emulated user ID; profile and password mutation are blocked |
+| Team event visibility | Unassigned events remain workspace-wide; assigned events require membership in at least one selected team; multi-team users receive the union; only the real Super user and scoped agents bypass human team filters |
 | Agent API | Hashed scoped bearer tokens; expiration/revocation; per-principal rate limit; idempotency for writes; optimistic versions; workspace-scoped queries; redacted request ledger |
 | Credential vault | AES-256-GCM at rest; host-owned encryption key; write-only secret input; metadata-only browser responses; no keys/prompts/raw provider bodies in logs |
 | OpenAI enrichment | Background request IDs; forced producer search; claim-level provider-source binding; pinned evidence for bounded verification; item-level merge allowlists; explicit wrong-entity rejection; default operator review; opt-in auto-apply only for verified additive conflict-free drafts with optimistic event-version checks |

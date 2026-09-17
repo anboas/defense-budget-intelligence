@@ -35,6 +35,7 @@ import {
   validOpenAiKey,
   validPasswordProof,
 } from "../src/security-policy.js";
+import { registerTeamEmulationRoutes } from "./team-emulation-routes.mjs";
 
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
@@ -46,38 +47,31 @@ const ROLE_LABELS = { super_user: "Super user", administrator: "Workspace manage
 const DEFAULT_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001";
 const DEFAULT_HEADER_EYEBROW = "Defense Budget & Spend Analytics";
 const DEFAULT_DISPLAY_TITLE = "Defense Budget Intelligence";
-
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
-
 function equalDigest(left, right) {
   const a = Buffer.from(left || "", "hex");
   const b = Buffer.from(right || "", "hex");
   return a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
 }
-
 function parseCookies(header = "") {
   return Object.fromEntries(header.split(";").map((item) => {
     const index = item.indexOf("=");
     return index < 0 ? ["", ""] : [item.slice(0, index).trim(), decodeURIComponent(item.slice(index + 1).trim())];
   }).filter(([key]) => key));
 }
-
 function sessionCookie(token, expiresAt) {
   const secure = process.env.AUTH_SECURE_COOKIE !== "false";
   return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Expires=${expiresAt.toUTCString()}${secure ? "; Secure" : ""}`;
 }
-
 function clearCookie() {
   const secure = process.env.AUTH_SECURE_COOKIE !== "false";
   return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`;
 }
-
 function validProof(value) {
   return validPasswordProof(value);
 }
-
 function assertSameOrigin(request, reply) {
   if (!sameOriginValues(`${request.protocol}://${request.host}${request.url}`, request.headers.origin || "", request.headers["sec-fetch-site"] || "")) {
     reply.code(403).send({ error: "cross-origin request rejected" });
@@ -85,14 +79,12 @@ function assertSameOrigin(request, reply) {
   }
   return true;
 }
-
 async function account(pool) {
   const result = await pool.query(
     "SELECT user_id, email, display_name, title, password_salt, created_at, updated_at FROM app_super_user WHERE singleton = TRUE",
   );
   return result.rows[0] || null;
 }
-
 async function issueSession(pool, reply, userId, preferredWorkspaceId = null) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
@@ -113,13 +105,20 @@ async function authenticated(pool, request) {
   const token = parseCookies(request.headers.cookie)[COOKIE_NAME];
   if (!token) return null;
   const result = await pool.query(
-    `SELECT s.id, u.user_id, u.email, u.display_name, u.title, u.avatar_data_url, u.role, u.status,
-            u.must_change_password, u.created_at, u.last_login_at, s.workspace_id AS active_workspace_id,
-            membership.role AS membership_role
+    `SELECT s.id, COALESCE(target.user_id, actor.user_id) AS user_id,
+            COALESCE(target.email, actor.email) AS email, COALESCE(target.display_name, actor.display_name) AS display_name,
+            COALESCE(target.title, actor.title) AS title, COALESCE(target.avatar_data_url, actor.avatar_data_url) AS avatar_data_url,
+            COALESCE(target.role, actor.role) AS role, COALESCE(target.status, actor.status) AS status,
+            COALESCE(target.must_change_password, actor.must_change_password) AS must_change_password,
+            COALESCE(target.created_at, actor.created_at) AS created_at, COALESCE(target.last_login_at, actor.last_login_at) AS last_login_at,
+            actor.user_id AS actor_user_id, actor.display_name AS actor_display_name, actor.email AS actor_email, actor.role AS actor_role,
+            (target.user_id IS NOT NULL) AS is_emulating, membership.workspace_id AS active_workspace_id, membership.role AS membership_role
        FROM app_auth_sessions s
-       JOIN app_users u ON u.user_id = s.user_id
-       LEFT JOIN app_workspace_memberships membership ON membership.workspace_id = s.workspace_id AND membership.user_id = u.user_id
-      WHERE s.token_hash = $1 AND s.expires_at > NOW() AND u.status = 'active'
+       JOIN app_users actor ON actor.user_id = s.user_id
+       LEFT JOIN app_session_emulations emulation ON emulation.session_id = s.id
+       LEFT JOIN app_users target ON target.user_id = emulation.target_user_id AND target.status = 'active'
+       LEFT JOIN app_workspace_memberships membership ON membership.workspace_id = s.workspace_id AND membership.user_id = COALESCE(target.user_id, actor.user_id)
+      WHERE s.token_hash = $1 AND s.expires_at > NOW() AND actor.status = 'active'
       LIMIT 1`,
     [sha256(token)],
   );
@@ -145,6 +144,8 @@ function publicUser(row) {
     canManageWorkspaces: row.role === "super_user" || roleId === "administrator",
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
+    isEmulating: Boolean(row.is_emulating),
+    actor: row.is_emulating ? { id: row.actor_user_id, displayName: row.actor_display_name || "Super user", email: row.actor_email || "", role: "Super user", roleId: "super_user" } : null,
   } : null;
 }
 
@@ -579,6 +580,7 @@ export async function registerAuthRoutes(app, pool) {
   const enabled = process.env.ENABLE_AUTH === "true";
   const required = enabled && process.env.AUTH_REQUIRE_LOGIN === "true";
   const allowFirstClaim = process.env.ALLOW_FIRST_CLAIM !== "false";
+  registerTeamEmulationRoutes(app, pool, { assertSameOrigin, authenticated, hydratedUser, canAdministerWorkspaces });
 
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
@@ -706,6 +708,7 @@ export async function registerAuthRoutes(app, pool) {
     if (!assertSameOrigin(request, reply)) return;
     const session = await authenticated(pool, request);
     if (!session) return reply.code(401).send({ error: "sign in required" });
+    if (session.is_emulating) return reply.code(403).send({ error: "exit user emulation before changing profile identity" });
     const displayName = cleanText(request.body?.displayName, 80);
     const title = cleanText(request.body?.title, 80);
     const avatarDataUrl = validAvatar(request.body?.avatarDataUrl);
@@ -726,6 +729,7 @@ export async function registerAuthRoutes(app, pool) {
     if (!assertSameOrigin(request, reply)) return;
     const session = await authenticated(pool, request);
     if (!session) return reply.code(401).send({ error: "sign in required" });
+    if (session.is_emulating) return reply.code(403).send({ error: "exit user emulation before changing a password" });
     const currentProof = cleanText(request.body?.currentPasswordProof, 64).toLowerCase();
     const nextProof = cleanText(request.body?.newPasswordProof, 64).toLowerCase();
     const nextSalt = cleanText(request.body?.newPasswordSalt, 128);

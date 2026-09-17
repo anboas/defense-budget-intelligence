@@ -45,12 +45,20 @@ import {
   cleanEventLinks,
   cleanEventMilestones,
   eventAiReviewRisks,
+  eventFromRow,
+  eventTeamSelection,
+  eventsFromRows,
   replaceEventAttendees,
   replaceEventCategories,
   replaceEventLinks,
   replaceEventMilestones,
+  replaceEventTeams,
+  visibleEventRow,
+  visibleEventRows,
   writeEventAiState,
 } from "./d1-event-store.js";
+import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
+import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
 
 export const PAGES_AUTH_VERSION = "dbi-pages-auth-v1";
 export const PASSWORD_ITERATIONS = 310_000;
@@ -323,6 +331,26 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (workspace_id, user_id)
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_memberships_user ON dbi_workspace_memberships (user_id, workspace_id)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_teams (
+    team_id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    icon_data_url TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_workspace_teams_name ON dbi_workspace_teams (workspace_id, LOWER(name))",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_teams_workspace ON dbi_workspace_teams (workspace_id, name)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_team_members (
+    workspace_id TEXT NOT NULL,
+    team_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, team_id, user_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_team_members_user ON dbi_workspace_team_members (workspace_id, user_id, team_id)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_access_requests (
     request_id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -339,6 +367,12 @@ const SCHEMA = Object.freeze([
     session_id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS dbi_session_emulations (
+    session_id TEXT PRIMARY KEY,
+    actor_user_id TEXT NOT NULL,
+    target_user_id TEXT NOT NULL,
+    started_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS dbi_user_profiles (
     user_id TEXT PRIMARY KEY,
@@ -500,6 +534,14 @@ const SCHEMA = Object.freeze([
     updated_at TEXT NOT NULL
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_events_workspace ON dbi_workspace_events (workspace_id, starts_at)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_teams (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    team_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id, team_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_event_teams_team ON dbi_workspace_event_teams (workspace_id, team_id, event_id)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_event_attendees (
     workspace_id TEXT NOT NULL,
     event_id TEXT NOT NULL,
@@ -744,6 +786,14 @@ function publicUser(row) {
     canManageWorkspaces: row.role === "super_user" || roleId === "administrator",
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
+    isEmulating: Boolean(row.is_emulating),
+    actor: row.is_emulating ? {
+      id: row.actor_user_id,
+      displayName: row.actor_display_name || "Super user",
+      email: row.actor_email || "",
+      role: "Super user",
+      roleId: "super_user",
+    } : null,
   } : null;
 }
 
@@ -909,20 +959,40 @@ async function sessionUser(db, request) {
   const rawToken = cookies(request)[SESSION_COOKIE] || "";
   if (!rawToken) return null;
   const row = await db.prepare(`
-    SELECT u.*, profile.avatar_data_url, s.id AS session_id,
-      session_workspace.workspace_id AS active_workspace_id,
+    SELECT COALESCE(target.user_id, actor.user_id) AS user_id,
+      COALESCE(target.email, actor.email) AS email,
+      COALESCE(target.display_name, actor.display_name) AS display_name,
+      COALESCE(target.title, actor.title) AS title,
+      COALESCE(target.role, actor.role) AS role,
+      COALESCE(target.status, actor.status) AS status,
+      COALESCE(target.password_salt, actor.password_salt) AS password_salt,
+      COALESCE(target.password_hash, actor.password_hash) AS password_hash,
+      COALESCE(target.must_change_password, actor.must_change_password) AS must_change_password,
+      COALESCE(target.created_by, actor.created_by) AS created_by,
+      COALESCE(target.created_at, actor.created_at) AS created_at,
+      COALESCE(target.updated_at, actor.updated_at) AS updated_at,
+      COALESCE(target.last_login_at, actor.last_login_at) AS last_login_at,
+      profile.avatar_data_url, s.id AS session_id,
+      membership.workspace_id AS active_workspace_id,
       membership.role AS membership_role,
       workspace.name AS active_workspace_name,
-      workspace.slug AS active_workspace_slug
+      workspace.slug AS active_workspace_slug,
+      actor.user_id AS actor_user_id,
+      actor.email AS actor_email,
+      actor.display_name AS actor_display_name,
+      actor.role AS actor_role,
+      CASE WHEN target.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_emulating
     FROM dbi_sessions s
-    JOIN dbi_users u ON u.user_id = s.user_id
-    LEFT JOIN dbi_user_profiles profile ON profile.user_id = u.user_id
+    JOIN dbi_users actor ON actor.user_id = s.user_id
+    LEFT JOIN dbi_session_emulations emulation ON emulation.session_id = s.id
+    LEFT JOIN dbi_users target ON target.user_id = emulation.target_user_id AND target.status = 'active'
+    LEFT JOIN dbi_user_profiles profile ON profile.user_id = COALESCE(target.user_id, actor.user_id)
     LEFT JOIN dbi_session_workspaces session_workspace ON session_workspace.session_id = s.id
     LEFT JOIN dbi_workspace_memberships membership
-      ON membership.workspace_id = session_workspace.workspace_id AND membership.user_id = u.user_id
+      ON membership.workspace_id = session_workspace.workspace_id AND membership.user_id = COALESCE(target.user_id, actor.user_id)
     LEFT JOIN dbi_workspaces workspace
       ON workspace.workspace_id = membership.workspace_id AND workspace.status = 'active'
-    WHERE s.token_hash = ? AND s.revoked_at = '' AND s.expires_at > ? AND u.status = 'active'
+    WHERE s.token_hash = ? AND s.revoked_at = '' AND s.expires_at > ? AND actor.status = 'active'
   `).bind(await hashValue(rawToken), new Date().toISOString()).first();
   if (!row) return null;
   await db.prepare("UPDATE dbi_sessions SET last_seen_at = ? WHERE id = ?")
@@ -1169,6 +1239,7 @@ async function profileResponse(request, db) {
   if (!sameOriginRequest(request)) return json({ error: "Cross-origin profile changes are not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
+  if (session.is_emulating) return json({ error: "Exit user emulation before changing profile identity" }, 403);
   const body = await safeJson(request, 16_384);
   const displayName = cleanText(body?.displayName, 80);
   const title = cleanText(body?.title, 80);
@@ -1194,6 +1265,7 @@ async function passwordResponse(request, db, env) {
   if (!sameOriginRequest(request)) return json({ error: "Cross-origin password changes are not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
+  if (session.is_emulating) return json({ error: "Exit user emulation before changing a password" }, 403);
   const body = await safeJson(request);
   const currentPasswordProof = cleanText(body?.currentPasswordProof, 64).toLowerCase();
   const newPasswordProof = cleanText(body?.newPasswordProof, 64).toLowerCase();
@@ -1670,6 +1742,7 @@ async function workspaceAdminResponse(request, db) {
         db.prepare(`DELETE FROM dbi_session_workspaces WHERE workspace_id = ? AND session_id IN
           (SELECT id FROM dbi_sessions WHERE user_id = ?)` ).bind(workspaceId, userId),
         db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId),
+        db.prepare("DELETE FROM dbi_workspace_team_members WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId),
         db.prepare("UPDATE dbi_workspace_agent_keys SET revoked_at = ? WHERE workspace_id = ? AND created_by = ? AND revoked_at = ''").bind(now, workspaceId, userId),
       ]);
       await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_member_removed", "user", userId);
@@ -1710,6 +1783,8 @@ async function requestPrincipal(db, request) {
     return {
       type: "user",
       id: session.user_id,
+      actorId: session.actor_user_id || session.user_id,
+      isEmulating: Boolean(session.is_emulating),
       name: session.display_name,
       workspaceId: session.active_workspace_id || "",
       roleId,
@@ -1760,8 +1835,8 @@ async function recordActivity(db, principal, action, entityType, entityId = "", 
       (id, workspace_id, actor_type, actor_id, action, entity_type, entity_id, detail_json, occurred_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    crypto.randomUUID(), principal.workspaceId, principal.type, principal.id, cleanText(action, 80), cleanText(entityType, 80),
-    cleanText(entityId, 180), JSON.stringify(detail || {}).slice(0, 8_000), new Date().toISOString(),
+    crypto.randomUUID(), principal.workspaceId, principal.type, principal.actorId || principal.id, cleanText(action, 80), cleanText(entityType, 80),
+    cleanText(entityId, 180), JSON.stringify(principal.isEmulating ? { ...(detail || {}), emulatedUserId: principal.id } : (detail || {})).slice(0, 8_000), new Date().toISOString(),
   ).run();
 }
 
@@ -2603,96 +2678,6 @@ function recordProjection(record) {
   };
 }
 
-function eventFromRow(row, attendees = [], milestones = [], links = [], categoryIds = [], aiState = null) {
-  let recordIds = [];
-  try { recordIds = JSON.parse(row.record_ids_json || "[]"); } catch { /* empty */ }
-  return {
-    id: row.id, title: row.title, startsAt: row.starts_at, endsAt: row.ends_at || "",
-    location: row.location || "", notes: row.notes || "", status: row.status,
-    recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), milestones, links, categoryIds,
-    wallboard: Boolean(row.wallboard), version: row.version,
-    aiAmended: Boolean(aiState?.last_applied_at),
-    lastAugmentedAt: aiState?.last_augmented_at || null,
-    lastAiAppliedAt: aiState?.last_applied_at || null,
-    aiValidationRequired: Boolean(aiState?.validation_required),
-    lastAugmentationJobId: aiState?.last_job_id || null,
-    lastAugmentationStatus: aiState?.last_status || null,
-    createdAt: row.created_at, updatedAt: row.updated_at,
-  };
-}
-
-async function eventsFromRows(db, workspaceId, rows = []) {
-  if (!rows.length) return [];
-  const ids = rows.map((row) => row.id);
-  const placeholders = ids.map(() => "?").join(", ");
-  const [attendeeResult, milestoneResult, linkResult, categoryResult, aiStateResult] = await Promise.all([
-    db.prepare(`
-    SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status, profile.avatar_data_url
-    FROM dbi_workspace_event_attendees attendee
-    JOIN dbi_users user ON user.user_id = attendee.user_id
-    LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
-    WHERE attendee.workspace_id = ? AND attendee.event_id IN (${placeholders})
-    ORDER BY user.display_name COLLATE NOCASE
-  `).bind(workspaceId, ...ids).all(),
-    db.prepare(`
-    SELECT event_id, milestone_id, type, label, occurs_at, notes
-    FROM dbi_workspace_event_milestones
-    WHERE workspace_id = ? AND event_id IN (${placeholders})
-    ORDER BY occurs_at, milestone_id
-  `).bind(workspaceId, ...ids).all(),
-    db.prepare(`
-    SELECT event_id, link_id, label, url, sort_order
-    FROM dbi_workspace_event_links
-    WHERE workspace_id = ? AND event_id IN (${placeholders})
-    ORDER BY sort_order, link_id
-  `).bind(workspaceId, ...ids).all(),
-    db.prepare(`
-    SELECT event_id, category_id
-    FROM dbi_workspace_event_category_assignments
-    WHERE workspace_id = ? AND event_id IN (${placeholders})
-    ORDER BY category_id
-  `).bind(workspaceId, ...ids).all(),
-    db.prepare(`
-    SELECT event_id, last_job_id, last_status, last_augmented_at, last_applied_at, validation_required
-    FROM dbi_event_ai_state
-    WHERE workspace_id = ? AND event_id IN (${placeholders})
-  `).bind(workspaceId, ...ids).all(),
-  ]);
-  const attendeesByEvent = new Map();
-  for (const attendee of attendeeResult.results || []) {
-    const people = attendeesByEvent.get(attendee.event_id) || [];
-    people.push({ id: attendee.user_id, displayName: attendee.display_name, title: attendee.title || "", status: attendee.status, avatarDataUrl: attendee.avatar_data_url || "" });
-    attendeesByEvent.set(attendee.event_id, people);
-  }
-  const milestonesByEvent = new Map();
-  for (const milestone of milestoneResult.results || []) {
-    const items = milestonesByEvent.get(milestone.event_id) || [];
-    items.push({ id: milestone.milestone_id, type: milestone.type, label: milestone.label || "", occursAt: milestone.occurs_at, notes: milestone.notes || "" });
-    milestonesByEvent.set(milestone.event_id, items);
-  }
-  const linksByEvent = new Map();
-  for (const link of linkResult.results || []) {
-    const items = linksByEvent.get(link.event_id) || [];
-    items.push({ id: link.link_id, label: link.label || "", url: link.url, sortOrder: Number(link.sort_order || 0) });
-    linksByEvent.set(link.event_id, items);
-  }
-  const categoriesByEvent = new Map();
-  for (const assignment of categoryResult.results || []) {
-    const items = categoriesByEvent.get(assignment.event_id) || [];
-    items.push(assignment.category_id);
-    categoriesByEvent.set(assignment.event_id, items);
-  }
-  const aiStateByEvent = new Map((aiStateResult.results || []).map((state) => [state.event_id, state]));
-  return rows.map((row) => eventFromRow(
-    row,
-    attendeesByEvent.get(row.id) || [],
-    milestonesByEvent.get(row.id) || [],
-    linksByEvent.get(row.id) || [],
-    categoriesByEvent.get(row.id) || [],
-    aiStateByEvent.get(row.id) || null,
-  ));
-}
-
 function trackingFromRow(row) {
   return {
     recordId: row.record_id, note: row.note || "", reviewAt: row.review_at || "",
@@ -3009,10 +2994,10 @@ async function eventsResponse(request, env, db, principal, segments) {
   const eventId = cleanText(decodeURIComponent(segments[0] || ""), 180);
   if (request.method === "GET") {
     if (eventId) {
-      const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first();
+      const row = await visibleEventRow(db, principal, eventId);
       return row ? agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]) : agentError("event_not_found", "Event not found", 404);
     }
-    const result = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? ORDER BY starts_at, created_at").bind(principal.workspaceId).all();
+    const result = await visibleEventRows(db, principal);
     return agentJson(await eventsFromRows(db, principal.workspaceId, result.results || []), 200, { total: result.results?.length || 0 });
   }
   if (request.method === "POST" && !eventId) return idempotent(db, principal, request, async () => {
@@ -3025,10 +3010,12 @@ async function eventsResponse(request, env, db, principal, segments) {
     const milestoneSelection = cleanEventMilestones(body?.milestones || []);
     const linkSelection = cleanEventLinks(body?.links || []);
     const categorySelection = await activeEventCategoryIds(db, principal.workspaceId, body?.categoryIds || []);
+    const teamSelection = await eventTeamSelection(db, principal, body?.teamIds || []);
     if (!attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (!milestoneSelection.valid) return agentError("invalid_event_milestones", "Milestones require a unique ID, supported type, and valid date; custom milestones also require a label", 400);
     if (!linkSelection.valid) return agentError("invalid_event_links", "Event links require unique IDs and valid HTTP or HTTPS URLs", 400);
     if (!categorySelection.valid) return agentError("event_category_not_found", "Every event category must exist in this workspace", 404);
+    if (!teamSelection.valid) return agentError("event_team_not_found", "Every event team must exist and be available to the current user", 404);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -3047,11 +3034,12 @@ async function eventsResponse(request, env, db, principal, segments) {
     await replaceEventMilestones(db, principal.workspaceId, id, milestoneSelection.milestones);
     await replaceEventLinks(db, principal.workspaceId, id, linkSelection.links);
     await replaceEventCategories(db, principal.workspaceId, id, categorySelection.ids);
+    await replaceEventTeams(db, principal.workspaceId, id, teamSelection.ids);
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0], 201);
   });
-  const existing = eventId ? await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first() : null;
+  const existing = eventId ? await visibleEventRow(db, principal, eventId) : null;
   if (!existing) return agentError("event_not_found", "Event not found", 404);
   if (request.method === "PATCH") {
     const body = await safeJson(request);
@@ -3068,10 +3056,12 @@ async function eventsResponse(request, env, db, principal, segments) {
     const milestoneSelection = Array.isArray(body?.milestones) ? cleanEventMilestones(body.milestones) : null;
     const linkSelection = Array.isArray(body?.links) ? cleanEventLinks(body.links) : null;
     const categorySelection = Array.isArray(body?.categoryIds) ? await activeEventCategoryIds(db, principal.workspaceId, body.categoryIds) : null;
+    const teamSelection = Array.isArray(body?.teamIds) ? await eventTeamSelection(db, principal, body.teamIds) : null;
     if (attendeeSelection && !attendeeSelection.valid) return agentError("user_not_found", "Every attendee must be an active workspace user", 404);
     if (milestoneSelection && !milestoneSelection.valid) return agentError("invalid_event_milestones", "Milestones require a unique ID, supported type, and valid date; custom milestones also require a label", 400);
     if (linkSelection && !linkSelection.valid) return agentError("invalid_event_links", "Event links require unique IDs and valid HTTP or HTTPS URLs", 400);
     if (categorySelection && !categorySelection.valid) return agentError("event_category_not_found", "Every event category must exist in this workspace", 404);
+    if (teamSelection && !teamSelection.valid) return agentError("event_team_not_found", "Every event team must exist and be available to the current user", 404);
     if (recordIds.length) {
       const universe = await allAgentRecords(request, env, db, principal.workspaceId);
       const known = new Set(universe.records.map((record) => record.opportunityId));
@@ -3088,6 +3078,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (milestoneSelection) await replaceEventMilestones(db, principal.workspaceId, eventId, milestoneSelection.milestones);
     if (linkSelection) await replaceEventLinks(db, principal.workspaceId, eventId, linkSelection.links);
     if (categorySelection) await replaceEventCategories(db, principal.workspaceId, eventId, categorySelection.ids);
+    if (teamSelection) await replaceEventTeams(db, principal.workspaceId, eventId, teamSelection.ids);
     const aiReviewJobId = cleanText(body?.aiReviewJobId, 100);
     if (aiReviewJobId) {
       const job = await db.prepare(`SELECT id, status, input_snapshot_json, merge_result_json, completed_at FROM dbi_event_ai_jobs
@@ -3123,6 +3114,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_links WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_category_assignments WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
+    await db.prepare("DELETE FROM dbi_workspace_event_teams WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_event_ai_state WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
@@ -3272,7 +3264,9 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/logout") return logoutResponse(request, db, env);
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
+  if (pathname === "/api/v1/auth/emulation") return handleEmulationResponse(request, db, { sessionUser, publicSessionUser, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/directory") return directoryResponse(request, db);
+  if (pathname === "/api/v1/auth/teams" || pathname.startsWith("/api/v1/auth/teams/")) return handleTeamsResponse(request, db, { sessionUser, canAdministerWorkspaces, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);
   if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);
   if (pathname === "/api/v1/auth/openai-keys" || pathname.startsWith("/api/v1/auth/openai-keys/")) return openAiKeysResponse(request, db, env);

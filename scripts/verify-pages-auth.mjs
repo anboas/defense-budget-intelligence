@@ -279,6 +279,83 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200);
     assert.equal((await response.json()).user.role, "Analyst", "Role changes must take effect without recreating the account");
 
+    const createTeam = async (name) => {
+      const created = await apiRequest(baseUrl, "/api/v1/auth/teams", {
+        method: "POST", body: { name, description: `${name} calendar overlay` }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      });
+      assert.equal(created.status, 201, `Super user must create the ${name} team`);
+      return (await created.json()).team;
+    };
+    const hrTeam = await createTeam("Human resources");
+    const bdTeam = await createTeam("Business development");
+    response = await apiRequest(baseUrl, `/api/v1/auth/teams/${hrTeam.id}/members`, {
+      method: "PUT", body: { userIds: [viewerId] }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Workspace managers must assign members to teams");
+
+    const createScopedEvent = async (key, title, teamIds = []) => {
+      const created = await apiRequest(baseUrl, "/api/v1/agent/events", {
+        method: "POST", body: { title, startsAt: "2027-01-15T09:00", teamIds }, cookie: ownerCookie,
+        origin: baseUrl.slice(0, -1), headers: { "idempotency-key": key },
+      });
+      assert.equal(created.status, 201, `Super user must create ${title}`);
+      return (await created.json()).data;
+    };
+    const workspaceEvent = await createScopedEvent("team-wide-event", "Workspace-wide verification");
+    const hrEvent = await createScopedEvent("team-hr-event", "HR-only verification", [hrTeam.id]);
+    const bdEvent = await createScopedEvent("team-bd-event", "BD-only verification", [bdTeam.id]);
+
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: viewerCookie });
+    body = await response.json();
+    assert.deepEqual(body.data.map((event) => event.id).filter((id) => [workspaceEvent.id, hrEvent.id, bdEvent.id].includes(id)).sort(), [hrEvent.id, workspaceEvent.id].sort(), "A team member must see workspace-wide events plus their team overlay only");
+    response = await apiRequest(baseUrl, "/api/v1/auth/teams", { cookie: viewerCookie });
+    body = await response.json();
+    assert.deepEqual(body.teams.map((team) => team.id), [hrTeam.id], "Non-managers must not enumerate teams outside their membership");
+
+    response = await apiRequest(baseUrl, `/api/v1/auth/teams/${bdTeam.id}/members`, {
+      method: "PUT", body: { userIds: [viewerId] }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: viewerCookie });
+    body = await response.json();
+    assert.deepEqual(body.data.map((event) => event.id).filter((id) => [workspaceEvent.id, hrEvent.id, bdEvent.id].includes(id)).sort(), [bdEvent.id, hrEvent.id, workspaceEvent.id].sort(), "A multi-team member must see the union of their overlays");
+    response = await apiRequest(baseUrl, `/api/v1/auth/teams/${bdTeam.id}/members`, {
+      method: "PUT", body: { userIds: [] }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/emulation", {
+      method: "POST", body: { userId: viewerId }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "The real Super user must be able to emulate an active managed user");
+    body = await response.json();
+    assert.equal(body.user.isEmulating, true);
+    assert.equal(body.user.id, viewerId);
+    assert.equal(body.user.actor.id, ownerId, "Emulation must retain the real actor identity");
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });
+    body = await response.json();
+    assert.deepEqual(body.data.map((event) => event.id).filter((id) => [workspaceEvent.id, hrEvent.id, bdEvent.id].includes(id)).sort(), [hrEvent.id, workspaceEvent.id].sort(), "Emulation must use the target user's team visibility instead of Super user bypass");
+    response = await apiRequest(baseUrl, "/api/v1/auth/teams", { cookie: ownerCookie });
+    assert.deepEqual((await response.json()).teams.map((team) => team.id), [hrTeam.id], "Emulation must not leak teams outside the target membership");
+    response = await apiRequest(baseUrl, "/api/v1/auth/profile", {
+      method: "PATCH", body: { displayName: "Emulated mutation" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Identity changes must be blocked during emulation");
+    response = await apiRequest(baseUrl, "/api/v1/auth/emulation", { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).user.isEmulating, false, "Exiting emulation must restore the real Super user");
+
+    response = await apiRequest(baseUrl, `/api/v1/auth/teams/${hrTeam.id}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 409, "A team assigned to events must not be deleted because that would broaden visibility");
+    for (const event of [workspaceEvent, hrEvent, bdEvent]) {
+      response = await apiRequest(baseUrl, `/api/v1/agent/events/${event.id}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+      assert.equal(response.status, 204);
+    }
+    for (const team of [hrTeam, bdTeam]) {
+      response = await apiRequest(baseUrl, `/api/v1/auth/teams/${team.id}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+      assert.equal(response.status, 204);
+    }
+
     response = await apiRequest(baseUrl, `/api/v1/auth/users/${encodeURIComponent(viewerId)}`, {
       method: "PATCH",
       body: { email: viewer.email, displayName: viewer.displayName, title: viewer.title, role: "analyst", status: "suspended" },

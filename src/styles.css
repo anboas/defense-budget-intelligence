@@ -8487,3 +8487,89 @@ td .dot {
   .ci-header-nav__desktop-groups { display: none; }
   .ci-header-nav__mobile-more { display: inline-flex; }
 }
+.emulation-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 6px 18px;
+  color: var(--if-color-text-on-accent, #fff);
+  background: linear-gradient(90deg, #6d28d9, #7c3aed);
+  box-shadow: 0 2px 12px rgb(50 23 90 / 24%);
+}
+
+.emulation-banner > span { display: flex; flex-direction: column; line-height: 1.25; }
+.emulation-banner small { color: inherit; opacity: .86; }
+
+.team-avatar {
+  --team-avatar-size: 32px;
+  width: var(--team-avatar-size);
+  height: var(--team-avatar-size);
+  flex: 0 0 var(--team-avatar-size);
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(145deg, #1f5f8b, #59359a);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
+  font-size: calc(var(--team-avatar-size) * .34);
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.team-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.workspace-teams { padding: 0; overflow: hidden; }
+.workspace-teams__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--if-color-border-subtle); }
+.workspace-teams__header > span { display: grid; gap: 2px; }
+.workspace-teams__header small { color: var(--if-color-text-muted); }
+.workspace-teams__list { display: grid; }
+.workspace-team { display: grid; grid-template-columns: auto minmax(180px, 1fr) minmax(120px, auto) auto; align-items: center; gap: 14px; min-height: 72px; padding: 10px 16px; border-top: 1px solid var(--if-color-border-subtle); }
+.workspace-team:first-child { border-top: 0; }
+.workspace-team__identity { display: grid; gap: 2px; min-width: 0; }
+.workspace-team__identity small, .workspace-team__identity em { color: var(--if-color-text-muted); font-style: normal; }
+.workspace-team__members { display: flex; align-items: center; min-width: 96px; }
+.workspace-team__members .if-profile-avatar + .if-profile-avatar { margin-left: -7px; }
+.workspace-team__members b { margin-left: 6px; font-size: 12px; }
+.workspace-team__actions { display: flex; gap: 6px; }
+.workspace-team-editor__identity { display: flex; align-items: center; gap: 14px; }
+.workspace-team-editor__identity > span { display: flex; gap: 8px; }
+.workspace-team-editor__identity input[type="file"] { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+.workspace-team-editor__members { border: 1px solid var(--if-color-border-subtle); border-radius: 12px; padding: 12px; }
+.workspace-team-editor__members legend { padding: 0 6px; font-weight: 700; }
+.workspace-team-editor__members > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 320px; overflow: auto; }
+.workspace-team-editor__member { min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 9px; border: 1px solid transparent; }
+.workspace-team-editor__member:has(input:checked) { border-color: var(--if-color-border-accent); background: var(--if-color-surface-accent-subtle); }
+.workspace-team-editor__member > span { display: grid; min-width: 0; }
+.workspace-team-editor__member small { overflow: hidden; text-overflow: ellipsis; color: var(--if-color-text-muted); }
+
+.event-team-stack { display: grid; gap: 5px; }
+.event-team-stack > span { display: flex; align-items: center; gap: 7px; font-weight: 650; }
+
+.ops-calendar-overlays { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 4px 14px; border-bottom: 1px solid var(--if-color-border-subtle); background: var(--if-color-surface-subtle); }
+.ops-calendar-overlays > span { display: grid; min-width: 70px; }
+.ops-calendar-overlays > span small { display: none; color: var(--if-color-text-muted); }
+.ops-calendar-overlays > div { display: flex; align-items: center; gap: 7px; overflow-x: auto; scrollbar-width: thin; }
+.ops-calendar-overlays button { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; padding: 3px 10px 3px 5px; border: 1px solid var(--if-color-border-subtle); border-radius: 999px; color: var(--if-color-text-muted); background: var(--if-color-surface); opacity: .65; }
+.ops-calendar-overlays button.is-active { color: var(--if-color-text); border-color: var(--if-color-border-accent); opacity: 1; box-shadow: 0 0 0 1px color-mix(in srgb, var(--if-color-border-accent) 28%, transparent); }
+.ops-wall-calendar__bar-team { display: inline-flex; align-items: center; margin-inline: 3px 1px; }
+.ops-wall-calendar__bar-team b { margin-left: -5px; padding: 1px 4px; border-radius: 999px; background: var(--if-color-surface); font-size: 9px; }
+
+@media (max-width: 720px) {
+  .emulation-banner { justify-content: space-between; gap: 10px; padding-inline: 12px; }
+  .emulation-banner small { display: none; }
+  .workspace-team { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
+  .workspace-team__members { grid-column: 2 / -1; }
+  .workspace-team__actions { grid-column: 1 / -1; justify-content: stretch; }
+  .workspace-team__actions .if-btn { flex: 1; min-height: 44px; }
+  .workspace-team-editor__members > div { grid-template-columns: 1fr; }
+  .ops-calendar-overlays { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .ops-calendar-overlays > span small { display: none; }
+  .ops-calendar-overlays > div { width: 100%; }
+  .ops-calendar-overlays button { min-height: 44px; }
+}

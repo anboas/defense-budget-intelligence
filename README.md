@@ -36,10 +36,11 @@ The primary Cloudflare deployment uses the same platform pattern as Opportunity 
 - the existing intelligence-platform D1 database stores namespace-isolated `dbi_*` account, session, agent-key, management, audit, idempotency, and manual-record state;
 - the next successful first-party account claim atomically becomes the permanent Super user;
 - people can create their own account, manage a browser-cropped profile picture, and request access without receiving implicit workspace data;
-- the sole Super user can create isolated workspaces, approve or deny requests, assign workspace roles, and add or remove members;
+- the sole Super user can create isolated workspaces, approve or deny requests, assign workspace roles, add or remove members, and explicitly emulate an active managed user without inheriting Super user visibility;
+- workspace managers can organize members into named teams with optional icons, assign events to one or more team overlays, and preserve workspace-wide events by leaving team visibility unassigned;
 - the Super user and Administrators can create human accounts inside their active workspace, assign Administrator/Analyst/Viewer roles, suspend access, revoke sessions, and reset passwords without exposing stored password material;
 - the Super user and Administrators can issue narrowly scoped, revocable Agent API credentials for the active workspace from the top-right profile menu;
-- authenticated humans and agents share tracking, events, activity, manual records, and wallboard state while source-backed evidence remains immutable;
+- authenticated humans and agents share tracking, events, activity, manual records, and wallboard state while source-backed evidence remains immutable; human event reads are filtered to workspace-wide events plus the union of the effective user's teams, and the calendar can toggle those visible overlays;
 - the account UI is omitted automatically on the static GitHub Pages fallback because that host has no account API.
 
 The repository also retains a production-neutral Docker and PostgreSQL stack as a portability and release-contract target:
