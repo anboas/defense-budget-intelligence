@@ -13,12 +13,14 @@ AI does not directly save an event. The verified result is merged into the open 
    - Excluded from provider input: attendee IDs/profiles, linked workspace record IDs, internal status, wallboard settings, credentials, and authorization data.
    - Runtime: background Responses API call using the operator-selected research model, web search, and a strict JSON Schema.
 2. **Independent verification**
-   - Input: the public draft, producer proposal, allowed category names, and operator direction.
-   - Runtime: a separate background Responses API call using the operator-selected verification model, web search, and a separate strict JSON Schema.
+   - Input: the public draft, producer proposal, producer's retained claim/source bundle, allowed category names, and operator direction.
+   - Runtime: a separate background Responses API call using the operator-selected verification model, optional bounded web search, and a separate strict JSON Schema.
    - Checks: event identity, dates, venue, links, milestones, categories, evidence, and merge safety.
 3. **Deterministic merge**
-   - Only source URLs present in provider web-search citation annotations are accepted.
-   - Only new fields with medium/high cited evidence are eligible.
+   - Provider annotations and consulted-source inventories are provenance transport, not an all-or-nothing truth gate.
+   - Claims are evaluated independently. Medium/high-confidence claims are eligible when their source appears in the current provider evidence or the producer's pinned grounded evidence.
+   - Plausible unmatched claims and sources remain visible as review material but are not auto-merged.
+   - Links, milestones, and categories use item-level allowlists so one grounded collection claim cannot admit an unrelated sibling item.
    - Missing scalar fields may be filled.
    - Links, milestones, and category assignments are appended and deduplicated.
    - Operator-entered values are preserved and conflicts are disclosed.
@@ -46,15 +48,15 @@ Terminal jobs are retained for 90 days. A user can run at most three concurrent 
 - `researching`: producer background response is queued or in progress.
 - `verifying`: independent verifier is queued or in progress.
 - `completed`: verified merge contains the event name and start date and is ready for operator review/save.
-- `needs_review`: verification found a material conflict, rejected the proposal, or could not verify the minimum saveable fields.
-- `failed`: credential, provider, citation, schema, or application validation failed safely.
+- `needs_review`: verification found a material conflict, retained plausible claims with incomplete grounding, rejected part or all of a wrong-entity proposal, or could not verify the minimum saveable fields.
+- `failed`: credential, provider, malformed schema, or application validation failed safely.
 - `cancelled`: reserved terminal state for provider or future operator cancellation.
 
 Polling `GET /api/v1/auth/event-ai/:jobId` advances a non-terminal job. Provider background work survives an individual HTTP request; the next poll resumes the persisted workflow.
 
 Provider responses remain stored only while their background stage is pending or waiting to be resumed. After DBI accepts and normalizes a completed producer or verifier stage, it deletes that raw provider response. DBI retains the normalized schema-bound result and audit metadata, not the raw Responses payload.
 
-Because the consulted-source inventory is an opt-in Responses API field, DBI requests `web_search_call.action.sources` both when creating a background response and on every later retrieval. The completed response must expose the same provider provenance channel that the evidence gate evaluates.
+Because the consulted-source inventory is an opt-in Responses API field, DBI requests `web_search_call.action.sources` both when creating a background response and on every later retrieval. When that transport is incomplete, DBI retains affected claims for review instead of failing the whole stage. Grounded producer URLs are pinned into verification so the verifier evaluates the supplied evidence before making an optional fallback search.
 
 ## Credentials and permissions
 
@@ -83,7 +85,7 @@ Logs never retain keys, authorization headers, cookies, prompts, input snapshots
 
 ## Verification
 
-- `npm run verify:event-ai`: strict schemas, citation binding, malformed-output rejection, provider-error extraction, model filtering/selection, entitlement rejection, and non-destructive merge.
+- `npm run verify:event-ai`: strict schemas, claim-level evidence binding, pinned-source verification, the NSWCDD SAM.gov regression, malformed-output rejection, provider-error extraction, model filtering/selection, entitlement rejection, and non-destructive merge.
 - `npm run verify:pages-auth`: D1 persistence, two-stage transition, editor merge, credential ownership, provider-failure diagnostics, audit entries, and redaction.
 - `npm run verify:postgres-auth:local`: disposable PostgreSQL parity, including provider-failure diagnostics.
 - `npm run verify`: public UI, responsive presentation, Control Surface conformance, and build contract.

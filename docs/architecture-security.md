@@ -36,7 +36,7 @@ The implementations differ only at persistence and platform adapters. Validation
 | Browser to authenticated API | HttpOnly, Secure, SameSite=Strict sessions; same-origin and Fetch Metadata rejection; bounded JSON; no-store responses; role and active-workspace checks |
 | Agent API | Hashed scoped bearer tokens; expiration/revocation; per-principal rate limit; idempotency for writes; optimistic versions; workspace-scoped queries; redacted request ledger |
 | Credential vault | AES-256-GCM at rest; host-owned encryption key; write-only secret input; metadata-only browser responses; no keys/prompts/raw provider bodies in logs |
-| OpenAI enrichment | Background request IDs; forced web search; provider-source binding; independent verification; deterministic merge; operator review; no direct event write |
+| OpenAI enrichment | Background request IDs; forced producer search; claim-level provider-source binding; pinned evidence for bounded verification; item-level merge allowlists; explicit wrong-entity rejection; operator review; no direct event write |
 | Public data | Build-time validation, stable identifiers, explicit source lineage, deferred route-specific payloads, bounded cache lifetime |
 | Container | Non-root user; read-only filesystem; dropped Linux capabilities; no-new-privileges; bounded temporary filesystem; private PostgreSQL network |
 | Release | Lockfile install; zero-high dependency audit; CycloneDX SBOM; immutable action pins; CodeQL; least-privilege workflow permissions; exact framework commit pin; D1/PostgreSQL/browser parity before deployment |

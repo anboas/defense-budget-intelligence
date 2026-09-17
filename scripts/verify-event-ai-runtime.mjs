@@ -69,7 +69,9 @@ const verifierRequest = buildEventAiVerifierRequest({
 });
 assert.equal(verifierRequest.reasoning.effort, "low", "Verification must not repeat event research at high reasoning effort");
 assert.equal(verifierRequest.tools[0].search_context_size, "low", "Verification should use bounded search context");
-assert.match(verifierRequest.instructions, /no more than three focused web searches/i, "Verification must have a bounded search scope");
+assert.equal(verifierRequest.tool_choice, "auto", "Verification must inspect pinned evidence without requiring a second search");
+assert.match(verifierRequest.instructions, /no more than two focused searches/i, "Verification must have a bounded fallback search scope");
+assert.match(verifierRequest.instructions, /pinned evidence/i, "Verification must receive and prioritize the producer's retained evidence");
 assert.match(verifierRequest.instructions, /not a rejected claim/i, "Merge conflicts must remain distinct from factual rejection");
 
 let retrievedUrl = "";
@@ -156,12 +158,88 @@ assert.equal(partialOutcome.mergeResult.mergedDraft.location, "Operator venue", 
 assert.equal(partialOutcome.mergeResult.mergedDraft.notes, "Verified public summary.", "Verified additive fields must survive a separate rejected claim");
 assert.equal(partialOutcome.mergeResult.changes.includes("notes"), true, "A needs-review result must still expose safe additions");
 
-assert.throws(() => citedEventAiDetails({ status: "completed", output: [] }, details, {}), (error) => {
-  assert.match(error.message, /without verifiable web-search citations/i);
-  assert.equal(error.diagnostic.webSearchCallCount, 0);
-  assert.equal(error.diagnostic.structuredSourceCount, 1);
-  return true;
+const citationTransportGap = citedEventAiDetails({ status: "completed", output: [] }, details, {});
+assert.deepEqual(citationTransportGap.acceptedFields, [], "Missing provider citation transport must not silently approve claims");
+assert.equal(citationTransportGap.reviewClaims.length >= 5, true, "Plausible unmatched claims must remain available for operator review");
+assert.equal(citationTransportGap.reviewSources.length, 1, "Unmatched structured sources must remain inspectable instead of failing the whole job");
+const transportGapMerge = mergeVerifiedEventDraft({ title: "Industry day", startsAt: "", links: [] }, citationTransportGap, []);
+assert.equal(transportGapMerge.changes.length, 0, "Ungrounded claims must not merge merely because the workflow no longer throws");
+
+const secondaryUrl = "https://registration.example/events/industry-day";
+const partialDetails = normalizeEventAiDetails({
+  ...details,
+  links: [{ label: "Official page", url: sourceUrl }, { label: "Registration", url: secondaryUrl }],
+  evidence: [
+    { field: "location", value: "Mission center", confidence: "high", sourceUrls: [sourceUrl] },
+    { field: "links", value: sourceUrl, confidence: "high", sourceUrls: [sourceUrl] },
+    { field: "links", value: secondaryUrl, confidence: "high", sourceUrls: [secondaryUrl] },
+  ],
+  sources: [
+    { url: sourceUrl, title: "Industry day", publisher: "Example.gov" },
+    { url: secondaryUrl, title: "Registration", publisher: "Registration provider" },
+  ],
 });
+const partialGrounding = citedEventAiDetails(providerResponse, partialDetails, {});
+assert.deepEqual(partialGrounding.acceptedFields, ["location", "links"], "Evidence acceptance must be claim-by-claim");
+assert.equal(partialGrounding.reviewClaims.some((claim) => claim.field === "links"), true, "An unmatched claim must be retained for review without discarding a matched claim");
+const partialGroundingMerge = mergeVerifiedEventDraft({ title: "Industry day", startsAt: "2027-06-01T09:00", location: "", links: [] }, partialGrounding, []);
+assert.equal(partialGroundingMerge.mergedDraft.location, "Mission center");
+assert.deepEqual(partialGroundingMerge.mergedDraft.links.map((link) => link.url), [sourceUrl], "A grounded link must merge without carrying an unmatched sibling link");
+
+const samUrl = "https://sam.gov/opp/8a9e0e1c7edb489e86704a0d5365df86/view";
+const samDetails = normalizeEventAiDetails({
+  title: "NSWCDD A Department Industry Day",
+  startsAt: "2026-09-29T08:00",
+  endsAt: "2026-09-29T17:00",
+  location: "University of Mary Washington-Dahlgren Campus, 4224 University Drive, King George, VA",
+  notes: "NSWCDD A Department will hold an in-person Industry Day.",
+  links: [{ label: "Official SAM.gov notice", url: samUrl }],
+  milestones: [{ type: "registration_deadline", label: "Registration deadline", occursAt: "2026-09-22T17:00", notes: "Published in the official notice." }],
+  categoryNames: ["Industry day"],
+  evidence: [
+    { field: "startsAt", value: "2026-09-29T08:00", confidence: "high", sourceUrls: [samUrl] },
+    { field: "endsAt", value: "2026-09-29T17:00", confidence: "high", sourceUrls: [samUrl] },
+    { field: "location", value: "University of Mary Washington-Dahlgren Campus", confidence: "high", sourceUrls: [samUrl] },
+    { field: "notes", value: "In-person Industry Day", confidence: "high", sourceUrls: [samUrl] },
+    { field: "links", value: samUrl, confidence: "high", sourceUrls: [samUrl] },
+    { field: "milestones", value: "Registration deadline September 22 at 5:00 PM", confidence: "high", sourceUrls: [samUrl] },
+    { field: "categories", value: "Industry day", confidence: "medium", sourceUrls: [samUrl] },
+  ],
+  sources: [{ url: samUrl, title: "Mission Assurance Services (A Dept.)", publisher: "SAM.gov" }],
+  caveats: [],
+});
+const samProducerResponse = {
+  status: "completed",
+  output: [
+    { type: "web_search_call", action: { type: "search", query: "site:sam.gov NSWCDD A Department Industry Day", sources: [{ type: "url", url: samUrl }] } },
+    { type: "message", content: [{ type: "output_text", text: JSON.stringify(samDetails), annotations: [] }] },
+  ],
+};
+const samProposal = citedEventAiDetails(samProducerResponse, samDetails, { title: "NSWCDD A Department Industry Day", startsAt: "", location: "Operator-entered venue", links: [], milestones: [] });
+const samVerifierResponse = { status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({}), annotations: [] }] }] };
+const samApproved = citedEventAiDetails(samVerifierResponse, samDetails, { title: "NSWCDD A Department Industry Day", startsAt: "", location: "Operator-entered venue", links: [], milestones: [] }, { trustedSourceUrls: samProposal.groundedSourceUrls });
+const samOutcome = resolveEventAiVerificationOutcome({
+  draft: { title: "NSWCDD A Department Industry Day", startsAt: "", location: "Operator-entered venue", notes: "", links: [], milestones: [], categoryIds: [] },
+  verification: {
+    decision: "approved",
+    approved: samApproved,
+    checks: [{ name: "identity", passed: true, detail: "Pinned SAM notice describes the same event." }],
+    rejectedClaims: [],
+  },
+  categories: [{ id: "industry-day", name: "Industry day" }],
+});
+assert.equal(samOutcome.status, "completed", "Pinned producer evidence must survive a verifier response with no duplicate citation annotations");
+assert.equal(samOutcome.mergeResult.mergedDraft.location, "Operator-entered venue", "Pinned evidence must not overwrite operator data");
+assert.equal(samOutcome.mergeResult.mergedDraft.links[0].url, samUrl);
+assert.equal(samOutcome.mergeResult.mergedDraft.milestones[0].occursAt, "2026-09-22T17:00");
+assert.equal(samOutcome.mergeResult.mergedDraft.notes, "NSWCDD A Department will hold an in-person Industry Day.");
+
+const wrongEntityOutcome = resolveEventAiVerificationOutcome({
+  draft: { title: "NSWCDD A Department Industry Day", startsAt: "", links: [] },
+  verification: { decision: "rejected", approved: samApproved, checks: [{ name: "identity", passed: false, detail: "Wrong event." }] },
+  categories: [],
+});
+assert.deepEqual(wrongEntityOutcome.mergeResult, {}, "An explicit wrong-event identity failure must remain fail-closed");
 assert.throws(() => parseOpenAiStructuredResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "{malformed" }] }] }, normalizeEventAiDetails), /strict JSON parsing/i);
 
 const rateLimitFailure = eventAiProviderError({
@@ -179,4 +257,4 @@ assert.equal(genericFailure.code, "provider_failed");
 assert.match(genericFailure.message, /Verification stage ended with provider status failed/i);
 assert.equal(isRetryableEventAiError(genericFailure), false);
 
-console.log("Verified strict event AI schemas, cited evidence, provider-failure diagnostics, malformed-output rejection, and deterministic non-destructive merge");
+console.log("Verified strict event AI schemas, claim-level evidence, pinned producer sources, NSWCDD regression, malformed-output rejection, and deterministic non-destructive merge");

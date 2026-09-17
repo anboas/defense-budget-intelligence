@@ -24,6 +24,8 @@ const MILESTONE_TYPES = [
   "other",
 ];
 
+const EVENT_AI_EVIDENCE_FIELDS = ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categories"];
+
 const evidenceSchema = {
   type: "object",
   additionalProperties: false,
@@ -173,6 +175,10 @@ function stableSuffix(value) {
   return (hash >>> 0).toString(36);
 }
 
+function milestoneIdentity(milestone = {}) {
+  return `${milestone.type || "other"}|${milestone.occursAt || ""}|${String(milestone.label || "").toLowerCase()}`;
+}
+
 export function normalizeEventAiDraft(value = {}) {
   return {
     id: cleanText(value.id, 180),
@@ -211,11 +217,43 @@ export function normalizeEventAiDetails(value = {}) {
     return { url, title: cleanText(source?.title, 240), publisher: cleanText(source?.publisher, 160) };
   }).filter((source) => source.url), (source) => source.url).slice(0, 20);
   const evidence = (Array.isArray(value.evidence) ? value.evidence : []).map((entry) => ({
-    field: ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categories"].includes(entry?.field) ? entry.field : "notes",
+    field: EVENT_AI_EVIDENCE_FIELDS.includes(entry?.field) ? entry.field : "notes",
     value: cleanText(entry?.value, 2000),
     confidence: ["high", "medium", "low"].includes(entry?.confidence) ? entry.confidence : "low",
     sourceUrls: unique((Array.isArray(entry?.sourceUrls) ? entry.sourceUrls : []).map(cleanHttpUrl).filter(Boolean), (item) => item).slice(0, 8),
   })).filter((entry) => entry.value && entry.sourceUrls.length).slice(0, 40);
+  const internal = {};
+  if (Array.isArray(value.acceptedFields)) {
+    internal.acceptedFields = unique(value.acceptedFields.map((field) => EVENT_AI_EVIDENCE_FIELDS.includes(field) ? field : "").filter(Boolean), (field) => field);
+  }
+  if (Array.isArray(value.acceptedLinkUrls)) {
+    internal.acceptedLinkUrls = unique(value.acceptedLinkUrls.map(cleanHttpUrl).filter(Boolean), (url) => citationKey(url)).slice(0, 12);
+  }
+  if (Array.isArray(value.acceptedMilestoneKeys)) {
+    internal.acceptedMilestoneKeys = unique(value.acceptedMilestoneKeys.map((key) => cleanText(key, 400)).filter(Boolean), (key) => key).slice(0, 24);
+  }
+  if (Array.isArray(value.acceptedCategoryNames)) {
+    internal.acceptedCategoryNames = unique(value.acceptedCategoryNames.map((name) => cleanText(name, 80)).filter(Boolean), (name) => name.toLowerCase()).slice(0, 8);
+  }
+  if (Array.isArray(value.groundedSourceUrls)) {
+    internal.groundedSourceUrls = unique(value.groundedSourceUrls.map(cleanHttpUrl).filter(Boolean), (url) => citationKey(url)).slice(0, 40);
+  }
+  if (Array.isArray(value.reviewSources)) {
+    internal.reviewSources = unique(value.reviewSources.map((source) => ({
+      url: cleanHttpUrl(source?.url),
+      title: cleanText(source?.title, 240),
+      publisher: cleanText(source?.publisher, 160),
+    })).filter((source) => source.url), (source) => citationKey(source.url)).slice(0, 20);
+  }
+  if (Array.isArray(value.reviewClaims)) {
+    internal.reviewClaims = value.reviewClaims.map((claim) => ({
+      field: EVENT_AI_EVIDENCE_FIELDS.includes(claim?.field) ? claim.field : "notes",
+      value: cleanText(claim?.value, 2000),
+      confidence: ["high", "medium", "low"].includes(claim?.confidence) ? claim.confidence : "low",
+      sourceUrls: unique((Array.isArray(claim?.sourceUrls) ? claim.sourceUrls : []).map(cleanHttpUrl).filter(Boolean), (url) => citationKey(url)).slice(0, 8),
+      reason: cleanText(claim?.reason, 500),
+    })).filter((claim) => claim.value).slice(0, 40);
+  }
   return {
     title: cleanText(value.title, 180),
     startsAt: cleanDate(value.startsAt),
@@ -234,6 +272,7 @@ export function normalizeEventAiDetails(value = {}) {
     sources,
     caveats: unique((Array.isArray(value.caveats) ? value.caveats : []).map((item) => cleanText(item, 500)), (item) => item).slice(0, 20),
     citedSourceCount: sourceUrls.size,
+    ...internal,
   };
 }
 
@@ -284,13 +323,14 @@ export function buildEventAiVerifierRequest({ draft, proposal, direction, catego
     store: true,
     reasoning: { effort: "low" },
     tools: [{ type: "web_search", search_context_size: "low" }],
-    tool_choice: "required",
+    tool_choice: "auto",
     include: ["web_search_call.action.sources"],
     text: { format: { type: "json_schema", name: "event_enrichment_verification", strict: true, schema: EVENT_AI_VERIFICATION_SCHEMA } },
     instructions: [
       "You are the independent verification stage for an event-enrichment workflow.",
-      "Verify only the producer's proposed claims against public sources and the supplied original draft; do not repeat open-ended event research.",
-      "Use no more than three focused web searches, prioritizing the proposal's official sources.",
+      "Verify only the producer's proposed claims against its retained evidence bundle and the supplied original draft; do not repeat open-ended event research.",
+      "Treat the proposal's grounded sources as pinned evidence. Do not require those sources to reappear in a new search result or citation annotation.",
+      "Use web search only when pinned evidence is ambiguous or incomplete, and use no more than two focused searches.",
       "Reject unsupported facts, malformed dates, non-HTTP(S) links, event-identity mismatches, and invented deadlines.",
       "Preserve operator-entered values. Approve only additive fields that can merge without overwriting the original draft.",
       "The approved object must retain every independently verified additive fact, even when another claim is rejected or needs review. Use empty values only for unsupported claims.",
@@ -470,40 +510,82 @@ export function eventAiEvidenceDiagnostic(response, details = {}) {
   };
 }
 
-export function citedEventAiDetails(response, details, original = {}) {
+export function citedEventAiDetails(response, details, original = {}, options = {}) {
   const normalized = normalizeEventAiDetails(details);
-  const context = providerEvidenceContext(response);
-  const diagnostic = eventAiEvidenceDiagnostic(response, normalized);
-  if (!context.providerUrls.size) {
-    const error = new Error("The provider returned structured data without verifiable web-search citations.");
-    error.code = "missing_citations";
-    error.diagnostic = diagnostic;
-    throw error;
-  }
-  const sources = normalized.sources.filter((source) => context.providerUrls.has(citationKey(source.url)));
-  const evidence = normalized.evidence.map((entry) => ({ ...entry, sourceUrls: entry.sourceUrls.filter((url) => context.providerUrls.has(citationKey(url))) }))
-    .filter((entry) => entry.sourceUrls.length);
-  if (!sources.length || !evidence.length) {
-    const error = new Error("The provider result did not bind its event claims to cited public sources.");
-    error.code = "uncited_structured_output";
-    error.diagnostic = diagnostic;
-    throw error;
-  }
   const originalDraft = normalizeEventAiDraft(original);
-  const supported = new Set(evidence.filter((entry) => ["high", "medium"].includes(entry.confidence)).map((entry) => entry.field));
-  const allowScalar = (field) => originalDraft[field] || supported.has(field) ? normalized[field] : "";
+  const context = providerEvidenceContext(response);
+  const trustedSourceUrls = new Set([
+    ...context.providerUrls,
+    ...(Array.isArray(options.trustedSourceUrls) ? options.trustedSourceUrls.map(citationKey).filter(Boolean) : []),
+  ]);
+  const sources = normalized.sources.filter((source) => trustedSourceUrls.has(citationKey(source.url)));
+  const reviewSources = normalized.sources.filter((source) => !trustedSourceUrls.has(citationKey(source.url)));
+  const evidence = [];
+  const reviewClaims = [...(normalized.reviewClaims || [])];
+  const acceptedFields = new Set();
+  for (const entry of normalized.evidence) {
+    const groundedUrls = entry.sourceUrls.filter((url) => trustedSourceUrls.has(citationKey(url)));
+    if (groundedUrls.length && ["high", "medium"].includes(entry.confidence)) {
+      evidence.push({ ...entry, sourceUrls: groundedUrls });
+      acceptedFields.add(entry.field);
+    } else {
+      reviewClaims.push({
+        ...entry,
+        reason: groundedUrls.length
+          ? "Low-confidence claim retained for operator review."
+          : "Claim source was not present in the provider evidence transport or pinned producer evidence.",
+      });
+    }
+  }
+  const candidateValues = {
+    title: normalized.title,
+    startsAt: normalized.startsAt,
+    endsAt: normalized.endsAt,
+    location: normalized.location,
+    notes: normalized.notes,
+    links: normalized.links.map((link) => `${link.label || "Link"}: ${link.url}`).join("\n"),
+    milestones: normalized.milestones.map((milestone) => `${milestone.label || milestone.type}: ${milestone.occursAt}`).join("\n"),
+    categories: normalized.categoryNames.join(", "),
+  };
+  for (const field of EVENT_AI_EVIDENCE_FIELDS) {
+    if (!candidateValues[field] || acceptedFields.has(field) || reviewClaims.some((claim) => claim.field === field)) continue;
+    if (["title", "startsAt", "endsAt", "location", "notes"].includes(field) && originalDraft[field] === normalized[field]) continue;
+    reviewClaims.push({ field, value: candidateValues[field], confidence: "low", sourceUrls: [], reason: "Structured claim did not include claim-level evidence." });
+  }
+  const groundedSourceUrls = unique([
+    ...sources.map((source) => source.url),
+    ...evidence.flatMap((entry) => entry.sourceUrls),
+  ], (url) => citationKey(url)).slice(0, 40);
+  const groundedEvidenceFor = (field) => evidence.filter((entry) => entry.field === field);
+  const claimMatchesText = (entry, value) => {
+    const needle = String(value || "").toLowerCase();
+    return Boolean(needle && (entry.value.toLowerCase().includes(needle) || entry.sourceUrls.some((url) => citationKey(url) === citationKey(value))));
+  };
+  const acceptedLinkUrls = normalized.links.filter((link) => {
+    const entries = groundedEvidenceFor("links");
+    return entries.some((entry) => claimMatchesText(entry, link.url)) || (normalized.links.length === 1 && entries.length === 1);
+  }).map((link) => link.url);
+  const acceptedMilestoneKeys = normalized.milestones.filter((milestone) => {
+    const entries = groundedEvidenceFor("milestones");
+    return entries.some((entry) => claimMatchesText(entry, milestone.occursAt) || (milestone.label && claimMatchesText(entry, milestone.label)))
+      || (normalized.milestones.length === 1 && entries.length === 1);
+  }).map(milestoneIdentity);
+  const acceptedCategoryNames = normalized.categoryNames.filter((name) => groundedEvidenceFor("categories").some((entry) => claimMatchesText(entry, name)));
+  const transportCaveat = reviewClaims.length
+    ? ["Some proposed claims remain available for review because their citation transport was incomplete."]
+    : [];
   return {
     ...normalized,
-    title: allowScalar("title"),
-    startsAt: allowScalar("startsAt"),
-    endsAt: allowScalar("endsAt"),
-    location: allowScalar("location"),
-    notes: allowScalar("notes"),
-    links: originalDraft.links.length || supported.has("links") ? normalized.links : [],
-    milestones: originalDraft.milestones.length || supported.has("milestones") ? normalized.milestones : [],
-    categoryNames: originalDraft.categoryIds.length || supported.has("categories") ? normalized.categoryNames : [],
     evidence,
     sources,
+    reviewSources,
+    reviewClaims,
+    acceptedFields: [...acceptedFields],
+    acceptedLinkUrls,
+    acceptedMilestoneKeys,
+    acceptedCategoryNames,
+    groundedSourceUrls,
+    caveats: unique([...normalized.caveats, ...transportCaveat], (item) => item).slice(0, 20),
     citedSourceCount: sources.length,
   };
 }
@@ -511,8 +593,14 @@ export function citedEventAiDetails(response, details, original = {}) {
 export function mergeVerifiedEventDraft(original, approved, categories = []) {
   const current = normalizeEventAiDraft(original);
   const verified = normalizeEventAiDetails(approved);
+  const acceptedFields = Array.isArray(approved?.acceptedFields) ? new Set(verified.acceptedFields || []) : null;
+  const accepts = (field) => !acceptedFields || acceptedFields.has(field);
+  const acceptedLinkUrls = Array.isArray(approved?.acceptedLinkUrls) ? new Set(verified.acceptedLinkUrls || []) : null;
+  const acceptedMilestoneKeys = Array.isArray(approved?.acceptedMilestoneKeys) ? new Set(verified.acceptedMilestoneKeys || []) : null;
+  const acceptedCategoryNames = Array.isArray(approved?.acceptedCategoryNames) ? new Set((verified.acceptedCategoryNames || []).map((name) => name.toLowerCase())) : null;
   const conflicts = [];
   const fill = (field) => {
+    if (!accepts(field)) return current[field];
     if (!verified[field]) return current[field];
     if (current[field] && current[field] !== verified[field]) {
       conflicts.push({ field, current: current[field], proposed: verified[field] });
@@ -522,16 +610,16 @@ export function mergeVerifiedEventDraft(original, approved, categories = []) {
   };
   const links = unique([
     ...current.links,
-    ...verified.links.map((link, index) => ({ id: `ai-link-${index + 1}-${stableSuffix(link.url)}`, ...link })),
+    ...(accepts("links") ? verified.links.filter((link) => !acceptedLinkUrls || acceptedLinkUrls.has(link.url)) : []).map((link, index) => ({ id: `ai-link-${index + 1}-${stableSuffix(link.url)}`, ...link })),
   ], (link) => link.url).slice(0, 12);
   const milestones = unique([
     ...current.milestones,
-    ...verified.milestones.map((milestone, index) => ({ id: `ai-milestone-${index + 1}-${stableSuffix(`${milestone.type}|${milestone.occursAt}|${milestone.label}`)}`, ...milestone })),
+    ...(accepts("milestones") ? verified.milestones.filter((milestone) => !acceptedMilestoneKeys || acceptedMilestoneKeys.has(milestoneIdentity(milestone))) : []).map((milestone, index) => ({ id: `ai-milestone-${index + 1}-${stableSuffix(milestoneIdentity(milestone))}`, ...milestone })),
   ], (milestone) => `${milestone.type}|${milestone.occursAt}|${milestone.label.toLowerCase()}`).slice(0, 24);
   const categoryByName = new Map((categories || []).map((category) => [String(category.name || "").toLowerCase(), category.id]));
   const categoryIds = unique([
     ...current.categoryIds,
-    ...verified.categoryNames.map((name) => categoryByName.get(name.toLowerCase())).filter(Boolean),
+    ...(accepts("categories") ? verified.categoryNames.filter((name) => !acceptedCategoryNames || acceptedCategoryNames.has(name.toLowerCase())) : []).map((name) => categoryByName.get(name.toLowerCase())).filter(Boolean),
   ], (item) => item).slice(0, 8);
   const mergedDraft = normalizeEventAiDraft({
     ...current,
@@ -553,8 +641,11 @@ export function mergeVerifiedEventDraft(original, approved, categories = []) {
 
 export function resolveEventAiVerificationOutcome({ draft, verification, categories = [] }) {
   const decision = ["approved", "needs_review", "rejected"].includes(verification?.decision) ? verification.decision : "rejected";
-  const mergeResult = decision === "rejected" ? {} : mergeVerifiedEventDraft(draft, verification?.approved || {}, categories);
-  const complete = decision === "approved" && Boolean(mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt);
+  const identityCheck = (verification?.checks || []).find((check) => check?.name === "identity");
+  const mayMerge = decision !== "rejected" || identityCheck?.passed === true;
+  const mergeResult = mayMerge ? mergeVerifiedEventDraft(draft, verification?.approved || {}, categories) : {};
+  const unresolvedClaims = normalizeEventAiDetails(verification?.approved || {}).reviewClaims || [];
+  const complete = decision === "approved" && unresolvedClaims.length === 0 && Boolean(mergeResult.mergedDraft?.title && mergeResult.mergedDraft?.startsAt);
   return {
     mergeResult,
     status: complete ? "completed" : "needs_review",

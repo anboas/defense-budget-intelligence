@@ -463,6 +463,7 @@ async function advanceEventAiJob(pool, row) {
   try {
     if (row.status === "researching") {
       let proposal;
+      let proposalDiagnostic = null;
       if (mockMode) {
         providerResponse = row.direction === "__mock_provider_failure__"
           ? { id: row.producer_response_id || `mock-producer-${row.id}`, status: "failed", error: { code: "rate_limit_exceeded", message: "Verification-only provider rate limit." }, usage: { input_tokens: 0, output_tokens: 0 } }
@@ -471,6 +472,7 @@ async function advanceEventAiJob(pool, row) {
         const mockProposal = mockEventAiProposal(draft, categories);
         if (row.direction === "__mock_missing_citations__") {
           providerResponse.output = [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(mockProposal), annotations: [] }] }];
+          proposalDiagnostic = eventAiEvidenceDiagnostic(providerResponse, mockProposal);
           proposal = citedEventAiDetails(providerResponse, mockProposal, draft);
         } else proposal = mockProposal;
       } else {
@@ -482,10 +484,11 @@ async function advanceEventAiJob(pool, row) {
           return row;
         }
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Research");
-        proposal = citedEventAiDetails(providerResponse, parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails), draft);
+        const parsedProposal = parseOpenAiStructuredResponse(providerResponse, normalizeEventAiDetails);
+        proposalDiagnostic = eventAiEvidenceDiagnostic(providerResponse, parsedProposal);
+        proposal = citedEventAiDetails(providerResponse, parsedProposal, draft);
       }
-      if (!proposal?.sources?.length) throw Object.assign(new Error("Research completed without a cited public source."), { code: "missing_sources" });
-      await logEventAiProvider(pool, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, proposal));
+      await logEventAiProvider(pool, row, providerResponse, "research", "succeeded", providerLatencyMs, providerRequestId, null, "GET", proposalDiagnostic || (mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, proposal)));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.producer_response_id).catch(() => false);
       let verifierResponseId = `mock-verifier-${row.id}`;
       if (!mockMode) {
@@ -513,7 +516,7 @@ async function advanceEventAiJob(pool, row) {
         if (providerResponse.status !== "completed") throw eventAiProviderError(providerResponse, "Verification");
         verification = parseOpenAiStructuredResponse(providerResponse, (value) => ({
           decision: ["approved", "needs_review", "rejected"].includes(value?.decision) ? value.decision : "rejected",
-          approved: citedEventAiDetails(providerResponse, value?.approved, draft), checks: Array.isArray(value?.checks) ? value.checks.slice(0, 12) : [],
+          approved: citedEventAiDetails(providerResponse, value?.approved, draft, { trustedSourceUrls: (row.proposal_json?.groundedSourceUrls || row.proposal_json?.sources?.map((source) => source.url) || []) }), checks: Array.isArray(value?.checks) ? value.checks.slice(0, 12) : [],
           rejectedClaims: Array.isArray(value?.rejectedClaims) ? value.rejectedClaims.slice(0, 30) : [],
           mergeNotes: Array.isArray(value?.mergeNotes) ? value.mergeNotes.slice(0, 20) : [],
         }));
