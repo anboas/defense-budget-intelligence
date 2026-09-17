@@ -138,7 +138,7 @@ function publicUser(row) {
     role: ROLE_LABELS[roleId] || "Viewer",
     roleId,
     status: row.status || "active",
-    mustChangePassword: Boolean(row.must_change_password),
+    mustChangePassword: Boolean(row.must_change_password) && !row.is_emulating,
     canManageUsers: ["super_user", "administrator"].includes(roleId),
     canManageAgents: ["super_user", "administrator"].includes(roleId),
     canManageWorkspaces: row.role === "super_user" || roleId === "administrator",

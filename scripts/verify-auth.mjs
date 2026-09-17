@@ -260,6 +260,18 @@ try {
   await page.getByText("User suspended", { exact: true }).waitFor();
   await teammate.getByRole("button", { name: "Reactivate" }).click();
   await page.getByText("User reactivated", { exact: true }).waitFor();
+  const viewAs = teammate.getByRole("button", { name: "View as" });
+  await viewAs.waitFor();
+  await viewAs.click();
+  const emulationBanner = page.locator("[data-emulation-banner]");
+  await emulationBanner.waitFor();
+  assert.match(await emulationBanner.innerText(), /Viewing as Browser teammate[\s\S]*Permissions and team visibility match this user/i, "Super users must be able to emulate an active user even while first-login setup is pending");
+  assert.equal(await page.locator("[data-password-change-gate]").count(), 0, "User emulation must inspect effective access instead of forcing the actor through the target's password setup");
+  await page.screenshot({ path: "test-results/admin-user-emulation-desktop.png", fullPage: true });
+  await emulationBanner.getByRole("button", { name: "Exit view" }).click();
+  await emulationBanner.waitFor({ state: "detached" });
+  await page.waitForSelector('[data-operations-hub][data-operations-view="users"]');
+  await page.locator("[data-user-management]").waitFor();
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
 
   await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
@@ -290,21 +302,40 @@ try {
   await page.screenshot({ path: "test-results/workspace-teams-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
-  const browserOverlayEvent = await page.evaluate(async (teamId) => {
-    const response = await fetch("/api/v1/agent/events", {
-      method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
-      body: JSON.stringify({ title: "Browser HR private planning", startsAt: "2026-01-05T09:00", endsAt: "2026-01-05T10:00", teamIds: [teamId] }),
-    });
-    return { status: response.status, body: await response.json() };
-  }, browserTeamId);
-  assert.equal(browserOverlayEvent.status, 201, "A workspace manager must create a team-scoped event");
-  assert.deepEqual(browserOverlayEvent.body.data.teamIds, [browserTeamId]);
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
-  await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-event-table]");
+  await page.getByRole("button", { name: "Add event" }).click();
+  const eventDialog = page.getByRole("dialog", { name: "Add event" });
+  await eventDialog.getByLabel("Title").fill("Browser HR private planning");
+  await eventDialog.getByLabel("Starts").fill("2026-01-05T09:00");
+  await eventDialog.getByLabel("Ends").fill("2026-01-05T10:00");
+  const hrTeamOption = eventDialog.locator(`[data-event-team-option="${browserTeamId}"]`);
+  await hrTeamOption.click();
+  assert.equal(await hrTeamOption.getAttribute("aria-pressed"), "true", "Event editors must visibly select a team before save");
+  assert.match(await eventDialog.locator("[data-event-team-picker]").innerText(), /1 team selected[\s\S]*Only members of those teams/i, "Event editors must explain the resulting visibility scope");
+  await page.screenshot({ path: "test-results/event-team-assignment-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileEventTeamGeometry = await eventDialog.locator("[data-event-team-picker]").evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    buttons: [...node.querySelectorAll("button")]
+      .filter((button) => button.offsetParent !== null)
+      .map((button) => button.getBoundingClientRect().height),
+  }));
+  assert.ok(mobileEventTeamGeometry.overflow <= 1, `Event team assignment must not overflow the mobile viewport: ${JSON.stringify(mobileEventTeamGeometry)}`);
+  assert.ok(mobileEventTeamGeometry.buttons.every((height) => height >= 43.5), `Mobile event team choices must retain 44px targets: ${mobileEventTeamGeometry.buttons.join(", ")}`);
+  await hrTeamOption.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/event-team-assignment-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await eventDialog.getByRole("button", { name: "Save event" }).click();
   await page.locator('[data-ops-event-table] input[type="search"]').fill("Browser HR private planning");
+  await page.getByText("Browser HR private planning", { exact: true }).waitFor();
   assert.match(await page.locator("[data-ops-event-table]").innerText(), /Browser HR private planning[\s\S]*Browser HR/i, "The Events grid must expose team visibility without opening event details");
+  const browserOverlayEvent = await page.evaluate(async () => {
+    const response = await fetch("/api/v1/agent/events");
+    const body = await response.json();
+    return body.data.find((event) => event.title === "Browser HR private planning");
+  });
+  assert.deepEqual(browserOverlayEvent.teamIds, [browserTeamId], "The event editor must persist the selected team through the API boundary");
 
   await page.goto(`${BASE_URL}#/budget-spend/wallboard`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-wallboard]");
@@ -313,10 +344,12 @@ try {
   await overlayRail.waitFor();
   const browserHrOverlay = overlayRail.getByRole("button", { name: /Browser HR/ });
   assert.equal(await browserHrOverlay.getAttribute("aria-pressed"), "true");
+  assert.match(await browserHrOverlay.innerText(), /Browser HR[\s\S]*Shown/i, "Visible calendar overlays must state their shown status without relying on opacity");
   assert.equal(await overlayRail.getByRole("button", { name: /Workspace-wide/ }).count(), 1, "The calendar must retain a workspace-wide overlay beside team overlays");
   await page.getByText("Browser HR private planning", { exact: true }).waitFor();
   await browserHrOverlay.click();
   assert.equal(await browserHrOverlay.getAttribute("aria-pressed"), "false", "Calendar overlays must be independently toggleable");
+  assert.match(await browserHrOverlay.innerText(), /Browser HR[\s\S]*Hidden/i, "Disabled calendar overlays must retain readable text and state");
   assert.equal(await page.getByText("Browser HR private planning", { exact: true }).count(), 0, "Disabling a team overlay must remove its events from the calendar");
   await browserHrOverlay.click();
   await page.getByText("Browser HR private planning", { exact: true }).waitFor();
@@ -333,7 +366,7 @@ try {
   await page.evaluate(async ({ eventId, teamId }) => {
     await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" });
     await fetch(`/api/v1/auth/teams/${encodeURIComponent(teamId)}`, { method: "DELETE" });
-  }, { eventId: browserOverlayEvent.body.data.id, teamId: browserTeamId });
+  }, { eventId: browserOverlayEvent.id, teamId: browserTeamId });
 
   await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-workspace-management]");

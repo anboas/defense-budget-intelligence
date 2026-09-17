@@ -780,7 +780,7 @@ function publicUser(row) {
     role: ROLE_LABELS[roleId] || "Viewer",
     roleId,
     status: row.status || "active",
-    mustChangePassword: Boolean(row.must_change_password),
+    mustChangePassword: Boolean(row.must_change_password) && !row.is_emulating,
     canManageUsers: ["super_user", "administrator"].includes(roleId),
     canManageAgents: ["super_user", "administrator"].includes(roleId),
     canManageWorkspaces: row.role === "super_user" || roleId === "administrator",
@@ -1789,7 +1789,7 @@ async function requestPrincipal(db, request) {
       workspaceId: session.active_workspace_id || "",
       roleId,
       canManageWorkspace: roleId === "super_user" || roleId === "administrator",
-      scopes: session.must_change_password || !session.active_workspace_id ? [] : scopesForRole(roleId),
+      scopes: (!session.is_emulating && session.must_change_password) || !session.active_workspace_id ? [] : scopesForRole(roleId),
     };
   }
   const authorization = request.headers.get("authorization") || "";

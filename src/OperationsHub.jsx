@@ -17,6 +17,8 @@ import {
   Sparkles,
   CircleAlert,
   CircleCheck,
+  Eye,
+  EyeOff,
   Star,
   Tags,
   Trash2,
@@ -26,6 +28,7 @@ import sourceHealth from "./data/source-health.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
+import EventTeamSelector from "./EventTeamSelector.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { AgentAccessPanel } from "./ProfilePage.jsx";
 import { useAuth } from "./AuthContext.jsx";
@@ -334,10 +337,7 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
             <SearchMultiSelect title="Event categories" allLabel="Select event types" value={JSON.stringify(draft.categoryIds || [])} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description }))} onChange={(categoryIds) => setDraft((value) => ({ ...value, categoryIds }))} portalTarget={dialogRef} />
             {!categories.length ? <small>No workspace event categories are available.</small> : null}
           </div>
-          <div className="ops-attendee-picker if-field--full" data-event-team-picker>
-            <SearchMultiSelect title="Team visibility" allLabel="Workspace-wide (no team restriction)" value={JSON.stringify(draft.teamIds || [])} options={(teams || []).map((team) => ({ value: team.id, label: team.name, description: team.description }))} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} portalTarget={dialogRef} />
-            <small>{draft.teamIds?.length ? "Only members of the selected teams can see this event. Multi-team members see the union." : "Visible to every member of this workspace."}</small>
-          </div>
+          <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
           <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
@@ -1040,7 +1040,10 @@ function WallboardCalendar({ events, categories, teams = [], month, onMonthChang
         <b aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}>{monthEvents.length}<small>+{monthMilestones.length}</small></b>
       </div>
     </header>
-    <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Overlays</strong><small>Show only the teams you want to focus on.</small></span><div>{overlayOptions.map((team) => <button key={team.id} type="button" className={hiddenOverlaySet.has(team.id) ? "" : "is-active"} aria-pressed={!hiddenOverlaySet.has(team.id)} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span></button>)}</div></div>
+    <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Calendar overlays</strong><small>Toggle visible schedules.</small></span><div>{overlayOptions.map((team) => {
+      const active = !hiddenOverlaySet.has(team.id);
+      return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}{active ? "Shown" : "Hidden"}</small></button>;
+    })}</div></div>
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
       <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
       <div className="ops-wall-calendar__weeks">{weeks.map((week) => {

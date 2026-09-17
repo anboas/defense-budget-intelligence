@@ -6,6 +6,11 @@ import ProductMark from "./ProductMark.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 
 const AuthContext = createContext(null);
+const MANAGEMENT_STATE_EVENT = "dbi:management-state-changed";
+
+function notifyManagementStateChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(MANAGEMENT_STATE_EVENT));
+}
 
 export function useAuth() {
   return useContext(AuthContext);
@@ -176,10 +181,10 @@ export default function AuthProvider({ children }) {
     startEmulation: async (userId) => { const result = await authApi.startEmulation(userId); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
     stopEmulation: async () => { const result = await authApi.stopEmulation(); setStatus((current) => ({ ...current, user: result.user })); window.location.reload(); return result; },
     listTeams: () => authApi.listTeams(),
-    createTeam: (values) => authApi.createTeam(values),
-    updateTeam: (id, values) => authApi.updateTeam(id, values),
-    updateTeamMembers: (id, userIds) => authApi.updateTeamMembers(id, userIds),
-    deleteTeam: (id) => authApi.deleteTeam(id),
+    createTeam: async (values) => { const result = await authApi.createTeam(values); notifyManagementStateChanged(); return result; },
+    updateTeam: async (id, values) => { const result = await authApi.updateTeam(id, values); notifyManagementStateChanged(); return result; },
+    updateTeamMembers: async (id, userIds) => { const result = await authApi.updateTeamMembers(id, userIds); notifyManagementStateChanged(); return result; },
+    deleteTeam: async (id) => { const result = await authApi.deleteTeam(id); notifyManagementStateChanged(); return result; },
     getWorkspaceAdmin: () => authApi.getWorkspaceAdmin(),
     createWorkspace: async (values) => {
       const result = await authApi.createWorkspace(values);

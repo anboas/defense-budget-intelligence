@@ -231,6 +231,18 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.user.mustChangePassword, true);
 
+    response = await apiRequest(baseUrl, "/api/v1/auth/emulation", {
+      method: "POST", body: { userId: viewerId }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "The Super user must be able to inspect an active account before first-login setup is complete");
+    body = await response.json();
+    assert.equal(body.user.isEmulating, true);
+    assert.equal(body.user.mustChangePassword, false, "Emulation must not force the real actor through the target user's password setup gate");
+    response = await apiRequest(baseUrl, "/api/v1/agent/records?limit=1", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Pre-setup emulation must expose the target role's effective read access");
+    response = await apiRequest(baseUrl, "/api/v1/auth/emulation", { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 200);
+
     response = await apiRequest(baseUrl, "/api/v1/agent/records?limit=1", { cookie: viewerCookie });
     assert.equal(response.status, 403, "Temporary-password sessions must not access workspace data before replacement");
 

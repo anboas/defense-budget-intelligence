@@ -15,14 +15,13 @@ export async function emulationResponse(request, db, deps) {
   if (session.is_emulating || session.role !== "super_user" || session.actor_role !== "super_user") return json({ error: "Only the signed-in Super user may start emulation" }, 403);
   const targetUserId = cleanText((await safeJson(request))?.userId, 80);
   if (!targetUserId || targetUserId === session.user_id) return json({ error: "Choose a managed user to emulate" }, 400);
-  const target = await db.prepare(`SELECT user.user_id, user.must_change_password, membership.workspace_id
+  const target = await db.prepare(`SELECT user.user_id, membership.workspace_id
     FROM dbi_users user JOIN dbi_workspace_memberships membership ON membership.user_id = user.user_id
     JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id AND workspace.status = 'active'
     WHERE user.user_id = ? AND user.status = 'active'
     ORDER BY CASE WHEN membership.workspace_id = ? THEN 0 ELSE 1 END, workspace.name COLLATE NOCASE LIMIT 1`)
     .bind(targetUserId, session.active_workspace_id || "").first();
   if (!target) return json({ error: "The selected user has no active workspace access" }, 404);
-  if (target.must_change_password) return json({ error: "The selected user must finish account setup before emulation" }, 409);
   const now = new Date().toISOString();
   await db.batch([
     db.prepare(`INSERT INTO dbi_session_emulations (session_id, actor_user_id, target_user_id, started_at) VALUES (?, ?, ?, ?)

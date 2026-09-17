@@ -25,7 +25,8 @@ async function request(path, { method = "GET", body, cookie = "", origin = ORIGI
 function cookie(response) { return String(response.headers.get("set-cookie") || "").split(";")[0]; }
 function identity(prefix) {
   const token = randomBytes(8).toString("hex");
-  return { email: `${prefix}-${token}@example.test`, displayName: `${prefix} ${token.slice(0, 4)}`, title: "Verification user",
+  const emailPrefix = prefix.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return { email: `${emailPrefix}-${token}@example.test`, displayName: `${prefix} ${token.slice(0, 4)}`, title: "Verification user",
     passwordSalt: randomBytes(24).toString("hex"), passwordProof: randomBytes(32).toString("hex") };
 }
 
@@ -44,6 +45,20 @@ body = await response.json();
 assert.equal(body.user.canManageWorkspaces, true);
 const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
+
+const pendingSetupUser = identity("Pending setup");
+response = await request("/api/v1/auth/users", { method: "POST", cookie: ownerCookie, body: { ...pendingSetupUser, role: "viewer" } });
+assert.equal(response.status, 201, "PostgreSQL Super user must create a managed account");
+const pendingSetupUserId = (await response.json()).user.id;
+response = await request("/api/v1/auth/emulation", { method: "POST", cookie: ownerCookie, body: { userId: pendingSetupUserId } });
+assert.equal(response.status, 200, "PostgreSQL Super user must emulate an active account before first-login setup is complete");
+body = await response.json();
+assert.equal(body.user.isEmulating, true);
+assert.equal(body.user.mustChangePassword, false, "PostgreSQL emulation must not force the actor through the target password gate");
+response = await request("/api/v1/auth/directory", { cookie: ownerCookie });
+assert.equal(response.status, 200, "PostgreSQL pre-setup emulation must expose the target role's effective workspace read access");
+response = await request("/api/v1/auth/emulation", { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 200);
 
 const avatarDataUrl = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA==";
 response = await request("/api/v1/auth/profile", { method: "PATCH", cookie: ownerCookie,

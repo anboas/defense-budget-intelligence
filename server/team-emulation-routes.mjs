@@ -23,11 +23,10 @@ export function registerTeamEmulationRoutes(app, pool, deps) {
     if (session.is_emulating || session.actor_role !== "super_user" || session.role !== "super_user") return reply.code(403).send({ error: "only the signed-in Super user may start emulation" });
     const targetUserId = cleanText(request.body?.userId, 80);
     if (!targetUserId || targetUserId === String(session.user_id)) return reply.code(400).send({ error: "choose a managed user to emulate" });
-    const target = await pool.query(`SELECT u.user_id,u.must_change_password,membership.workspace_id FROM app_users u
+    const target = await pool.query(`SELECT u.user_id,membership.workspace_id FROM app_users u
       JOIN app_workspace_memberships membership ON membership.user_id=u.user_id JOIN app_workspaces workspace ON workspace.workspace_id=membership.workspace_id AND workspace.status='active'
       WHERE u.user_id=$1 AND u.status='active' ORDER BY CASE WHEN membership.workspace_id=$2 THEN 0 ELSE 1 END,workspace.name LIMIT 1`, [targetUserId, session.active_workspace_id]);
     if (!target.rowCount) return reply.code(404).send({ error: "the selected user has no active workspace access" });
-    if (target.rows[0].must_change_password) return reply.code(409).send({ error: "the selected user must finish account setup before emulation" });
     await pool.query(`INSERT INTO app_session_emulations (session_id,actor_user_id,target_user_id) VALUES ($1,$2,$3)
       ON CONFLICT (session_id) DO UPDATE SET target_user_id=EXCLUDED.target_user_id,started_at=NOW()`, [session.id, session.actor_user_id, targetUserId]);
     await pool.query("UPDATE app_auth_sessions SET workspace_id=$1 WHERE id=$2", [target.rows[0].workspace_id, session.id]);
