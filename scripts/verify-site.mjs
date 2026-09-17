@@ -667,6 +667,7 @@ try {
       { id: "event-busy-day-a", title: "Busy day review A", startsAt: "2026-09-14T09:00", endsAt: "2026-09-14T10:00", location: "Room A", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
       { id: "event-busy-day-b", title: "Busy day review B", startsAt: "2026-09-14T11:00", endsAt: "2026-09-14T12:00", location: "Room B", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
       { id: "event-busy-day-c", title: "Busy day review C", startsAt: "2026-09-14T14:00", endsAt: "2026-09-14T15:00", location: "Room C", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
+      { id: "event-mobile-second-lane", title: "Second lane review", startsAt: "2026-09-16T10:00", endsAt: "2026-09-16T11:00", location: "Room D", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
     );
     localStorage.setItem(key, JSON.stringify(events));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
@@ -864,6 +865,14 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileCalendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
     const viewport = node.querySelector(".ops-wall-calendar__viewport");
+    const targetDay = node.querySelector('[data-calendar-day="2026-09-16"]');
+    const targetWeek = targetDay.closest(".ops-wall-calendar__week");
+    const targetWeekBox = targetWeek.getBoundingClientRect();
+    const dateBox = targetDay.querySelector("header").getBoundingClientRect();
+    const laneBoxes = [...targetWeek.querySelectorAll('[data-calendar-lane="0"], [data-calendar-lane="1"]')].map((item) => {
+      const box = item.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom, height: box.height };
+    });
     return {
       viewportClientWidth: viewport.clientWidth,
       viewportScrollWidth: viewport.scrollWidth,
@@ -871,12 +880,22 @@ try {
       minControlHeight: Math.min(...[...node.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height)),
       documentWidth: document.documentElement.scrollWidth,
       windowWidth: innerWidth,
+      weekHeight: targetWeekBox.height,
+      dateHeaderHeight: dateBox.height,
+      dateTopInset: dateBox.top - targetWeekBox.top,
+      laneBoxes,
+      lanesContained: laneBoxes.length >= 2 && laneBoxes.every((box) => box.top >= dateBox.bottom - 1 && box.bottom <= targetWeekBox.bottom + 1),
     };
   });
   assert.ok(mobileCalendarGeometry.viewportScrollWidth > mobileCalendarGeometry.viewportClientWidth, "Mobile calendar should preserve the month grid inside a contained horizontal scroller");
   assert.equal(mobileCalendarGeometry.viewportOverflowX, "auto", "Mobile calendar should expose intentional horizontal calendar scrolling");
   assert.ok(mobileCalendarGeometry.minControlHeight >= 44, `Mobile calendar controls should retain 44px targets, got ${mobileCalendarGeometry.minControlHeight}px`);
   assert.ok(mobileCalendarGeometry.documentWidth <= mobileCalendarGeometry.windowWidth + 1, "Mobile calendar must not overflow the document");
+  assert.ok(mobileCalendarGeometry.weekHeight <= 91, `Mobile calendar weeks should stay compact, got ${mobileCalendarGeometry.weekHeight}px`);
+  assert.ok(mobileCalendarGeometry.dateHeaderHeight <= 27, `Mobile calendar dates should sit at the top of each day, got a ${mobileCalendarGeometry.dateHeaderHeight}px header`);
+  assert.ok(mobileCalendarGeometry.dateTopInset <= 1, `Mobile calendar dates should not carry extra top inset, got ${mobileCalendarGeometry.dateTopInset}px`);
+  assert.equal(mobileCalendarGeometry.lanesContained, true, `Two mobile event lanes should fit completely inside the September 16 week: ${JSON.stringify(mobileCalendarGeometry.laneBoxes)}`);
+  assert.ok(mobileCalendarGeometry.laneBoxes.every((box) => box.height <= 31), `Mobile event lanes should remain compact: ${JSON.stringify(mobileCalendarGeometry.laneBoxes)}`);
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-mobile.png`, fullPage: true });
 
   await page.setViewportSize({ width: 1920, height: 1080 });

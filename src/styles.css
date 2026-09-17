@@ -7845,10 +7845,21 @@ td .dot {
   .ops-wall-calendar__viewport { overflow-x: auto; overflow-y: hidden; }
   .ops-wall-calendar__weekdays,
   .ops-wall-calendar__weeks { width: 780px; min-width: 780px; }
-  .ops-wall-calendar__weeks { min-height: 600px; }
+  .ops-wall-calendar__weekdays { min-height: 24px; }
+  .ops-wall-calendar__weeks { min-height: 540px; }
   .ops-wall-calendar__bar strong { font-size: 11px; }
-  .ops-wall-calendar__days > article > header { min-height: 44px; }
-  .ops-wall-calendar__bars { inset-block-start: 46px; }
+  .ops-wall-calendar__days > article > header {
+    min-height: 26px;
+    align-items: flex-start;
+    padding: 1px 6px 0;
+  }
+  .ops-wall-calendar__days > article > header time { line-height: 24px; }
+  .ops-wall-calendar__bars {
+    inset-block-start: 27px;
+    grid-template-rows: repeat(var(--calendar-lanes), 30px);
+    gap: 2px 0;
+  }
+  .ops-wall-calendar__bar { padding-block: 1px; }
   .ops-wall-calendar__more { top: 0; right: 2px; min-height: 44px !important; padding-inline: 8px !important; }
   .ops-event-detail__body dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ops-event-detail__attendees > span { min-width: 0; flex: 1 1 180px; }
