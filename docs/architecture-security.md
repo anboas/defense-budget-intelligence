@@ -52,6 +52,8 @@ The implementations differ only at persistence and platform adapters. Validation
 - D1 list/detail joins must bound the owning rows before enrichment and use purpose-built composite indexes for every correlated lookup.
 - Retention pruning is indexed and scheduled at most once per day; request, login, and task writes must never trigger table-wide cleanup.
 
+The landing shell owns routing, runtime-data readiness, and shared authenticated composition only. PDB Request, Request History, and Account Flow share the lazy `BudgetRequestRoutes` boundary; Transactions, Awards, Source Lineage, Profile, Analytics, and Operations own separate lazy route modules. Moving route-owned analysis back into `main.jsx` is an architecture regression.
+
 The contract monitor is intentionally emitted as `data/contract-monitor.json` and loaded only by Integrations. Re-importing it from React source is a release-blocking architecture regression.
 
 `npm run verify:d1-efficiency` executes real SQLite query plans through Wrangler. It blocks Task Center request-log scans, unindexed retention deletes, and per-write pruning regressions.

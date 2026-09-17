@@ -15,6 +15,9 @@ const compiledStyleBytes = builtAssets.filter((name) => name.endsWith(".css")).r
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(compiledStyleBytes <= 360_000, `Scoped application CSS must stay below 360 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
+assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
+assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
+assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
 
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
@@ -170,6 +173,15 @@ try {
   await installVerificationDate(page);
   let transactionRequests = 0;
   let subawardDetailRequests = 0;
+  let budgetRequestRouteRequests = 0;
+  let transactionRouteRequests = 0;
+  let profileRouteRequests = 0;
+  page.on("response", (response) => {
+    const filename = new URL(response.url()).pathname.split("/").at(-1) || "";
+    if (filename.startsWith("BudgetRequestRoutes")) budgetRequestRouteRequests += 1;
+    if (filename.startsWith("CaptureCalendar")) transactionRouteRequests += 1;
+    if (filename.startsWith("ProfilePage")) profileRouteRequests += 1;
+  });
   await page.route("**/data/capture-transactions.json", async (route) => {
     transactionRequests += 1;
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -186,6 +198,9 @@ try {
   await page.waitForSelector("[data-transaction-analytics-page]");
   assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Transactions should load the compact runtime manifest once");
   assert.equal(await resourceCount(page, "budget-core.json"), 0, "Transactions should defer the detailed budget request dataset");
+  assert.equal(budgetRequestRouteRequests, 0, "Transactions should defer the PDB Request, Request History, and Account Flow route family");
+  assert.equal(transactionRouteRequests, 1, "Transactions should load its lazy route module exactly once");
+  assert.equal(profileRouteRequests, 0, "Transactions should defer personal account surfaces");
   const initialDecodedDataBytes = await page.evaluate(() => performance.getEntriesByType("resource")
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
@@ -309,6 +324,7 @@ try {
   pdbVerificationUrl.hash = "#/budget-spend";
   await page.goto(pdbVerificationUrl.href, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-pdb-request-page]");
+  assert.equal(budgetRequestRouteRequests, 1, "PDB Request should load the shared money-flow route family exactly once");
   assert.equal(await page.locator("[data-pdb-request-page]").count(), 1, "Default surface should be the source request");
   assert.equal(await page.locator("[data-budget-filter-bar]").count(), 1, "Request surface should expose line-level filters");
   assert.equal(await page.locator("[data-budget-metrics] > .if-management-card").count(), 5, "Request surface should expose factual coverage metrics");

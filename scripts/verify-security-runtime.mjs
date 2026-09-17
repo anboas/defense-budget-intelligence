@@ -57,7 +57,12 @@ const packageJson = JSON.parse(await read("package.json"));
 assert.match(packageJson.dependencies["control-surface-ui"], /archive\/[0-9a-f]{40}\.tar\.gz$/, "Control Surface must use an immutable commit pin");
 
 const architectureCeilings = {
-  "src/main.jsx": 4_900,
+  "src/main.jsx": 450,
+  "src/BudgetRequestRoutes.jsx": 380,
+  "src/AwardsRoute.jsx": 200,
+  "src/AnalyticsSources.jsx": 170,
+  "src/ProfilePage.jsx": 280,
+  "src/CaptureCalendar.jsx": 1_750,
   "src/OperationsHub.jsx": 1_180,
   "src/pages-auth-api.js": 3_300,
   "server/auth-routes.mjs": 1_400,
