@@ -4,7 +4,7 @@
 
 Event create/edit supports a durable, two-stage AI workflow that researches public event facts, independently verifies them, and produces a deterministic merge into the operator's current draft.
 
-AI does not directly save an event. The verified result is merged into the open editor, where the operator reviews and saves through the normal event API.
+AI augmentation is review-first by default. A workspace manager may explicitly enable automatic acceptance for verified, additive, conflict-free event changes. Review claims, rejected claims, operator-field conflicts, invalid drafts, missing events, and version drift always remain pending for operator validation.
 
 ## Workflow
 
@@ -25,9 +25,11 @@ AI does not directly save an event. The verified result is merged into the open 
    - Links, milestones, and category assignments are appended and deduplicated.
    - Operator-entered values are preserved and conflicts are disclosed.
    - Attendees, linked records, status, and wallboard settings are never modified.
-4. **Operator review and save**
-   - Verified additions enter the editor draft.
-   - The operator reviews normal event fields and saves through the existing event lifecycle.
+4. **Apply or review**
+   - The default workspace policy leaves verified additions pending in the editor draft for operator review and save.
+   - The opt-in automatic policy applies only a clean verified additive subset through an optimistic event-version check.
+   - Any uncertainty, conflict, rejection, malformed draft, missing event, or event change since research requires operator validation.
+   - A manual save records the validating job and clears the event's validation-required state.
 
 ## Durable state
 
@@ -41,13 +43,15 @@ Cloudflare D1 uses `dbi_event_ai_jobs`; PostgreSQL uses `app_event_ai_jobs`. Bot
 - normalized proposal, verification, and merge result;
 - safe error metadata, trace ID, retry count, and timestamps.
 
+Workspace policy is stored separately from branding in `dbi_workspace_ai_preferences` / `app_workspace_ai_preferences`. Per-event augmentation recency and validation state live in `dbi_event_ai_state` / `app_event_ai_state`, so the Events grid does not depend on retained Task Center history. The D1 event store can apply a safe verified draft automatically; the portable PostgreSQL runtime records the same policy and pending-validation state but does not claim automatic application without an equivalent server-side event store.
+
 Terminal jobs are retained for 90 days. A user can run at most three concurrent jobs and twenty jobs per rolling 24-hour window in a workspace.
 
 ## Statuses
 
 - `researching`: producer background response is queued or in progress.
 - `verifying`: independent verifier is queued or in progress.
-- `completed`: verified merge contains the event name and start date and is ready for operator review/save.
+- `completed`: verification completed. The merge result records whether the clean additive subset was applied automatically, is already current, or remains pending for validation.
 - `needs_review`: verification found a material conflict, retained plausible claims with incomplete grounding, rejected part or all of a wrong-entity proposal, or could not verify the minimum saveable fields.
 - `failed`: credential, provider, malformed schema, or application validation failed safely.
 - `cancelled`: reserved terminal state for provider or future operator cancellation.

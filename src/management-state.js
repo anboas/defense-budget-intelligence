@@ -129,6 +129,13 @@ function normalizeEvent(entry = {}) {
     milestones,
     wallboard: entry.wallboard !== false,
     version: Number.isFinite(Number(entry.version)) ? Number(entry.version) : 0,
+    aiAmended: Boolean(entry.aiAmended),
+    lastAugmentedAt: cleanDate(entry.lastAugmentedAt) || null,
+    lastAiAppliedAt: cleanDate(entry.lastAiAppliedAt) || null,
+    aiValidationRequired: Boolean(entry.aiValidationRequired),
+    lastAugmentationJobId: cleanText(entry.lastAugmentationJobId, 100) || null,
+    lastAugmentationStatus: cleanText(entry.lastAugmentationStatus, 32) || null,
+    aiReviewJobId: cleanText(entry.aiReviewJobId, 100),
     createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),
     updatedAt: cleanDate(entry.updatedAt) || new Date().toISOString(),
   };
@@ -313,9 +320,11 @@ export function useManagementState(records = []) {
       const interval = window.setInterval(refresh, 120_000);
       const onFocus = () => { void syncRemote().catch((requestError) => { if (active) setError(requestError.message); }); };
       const onVisibility = () => { if (!document.hidden) onFocus(); };
+      const onManagementChange = () => onFocus();
       window.addEventListener("focus", onFocus);
+      window.addEventListener(MANAGEMENT_STATE_EVENT, onManagementChange);
       document.addEventListener("visibilitychange", onVisibility);
-      return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibility); };
+      return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); window.removeEventListener("focus", onFocus); window.removeEventListener(MANAGEMENT_STATE_EVENT, onManagementChange); document.removeEventListener("visibilitychange", onVisibility); };
     }
     window.addEventListener(MANAGEMENT_STATE_EVENT, sync);
     window.addEventListener("storage", sync);

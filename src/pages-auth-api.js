@@ -27,7 +27,6 @@ import {
   fetchOpenAiModels,
 } from "./openai-models.js";
 import {
-  cleanHttpUrl,
   cleanText,
   normalizeEmail,
   readBoundedJson,
@@ -39,6 +38,19 @@ import {
   validPasswordProof,
   validSalt,
 } from "./security-policy.js";
+import {
+  activeEventAttendeeIds,
+  activeEventCategoryIds,
+  applyVerifiedEventDraft,
+  cleanEventLinks,
+  cleanEventMilestones,
+  eventAiReviewRisks,
+  replaceEventAttendees,
+  replaceEventCategories,
+  replaceEventLinks,
+  replaceEventMilestones,
+  writeEventAiState,
+} from "./d1-event-store.js";
 
 export const PAGES_AUTH_VERSION = "dbi-pages-auth-v1";
 export const PASSWORD_ITERATIONS = 310_000;
@@ -396,6 +408,12 @@ const SCHEMA = Object.freeze([
     updated_by TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_ai_preferences (
+    workspace_id TEXT PRIMARY KEY,
+    auto_accept_event_augmentations INTEGER NOT NULL DEFAULT 0,
+    updated_by TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS dbi_event_ai_jobs (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -426,6 +444,18 @@ const SCHEMA = Object.freeze([
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_user ON dbi_event_ai_jobs (user_id, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_workspace_user_time ON dbi_event_ai_jobs (workspace_id, user_id, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_jobs_completed ON dbi_event_ai_jobs (completed_at)",
+  `CREATE TABLE IF NOT EXISTS dbi_event_ai_state (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    last_job_id TEXT NOT NULL DEFAULT '',
+    last_status TEXT NOT NULL DEFAULT '',
+    last_augmented_at TEXT NOT NULL DEFAULT '',
+    last_applied_at TEXT NOT NULL DEFAULT '',
+    validation_required INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_state_workspace ON dbi_event_ai_state (workspace_id, last_augmented_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_maintenance_state (
     task TEXT PRIMARY KEY,
     last_run_at TEXT NOT NULL
@@ -809,10 +839,11 @@ function keyMetadataWithUsage(row, usageById) {
 async function workspacesForUser(db, userId) {
   const result = await db.prepare(`
     SELECT workspace.workspace_id, workspace.name, workspace.slug, workspace.description, membership.role,
-      settings.icon_data_url, settings.header_eyebrow, settings.display_title
+      settings.icon_data_url, settings.header_eyebrow, settings.display_title, ai_preferences.auto_accept_event_augmentations
     FROM dbi_workspace_memberships membership
     JOIN dbi_workspaces workspace ON workspace.workspace_id = membership.workspace_id
     LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+    LEFT JOIN dbi_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
     WHERE membership.user_id = ? AND workspace.status = 'active'
     ORDER BY workspace.name COLLATE NOCASE
   `).bind(userId).all();
@@ -824,6 +855,7 @@ async function workspacesForUser(db, userId) {
     iconDataUrl: workspace.icon_data_url || "",
     headerEyebrow: workspace.header_eyebrow || DEFAULT_HEADER_EYEBROW,
     displayTitle: workspace.display_title || DEFAULT_DISPLAY_TITLE,
+    autoAcceptAiAugmentations: Boolean(workspace.auto_accept_event_augmentations),
     roleId: workspace.role,
     role: ROLE_LABELS[workspace.role] || "Viewer",
   }));
@@ -1352,6 +1384,7 @@ function workspaceSummary(row, membership = null, request = null) {
     iconDataUrl: row.icon_data_url || "",
     headerEyebrow: row.header_eyebrow || DEFAULT_HEADER_EYEBROW,
     displayTitle: row.display_title || DEFAULT_DISPLAY_TITLE,
+    autoAcceptAiAugmentations: Boolean(row.auto_accept_event_augmentations),
     status: row.status,
     ownerUserId: row.owner_user_id || "",
     roleId: membership?.role || null,
@@ -1373,8 +1406,10 @@ async function workspacesResponse(request, db) {
 
   if (request.method === "GET" && !workspaceId) {
     const [workspaceResult, membershipResult, requestResult] = await Promise.all([
-      db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title
+      db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title,
+          ai_preferences.auto_accept_event_augmentations
         FROM dbi_workspaces workspace LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+        LEFT JOIN dbi_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
         WHERE workspace.status = 'active' ORDER BY workspace.name COLLATE NOCASE`).all(),
       db.prepare("SELECT workspace_id, role FROM dbi_workspace_memberships WHERE user_id = ?").bind(user.user_id).all(),
       db.prepare("SELECT workspace_id, status FROM dbi_workspace_access_requests WHERE user_id = ? ORDER BY created_at DESC").bind(user.user_id).all(),
@@ -1435,6 +1470,7 @@ async function workspaceAdminResponse(request, db) {
   if (request.method === "GET" && !segments.length) {
     const [workspaceResult, membershipResult, requestResult, userResult] = await Promise.all([
       db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title,
+        ai_preferences.auto_accept_event_augmentations,
         (SELECT COUNT(*) FROM dbi_workspace_memberships membership WHERE membership.workspace_id = workspace.workspace_id) AS member_count,
         (SELECT COUNT(*) FROM dbi_workspace_access_requests access_request WHERE access_request.workspace_id = workspace.workspace_id AND access_request.status = 'pending') AS pending_request_count,
         (SELECT COUNT(*) FROM dbi_workspace_watchlist tracked WHERE tracked.workspace_id = workspace.workspace_id) AS tracked_record_count,
@@ -1447,6 +1483,7 @@ async function workspaceAdminResponse(request, db) {
         (SELECT COUNT(*) FROM dbi_workspace_agent_keys agent_key WHERE agent_key.workspace_id = workspace.workspace_id AND agent_key.revoked_at = '' AND (agent_key.expires_at = '' OR agent_key.expires_at > CURRENT_TIMESTAMP)) AS active_agent_key_count
         FROM dbi_workspaces workspace
         LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+        LEFT JOIN dbi_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
         WHERE (? = 1 OR workspace.workspace_id = ?)
         ORDER BY workspace.status, workspace.name COLLATE NOCASE`).bind(isSuperUser ? 1 : 0, owner.active_workspace_id || "").all(),
       db.prepare(`SELECT membership.*, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
@@ -1529,7 +1566,10 @@ async function workspaceAdminResponse(request, db) {
   if (request.method === "PATCH" && segments[0] === "workspaces" && segments[1] && segments.length === 2) {
     const workspaceId = segments[1];
     if (!await canAdministerWorkspace(db, owner, workspaceId)) return json({ error: "Workspace manager access is required" }, 403);
-    const workspace = await db.prepare("SELECT * FROM dbi_workspaces WHERE workspace_id = ?").bind(workspaceId).first();
+    const workspace = await db.prepare(`SELECT workspace.*, ai_preferences.auto_accept_event_augmentations
+      FROM dbi_workspaces workspace
+      LEFT JOIN dbi_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
+      WHERE workspace.workspace_id = ?`).bind(workspaceId).first();
     if (!workspace) return json({ error: "Workspace not found" }, 404);
     const body = await safeJson(request);
     const name = cleanText(body?.name, 80);
@@ -1537,6 +1577,9 @@ async function workspaceAdminResponse(request, db) {
     const iconDataUrl = validAvatarDataUrl(body?.iconDataUrl);
     const headerEyebrow = cleanText(body?.headerEyebrow || DEFAULT_HEADER_EYEBROW, 80);
     const displayTitle = cleanText(body?.displayTitle || DEFAULT_DISPLAY_TITLE, 80);
+    const autoAcceptAiAugmentations = body?.autoAcceptAiAugmentations === undefined
+      ? Boolean(workspace.auto_accept_event_augmentations)
+      : body.autoAcceptAiAugmentations === true;
     if (name.length < 2) return json({ error: "A valid workspace name is required" }, 400);
     if (iconDataUrl === null || headerEyebrow.length < 2 || displayTitle.length < 2) return json({ error: "Valid workspace branding is required" }, 400);
     const duplicate = await db.prepare("SELECT workspace_id FROM dbi_workspaces WHERE LOWER(name) = LOWER(?) AND workspace_id <> ?")
@@ -1550,10 +1593,17 @@ async function workspaceAdminResponse(request, db) {
         VALUES (?, ?, ?, ?, ?) ON CONFLICT(workspace_id) DO UPDATE SET icon_data_url = excluded.icon_data_url,
         header_eyebrow = excluded.header_eyebrow, display_title = excluded.display_title, updated_at = excluded.updated_at`)
         .bind(workspaceId, iconDataUrl, headerEyebrow, displayTitle, now),
+      db.prepare(`INSERT INTO dbi_workspace_ai_preferences
+        (workspace_id, auto_accept_event_augmentations, updated_by, updated_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT(workspace_id) DO UPDATE SET auto_accept_event_augmentations = excluded.auto_accept_event_augmentations,
+        updated_by = excluded.updated_by, updated_at = excluded.updated_at`)
+        .bind(workspaceId, autoAcceptAiAugmentations ? 1 : 0, owner.user_id, now),
     ]);
     await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, "workspace_updated", "workspace", workspaceId, { previousName: workspace.name, name, description });
-    const row = await db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title
+    const row = await db.prepare(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title,
+      ai_preferences.auto_accept_event_augmentations
       FROM dbi_workspaces workspace LEFT JOIN dbi_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+      LEFT JOIN dbi_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
       WHERE workspace.workspace_id = ?`).bind(workspaceId).first();
     return json({ workspace: workspaceSummary(row) });
   }
@@ -2045,7 +2095,7 @@ async function eventAiCredentialCapability(db, session, env) {
     producerModel: EVENT_AI_PRODUCER_MODEL,
     verifierModel: EVENT_AI_VERIFIER_MODEL,
     retentionDays: 90,
-    workflow: ["research", "independent verification", "deterministic safe merge", "operator review and save"],
+    workflow: ["research", "independent verification", "deterministic safe merge", "apply or review by workspace policy"],
   };
 }
 
@@ -2167,6 +2217,42 @@ async function logEventAiProviderResult(db, row, response, stage, status, latenc
   });
 }
 
+async function finalizeEventAiOutcome(db, row, draft, verification, outcome, now) {
+  const changes = outcome.mergeResult?.changes || [];
+  const eventId = cleanText(draft?.id, 180);
+  const preference = eventId ? await db.prepare(`SELECT auto_accept_event_augmentations
+    FROM dbi_workspace_ai_preferences WHERE workspace_id = ?`).bind(row.workspace_id).first() : null;
+  const safeToApply = Boolean(preference?.auto_accept_event_augmentations && changes.length && !eventAiReviewRisks(verification, outcome));
+  let application = {
+    mode: preference?.auto_accept_event_augmentations ? "automatic" : "manual",
+    status: changes.length || eventAiReviewRisks(verification, outcome) ? "pending_validation" : "no_changes",
+    appliedAt: null,
+    reason: preference?.auto_accept_event_augmentations ? "review_required" : "workspace_auto_accept_disabled",
+  };
+  if (safeToApply) {
+    const result = await applyVerifiedEventDraft(db, row, outcome.mergeResult.mergedDraft, now);
+    application = result.applied
+      ? { mode: "automatic", status: "applied", appliedAt: now, reason: "verified_additive_changes" }
+      : { mode: "automatic", status: "pending_validation", appliedAt: null, reason: result.reason };
+  } else if (!changes.length && !eventAiReviewRisks(verification, outcome)) {
+    application = { mode: preference?.auto_accept_event_augmentations ? "automatic" : "manual", status: "no_changes", appliedAt: null, reason: "event_already_current" };
+  }
+  const validationRequired = application.status === "pending_validation";
+  await writeEventAiState(db, {
+    workspaceId: row.workspace_id,
+    eventId,
+    jobId: row.id,
+    status: outcome.status,
+    augmentedAt: now,
+    appliedAt: application.appliedAt || "",
+    validationRequired,
+  });
+  if (application.status === "applied") {
+    await recordActivity(db, { type: "user", id: row.user_id, workspaceId: row.workspace_id }, "event_ai_auto_applied", "event", eventId, { jobId: row.id, changes });
+  }
+  return { ...outcome, mergeResult: { ...outcome.mergeResult, application }, validationRequired };
+}
+
 async function advanceEventAiJob(db, row, env) {
   if (["completed", "needs_review", "failed", "cancelled"].includes(row.status)) return row;
   const categories = (() => { try { return JSON.parse(row.categories_json || "[]"); } catch { return []; } })();
@@ -2244,8 +2330,8 @@ async function advanceEventAiJob(db, row, env) {
       }
       await logEventAiProviderResult(db, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? { searchQueries: [`${draft.title || "event"} verify official dates and venue`], webSearchCallCount: 1, searchSourceCount: proposal.sources?.length || 0, structuredSourceCount: proposal.sources?.length || 0, matchedSourceCount: proposal.sources?.length || 0, matchedEvidenceCount: verification.approved?.length || 0 } : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
-      const outcome = resolveEventAiVerificationOutcome({ draft, verification, categories });
       const now = new Date().toISOString();
+      const outcome = await finalizeEventAiOutcome(db, row, draft, verification, resolveEventAiVerificationOutcome({ draft, verification, categories }), now);
       await db.prepare("UPDATE dbi_event_ai_jobs SET status = ?, current_step = ?, verification_json = ?, merge_result_json = ?, updated_at = ?, completed_at = ? WHERE id = ?")
         .bind(outcome.status, outcome.currentStep, JSON.stringify(verification), JSON.stringify(outcome.mergeResult), now, now, row.id).run();
       await db.prepare("UPDATE dbi_openai_keys SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(now, now, row.credential_id).run();
@@ -2517,7 +2603,7 @@ function recordProjection(record) {
   };
 }
 
-function eventFromRow(row, attendees = [], milestones = [], links = [], categoryIds = []) {
+function eventFromRow(row, attendees = [], milestones = [], links = [], categoryIds = [], aiState = null) {
   let recordIds = [];
   try { recordIds = JSON.parse(row.record_ids_json || "[]"); } catch { /* empty */ }
   return {
@@ -2525,6 +2611,12 @@ function eventFromRow(row, attendees = [], milestones = [], links = [], category
     location: row.location || "", notes: row.notes || "", status: row.status,
     recordIds, attendees, attendeeIds: attendees.map((attendee) => attendee.id), milestones, links, categoryIds,
     wallboard: Boolean(row.wallboard), version: row.version,
+    aiAmended: Boolean(aiState?.last_applied_at),
+    lastAugmentedAt: aiState?.last_augmented_at || null,
+    lastAiAppliedAt: aiState?.last_applied_at || null,
+    aiValidationRequired: Boolean(aiState?.validation_required),
+    lastAugmentationJobId: aiState?.last_job_id || null,
+    lastAugmentationStatus: aiState?.last_status || null,
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -2533,7 +2625,7 @@ async function eventsFromRows(db, workspaceId, rows = []) {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const [attendeeResult, milestoneResult, linkResult, categoryResult] = await Promise.all([
+  const [attendeeResult, milestoneResult, linkResult, categoryResult, aiStateResult] = await Promise.all([
     db.prepare(`
     SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status, profile.avatar_data_url
     FROM dbi_workspace_event_attendees attendee
@@ -2560,6 +2652,11 @@ async function eventsFromRows(db, workspaceId, rows = []) {
     WHERE workspace_id = ? AND event_id IN (${placeholders})
     ORDER BY category_id
   `).bind(workspaceId, ...ids).all(),
+    db.prepare(`
+    SELECT event_id, last_job_id, last_status, last_augmented_at, last_applied_at, validation_required
+    FROM dbi_event_ai_state
+    WHERE workspace_id = ? AND event_id IN (${placeholders})
+  `).bind(workspaceId, ...ids).all(),
   ]);
   const attendeesByEvent = new Map();
   for (const attendee of attendeeResult.results || []) {
@@ -2585,114 +2682,15 @@ async function eventsFromRows(db, workspaceId, rows = []) {
     items.push(assignment.category_id);
     categoriesByEvent.set(assignment.event_id, items);
   }
+  const aiStateByEvent = new Map((aiStateResult.results || []).map((state) => [state.event_id, state]));
   return rows.map((row) => eventFromRow(
     row,
     attendeesByEvent.get(row.id) || [],
     milestonesByEvent.get(row.id) || [],
     linksByEvent.get(row.id) || [],
     categoriesByEvent.get(row.id) || [],
+    aiStateByEvent.get(row.id) || null,
   ));
-}
-
-const EVENT_MILESTONE_TYPES = new Set(["registration_deadline", "refund_deadline", "hotel_deadline", "exhibitor_deadline", "submission_deadline", "other"]);
-
-function cleanEventMilestones(value) {
-  if (!Array.isArray(value)) return { milestones: [], valid: false };
-  const ids = new Set();
-  const milestones = [];
-  for (const [index, candidate] of value.slice(0, 24).entries()) {
-    const id = cleanText(candidate?.id, 100) || `milestone-${index + 1}`;
-    const type = EVENT_MILESTONE_TYPES.has(candidate?.type) ? candidate.type : "other";
-    const label = cleanText(candidate?.label, 120);
-    const occursAt = cleanDate(candidate?.occursAt || candidate?.date);
-    const notes = cleanText(candidate?.notes, 500);
-    if (!occursAt || ids.has(id) || (type === "other" && !label)) return { milestones: [], valid: false };
-    ids.add(id);
-    milestones.push({ id, type, label, occursAt, notes });
-  }
-  return { milestones, valid: value.length <= 24 };
-}
-
-function cleanEventLinks(value) {
-  if (!Array.isArray(value)) return { links: [], valid: false };
-  const ids = new Set();
-  const urls = new Set();
-  const links = [];
-  for (const [index, candidate] of value.slice(0, 12).entries()) {
-    const id = cleanText(candidate?.id, 100) || `link-${index + 1}`;
-    const label = cleanText(candidate?.label, 120);
-    const url = cleanHttpUrl(candidate?.url);
-    if (!url || ids.has(id) || urls.has(url)) return { links: [], valid: false };
-    ids.add(id);
-    urls.add(url);
-    links.push({ id, label, url, sortOrder: index });
-  }
-  return { links, valid: value.length <= 12 };
-}
-
-async function activeEventCategoryIds(db, workspaceId, value) {
-  const ids = cleanStringArray(value, 8, 80);
-  if (!ids.length) return { ids: [], valid: true };
-  const placeholders = ids.map(() => "?").join(", ");
-  const result = await db.prepare(`
-    SELECT category_id FROM dbi_workspace_event_categories
-    WHERE workspace_id = ? AND category_id IN (${placeholders})
-  `).bind(workspaceId, ...ids).all();
-  const active = new Set((result.results || []).map((row) => row.category_id));
-  return { ids: ids.filter((id) => active.has(id)), valid: active.size === ids.length };
-}
-
-async function activeEventAttendeeIds(db, workspaceId, value) {
-  const ids = cleanStringArray(value, 30, 80);
-  if (!ids.length) return { ids: [], valid: true };
-  const placeholders = ids.map(() => "?").join(", ");
-  const result = await db.prepare(`
-    SELECT user.user_id FROM dbi_users user
-    JOIN dbi_workspace_memberships membership ON membership.user_id = user.user_id
-    WHERE membership.workspace_id = ? AND user.status = 'active' AND user.user_id IN (${placeholders})
-  `).bind(workspaceId, ...ids).all();
-  const active = new Set((result.results || []).map((row) => row.user_id));
-  return { ids: ids.filter((id) => active.has(id)), valid: active.size === ids.length };
-}
-
-async function replaceEventAttendees(db, workspaceId, eventId, attendeeIds) {
-  await db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
-  const createdAt = new Date().toISOString();
-  for (const userId of attendeeIds) {
-    await db.prepare("INSERT INTO dbi_workspace_event_attendees (workspace_id, event_id, user_id, created_at) VALUES (?, ?, ?, ?)").bind(workspaceId, eventId, userId, createdAt).run();
-  }
-}
-
-async function replaceEventMilestones(db, workspaceId, eventId, milestones) {
-  await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
-  const now = new Date().toISOString();
-  for (const milestone of milestones) {
-    await db.prepare(`INSERT INTO dbi_workspace_event_milestones
-      (workspace_id, event_id, milestone_id, type, label, occurs_at, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(workspaceId, eventId, milestone.id, milestone.type, milestone.label, milestone.occursAt, milestone.notes, now, now).run();
-  }
-}
-
-async function replaceEventLinks(db, workspaceId, eventId, links) {
-  await db.prepare("DELETE FROM dbi_workspace_event_links WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
-  const now = new Date().toISOString();
-  for (const link of links) {
-    await db.prepare(`INSERT INTO dbi_workspace_event_links
-      (workspace_id, event_id, link_id, label, url, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(workspaceId, eventId, link.id, link.label, link.url, link.sortOrder, now, now).run();
-  }
-}
-
-async function replaceEventCategories(db, workspaceId, eventId, categoryIds) {
-  await db.prepare("DELETE FROM dbi_workspace_event_category_assignments WHERE workspace_id = ? AND event_id = ?").bind(workspaceId, eventId).run();
-  const now = new Date().toISOString();
-  for (const categoryId of categoryIds) {
-    await db.prepare(`INSERT INTO dbi_workspace_event_category_assignments
-      (workspace_id, event_id, category_id, created_at) VALUES (?, ?, ?, ?)`)
-      .bind(workspaceId, eventId, categoryId, now).run();
-  }
 }
 
 function trackingFromRow(row) {
@@ -3090,6 +3088,32 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (milestoneSelection) await replaceEventMilestones(db, principal.workspaceId, eventId, milestoneSelection.milestones);
     if (linkSelection) await replaceEventLinks(db, principal.workspaceId, eventId, linkSelection.links);
     if (categorySelection) await replaceEventCategories(db, principal.workspaceId, eventId, categorySelection.ids);
+    const aiReviewJobId = cleanText(body?.aiReviewJobId, 100);
+    if (aiReviewJobId) {
+      const job = await db.prepare(`SELECT id, status, input_snapshot_json, merge_result_json, completed_at FROM dbi_event_ai_jobs
+        WHERE id = ? AND workspace_id = ? AND status IN ('completed', 'needs_review')`)
+        .bind(aiReviewJobId, principal.workspaceId).first();
+      let jobEventId = "";
+      try { jobEventId = cleanText(JSON.parse(job?.input_snapshot_json || "{}").id, 180); } catch { /* invalid retained snapshot */ }
+      if (job && jobEventId === eventId) {
+        await writeEventAiState(db, {
+          workspaceId: principal.workspaceId,
+          eventId,
+          jobId: job.id,
+          status: job.status,
+          augmentedAt: job.completed_at || now,
+          appliedAt: now,
+          validationRequired: false,
+        });
+        try {
+          const mergeResult = JSON.parse(job.merge_result_json || "{}");
+          mergeResult.application = { mode: "manual", status: "applied", appliedAt: now, reason: "operator_validated" };
+          await db.prepare("UPDATE dbi_event_ai_jobs SET merge_result_json = ?, updated_at = ? WHERE id = ?")
+            .bind(JSON.stringify(mergeResult), now, job.id).run();
+        } catch { /* state remains authoritative */ }
+        await recordActivity(db, principal, "event_ai_manually_applied", "event", eventId, { jobId: job.id });
+      }
+    }
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).first();
     await recordActivity(db, principal, "event_updated", "event", eventId, { version: row.version });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]);
@@ -3099,6 +3123,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_links WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_category_assignments WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
+    await db.prepare("DELETE FROM dbi_event_ai_state WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, eventId).run();
     await recordActivity(db, principal, "event_deleted", "event", eventId);
     return new Response(null, { status: 204 });

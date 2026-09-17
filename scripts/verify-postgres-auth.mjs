@@ -123,6 +123,7 @@ response = await request(`/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: owne
 body = await response.json();
 assert.equal(body.job.status, "completed");
 assert.equal(body.job.mergeResult.mergedDraft.location, "Verified test venue");
+assert.equal(body.job.mergeResult.application.status, "pending_validation", "PostgreSQL must preserve the default manual-validation policy");
 assert.doesNotMatch(JSON.stringify(body), /sk-postgres|authorization|requestBody|responseBody|prompt/i);
 response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {
   credentialScope: "user", credentialId: personalOpenAiKeyId, direction: "__mock_missing_citations__",
@@ -192,10 +193,15 @@ response = await request("/api/v1/auth/workspace-admin", { cookie: signupCookie 
 body = await response.json();
 assert.deepEqual(body.workspaces.map((workspace) => String(workspace.id)), [String(defaultWorkspaceId)]);
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, { method: "PATCH", cookie: signupCookie,
-  body: { name: "Defense budget", description: "Managed boundary", iconDataUrl: avatarDataUrl, headerEyebrow: "Program intelligence", displayTitle: "Defense Budget Command" } });
+  body: { name: "Defense budget", description: "Managed boundary", iconDataUrl: avatarDataUrl, headerEyebrow: "Program intelligence", displayTitle: "Defense Budget Command", autoAcceptAiAugmentations: true } });
 assert.equal(response.status, 200, "PostgreSQL workspace managers must configure only their assigned workspace");
 body = await response.json();
 assert.equal(body.workspace.iconDataUrl, avatarDataUrl);
+assert.equal(body.workspace.autoAcceptAiAugmentations, true, "PostgreSQL must persist the workspace AI acceptance policy");
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, { method: "PATCH", cookie: signupCookie,
+  body: { name: "Defense budget", description: "Managed boundary", iconDataUrl: avatarDataUrl, headerEyebrow: "Program intelligence", displayTitle: "Defense Budget Command" } });
+assert.equal(response.status, 200);
+assert.equal((await response.json()).workspace.autoAcceptAiAugmentations, true, "PostgreSQL branding updates must preserve the AI acceptance policy");
 
 response = await request("/api/v1/auth/workspace-admin/workspaces", { method: "POST", cookie: ownerCookie,
   body: { name: "PostgreSQL isolated", description: "Portability boundary" } });

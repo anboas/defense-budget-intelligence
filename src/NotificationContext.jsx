@@ -20,6 +20,7 @@ function notificationForJob(job, readIds) {
   const active = ACTIVE_STATUSES.has(job.status);
   const failed = job.status === "failed";
   const needsReview = job.status === "needs_review";
+  const autoApplied = job.mergeResult?.application?.status === "applied";
   const title = String(job.inputSnapshot?.title || job.mergeResult?.mergedDraft?.title || "Event research");
   const failedDuringVerification = job.currentStep === "independent_verification" || (job.currentStep === "failed" && Object.keys(job.proposal || {}).length > 0);
   const failureMessage = failedDuringVerification
@@ -30,11 +31,11 @@ function notificationForJob(job, readIds) {
     sourceId: job.id,
     kind: "event_ai",
     tone: failed ? "danger" : needsReview ? "warning" : "info",
-    title: failed ? `${title} stopped with no changes` : needsReview ? `${title} needs review` : job.status === "completed" ? `${title} is ready` : `${title} is in progress`,
-    message: failed ? failureMessage : needsReview ? "Open the verified results and resolve the remaining validation issue." : job.status === "completed" ? "Verified additions are ready for your review before saving." : job.currentStep === "independent_verification" ? "Research is complete. An independent verifier is checking the proposed details." : "Public-source research is running. You can continue working.",
+    title: failed ? `${title} stopped with no changes` : needsReview ? `${title} needs review` : autoApplied ? `${title} was AI amended` : job.status === "completed" ? `${title} is ready` : `${title} is in progress`,
+    message: failed ? failureMessage : needsReview ? "Open the verified results and resolve the remaining validation issue." : autoApplied ? "Verified additive changes were applied by workspace policy. The evidence and diff remain available." : job.status === "completed" ? "Verified additions are ready for your review before saving." : job.currentStep === "independent_verification" ? "Research is complete. An independent verifier is checking the proposed details." : "Public-source research is running. You can continue working.",
     at: job.completedAt || job.updatedAt || job.createdAt,
     unread: ATTENTION_STATUSES.has(job.status) && !readIds.has(`event-ai:${job.id}:${job.status}`),
-    requiresAction: ATTENTION_STATUSES.has(job.status),
+    requiresAction: ATTENTION_STATUSES.has(job.status) && !autoApplied,
     href: `#/budget-spend/tasks?task=${encodeURIComponent(`event-ai:${job.id}`)}`,
     job,
     active,
@@ -69,14 +70,16 @@ export default function NotificationProvider({ children }) {
       const before = previousStatuses.current.get(job.id);
       if (announce && initialized.current && before && before !== job.status && ATTENTION_STATUSES.has(job.status)) {
         const failed = job.status === "failed";
+        const autoApplied = job.mergeResult?.application?.status === "applied";
         showToast({
           id: `event-ai-${job.id}-${job.status}`,
           tone: failed ? "danger" : job.status === "needs_review" ? "warning" : "success",
-          title: failed ? "Event research stopped" : job.status === "needs_review" ? "Validation needed" : "Event research is ready",
-          message: failed ? "Nothing was merged or saved. Open the result for the stopped stage and safe diagnostic." : "Review the verified changes when you are ready.",
+          title: failed ? "Event research stopped" : job.status === "needs_review" ? "Validation needed" : autoApplied ? "Event AI amendment applied" : "Event research is ready",
+          message: failed ? "Nothing was merged or saved. Open the result for the stopped stage and safe diagnostic." : autoApplied ? "Only verified, additive, conflict-free changes were accepted. The diff and evidence remain available." : "Review the verified changes when you are ready.",
           duration: 9000,
           action: { label: "Review", onClick: () => openNotification(job.id) },
         });
+        window.dispatchEvent(new CustomEvent("dbi:management-state-changed", { detail: { key: "events" } }));
       }
       previousStatuses.current.set(job.id, job.status);
     }

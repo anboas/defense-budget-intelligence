@@ -474,9 +474,7 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200, "Workspace managers must be able to revoke a workspace OpenAI key");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
       method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
-      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4", direction: "Verify the public venue and official link.", draft: {
-        title: "AI workflow verification event", startsAt: "2027-03-10T09:00", location: "", notes: "", links: [], milestones: [], categoryIds: [], attendeeIds: [ownerId], recordIds: [], status: "scheduled", wallboard: true,
-      } },
+      body: { credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4", direction: "Verify the public venue and official link.", draft: categorizedEvent },
     });
     assert.equal(response.status, 202, "Event AI must start as a durable background job");
     body = await response.json();
@@ -490,9 +488,58 @@ async function verifyApiLifecycle(persistPath) {
     response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${eventAiJobId}`, { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.job.status, "completed", "Strict verified output must complete with a deterministic merge");
-    assert.equal(body.job.mergeResult.mergedDraft.location, "Verified test venue");
+    assert.equal(body.job.mergeResult.mergedDraft.location, "Mission center");
     assert.equal(body.job.mergeResult.mergedDraft.attendeeIds[0], ownerId, "AI merge must preserve operator-controlled attendees");
-    assert.ok(body.job.mergeResult.changes.includes("location"));
+    assert.ok(body.job.mergeResult.changes.includes("notes"));
+    assert.equal(body.job.mergeResult.application.status, "pending_validation", "Workspace auto-accept must default off");
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });
+    body = await response.json();
+    let augmentedEvent = body.data.find((event) => event.id === categorizedEvent.id);
+    assert.equal(augmentedEvent.notes, "", "A completed augmentation must not change the event while auto-accept is disabled");
+    assert.equal(augmentedEvent.aiValidationRequired, true, "The Events grid contract must expose pending operator validation");
+    assert.ok(augmentedEvent.lastAugmentedAt, "The Events grid contract must expose the last augmentation time");
+    assert.equal(augmentedEvent.aiAmended, false);
+
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, {
+      method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+        name: "Defense budget", description: "Defense Budget Intelligence shared workspace",
+        iconDataUrl: avatarDataUrl, headerEyebrow: "Defense Budget & Spend Analytics",
+        displayTitle: "Defense Budget Intelligence", autoAcceptAiAugmentations: true,
+      },
+    });
+    assert.equal(response.status, 200, "Workspace managers must be able to opt in to safe AI auto-acceptance");
+    assert.equal((await response.json()).workspace.autoAcceptAiAugmentations, true);
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, {
+      method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+        name: "Defense budget", description: "Defense Budget Intelligence shared workspace",
+        iconDataUrl: avatarDataUrl, headerEyebrow: "Defense Budget & Spend Analytics",
+        displayTitle: "Defense Budget Intelligence",
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).workspace.autoAcceptAiAugmentations, true, "Unrelated workspace updates must preserve the AI acceptance policy");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+        credentialScope: "user", credentialId: personalOpenAiKeyId, producerModel: "gpt-5.4-mini", verifierModel: "gpt-5.4",
+        direction: "Apply only verified additive details.", draft: augmentedEvent,
+      },
+    });
+    assert.equal(response.status, 202);
+    const autoAcceptJobId = (await response.json()).job.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${autoAcceptJobId}`, { cookie: ownerCookie });
+    assert.equal((await response.json()).job.status, "verifying");
+    response = await apiRequest(baseUrl, `/api/v1/auth/event-ai/${autoAcceptJobId}`, { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.job.status, "completed");
+    assert.equal(body.job.mergeResult.application.status, "applied", "Safe, conflict-free additive changes must auto-apply when the workspace opts in");
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: ownerCookie });
+    body = await response.json();
+    augmentedEvent = body.data.find((event) => event.id === categorizedEvent.id);
+    assert.equal(augmentedEvent.notes, "Verified public event summary.");
+    assert.equal(augmentedEvent.aiAmended, true, "The Events grid contract must identify an AI-amended event");
+    assert.equal(augmentedEvent.aiValidationRequired, false);
+    assert.ok(augmentedEvent.lastAiAppliedAt);
+    assert.equal(augmentedEvent.lastAugmentationJobId, autoAcceptJobId);
     assert.doesNotMatch(JSON.stringify(body), /sk-verification|authorization|requestBody|responseBody|prompt/i, "AI job responses must not expose credentials or raw provider payloads");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai", {
       method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),

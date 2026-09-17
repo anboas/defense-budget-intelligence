@@ -238,13 +238,15 @@ export async function runAuthRetentionMaintenance(pool) {
 async function hydratedUser(pool, row) {
   if (!row) return null;
   const result = await pool.query(`SELECT workspace.workspace_id, workspace.name, workspace.slug, workspace.description, membership.role,
-      settings.icon_data_url, settings.header_eyebrow, settings.display_title
+      settings.icon_data_url, settings.header_eyebrow, settings.display_title, ai_preferences.auto_accept_event_augmentations
     FROM app_workspace_memberships membership JOIN app_workspaces workspace ON workspace.workspace_id = membership.workspace_id
     LEFT JOIN app_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+    LEFT JOIN app_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
     WHERE membership.user_id = $1 AND workspace.status = 'active' ORDER BY workspace.name`, [row.user_id]);
   const workspaces = result.rows.map((workspace) => ({ id: workspace.workspace_id, name: workspace.name, slug: workspace.slug,
     description: workspace.description, iconDataUrl: workspace.icon_data_url || "",
     headerEyebrow: workspace.header_eyebrow || DEFAULT_HEADER_EYEBROW, displayTitle: workspace.display_title || DEFAULT_DISPLAY_TITLE,
+    autoAcceptAiAugmentations: Boolean(workspace.auto_accept_event_augmentations),
     roleId: workspace.role, role: ROLE_LABELS[workspace.role] || "Viewer" }));
   const activeWorkspace = workspaces.find((workspace) => String(workspace.id) === String(row.active_workspace_id)) || null;
   return { ...publicUser({ ...row, membership_role: activeWorkspace?.roleId || row.membership_role }), workspaces, activeWorkspace, hasWorkspaceAccess: Boolean(activeWorkspace) };
@@ -450,6 +452,40 @@ async function logEventAiProvider(pool, row, response, stage, status, latencyMs 
   });
 }
 
+function eventAiReviewRisks(verification, outcome) {
+  return Boolean(
+    outcome.status !== "completed"
+    || (outcome.mergeResult?.conflicts || []).length
+    || (verification?.approved?.reviewClaims || []).length
+    || (verification?.rejectedClaims || []).length,
+  );
+}
+
+async function finalizeEventAiOutcome(pool, row, draft, verification, outcome) {
+  const changes = outcome.mergeResult?.changes || [];
+  const eventId = cleanText(draft?.id, 180);
+  const preference = eventId ? await pool.query(`SELECT auto_accept_event_augmentations
+    FROM app_workspace_ai_preferences WHERE workspace_id = $1`, [row.workspace_id]) : { rows: [] };
+  const autoAccept = Boolean(preference.rows[0]?.auto_accept_event_augmentations);
+  const validationRequired = Boolean(changes.length || eventAiReviewRisks(verification, outcome));
+  const application = {
+    mode: autoAccept ? "automatic" : "manual",
+    status: validationRequired ? "pending_validation" : "no_changes",
+    appliedAt: null,
+    reason: autoAccept && validationRequired ? "event_store_unavailable_on_this_runtime" : autoAccept ? "event_already_current" : "workspace_auto_accept_disabled",
+  };
+  if (eventId) {
+    await pool.query(`INSERT INTO app_event_ai_state
+      (workspace_id, event_id, last_job_id, last_status, last_augmented_at, validation_required, updated_at)
+      VALUES ($1, $2, $3, $4, NOW(), $5, NOW())
+      ON CONFLICT (workspace_id, event_id) DO UPDATE SET last_job_id = EXCLUDED.last_job_id,
+      last_status = EXCLUDED.last_status, last_augmented_at = EXCLUDED.last_augmented_at,
+      validation_required = EXCLUDED.validation_required, updated_at = NOW()`,
+    [row.workspace_id, eventId, row.id, outcome.status, validationRequired]);
+  }
+  return { ...outcome, mergeResult: { ...outcome.mergeResult, application } };
+}
+
 async function advanceEventAiJob(pool, row) {
   if (["completed", "needs_review", "failed", "cancelled"].includes(row.status)) return row;
   const draft = row.input_snapshot_json || {};
@@ -523,7 +559,7 @@ async function advanceEventAiJob(pool, row) {
       }
       await logEventAiProvider(pool, row, providerResponse, "verification", "succeeded", providerLatencyMs, providerRequestId, null, "GET", mockMode ? null : eventAiEvidenceDiagnostic(providerResponse, verification.approved));
       if (!mockMode) await deleteOpenAiResponse(credential.apiKey, row.verifier_response_id).catch(() => false);
-      const outcome = resolveEventAiVerificationOutcome({ draft, verification, categories });
+      const outcome = await finalizeEventAiOutcome(pool, row, draft, verification, resolveEventAiVerificationOutcome({ draft, verification, categories }));
       const result = await pool.query(`UPDATE app_event_ai_jobs SET status = $1, current_step = $2, verification_json = $3::jsonb,
         merge_result_json = $4::jsonb, updated_at = NOW(), completed_at = NOW() WHERE id = $5 RETURNING *`, [
         outcome.status, outcome.currentStep,
@@ -852,8 +888,10 @@ export async function registerAuthRoutes(app, pool) {
     const user = await authenticated(pool, request);
     if (!user) return reply.code(401).send({ error: "sign in required" });
     const [workspaces, memberships, requests] = await Promise.all([
-      pool.query(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title
+      pool.query(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title,
+          ai_preferences.auto_accept_event_augmentations
         FROM app_workspaces workspace LEFT JOIN app_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+        LEFT JOIN app_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
         WHERE workspace.status = 'active' ORDER BY workspace.name`),
       pool.query("SELECT workspace_id, role FROM app_workspace_memberships WHERE user_id = $1", [user.user_id]),
       pool.query("SELECT DISTINCT ON (workspace_id) workspace_id, status FROM app_workspace_access_requests WHERE user_id = $1 ORDER BY workspace_id, created_at DESC", [user.user_id]),
@@ -865,6 +903,7 @@ export async function registerAuthRoutes(app, pool) {
       return { id: workspace.workspace_id, name: workspace.name, slug: workspace.slug, description: workspace.description,
         iconDataUrl: workspace.icon_data_url || "", headerEyebrow: workspace.header_eyebrow || DEFAULT_HEADER_EYEBROW,
         displayTitle: workspace.display_title || DEFAULT_DISPLAY_TITLE,
+        autoAcceptAiAugmentations: Boolean(workspace.auto_accept_event_augmentations),
         status: workspace.status, ownerUserId: workspace.owner_user_id, roleId: membership?.role || null,
         role: membership ? ROLE_LABELS[membership.role] : null, requestStatus: requestById.get(String(workspace.workspace_id))?.status || null };
     }) };
@@ -904,9 +943,11 @@ export async function registerAuthRoutes(app, pool) {
     const isSuperUser = owner.role === "super_user";
     const [workspaces, members, requests, users] = await Promise.all([
       pool.query(`SELECT workspace.*, settings.icon_data_url, settings.header_eyebrow, settings.display_title,
+        ai_preferences.auto_accept_event_augmentations,
         (SELECT COUNT(*)::int FROM app_workspace_memberships membership WHERE membership.workspace_id = workspace.workspace_id) AS member_count,
         (SELECT COUNT(*)::int FROM app_workspace_access_requests access_request WHERE access_request.workspace_id = workspace.workspace_id AND access_request.status = 'pending') AS pending_request_count
         FROM app_workspaces workspace LEFT JOIN app_workspace_settings settings ON settings.workspace_id = workspace.workspace_id
+        LEFT JOIN app_workspace_ai_preferences ai_preferences ON ai_preferences.workspace_id = workspace.workspace_id
         WHERE ($1::boolean OR workspace.workspace_id = $2) ORDER BY workspace.status, workspace.name`, [isSuperUser, owner.active_workspace_id]),
       pool.query(`SELECT membership.*, u.email, u.display_name, u.title, u.status, u.avatar_data_url
         FROM app_workspace_memberships membership JOIN app_users u ON u.user_id = membership.user_id
@@ -923,6 +964,7 @@ export async function registerAuthRoutes(app, pool) {
         description: workspace.description, status: workspace.status, ownerUserId: workspace.owner_user_id,
         iconDataUrl: workspace.icon_data_url || "", headerEyebrow: workspace.header_eyebrow || DEFAULT_HEADER_EYEBROW,
         displayTitle: workspace.display_title || DEFAULT_DISPLAY_TITLE,
+        autoAcceptAiAugmentations: Boolean(workspace.auto_accept_event_augmentations),
         createdAt: workspace.created_at, updatedAt: workspace.updated_at,
         pendingRequestCount: Number(workspace.pending_request_count || 0), lastActivityAt: null,
         contents: { trackedRecords: null, events: null, wallboardEvents: null, milestones: null, manualRecords: null, activityEntries: null, activeAgentKeys: null },
@@ -972,6 +1014,11 @@ export async function registerAuthRoutes(app, pool) {
     const iconDataUrl = validAvatar(request.body?.iconDataUrl);
     const headerEyebrow = cleanText(request.body?.headerEyebrow || DEFAULT_HEADER_EYEBROW, 80);
     const displayTitle = cleanText(request.body?.displayTitle || DEFAULT_DISPLAY_TITLE, 80);
+    const currentAiPreference = await pool.query(`SELECT auto_accept_event_augmentations
+      FROM app_workspace_ai_preferences WHERE workspace_id = $1`, [request.params.workspaceId]);
+    const autoAcceptAiAugmentations = request.body?.autoAcceptAiAugmentations === undefined
+      ? Boolean(currentAiPreference.rows[0]?.auto_accept_event_augmentations)
+      : request.body.autoAcceptAiAugmentations === true;
     if (name.length < 2) return reply.code(400).send({ error: "a valid workspace name is required" });
     if (iconDataUrl === null || headerEyebrow.length < 2 || displayTitle.length < 2) return reply.code(400).send({ error: "valid workspace branding is required" });
     const duplicate = await pool.query("SELECT workspace_id FROM app_workspaces WHERE lower(name) = lower($1) AND workspace_id <> $2", [name, request.params.workspaceId]);
@@ -983,10 +1030,15 @@ export async function registerAuthRoutes(app, pool) {
       VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (workspace_id) DO UPDATE SET icon_data_url = EXCLUDED.icon_data_url,
       header_eyebrow = EXCLUDED.header_eyebrow, display_title = EXCLUDED.display_title, updated_at = NOW()`,
       [request.params.workspaceId, iconDataUrl, headerEyebrow, displayTitle]);
+    await pool.query(`INSERT INTO app_workspace_ai_preferences
+      (workspace_id, auto_accept_event_augmentations, updated_by, updated_at) VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (workspace_id) DO UPDATE SET auto_accept_event_augmentations = EXCLUDED.auto_accept_event_augmentations,
+      updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+      [request.params.workspaceId, autoAcceptAiAugmentations, owner.user_id]);
     const workspace = result.rows[0];
     return { workspace: { id: workspace.workspace_id, name: workspace.name, slug: workspace.slug,
       description: workspace.description, status: workspace.status, ownerUserId: workspace.owner_user_id,
-      iconDataUrl, headerEyebrow, displayTitle, createdAt: workspace.created_at, updatedAt: workspace.updated_at } };
+      iconDataUrl, headerEyebrow, displayTitle, autoAcceptAiAugmentations, createdAt: workspace.created_at, updatedAt: workspace.updated_at } };
   });
 
   app.post("/api/v1/auth/workspace-admin/requests/:requestId", async (request, reply) => {
@@ -1119,7 +1171,7 @@ export async function registerAuthRoutes(app, pool) {
       workspaceDefault: workspace.rowCount ? { available: true, label: "Workspace default", lastFour: canAdministerWorkspaces(user) ? workspace.rows[0].key_last_four : "" } : { available: false, label: "Workspace default", lastFour: "" },
       canManageWorkspaceDefaults: canAdministerWorkspaces(user), workspaceModelDefaults: workspaceDefaults,
       producerModel: EVENT_AI_PRODUCER_MODEL, verifierModel: EVENT_AI_VERIFIER_MODEL, retentionDays: 90,
-      workflow: ["research", "independent verification", "deterministic safe merge", "operator review and save"],
+      workflow: ["research", "independent verification", "deterministic safe merge", "apply or review by workspace policy"],
     } };
   });
 

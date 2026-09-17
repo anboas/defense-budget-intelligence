@@ -7174,6 +7174,8 @@ td .dot {
 .ops-event-wallboard small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-normal); }
 .ops-event-record-links small { overflow: hidden; color: var(--if-text-muted); font-size: var(--if-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .ops-event-wallboard { min-height: var(--if-control-height, 2.75rem); padding: var(--if-space-2) var(--if-space-3); border: var(--if-divider); border-radius: var(--if-radius-2); background: var(--if-bg-subtle); }
+.ops-event-ai-state { display: inline-flex; flex-direction: column; align-items: flex-start; gap: var(--if-space-1); min-width: 0; }
+.ops-event-ai-state > small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-tight); }
 .ops-event-record-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--if-space-2); max-height: 15rem; overflow: auto; }
 .ops-event-record-links .if-checkbox { align-items: flex-start; padding: var(--if-space-2); border: var(--if-outline); border-radius: var(--if-radius-2); background: var(--if-bg-subtle); }
 .ops-alert { grid-column: 1 / -1; margin: 0; padding: 8px; background: #fff1f0; color: #8b1e17; font-size: 10px; }
