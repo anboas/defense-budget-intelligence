@@ -659,6 +659,18 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/wallboard-events-mobile.png`, fullPage: true });
 
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.evaluate(() => {
+    const key = "dbi:management-events:v1";
+    const events = JSON.parse(localStorage.getItem(key) || "[]");
+    const at = "2026-09-13T12:00:00.000Z";
+    events.push(
+      { id: "event-busy-day-a", title: "Busy day review A", startsAt: "2026-09-14T09:00", endsAt: "2026-09-14T10:00", location: "Room A", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
+      { id: "event-busy-day-b", title: "Busy day review B", startsAt: "2026-09-14T11:00", endsAt: "2026-09-14T12:00", location: "Room B", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
+      { id: "event-busy-day-c", title: "Busy day review C", startsAt: "2026-09-14T14:00", endsAt: "2026-09-14T15:00", location: "Room C", links: [], attendees: [], attendeeIds: [], milestones: [], categoryIds: ["conference"], notes: "", status: "scheduled", recordIds: [], wallboard: true, createdAt: at, updatedAt: at },
+    );
+    localStorage.setItem(key, JSON.stringify(events));
+    window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
+  });
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
   await page.waitForSelector("[data-wallboard-calendar]");
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/i, "Calendar should open on the first scheduled event month");
@@ -666,6 +678,17 @@ try {
   assert.ok(await page.locator("[data-calendar-event] .ops-wall-calendar__bar-attendees .user-avatar").count() >= 1, "Calendar event bars should surface compact attendee avatars without adding a third text line");
   assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 1, "A multi-day event should render as one continuous Gantt-style weekly bar");
   assert.equal(await page.locator('[data-calendar-milestone][data-parent-event="event-air-space-cyber-conference-2026"]').count(), 2, "Published event deadlines should render as linked Gantt overlays");
+  const busyDayOverflow = page.locator('[data-calendar-overflow="2026-09-14"]');
+  assert.equal(await busyDayOverflow.innerText(), "+2 more", "A busy day should keep two calendar lanes visible and summarize the remaining events");
+  await busyDayOverflow.click();
+  await page.waitForSelector('[data-calendar-day-agenda="2026-09-14"]');
+  assert.equal(await page.locator("[data-calendar-day-agenda] .ops-day-agenda__item").count(), 4, "The day agenda should retain every event scheduled on a busy date");
+  assert.match(await page.locator("[data-calendar-day-agenda]").innerText(), /Air, Space & Cyber Conference[\s\S]*Busy day review A[\s\S]*Busy day review B[\s\S]*Busy day review C/i, "The day agenda should expose the complete ordered schedule");
+  await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-day-agenda-1080p.png` });
+  await page.getByRole("button", { name: /Busy day review B/ }).click();
+  await page.waitForSelector("[data-calendar-event-detail]");
+  assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Busy day review B[\s\S]*Room B/i, "A day-agenda item should open the existing event detail surface");
+  await page.getByRole("button", { name: "Close event details" }).click();
   const registrationMilestone = page.locator('[data-calendar-milestone="registration"]');
   const registrationDatePlacement = await registrationMilestone.evaluate((node) => {
     const milestone = node.getBoundingClientRect();
@@ -699,18 +722,15 @@ try {
         const bar = node.querySelector('[data-calendar-event="event-air-space-cyber-conference-2026"]');
         const copy = bar.querySelector(".ops-wall-calendar__bar-copy");
         const title = copy.querySelector("strong");
-        const location = copy.querySelector("span");
         const barBox = bar.getBoundingClientRect();
         const copyBox = copy.getBoundingClientRect();
         const titleBox = title.getBoundingClientRect();
-        const locationBox = location.getBoundingClientRect();
         return {
-          stacked: locationBox.top >= titleBox.bottom - 1,
           copyUsesSpan: copyBox.width >= barBox.width * .75,
           titleUsesCopyWidth: titleBox.width >= copyBox.width - 1,
-          locationUsesCopyWidth: locationBox.width >= copyBox.width - 1,
-          contained: titleBox.right <= barBox.right + 1 && locationBox.right <= barBox.right + 1 && locationBox.bottom <= barBox.bottom + 1,
+          contained: titleBox.right <= barBox.right + 1 && titleBox.bottom <= barBox.bottom + 1,
           lineCount: copy.children.length,
+          barHeight: barBox.height,
         };
       })(),
       writeControls: node.querySelectorAll("[data-calendar-event] button, [data-calendar-event] input, [data-calendar-event] textarea, [data-calendar-event] select").length,
@@ -720,12 +740,11 @@ try {
   assert.equal(calendarGeometry.rows, 6, "Desktop calendar should retain six stable week rows");
   assert.ok(calendarGeometry.firstCellHeight >= 100, `1080p calendar dates should remain distance-readable, got ${calendarGeometry.firstCellHeight}px cells`);
   assert.ok(calendarGeometry.eventSize >= 12, `1080p calendar event labels should remain readable, got ${calendarGeometry.eventSize}px`);
-  assert.equal(calendarGeometry.eventCopy.stacked, true, "Calendar event title and location should render on separate lines");
   assert.equal(calendarGeometry.eventCopy.copyUsesSpan, true, "Calendar copy should use the available event-bar lane beside attendee avatars");
   assert.equal(calendarGeometry.eventCopy.titleUsesCopyWidth, true, "Calendar event titles should receive the full copy width before truncation");
-  assert.equal(calendarGeometry.eventCopy.locationUsesCopyWidth, true, "Calendar event locations should receive the full copy width before truncation");
-  assert.equal(calendarGeometry.eventCopy.contained, true, "Stacked calendar copy must remain inside its event bar");
-  assert.equal(calendarGeometry.eventCopy.lineCount, 2, "Calendar bars should reserve exactly two unclipped lines for title and location");
+  assert.equal(calendarGeometry.eventCopy.contained, true, "Compact calendar copy must remain inside its event bar");
+  assert.equal(calendarGeometry.eventCopy.lineCount, 1, "Calendar bars should keep one scan-first title line and move detail into hover and agenda surfaces");
+  assert.ok(calendarGeometry.eventCopy.barHeight <= 42, `1080p calendar lanes should remain compact, got ${calendarGeometry.eventCopy.barHeight}px`);
   assert.ok(calendarGeometry.lastCellBottom <= calendarGeometry.gridBottom + 1, "Every calendar week should fit within the 1080p wallboard");
   assert.equal(calendarGeometry.writeControls, 0, "Calendar event entries should remain read-only");
   const calendarAttendeeAvatar = page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-attendees .user-avatar').first();
@@ -885,7 +904,7 @@ try {
   assert.ok(conferenceGeometry.width >= 1860, `1080p wallboard should use the display width, got ${conferenceGeometry.width}px`);
   assert.ok(conferenceGeometry.height >= 960, `1080p wallboard should fill the conference display, got ${conferenceGeometry.height}px`);
   assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2), "Routed 1080p wallboard should fit the viewport without document scrolling");
-  assert.ok(conferenceGeometry.metricSize >= 40, `1080p metric values should be distance-readable, got ${conferenceGeometry.metricSize}px`);
+  assert.ok(conferenceGeometry.metricSize >= 36, `The compact 1080p metric band should remain distance-readable, got ${conferenceGeometry.metricSize}px`);
   assert.ok(conferenceGeometry.recordTitleSize >= 17, `1080p record titles should be distance-readable, got ${conferenceGeometry.recordTitleSize}px`);
   const conferenceFit = await page.evaluate(() => {
     const records = [...document.querySelectorAll(".ops-wallboard__record")];
@@ -915,7 +934,7 @@ try {
   }));
   assert.ok(fourKGeometry.height >= 2040, `4K wallboard should fill the conference display, got ${fourKGeometry.height}px`);
   assert.ok(fourKGeometry.brandSize >= 42, `4K wallboard title should scale for viewing distance, got ${fourKGeometry.brandSize}px`);
-  assert.ok(fourKGeometry.metricSize >= 62, `4K wallboard metrics should scale for viewing distance, got ${fourKGeometry.metricSize}px`);
+  assert.ok(fourKGeometry.metricSize >= 56, `The compact 4K metric band should scale for viewing distance, got ${fourKGeometry.metricSize}px`);
   assert.equal(fourKGeometry.recordColumns, 3, `4K overview should use three tracked-record columns, got ${fourKGeometry.recordColumns}`);
   await assertNoPageOverflow(page, "4K wallboard");
   await page.screenshot({ path: `${OUT_DIR}/wallboard-4k.png` });

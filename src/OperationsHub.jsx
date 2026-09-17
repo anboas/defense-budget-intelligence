@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Activity,
   Bot,
   CalendarDays,
   Building2,
-  ChevronRight,
-  ChevronLeft,
   Link2,
   ListChecks,
   MapPin,
@@ -17,8 +14,6 @@ import {
   Sparkles,
   CircleAlert,
   CircleCheck,
-  Eye,
-  EyeOff,
   Star,
   Tags,
   Trash2,
@@ -26,8 +21,8 @@ import {
 } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
-import UserAvatar from "./UserAvatar.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
+import WallboardCalendar from "./WallboardCalendar.jsx";
 import EventTeamSelector from "./EventTeamSelector.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { AgentAccessPanel } from "./ProfilePage.jsx";
@@ -40,7 +35,7 @@ import { SearchMultiSelect } from "./CaptureCalendar.jsx";
 import IntegrationManagement from "./IntegrationManagement.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlMultiSelect, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
+import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
 import { useNotifications } from "./NotificationContext.jsx";
 
 const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
@@ -870,202 +865,6 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
       <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
     </div> : null}
     {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
-  </section>;
-}
-
-function shiftMonth(month, offset) {
-  const [year, monthIndex] = month.split("-").map(Number);
-  const shifted = new Date(Date.UTC(year, monthIndex - 1 + offset, 1));
-  return shifted.toISOString().slice(0, 7);
-}
-
-function monthCalendarDays(month) {
-  const [year, monthIndex] = month.split("-").map(Number);
-  const first = new Date(Date.UTC(year, monthIndex - 1, 1));
-  const gridStart = new Date(first);
-  gridStart.setUTCDate(1 - first.getUTCDay());
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(gridStart);
-    date.setUTCDate(gridStart.getUTCDate() + index);
-    return {
-      key: date.toISOString().slice(0, 10),
-      day: date.getUTCDate(),
-      inMonth: date.getUTCMonth() === monthIndex - 1,
-    };
-  });
-}
-
-function calendarWeekSegments(events, week) {
-  const first = week[0].key;
-  const last = week[6].key;
-  const lanes = [];
-  const calendarItems = events.flatMap((event) => [
-    { id: `event-${event.id}`, kind: "event", event, start: String(event.startsAt || "").slice(0, 10), end: String(event.endsAt || event.startsAt || "").slice(0, 10) },
-    ...(event.milestones || []).map((milestone) => ({ id: `milestone-${event.id}-${milestone.id}`, kind: "milestone", event, milestone, start: String(milestone.occursAt || "").slice(0, 10), end: String(milestone.occursAt || "").slice(0, 10) })),
-  ]);
-  return calendarItems
-    .filter((item) => item.start <= last && item.end >= first)
-    .sort((left, right) => left.start.localeCompare(right.start) || Number(left.kind === "milestone") - Number(right.kind === "milestone") || right.end.localeCompare(left.end))
-    .map((item) => {
-      const { start, end } = item;
-      const startColumn = Math.max(0, week.findIndex((day) => day.key >= start));
-      const endColumn = Math.max(startColumn, week.findLastIndex((day) => day.key <= end));
-      let lane = lanes.findIndex((occupiedThrough) => startColumn > occupiedThrough);
-      if (lane < 0) lane = lanes.length;
-      lanes[lane] = endColumn;
-      return { ...item, startColumn, endColumn, lane, startsBefore: start < first, endsAfter: end > last };
-    });
-}
-
-function daysBetween(left, right) {
-  const leftDate = Date.parse(`${String(left).slice(0, 10)}T00:00:00Z`);
-  const rightDate = Date.parse(`${String(right).slice(0, 10)}T00:00:00Z`);
-  return Number.isFinite(leftDate) && Number.isFinite(rightDate) ? Math.round((rightDate - leftDate) / 86400000) : null;
-}
-
-function CalendarHoverCard({ hover, categories }) {
-  if (!hover) return null;
-  const { item, left, top } = hover;
-  const { event, milestone } = item;
-  const attendees = event.attendees || [];
-  const deadlineLead = milestone ? daysBetween(milestone.occursAt, event.startsAt) : null;
-  return createPortal(<aside id="ops-wall-calendar-tooltip" className="capture-timeline-tooltip ops-wall-calendar-tooltip" role="tooltip" style={{ left, top }} data-calendar-hovercard data-kind={item.kind}>
-    <header><span>{milestone ? milestoneTypeLabel(milestone.type) : "Event schedule"}</span><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><small>{milestone ? event.title : `${event.status || "scheduled"} · ${event.milestones?.length || 0} milestone${event.milestones?.length === 1 ? "" : "s"}`}</small></header>
-    <dl>{milestone ? <>
-      <div><dt>Deadline</dt><dd>{compactDate(milestone.occursAt)}</dd></div>
-      <div><dt>Lead time</dt><dd>{deadlineLead === null ? "Unavailable" : deadlineLead < 0 ? `${Math.abs(deadlineLead)} days after start` : deadlineLead === 0 ? "Event start day" : `${deadlineLead} days before start`}</dd></div>
-      <div><dt>Event begins</dt><dd>{dateTime(event.startsAt)}</dd></div>
-      <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
-      <div><dt>Location</dt><dd>{event.location || "Not set"}</dd></div>
-      <div><dt>Attendees</dt><dd>{attendees.length || "None"}</dd></div>
-    </> : <>
-      <div><dt>Starts</dt><dd>{dateTime(event.startsAt)}</dd></div>
-      <div><dt>Ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
-      <div><dt>Status</dt><dd>{event.status || "scheduled"}</dd></div>
-      <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
-      <div><dt>Attendees</dt><dd>{attendees.length || "None"}</dd></div>
-      <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
-    </>}</dl>
-    <p><b>Location</b>{event.location || "Location not set"}</p>
-    {event.categoryIds?.length ? <p><b>Categories</b>{eventCategoryLabels(event, categories).join(" · ")}</p> : null}
-    {attendees.length ? <p><b>Attending</b>{attendees.map((attendee) => attendee.displayName).join(" · ")}</p> : null}
-    {(milestone?.notes || (!milestone && event.notes)) ? <p><b>Context</b>{milestone?.notes || event.notes}</p> : null}
-    <footer>Workspace event calendar · hover or keyboard focus for context</footer>
-  </aside>, document.body);
-}
-
-function CalendarEventModal({ detail, categories, onClose }) {
-  if (!detail) return null;
-  const { event, milestone } = detail;
-  return <ControlDialog
-    open
-    onClose={onClose}
-    title={milestone ? milestoneLabel(milestone) : event.title}
-    eyebrow={milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"}
-    summary={milestone ? event.title : null}
-    size="detail"
-    closeLabel="Close event details"
-    surfaceProps={{ className: "ops-event-detail", "data-calendar-event-detail": true }}
-    bodyProps={{ className: "ops-event-detail__body" }}
-    footer={<button type="button" onClick={onClose}>Close</button>}
-  >
-        <dl>
-          <div><dt>{milestone ? "Milestone date" : "Starts"}</dt><dd>{dateTime(milestone?.occursAt || event.startsAt)}</dd></div>
-          <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
-          <div><dt>Status</dt><dd>{event.status || "scheduled"}</dd></div>
-          <div><dt>Location</dt><dd>{event.location || "Not set"}</dd></div>
-          <div><dt>Categories</dt><dd>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</dd></div>
-          <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
-          <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
-        </dl>
-        {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <span key={attendee.id || attendee.displayName}><UserAvatar user={attendee} size={34} decorative={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></span>)}</div></section> : null}
-        {event.links?.length ? <section><h3>Event links</h3><div>{event.links.map((link) => <a key={link.id} className="if-btn if-btn--secondary" href={link.url} target="_blank" rel="noreferrer"><Link2 size={15} aria-hidden="true" />{link.label || new URL(link.url).hostname}</a>)}</div></section> : null}
-        {event.milestones?.length ? <section><h3>Deadlines &amp; milestones</h3><div className="ops-event-detail__milestones">{event.milestones.map((entry) => <article key={entry.id} className={milestone?.id === entry.id ? "is-focused" : ""}><i aria-hidden="true" /><span><strong>{milestoneLabel(entry)}</strong><small>{milestoneTypeLabel(entry.type)}</small></span><time dateTime={entry.occursAt}>{compactDate(entry.occursAt)}</time>{entry.notes ? <p>{entry.notes}</p> : null}</article>)}</div></section> : null}
-        {(milestone?.notes || event.notes) ? <section className="ops-event-detail__context"><h3>Context</h3><p>{milestone?.notes || event.notes}</p></section> : null}
-  </ControlDialog>;
-}
-
-function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace }) {
-  const [hover, setHover] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
-  const overlayStorageKey = `dbi:calendar-overlays:hidden:${workspace?.id || "workspace"}`;
-  const [hiddenOverlayIds, setHiddenOverlayIds] = useState(() => {
-    try { return JSON.parse(window.localStorage.getItem(overlayStorageKey) || "[]"); } catch { return []; }
-  });
-  const selectedCategorySet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
-  const overlayOptions = useMemo(() => {
-    const map = new Map(teams.map((team) => [team.id, team]));
-    for (const event of events) for (const team of event.teams || []) map.set(team.id, team);
-    return [{ id: "workspace", name: "Workspace-wide", description: "Visible to every workspace member", iconDataUrl: "" }, ...[...map.values()].sort((left, right) => left.name.localeCompare(right.name))];
-  }, [events, teams]);
-  const hiddenOverlaySet = useMemo(() => new Set(hiddenOverlayIds), [hiddenOverlayIds]);
-  const filteredEvents = events.filter((event) => {
-    const categoryVisible = !selectedCategoryIds.length || (event.categoryIds || []).some((categoryId) => selectedCategorySet.has(categoryId));
-    const overlayIds = event.teamIds?.length ? event.teamIds : ["workspace"];
-    return categoryVisible && overlayIds.some((overlayId) => !hiddenOverlaySet.has(overlayId));
-  });
-  function toggleOverlay(id) {
-    setHiddenOverlayIds((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      window.localStorage.setItem(overlayStorageKey, JSON.stringify(next));
-      return next;
-    });
-  }
-  const days = monthCalendarDays(month);
-  const today = now.toISOString().slice(0, 10);
-  const currentMonth = today.slice(0, 7);
-  const monthDate = new Date(`${month}-01T00:00:00Z`);
-  const monthLabel = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-  const monthStart = `${month}-01`;
-  const monthEnd = `${month}-${String(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0)).getUTCDate()).padStart(2, "0")}`;
-  const monthEvents = filteredEvents.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
-  const monthMilestones = filteredEvents.flatMap((event) => (event.milestones || []).filter((milestone) => String(milestone.occursAt || "").slice(0, 10) >= monthStart && String(milestone.occursAt || "").slice(0, 10) <= monthEnd));
-  const weeks = Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
-  function showHover(item, target, clientX, clientY) {
-    const bounds = target.getBoundingClientRect();
-    const width = Math.min(380, window.innerWidth - 16);
-    const left = Math.max(8, Math.min(clientX || bounds.right + 12, window.innerWidth - width - 8));
-    const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 360));
-    setHover({ item, left, top });
-  }
-  return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
-    <header>
-      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading>{monthLabel}</strong></span></div>
-      <div className="ops-wall-calendar__controls">
-        <ControlMultiSelect label="Event types" placeholder="All event types" value={selectedCategoryIds} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description, meta: `${category.assignedEventCount || 0}` }))} onChange={setSelectedCategoryIds} searchable clearable compact triggerProps={{ "data-calendar-category-filter": true }} />
-        <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
-        <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
-        <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
-        <b aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}>{monthEvents.length}<small>+{monthMilestones.length}</small></b>
-      </div>
-    </header>
-    <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Calendar overlays</strong><small>Toggle visible schedules.</small></span><div>{overlayOptions.map((team) => {
-      const active = !hiddenOverlaySet.has(team.id);
-      return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}{active ? "Shown" : "Hidden"}</small></button>;
-    })}</div></div>
-    <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
-      <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="ops-wall-calendar__weeks">{weeks.map((week) => {
-        const segments = calendarWeekSegments(filteredEvents, week);
-        const laneCount = Math.max(1, ...segments.map((segment) => segment.lane + 1));
-        return <section className="ops-wall-calendar__week" key={week[0].key} style={{ "--calendar-lanes": laneCount }}>
-          <div className="ops-wall-calendar__days">{week.map((day) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
-            <header><time dateTime={day.key}>{day.day}</time>{day.key === today ? <span>Today</span> : null}</header>
-          </article>)}</div>
-          <div className="ops-wall-calendar__bars">{segments.map((item) => {
-            const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
-            const countdown = eventCountdown(event, now);
-            const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
-            return <div key={item.id} role="button" tabIndex="0" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter" || keyEvent.key === " ") { keyEvent.preventDefault(); setHover(null); setDetail({ event, milestone }); } }} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" />{!milestone && event.teams?.length ? <span className="ops-wall-calendar__bar-team"><TeamAvatar team={event.teams[0]} size={20} />{event.teams.length > 1 ? <b>+{event.teams.length - 1}</b> : null}</span> : null}<div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><span>{milestone ? event.title : event.location || "Location not set"}</span></div>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} className="if-profile-avatar" />)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
-            </div>;
-          })}</div>
-        </section>;
-      })}</div>
-    </div>
-    <CalendarHoverCard hover={hover} categories={categories} />
-    <CalendarEventModal detail={detail} categories={categories} onClose={() => setDetail(null)} />
   </section>;
 }
 
