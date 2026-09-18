@@ -31,9 +31,9 @@ const ADMIN_META = {
   tasks: { badge: "Progress", description: "Background augmentation and API tasks, stages, outcomes, and review." },
   integrations: { badge: "7 feeds", description: "Connector health, refresh cadence, yields, and unavailable probes." },
   activity: { badge: "Audit", description: "Append-only human and agent API activity across the shared workspace." },
-  users: { badge: "RBAC", description: "Create human accounts, assign roles, suspend access, and reset passwords." },
+  users: { badge: "Owner", description: "Create global accounts, recover passwords, suspend access, and emulate users." },
   workspaces: { badge: "Access", description: "Create workspaces, review access requests, and control membership." },
-  "workspace-settings": { badge: "Manage", description: "Configure the active workspace, membership, requests, roles, and identity." },
+  "workspace-settings": { badge: "Access", description: "Configure workspace identity, membership roles, teams, and AI policy." },
   agents: { badge: "Keys", description: "Issue, scope, expire, review, and revoke one-time agent credentials." },
 };
 
@@ -71,11 +71,11 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
-  const workspaceAdminItems = ["integrations", "activity", ...(auth?.user?.canManageWorkspaces ? ["workspace-settings"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])].map((id) => {
+  const workspaceAdminItems = ["integrations", "activity", ...(auth?.user?.canManageWorkspace ? ["workspace-settings"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
-  const platformAdminItems = [...(auth?.user?.canManageUsers ? ["users"] : []), ...(auth?.user?.roleId === "super_user" ? ["workspaces"] : [])].map((id) => {
+  const platformAdminItems = [...(auth?.user?.canManageAccounts ? ["users"] : []), ...(auth?.user?.roleId === "super_user" ? ["workspaces"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);

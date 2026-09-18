@@ -56,6 +56,15 @@ for (const workflow of workflows) {
 const packageJson = JSON.parse(await read("package.json"));
 assert.match(packageJson.dependencies["control-surface-ui"], /archive\/[0-9a-f]{40}\.tar\.gz$/, "Control Surface must use an immutable commit pin");
 
+const dockerfile = await read("Dockerfile");
+const serverEntries = (await readdir(resolve(root, "server"), { recursive: true })).filter((name) => /\.mjs$/.test(name));
+const serverSharedImports = new Set();
+for (const entry of serverEntries) {
+  const source = await read(`server/${entry}`);
+  for (const match of source.matchAll(/from\s+["']\.\.\/src\/([^"']+)["']/g)) serverSharedImports.add(`src/${match[1]}`);
+}
+for (const path of serverSharedImports) assert.match(dockerfile, new RegExp(`COPY[^\\n]+${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`), `Runtime image must copy server dependency ${path}`);
+
 const architectureCeilings = {
   "src/main.jsx": 450,
   "src/BudgetRequestRoutes.jsx": 380,

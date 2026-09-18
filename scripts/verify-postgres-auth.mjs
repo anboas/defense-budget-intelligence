@@ -42,6 +42,8 @@ response = await request("/api/v1/auth/claim", { method: "POST", body: owner });
 assert.equal(response.status, 201, "PostgreSQL must support atomic first claim");
 const ownerCookie = cookie(response);
 body = await response.json();
+assert.equal(body.user.canManageAccounts, true);
+assert.equal(body.user.canManageWorkspace, true);
 assert.equal(body.user.canManageWorkspaces, true);
 const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
@@ -230,11 +232,26 @@ response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorks
 assert.equal(response.status, 200);
 response = await request("/api/v1/auth/status", { cookie: signupCookie });
 body = await response.json();
+assert.equal(body.user.canManageAccounts, false, "PostgreSQL workspace managers must not gain platform account authority");
+assert.equal(body.user.canManageWorkspace, true);
 assert.equal(body.user.canManageWorkspaces, true);
 assert.equal(body.user.role, "Workspace manager");
+response = await request("/api/v1/auth/users", { cookie: signupCookie });
+assert.equal(response.status, 403, "PostgreSQL workspace managers must not enumerate global accounts");
 response = await request("/api/v1/auth/workspace-admin", { cookie: signupCookie });
 body = await response.json();
 assert.deepEqual(body.workspaces.map((workspace) => String(workspace.id)), [String(defaultWorkspaceId)]);
+assert.deepEqual(body.users, [], "PostgreSQL workspace administration must not leak the platform account directory");
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, { method: "POST", cookie: signupCookie,
+  body: { userId: pendingSetupUserId, role: "analyst" } });
+assert.equal(response.status, 200, "PostgreSQL workspace managers may change existing membership roles");
+const unassigned = identity("Unassigned");
+response = await request("/api/v1/auth/register", { method: "POST", body: unassigned });
+assert.equal(response.status, 201);
+const unassignedId = (await response.json()).user.id;
+response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, { method: "POST", cookie: signupCookie,
+  body: { userId: unassignedId, role: "viewer" } });
+assert.equal(response.status, 403, "PostgreSQL workspace managers must not pull arbitrary platform accounts into a workspace");
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, { method: "PATCH", cookie: signupCookie,
   body: { name: "Defense budget", description: "Managed boundary", iconDataUrl: avatarDataUrl, headerEyebrow: "Program intelligence", displayTitle: "Defense Budget Command", autoAcceptAiAugmentations: true } });
 assert.equal(response.status, 200, "PostgreSQL workspace managers must configure only their assigned workspace");

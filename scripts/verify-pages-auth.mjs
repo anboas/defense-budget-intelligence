@@ -186,6 +186,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.user.email, winner.email);
     assert.equal(body.user.role, "Super user");
     assert.equal(body.user.roleId, "super_user");
+    assert.equal(body.user.canManageAccounts, true);
+    assert.equal(body.user.canManageWorkspace, true);
     assert.equal(body.user.canManageUsers, true);
     assert.equal(body.user.canManageWorkspaces, true);
     assert.equal(body.user.activeWorkspace.name, "Defense budget");
@@ -289,7 +291,12 @@ async function verifyApiLifecycle(persistPath) {
       origin: baseUrl.slice(0, -1),
     });
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).user.role, "Analyst", "Role changes must take effect without recreating the account");
+    body = await response.json();
+    assert.equal(body.user.role, "Viewer", "Global account updates must not mutate workspace authority");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, {
+      method: "POST", body: { userId: viewerId, role: "analyst" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Workspace roles must change through the workspace membership boundary");
 
     const createTeam = async (name) => {
       const created = await apiRequest(baseUrl, "/api/v1/auth/teams", {
@@ -740,11 +747,28 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200, "Super user must be able to promote a workspace member to manager");
     response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
     body = await response.json();
+    assert.equal(body.user.canManageAccounts, false, "Workspace managers must not gain platform account authority");
+    assert.equal(body.user.canManageWorkspace, true);
     assert.equal(body.user.canManageWorkspaces, true, "Workspace manager permission must be exposed in the signed-in user contract");
     assert.equal(body.user.role, "Workspace manager");
+    response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: selfCookie });
+    assert.equal(response.status, 403, "Workspace managers must not enumerate global platform accounts");
     response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin", { cookie: selfCookie });
     body = await response.json();
     assert.deepEqual(body.workspaces.map((workspace) => workspace.id), [defaultWorkspaceId], "Workspace managers must see only their active administrative boundary");
+    assert.deepEqual(body.users, [], "Workspace managers must not receive the global account directory through workspace administration");
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, {
+      method: "POST", body: { userId: viewerId, role: "viewer" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Workspace managers may change the role of an existing workspace member");
+    const unassignedAccount = userPayload(21);
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", { method: "POST", body: unassignedAccount, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 201);
+    const unassignedAccountId = (await response.json()).user.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, {
+      method: "POST", body: { userId: unassignedAccountId, role: "viewer" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Workspace managers must not pull arbitrary platform accounts into a workspace");
     response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin/workspaces", {
       method: "POST", body: { name: "Manager escape", description: "Must fail" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
     });

@@ -36,14 +36,14 @@ import {
   validPasswordProof,
 } from "../src/security-policy.js";
 import { registerTeamEmulationRoutes } from "./team-emulation-routes.mjs";
+import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
 
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
 const MAX_ATTEMPTS = Math.max(3, Number(process.env.AUTH_MAX_ATTEMPTS || 8));
 const WINDOW_MINUTES = Math.max(1, Number(process.env.AUTH_ATTEMPT_WINDOW_MINUTES || 15));
-const USER_ROLES = ["administrator", "analyst", "viewer"];
+const USER_ROLES = WORKSPACE_ROLE_IDS;
 const USER_STATUSES = ["active", "suspended"];
-const ROLE_LABELS = { super_user: "Super user", administrator: "Workspace manager", analyst: "Analyst", viewer: "Viewer" };
 const DEFAULT_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001";
 const DEFAULT_HEADER_EYEBROW = "Defense Budget & Spend Analytics";
 const DEFAULT_DISPLAY_TITLE = "Defense Budget Intelligence";
@@ -128,7 +128,7 @@ async function authenticated(pool, request) {
 }
 
 function publicUser(row) {
-  const roleId = row?.role === "super_user" ? "super_user" : row?.membership_role || row?.role || "viewer";
+  const capabilities = accessCapabilities(row?.role, row?.membership_role, { isEmulating: Boolean(row?.is_emulating) }); const roleId = capabilities.roleId;
   return row ? {
     id: row.user_id,
     email: row.email,
@@ -139,9 +139,9 @@ function publicUser(row) {
     roleId,
     status: row.status || "active",
     mustChangePassword: Boolean(row.must_change_password) && !row.is_emulating,
-    canManageUsers: ["super_user", "administrator"].includes(roleId),
-    canManageAgents: ["super_user", "administrator"].includes(roleId),
-    canManageWorkspaces: row.role === "super_user" || roleId === "administrator",
+    canManagePlatform: capabilities.canManagePlatform, canManageAccounts: capabilities.canManageAccounts, canManageUsers: capabilities.canManageAccounts, canEmulateUsers: capabilities.canEmulateUsers,
+    canManageWorkspace: capabilities.canManageWorkspace, canManageWorkspaces: capabilities.canManageWorkspace, canManageTeams: capabilities.canManageTeams, canManageAgents: capabilities.canManageAgents,
+    canWriteWorkspace: capabilities.canWriteWorkspace, canRunEventAi: capabilities.canRunEventAi,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
     isEmulating: Boolean(row.is_emulating),
@@ -253,9 +253,7 @@ async function hydratedUser(pool, row) {
   return { ...publicUser({ ...row, membership_role: activeWorkspace?.roleId || row.membership_role }), workspaces, activeWorkspace, hasWorkspaceAccess: Boolean(activeWorkspace) };
 }
 
-function canAdministerUsers(user) {
-  return Boolean(user && (user.role === "super_user" || user.membership_role === "administrator"));
-}
+function canAdministerUsers(user) { return Boolean(user && !user.is_emulating && user.role === "super_user"); }
 
 function canAdministerWorkspaces(user) {
   return Boolean(user && (user.role === "super_user" || user.membership_role === "administrator"));
@@ -763,19 +761,20 @@ export async function registerAuthRoutes(app, pool) {
   app.get("/api/v1/auth/users", async (request, reply) => {
     const administrator = await authenticated(pool, request);
     if (!administrator) return reply.code(401).send({ error: "sign in required" });
-    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "administrator access is required" });
+    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "Super user access is required" });
     if (!administrator.active_workspace_id) return reply.code(409).send({ error: "select a workspace before managing users" });
     const result = await pool.query(`
       SELECT u.*, membership.role AS membership_role, COUNT(s.id)::int AS active_sessions
-      FROM app_workspace_memberships membership JOIN app_users u ON u.user_id = membership.user_id
+      FROM app_users u
+      LEFT JOIN app_workspace_memberships membership ON membership.user_id = u.user_id AND membership.workspace_id = $1
       LEFT JOIN app_auth_sessions s ON s.user_id = u.user_id AND s.expires_at > NOW()
-      WHERE membership.workspace_id = $1
       GROUP BY u.user_id, membership.role
-      ORDER BY CASE membership.role WHEN 'super_user' THEN 0 WHEN 'administrator' THEN 1 WHEN 'analyst' THEN 2 ELSE 3 END,
+      ORDER BY CASE WHEN u.role = 'super_user' THEN 0 WHEN membership.role = 'administrator' THEN 1 WHEN membership.role = 'analyst' THEN 2 WHEN membership.role = 'viewer' THEN 3 ELSE 4 END,
         u.display_name
     `, [administrator.active_workspace_id]);
     return {
-      users: result.rows.map((row) => ({ ...publicUser(row), activeSessions: row.active_sessions, isOwner: row.role === "super_user" })),
+      users: result.rows.map((row) => ({ ...publicUser(row), activeSessions: row.active_sessions, isOwner: row.role === "super_user",
+        workspaceRoleId: row.role === "super_user" ? "super_user" : row.membership_role || null, hasWorkspaceMembership: row.role === "super_user" || Boolean(row.membership_role) })),
       availableRoles: USER_ROLES,
     };
   });
@@ -784,7 +783,7 @@ export async function registerAuthRoutes(app, pool) {
     if (!assertSameOrigin(request, reply)) return;
     const administrator = await authenticated(pool, request);
     if (!administrator) return reply.code(401).send({ error: "sign in required" });
-    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "administrator access is required" });
+    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "Super user access is required" });
     if (!administrator.active_workspace_id) return reply.code(409).send({ error: "select a workspace before managing users" });
     const email = cleanText(request.body?.email, 254).toLowerCase();
     const displayName = cleanText(request.body?.displayName, 80);
@@ -804,7 +803,7 @@ export async function registerAuthRoutes(app, pool) {
           (user_id, email, display_name, title, role, status, password_salt, password_proof_hash, must_change_password, created_by)
          VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, TRUE, $8)
          RETURNING *`,
-        [userId, email, displayName, title, role, passwordSalt, sha256(passwordProof), administrator.user_id],
+        [userId, email, displayName, title, "viewer", passwordSalt, sha256(passwordProof), administrator.user_id],
       );
       await pool.query(`INSERT INTO app_workspace_memberships (workspace_id, user_id, role, created_by)
         VALUES ($1, $2, $3, $4)`, [administrator.active_workspace_id, userId, role, administrator.user_id]);
@@ -819,19 +818,18 @@ export async function registerAuthRoutes(app, pool) {
     if (!assertSameOrigin(request, reply)) return;
     const administrator = await authenticated(pool, request);
     if (!administrator) return reply.code(401).send({ error: "sign in required" });
-    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "administrator access is required" });
+    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "Super user access is required" });
     const target = await pool.query(`SELECT u.*, membership.role AS membership_role FROM app_users u
-      JOIN app_workspace_memberships membership ON membership.user_id = u.user_id
-      WHERE u.user_id = $1 AND membership.workspace_id = $2`, [request.params.userId, administrator.active_workspace_id]);
+      LEFT JOIN app_workspace_memberships membership ON membership.user_id = u.user_id AND membership.workspace_id = $2
+      WHERE u.user_id = $1`, [request.params.userId, administrator.active_workspace_id]);
     if (!target.rowCount) return reply.code(404).send({ error: "user not found" });
     if (target.rows[0].role === "super_user") return reply.code(403).send({ error: "the Super user account is immutable in user management" });
     const email = cleanText(request.body?.email, 254).toLowerCase();
     const displayName = cleanText(request.body?.displayName, 80);
     const title = cleanText(request.body?.title, 80);
-    const role = cleanText(request.body?.role, 32);
     const status = cleanText(request.body?.status, 32);
-    if (!validEmail(email) || displayName.length < 2 || !USER_ROLES.includes(role) || !USER_STATUSES.includes(status)) {
-      return reply.code(400).send({ error: "valid user details, role, and status are required" });
+    if (!validEmail(email) || displayName.length < 2 || !USER_STATUSES.includes(status)) {
+      return reply.code(400).send({ error: "valid account details and status are required" });
     }
     try {
       const result = await pool.query(
@@ -839,9 +837,8 @@ export async function registerAuthRoutes(app, pool) {
           WHERE user_id = $5 RETURNING *`,
         [email, displayName, title, status, request.params.userId],
       );
-      await pool.query("UPDATE app_workspace_memberships SET role = $1, updated_at = NOW() WHERE workspace_id = $2 AND user_id = $3", [role, administrator.active_workspace_id, request.params.userId]);
       if (status === "suspended") await pool.query("DELETE FROM app_auth_sessions WHERE user_id = $1", [request.params.userId]);
-      return { user: { ...publicUser({ ...result.rows[0], membership_role: role }), activeSessions: 0, isOwner: false } };
+      return { user: { ...publicUser({ ...result.rows[0], membership_role: target.rows[0].membership_role }), activeSessions: 0, isOwner: false } };
     } catch (error) {
       if (error.code === "23505") return reply.code(409).send({ error: "an account with that email already exists" });
       throw error;
@@ -852,9 +849,8 @@ export async function registerAuthRoutes(app, pool) {
     if (!assertSameOrigin(request, reply)) return;
     const administrator = await authenticated(pool, request);
     if (!administrator) return reply.code(401).send({ error: "sign in required" });
-    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "administrator access is required" });
-    const target = await pool.query(`SELECT u.role FROM app_users u JOIN app_workspace_memberships membership ON membership.user_id = u.user_id
-      WHERE u.user_id = $1 AND membership.workspace_id = $2`, [request.params.userId, administrator.active_workspace_id]);
+    if (!canAdministerUsers(administrator)) return reply.code(403).send({ error: "Super user access is required" });
+    const target = await pool.query("SELECT role FROM app_users WHERE user_id = $1", [request.params.userId]);
     if (!target.rowCount) return reply.code(404).send({ error: "user not found" });
     if (target.rows[0].role === "super_user") return reply.code(403).send({ error: "the Super user account is immutable in user management" });
     const passwordSalt = cleanText(request.body?.passwordSalt, 128);
@@ -961,7 +957,9 @@ export async function registerAuthRoutes(app, pool) {
         JOIN app_workspaces workspace ON workspace.workspace_id = access_request.workspace_id
         WHERE ($1::boolean OR access_request.workspace_id = $2)
         ORDER BY CASE access_request.status WHEN 'pending' THEN 0 ELSE 1 END, access_request.created_at DESC`, [isSuperUser, owner.active_workspace_id]),
-      pool.query("SELECT user_id, email, display_name, title, status, avatar_data_url FROM app_users WHERE status = 'active' ORDER BY display_name"),
+      isSuperUser
+        ? pool.query("SELECT user_id, email, display_name, title, status, avatar_data_url FROM app_users WHERE status = 'active' ORDER BY display_name")
+        : Promise.resolve({ rows: [] }),
     ]);
     return {
       workspaces: workspaces.rows.map((workspace) => ({ id: workspace.workspace_id, name: workspace.name, slug: workspace.slug,
@@ -1082,6 +1080,7 @@ export async function registerAuthRoutes(app, pool) {
     if (!target.rowCount || target.rows[0].status !== "active") return reply.code(400).send({ error: "an active user is required" });
     if (target.rows[0].role === "super_user") return reply.code(403).send({ error: "the Super user membership is immutable" });
     const existing = await pool.query("SELECT role FROM app_workspace_memberships WHERE workspace_id = $1 AND user_id = $2", [request.params.workspaceId, request.body?.userId]);
+    if (!existing.rowCount && owner.role !== "super_user") return reply.code(403).send({ error: "Super user access is required to add an existing account" });
     await pool.query(`INSERT INTO app_workspace_memberships (workspace_id, user_id, role, created_by) VALUES ($1, $2, $3, $4)
       ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = NOW()`, [request.params.workspaceId, request.body?.userId, role, owner.user_id]);
     return reply.code(existing.rowCount ? 200 : 201).send({ ok: true });

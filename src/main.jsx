@@ -42,7 +42,7 @@ const TABS = [
   { id: "tasks", label: "Task Center", icon: ListChecks },
   { id: "integrations", label: "Integrations", icon: Database },
   { id: "activity", label: "API Log", icon: ListChecks },
-  { id: "users", label: "Users", icon: Building2 },
+  { id: "users", label: "Accounts", icon: Building2 },
   { id: "workspaces", label: "Workspaces", icon: Building2 },
   { id: "workspace-settings", label: "Workspace Settings", icon: Building2 },
   { id: "sources", label: "Source Lineage", icon: Database },

@@ -79,7 +79,7 @@ export default function ProfileMenu() {
             <section className="if-account-surface__section" aria-label="Hosted account">
               <span className="if-account-surface__label">Account</span>
               <div className="if-account-surface__controls">
-                <div className="if-account-surface__control"><span>Role</span><strong>{user.role}</strong></div>
+                <div className="if-account-surface__control"><span>Workspace role</span><strong>{user.role}</strong></div>
                 <div className="if-account-surface__control profile-workspace-switcher"><span>Workspace</span><WorkspaceSwitcher workspaces={user.workspaces || []} activeWorkspace={user.activeWorkspace} onSelect={auth.switchWorkspace} /></div>
               </div>
             </section>

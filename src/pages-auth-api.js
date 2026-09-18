@@ -59,6 +59,11 @@ import {
 } from "./d1-event-store.js";
 import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
+import {
+  ROLE_LABELS,
+  WORKSPACE_ROLE_IDS,
+  accessCapabilities,
+} from "./access-model.js";
 
 export const PAGES_AUTH_VERSION = "dbi-pages-auth-v1";
 export const PASSWORD_ITERATIONS = 310_000;
@@ -80,7 +85,7 @@ const AGENT_SCOPES = Object.freeze([
   "activity:read", "activity:write",
   "integrations:read",
 ]);
-const USER_ROLES = Object.freeze(["administrator", "analyst", "viewer"]);
+const USER_ROLES = WORKSPACE_ROLE_IDS;
 const USER_STATUSES = Object.freeze(["active", "suspended"]);
 const DEFAULT_WORKSPACE_ID = "workspace-defense-budget";
 const DEFAULT_HEADER_EYEBROW = "Defense Budget & Spend Analytics";
@@ -93,12 +98,6 @@ const DEFAULT_EVENT_CATEGORIES = Object.freeze([
   ["summit", "Summit", "Executive, technical, and mission summits"],
   ["other", "Other", "Workspace events outside the managed categories"],
 ]);
-const ROLE_LABELS = Object.freeze({
-  super_user: "Super user",
-  administrator: "Workspace manager",
-  analyst: "Analyst",
-  viewer: "Viewer",
-});
 const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read"]);
 
 function defaultEventCategoryStatements(db, workspaceId, now) {
@@ -770,7 +769,8 @@ async function safeJson(request, maxBytes = MAX_BODY_BYTES) {
 }
 
 function publicUser(row) {
-  const roleId = row?.role === "super_user" ? "super_user" : row?.membership_role || row?.role || "viewer";
+  const capabilities = accessCapabilities(row?.role, row?.membership_role, { isEmulating: Boolean(row?.is_emulating) });
+  const roleId = capabilities.roleId;
   return row ? {
     id: row.user_id,
     email: row.email,
@@ -781,9 +781,16 @@ function publicUser(row) {
     roleId,
     status: row.status || "active",
     mustChangePassword: Boolean(row.must_change_password) && !row.is_emulating,
-    canManageUsers: ["super_user", "administrator"].includes(roleId),
-    canManageAgents: ["super_user", "administrator"].includes(roleId),
-    canManageWorkspaces: row.role === "super_user" || roleId === "administrator",
+    canManagePlatform: capabilities.canManagePlatform,
+    canManageAccounts: capabilities.canManageAccounts,
+    canManageUsers: capabilities.canManageAccounts,
+    canEmulateUsers: capabilities.canEmulateUsers,
+    canManageWorkspace: capabilities.canManageWorkspace,
+    canManageWorkspaces: capabilities.canManageWorkspace,
+    canManageTeams: capabilities.canManageTeams,
+    canManageAgents: capabilities.canManageAgents,
+    canWriteWorkspace: capabilities.canWriteWorkspace,
+    canRunEventAi: capabilities.canRunEventAi,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || null,
     isEmulating: Boolean(row.is_emulating),
@@ -935,7 +942,7 @@ async function userByEmail(db, email) {
 }
 
 function canAdministerUsers(user) {
-  return Boolean(user && (user.role === "super_user" || user.membership_role === "administrator"));
+  return Boolean(user && !user.is_emulating && user.role === "super_user");
 }
 
 function canAdministerWorkspaces(user) {
@@ -1305,6 +1312,8 @@ function managedUser(row) {
     ...publicUser(row),
     activeSessions: Number(row.active_sessions || 0),
     isOwner: row.role === "super_user",
+    workspaceRoleId: row.role === "super_user" ? "super_user" : row.membership_role || null,
+    hasWorkspaceMembership: row.role === "super_user" || Boolean(row.membership_role),
   };
 }
 
@@ -1312,7 +1321,7 @@ async function usersResponse(request, db) {
   if (!sameOriginRequest(request)) return json({ error: "Cross-origin user management is not allowed" }, 403);
   const administrator = await sessionUser(db, request);
   if (!administrator) return json({ error: "Sign in required" }, 401);
-  if (!canAdministerUsers(administrator)) return json({ error: "Administrator access is required" }, 403);
+  if (!canAdministerUsers(administrator)) return json({ error: "Super user access is required" }, 403);
   const workspaceId = administrator.active_workspace_id;
   if (!workspaceId) return json({ error: "Select a workspace before managing users" }, 409);
 
@@ -1326,16 +1335,15 @@ async function usersResponse(request, db) {
     const now = new Date().toISOString();
     const result = await db.prepare(`
       SELECT u.*, membership.role AS membership_role, profile.avatar_data_url, COUNT(s.id) AS active_sessions
-      FROM dbi_workspace_memberships membership
-      JOIN dbi_users u ON u.user_id = membership.user_id
+      FROM dbi_users u
+      LEFT JOIN dbi_workspace_memberships membership ON membership.user_id = u.user_id AND membership.workspace_id = ?
       LEFT JOIN dbi_user_profiles profile ON profile.user_id = u.user_id
       LEFT JOIN dbi_sessions s
         ON s.user_id = u.user_id AND s.revoked_at = '' AND s.expires_at > ?
-      WHERE membership.workspace_id = ?
       GROUP BY u.user_id
-      ORDER BY CASE membership.role WHEN 'super_user' THEN 0 WHEN 'administrator' THEN 1 WHEN 'analyst' THEN 2 ELSE 3 END,
+      ORDER BY CASE WHEN u.role = 'super_user' THEN 0 WHEN membership.role = 'administrator' THEN 1 WHEN membership.role = 'analyst' THEN 2 WHEN membership.role = 'viewer' THEN 3 ELSE 4 END,
         u.display_name COLLATE NOCASE
-    `).bind(now, workspaceId).all();
+    `).bind(workspaceId, now).all();
     return json({ users: (result.results || []).map(managedUser), availableRoles: USER_ROLES });
   }
 
@@ -1358,7 +1366,7 @@ async function usersResponse(request, db) {
       INSERT OR IGNORE INTO dbi_users
         (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, 1, ?, ?, ?, '')
-    `).bind(id, email, displayName, title, role, passwordSalt, `v1$${await hashValue(passwordProof)}`, administrator.user_id, now, now).run();
+    `).bind(id, email, displayName, title, "viewer", passwordSalt, `v1$${await hashValue(passwordProof)}`, administrator.user_id, now, now).run();
     if (!Number(created?.meta?.changes || 0)) return json({ error: "An account with that email already exists" }, 409);
     await db.prepare(`INSERT INTO dbi_workspace_memberships
       (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
@@ -1370,10 +1378,10 @@ async function usersResponse(request, db) {
 
   const target = userId ? await db.prepare(`
     SELECT user.*, membership.role AS membership_role, profile.avatar_data_url
-    FROM dbi_workspace_memberships membership
-    JOIN dbi_users user ON user.user_id = membership.user_id
+    FROM dbi_users user
+    LEFT JOIN dbi_workspace_memberships membership ON membership.user_id = user.user_id AND membership.workspace_id = ?
     LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
-    WHERE membership.workspace_id = ? AND membership.user_id = ?
+    WHERE user.user_id = ?
   `).bind(workspaceId, userId).first() : null;
   if (!target) return json({ error: "User not found" }, 404);
   if (target.role === "super_user") return json({ error: "The Super user account is immutable in user management" }, 403);
@@ -1383,10 +1391,9 @@ async function usersResponse(request, db) {
     const email = normalizeEmail(body?.email);
     const displayName = cleanText(body?.displayName, 80);
     const title = cleanText(body?.title, 80);
-    const role = cleanText(body?.role, 32);
     const status = cleanText(body?.status, 32);
-    if (!email || displayName.length < 2 || !USER_ROLES.includes(role) || !USER_STATUSES.includes(status)) {
-      return json({ error: "Valid user details, role, and status are required" }, 400);
+    if (!email || displayName.length < 2 || !USER_STATUSES.includes(status)) {
+      return json({ error: "Valid account details and status are required" }, 400);
     }
     const now = new Date().toISOString();
     const changed = await db.prepare(`
@@ -1401,10 +1408,8 @@ async function usersResponse(request, db) {
     if (status === "suspended") {
       await db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId).run();
     }
-    await db.prepare("UPDATE dbi_workspace_memberships SET role = ?, updated_at = ? WHERE workspace_id = ? AND user_id = ?")
-      .bind(role, now, workspaceId, userId).run();
-    await recordActivity(db, { type: "user", id: administrator.user_id, workspaceId }, "user_updated", "user", userId, { email, role, status });
-    const row = await db.prepare("SELECT *, ? AS membership_role FROM dbi_users WHERE user_id = ?").bind(role, userId).first();
+    await recordActivity(db, { type: "user", id: administrator.user_id, workspaceId }, "user_updated", "user", userId, { email, status });
+    const row = await db.prepare("SELECT *, ? AS membership_role FROM dbi_users WHERE user_id = ?").bind(target.membership_role, userId).first();
     return json({ user: managedUser(row) });
   }
 
@@ -1569,9 +1574,11 @@ async function workspaceAdminResponse(request, db) {
         JOIN dbi_workspaces workspace ON workspace.workspace_id = access_request.workspace_id
         WHERE (? = 1 OR access_request.workspace_id = ?)
         ORDER BY CASE access_request.status WHEN 'pending' THEN 0 ELSE 1 END, access_request.created_at DESC`).bind(isSuperUser ? 1 : 0, owner.active_workspace_id || "").all(),
-      db.prepare(`SELECT user.user_id, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
-        FROM dbi_users user LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
-        WHERE user.status = 'active' ORDER BY user.display_name COLLATE NOCASE`).all(),
+      isSuperUser
+        ? db.prepare(`SELECT user.user_id, user.email, user.display_name, user.title, user.status, profile.avatar_data_url
+          FROM dbi_users user LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
+          WHERE user.status = 'active' ORDER BY user.display_name COLLATE NOCASE`).all()
+        : Promise.resolve({ results: [] }),
     ]);
     const memberships = membershipResult.results || [];
     return json({
@@ -1724,6 +1731,7 @@ async function workspaceAdminResponse(request, db) {
       if (target.role === "super_user") return json({ error: "The Super user membership is immutable" }, 403);
       const now = new Date().toISOString();
       const existing = await db.prepare("SELECT role FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId).first();
+      if (!existing && !isSuperUser) return json({ error: "Super user access is required to add an existing account" }, 403);
       await db.prepare(`INSERT INTO dbi_workspace_memberships
         (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at`)
@@ -2547,7 +2555,7 @@ async function agentKeysResponse(request, db) {
   if (!sameOriginRequest(request)) return json({ error: "Cross-origin credential management is not allowed" }, 403);
   const session = await sessionUser(db, request);
   if (!session) return json({ error: "Sign in required" }, 401);
-  if (!canAdministerUsers(session)) return json({ error: "Administrator access is required" }, 403);
+  if (!canAdministerWorkspaces(session)) return json({ error: "Workspace manager access is required" }, 403);
   if (!session.active_workspace_id) return json({ error: "Select a workspace before managing agent credentials" }, 409);
   const workspaceId = session.active_workspace_id;
   const pathname = new URL(request.url).pathname.replace(/\/+$/, "");

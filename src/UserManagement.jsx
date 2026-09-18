@@ -3,12 +3,7 @@ import { Check, Eye, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRo
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
-
-const ROLE_LABELS = {
-  administrator: "Workspace manager",
-  analyst: "Analyst",
-  viewer: "Viewer",
-};
+import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
 
 const EMPTY_CREATE = { displayName: "", email: "", title: "", role: "analyst", password: "", confirm: "" };
 
@@ -19,10 +14,7 @@ function dateTime(value) {
 }
 
 function roleDescription(role) {
-  if (role === "administrator") return "Manage users and agent credentials; full workspace read/write access.";
-  if (role === "analyst") return "Read and update records, tracking, events, activity, and integrations.";
-  if (role === "viewer") return "Read-only access to records, tracking, events, activity, and integrations.";
-  return "Permanent workspace owner with unrestricted access.";
+  return ACCESS_ROLES[role]?.summary || "No access in the active workspace.";
 }
 
 export default function UserManagement({ auth }) {
@@ -60,9 +52,9 @@ export default function UserManagement({ auth }) {
 
   const selected = users.find((user) => user.id === selectedId);
   const activeCount = users.filter((user) => user.status === "active").length;
-  const adminCount = users.filter((user) => ["super_user", "administrator"].includes(user.roleId)).length;
+  const adminCount = users.filter((user) => ["super_user", "administrator"].includes(user.workspaceRoleId)).length;
   const sessionCount = users.reduce((total, user) => total + user.activeSessions, 0);
-  const orderedRoles = useMemo(() => roles.filter((role) => ROLE_LABELS[role]), [roles]);
+  const orderedRoles = useMemo(() => roles.filter((role) => WORKSPACE_ROLE_LABELS[role]), [roles]);
 
   function closeEditor() {
     setMode("");
@@ -82,7 +74,7 @@ export default function UserManagement({ auth }) {
       await refresh();
       setCreateDraft(EMPTY_CREATE);
       setMode("");
-      notify("User created", "Share the temporary password through a secure channel; the user must replace it at first sign-in.");
+      notify("Account created", "Share the temporary password through a secure channel; the user must replace it at first sign-in.");
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
@@ -97,7 +89,7 @@ export default function UserManagement({ auth }) {
       setMode("");
       setSelectedId("");
       setEditDraft(null);
-      notify("User updated", `${editDraft.displayName}'s account changes are active.`);
+      notify("Account updated", `${editDraft.displayName}'s identity changes are active.`);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   }
@@ -107,7 +99,7 @@ export default function UserManagement({ auth }) {
     setBusy(true);
     setMessage("");
     try {
-      await auth.updateUser(user.id, { email: user.email, displayName: user.displayName, title: user.title, role: user.roleId, status });
+      await auth.updateUser(user.id, { email: user.email, displayName: user.displayName, title: user.title, status });
       await refresh();
       notify(status === "suspended" ? "User suspended" : "User reactivated", status === "suspended" ? `${user.displayName}'s active sessions were revoked.` : `${user.displayName} can sign in again.`);
     } catch (error) { notify("User status unchanged", error.message, "danger"); }
@@ -132,7 +124,7 @@ export default function UserManagement({ auth }) {
 
   function openEdit(user) {
     setSelectedId(user.id);
-    setEditDraft({ email: user.email, displayName: user.displayName, title: user.title || "", role: user.roleId, status: user.status });
+    setEditDraft({ email: user.email, displayName: user.displayName, title: user.title || "", status: user.status });
     setMode("edit");
     setMessage("");
   }
@@ -144,35 +136,34 @@ export default function UserManagement({ auth }) {
     setMessage("");
   }
 
-  return <section className="ops-panel user-management" data-user-management aria-labelledby="user-management-title">
-    <ControlPageHeader compact divided eyebrow="Platform administration" title="Users" summary="Human accounts, least-privilege roles, status, sessions, and password recovery." headingLevel={2} titleId="user-management-title" actions={<button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add user</button>} />
+  return <section className="ops-panel user-management" data-user-management data-platform-accounts aria-labelledby="user-management-title">
+    <ControlPageHeader compact divided eyebrow="Platform administration" title="Accounts" summary="Global account identity, status, password recovery, and user emulation. Workspace roles live in Workspace settings → Access." headingLevel={2} titleId="user-management-title" actions={<button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add account</button>} />
     <ControlPageBody compact>
 
     <ControlMetricStrip label="User access summary" items={[
-      { id: "total", label: "Total users", value: users.length },
+      { id: "total", label: "Accounts", value: users.length },
       { id: "active", label: "Active", value: activeCount, tone: "success" },
       { id: "managers", label: "Managers", value: adminCount, tone: "info" },
       { id: "sessions", label: "Sessions", value: sessionCount, tone: "purple" },
     ]} />
 
-    {mode === "create" ? <ControlDialog open onClose={closeEditor} title="Add user" eyebrow="Platform administration" summary="Create an account with a temporary password that must be replaced at first sign-in." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-create": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-create-form" className="if-btn if-btn--primary" disabled={busy}><UserPlus size={15} />{busy ? "Creating…" : "Create user"}</button></>}><form id="user-create-form" className="user-management__editor if-form-grid" onSubmit={createUser}>
+    {mode === "create" ? <ControlDialog open onClose={closeEditor} title="Add account" eyebrow="Platform administration" summary="Create a global account and grant its initial role in the active workspace. Future role changes belong in Workspace settings → Access." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-create": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-create-form" className="if-btn if-btn--primary" disabled={busy}><UserPlus size={15} />{busy ? "Creating…" : "Create account"}</button></>}><form id="user-create-form" className="user-management__editor if-form-grid" onSubmit={createUser}>
       <div className="user-management__form-grid">
         <label>Display name<input required minLength={2} autoComplete="off" value={createDraft.displayName} onChange={(event) => setCreateDraft((draft) => ({ ...draft, displayName: event.target.value }))} /></label>
         <label>Email<input required type="email" autoComplete="off" value={createDraft.email} onChange={(event) => setCreateDraft((draft) => ({ ...draft, email: event.target.value }))} /></label>
         <label>Title <span>(optional)</span><input autoComplete="off" value={createDraft.title} onChange={(event) => setCreateDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
-        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="New user role" value={createDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setCreateDraft((draft) => ({ ...draft, role }))} portalTarget={dialogRef} /><small>{roleDescription(createDraft.role)}</small></div>
+        <div className="user-management__field"><span>Initial workspace role</span><ControlSelect ariaLabel="Initial workspace role" value={createDraft.role} options={orderedRoles.map((role) => [role, WORKSPACE_ROLE_LABELS[role]])} onChange={(role) => setCreateDraft((draft) => ({ ...draft, role }))} portalTarget={dialogRef} /><small>{roleDescription(createDraft.role)}</small></div>
         <label>Temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.password} onChange={(event) => setCreateDraft((draft) => ({ ...draft, password: event.target.value }))} /></label>
         <label>Confirm temporary password<input required minLength={12} type="password" autoComplete="new-password" value={createDraft.confirm} onChange={(event) => setCreateDraft((draft) => ({ ...draft, confirm: event.target.value }))} /></label>
       </div>
       {message ? <p className="if-alert if-alert--danger account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
 
-    {mode === "edit" && selected && editDraft ? <ControlDialog open onClose={closeEditor} title={`Edit ${selected.displayName}`} eyebrow="Platform administration" summary="Identity and role changes apply to the next request." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-edit": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-edit-form" className="if-btn if-btn--primary" disabled={busy}><Check size={15} />{busy ? "Saving…" : "Save user"}</button></>}><form id="user-edit-form" className="user-management__editor if-form-grid" onSubmit={saveUser}>
+    {mode === "edit" && selected && editDraft ? <ControlDialog open onClose={closeEditor} title={`Edit ${selected.displayName}`} eyebrow="Platform account" summary="Update global identity or status. Change workspace access and roles from Workspace settings → Access." size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-edit": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-edit-form" className="if-btn if-btn--primary" disabled={busy}><Check size={15} />{busy ? "Saving…" : "Save account"}</button></>}><form id="user-edit-form" className="user-management__editor if-form-grid" onSubmit={saveUser}>
       <div className="user-management__form-grid">
         <label>Display name<input required minLength={2} value={editDraft.displayName} onChange={(event) => setEditDraft((draft) => ({ ...draft, displayName: event.target.value }))} /></label>
         <label>Email<input required type="email" value={editDraft.email} onChange={(event) => setEditDraft((draft) => ({ ...draft, email: event.target.value }))} /></label>
         <label>Title <span>(optional)</span><input value={editDraft.title} onChange={(event) => setEditDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
-        <div className="user-management__field"><span>Role</span><ControlSelect ariaLabel="User role" value={editDraft.role} options={orderedRoles.map((role) => [role, ROLE_LABELS[role]])} onChange={(role) => setEditDraft((draft) => ({ ...draft, role }))} portalTarget={dialogRef} /><small>{roleDescription(editDraft.role)}</small></div>
       </div>
       {message ? <p className="if-alert if-alert--danger account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
@@ -185,12 +176,12 @@ export default function UserManagement({ auth }) {
       {message ? <p className="if-alert if-alert--danger account-form__message" role="alert">{message}</p> : null}
     </form></ControlDialog> : null}
 
-    <div className="user-management__list" aria-label="Workspace users">
-      {users.length ? <div className="user-management__list-header" aria-hidden="true"><span>User</span><span>Role</span><span>Access</span><span>Actions</span></div> : null}
+    <div className="user-management__list" aria-label="Platform accounts">
+      {users.length ? <div className="user-management__list-header" aria-hidden="true"><span>Account</span><span>Current workspace</span><span>Status</span><span>Actions</span></div> : null}
       {busy && !users.length ? <ControlAsyncState compact state="loading" title="Loading users" message="Reading workspace accounts and active sessions." /> : users.map((user) => <article key={user.id} className={`user-management__row${user.status === "suspended" ? " is-suspended" : ""}`} data-user-row={user.id}>
         <UserAvatar user={user} className="user-management__avatar" />
         <div className="user-management__identity"><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.title || "No title"}</small></div>
-        <div className="user-management__role"><span className="if-badge if-badge--info if-badge--sm">{user.role}</span><small>{roleDescription(user.roleId)}</small></div>
+        <div className="user-management__role"><span className="if-badge if-badge--info if-badge--sm">{user.hasWorkspaceMembership ? user.role : "No workspace access"}</span><small>{user.hasWorkspaceMembership ? roleDescription(user.workspaceRoleId || user.roleId) : "Grant access from Workspace settings → Access."}</small></div>
         <div className="user-management__access"><span className={`if-status if-status--sm ${user.status === "active" ? "if-status--info" : "if-status--danger"}`}>{user.status === "active" ? "Active" : "Suspended"}</span><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>
         <div className="user-management__actions">
           {user.isOwner ? <span className="user-management__owner"><ShieldCheck size={15} />Permanent owner</span> : <>
@@ -201,7 +192,7 @@ export default function UserManagement({ auth }) {
           </>}
         </div>
       </article>)}
-      {!busy && !users.length ? <ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="No workspace users" message="Create the first managed account for this platform." action={<button type="button" className="if-btn if-btn--primary" onClick={() => setMode("create")}><UserPlus size={15} />Add user</button>} /> : null}
+      {!busy && !users.length ? <ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="No managed accounts" message="Create the first managed account for this platform." action={<button type="button" className="if-btn if-btn--primary" onClick={() => setMode("create")}><UserPlus size={15} />Add account</button>} /> : null}
     </div>
     </ControlPageBody>
   </section>;

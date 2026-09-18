@@ -22,6 +22,7 @@ COPY --chown=node:node src/procurement-taxonomy.js ./src/procurement-taxonomy.js
 COPY --chown=node:node src/event-ai-runtime.js ./src/event-ai-runtime.js
 COPY --chown=node:node src/openai-models.js ./src/openai-models.js
 COPY --chown=node:node src/security-policy.js ./src/security-policy.js
+COPY --chown=node:node src/access-model.js ./src/access-model.js
 
 USER node
 EXPOSE 8080
