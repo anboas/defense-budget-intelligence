@@ -693,7 +693,13 @@ try {
   assert.equal(await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').count(), 1, "A multi-day event should render as one continuous Gantt-style weekly bar");
   assert.equal(await page.locator('[data-calendar-milestone][data-parent-event="event-air-space-cyber-conference-2026"]').count(), 2, "Published event deadlines should render as linked Gantt overlays");
   const busyDayOverflow = page.locator('[data-calendar-overflow="2026-09-14"]');
-  assert.equal(await busyDayOverflow.innerText(), "+2 more", "A busy day should keep two calendar lanes visible and summarize the remaining events");
+  assert.match(await busyDayOverflow.innerText(), /\+3 more[\s\S]*4 total/i, "A busy day should keep one primary schedule visible and replace competing rows with one deliberate day summary");
+  const busyDayGeometry = await busyDayOverflow.evaluate((node) => {
+    const summary = node.getBoundingClientRect();
+    const day = document.querySelector('[data-calendar-day="2026-09-14"]').getBoundingClientRect();
+    return { insideDay: summary.left >= day.left - 1 && summary.right <= day.right + 1 && summary.top >= day.top && summary.bottom <= day.bottom + 1, height: summary.height };
+  });
+  assert.equal(busyDayGeometry.insideDay, true, "A busy-day summary should remain fully contained by its date cell");
   await busyDayOverflow.click();
   await page.waitForSelector('[data-calendar-day-agenda="2026-09-14"]');
   assert.equal(await page.locator("[data-calendar-day-agenda] .ops-day-agenda__item").count(), 4, "The day agenda should retain every event scheduled on a busy date");
@@ -909,6 +915,20 @@ try {
   assert.ok(mobileCalendarGeometry.dateTopInset <= 1, `Mobile calendar dates should not carry extra top inset, got ${mobileCalendarGeometry.dateTopInset}px`);
   assert.equal(mobileCalendarGeometry.lanesContained, true, `Two mobile event lanes should fit completely inside the September 16 week: ${JSON.stringify(mobileCalendarGeometry.laneBoxes)}`);
   assert.ok(mobileCalendarGeometry.laneBoxes.every((box) => box.height <= 31), `Mobile event lanes should remain compact: ${JSON.stringify(mobileCalendarGeometry.laneBoxes)}`);
+  const mobileBusyDayGeometry = await page.locator('[data-calendar-overflow="2026-09-14"]').evaluate((node) => {
+    const summary = node.getBoundingClientRect();
+    const day = document.querySelector('[data-calendar-day="2026-09-14"]').getBoundingClientRect();
+    return {
+      contained: summary.left >= day.left - 1 && summary.right <= day.right + 1 && summary.top >= day.top && summary.bottom <= day.bottom + 1,
+      height: summary.height,
+      compactVisible: getComputedStyle(node.querySelector(".ops-wall-calendar__more-compact")).display !== "none",
+      fullVisible: getComputedStyle(node.querySelector(".ops-wall-calendar__more-full")).display !== "none",
+    };
+  });
+  assert.equal(mobileBusyDayGeometry.contained, true, "The mobile busy-day summary should remain inside its date cell");
+  assert.ok(mobileBusyDayGeometry.height >= 44, `The mobile busy-day summary should retain a 44px touch target, got ${mobileBusyDayGeometry.height}px`);
+  assert.equal(mobileBusyDayGeometry.compactVisible, true, "Mobile busy dates should use the compact item-count summary");
+  assert.equal(mobileBusyDayGeometry.fullVisible, false, "Mobile busy dates should hide the wider desktop overflow copy");
   const mobileWallboardChrome = await page.locator("[data-ops-wallboard]").evaluate((node) => {
     const bounds = node.getBoundingClientRect();
     const masthead = node.querySelector(".ops-wallboard__masthead");

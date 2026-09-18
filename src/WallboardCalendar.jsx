@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Link2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, Link2 } from "lucide-react";
 import { ControlDialog, ControlMultiSelect } from "control-surface-ui/react";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
@@ -243,13 +243,15 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
       <div className="ops-wall-calendar__weeks">{weeks.map((week) => {
         const segments = calendarWeekSegments(filteredEvents, week);
         const visibleSegments = segments.filter((segment) => segment.lane < MAX_VISIBLE_CALENDAR_LANES);
-        const hiddenByDay = week.map((day, dayIndex) => segments.filter((segment) => segment.lane >= MAX_VISIBLE_CALENDAR_LANES && segment.startColumn <= dayIndex && segment.endColumn >= dayIndex).length);
         const totalByDay = week.map((day, dayIndex) => segments.filter((segment) => segment.startColumn <= dayIndex && segment.endColumn >= dayIndex).length);
+        const busyDays = week.map((day, dayIndex) => ({ ...day, dayIndex, total: totalByDay[dayIndex] })).filter((day) => day.total > MAX_VISIBLE_CALENDAR_LANES);
+        const busyDayIndexes = new Set(busyDays.map((day) => day.dayIndex));
+        const displaySegments = visibleSegments.filter((segment) => !(segment.lane > 0 && segment.startColumn === segment.endColumn && busyDayIndexes.has(segment.startColumn)));
         return <section className="ops-wall-calendar__week" key={week[0].key} style={{ "--calendar-lanes": MAX_VISIBLE_CALENDAR_LANES }}>
-          <div className="ops-wall-calendar__days">{week.map((day, dayIndex) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
-            <header><time dateTime={day.key}>{day.day}</time><span>{day.key === today ? "Today" : null}</span>{hiddenByDay[dayIndex] ? <button type="button" className="ops-wall-calendar__more" data-calendar-overflow={day.key} aria-label={`Show all ${totalByDay[dayIndex]} items on ${compactDate(day.key)}`} onClick={() => { setHover(null); setSelectedDay(day.key); }}>+{hiddenByDay[dayIndex]} more</button> : null}</header>
+          <div className="ops-wall-calendar__days">{week.map((day) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
+            <header><time dateTime={day.key}>{day.day}</time><span>{day.key === today ? "Today" : null}</span></header>
           </article>)}</div>
-          <div className="ops-wall-calendar__bars">{visibleSegments.map((item) => {
+          <div className="ops-wall-calendar__bars">{displaySegments.map((item) => {
             const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
@@ -257,6 +259,12 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
               <i aria-hidden="true" />{!milestone && event.teams?.length ? <span className="ops-wall-calendar__bar-team"><TeamAvatar team={event.teams[0]} size={20} />{event.teams.length > 1 ? <b>+{event.teams.length - 1}</b> : null}</span> : null}<div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong></div>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} className="if-profile-avatar" />)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
+          {busyDays.length ? <div className="ops-wall-calendar__busy-days">{busyDays.map((day) => <button key={day.key} type="button" className="ops-wall-calendar__more" style={{ gridColumn: day.dayIndex + 1 }} data-calendar-overflow={day.key} aria-label={`Show all ${day.total} items on ${compactDate(day.key)}`} onClick={() => { setHover(null); setSelectedDay(day.key); }}>
+            <CalendarDays size={16} aria-hidden="true" />
+            <span className="ops-wall-calendar__more-full"><strong>+{day.total - 1} more</strong><small>{day.total} total</small></span>
+            <span className="ops-wall-calendar__more-compact" aria-hidden="true"><strong>{day.total}</strong><small>items</small></span>
+            <ChevronRight size={15} aria-hidden="true" />
+          </button>)}</div> : null}
         </section>;
       })}</div>
     </div>
