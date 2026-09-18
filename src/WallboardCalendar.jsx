@@ -177,7 +177,7 @@ function CalendarDayAgenda({ day, events, onOpenItem, onClose }) {
   </ControlDialog>;
 }
 
-export default function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace }) {
+export default function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace, standalone = false }) {
   const [hover, setHover] = useState(null);
   const [detail, setDetail] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -223,7 +223,7 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
     const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 380));
     setHover({ item, left, top });
   }
-  return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>
+  return <section className={`ops-wallboard__section ops-wallboard__section--calendar${standalone ? " ops-wallboard__section--standalone-calendar" : ""}`} data-wallboard-calendar data-calendar-layout={standalone ? "standalone" : "display"}>
     <header>
       <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading><span className="ops-wall-calendar__month-full">{monthLabel}</span><span className="ops-wall-calendar__month-compact">{compactMonthLabel}</span></strong></span></div>
       <div className="ops-wall-calendar__controls">

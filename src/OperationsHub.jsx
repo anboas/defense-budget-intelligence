@@ -911,7 +911,7 @@ function ScheduleView({ state, records, watchedRecords, categories, teams, auth,
     ]} metricLabel="Schedule summary" tabs={tabs} />
     <ControlPageBody compact>
       {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} /> : null}
-      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} /></Suspense> : null}
+      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} /></Suspense> : null}
       {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
     </ControlPageBody>
   </section>;

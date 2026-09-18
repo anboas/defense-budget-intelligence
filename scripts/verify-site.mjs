@@ -602,6 +602,24 @@ try {
     ]));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
   }, wallboardRecordIds);
+  await openSurface(page, "#/budget-spend/schedule?scheduleView=calendar", '[data-wallboard-calendar][data-calendar-layout="standalone"]');
+  const standaloneCalendarGeometry = await page.locator('[data-wallboard-calendar][data-calendar-layout="standalone"]').evaluate((node) => {
+    const weeks = node.querySelector(".ops-wall-calendar__weeks");
+    const cells = [...weeks.querySelectorAll("[data-calendar-day]")].map((cell) => cell.getBoundingClientRect());
+    return {
+      height: weeks.getBoundingClientRect().height,
+      rows: new Set(cells.map((cell) => Math.round(cell.top))).size,
+      dayCount: cells.length,
+    };
+  });
+  assert.equal(standaloneCalendarGeometry.dayCount, 42, "Standalone Schedule Calendar must render all 42 month cells");
+  assert.equal(standaloneCalendarGeometry.rows, 6, "Standalone Schedule Calendar must retain six complete week rows");
+  assert.ok(standaloneCalendarGeometry.height >= 539, `Standalone Schedule Calendar must not collapse outside Display: ${JSON.stringify(standaloneCalendarGeometry)}`);
+  const standaloneWorkspaceMark = page.locator('[data-wallboard-calendar] .ops-wall-calendar__identity > img');
+  assert.ok((await standaloneWorkspaceMark.getAttribute("title"))?.trim(), "Calendar workspace images must disclose the workspace name on hover");
+  const standaloneAttendeeAvatars = page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-attendees .user-avatar');
+  assert.deepEqual(await standaloneAttendeeAvatars.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title"))), ["Jon VandeMark", "Adam Boas"], "Calendar attendee profile pictures must disclose each person's name on hover");
+  await page.screenshot({ path: `${OUT_DIR}/schedule-calendar-standalone-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Schedule");
   assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Air, Space & Cyber Conference/, "Schedule Display should project imported operator events");

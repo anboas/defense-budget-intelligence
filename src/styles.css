@@ -7498,6 +7498,10 @@ td .dot {
   flex: 1;
   min-height: 0;
 }
+.ops-wallboard__section--standalone-calendar .ops-wall-calendar__weeks {
+  flex: 0 0 auto;
+  min-height: clamp(540px, calc(100dvh - 350px), 760px);
+}
 .ops-wall-calendar__week { position: relative; min-height: 0; border-bottom: 1px solid #c8d7e3; }
 .ops-wall-calendar__week:last-child { border-bottom: 0; }
 .ops-wall-calendar__days {

@@ -9,6 +9,7 @@ export default function UserAvatar({ user, className = "", size, decorative = tr
     className={`user-avatar ${className}`.trim()}
     aria-hidden={decorative ? "true" : undefined}
     aria-label={decorative ? undefined : label}
+    title={label}
     style={size ? { width: size, height: size } : undefined}
   >{avatar ? <img src={avatar} alt="" /> : initials(label)}</span>;
 }

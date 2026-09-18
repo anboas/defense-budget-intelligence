@@ -592,6 +592,16 @@ try {
   assert.equal(await page.locator('[data-control-area]').count(), 0, "Schedule List must render as a primary surface without a management shell");
   assert.equal(await page.locator('[data-primary-nav="schedule"][aria-current="page"]').count(), 1, "Schedule must own the direct primary-navigation position for event work");
   assert.equal(await page.locator('[data-ops-events] > [data-event-ai-launcher]').count(), 0, "Events must not place the augmentation launcher above the data table");
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=calendar`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-wallboard-calendar][data-calendar-layout="standalone"]');
+  const authenticatedScheduleCalendar = await page.locator('[data-wallboard-calendar][data-calendar-layout="standalone"]').evaluate((node) => ({
+    days: node.querySelectorAll("[data-calendar-day]").length,
+    height: node.querySelector(".ops-wall-calendar__weeks").getBoundingClientRect().height,
+  }));
+  assert.equal(authenticatedScheduleCalendar.days, 42, "Authenticated Schedule Calendar must render the complete six-week month");
+  assert.ok(authenticatedScheduleCalendar.height >= 539, `Authenticated Schedule Calendar must not collapse: ${JSON.stringify(authenticatedScheduleCalendar)}`);
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-ops-events]");
   const augmentedEventAction = page.getByRole("button", { name: /^Research and augment / }).first();
   const augmentedEventId = await augmentedEventAction.evaluate((button) => button.closest("[data-row-key]")?.getAttribute("data-row-key") || "");
   assert.ok(augmentedEventId, "The augmentation action must retain the event's stable row identity");
