@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bot,
@@ -27,18 +27,20 @@ import TeamAvatar from "./TeamAvatar.jsx";
 import WallboardCalendar from "./WallboardCalendar.jsx";
 import EventTeamSelector from "./EventTeamSelector.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
-import { AgentAccessPanel } from "./ProfilePage.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
-import UserManagement from "./UserManagement.jsx";
-import WorkspaceManagement from "./WorkspaceManagement.jsx";
-import { SearchMultiSelect } from "./CaptureCalendar.jsx";
-import IntegrationManagement from "./IntegrationManagement.jsx";
+import SearchMultiSelect from "./SearchMultiSelect.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
+import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
+
+const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
+const IntegrationManagement = lazy(() => import("./IntegrationManagement.jsx"));
+const UserManagement = lazy(() => import("./UserManagement.jsx"));
+const WorkspaceManagement = lazy(() => import("./WorkspaceManagement.jsx"));
 
 const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
 
@@ -131,6 +133,10 @@ function newEventDraft() {
 
 function workingSpinner(size = "sm") {
   return <span className={`if-loading-dots if-loading-dots--orbit${size ? ` if-loading-dots--${size}` : ""}`} aria-hidden="true"><span /><span /><span /></span>;
+}
+
+function RouteFallback({ title }) {
+  return <section className="ops-panel"><ControlAsyncState compact state="loading" title={`Loading ${title}`} message="Preparing the focused workspace surface." /></section>;
 }
 
 function stoppedEventAiStage(job) {
@@ -492,15 +498,11 @@ function EventAiReview({ jobId, onOpenDraft, activityEntries = [] }) {
   const verificationStepClass = job?.status === "failed" && failedStage === "verification" ? "is-blocked" : job?.status === "verifying" ? "is-active" : ["completed", "needs_review"].includes(job?.status) ? "is-complete" : "";
   const reviewStepClass = ["completed", "needs_review"].includes(job?.status) ? "is-active" : "";
   return <section className="if-operations-workspace" data-event-ai-review={job?.status || "loading"}>
-    <section className="if-analytics-panel">
-      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={`if-status if-status--sm ${job?.status === "failed" ? "if-status--danger" : job?.status === "needs_review" ? "if-status--warning" : job?.status === "completed" ? "if-status--success" : "if-status--info"}`}>{statusLabel}</span><h2 className="if-analytics-panel__title">{job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"}</h2><p className="if-analytics-panel__summary">Research: {job?.producerModel || "Loading"} · Verification: {job?.verifierModel || "Loading"}{job?.traceId ? ` · Trace ${job.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a></header>
-      <ControlProgressRail label="Event AI workflow status" items={[
+    <ControlWorkbenchHeader className="task-detail-header" eyebrow={statusLabel} title={job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"} summary={`Research: ${job?.producerModel || "Loading"} · Verification: ${job?.verifierModel || "Loading"}${job?.traceId ? ` · Trace ${job.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a>} tabs={job ? <nav className="if-tabs__list task-review-tabs" aria-label="Task detail sections"><button type="button" className={`if-tab${panel === "review" ? " is-active" : ""}`} aria-pressed={panel === "review"} onClick={() => setPanel("review")}>Review</button><button type="button" className={`if-tab${panel === "activity" ? " is-active" : ""}`} aria-pressed={panel === "activity"} onClick={() => setPanel("activity")}>Activity <span className="if-badge">{activityEntries.length + 2}</span></button></nav> : null} controls={<ControlProgressRail label="Event AI workflow status" items={[
         { id: "research", label: "Research", state: researchStepClass === "is-blocked" ? "blocked" : researchStepClass === "is-active" ? "active" : "complete", meta: failedStage === "research" ? "Stopped by evidence gate" : "Claim-level public evidence" },
         { id: "verification", label: "Verify", state: verificationStepClass === "is-blocked" ? "blocked" : verificationStepClass === "is-active" ? "active" : verificationStepClass === "is-complete" ? "complete" : "pending", meta: failedStage === "research" ? "Not started" : failedStage === "verification" ? "Stopped during verification" : "Independent evidence check" },
         { id: "review", label: autoApplied ? "Applied" : "Review", state: autoApplied ? "complete" : reviewStepClass === "is-active" ? "active" : "pending", meta: job?.status === "failed" ? "No draft produced" : autoApplied ? "Safe workspace policy" : "Human decision before save" },
-      ]} />
-    </section>
-    {job ? <nav className="if-tabs__list task-review-tabs" aria-label="Task detail sections"><button type="button" className={`if-tab${panel === "review" ? " is-active" : ""}`} aria-pressed={panel === "review"} onClick={() => setPanel("review")}>Review</button><button type="button" className={`if-tab${panel === "activity" ? " is-active" : ""}`} aria-pressed={panel === "activity"} onClick={() => setPanel("activity")}>Activity <span className="if-badge">{activityEntries.length + 2}</span></button></nav> : null}
+      ]} />} />
     {error ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Review unavailable</strong><p>{error}</p></div></div> : null}
     {active || !job ? <div className="if-alert if-alert--info" aria-busy="true" data-event-ai-review-progress>{workingSpinner("")}<div><strong>{statusLabel}</strong><p>Background work is running. You can leave this page and return from Notifications or Task Center.</p></div></div> : null}
     {job && panel === "activity" ? <section className="if-analytics-panel if-analytics-panel--flat" data-task-activity><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Activity chain</h3><p className="if-analytics-panel__summary">Select a stage to inspect its submitted query, normalized provider exchange, timing, IDs, and outcome. Prompts, credentials, headers, and raw provider bodies are excluded.</p></div></header><EventTaskActivity job={job} entries={activityEntries} /></section> : null}
@@ -626,16 +628,12 @@ function apiTaskRecords(apiRequests, eventJobs) {
 function ApiTaskDetail({ task }) {
   const [panel, setPanel] = useState("summary");
   return <section className="if-operations-workspace" data-api-task-detail>
-    <section className="if-analytics-panel">
-      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><span className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</span><h2 className="if-analytics-panel__title">{task.title}</h2><p className="if-analytics-panel__summary">{task.type}{task.traceId ? ` · Trace ${task.traceId}` : ""}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a></header>
-    <ControlMetricStrip label="Task summary" items={[
+    <ControlWorkbenchHeader className="task-detail-header" eyebrow={taskStatusLabel(task.status)} title={task.title} summary={`${task.type}${task.traceId ? ` · Trace ${task.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a>} tabs={<nav className="if-tabs__list task-review-tabs" aria-label="Task detail sections"><button type="button" className={`if-tab${panel === "summary" ? " is-active" : ""}`} aria-pressed={panel === "summary"} onClick={() => setPanel("summary")}>Summary</button><button type="button" className={`if-tab${panel === "activity" ? " is-active" : ""}`} aria-pressed={panel === "activity"} onClick={() => setPanel("activity")}>Activity <span className="if-badge">{task.entries.length}</span></button></nav>} metrics={[
       { id: "stage", label: "Stage", value: task.stage, meta: "Latest retained stage", tone: "info" },
       { id: "requests", label: "Requests", value: task.entries.length, meta: "Redacted ledger entries" },
       { id: "provider", label: "Provider", value: task.provider || "DBI", meta: task.model || "No model recorded" },
       { id: "outcome", label: "Outcome", value: taskStatusLabel(task.status), meta: task.detail, tone: TASK_ATTENTION_STATUSES.has(task.status) ? "danger" : "success" },
-    ]} />
-    </section>
-    <nav className="if-tabs__list task-review-tabs" aria-label="Task detail sections"><button type="button" className={`if-tab${panel === "summary" ? " is-active" : ""}`} aria-pressed={panel === "summary"} onClick={() => setPanel("summary")}>Summary</button><button type="button" className={`if-tab${panel === "activity" ? " is-active" : ""}`} aria-pressed={panel === "activity"} onClick={() => setPanel("activity")}>Activity <span className="if-badge">{task.entries.length}</span></button></nav>
+    ]} metricLabel="Task summary" />
     {panel === "summary" ? <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Latest outcome</h3><p className="if-analytics-panel__summary">{task.detail}</p></div><span className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</span></header></section> : <section className="if-analytics-panel if-analytics-panel--flat" data-task-activity><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Activity chain</h3><p className="if-analytics-panel__summary">Select a retained stage to inspect its normalized, redacted request and response.</p></div></header><ApiTaskActivity entries={task.entries} /></section>}
   </section>;
 }
@@ -665,8 +663,8 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onRefresh }) {
   const attentionCount = tasks.filter((task) => TASK_ATTENTION_STATUSES.has(task.status)).length;
   const completedCount = tasks.filter((task) => ["completed", "succeeded"].includes(task.status)).length;
   const failedCount = tasks.filter((task) => ["failed", "rejected", "rate_limited"].includes(task.status)).length;
-  return <section className="ops-panel" data-task-center>
-    <ControlPageHeader compact divided eyebrow="Workspace work" title="Task Center" summary="Augmentation, provider, and authenticated API tasks in one place." headingLevel={2} actions={<button type="button" className="if-btn if-btn--secondary" onClick={() => void Promise.all([notifications?.refresh?.(), onRefresh?.()])}>Refresh</button>} />
+  return <section className={`ops-panel${selectedTaskId ? " task-center--detail" : ""}`} data-task-center>
+    {!selectedTaskId ? <ControlPageHeader compact divided eyebrow="Workspace work" title="Task Center" summary="Augmentation, provider, and authenticated API tasks in one place." headingLevel={2} actions={<button type="button" className="if-btn if-btn--secondary" onClick={() => void Promise.all([notifications?.refresh?.(), onRefresh?.()])}>Refresh</button>} /> : null}
     <ControlPageBody compact>
     {!selectedTaskId ? <ControlMetricStrip label="Task summary" mobileScroll compactMobile items={[
       { id: "active", label: "In progress", value: activeCount, meta: "Background stages running", tone: "info" },
@@ -959,12 +957,12 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspaces)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
-    {view === "integrations" ? <IntegrationManagement auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} /> : null}
+    {view === "integrations" ? <Suspense fallback={<RouteFallback title="Integrations" />}><IntegrationManagement auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} /></Suspense> : null}
     {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
-    {view === "users" ? auth?.user?.canManageUsers ? <UserManagement auth={auth} /> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Administrator access required" message="Your role cannot manage human accounts." /></section> : null}
-    {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <WorkspaceManagement auth={auth} /> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
-    {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <WorkspaceManagement auth={auth} activeOnly /> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
-    {view === "agents" ? auth?.user?.canManageAgents ? <AgentAccessPanel auth={auth} embedded /> : <section className="ops-panel" data-profile-agents-unavailable><ControlAsyncState compact state="empty" icon={<Bot size={22} />} title="Administrator access required" message="Your role cannot issue or revoke agent credentials." /></section> : null}
+    {view === "users" ? auth?.user?.canManageUsers ? <Suspense fallback={<RouteFallback title="Users" />}><UserManagement auth={auth} /></Suspense> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Administrator access required" message="Your role cannot manage human accounts." /></section> : null}
+    {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <Suspense fallback={<RouteFallback title="Workspaces" />}><WorkspaceManagement auth={auth} /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
+    {view === "workspace-settings" ? auth?.user?.canManageWorkspaces ? <Suspense fallback={<RouteFallback title="Workspace settings" />}><WorkspaceManagement auth={auth} activeOnly /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
+    {view === "agents" ? auth?.user?.canManageAgents ? <Suspense fallback={<RouteFallback title="Agent access" />}><AgentAccessPanel auth={auth} embedded /></Suspense> : <section className="ops-panel" data-profile-agents-unavailable><ControlAsyncState compact state="empty" icon={<Bot size={22} />} title="Administrator access required" message="Your role cannot issue or revoke agent credentials." /></section> : null}
     {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} teams={calendarTeams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
     {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}

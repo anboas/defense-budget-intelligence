@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { ControlDisclosure, ControlMetricStrip } from "control-surface-ui/react";
+import { ControlDisclosure } from "control-surface-ui/react";
+import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { BarChart3, ExternalLink, FileSpreadsheet, RotateCcw, Search, X } from "lucide-react";
 import AnalysisActions from "./AnalysisActions.jsx";
 import Section from "./AnalysisSection.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
-import PhaseIntro from "./PhaseIntro.jsx";
 import useUrlState from "./urlState.js";
 
 const money = (value) => `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`;
@@ -114,7 +114,6 @@ function AwardTable({ awards, sourceUrl, evidenceProps }) {
 
 export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, snapshotGeneratedAt, methodology, executionCoverage }) {
   const awards = awardDrilldown.awards;
-  const summary = awardDrilldown.summary || {};
   const defaults = { query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" };
   const [filters, setFilters] = useUrlState(defaults, {
     area: (value) => value === "all" || awards.some((award) => (award.areaIds || []).includes(value)),
@@ -148,10 +147,10 @@ export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, s
   const topWork = aggregateAwards(filteredAwards.filter((award) => award.pscCode || award.naicsCode), (award) => ({ id: award.pscCode || award.naicsCode, label: award.pscCode ? `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` : `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}` })).slice(0, 4);
   const sourceUrl = (row) => sourceUrlForRow(row, books, sourcePackageUrl);
   const evidenceProps = { books, sourcePackageUrl, snapshotGeneratedAt, methodology, executionCoverage };
+  const metrics = [{ id: "awards", label: "Matched awards", value: filteredAwards.length.toLocaleString(), meta: `${awards.length.toLocaleString()} in the sampled dataset`, tone: "info" }, { id: "value", label: "Matched value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" }, { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" }, { id: "vendor", label: "Largest vendor", value: topVendor[0]?.label || "n/a", meta: topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards", tone: "warning" }, { id: "office", label: "Office detail", value: filteredAwards.length ? percent((filteredOfficeCount / filteredAwards.length) * 100, 1) : "0.0%", meta: `${filteredOfficeCount.toLocaleString()} matched awards identify an office`, tone: "success" }];
 
   return <div className="grid awards-page" data-awards-page>
-    <PhaseIntro eyebrow="Award-level spend" description="Deduped contract award records from cached USAspending technology searches. This is a sampled award dataset, not exhaustive FPDS action history." tone="green" facts={[{ value: (summary.awards || awards.length).toLocaleString(), label: "deduped awards" }, { value: money(summary.sampledAwardValue || 0), label: "sampled value" }, { value: summary.buyerCount || 0, label: "buyers" }, { value: summary.vendorCount || 0, label: "vendors" }]} />
-    <div className="award-filter-bar" data-award-filter-bar>
+    <ControlWorkbenchHeader eyebrow="Award-level spend" title="Awards" summary="Search, inspect, and export the complete matched award set from the cached USAspending sample." metrics={metrics} metricLabel="Award filter metrics" actions={<AnalysisActions rows={filteredAwards} filename="filtered-awards" sourceUrlForRow={sourceUrl} exportMetadata={{ snapshotGeneratedAt, methodology }} />} controls={<div className="award-filter-bar" data-award-filter-bar>
       <label className="searchbox"><Search size={15} aria-hidden="true" /><input placeholder="Search award IDs, vendors, buyers, descriptions" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} /></label>
       <ControlField label="Area" value={filters.area} options={[["all", "All areas"], ...areaOptions.map((option) => [option.id, option.label])]} onChange={(area) => setFilters({ ...filters, area })} />
       <ControlField label="Buyer" searchable value={filters.buyer} options={[["all", "All buyers"], ...buyerOptions.map((option) => [option.id, option.label])]} onChange={(buyer) => setFilters({ ...filters, buyer })} />
@@ -159,9 +158,7 @@ export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, s
       <ControlField label="Work type" searchable value={filters.workType} options={[["all", "All PSC / NAICS"], ...workTypeOptions.map((option) => [option.id, option.label])]} onChange={(workType) => setFilters({ ...filters, workType })} />
       <ControlField label="Sort" value={filters.sort} options={[["amount", "Award value"], ["end", "End date"], ["start", "Start date"], ["vendor", "Vendor"]]} onChange={(sort) => setFilters({ ...filters, sort })} />
       <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
-    </div>
-    <ControlMetricStrip label="Award filter metrics" mobileScroll compactMobile items={[{ id: "awards", label: "Filtered awards", value: filteredAwards.length.toLocaleString(), meta: "All matched records available in table and export", tone: "info" }, { id: "value", label: "Filtered value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" }, { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" }, { id: "vendor", label: "Largest vendor", value: topVendor[0]?.label || "n/a", meta: topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards", tone: "warning" }, { id: "office", label: "Office detail", value: filteredAwards.length ? percent((filteredOfficeCount / filteredAwards.length) * 100, 1) : "0.0%", meta: `${filteredOfficeCount.toLocaleString()} awards identify an awarding or funding office`, tone: "success" }]} />
-    <AnalysisActions rows={filteredAwards} filename="filtered-awards" sourceUrlForRow={sourceUrl} exportMetadata={{ snapshotGeneratedAt, methodology }} />
+    </div>} />
     <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · paginated below`} icon={FileSpreadsheet}><AwardTable awards={filteredAwards} sourceUrl={sourceUrl} evidenceProps={evidenceProps} /></Section>
     <ControlDisclosure className="award-rollup-details" icon={<BarChart3 size={16} />} title="Market rollups" summary="Top buyers, vendors, and coded work types for the current filters"><div className="grid grid--sources"><AwardRollup title="Top Buyers" rows={topBuyer} /><AwardRollup title="Top Vendors" rows={topVendor} /><AwardRollup title="Top Work Types" rows={topWork} /></div></ControlDisclosure>
   </div>;

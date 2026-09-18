@@ -278,6 +278,9 @@ try {
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
 
   await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-workspace-management]");
+  assert.equal(await page.locator("[data-workspace-teams]").count(), 0, "Workspace settings should show only the selected section instead of stacking teams below General");
+  await page.getByRole("button", { name: "Teams", exact: true }).click();
   await page.waitForSelector("[data-workspace-teams]");
   const teamSurface = page.locator("[data-workspace-teams]");
   assert.match(await teamSurface.innerText(), /Teams & calendar overlays[\s\S]*multiple teams see the union/i, "Workspace settings must explain team-overlay union visibility");
@@ -299,9 +302,15 @@ try {
   const mobileTeamGeometry = await teamSurface.evaluate((node) => ({
     overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
     buttons: [...node.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => button.getBoundingClientRect().height),
+    tabs: [...document.querySelectorAll(".workspace-settings-tabs button")].map((button) => button.getBoundingClientRect().height),
+    offenders: [...document.querySelectorAll("body *")].filter((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.right > innerWidth + 1 || bounds.left < -1;
+    }).slice(0, 8).map((element) => ({ tag: element.tagName, className: String(element.getAttribute("class") || ""), parent: `${element.parentElement?.tagName || ""}.${String(element.parentElement?.getAttribute("class") || "")}`, label: element.parentElement?.getAttribute("aria-label") || element.parentElement?.getAttribute("title") || "", right: Math.round(element.getBoundingClientRect().right), width: Math.round(element.getBoundingClientRect().width) })),
   }));
   assert.ok(mobileTeamGeometry.overflow <= 1, `Team administration must not overflow the mobile viewport: ${JSON.stringify(mobileTeamGeometry)}`);
   assert.ok(mobileTeamGeometry.buttons.every((height) => height >= 43.5), `Visible mobile team actions must retain 44px targets: ${mobileTeamGeometry.buttons.join(", ")}`);
+  assert.ok(mobileTeamGeometry.tabs.every((height) => height >= 43.5), `Workspace section tabs must retain 44px mobile targets: ${mobileTeamGeometry.tabs.join(", ")}`);
   await page.screenshot({ path: "test-results/workspace-teams-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
@@ -615,7 +624,7 @@ try {
   assert.match(await notificationCenter.innerText(), /Needs attention[\s\S]*(Verified additions are ready for your review|resolve the remaining validation issue)/i, "Completed background work must remain in the notification tray until reviewed");
   await notificationCenter.getByText(/Browser AI assisted event (is ready|needs review)/, { exact: true }).click();
   await page.waitForSelector("[data-task-center]");
-  assert.equal(await page.locator('[data-task-center] > .if-page-header').count(), 1, "Task Center should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-task-center] > .if-page-header').count(), 0, "Selected Task Center detail should remove the redundant route header");
   assert.equal(await page.locator('[data-task-center] > .if-page-body').count(), 1, "Task Center content must use the shared page-body gutter");
   await page.waitForSelector('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   const aiReview = page.locator('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
@@ -632,10 +641,13 @@ try {
   await researchStage.waitFor({ state: "visible", timeout: 10_000 });
   assert.ok(await taskInspector.getByRole("tab").count() >= 3, "Task activity must retain submission, every logged provider exchange, and the terminal outcome");
   assert.equal(await aiReview.locator("[data-task-exchange]").count(), 1, "Task activity must render only the selected request and response stage");
-  assert.match(await aiReview.locator("[data-task-exchange]").first().innerText(), /Request[\s\S]*Research and augment event[\s\S]*Response/i, "Task activity must disclose the submitted query and normalized response");
+  assert.match(await aiReview.locator("[data-task-exchange]").first().innerText(), /TASK[\s\S]*Research and augment event[\s\S]*JOB ID[\s\S]*STATUS/i, "Task activity must disclose a concise submitted request and normalized response");
+  assert.equal(await aiReview.locator("[data-task-exchange] details[open]").count(), 0, "Raw task payloads should stay collapsed by default");
   await researchStage.click();
   assert.equal(await aiReview.locator("[data-task-exchange]").count(), 1, "Selecting another stage must replace rather than stack the request and response inspector");
-  assert.match(await aiReview.locator("[data-task-exchange]").innerText(), /searchQueries[\s\S]*official event details[\s\S]*Response[\s\S]*(succeeded|completed)/i, "Research activity must expose the bounded search query and normalized provider response");
+  assert.match(await aiReview.locator("[data-task-exchange]").innerText(), /OPERATION[\s\S]*STAGE[\s\S]*Research[\s\S]*STATUS[\s\S]*(succeeded|completed)/i, "Research activity must expose a concise provider exchange before raw diagnostics");
+  await aiReview.locator("[data-task-exchange]").getByText("View payload", { exact: true }).click();
+  assert.match(await aiReview.locator("[data-task-exchange]").innerText(), /searchQueries[\s\S]*official event details[\s\S]*Response[\s\S]*(succeeded|completed)/i, "The explicit payload disclosure must retain bounded search queries and normalized provider response");
   await researchStage.focus();
   await researchStage.press("ArrowRight");
   assert.equal(await taskInspector.locator('[role="tab"][aria-selected="true"]').count(), 1, "Arrow keys must retain one selected activity stage");
@@ -1001,8 +1013,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile More should retain grouped routes without duplicating primary Events");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 20, "Authenticated mobile navigation should expose primary, analytical, work, and administration routes in one menu");
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Events[\s\S]*Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();

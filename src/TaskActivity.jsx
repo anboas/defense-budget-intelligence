@@ -1,4 +1,4 @@
-import { ControlActivityInspector } from "control-surface-ui/react";
+import { ControlActivityInspector, ControlDisclosure, ControlFactGrid } from "control-surface-ui/react";
 
 function dateTime(value) {
   const date = new Date(value || "");
@@ -10,10 +10,15 @@ function statusLabel(status) {
   return ({ researching: "Researching", verifying: "Verifying", needs_review: "Needs review", completed: "Completed", succeeded: "Completed", failed: "Failed", rejected: "Rejected", rate_limited: "Rate limited", running: "Running", pending: "Pending" })[status] || String(status || "Unknown").replaceAll("_", " ");
 }
 
+function payloadFacts(payload, prefix) {
+  return Object.entries(payload || {}).filter(([, value]) => ["string", "number", "boolean"].includes(typeof value) && value !== "").slice(0, 4).map(([key, value]) => ({ id: `${prefix}-${key}`, label: key.replaceAll(/([A-Z])/g, " $1").replaceAll("_", " "), value: String(value) }));
+}
+
 function TaskExchange({ request, response }) {
   return <div className="task-exchange" data-task-exchange aria-label="Redacted request and response">
-    <section className="task-exchange__payload"><h4>Request</h4><pre className="if-code-block">{JSON.stringify(request, null, 2)}</pre></section>
-    <section className="task-exchange__payload"><h4>Response</h4><pre className="if-code-block">{JSON.stringify(response, null, 2)}</pre></section>
+    <ControlFactGrid className="task-exchange__summary" mobileTwoColumn label="Request summary" items={payloadFacts(request, "request")} />
+    <ControlFactGrid className="task-exchange__summary" mobileTwoColumn label="Response summary" items={payloadFacts(response, "response")} />
+    <ControlDisclosure className="task-exchange__raw" title="View payload" summary="Normalized, bounded, and redacted request and response"><div className="task-exchange__payloads"><section className="task-exchange__payload"><h4>Request</h4><pre className="if-code-block">{JSON.stringify(request, null, 2)}</pre></section><section className="task-exchange__payload"><h4>Response</h4><pre className="if-code-block">{JSON.stringify(response, null, 2)}</pre></section></div></ControlDisclosure>
   </div>;
 }
 

@@ -86,6 +86,24 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace admin", items: workspaceAdminItems }] : []),
     ...(platformAdminItems.length ? [{ id: "platform-admin", label: "Platform admin", items: platformAdminItems }] : []),
   ];
+  const mobileGroups = [
+    {
+      id: "primary",
+      label: "Primary surfaces",
+      items: primaryTabs.map((tab) => ({
+        ...tab,
+        tabId: tab.id,
+        href: routes[tab.id],
+        badge: tab.id === "calendar" ? "Analyze" : tab.id === "wallboard" ? "Display" : "Schedule",
+        description: tab.id === "calendar"
+          ? "Explore contract transactions, timelines, evidence, and detail."
+          : tab.id === "wallboard"
+            ? "View the shared calendar, operational signals, and room display."
+            : "Create, filter, augment, and manage workspace events.",
+      })),
+    },
+    ...groups,
+  ];
   const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
 
   function activeChildLabel(group) {
@@ -162,15 +180,17 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     </div>;
   }
 
+  const mobileMenu = openMenu === "mobile" ? <div ref={(node) => { menuRefs.current.mobile = node; }} id="budget-mobile-navigation-menu" className="if-operations-topnav__menu ci-header-nav__mobile-menu ci-header-mobile-menu" data-mobile-more-menu role="menu" aria-label="All sections" onKeyDown={(event) => handleMenuKeyDown(event, "mobile")}>{mobileGroups.map((group) => <div key={group.id} className="ci-mobile-menu-group"><div className="if-operations-topnav__menu-label">{group.label}</div><div className="ci-mobile-menu-group__items">{group.items.map(richMenuItem)}</div></div>)}</div> : null;
+
   return (
-    <header className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--mobile-condensed if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
+    <header ref={navRef} className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--mobile-condensed if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
         <a href={routes.calendar} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Transactions" title="Go to Transactions">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
           <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
         </a>
 
-        <nav ref={navRef} className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">
+        <nav className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">
           {primaryTabs.map(primaryLink)}
           <div className="ci-header-nav__desktop-groups">
             {desktopGroup(groups[0])}
@@ -178,18 +198,16 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
             <span className="if-operations-topnav__divider ci-domain-nav-separator ci-header-nav__desktop-menu" aria-hidden="true">|</span>
             {groups.slice(2).map(desktopGroup)}
           </div>
-          <div className="if-operations-topnav__secondary ci-header-nav__mobile-more">
-            <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`if-operations-topnav__secondary-button${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
-              if (event.key === "ArrowDown") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "first" }); setOpenMenu("mobile"); }
-              if (event.key === "ArrowUp") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "last" }); setOpenMenu("mobile"); }
-            }}>More {openMenu === "mobile" ? "▲" : "▼"}</button>
-            {openMenu === "mobile" ? <div ref={(node) => { menuRefs.current.mobile = node; }} id="budget-mobile-navigation-menu" className="if-operations-topnav__menu ci-header-nav__mobile-menu" data-mobile-more-menu role="menu" aria-label="All sections" onKeyDown={(event) => handleMenuKeyDown(event, "mobile")}>{groups.map((group) => <div key={group.id} className="ci-mobile-menu-group"><div className="if-operations-topnav__menu-label">{group.label}</div><div className="ci-mobile-menu-group__items">{group.items.map(richMenuItem)}</div></div>)}</div> : null}
-          </div>
         </nav>
         <div className="if-cluster if-cluster--nowrap if-utility-cluster if-product-header__account">
+          <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`ci-header-mobile-trigger${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" aria-label="Open application navigation" title="Sections" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
+            if (event.key === "ArrowDown") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "first" }); setOpenMenu("mobile"); }
+            if (event.key === "ArrowUp") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "last" }); setOpenMenu("mobile"); }
+          }}><span aria-hidden="true">☰</span><span className="if-sr-only">Sections</span></button>
           <NotificationCenter />
           <ProfileMenu />
         </div>
+        {mobileMenu}
       </div>
     </header>
   );

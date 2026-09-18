@@ -30,7 +30,9 @@ import {
 import { useManagementState } from "./management-state.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlFactGrid, ControlMetricStrip, ControlMultiSelect } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlFactGrid } from "control-surface-ui/react";
+import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
+import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -138,24 +140,6 @@ const FEED_OPTIONS = [
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
 
-export function parseMultiValues(value) {
-  if (!value || value === "all" || value === "none" || value === "schedule") return [];
-  if (String(value).startsWith("[")) {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? [...new Set(parsed.filter((item) => typeof item === "string" && item))] : [];
-    } catch {
-      return [];
-    }
-  }
-  return [String(value)];
-}
-
-export function serializeMultiValues(values, emptyValue = "all") {
-  const normalized = [...new Set((values || []).filter(Boolean))];
-  return normalized.length ? JSON.stringify(normalized) : emptyValue;
-}
-
 function normalizeMultiValue(value, options, emptyValue = "all") {
   const available = new Set(options);
   return serializeMultiValues(parseMultiValues(value).filter((item) => available.has(item)), emptyValue);
@@ -206,23 +190,6 @@ const LABELS = {
 
 function label(value) {
   return LABELS[value] || value?.replaceAll("-", " ") || "Not published";
-}
-
-export function SearchMultiSelect({ className = "", title, allLabel, value, options, onChange, maxSelected = null, portalTarget = null }) {
-  return <div className={`capture-filter ${className}`.trim()}>
-    <span>{title}</span>
-    <ControlMultiSelect
-      label={title}
-      placeholder={allLabel}
-      value={parseMultiValues(value)}
-      options={options}
-      onChange={onChange}
-      maxSelected={maxSelected}
-      portalTarget={portalTarget}
-      searchable
-      clearable
-    />
-  </div>;
 }
 
 function formatMoney(value) {
@@ -1517,6 +1484,15 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   if (selectedFeeds.has("subawards")) feedStatusParts.push(subawardSnapshot.metadata?.status === "unavailable" ? "Subaward feed unavailable" : subawardDetailState === "error" ? "Subaward summaries loaded · recent detail unavailable" : `${Number(subawardSnapshot.metadata?.reportedSubawardCount || 0).toLocaleString()} reported subawards · ${Number(subawardSnapshot.metadata?.primeWithSubawardsCount || 0).toLocaleString()} indexed primes${subawardDetails ? " · recent detail loaded" : " · loading recent detail…"}`);
   const feedStatusText = feedStatusParts.length ? feedStatusParts.join(" · ") : "Reported schedule remains the baseline";
   const showLegacyTransactionExtras = false;
+  const transactionMetrics = [
+    { id: "records", label: "Matching records", value: filtered.length.toLocaleString(), meta: `${filtered.filter((record) => record.mode === "contract-performance").length} contracts · ${filtered.filter((record) => record.ingestionMethod === "automated").length} automated`, tone: "info" },
+    { id: "obligations", label: "Observed obligations", value: formatMoney(totals.obligated), meta: `${totals.matched} refreshed award-bundle matches`, tone: "success" },
+    { id: "potential", label: "Potential / high value", value: formatMoney(totals.potential), meta: "Reported potential values and published ranges", tone: "purple" },
+    { id: "evidence", label: "Evidence coverage", value: `${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`, meta: `${totals.sourced} rows with external sources`, tone: "warning" },
+    { id: "fpds", label: "FPDS actions", value: totals.actions.toLocaleString(), meta: `${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`, tone: "success" },
+    { id: "subawards", label: "Subawards", value: totals.subawards.toLocaleString(), meta: `${formatMoney(totals.subawardAmount)} retained-detail sample · exact prime IDs`, tone: "purple" },
+    { id: "endpoints", label: "Near-term endpoints", value: totals.endingWithinYear.toLocaleString(), meta: `Reported current ends within 12 months of ${formatDate(asOf)}`, tone: "warning" },
+  ];
 
   function scrollTimelineToToday() {
     if (asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`) return;
@@ -1554,18 +1530,11 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
   return (
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page>
-      <section className="capture-hero">
-        <div>
-          <div className="capture-hero__title"><h2>Transactions</h2></div>
-          <p>Award actions, obligations, reported performance, published acquisition events, recipients, buyers, and evidence.</p>
-          <p className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></p>
-        </div>
-        <div className="capture-hero__actions">
+      <ControlWorkbenchHeader eyebrow="Transaction intelligence" title="Transactions" summary="Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence." meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></span>} metrics={transactionMetrics} metricLabel="Filtered transaction metrics" actions={<div className="capture-hero__actions">
           <button type="button" onClick={copyLink}><Copy size={15} />Copy filtered link</button>
           <button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)}><Download size={15} />Export {filtered.length.toLocaleString()} rows</button>
           <button type="button" onClick={saveCurrentView}><Bookmark size={15} />Save view</button>
-        </div>
-      </section>
+        </div>} />
 
       <SavedViews
         views={savedViews}
@@ -1605,22 +1574,6 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <SingleSelectFilter className="capture-filter--advanced" title="Sort" value={filters.capSort} options={[["soonest", "Soonest start / milestone"], ["value", "Highest potential / value"], ["obligations", "Highest obligations"], ["portfolio", "Portfolio"], ["company", "Company / sponsor"]]} onChange={(capSort) => setFilters({ capSort })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Timeline rows" value={filters.capRows} options={[["25", "25 rows"], ["50", "50 rows"], ["100", "100 rows"], ["all", "All rows"]]} onChange={(capRows) => setFilters({ capRows })} />
       </section>
-
-      <ControlMetricStrip
-        className="capture-metrics"
-        label="Filtered transaction metrics"
-        mobileScroll
-        compactMobile
-        items={[
-          { id: "records", label: "Matching records", value: filtered.length.toLocaleString(), meta: `${filtered.filter((record) => record.mode === "contract-performance").length} contracts · ${filtered.filter((record) => record.ingestionMethod === "automated").length} automated`, tone: "info" },
-          { id: "obligations", label: "Observed obligations", value: formatMoney(totals.obligated), meta: `${totals.matched} refreshed award-bundle matches`, tone: "success" },
-          { id: "potential", label: "Potential / high value", value: formatMoney(totals.potential), meta: "Reported potential values and published ranges", tone: "purple" },
-          { id: "evidence", label: "Evidence coverage", value: `${Math.round((totals.sourced / Math.max(filtered.length, 1)) * 100)}%`, meta: `${totals.sourced} rows with external sources`, tone: "warning" },
-          { id: "fpds", label: "FPDS actions", value: totals.actions.toLocaleString(), meta: `${totals.fundingActions.toLocaleString()} funding · ${totals.deobligationActions.toLocaleString()} deobligation`, tone: "success" },
-          { id: "subawards", label: "Subawards", value: totals.subawards.toLocaleString(), meta: `${formatMoney(totals.subawardAmount)} retained-detail sample · exact prime IDs`, tone: "purple" },
-          { id: "endpoints", label: "Near-term endpoints", value: totals.endingWithinYear.toLocaleString(), meta: `Reported current ends within 12 months of ${formatDate(asOf)}`, tone: "warning" },
-        ]}
-      />
 
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />

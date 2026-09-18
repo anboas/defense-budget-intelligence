@@ -18,6 +18,9 @@ assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, 
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
+assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(name)).length, 1, "Integrations should ship behind its own lazy administration boundary");
+assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
+assert.equal(builtAssets.filter((name) => /^WorkspaceManagement-.*\.js$/.test(name)).length, 1, "Workspace administration should ship behind its own lazy boundary");
 
 async function waitForServer(url, timeoutMs = 30000) {
   const startedAt = Date.now();
@@ -426,8 +429,8 @@ try {
   assert.equal(new Set(awardContentOrder.filterBottoms).size, 1, `Desktop award controls should occupy one aligned Control Framework command row: ${JSON.stringify(awardContentOrder)}`);
   assert.equal(new Set(awardContentOrder.metricTops).size, 1, `Desktop award KPIs should occupy one aligned row: ${JSON.stringify(awardContentOrder)}`);
   assert.ok(awardContentOrder.records <= 560, `Award records should remain visible in the first desktop viewport: ${JSON.stringify(awardContentOrder)}`);
-  assert.ok(await page.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 72, "Awards intro should remain compact");
-  assert.doesNotMatch(await page.locator("[data-awards-page] .phase-intro").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
+  assert.equal(await page.locator("[data-awards-page] > .if-workbench-header").count(), 1, "Awards should consolidate its intro, metrics, actions, and filters into one workbench header");
+  assert.doesNotMatch(await page.locator("[data-awards-page] > .if-workbench-header").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
   const awardSearchGeometry = await page.getByPlaceholder("Search award IDs, vendors, buyers, descriptions").evaluate((input) => {
     const icon = input.parentElement?.querySelector("svg")?.getBoundingClientRect();
@@ -1504,17 +1507,16 @@ try {
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-transaction-analytics-page]");
   await assertFlowShell(mobile);
-  const mobileNavHeights = await mobile.locator(".ci-header-nav > a[data-budget-nav], .ci-header-nav > .if-operations-topnav__secondary > button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.ok(mobileNavHeights.filter(Boolean).every((height) => height >= 43.5), `Mobile navigation controls should preserve 44px touch targets: ${mobileNavHeights.join(", ")}`);
-  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 92, "Mobile masthead should use the Control Surface condensed variant while preserving 44px navigation targets");
+  const mobileShellHeights = await mobile.locator("[data-mobile-more-menu-button], [data-notification-center-button], [data-profile-menu-trigger]").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileShellHeights.every((height) => height >= 43.5), `Mobile shell controls should preserve 44px touch targets: ${mobileShellHeights.join(", ")}`);
+  assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile More should expose grouped routes without duplicating primary Events");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Workspace/i, "Mobile More should use the established grouped menu pattern");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Mobile navigation should expose every primary and grouped route from one menu");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Transactions[\s\S]*Wallboard[\s\S]*Events[\s\S]*Analytics[\s\S]*Money flow[\s\S]*Work/i, "Mobile navigation should keep primary, analytical, money-flow, and work surfaces visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.deepEqual(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents(), ["Transactions", "Wallboard", "Events"], "Mobile should keep all three primary surfaces as direct routes");
-  assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').allTextContents().then((items) => items.every((item) => item.trim().length > 0)), true, "Every visible mobile route tab should have a text label");
+  assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
   await openSurface(mobile, "#/budget-spend", "[data-pdb-request-page]");
   const mobileRequestChrome = await mobile.evaluate(() => ({
     filters: document.querySelector("[data-budget-filter-bar]")?.getBoundingClientRect().height || 0,
@@ -1545,7 +1547,7 @@ try {
   await assertNoPageOverflow(mobile, "Mobile account flow");
 
   await openSurface(mobile, "#/budget-spend/awards", "[data-awards-page]");
-  assert.ok(await mobile.locator("[data-awards-page] .phase-intro").evaluate((node) => node.getBoundingClientRect().height) <= 120, "Mobile awards intro should stay compact");
+  assert.equal(await mobile.locator("[data-awards-page] > .if-workbench-header").count(), 1, "Mobile Awards should use one consolidated workbench surface");
   assert.equal(await mobile.locator("[data-award-record-table] [data-if-table-row]").count(), 5, "Mobile DataTables should default to five readable record cards instead of a 25-card wall");
   const mobileAwardCard = await mobile.locator("[data-award-record-table] [data-if-table-row]").first().evaluate((row) => ({
     height: row.getBoundingClientRect().height,
@@ -1631,24 +1633,22 @@ try {
 
   await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
   assert.equal(await mobile.locator("[data-d3-analytics]").count(), 6);
-  assert.equal(await mobile.locator("[data-d3-analytics]:visible").count(), 2, "Mobile Analytics should foreground two primary charts before optional analysis");
-  assert.match(await mobile.locator(".analytics-mobile-chart-toggle").innerText(), /Show 4 additional charts/, "Mobile Analytics should expose the remaining views through deliberate disclosure");
+  assert.equal(await mobile.locator("[data-d3-analytics]:visible").count(), 1, "Mobile Analytics should render one selected chart at a time");
+  assert.equal(await mobile.locator(".analytics-mobile-chart-picker:visible").count(), 1, "Mobile Analytics should expose its chart switcher inside the workbench");
   const compactAnalyticsGeometry = await mobile.evaluate(() => ({
-    hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
-    controls: document.querySelector(".analytics-commandbar")?.getBoundingClientRect().height || 0,
+    workbench: document.querySelector("[data-transaction-d3-page] > .if-workbench-header")?.getBoundingClientRect().height || 0,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
     briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
     briefColumns: getComputedStyle(document.querySelector("[data-analytics-insights] .if-metric-grid")).gridTemplateColumns.split(" ").filter(Boolean).length,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
-  assert.ok(compactAnalyticsGeometry.hero <= 190, `Mobile Analytics hero should stay compact, got ${compactAnalyticsGeometry.hero}px`);
-  assert.ok(compactAnalyticsGeometry.controls <= 235, `Mobile Analytics controls should use a search row plus horizontal secondary rail, got ${compactAnalyticsGeometry.controls}px`);
+  assert.ok(compactAnalyticsGeometry.workbench <= 560, `Mobile Analytics title, metrics, tabs, and controls should remain one bounded workbench, got ${compactAnalyticsGeometry.workbench}px`);
   assert.equal(await mobile.locator("[data-analytics-insight]").count(), 4, "Mobile Analytics should retain the complete factual brief");
   assert.equal(compactAnalyticsGeometry.briefColumns, 2, "Mobile factual signals should use the framework two-column compact grid");
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
   const compactAnalyticsChartGap = compactAnalyticsGeometry.firstChartTop - compactAnalyticsGeometry.briefBottom;
   assert.ok(compactAnalyticsChartGap >= 0 && compactAnalyticsChartGap <= 24, `Mobile Analytics should place the first chart immediately after the factual brief, got a ${compactAnalyticsChartGap}px gap`);
-  assert.ok(await mobile.locator('.analytics-commandbar button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
+  assert.ok(await mobile.locator('.if-workbench-header button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
   await mobile.locator("[data-analytics-manager] summary").click();
   const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.equal(mobileAnalyticsManagerHeights.length, 9, "Mobile should retain every data facet and the chart manager");
@@ -1705,13 +1705,13 @@ try {
   await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
   const narrowAnalyticsGeometry = await mobile.evaluate(() => ({
     header: document.querySelector("[data-budget-spend-header]")?.getBoundingClientRect().height || 0,
-    hero: document.querySelector(".transaction-analytics-hero")?.getBoundingClientRect().height || 0,
+    workbench: document.querySelector("[data-transaction-d3-page] > .if-workbench-header")?.getBoundingClientRect().height || 0,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
     briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
-  assert.ok(narrowAnalyticsGeometry.header <= 92, `360px masthead should use the Control Surface condensed variant while preserving 44px navigation targets, got ${narrowAnalyticsGeometry.header}px`);
-  assert.ok(narrowAnalyticsGeometry.hero <= 205, `360px Analytics hero should stay compact, got ${narrowAnalyticsGeometry.hero}px`);
+  assert.ok(narrowAnalyticsGeometry.header <= 64, `360px masthead should stay within one compact application row, got ${narrowAnalyticsGeometry.header}px`);
+  assert.ok(narrowAnalyticsGeometry.workbench <= 580, `360px Analytics workbench should stay bounded, got ${narrowAnalyticsGeometry.workbench}px`);
   assert.ok(narrowAnalyticsGeometry.brief <= 420, `360px factual brief should remain compact, got ${narrowAnalyticsGeometry.brief}px`);
   const narrowAnalyticsChartGap = narrowAnalyticsGeometry.firstChartTop - narrowAnalyticsGeometry.briefBottom;
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
