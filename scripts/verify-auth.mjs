@@ -93,11 +93,13 @@ try {
   assert.doesNotMatch(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Events/i, "Events must not be nested under Workspace work");
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
+  assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace Admin", "Workspace Admin navigation must use title case");
   assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count(), 2, "Workspace administration should contain only Connections and Workspace Settings");
   assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections[\s\S]*Workspace Settings/i);
   assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Workspace administration");
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   await page.locator('[data-nav-group-trigger="platform-admin"]').click();
+  assert.equal(await page.locator('[data-nav-group-trigger="platform-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Platform Admin", "Platform Admin navigation must use title case");
   assert.equal(await page.locator('[data-budget-nav-menu="platform-admin"] a[data-budget-nav]').count(), 2, "Platform administration should contain Accounts and Workspaces only");
   assert.match(await page.locator('[data-budget-nav-menu="platform-admin"]').innerText(), /Accounts[\s\S]*Workspaces/i);
   await page.locator('[data-nav-group-trigger="platform-admin"]').click();
@@ -1036,7 +1038,7 @@ try {
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Connections[\s\S]*Platform admin[\s\S]*Accounts[\s\S]*Workspaces/i);
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary Surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money Flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace Admin[\s\S]*Connections[\s\S]*Platform Admin[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();

@@ -64,15 +64,15 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
   const groups = [
-    { id: "money", label: "Money flow", items: moneyItems },
+    { id: "money", label: "Money Flow", items: moneyItems },
     { id: "work", label: "Work", items: workItems },
-    ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace admin", items: workspaceAdminItems }] : []),
-    ...(platformAdminItems.length ? [{ id: "platform-admin", label: "Platform admin", items: platformAdminItems }] : []),
+    ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace Admin", items: workspaceAdminItems }] : []),
+    ...(platformAdminItems.length ? [{ id: "platform-admin", label: "Platform Admin", items: platformAdminItems }] : []),
   ];
   const mobileGroups = [
     {
       id: "primary",
-      label: "Primary surfaces",
+      label: "Primary Surfaces",
       items: primaryTabs.map((tab) => ({
         ...tab,
         tabId: tab.id,

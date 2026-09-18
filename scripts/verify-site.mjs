@@ -119,6 +119,8 @@ async function assertFlowShell(page) {
   assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 2, "Header should expose money-flow and workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
+    assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-label').innerText(), "Money Flow", "Desktop navigation group labels must use title case");
+    assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace Admin", "Workspace Admin must preserve title case");
     const divider = page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider");
     assert.equal(await divider.count(), 1, "Desktop navigation should separate workspace controls from analytical and money-flow groups");
     assert.equal(await divider.innerText(), "|", "Workspace separator should use the established vertical-bar component");
@@ -149,7 +151,7 @@ async function assertFlowShell(page) {
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
     assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 8, "Mobile navigation should retain money-flow, supporting work, and administration without duplicating primary routes");
-    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Money flow[\s\S]*Work[\s\S]*Workspace admin/i, "Mobile navigation should keep work and administration visibly separated");
+    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Money Flow[\s\S]*Work[\s\S]*Workspace Admin/, "Mobile navigation should keep title-cased work and administration groups visibly separated");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -1440,7 +1442,7 @@ try {
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 10, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money flow[\s\S]*Work/i, "Mobile navigation should keep the consolidated primary, money-flow, and work surfaces visibly separated");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary Surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money Flow[\s\S]*Work/, "Mobile navigation should keep title-cased primary, money-flow, and work groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
