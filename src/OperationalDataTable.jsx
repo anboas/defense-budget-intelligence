@@ -122,11 +122,13 @@ export default function OperationalDataTable({
   const setQuery = onQueryChange ?? setInternalQuery;
   const filters = filterValues ?? internalFilters;
   const setFilters = onFilterChange ?? setInternalFilters;
+  const fixedActionKeys = useMemo(() => columns.filter((column) => column.role === "actions").map((column) => column.key), [columns]);
 
   const orderedKeys = useMemo(() => {
     const saved = Array.isArray(preferences.order) ? preferences.order.filter((key) => columnKeys.includes(key)) : [];
-    return [...new Set([...saved, ...columnKeys])];
-  }, [columnKeys, preferences.order]);
+    const complete = [...new Set([...saved, ...columnKeys])];
+    return [...complete.filter((key) => !fixedActionKeys.includes(key)), ...fixedActionKeys.filter((key) => complete.includes(key))];
+  }, [columnKeys, fixedActionKeys, preferences.order]);
   const visibleKeys = useMemo(() => {
     const saved = Array.isArray(preferences.visible) ? preferences.visible.filter((key) => columnKeys.includes(key)) : [];
     const required = columns.filter((column) => column.required).map((column) => column.key);
@@ -135,7 +137,9 @@ export default function OperationalDataTable({
   }, [columnKeys, columns, orderedKeys, preferences.visible]);
   const columnByKey = useMemo(() => new Map(columns.map((column) => [column.key, column])), [columns]);
   const visibleColumns = visibleKeys.map((key) => columnByKey.get(key)).filter(Boolean);
-  const widths = useMemo(() => preferences.widths && typeof preferences.widths === "object" ? preferences.widths : {}, [preferences.widths]);
+  const widths = useMemo(() => preferences.widths && typeof preferences.widths === "object"
+    ? Object.fromEntries(Object.entries(preferences.widths).filter(([key]) => !fixedActionKeys.includes(key)))
+    : {}, [fixedActionKeys, preferences.widths]);
   const density = DENSITIES[preferences.density] ? preferences.density : "compact";
   const desktopPageSizes = pageSizeOptions.length ? pageSizeOptions : [defaultPageSize];
   const mobilePageSizes = desktopPageSizes.filter((value) => value <= 10);
@@ -231,6 +235,7 @@ export default function OperationalDataTable({
   }
 
   function moveColumn(key, direction) {
+    if (fixedActionKeys.includes(key)) return;
     setPreferences((current) => {
       const order = [...orderedKeys];
       const from = order.indexOf(key);
@@ -242,7 +247,7 @@ export default function OperationalDataTable({
   }
 
   function dropColumn(targetKey) {
-    if (!draggingKey || draggingKey === targetKey) return setDraggingKey("");
+    if (!draggingKey || draggingKey === targetKey || fixedActionKeys.includes(draggingKey)) return setDraggingKey("");
     setPreferences((current) => {
       const order = [...orderedKeys];
       const from = order.indexOf(draggingKey);
@@ -255,6 +260,7 @@ export default function OperationalDataTable({
   }
 
   function setColumnWidth(key, nextWidth) {
+    if (fixedActionKeys.includes(key)) return;
     setPreferences((current) => ({ ...current, widths: { ...(current.widths || {}), [key]: Math.max(90, Math.min(720, Math.round(nextWidth))) } }));
   }
 
@@ -342,7 +348,7 @@ export default function OperationalDataTable({
         <div className="dbi-data-table__tools">
           {toolbarActions}
           <div className="dbi-data-table__density"><span className="sr-only">Table density</span><ControlSelect compact ariaLabel="Table density" value={density} options={Object.entries(DENSITIES)} onChange={(nextDensity) => { setPreferences((current) => ({ ...current, density: nextDensity })); setPage(1); }} /></div>
-          <details ref={columnsRef} className="dbi-data-table__columns"><summary className="if-btn if-btn--secondary"><Columns3 size={15} /><span>Columns</span><ChevronDown size={13} /></summary><div><header><strong>Table layout</strong><button type="button" onClick={resetLayout}><RotateCcw size={13} />Reset</button></header>{orderedKeys.map((key, index) => { const column = columnByKey.get(key); return <div className="dbi-data-table__column-option" key={key}><label><input type="checkbox" checked={visibleKeys.includes(key)} disabled={column.required} onChange={() => toggleColumn(key)} /><span>{column.label}</span></label><span className="dbi-data-table__column-order"><button type="button" onClick={() => moveColumn(key, -1)} disabled={index === 0} aria-label={`Move ${column.label} left`}><ChevronLeft size={13} /></button><button type="button" onClick={() => moveColumn(key, 1)} disabled={index === orderedKeys.length - 1} aria-label={`Move ${column.label} right`}><ChevronRight size={13} /></button></span></div>; })}</div></details>
+          <details ref={columnsRef} className="dbi-data-table__columns"><summary className="if-btn if-btn--secondary"><Columns3 size={15} /><span>Columns</span><ChevronDown size={13} /></summary><div><header><strong>Table layout</strong><button type="button" onClick={resetLayout}><RotateCcw size={13} />Reset</button></header>{orderedKeys.map((key, index) => { const column = columnByKey.get(key); return <div className="dbi-data-table__column-option" key={key}><label><input type="checkbox" checked={visibleKeys.includes(key)} disabled={column.required} onChange={() => toggleColumn(key)} /><span>{column.label}</span></label>{column.role === "actions" ? null : <span className="dbi-data-table__column-order"><button type="button" onClick={() => moveColumn(key, -1)} disabled={index === 0} aria-label={`Move ${column.label} left`}><ChevronLeft size={13} /></button><button type="button" onClick={() => moveColumn(key, 1)} disabled={index === orderedKeys.length - 1} aria-label={`Move ${column.label} right`}><ChevronRight size={13} /></button></span>}</div>; })}</div></details>
           <button className="if-btn if-btn--secondary" type="button" onClick={() => downloadCsv(exportFilename, visibleColumns, selectedRows.length ? selectedRows : sortedRows)}><Download size={15} /><span>Export{selectedRows.length ? ` ${selectedRows.length}` : ""}</span></button>
         </div>
       </div>
@@ -353,8 +359,8 @@ export default function OperationalDataTable({
       {selected.size ? <div className="dbi-data-table__bulk" data-if-table-bulk><span><strong>{selected.size}</strong> selected across this table</span><button type="button" onClick={() => setSelected(new Set())}>Clear selection</button></div> : null}
       <div className="if-table-wrap dbi-data-table__wrap">
         <table className={`if-table if-table--${density}`} aria-label={label}>
-          <colgroup>{selectable ? <col style={{ width: 38 }} /> : null}{visibleColumns.map((column) => <col key={column.key} style={{ width: widths[column.key] || column.width || column.minWidth }} />)}</colgroup>
-          <thead><tr>{selectable ? <th scope="col" className="dbi-data-table__select" data-if-table-pin="left"><label className="dbi-data-table__check"><input type="checkbox" checked={pageSelected} onChange={togglePageSelection} aria-label="Select all rows on this page" /></label></th> : null}{visibleColumns.map((column) => <th scope="col" key={column.key} data-column-key={column.key} data-table-column-role={column.role} data-table-column-dragging={draggingKey === column.key ? "true" : "false"} className={column.sticky ? "is-sticky" : ""} style={{ minWidth: widths[column.key] || column.minWidth, width: widths[column.key] || column.width, textAlign: column.align }} aria-sort={column.sortable === false ? undefined : sort.key === column.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} onDragOver={(event) => event.preventDefault()} onDrop={() => dropColumn(column.key)}><span className="dbi-data-table__header"><button type="button" className="dbi-data-table__reorder" draggable onDragStart={() => setDraggingKey(column.key)} onDragEnd={() => setDraggingKey("")} aria-label={`Drag to reorder ${column.label}`}><GripVertical size={13} /></button><button type="button" className="if-table__sort" onClick={() => column.sortable === false ? null : toggleSort(column.key)} disabled={column.sortable === false}>{column.label}{column.sortable === false ? null : <span>{sort.key === column.key ? (sort.direction === "asc" ? "▲" : "▼") : "↕"}</span>}</button><span role="separator" tabIndex={0} aria-orientation="vertical" aria-label={`Resize ${column.label} column`} className="dbi-data-table__resizer" onPointerDown={(event) => beginResize(event, column)} onDoubleClick={() => resetColumnWidth(column.key)} onKeyDown={(event) => { if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return; event.preventDefault(); const current = widths[column.key] || event.currentTarget.closest("th")?.getBoundingClientRect().width || column.width || column.minWidth || 160; setColumnWidth(column.key, current + (event.key === "ArrowLeft" ? -16 : 16)); }} /></span></th>)}</tr></thead>
+          <colgroup>{selectable ? <col style={{ width: 38 }} /> : null}{visibleColumns.map((column) => <col key={column.key} style={{ width: column.role === "actions" ? "1%" : widths[column.key] || column.width || column.minWidth }} />)}</colgroup>
+          <thead><tr>{selectable ? <th scope="col" className="dbi-data-table__select" data-if-table-pin="left"><label className="dbi-data-table__check"><input type="checkbox" checked={pageSelected} onChange={togglePageSelection} aria-label="Select all rows on this page" /></label></th> : null}{visibleColumns.map((column) => <th scope="col" key={column.key} data-column-key={column.key} data-table-column-role={column.role} data-table-column-dragging={draggingKey === column.key ? "true" : "false"} className={column.sticky ? "is-sticky" : ""} style={{ minWidth: column.role === "actions" ? undefined : widths[column.key] || column.minWidth, width: column.role === "actions" ? "1%" : widths[column.key] || column.width, textAlign: column.align }} aria-sort={column.sortable === false ? undefined : sort.key === column.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} onDragOver={(event) => event.preventDefault()} onDrop={() => dropColumn(column.key)}><span className="dbi-data-table__header">{column.role === "actions" ? null : <button type="button" className="dbi-data-table__reorder" draggable onDragStart={() => setDraggingKey(column.key)} onDragEnd={() => setDraggingKey("")} aria-label={`Drag to reorder ${column.label}`}><GripVertical size={13} /></button>}<button type="button" className="if-table__sort" onClick={() => column.sortable === false ? null : toggleSort(column.key)} disabled={column.sortable === false}>{column.label}{column.sortable === false ? null : <span>{sort.key === column.key ? (sort.direction === "asc" ? "▲" : "▼") : "↕"}</span>}</button>{column.role === "actions" ? null : <span role="separator" tabIndex={0} aria-orientation="vertical" aria-label={`Resize ${column.label} column`} className="dbi-data-table__resizer" onPointerDown={(event) => beginResize(event, column)} onDoubleClick={() => resetColumnWidth(column.key)} onKeyDown={(event) => { if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return; event.preventDefault(); const current = widths[column.key] || event.currentTarget.closest("th")?.getBoundingClientRect().width || column.width || column.minWidth || 160; setColumnWidth(column.key, current + (event.key === "ArrowLeft" ? -16 : 16)); }} />}</span></th>)}</tr></thead>
           <tbody>{pageRows.length ? pageRows.flatMap((row, index) => {
             const key = String(rowKey(row));
             const expanded = expandedId === key;

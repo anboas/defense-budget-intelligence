@@ -333,6 +333,23 @@ try {
   await page.locator('[data-ops-event-table] input[type="search"]').fill("Browser HR private planning");
   await page.getByText("Browser HR private planning", { exact: true }).waitFor();
   assert.match(await page.locator("[data-ops-event-table]").innerText(), /Browser HR private planning[\s\S]*Browser HR/i, "The Events grid must expose team visibility without opening event details");
+  const eventActionGeometry = await page.locator('[data-ops-event-table] [data-if-table-row] td[data-ui-table-cell-role="actions"]').first().evaluate((cell) => {
+    const buttons = [...cell.querySelectorAll("button")];
+    const header = cell.closest("table")?.querySelector('th[data-table-column-role="actions"]');
+    return {
+      cellWidth: cell.getBoundingClientRect().width,
+      railWidth: cell.querySelector(".dbi-table-actions")?.getBoundingClientRect().width || 0,
+      buttonWidths: buttons.map((button) => button.getBoundingClientRect().width),
+      accessibleNames: buttons.map((button) => button.getAttribute("aria-label") || ""),
+      headerControls: header?.querySelectorAll(".dbi-data-table__reorder, .dbi-data-table__resizer").length || 0,
+    };
+  });
+  assert.ok(eventActionGeometry.cellWidth <= 130, `Event actions must use a compact content-sized rail: ${JSON.stringify(eventActionGeometry)}`);
+  assert.ok(eventActionGeometry.railWidth <= 100, `Three icon-first event actions must remain compact: ${JSON.stringify(eventActionGeometry)}`);
+  assert.ok(eventActionGeometry.buttonWidths.every((width) => width <= 34), `Desktop event actions must avoid text-width controls: ${JSON.stringify(eventActionGeometry)}`);
+  assert.ok(eventActionGeometry.accessibleNames.every(Boolean), `Icon-first event actions must retain accessible names: ${JSON.stringify(eventActionGeometry)}`);
+  assert.equal(eventActionGeometry.headerControls, 0, "Pinned event actions must not expose resize or reorder controls");
+  await page.screenshot({ path: "test-results/events-actions-compact-desktop.png", fullPage: true });
   const browserOverlayEvent = await page.evaluate(async () => {
     const response = await fetch("/api/v1/agent/events");
     const body = await response.json();
@@ -776,7 +793,9 @@ try {
   assert.match(await page.locator("[data-api-request-table] [data-if-table-detail]").innerText(), /Interface[\s\S]*Tokens[\s\S]*Principal[\s\S]*Trace[\s\S]*Safe diagnostic/i, "Expanded mobile API requests must expose the complete redacted diagnostic record");
   await page.screenshot({ path: "test-results/admin-api-log-detail-mobile.png", fullPage: true });
   await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /^Research and augment / }).first().click();
+  await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
+  const mobileAugmentAction = page.getByRole("button", { name: /^Research and augment / }).first();
+  await mobileAugmentAction.evaluate((button) => button.click());
   await page.waitForSelector("[data-event-ai-launcher]");
   const mobileLauncher = page.locator("[data-event-ai-launcher]");
   await mobileLauncher.getByRole("button", { name: /^AI credential:/ }).waitFor();

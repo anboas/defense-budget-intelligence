@@ -379,6 +379,7 @@ try {
   await page.locator(".lifecycle-detail-disclosure > summary").click();
   assert.match(await page.locator("[data-account-spine-page]").innerText(), /Award-to-Account Flow/, "Account detail disclosure should expose award-linked evidence on demand");
 
+  await page.evaluate(() => window.localStorage.setItem("dbi:data-table:award-records", JSON.stringify({ widths: { actions: 720 } })));
   await openSurface(page, "#/budget-spend/awards", "[data-awards-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
@@ -400,11 +401,20 @@ try {
     const before = { identity: identity?.getBoundingClientRect().left || 0, actions: actions?.getBoundingClientRect().right || 0 };
     wrap.scrollLeft = wrap.scrollWidth;
     const after = { identity: identity?.getBoundingClientRect().left || 0, actions: actions?.getBoundingClientRect().right || 0 };
-    return { before, after, clientWidth: wrap.clientWidth, scrollWidth: wrap.scrollWidth };
+    return {
+      before,
+      after,
+      actionWidth: actions?.getBoundingClientRect().width || 0,
+      actionReorderControls: actions?.querySelectorAll(".dbi-data-table__reorder, .dbi-data-table__resizer").length || 0,
+      clientWidth: wrap.clientWidth,
+      scrollWidth: wrap.scrollWidth,
+    };
   });
   assert.ok(awardStickyGeometry.scrollWidth > awardStickyGeometry.clientWidth, "Wide award records should scroll inside the DataTable rather than the document");
   assert.ok(Math.abs(awardStickyGeometry.before.identity - awardStickyGeometry.after.identity) <= 1, `The identity column should remain pinned during horizontal scroll: ${JSON.stringify(awardStickyGeometry)}`);
   assert.ok(Math.abs(awardStickyGeometry.before.actions - awardStickyGeometry.after.actions) <= 5, `The action column should remain pinned within the table border during horizontal scroll: ${JSON.stringify(awardStickyGeometry)}`);
+  assert.ok(awardStickyGeometry.actionWidth <= 180, `Shared action columns must ignore stale oversized widths and remain content-sized: ${JSON.stringify(awardStickyGeometry)}`);
+  assert.equal(awardStickyGeometry.actionReorderControls, 0, "Pinned action columns must not expose reorder or resize controls");
   const awardContentOrder = await page.evaluate(() => ({
     records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
     rollups: document.querySelector(".award-rollup-details")?.getBoundingClientRect().top || 0,

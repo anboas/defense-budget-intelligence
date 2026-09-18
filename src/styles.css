@@ -6248,8 +6248,9 @@ td .dot {
 .dbi-data-table .if-table td small,
 .dbi-data-table .if-table td > span { display: block; margin-top: 3px; color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-normal); }
 .dbi-data-table .if-table td[data-ui-table-cell-role="actions"],
-.dbi-data-table .if-table th[data-table-column-role="actions"] { position: sticky; right: 0; z-index: 6; min-width: 100px; background: var(--if-bg-surface); box-shadow: -1px 0 0 var(--if-border); }
+.dbi-data-table .if-table th[data-table-column-role="actions"] { position: sticky; right: 0; z-index: 6; width: 1%; min-width: 100px; background: var(--if-bg-surface); box-shadow: -1px 0 0 var(--if-border); white-space: nowrap; }
 .dbi-data-table .if-table th[data-table-column-role="actions"] { background: var(--if-bg-subtle); }
+.dbi-data-table .if-table th[data-table-column-role="actions"] .dbi-data-table__header { justify-content: flex-end; }
 .dbi-data-table .if-table :where(th, td).is-sticky { position: sticky; left: 38px; z-index: 4; background: var(--if-bg-surface); box-shadow: 1px 0 0 var(--if-border); }
 .dbi-data-table[data-if-table-selectable="false"] .if-table :where(th, td).is-sticky { left: 0; }
 .dbi-data-table .if-table th.is-sticky { z-index: 7; background: var(--if-bg-subtle); }
@@ -6287,7 +6288,7 @@ td .dot {
 .dbi-data-table__footer .if-pagination { display: flex; align-items: center; gap: 6px; }
 .dbi-data-table__footer .if-page-btn { display: grid; place-items: center; width: 32px; height: 32px; }
 .dbi-table-icon-button.is-active { border-color: #005ea8; background: #d9e8f6; color: #005ea8; }
-.dbi-table-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+.dbi-table-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: max-content; min-width: 0; margin-inline-start: auto; }
 .dbi-table-actions > :where(a, button) {
   display: inline-flex;
   align-items: center;
