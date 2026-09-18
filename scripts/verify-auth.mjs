@@ -93,13 +93,13 @@ try {
   assert.doesNotMatch(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Events/i, "Events must not be nested under Workspace work");
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count(), 4, "Workspace administration should contain only workspace-scoped controls");
-  assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Integrations[\s\S]*API Log[\s\S]*Workspace Settings[\s\S]*Agent Access/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count(), 2, "Workspace administration should contain only Connections and Workspace Settings");
+  assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections[\s\S]*Workspace Settings/i);
   assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Workspace administration");
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   await page.locator('[data-nav-group-trigger="platform-admin"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="platform-admin"] a[data-budget-nav]').count(), 2, "Platform administration should contain Users and Workspaces only");
-  assert.match(await page.locator('[data-budget-nav-menu="platform-admin"]').innerText(), /Users[\s\S]*Workspaces/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="platform-admin"] a[data-budget-nav]').count(), 2, "Platform administration should contain Accounts and Workspaces only");
+  assert.match(await page.locator('[data-budget-nav-menu="platform-admin"]').innerText(), /Accounts[\s\S]*Workspaces/i);
   await page.locator('[data-nav-group-trigger="platform-admin"]').click();
   const desktopTrigger = page.locator("[data-profile-menu-trigger]");
   const desktopTriggerBox = await desktopTrigger.boundingBox();
@@ -204,19 +204,19 @@ try {
   assert.ok(keyDialogBounds && keyDialogBounds.x >= 0 && keyDialogBounds.y >= 0 && keyDialogBounds.x + keyDialogBounds.width <= 1440 && keyDialogBounds.y + keyDialogBounds.height <= 1000, "Credential dialog must remain inside the desktop viewport");
   await keyDialog.getByRole("button", { name: "Close OpenAI key form" }).click();
 
-  await page.goto(`${BASE_URL}#/budget-spend/integrations`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=integrations`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-ops-integrations][data-integration-surface="coverage"]');
   assert.equal(await page.locator("[data-ops-integration-table]").count(), 1, "Integrations should open on the source coverage work surface");
   assert.equal(await page.locator('[data-openai-key-vault="workspace"]').count(), 0, "Workspace credentials should not compete with source coverage by default");
   assert.equal(await page.locator('[data-contract-monitor-disclosure][open]').count(), 0, "Deep contract-monitor diagnostics should stay collapsed until requested");
   await page.screenshot({ path: "test-results/admin-integrations-coverage-desktop.png", fullPage: true });
-  await page.getByRole("button", { name: "Credentials" }).click();
-  await page.waitForSelector('[data-ops-integrations][data-integration-surface="credentials"] [data-openai-key-vault="workspace"]');
+  await page.getByRole("button", { name: "Credentials", exact: true }).click();
+  await page.waitForSelector('[data-connections-surface="credentials"] [data-openai-key-vault="workspace"]');
   assert.equal(await page.locator("[data-ops-integration-table]").count(), 0, "Credential management should replace the source ledger instead of stacking below it");
   assert.equal(await page.locator('[data-openai-key-vault="workspace"] .if-page-header').count(), 1, "Embedded workspace credentials should use one compact section header");
   await page.screenshot({ path: "test-results/admin-integrations-credentials-desktop.png", fullPage: true });
 
-  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary]");
   assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 4, "API Log must summarize request volume, success, latency, and tokens");
   await page.waitForSelector("[data-api-request-table], [data-api-request-empty]");
@@ -225,7 +225,7 @@ try {
   else assert.match(await page.locator("[data-api-request-empty]").innerText(), /No API requests retained/i, "A fresh workspace should expose an explicit empty request ledger while retaining the API Log shell");
   const requestChartCount = await page.locator("[data-api-observability-charts] .if-chart-card").count();
   assert.ok(requestChartCount === 0 || requestChartCount === 2, `API Log should render either no charts for a fresh workspace or the complete two-chart observability band, got ${requestChartCount}`);
-  assert.match(await page.locator("[data-ops-activity]").innerText(), /90-day retention[\s\S]*API requests[\s\S]*Workspace changes/i, "API Log must expose distinct request and workspace-change ledgers");
+  assert.match(await page.locator("[data-ops-activity]").innerText(), /API requests[\s\S]*Workspace changes/i, "Connections activity must expose distinct request and workspace-change ledgers");
   assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
   await assertPageBodyGutter(page, "[data-ops-activity]", "API Log");
 
@@ -325,7 +325,7 @@ try {
   await page.screenshot({ path: "test-results/workspace-teams-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
-  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-event-table]");
   await page.getByRole("button", { name: "Add event" }).click();
   const eventDialog = page.getByRole("dialog", { name: "Add event" });
@@ -377,9 +377,9 @@ try {
   });
   assert.deepEqual(browserOverlayEvent.teamIds, [browserTeamId], "The event editor must persist the selected team through the API boundary");
 
-  await page.goto(`${BASE_URL}#/budget-spend/wallboard`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=display`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-wallboard]");
-  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.locator("[data-ops-wallboard]").getByRole("button", { name: "Calendar", exact: true }).click();
   const overlayRail = page.locator("[data-calendar-overlays]");
   await overlayRail.waitFor();
   const browserHrOverlay = overlayRail.getByRole("button", { name: /Browser HR/ });
@@ -571,7 +571,7 @@ try {
   await signupPage.waitForSelector("[data-defense-budget-app]");
   await signupContext.close();
 
-  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
   await page.getByRole("button", { name: "Manage categories" }).click();
   await page.waitForSelector("[data-event-category-manager]");
@@ -589,8 +589,8 @@ try {
   assert.equal(browserAiCredential.status, 201, "Authenticated event AI browser proof requires a personal encrypted key");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
-  assert.equal(await page.locator('[data-control-area]').count(), 0, "Events must render as a primary surface without a management shell");
-  assert.equal(await page.locator('[data-primary-nav="events"][aria-current="page"]').count(), 1, "Events must own a direct primary-navigation position");
+  assert.equal(await page.locator('[data-control-area]').count(), 0, "Schedule List must render as a primary surface without a management shell");
+  assert.equal(await page.locator('[data-primary-nav="schedule"][aria-current="page"]').count(), 1, "Schedule must own the direct primary-navigation position for event work");
   assert.equal(await page.locator('[data-ops-events] > [data-event-ai-launcher]').count(), 0, "Events must not place the augmentation launcher above the data table");
   const augmentedEventAction = page.getByRole("button", { name: /^Research and augment / }).first();
   const augmentedEventId = await augmentedEventAction.evaluate((button) => button.closest("[data-row-key]")?.getAttribute("data-row-key") || "");
@@ -691,6 +691,7 @@ try {
   const eventEditor = page.locator("[data-ops-event-editor]");
   const reviewDialogBounds = await page.locator('dialog:has([data-ops-event-editor])').boundingBox();
   assert.ok(reviewDialogBounds?.width >= 900, `AI-assisted event review must use the expanded detail-dialog width, got ${reviewDialogBounds?.width}px`);
+  await eventEditor.locator("[data-event-more-details] > summary").click();
   assert.equal(await eventEditor.getByLabel("Location", { exact: true }).inputValue(), "National Harbor, Maryland, USA", "Verified AI review must preserve an existing operator location");
   assert.equal(await eventEditor.locator("label", { hasText: "Notes" }).locator("textarea").inputValue(), "Verified public event summary.", "Verified AI additions must fill genuinely missing event fields");
   await eventEditor.getByRole("textbox", { name: "Starts", exact: true }).fill("2027-05-10T09:00");
@@ -744,7 +745,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Close event editor" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
   const augmentedEventState = await page.evaluate(async (eventId) => {
     const response = await fetch("/api/v1/agent/events");
@@ -758,7 +759,7 @@ try {
   await page.locator('[data-ops-event-table]').getByText(/Validation required|AI amended/).first().waitFor({ timeout: 10_000 });
   assert.match(await page.locator('[data-ops-event-table]').innerText(), /(Validation required|AI amended)[\s\S]*Last augmented/i, "The Events grid must expose augmentation state and recency without opening Task Center");
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary] .if-sparkline svg");
   assert.equal(await page.locator("[data-api-request-summary] .if-sparkline svg").count(), 4, "API Log summary metrics must use the shared sparkline component when retained history is available");
   assert.equal(await page.locator("[data-api-request-summary].if-management-grid--strip").count(), 1, "API Log metrics must use one flat summary strip instead of four boxed cards");
@@ -787,7 +788,7 @@ try {
   assert.doesNotMatch(await page.getByRole("button", { name: /Operation filter:/ }).getAttribute("aria-label"), /: All$/i, "Latency selection must synchronize the request-table operation filter");
   await latencyBar.click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary] .if-sparkline svg");
   const mobileApiLogGeometry = await page.locator("[data-ops-activity]").evaluate((node) => ({
     documentWidth: document.documentElement.scrollWidth,
@@ -815,7 +816,7 @@ try {
   await page.waitForSelector("[data-api-request-table] [data-if-table-detail]");
   assert.match(await page.locator("[data-api-request-table] [data-if-table-detail]").innerText(), /Interface[\s\S]*Tokens[\s\S]*Principal[\s\S]*Trace[\s\S]*Safe diagnostic/i, "Expanded mobile API requests must expose the complete redacted diagnostic record");
   await page.screenshot({ path: "test-results/admin-api-log-detail-mobile.png", fullPage: true });
-  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
   const mobileAugmentAction = page.getByRole("button", { name: /^Research and augment / }).first();
   await mobileAugmentAction.evaluate((button) => button.click());
@@ -854,11 +855,11 @@ try {
   await teammatePage.locator("[data-profile-menu-trigger]").click();
   assert.ok(await teammatePage.getByText("Analyst", { exact: true }).count() >= 1, "Managed user should enter with the assigned role after replacing the temporary password");
   assert.equal(await teammatePage.locator('[data-profile-menu-surface] a[href="#/budget-spend/users"]').count(), 0, "Analysts must not receive user-management navigation");
-  assert.equal(await teammatePage.locator('[data-profile-menu-surface] a[href="#/budget-spend/agents"]').count(), 0, "Analysts must not receive agent-credential navigation");
+  assert.equal(await teammatePage.locator('[data-profile-menu-surface] a[href^="#/budget-spend/connections"]').count(), 0, "Analysts must not receive workspace-connection administration");
   await teammateContext.close();
 
-  await page.goto(`${BASE_URL}#/budget-spend/agents`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=credentials`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-operations-hub][data-operations-view="connections"] [data-profile-agents]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should show its credential list before any creation form");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "Agent access should not repeat a second administration shell");
   assert.equal(await page.locator('[data-profile-agents] > .if-page-header').count(), 1, "Agent access should expose one framework-owned route header");
@@ -873,16 +874,16 @@ try {
     assert.equal(await agentEmptyState.getByRole("button", { name: "Add credential" }).count(), 1, "Empty Agent access should expose one focused creation action");
   }
   await page.screenshot({ path: "test-results/admin-agent-access-desktop.png", fullPage: true });
-  await page.goto(`${BASE_URL}#/budget-spend/api-log`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-operations-hub][data-operations-view="activity"] [data-ops-activity]');
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-operations-hub][data-operations-view="connections"] [data-ops-activity]');
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should stay a direct route without a repeated administration shell");
   assert.equal(await page.locator("[data-profile-page]").count(), 0, "API Log should not jump into or out of the account-settings page");
   await page.screenshot({ path: "test-results/admin-api-log-desktop.png", fullPage: true });
-  await page.goto(`${BASE_URL}#/budget-spend/agents`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-operations-hub][data-operations-view="agents"] [data-profile-agents]');
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=credentials`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-operations-hub][data-operations-view="connections"] [data-profile-agents]');
   const activeAdminTrigger = page.locator('[data-nav-group-trigger="workspace-admin"]');
-  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Agent Access", "Authenticated Workspace trigger should name the active routed child");
-  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Agent Access", "Authenticated Workspace should render the active child in the lighter context label");
+  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Connections", "Authenticated Workspace trigger should name the consolidated active child");
+  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Connections", "Authenticated Workspace should render the consolidated active child in the lighter context label");
   assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").evaluate((node) => getComputedStyle(node).color), "rgb(183, 229, 255)", "Authenticated Workspace active child should use the established light-blue treatment");
   assert.equal(await page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider").innerText(), "|", "Authenticated header should retain the platform-admin divider");
   await page.getByRole("button", { name: "Add credential" }).click();
@@ -896,7 +897,7 @@ try {
   await page.getByRole("button", { name: "Revoke Browser verifier" }).click();
   await page.getByText("Revoked", { exact: true }).waitFor();
 
-  await page.goto(`${BASE_URL}#/budget-spend/transactions`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline-row]");
   const visibleRecordId = await page.locator("[data-capture-timeline-row]").first().getAttribute("data-record-id");
   const workspaceSeed = await page.evaluate(async (recordId) => {
@@ -916,7 +917,7 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
   await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
   assert.equal(await page.locator(".operations-boundary").count(), 0, "Working routes should not repeat the storage contract as persistent page chrome");
-  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
   await page.getByText("Shared D1 verification event").waitFor();
   await page.evaluate(async ({ recordId, eventId }) => {
@@ -998,7 +999,7 @@ try {
     });
     return (await response.json()).data.id;
   });
-  await page.goto(`${BASE_URL}#/budget-spend/events`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
   const mobileEventSearch = page.locator('[data-ops-event-table] input[type="search"]');
@@ -1024,8 +1025,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 20, "Authenticated mobile navigation should expose primary, analytical, work, and administration routes in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Events[\s\S]*Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Agent Access[\s\S]*Platform admin[\s\S]*Users[\s\S]*Workspaces/i);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
+  assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money flow[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace admin[\s\S]*Connections[\s\S]*Platform admin[\s\S]*Accounts[\s\S]*Workspaces/i);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();

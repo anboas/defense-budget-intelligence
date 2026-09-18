@@ -716,6 +716,13 @@ code {
     justify-content: flex-start;
   }
 
+  .if-workbench-header__tabs .if-tab,
+  .if-workbench-header__tabs :where(button, a),
+  .if-workbench-header__controls :where(button, a),
+  .if-workbench-header__secondary :where(button, a) {
+    min-height: 44px;
+  }
+
   .if-workbench-header__controls > :where(.if-field, .if-search) {
     flex: 1 1 100%;
   }
@@ -2240,6 +2247,92 @@ code {
   .if-form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.if-drawer {
+  position: fixed;
+  inset-block: 0;
+  right: 0;
+  z-index: var(--if-z-drawer);
+  width: min(100vw, 28rem);
+  overflow: auto;
+  border-left: var(--if-divider);
+  background: var(--if-bg-surface);
+  box-shadow: var(--if-shadow-lg);
+  transform: translateX(105%);
+  transition: transform var(--if-duration-normal) var(--if-ease-standard);
+}
+
+.if-drawer.is-open,
+.if-drawer[aria-hidden="false"] {
+  transform: translateX(0);
+}
+
+.if-drawer__header,
+.if-drawer__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--if-space-2);
+  padding: var(--if-panel-padding);
+  border-bottom: var(--if-divider);
+}
+
+.if-drawer__heading {
+  display: grid;
+  min-width: 0;
+  gap: var(--if-space-1);
+}
+
+.if-drawer__eyebrow {
+  color: var(--if-text-muted);
+  font-size: var(--if-text-xs);
+  font-weight: var(--if-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.if-drawer__title,
+.if-drawer__summary {
+  margin: 0;
+}
+
+.if-drawer__title {
+  color: var(--if-text-primary);
+  font-size: var(--if-text-lg);
+}
+
+.if-drawer__summary {
+  color: var(--if-text-muted);
+  font-size: var(--if-text-sm);
+  line-height: var(--if-leading-relaxed);
+}
+
+.if-drawer__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--if-space-2);
+}
+
+.if-drawer__footer {
+  border-top: var(--if-divider);
+  border-bottom: 0;
+}
+
+.if-drawer__body {
+  padding: var(--if-panel-padding);
+}
+
+.if-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--if-z-drawer) - 1);
+  background: rgb(6 20 45 / 0.38);
+}
+
+.if-backdrop[hidden] {
+  display: none;
 }
 
 .if-metric {

@@ -1729,7 +1729,7 @@ function RecordExplorer({ records, metricId, onSelect }) {
     { key: "end", label: "Reported end", minWidth: 120, value: (record) => record.currentEnd || record.solicitationEnd || "Not published" },
     { key: "provenance", label: "Provenance", facet: true, minWidth: 135, value: (record) => record.ingestionLabel || record.ingestionMethod || "Not published" },
     { key: "metric", label: metric.label, sortValue: metric.value, exportValue: metric.value, render: (record) => <strong>{metric.format(metric.value(record))}</strong> },
-    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Transactions</a></div> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}>Timeline</a></div> },
   ];
   return (
     <ControlDisclosure className="analytics-records" data-analytics-records icon={<TableProperties size={18} />} title="Record explorer" summary={`${records.length.toLocaleString()} in scope · complete filtered set ranked by ${metric.label.toLowerCase()}`}>
@@ -1773,7 +1773,7 @@ function AnalyticsRecordModal({ record, onClose }) {
       closeLabel="Close analytical detail"
       dialogProps={{ "data-analytics-record-modal": "" }}
       bodyProps={{ className: "if-record-detail if-record-detail--intelligence" }}
-      footer={record ? <><a className="if-btn if-btn--primary" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Transactions</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</> : null}
+      footer={record ? <><a className="if-btn if-btn--primary" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in timeline</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</> : null}
     >
       <ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} />
       <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>
@@ -1792,6 +1792,8 @@ export default function TransactionAnalytics({
   subawardSnapshot = { metadata: {}, primes: [] },
   accountSpine = null,
   requestLineCount = 0,
+  embedded = false,
+  embeddedTabs = null,
 }) {
   const records = useMemo(
     () =>
@@ -1974,9 +1976,9 @@ export default function TransactionAnalytics({
   ];
   return (
     <div className="transaction-analytics-page" data-transaction-d3-page>
-      <ControlWorkbenchHeader eyebrow="Factual analytical workbench" title="Contract & Transaction Analytics" summary="Cross-filter schedules, reported values, recipients, offices, acquisition structure, provenance, FPDS actions, and exact prime-to-subaward counts." metrics={metrics} metricLabel="Current analytical scope" tabs={<nav className="analytics-view-tabs" aria-label="Analytics view">
+      <ControlWorkbenchHeader eyebrow={embedded ? "Spend intelligence" : "Factual analytical workbench"} title={embedded ? "Spend Explorer" : "Contract & Transaction Analytics"} summary={embedded ? "Timeline, records, and charts share one public-data scope." : "Cross-filter schedules, reported values, recipients, offices, acquisition structure, provenance, FPDS actions, and exact prime-to-subaward counts."} metrics={metrics} metricLabel="Current analytical scope" tabs={<>{embeddedTabs}<nav className="analytics-view-tabs" aria-label="Analytics view">
           {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => { setActiveView(id); updateAnalyticsView(id); }}><Icon size={15} aria-hidden="true" />{label}</button>)}
-        </nav>} controls={<div className="analytics-commandbar__controls">
+        </nav></>} controls={<div className="analytics-commandbar__controls">
           <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
           <div className="analytics-commandbar__secondary">
             <div className="analytics-mobile-chart-picker"><span>Chart</span><ControlSelect ariaLabel="Visible mobile chart" value={mobileChartId} options={chartOptions.filter(([id]) => activeChartIds.includes(id))} onChange={(chartId) => setMobileChartByView((current) => ({ ...current, [activeView]: chartId }))} /></div>

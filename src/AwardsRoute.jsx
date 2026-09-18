@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { ControlDisclosure } from "control-surface-ui/react";
+import { ControlDisclosure, ControlDrawer } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
-import { BarChart3, ExternalLink, FileSpreadsheet, RotateCcw, Search, X } from "lucide-react";
+import { BarChart3, ExternalLink, FileSpreadsheet, RotateCcw, Search } from "lucide-react";
 import AnalysisActions from "./AnalysisActions.jsx";
 import Section from "./AnalysisSection.jsx";
 import ControlSelect from "./ControlSelect.jsx";
@@ -37,12 +37,7 @@ function EvidenceDrawer({ record, onClose, books, sourcePackageUrl, snapshotGene
   const evidence = record.justificationEvidence;
   const title = record.lineTitle || record.accountTitle || record.awardId || record.recipient || record.id;
   return (
-    <div className="evidence-drawer-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
-      <aside className="evidence-drawer" role="dialog" aria-modal="true" aria-labelledby="evidence-drawer-title" onKeyDown={(event) => { if (event.key === "Escape") onClose(); }} data-evidence-drawer>
-        <header>
-          <div><span>{isAward ? "Award evidence" : "Budget evidence"}</span><h2 id="evidence-drawer-title">{title}</h2></div>
-          <button type="button" onClick={onClose} aria-label="Close evidence details" autoFocus><X size={18} aria-hidden="true" /></button>
-        </header>
+      <ControlDrawer open onClose={onClose} eyebrow={isAward ? "Award evidence" : "Budget evidence"} title={title} size="wide" closeLabel="Close evidence details" drawerProps={{ "data-evidence-drawer": true }} bodyProps={{ className: "evidence-drawer__content" }}>
         <dl>
           <div><dt>Record ID</dt><dd>{record.awardId || record.id}</dd></div>
           <div><dt>Source system</dt><dd>{isAward ? "USAspending award snapshot" : evidence?.kind || `${book?.short || record.bookId} official display workbook`}</dd></div>
@@ -53,8 +48,7 @@ function EvidenceDrawer({ record, onClose, books, sourcePackageUrl, snapshotGene
           <div><dt>Method</dt><dd>{isAward ? executionCoverage.methodology || "Cached USAspending award search with deterministic deduplication." : methodology}</dd></div>
         </dl>
         <a className="evidence-drawer__source" href={sourceUrl} target="_blank" rel="noreferrer" data-evidence-source>Open official source <ExternalLink size={14} aria-hidden="true" /></a>
-      </aside>
-    </div>
+      </ControlDrawer>
   );
 }
 

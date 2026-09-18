@@ -60,7 +60,7 @@ function ContractMonitorCoverage({ contractMonitor }) {
   </div>;
 }
 
-export default function IntegrationManagement({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor }) {
+export default function IntegrationManagement({ auth, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor, embedded = false }) {
   const [surface, setSurface] = useState("coverage");
   const rows = [
     { name: "PDB display books", status: "current", count: "3,888 request lines", detail: "Scheduled workbook and justification build" },
@@ -79,13 +79,13 @@ export default function IntegrationManagement({ auth, dataset, samOpportunities,
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];
   return <section className="ops-panel" data-ops-integrations data-integration-surface={surface}>
-    <ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={surface === "coverage" ? <a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a> : null} />
+    {!embedded ? <ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={surface === "coverage" ? <a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a> : null} /> : null}
     <ControlPageBody compact>
-      <nav className="if-tabs__list" aria-label="Integration surface">
+      {!embedded ? <nav className="if-tabs__list" aria-label="Integration surface">
         <button type="button" className={`if-tab${surface === "coverage" ? " is-active" : ""}`} aria-pressed={surface === "coverage"} onClick={() => setSurface("coverage")}>Sources &amp; coverage <span className="if-badge">{rows.length}</span></button>
         <button type="button" className={`if-tab${surface === "credentials" ? " is-active" : ""}`} aria-pressed={surface === "credentials"} onClick={() => setSurface("credentials")}>Credentials</button>
-      </nav>
-      {surface === "credentials" ? <OpenAiKeyManagement auth={auth} scope="workspace" embedded /> : <>
+      </nav> : null}
+      {!embedded && surface === "credentials" ? <OpenAiKeyManagement auth={auth} scope="workspace" embedded /> : <>
         <ControlMetricStrip mobileScroll label="Source health summary" items={[
           { id: "online", label: "Sources online", value: sourceHealth.totals?.online || 0, meta: "Available at last probe", tone: "success" },
           { id: "unavailable", label: "Unavailable", value: sourceHealth.totals?.unavailable || 0, meta: "At last probe", tone: sourceHealth.totals?.unavailable ? "warning" : "neutral" },

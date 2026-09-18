@@ -30,7 +30,7 @@ import {
 import { useManagementState } from "./management-state.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlFactGrid } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlDrawer, ControlFactGrid } from "control-surface-ui/react";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 
@@ -563,7 +563,7 @@ function AwardActionHistory({ record, actions, state, onRetry }) {
   );
 }
 
-function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, onClose, isCompared, onToggleCompare, isWatched, onToggleWatch, parentRelations, vehicleRelations, followOnRelations, onSelectRelated }) {
+function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, parentRelations, vehicleRelations, followOnRelations, onSelectRelated }) {
   if (!record) return null;
   const observed = Number(liveAward?.awardAmountDollars || record.obligatedAmount || 0);
   const potential = Number(record.potentialAmount || record.valueHigh || 0);
@@ -594,17 +594,6 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
   ].filter(Boolean);
   return (
     <aside className="capture-detail" data-capture-detail aria-label={`${record.title} evidence details`}>
-      <div className="capture-detail__heading">
-        <div>
-          <span>{record.id} · {record.portfolio}</span>
-          <h2>{record.title}</h2>
-        </div>
-        <div className="capture-detail__heading-actions">
-          <button type="button" className={isWatched ? "is-active is-starred" : ""} aria-pressed={isWatched} onClick={onToggleWatch} aria-label={isWatched ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={isWatched ? "currentColor" : "none"} />{isWatched ? "Tracked" : "Track"}</button>
-          <button type="button" className={isCompared ? "is-active" : ""} onClick={onToggleCompare} aria-label={isCompared ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{isCompared ? "Compared" : "Compare"}</button>
-          <button type="button" autoFocus onClick={onClose} aria-label="Close record details"><X size={18} /></button>
-        </div>
-      </div>
       <ControlFactGrid label="Primary transaction facts" mobileTwoColumn items={primaryFacts} data-capture-primary-facts />
       <ControlDisclosure className="capture-detail__secondary" title="Procurement and provenance details" summary={`${secondaryFacts.length} published fields · offices, competition, instrument, coding, and source posture`}>
         <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
@@ -808,47 +797,12 @@ function TimelineHoverCard({ hover }) {
   );
 }
 
-function ModalShell({ label, testId, tone = "default", onClose, children }) {
-  const dialogRef = useRef(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    if (!dialog.open) dialog.showModal();
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      if (dialog.open) dialog.close();
-    };
-  }, []);
-
-  return createPortal(
-    <dialog
-      ref={dialogRef}
-      className={`capture-modal capture-modal--${tone}`}
-      aria-label={label}
-      data-capture-modal
-      {...{ [testId]: "" }}
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
-    >
-      <div className="capture-modal__surface">{children}</div>
-    </dialog>,
-    document.body,
-  );
-}
-
 function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
   if (!detail) return null;
   const { predecessor, activity, milestone } = detail;
   return (
-    <ModalShell label={`${activity.title} follow-on activity details`} testId="data-followon-modal" tone="followon" onClose={onClose}>
+    <ControlDrawer open onClose={onClose} eyebrow={`Published follow-on activity · ${activity.id}`} title={activity.title} summary={`${activity.sourceSystem} · ${activity.parentReferenceBasis || "exact predecessor PIID match"}`} size="wide" closeLabel="Close follow-on details" drawerProps={{ "data-followon-modal": "" }}>
       <section className="capture-followon-detail">
-        <header>
-          <div><span>Published follow-on activity · {activity.id}</span><h2>{activity.title}</h2><p>{activity.sourceSystem} · {activity.parentReferenceBasis || "exact predecessor PIID match"}</p></div>
-          <button type="button" autoFocus onClick={onClose} aria-label="Close follow-on details"><X size={19} /></button>
-        </header>
         <div className="capture-followon-detail__lineage">
           <article><span>Predecessor contract</span><strong>{predecessor.id} · {predecessor.title}</strong><small>{activity.parentReference || predecessor.reference || "Reference not published"}</small></article>
           <ChevronRight size={20} aria-hidden="true" />
@@ -871,7 +825,7 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
           {activity.sourceUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>)}
         </div>
       </section>
-    </ModalShell>
+    </ControlDrawer>
   );
 }
 
@@ -1118,7 +1072,7 @@ function LifecycleMatrix({ records, portfolios, onSelect }) {
   );
 }
 
-export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] } }) {
+export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] }, embedded = false, embeddedTabs = null }) {
   const [filters, setFilters] = useCaptureFilters();
   const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
   const [actionDataset, setActionDataset] = useState(null);
@@ -1530,7 +1484,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
   return (
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page>
-      <ControlWorkbenchHeader eyebrow="Transaction intelligence" title="Transactions" summary="Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence." meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></span>} metrics={transactionMetrics} metricLabel="Filtered transaction metrics" actions={<div className="capture-hero__actions">
+      <ControlWorkbenchHeader eyebrow={embedded ? "Spend intelligence" : "Transaction intelligence"} title={embedded ? "Spend Explorer" : "Transactions"} summary={embedded ? "Timeline, records, and charts share one public-data scope." : "Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence."} meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></span>} metrics={transactionMetrics} metricLabel="Filtered transaction metrics" tabs={embeddedTabs} actions={<div className="capture-hero__actions">
           <button type="button" onClick={copyLink}><Copy size={15} />Copy filtered link</button>
           <button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)}><Download size={15} />Export {filtered.length.toLocaleString()} rows</button>
           <button type="button" onClick={saveCurrentView}><Bookmark size={15} />Save view</button>
@@ -1579,9 +1533,9 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
 
       {selected ? (
-        <ModalShell label={`${selected.title} evidence details`} testId="data-capture-detail-modal" onClose={() => setSelectedId("")}>
-          <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} onClose={() => setSelectedId("")} isCompared={comparisonIds.includes(selected.opportunityId)} onToggleCompare={() => toggleComparison(selected.opportunityId)} isWatched={management.watchedIds.has(selected.opportunityId)} onToggleWatch={() => management.toggleWatch(selected.opportunityId)} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
-        </ModalShell>
+        <ControlDrawer open onClose={() => setSelectedId("")} eyebrow={`${selected.id} · ${selected.portfolio}`} title={selected.title} summary="Published transaction, schedule, procurement, and provenance evidence." size="wide" closeLabel="Close record details" drawerProps={{ "data-capture-detail-modal": "" }} actions={<div className="capture-detail__heading-actions"><button type="button" className={management.watchedIds.has(selected.opportunityId) ? "is-active is-starred" : ""} aria-pressed={management.watchedIds.has(selected.opportunityId)} onClick={() => management.toggleWatch(selected.opportunityId)} aria-label={management.watchedIds.has(selected.opportunityId) ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={management.watchedIds.has(selected.opportunityId) ? "currentColor" : "none"} />{management.watchedIds.has(selected.opportunityId) ? "Tracked" : "Track"}</button><button type="button" className={comparisonIds.includes(selected.opportunityId) ? "is-active" : ""} onClick={() => toggleComparison(selected.opportunityId)} aria-label={comparisonIds.includes(selected.opportunityId) ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{comparisonIds.includes(selected.opportunityId) ? "Compared" : "Compare"}</button></div>}>
+          <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
+        </ControlDrawer>
       ) : null}
 
       <section className="capture-section capture-gantt-section">
@@ -1601,7 +1555,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       </section>
 
       {showLegacyTransactionExtras ? <><details className="capture-analytics-disclosure" data-capture-analytics-disclosure>
-        <summary><span><BarChart3 size={17} aria-hidden="true" /><b>More transaction analytics</b><small>13 descriptive charts and the portfolio lifecycle matrix</small></span><a href="#/budget-spend/analytics">Open D3 Analytics</a></summary>
+        <summary><span><BarChart3 size={17} aria-hidden="true" /><b>More transaction analytics</b><small>13 descriptive charts and the portfolio lifecycle matrix</small></span><a href="#/budget-spend/explorer?spendView=charts">Open charts</a></summary>
         <div className="capture-dashboard-grid">
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Portfolio concentration</strong><small>Select a bar to drive the Gantt</small></span></div></div><BarList rows={portfolioRows} testId="portfolio" onSelect={(row) => applyChartFilter({ capPortfolio: row.id })} selectedId={filters.capPortfolio} /></section>
         <section className="capture-section"><div className="capture-section__heading"><div><BarChart3 size={18} /><span><strong>Observed company obligations</strong><small>Select a company to drive the Gantt</small></span></div></div><BarList rows={partyRows} format={formatMoney} testId="company-money" onSelect={(row) => applyChartFilter({ capParty: row.id })} selectedId={filters.capParty} /></section>

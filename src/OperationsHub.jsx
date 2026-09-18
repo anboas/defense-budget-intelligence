@@ -6,13 +6,11 @@ import {
   Building2,
   Link2,
   ListChecks,
-  MapPin,
   Maximize2,
   Minimize2,
   Pencil,
   Plus,
   RotateCw,
-  ShieldCheck,
   Sparkles,
   CircleAlert,
   CircleCheck,
@@ -21,10 +19,8 @@ import {
   Trash2,
   UsersRound,
 } from "lucide-react";
-import sourceHealth from "./data/source-health.json";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
-import WallboardCalendar from "./WallboardCalendar.jsx";
 import EventTeamSelector from "./EventTeamSelector.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { useAuth } from "./AuthContext.jsx";
@@ -38,11 +34,13 @@ import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
 
 const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
+const OpenAiKeyManagement = lazy(() => import("./OpenAiKeyManagement.jsx"));
 const IntegrationManagement = lazy(() => import("./IntegrationManagement.jsx"));
 const UserManagement = lazy(() => import("./UserManagement.jsx"));
 const WorkspaceManagement = lazy(() => import("./WorkspaceManagement.jsx"));
+const WallboardCalendar = lazy(() => import("./WallboardCalendar.jsx"));
 
-const VIEWS = new Set(["watchlist", "events", "tasks", "integrations", "activity", "users", "workspaces", "workspace-settings", "agents", "wallboard"]);
+const VIEWS = new Set(["watchlist", "schedule", "tasks", "connections", "users", "workspaces", "workspace-settings"]);
 
 const EVENT_MILESTONE_TYPES = [
   ["registration_deadline", "Registration closes"],
@@ -334,13 +332,15 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
           <label className="if-field if-field--full"><span className="if-field__label">Title</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
           <label className="if-field"><span className="if-field__label">Starts</span><input className="if-input" type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
           <label className="if-field"><span className="if-field__label">Ends</span><input className="if-input" type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
+          <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
+          <ControlDisclosure className="if-field--full" title="More details" summary="Location, status, categories, attendees, links, milestones, display settings, and linked records" data-event-more-details>
+          <div className="if-form-grid">
           <label className="if-field"><span className="if-field__label">Location</span><input className="if-input" value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
           <div className="if-field"><span className="if-field__label">Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
           <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Event categories" allLabel="Select event types" value={JSON.stringify(draft.categoryIds || [])} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description }))} onChange={(categoryIds) => setDraft((value) => ({ ...value, categoryIds }))} portalTarget={dialogRef} />
             {!categories.length ? <small>No workspace event categories are available.</small> : null}
           </div>
-          <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
           <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Attendees" allLabel="Select workspace users" value={JSON.stringify(draft.attendeeIds || [])} options={directory.map((user) => ({ value: user.id, label: user.title ? `${user.displayName} · ${user.title}` : user.displayName }))} onChange={(attendeeIds) => setDraft((value) => ({ ...value, attendeeIds }))} portalTarget={dialogRef} />
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
@@ -384,6 +384,8 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
           <ControlDisclosure className="if-field--full" title={`Linked watched records${linked.size ? ` (${linked.size})` : ""}`} summary="Optional opportunity context for this event" data-event-record-links>
             {records.length ? <div className="ops-event-record-links">{records.map((record) => <label className="if-checkbox" key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><strong>{record.id}</strong><small>{record.title}</small></span></label>)}</div> : <p className="if-field__hint">Star records in Transactions to link them here.</p>}
           </ControlDisclosure>
+          </div>
+          </ControlDisclosure>
       </form>
   </ControlDialog>;
 }
@@ -391,7 +393,7 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
 function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, updateWatch }) {
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
   const columns = [
-    { key: "record", label: "Tracked record", required: true, sticky: true, minWidth: 300, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.party, record.portfolio, record.reference], render: (record) => <a className="dbi-table-record-link" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a> },
+    { key: "record", label: "Tracked record", required: true, sticky: true, minWidth: 300, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.party, record.portfolio, record.reference], render: (record) => <a className="dbi-table-record-link" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a> },
     { key: "work", label: "Type of work", facet: true, minWidth: 150, value: (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work" },
     { key: "date", label: "Next published date", minWidth: 130, value: (record) => nextPublishedDate(record, asOf) || "Not scheduled", render: (record) => compactDate(nextPublishedDate(record, asOf)) },
     { key: "observed", label: "Observed", sortValue: recordAmount, exportValue: recordAmount, render: (record) => <strong>{money(recordAmount(record))}</strong> },
@@ -403,7 +405,7 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
     <section className="ops-panel" data-ops-watchlist>
       <ControlPageHeader compact divided eyebrow="Workspace work" title="Watchlist" summary="Tracked records, private notes, review dates, and wallboard visibility." headingLevel={2} />
       <ControlPageBody compact>
-      {rows.length ? <OperationalDataTable id="watchlist" label="Tracked records" rows={rows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "date", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked records…" exportFilename="tracked-records.csv" mobileColumns={["record", "date", "review", "wallboard", "actions"]} wrapperProps={{ "data-ops-watch-table": true }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <label className="dbi-table-note"><span>Private workspace note</span><textarea key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label>; }} /> : <ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Use the star on any Transactions Gantt row to build this working set." action={<a className="if-btn if-btn--primary" href="#/budget-spend/transactions">Open Transactions</a>} />}
+      {rows.length ? <OperationalDataTable id="watchlist" label="Tracked records" rows={rows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "date", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked records…" exportFilename="tracked-records.csv" mobileColumns={["record", "date", "review", "wallboard", "actions"]} wrapperProps={{ "data-ops-watch-table": true }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <label className="dbi-table-note"><span>Private workspace note</span><textarea key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label>; }} /> : <ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Use the star on any Spend Explorer timeline row to build this working set." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=timeline">Open Spend Explorer</a>} />}
       </ControlPageBody>
     </section>
   );
@@ -512,7 +514,7 @@ function EventAiReview({ jobId, onOpenDraft, activityEntries = [] }) {
         { id: "verification", label: "Verification", value: failedStage === "research" ? "Not started" : "Stopped", meta: "No independently verified result" },
         { id: "record", label: "Event record", value: "Unchanged", meta: "Nothing merged · nothing saved", tone: "success" },
       ]} />
-      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Why it stopped</h3><p className="if-analytics-panel__summary">{failedStage === "research" ? "The research model returned output, but DBI rejected it before independent verification because the evidence contract was not met." : "Research completed, but independent verification did not produce an eligible draft."}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/api-log">Open API Log</a></header><div className="if-alert if-alert--danger"><CircleAlert size={17} aria-hidden="true" /><div><strong>{job.error?.code || "provider_failed"}</strong><p>{job.error?.message || "The provider stopped before returning a verified result."}</p></div></div>{evidenceDiagnostic ? <div className="if-meta-grid" data-event-ai-evidence-diagnostic>
+      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Why it stopped</h3><p className="if-analytics-panel__summary">{failedStage === "research" ? "The research model returned output, but DBI rejected it before independent verification because the evidence contract was not met." : "Research completed, but independent verification did not produce an eligible draft."}</p></div><a className="if-btn if-btn--secondary" href="#/budget-spend/connections?connectionsView=activity">Open API activity</a></header><div className="if-alert if-alert--danger"><CircleAlert size={17} aria-hidden="true" /><div><strong>{job.error?.code || "provider_failed"}</strong><p>{job.error?.message || "The provider stopped before returning a verified result."}</p></div></div>{evidenceDiagnostic ? <div className="if-meta-grid" data-event-ai-evidence-diagnostic>
         <dl className="if-kv"><dt>Web-search calls</dt><dd>{evidenceDiagnostic.webSearchCallCount ?? 0}</dd></dl>
         <dl className="if-kv"><dt>Consulted sources</dt><dd>{evidenceDiagnostic.searchSourceCount ?? 0}</dd></dl>
         <dl className="if-kv"><dt>Citation annotations</dt><dd>{evidenceDiagnostic.citationAnnotationCount ?? 0}</dd></dl>
@@ -678,7 +680,7 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onRefresh }) {
   </section>;
 }
 
-function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories }) {
+function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories, embedded = false }) {
   const [researchEvent, setResearchEvent] = useState(null);
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
@@ -696,10 +698,11 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" aria-label={`Edit ${event.title}`} title="Edit event" onClick={() => onEdit(event)}><Pencil size={14} /></button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} title="Delete event" onClick={() => onDelete(event.id)}><Trash2 size={14} /></button></div> },
   ];
   const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks" aria-label="Task Center" title="Task Center"><ListChecks size={15} aria-hidden="true" /><span>Task Center</span></a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" aria-label="Manage categories" title="Manage categories" onClick={onManageCategories}><Tags size={15} aria-hidden="true" /><span>Manage categories</span></button> : null}<button type="button" className="if-btn if-btn--primary" aria-label="Add event" title="Add event" onClick={onAdd}><Plus size={15} aria-hidden="true" /><span>Add event</span></button></>;
-  return <section className="ops-panel" data-ops-events><ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /><ControlPageBody compact>{events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the wallboard." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />}</ControlPageBody>{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
+  const content = events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the display calendar." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />;
+  return <section className={`ops-panel${embedded ? " ops-panel--embedded" : ""}`} data-ops-events>{!embedded ? <ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /> : null}{embedded ? content : <ControlPageBody compact>{content}</ControlPageBody>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
-function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records }) {
+function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records, embedded = false }) {
   const [requestFilters, setRequestFilters] = useState({});
   const [chartTooltip, setChartTooltip] = useState(null);
   const [ledger, setLedger] = useState("requests");
@@ -709,7 +712,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     { key: "type", label: "Event", facet: true, minWidth: 150, value: (entry) => entry.type.replaceAll("_", " "), render: (entry) => <strong>{entry.type.replaceAll("_", " ")}</strong> },
     { key: "detail", label: "Detail", minWidth: 280, role: "prose", value: (entry) => entry.detail },
     { key: "actor", label: "Actor", facet: true, minWidth: 130, value: (entry) => entry.actorType || "operator", render: (entry) => <><strong>{entry.actorType || "operator"}</strong>{entry.actorId ? <small>{entry.actorId}</small> : null}</> },
-    { key: "record", label: "Record", minWidth: 210, value: (entry) => byId.get(entry.recordId)?.id || entry.recordId || "Not linked", render: (entry) => { const record = byId.get(entry.recordId); return record ? <a className="dbi-table-record-link" href={`#/budget-spend/transactions?capRecord=${encodeURIComponent(record.opportunityId)}`}><strong>{record.id}</strong><small>{record.title}</small></a> : (entry.recordId || "Not linked"); } },
+    { key: "record", label: "Record", minWidth: 210, value: (entry) => byId.get(entry.recordId)?.id || entry.recordId || "Not linked", render: (entry) => { const record = byId.get(entry.recordId); return record ? <a className="dbi-table-record-link" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}><strong>{record.id}</strong><small>{record.title}</small></a> : (entry.recordId || "Not linked"); } },
   ];
   const requestColumns = [
     { key: "at", label: "Time", required: true, sticky: true, minWidth: 170, value: (entry) => entry.at, render: (entry) => dateTime(entry.at) },
@@ -774,7 +777,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     return { ...current, [key]: value };
   });
   return <section className="ops-panel if-operations-workspace" data-ops-activity data-ledger={ledger}>
-    <ControlPageHeader compact divided eyebrow="Workspace administration" title="API Log" summary="Redacted request diagnostics and append-only workspace changes." headingLevel={2} meta={<span className="if-badge if-badge--info">90-day retention</span>} />
+    {!embedded ? <ControlPageHeader compact divided eyebrow="Workspace administration" title="API Log" summary="Redacted request diagnostics and append-only workspace changes." headingLevel={2} meta={<span className="if-badge if-badge--info">90-day retention</span>} /> : null}
     <ControlPageBody compact>
     <nav className="if-tabs__list" aria-label="Log type">
       <button type="button" className={`if-tab${ledger === "requests" ? " is-active" : ""}`} aria-pressed={ledger === "requests"} onClick={() => setLedger("requests")}>API requests <span className="if-badge">{apiRequests.length}</span></button>
@@ -808,7 +811,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
 }
 
 function WallboardView({ records, watchlist, events, categories, teams, asOf, workspace, lastRefreshedAt }) {
-  const [mode, setMode] = useState("events");
+  const [mode, setMode] = useState("calendar");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [clock, setClock] = useState(() => new Date().toISOString());
@@ -817,10 +820,9 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
   const visibleRecords = records.filter((record) => watchById.get(record.opportunityId)?.wallboard).sort((a, b) => (nextPublishedDate(a, asOf) || "9999").localeCompare(nextPublishedDate(b, asOf) || "9999"));
   const wallboardEvents = events.filter((event) => event.wallboard && event.status === "scheduled").sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const upcomingEvents = wallboardEvents.filter((event) => (event.endsAt || event.startsAt) >= clock);
   useEffect(() => {
     if (!rotate) return undefined;
-    const modes = ["overview", "events", "calendar", "records"];
+    const modes = ["calendar", "records"];
     const timer = window.setInterval(() => setMode((value) => modes[(modes.indexOf(value) + 1) % modes.length]), 15000);
     return () => window.clearInterval(timer);
   }, [rotate]);
@@ -833,11 +835,6 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
     document.addEventListener("fullscreenchange", update);
     return () => document.removeEventListener("fullscreenchange", update);
   }, []);
-  const reviewHorizon = useMemo(() => {
-    const horizon = new Date(`${asOf}T00:00:00Z`);
-    horizon.setUTCDate(horizon.getUTCDate() + 30);
-    return horizon.toISOString().slice(0, 10);
-  }, [asOf]);
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen?.();
@@ -848,56 +845,17 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
     } catch { /* The board remains usable without browser fullscreen permission. */ }
   }
   const now = new Date(clock);
-  const reviewsDue = watchlist.filter((entry) => entry.reviewAt && entry.reviewAt >= asOf && entry.reviewAt <= reviewHorizon).length;
   return <section ref={ref} className="ops-wallboard" data-ops-wallboard data-wallboard-mode={mode} data-wallboard-fullscreen={isFullscreen ? "true" : "false"}>
     <header className="ops-wallboard__masthead">
       <div className="ops-wallboard__brand"><WorkspaceMark workspace={workspace} eager /><div>{!isFullscreen ? <span>Conference room display</span> : null}<h2>{workspace?.displayTitle || "Defense Budget Intelligence"}</h2>{isFullscreen ? <p data-wallboard-workspace>{workspace?.name || "Local workspace"}</p> : null}</div></div>
       <div className="ops-wallboard__time"><time dateTime={clock}><strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>{!isFullscreen ? <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span> : null}</time>{!isFullscreen ? <small data-wallboard-last-refresh>{lastRefreshedAt ? `Updated ${new Date(lastRefreshedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Updating…"}</small> : null}{!isFullscreen ? <small>Data through {compactDate(asOf)}</small> : null}</div>
     </header>
     {!isFullscreen ? <div className="ops-wallboard__toolbar">
-      <nav aria-label="Wallboard view"><button type="button" className={mode === "overview" ? "is-active" : ""} onClick={() => setMode("overview")}>Overview</button><button type="button" className={mode === "events" ? "is-active" : ""} onClick={() => setMode("events")}>Events</button><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Records</button></nav>
+      <nav aria-label="Display view"><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button></nav>
       <div><button type="button" data-wallboard-action="rotate" aria-label={rotate ? "Auto-cycle on" : "Auto-cycle off"} title={rotate ? "Auto-cycle on" : "Auto-cycle off"} aria-pressed={rotate} onClick={() => setRotate((value) => !value)}><RotateCw size={17} aria-hidden="true" /><span>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</span></button><button type="button" data-wallboard-action="kiosk" aria-label={isFullscreen ? "Exit kiosk" : "Enter kiosk"} title={isFullscreen ? "Exit kiosk" : "Enter kiosk"} aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}<span>{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</span></button></div>
     </div> : null}
-    {!isFullscreen ? <div className="ops-wallboard__metrics" aria-label="Wallboard summary">
-      <article><span>Tracked records</span><strong>{visibleRecords.length}</strong><small>Enabled for this display</small></article>
-      <article><span>Upcoming events</span><strong>{upcomingEvents.length}</strong><small>Scheduled operator activity</small></article>
-      <article><span>Reviews within 30 days</span><strong>{reviewsDue}</strong><small>Workspace review dates</small></article>
-      <article><span>Source health</span><strong>{sourceHealth.totals?.online || 0}/{sourceHealth.totals?.targets || 0}</strong><small>Feeds online at last probe</small></article>
-    </div> : null}
-    {mode === "overview" ? <div className="ops-wallboard__split"><WallboardRecords records={visibleRecords.slice(0, 8)} asOf={asOf} watchById={watchById} /><WallboardSchedule events={upcomingEvents.slice(0, 5)} /></div> : mode === "events" ? <WallboardSchedule events={upcomingEvents.slice(0, 6)} now={now} focus /> : mode === "calendar" ? <WallboardCalendar events={wallboardEvents} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar events={wallboardEvents} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /></Suspense> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
-}
-
-function eventCountdown(event, now) {
-  const startsAt = new Date(event.startsAt);
-  const endsAt = new Date(event.endsAt || event.startsAt);
-  if (now >= startsAt && now <= endsAt) return { value: "LIVE", label: "Underway now", tone: "live" };
-  const days = Math.max(0, Math.ceil((startsAt.getTime() - now.getTime()) / 86400000));
-  return { value: String(days), label: days === 1 ? "Day to go" : "Days to go", tone: days <= 14 ? "urgent" : days <= 45 ? "watch" : "steady" };
-}
-
-function WallboardEventCard({ event, index, now }) {
-  const countdown = eventCountdown(event, now);
-  const start = new Date(event.startsAt);
-  const attendees = event.attendees || [];
-  return <article className={`ops-wall-event ops-wall-event--${countdown.tone}`} data-wallboard-event-card>
-    <div className="ops-wall-event__topline"><span>{String(index + 1).padStart(2, "0")}</span><strong>{countdown.tone === "live" ? "Live" : "Tracking"}</strong><ShieldCheck size={15} aria-label="Wallboard approved" /></div>
-    <div className="ops-wall-event__countdown"><strong>{countdown.value}</strong><span>{countdown.label}</span></div>
-    <div className="ops-wall-event__body">
-      <time dateTime={event.startsAt}>{start.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</time>
-      <h3>{event.title}</h3>
-      <p><MapPin size={14} aria-hidden="true" /><span>{event.location || "Location not set"}</span></p>
-      {attendees.length ? <p className="ops-wall-event__attendees"><UsersRound size={14} aria-hidden="true" /><span>{attendees.map((attendee) => attendee.displayName).join(" · ")}</span></p> : null}
-    </div>
-    <footer><span><Link2 size={13} aria-hidden="true" /><b>{event.recordIds?.length || 0}</b> pursuits</span><span><Building2 size={13} aria-hidden="true" /><b>0</b> organizations</span><span><UsersRound size={13} aria-hidden="true" /><b>{attendees.length}</b> attendees</span></footer>
-  </article>;
-}
-
-function WallboardSchedule({ events, focus = false, now = new Date() }) {
-  return <section className={`ops-wallboard__section ops-wallboard__section--schedule${focus ? " ops-wallboard__section--event-focus" : ""}`}><header><div><span>Operator schedule</span><strong>Upcoming events</strong></div><b>{events.length}</b></header>{events.length ? focus ? <div className="ops-wallboard__event-grid">{events.map((event, index) => <WallboardEventCard key={event.id} event={event} index={index} now={now} />)}</div> : <div className="ops-wallboard__cards">{events.map((event) => {
-    const start = new Date(event.startsAt);
-    return <article key={event.id} className="ops-wallboard__event"><div className="ops-wallboard__date"><span>{start.toLocaleDateString([], { month: "short" })}</span><strong>{start.getDate()}</strong></div><div><time dateTime={event.startsAt}>{start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><strong>{event.title}</strong><span>{event.location || "Location not set"}</span></div></article>;
-  })}</div> : <div className="ops-wallboard__empty"><CalendarDays size={30} /><strong>No upcoming events</strong><p>Scheduled wallboard events will appear here.</p></div>}</section>;
 }
 
 function WallboardRecords({ records, asOf, watchById }) {
@@ -906,6 +864,70 @@ function WallboardRecords({ records, asOf, watchById }) {
     const reviewAt = watchById.get(record.opportunityId)?.reviewAt;
     return <article key={record.opportunityId} className="ops-wallboard__record"><div className="ops-wallboard__record-copy"><span>{record.id} · {record.portfolio}</span><strong>{record.title}</strong><small>{record.party || "Party not published"} · {money(recordAmount(record))}</small></div><div className="ops-wallboard__record-dates"><span>Next published date</span><time dateTime={nextDate}>{nextDate ? compactDate(nextDate) : "Not scheduled"}</time>{reviewAt ? <small>Review {compactDate(reviewAt)}</small> : null}</div></article>;
   })}</div> : <div className="ops-wallboard__empty"><Star size={30} /><strong>No tracked records</strong><p>Enable wallboard visibility from the Watchlist.</p></div>}</section>;
+}
+
+function useRouteSurface(parameter, allowed, fallback, onChange) {
+  const read = () => {
+    const value = new URLSearchParams(window.location.hash.split("?")[1] || "").get(parameter);
+    return allowed.includes(value) ? value : fallback;
+  };
+  const [surface, setSurface] = useState(read);
+  useEffect(() => {
+    const sync = () => {
+      const value = read();
+      setSurface(value);
+      onChange?.(value);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  // The allowed list is a static route contract.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parameter]);
+  function select(value) {
+    const [path, search = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(search);
+    params.set(parameter, value);
+    window.location.hash = `${path}?${params}`;
+    setSurface(value);
+    onChange?.(value);
+  }
+  return [surface, select];
+}
+
+function ScheduleView({ state, records, watchedRecords, categories, teams, auth, dataset, onAdd, onEdit, onDelete, onManageCategories }) {
+  const [surface, setSurface] = useRouteSurface("scheduleView", ["list", "calendar", "display"], "list");
+  const [calendarMonth, setCalendarMonth] = useState(() => String(state.events.find((event) => event.status === "scheduled")?.startsAt || new Date().toISOString()).slice(0, 7));
+  const scheduled = state.events.filter((event) => event.status === "scheduled").length;
+  const needsValidation = state.events.filter((event) => event.requiresValidation).length;
+  const tabs = <nav className="if-tabs__list" aria-label="Schedule view">
+    {[['list', 'List'], ['calendar', 'Calendar'], ['display', 'Display']].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}
+  </nav>;
+  return <section className="ops-panel schedule-surface" data-schedule-surface={surface}>
+    <ControlWorkbenchHeader eyebrow="Workspace schedule" title="Schedule" summary="Create events once, then work in a list, calendar, or conference-room display." metrics={[
+      { id: "scheduled", label: "Scheduled", value: scheduled, meta: "Visible events" },
+      { id: "validation", label: "Needs validation", value: needsValidation, meta: "AI review required", tone: needsValidation ? "warning" : "success" },
+      { id: "teams", label: "Overlays", value: teams.length + 1, meta: "Workspace-wide plus teams" },
+    ]} metricLabel="Schedule summary" tabs={tabs} />
+    <ControlPageBody compact>
+      {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} /> : null}
+      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} /></Suspense> : null}
+      {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
+    </ControlPageBody>
+  </section>;
+}
+
+function ConnectionsView({ auth, state, records, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor, onSurfaceChange }) {
+  const [surface, setSurface] = useRouteSurface("connectionsView", ["integrations", "credentials", "activity"], "integrations", onSurfaceChange);
+  const tabs = <nav className="if-tabs__list" aria-label="Connections view">
+    {[['integrations', 'Integrations'], ['credentials', 'Credentials'], ['activity', 'API activity']].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}
+  </nav>;
+  return <section className="ops-panel connections-surface" data-connections-surface={surface}>
+    <ControlWorkbenchHeader eyebrow="Workspace administration" title="Connections" summary="Source coverage, protected credentials, and technical request diagnostics in one bounded surface." tabs={tabs} />
+    {surface === "integrations" ? <Suspense fallback={<RouteFallback title="integrations" />}><IntegrationManagement embedded auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={onRetryContractMonitor} /></Suspense> : null}
+    {surface === "credentials" ? <ControlPageBody compact><div className="connections-credential-grid">{auth?.user?.canManageWorkspace ? <Suspense fallback={<RouteFallback title="workspace OpenAI credentials" />}><OpenAiKeyManagement auth={auth} scope="workspace" embedded /></Suspense> : null}{auth?.user?.canManageAgents ? <Suspense fallback={<RouteFallback title="agent credentials" />}><AgentAccessPanel auth={auth} embedded /></Suspense> : null}{!auth?.user?.canManageWorkspace && !auth?.user?.canManageAgents ? <ControlAsyncState compact state="empty" icon={<Bot size={22} />} title="Administrator access required" message="Your role cannot manage workspace or agent credentials." /> : null}</div></ControlPageBody> : null}
+    {surface === "activity" ? <ActivityView embedded activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
+  </section>;
 }
 
 export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
@@ -922,6 +944,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [contractMonitor, setContractMonitor] = useState(null);
   const [contractMonitorState, setContractMonitorState] = useState("idle");
+  const [connectionsSurface, setConnectionsSurface] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("connectionsView") || "integrations");
   useEffect(() => {
     const sync = () => {
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
@@ -931,7 +954,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     return () => window.removeEventListener("hashchange", sync);
   }, []);
   useEffect(() => {
-    if (view !== "integrations" || contractMonitorState !== "idle") return undefined;
+    if (view !== "connections" || connectionsSurface !== "integrations" || contractMonitorState !== "idle") return undefined;
     const controller = new AbortController();
     const url = new URL(`${import.meta.env.BASE_URL}data/contract-monitor.json`, window.location.origin);
     void fetch(url, { headers: { accept: "application/json" }, signal: controller.signal })
@@ -947,7 +970,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
         if (error?.name !== "AbortError") setContractMonitorState("error");
       });
     return () => controller.abort();
-  }, [contractMonitorState, view]);
+  }, [connectionsSurface, contractMonitorState, view]);
   const watchedRecords = state.watchlist.map((entry) => records.find((record) => record.opportunityId === entry.recordId)).filter(Boolean);
   const calendarTeams = auth?.user?.roleId === "super_user" && !auth?.user?.isEmulating
     ? state.teams
@@ -955,15 +978,12 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
-    {view === "events" ? <EventsView events={state.events} records={watchedRecords} categories={state.eventCategories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
+    {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
-    {view === "integrations" ? <Suspense fallback={<RouteFallback title="Integrations" />}><IntegrationManagement auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} /></Suspense> : null}
-    {view === "activity" ? <ActivityView activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
+    {view === "connections" ? <ConnectionsView auth={auth} state={state} records={records} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} contractMonitorState={contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} onSurfaceChange={setConnectionsSurface} /> : null}
     {view === "users" ? auth?.user?.canManageAccounts ? <Suspense fallback={<RouteFallback title="Accounts" />}><UserManagement auth={auth} /></Suspense> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Super user access required" message="Global account lifecycle and emulation belong to the immutable Super user." /></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <Suspense fallback={<RouteFallback title="Workspaces" />}><WorkspaceManagement auth={auth} /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspace ? <Suspense fallback={<RouteFallback title="Workspace settings" />}><WorkspaceManagement auth={auth} activeOnly /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
-    {view === "agents" ? auth?.user?.canManageAgents ? <Suspense fallback={<RouteFallback title="Agent access" />}><AgentAccessPanel auth={auth} embedded /></Suspense> : <section className="ops-panel" data-profile-agents-unavailable><ControlAsyncState compact state="empty" icon={<Bot size={22} />} title="Administrator access required" message="Your role cannot issue or revoke agent credentials." /></section> : null}
-    {view === "wallboard" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={state.eventCategories} teams={calendarTeams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
     {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
   </div>;

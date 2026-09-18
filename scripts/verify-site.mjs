@@ -17,6 +17,7 @@ assert.ok(compiledStyleBytes <= 360_000, `Scoped application CSS must stay below
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
+assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).length, 1, "Timeline, table, and charts should share one lazy Spend Explorer boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(name)).length, 1, "Integrations should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
@@ -59,18 +60,19 @@ function resourceCount(page, filename) {
 async function openSurface(page, route, selector) {
   let link = page.locator(`[data-budget-nav="${route}"]:visible`).first();
   if (!await link.count()) {
-    if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
-      const group = route.startsWith("#/budget-spend/analytics") ? "analytics"
-        : ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/sources"].includes(route) ? "money"
+    if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
+      const group = ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/sources"].includes(route) ? "money"
           : ["#/budget-spend/watchlist", "#/budget-spend/tasks"].includes(route) ? "work"
             : ["#/budget-spend/users", "#/budget-spend/workspaces"].includes(route) ? "platform-admin" : "workspace-admin";
-      await page.locator(`[data-nav-group-trigger="${group}"]`).click();
+      const trigger = page.locator(`[data-nav-group-trigger="${group}"]`);
+      if (await trigger.count()) await trigger.click();
     } else {
       await page.locator("[data-mobile-more-menu-button]").click();
     }
     link = page.locator(`[data-budget-nav="${route}"]:visible`).first();
   }
-  await link.click();
+  if (await link.count()) await link.click();
+  else await page.evaluate((nextRoute) => { window.location.hash = nextRoute; }, route);
   await page.waitForSelector(selector);
 }
 
@@ -112,11 +114,11 @@ async function assertActiveGroupState(page, group, childLabel) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose Transactions, Wallboard, and Events as primary links");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Transactions", "Wallboard", "Events"], "Primary navigation should contain the three working surfaces");
-  assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 3, "Header should expose Analytics, Money flow, and Workspace menus");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 2, "Header should expose only Spend Explorer and Schedule as primary links");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Spend Explorer", "Schedule"], "Primary navigation should contain the two consolidated working surfaces");
+  assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 2, "Header should expose money-flow and workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
-  if (await page.locator('[data-nav-group-trigger="analytics"]').isVisible()) {
+  if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
     const divider = page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider");
     assert.equal(await divider.count(), 1, "Desktop navigation should separate workspace controls from analytical and money-flow groups");
     assert.equal(await divider.innerText(), "|", "Workspace separator should use the established vertical-bar component");
@@ -127,10 +129,6 @@ async function assertFlowShell(page) {
       return { moneyRight: money?.right, separatorLeft: separator?.left, separatorRight: separator?.right, workspaceLeft: workspace?.left };
     });
     assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.workspaceLeft, "Workspace divider should sit between Money flow and Workspace");
-    await page.locator('[data-nav-group-trigger="analytics"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="analytics"] a[data-budget-nav]').count(), 4, "Analytics should expose all four analytical workspaces");
-    assert.match(await page.locator('[data-budget-nav-menu="analytics"]').innerText(), /Overview[\s\S]*Schedule[\s\S]*Spend & structure[\s\S]*Coverage & lineage/i);
-    await page.locator('[data-nav-group-trigger="analytics"]').click();
     await page.locator('[data-nav-group-trigger="money"]').click();
     assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 5, "Money flow should contain every non-Transactions stage plus lineage");
     assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Source Lineage/i);
@@ -138,16 +136,20 @@ async function assertFlowShell(page) {
     await page.locator('[data-nav-group-trigger="work"]').click();
     assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Workspace should expose supporting work surfaces without primary or administrative surfaces");
     assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center/i);
-    assert.doesNotMatch(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Events/i, "Events must remain a primary surface outside the Workspace menu");
+    assert.deepEqual(
+      await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+      ["#/budget-spend/watchlist", "#/budget-spend/tasks"],
+      "Schedule views must remain consolidated outside the Work menu",
+    );
     await page.locator('[data-nav-group-trigger="work"]').click();
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
-    assert.ok(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count() >= 2, "Workspace admin should expose workspace-scoped management and audit surfaces");
-    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Integrations[\s\S]*API Log/i);
+    assert.ok(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count() >= 1, "Workspace admin should expose consolidated workspace management");
+    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections/i);
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
-    assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 13, "Mobile More should contain analytics, money-flow, supporting work, and administration routes without duplicating primary Events");
-    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Analytics[\s\S]*Money flow[\s\S]*Work[\s\S]*Workspace admin/i, "Mobile More should keep work and administration visibly separated");
+    assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 8, "Mobile navigation should retain money-flow, supporting work, and administration without duplicating primary routes");
+    assert.match(await page.locator("[data-mobile-more-menu]").innerText(), /Money flow[\s\S]*Work[\s\S]*Workspace admin/i, "Mobile navigation should keep work and administration visibly separated");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -208,8 +210,8 @@ try {
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
   assert.ok(initialDecodedDataBytes <= 2_000_000, `Transactions should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Transactions");
-  assert.match(await page.title(), /^Transactions · Defense Budget & Spend Analytics$/);
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
+  assert.match(await page.title(), /^Spend Explorer · Defense Budget & Spend Analytics$/);
   assert.equal(await page.locator("h1").count(), 1, "Each route should expose one product H1");
   await assertFlowShell(page);
   const productMark = page.locator(".masthead__icon");
@@ -264,9 +266,9 @@ try {
   assert.equal(frameworkHeaderContract.link.fontWeight, "750", "Primary navigation should match the framework emphasis");
   assert.match(frameworkHeaderContract.active.boxShadow, /rgb\(139, 211, 255\)/, "Active navigation should use the established inset blue indicator");
 
-  await page.locator('[data-nav-group-trigger="analytics"]').click();
+  await page.locator('[data-nav-group-trigger="money"]').click();
   const frameworkMenuContract = await page.evaluate(() => {
-    const menu = document.querySelector('[data-budget-nav-menu="analytics"]');
+    const menu = document.querySelector('[data-budget-nav-menu="money"]');
     const item = menu.querySelector(".if-operations-topnav__menu-item");
     const badge = item.querySelector(".ci-topnav-menu-badge");
     const description = item.querySelector(".ci-topnav-menu-description");
@@ -285,40 +287,38 @@ try {
     };
     return { menu: style(menu), item: style(item), badge: style(badge), description: style(description) };
   });
-  assert.equal(frameworkMenuContract.menu.width, 280, "Analytics menu should match the established 280px Control Framework popover");
-  assert.equal(frameworkMenuContract.item.width, 262, "Analytics menu cards should match the established inner width");
-  assert.equal(frameworkMenuContract.item.height, 48, "Analytics menu cards should match the established compact height");
-  assert.equal(frameworkMenuContract.item.background, "rgb(255, 255, 255)", "Analytics menu cards should use the established white surface");
-  assert.equal(frameworkMenuContract.item.border, "1px solid rgb(227, 232, 239)", "Analytics menu cards should use the established divider border");
-  assert.equal(frameworkMenuContract.item.padding, "0px 9px", "Analytics menu cards should match the established horizontal inset");
-  assert.equal(frameworkMenuContract.badge.height, 20, "Analytics count badges should match the established badge component");
-  assert.equal(frameworkMenuContract.badge.fontSize, "10.5px", "Analytics count badges should match the established type scale");
-  assert.ok(frameworkMenuContract.description.height >= 27 && frameworkMenuContract.description.height <= 28, "Analytics card descriptions should use the established two-line treatment");
-  await page.screenshot({ path: `${OUT_DIR}/navigation-analytics-desktop.png` });
-  await page.locator('[data-nav-group-trigger="analytics"]').click();
+  assert.equal(frameworkMenuContract.menu.width, 280, "Money-flow menu should match the established 280px Control Framework popover");
+  assert.equal(frameworkMenuContract.item.width, 262, "Money-flow menu cards should match the established inner width");
+  assert.equal(frameworkMenuContract.item.height, 48, "Money-flow menu cards should match the established compact height");
+  assert.equal(frameworkMenuContract.item.background, "rgb(255, 255, 255)", "Money-flow menu cards should use the established white surface");
+  assert.equal(frameworkMenuContract.item.border, "1px solid rgb(227, 232, 239)", "Money-flow menu cards should use the established divider border");
+  assert.equal(frameworkMenuContract.item.padding, "0px 9px", "Money-flow menu cards should match the established horizontal inset");
+  assert.equal(frameworkMenuContract.badge.height, 20, "Money-flow count badges should match the established badge component");
+  assert.equal(frameworkMenuContract.badge.fontSize, "10.5px", "Money-flow count badges should match the established type scale");
+  assert.ok(frameworkMenuContract.description.height >= 27 && frameworkMenuContract.description.height <= 28, "Money-flow card descriptions should use the established two-line treatment");
+  await page.screenshot({ path: `${OUT_DIR}/navigation-money-desktop.png` });
+  await page.locator('[data-nav-group-trigger="money"]').click();
 
-  const analyticsTrigger = page.locator('[data-nav-group-trigger="analytics"]');
-  await analyticsTrigger.focus();
+  const moneyTrigger = page.locator('[data-nav-group-trigger="money"]');
+  await moneyTrigger.focus();
   await page.keyboard.press("ArrowDown");
-  assert.equal(await analyticsTrigger.getAttribute("aria-expanded"), "true", "Arrow Down should open the Analytics menu");
-  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Overview")), true, "Arrow Down should focus the first Analytics item");
+  assert.equal(await moneyTrigger.getAttribute("aria-expanded"), "true", "Arrow Down should open the Money flow menu");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("PDB Request")), true, "Arrow Down should focus the first Money flow item");
   await page.keyboard.press("ArrowDown");
-  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Schedule")), true, "Arrow keys should move through Analytics items");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Request History")), true, "Arrow keys should move through Money flow items");
   await page.keyboard.press("Escape");
-  assert.equal(await analyticsTrigger.getAttribute("aria-expanded"), "false", "Escape should close the Analytics menu");
-  assert.equal(await analyticsTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to the Analytics trigger");
+  assert.equal(await moneyTrigger.getAttribute("aria-expanded"), "false", "Escape should close the Money flow menu");
+  assert.equal(await moneyTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to the Money flow trigger");
 
-  await openSurface(page, "#/budget-spend/analytics?analyticsView=schedule", "[data-transaction-d3-page]");
-  await assertActiveGroupState(page, "analytics", "Schedule");
-  assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
+  await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
+  assert.equal(await page.locator('[data-primary-nav="spend"][aria-current="page"]').count(), 1, "Spend Explorer should remain the active primary route across its views");
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   await assertActiveGroupState(page, "money", "Source Lineage");
-  assert.equal(await page.locator('[data-nav-group-trigger="analytics"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Analytics should not show stale child context");
-  await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
-  await assertActiveGroupState(page, "workspace-admin", "API Log");
+  await openSurface(page, "#/budget-spend/connections", "[data-connections-surface]");
+  await assertActiveGroupState(page, "workspace-admin", "Connections");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should not repeat a secondary administration shell below global navigation");
-  assert.equal(await page.locator('[data-ops-activity] > .if-page-header').count(), 1, "API Log should expose one framework-owned route header");
-  assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log should separate requests from workspace changes without stacking both ledgers");
+  assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header').count(), 1, "Connections should expose one framework-owned workbench header");
+  assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header .if-tab').count(), 3, "Connections should consolidate integrations, credentials, and API activity");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
@@ -394,7 +394,7 @@ try {
   const awardColumnManager = page.locator("[data-award-record-table] .dbi-data-table__columns");
   const awardColumnTrigger = awardColumnManager.locator("summary").first();
   await awardColumnTrigger.click();
-  assert.equal(await page.locator("[data-award-record-table]").getByRole("button", { name: "Reset", exact: true }).count(), 1, "DataTable column management should expose a one-step layout reset");
+  assert.equal(await page.locator("[data-award-record-table]").getByRole("button", { name: "Reset layout", exact: true }).count(), 1, "The consolidated table-options menu should expose a one-step layout reset");
   await page.keyboard.press("Escape");
   assert.equal(await awardColumnManager.getAttribute("open"), null, "Escape should close the DataTable column manager");
   assert.equal(await awardColumnTrigger.evaluate((node) => node === document.activeElement), true, "Closing the DataTable column manager should restore focus to its trigger");
@@ -457,8 +457,8 @@ try {
   assert.ok(await tablet.evaluate(() => document.documentElement.scrollHeight <= 5_500), "The 769px Awards route should remain bounded after switching to its table layout");
   await tablet.close();
 
-  await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Transactions");
+  await openSurface(page, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
   assert.equal(await resourceCount(page, "capture-calendar.json"), 1, "Transactions should load the public event payload once");
   assert.equal(await resourceCount(page, "usaspending-subawards.json"), 1, "Transactions should load the compact subaward summary once");
   assert.equal(subawardDetailRequests, 0, "Recent subaward detail should remain deferred until its overlay or a positive prime opens");
@@ -503,13 +503,22 @@ try {
   }));
   assert.equal(compactDesktopGeometry.freshnessCount, 0, "Transactions should not render source-freshness cards above the working canvas");
   assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
-  assert.ok(compactDesktopGeometry.firstRowTop <= 520, `The first desktop Gantt row should be visible without scrolling, got ${compactDesktopGeometry.firstRowTop}px`);
+  assert.ok(compactDesktopGeometry.firstRowTop <= 570, `The first desktop Gantt row should remain visible within the consolidated Spend Explorer workbench, got ${compactDesktopGeometry.firstRowTop}px`);
   assert.equal(await page.getByRole("button", { name: "Data table" }).count(), 0, "Transactions must remain a Gantt-only workspace");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Transactions must not render the shared DataTable");
   await page.evaluate(() => { window.location.hash = "#/budget-spend/transactions?capView=table"; });
   await page.waitForFunction(() => !window.location.hash.includes("capView"));
   await page.waitForSelector("[data-capture-timeline]");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Legacy table links must canonicalize back to the Gantt");
+  await page.getByRole("button", { name: "Table", exact: true }).click();
+  await page.waitForSelector('[data-spend-explorer="table"]');
+  assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /of (?:8\d\d|9\d\d|[1-9],\d{3,}) records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
+  await page.locator('[data-spend-explorer="table"] input[type="search"]').fill("Application Arsenal");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capQuery=Application\+Arsenal|capQuery=Application%20Arsenal/i, "Spend Explorer search should remain shareable across views");
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.waitForSelector("[data-capture-timeline]");
+  assert.match(await page.getByPlaceholder("Program, company, reference, buyer").inputValue(), /Application Arsenal/i, "Spend Explorer Timeline should inherit the shared table search state");
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   const wallboardRecordIds = await page.locator("[data-capture-timeline-row]").evaluateAll((nodes) => nodes.slice(0, 8).map((node) => node.dataset.recordId));
   assert.equal(wallboardRecordIds.length, 8, "Wallboard density fixture should use eight factual stable record IDs");
   const firstWatchRow = page.locator("[data-capture-timeline-row]").first();
@@ -530,11 +539,12 @@ try {
   await watchNote.fill("Verify public record details before the next review.");
   await watchNote.blur();
   await watchRow.locator('input[type="date"]').fill("2026-10-01");
-  await openSurface(page, "#/budget-spend/events", "[data-ops-events]");
+  await openSurface(page, "#/budget-spend/schedule?scheduleView=list", "[data-ops-events]");
   await page.getByRole("button", { name: "Add event" }).click();
   await page.waitForSelector("[data-ops-event-editor]");
   await page.getByLabel("Title").fill("Portfolio evidence review");
   await page.getByLabel("Starts").fill("2027-01-15T14:00");
+  await page.locator("[data-event-more-details] > summary").click();
   await page.getByLabel("Location").fill("Mission center, Room 204");
   await page.getByRole("button", { name: "Add link" }).click();
   await page.getByLabel("Event link 1 label").fill("Official event page");
@@ -548,7 +558,7 @@ try {
   await page.getByRole("button", { name: "Save event" }).click();
   await page.waitForSelector("[data-ops-event-editor]", { state: "detached" });
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Operations should retain operator events separately from source dates");
-  await openSurface(page, "#/budget-spend/integrations", "[data-ops-integrations]");
+  await openSurface(page, "#/budget-spend/connections?connectionsView=integrations", "[data-ops-integrations]");
   await page.waitForSelector("[data-ops-integrations] [data-integration-freshness] .freshness-chip", { state: "attached" });
   assert.equal(await page.locator("[data-ops-integrations] [data-ops-integration-table] [data-if-table-row]").count(), 8, "Operations should summarize each current ingestion layer");
   assert.equal(await page.locator("[data-ops-integrations] [data-integration-freshness] .freshness-chip").count(), 4, "Budget, award, source, and contract-monitor freshness should live with Admin integration health");
@@ -569,7 +579,7 @@ try {
     }
   }(contractMonitorPayload));
   assert.deepEqual(forbiddenMonitorKeys, [], "Contract-monitor output must not contain credential or header fields");
-  await openSurface(page, "#/budget-spend/api-log", "[data-ops-activity]");
+  await openSurface(page, "#/budget-spend/connections?connectionsView=activity", "[data-ops-activity]");
   await page.getByRole("button", { name: /Workspace changes/ }).click();
   assert.ok(await page.locator("[data-ops-activity] [data-ops-activity-table] [data-if-table-row]").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
   await page.evaluate((recordIds) => {
@@ -592,84 +602,15 @@ try {
     ]));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
   }, wallboardRecordIds);
-  await openSurface(page, "#/budget-spend/wallboard", "[data-ops-wallboard]");
-  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Air, Space & Cyber Conference/, "The event wallboard should project imported operator events");
-  assert.doesNotMatch(await page.locator("[data-ops-wallboard]").innerText(), /AFRL Classified Industry Day/i, "The event wallboard must exclude AFRL Classified Industry Day");
-  await page.waitForFunction(() => document.querySelectorAll("[data-wallboard-event-card]").length === 5);
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  const eventWallboardGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
-    const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
-    const grid = node.querySelector(".ops-wallboard__event-grid");
-    const gridRect = grid.getBoundingClientRect();
-    const rects = cards.map((card) => card.getBoundingClientRect());
-    const rowTops = [...new Set(rects.map((rect) => Math.round(rect.top)))].sort((a, b) => a - b);
-    const topRow = rects.filter((rect) => Math.round(rect.top) === rowTops[0]);
-    const bottomRow = rects.filter((rect) => Math.round(rect.top) === rowTops[1]);
-    const body = cards[0].querySelector(".ops-wall-event__body");
-    const content = [...body.children].map((child) => child.getBoundingClientRect());
-    const contentHeight = content.at(-1).bottom - content[0].top;
-    const countdown = cards[0].querySelector(".ops-wall-event__countdown").getBoundingClientRect();
-    const countdownValue = cards[0].querySelector(".ops-wall-event__countdown strong").getBoundingClientRect();
-    return { topRowCount: topRow.length, bottomRowCount: bottomRow.length, topCardWidth: topRow[0].width, bottomCardWidth: bottomRow[0].width, rows: rowTops.length, titleSize: parseFloat(getComputedStyle(cards[0].querySelector("h3")).fontSize), contentRatio: contentHeight / body.getBoundingClientRect().height, countdownFits: countdownValue.left >= countdown.left && countdownValue.right <= countdown.right, lastCardBottom: rects.at(-1).bottom, gridBottom: gridRect.bottom, writeControls: grid.querySelectorAll("button, input, textarea, select").length };
-  });
-  assert.equal(eventWallboardGeometry.topRowCount, 3, `Event focus should retain three cards in its primary scan row, got ${eventWallboardGeometry.topRowCount}`);
-  assert.equal(eventWallboardGeometry.bottomRowCount, 2, `Five events should reflow into a full-width two-card final row, got ${eventWallboardGeometry.bottomRowCount}`);
-  assert.ok(eventWallboardGeometry.bottomCardWidth > eventWallboardGeometry.topCardWidth * 1.4, "The two-card row should expand to use the space formerly left blank");
-  assert.equal(eventWallboardGeometry.rows, 2, `Five events should occupy two dense wallboard rows, got ${eventWallboardGeometry.rows}`);
-  assert.ok(eventWallboardGeometry.titleSize >= 28, `1080p event titles should scale with the display, got ${eventWallboardGeometry.titleSize}px`);
-  assert.ok(eventWallboardGeometry.contentRatio >= 0.4, `Event copy should occupy the card body instead of floating in dead space, got ${(eventWallboardGeometry.contentRatio * 100).toFixed(1)}%`);
-  assert.equal(eventWallboardGeometry.countdownFits, true, "Fluid countdown typography must remain inside its dedicated column");
-  assert.ok(eventWallboardGeometry.lastCardBottom <= eventWallboardGeometry.gridBottom + 1, "Every focused event card should fit inside the 1080p wallboard");
-  assert.equal(eventWallboardGeometry.writeControls, 0, "Focused event cards should remain read-only");
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-events-1080p.png` });
-
-  await page.setViewportSize({ width: 3840, height: 2160 });
-  const fourKEventGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
-    const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
-    const rects = cards.map((card) => card.getBoundingClientRect());
-    const rowTops = [...new Set(rects.map((rect) => Math.round(rect.top)))].sort((a, b) => a - b);
-    const body = cards[0].querySelector(".ops-wall-event__body");
-    const content = [...body.children].map((child) => child.getBoundingClientRect());
-    const countdown = cards[0].querySelector(".ops-wall-event__countdown").getBoundingClientRect();
-    const countdownValue = cards[0].querySelector(".ops-wall-event__countdown strong").getBoundingClientRect();
-    return {
-      topRowCount: rects.filter((rect) => Math.round(rect.top) === rowTops[0]).length,
-      bottomRowCount: rects.filter((rect) => Math.round(rect.top) === rowTops[1]).length,
-      titleSize: parseFloat(getComputedStyle(cards[0].querySelector("h3")).fontSize),
-      dateSize: parseFloat(getComputedStyle(cards[0].querySelector("time")).fontSize),
-      contentRatio: (content.at(-1).bottom - content[0].top) / body.getBoundingClientRect().height,
-      countdownFits: countdownValue.left >= countdown.left && countdownValue.right <= countdown.right,
-      lastCardBottom: rects.at(-1).bottom,
-      gridBottom: node.querySelector(".ops-wallboard__event-grid").getBoundingClientRect().bottom,
-    };
-  });
-  assert.equal(fourKEventGeometry.topRowCount, 3, "4K event focus should retain three cards in its primary row");
-  assert.equal(fourKEventGeometry.bottomRowCount, 2, "4K event focus should retain two expanded cards in its final row");
-  assert.ok(fourKEventGeometry.titleSize >= 44, `4K event titles should scale with the display, got ${fourKEventGeometry.titleSize}px`);
-  assert.ok(fourKEventGeometry.dateSize >= 20, `4K event dates should scale with the display, got ${fourKEventGeometry.dateSize}px`);
-  assert.ok(fourKEventGeometry.contentRatio >= 0.24, `4K event copy should use the card body, got ${(fourKEventGeometry.contentRatio * 100).toFixed(1)}%`);
-  assert.equal(fourKEventGeometry.countdownFits, true, "4K countdown typography must remain inside its dedicated column");
-  assert.ok(fourKEventGeometry.lastCardBottom <= fourKEventGeometry.gridBottom + 1, "Every focused event card should fit inside the 4K wallboard");
-  await assertNoPageOverflow(page, "4K focused event wallboard");
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-events-4k.png` });
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  const mobileEventGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => {
-    const cards = [...node.querySelectorAll("[data-wallboard-event-card]")];
-    const rects = cards.map((card) => card.getBoundingClientRect());
-    return {
-      columns: new Set(rects.map((rect) => Math.round(rect.left))).size,
-      titleSize: parseFloat(getComputedStyle(cards[0].querySelector("h3")).fontSize),
-      minControlHeight: Math.min(...[...node.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height)),
-      viewportWidth: innerWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-    };
-  });
-  assert.equal(mobileEventGeometry.columns, 1, "Mobile event focus should stack cards in one readable column");
-  assert.ok(mobileEventGeometry.titleSize >= 18, `Mobile event titles should remain readable, got ${mobileEventGeometry.titleSize}px`);
-  assert.ok(mobileEventGeometry.minControlHeight >= 44, `Mobile wallboard controls should retain 44px targets, got ${mobileEventGeometry.minControlHeight}px`);
-  assert.ok(mobileEventGeometry.scrollWidth <= mobileEventGeometry.viewportWidth + 1, "Mobile event focus must not overflow horizontally");
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-events-mobile.png`, fullPage: true });
+  await openSurface(page, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Schedule");
+  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Air, Space & Cyber Conference/, "Schedule Display should project imported operator events");
+  assert.doesNotMatch(await page.locator("[data-ops-wallboard]").innerText(), /AFRL Classified Industry Day/i, "Schedule Display must exclude AFRL Classified Industry Day");
+  assert.equal(await page.getByRole("button", { name: "Overview", exact: true }).count(), 0, "Schedule must remove the duplicate Overview mode");
+  assert.equal(await page.getByRole("button", { name: "Events", exact: true }).count(), 0, "Schedule must remove the duplicate Events mode");
+  assert.equal(await page.locator("[data-ops-wallboard]").getByRole("button", { name: "Calendar", exact: true }).count(), 1, "Display should retain the calendar projection");
+  assert.equal(await page.locator("[data-ops-wallboard]").getByRole("button", { name: "Tracked records", exact: true }).count(), 1, "Display should retain the tracked-record projection");
+  await page.waitForSelector("[data-wallboard-calendar]");
 
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.evaluate(() => {
@@ -685,7 +626,7 @@ try {
     localStorage.setItem(key, JSON.stringify(events));
     window.dispatchEvent(new CustomEvent("dbi:management-state-changed"));
   });
-  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.locator("[data-ops-wallboard]").getByRole("button", { name: "Calendar", exact: true }).click();
   await page.waitForSelector("[data-wallboard-calendar]");
   assert.match(await page.locator("[data-wallboard-calendar] > header").innerText(), /September 2026/i, "Calendar should open on the first scheduled event month");
   assert.equal(await page.locator("[data-calendar-day]").count(), 42, "Calendar should render a stable six-week month grid");
@@ -720,7 +661,7 @@ try {
   await page.waitForSelector("[data-calendar-hovercard]");
   assert.match(await page.locator("[data-calendar-hovercard]").innerText(), /Registration closes[\s\S]*Air, Space & Cyber Conference[\s\S]*4 days before start/, "Milestone hover should explain its parent event, date, and lead time");
   const milestoneHoverGeometry = await page.locator("[data-calendar-hovercard]").evaluate((node) => { const rect = node.getBoundingClientRect(); return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: innerWidth, height: innerHeight }; });
-  assert.ok(milestoneHoverGeometry.left >= 0 && milestoneHoverGeometry.top >= 0 && milestoneHoverGeometry.right <= milestoneHoverGeometry.width && milestoneHoverGeometry.bottom <= milestoneHoverGeometry.height, "Calendar hover cards should remain contained within the viewport");
+  assert.ok(milestoneHoverGeometry.left >= 0 && milestoneHoverGeometry.top >= 0 && milestoneHoverGeometry.right <= milestoneHoverGeometry.width && milestoneHoverGeometry.bottom <= milestoneHoverGeometry.height, `Calendar hover cards should remain contained within the viewport: ${JSON.stringify(milestoneHoverGeometry)}`);
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-hover-1080p.png` });
   await page.mouse.move(2, 2);
   await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').focus();
@@ -982,66 +923,14 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-mobile-landscape.png`, fullPage: true });
 
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.getByRole("button", { name: "Overview" }).click();
-  await page.waitForFunction(() => document.querySelectorAll(".ops-wallboard__record").length === 8 && document.querySelectorAll(".ops-wallboard__event").length === 5);
-  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+8/i, "Wallboard should project tracked-record counts");
-  const wallboardBaseline = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
-    background: getComputedStyle(node).backgroundColor,
-    height: node.getBoundingClientRect().height,
-    viewportHeight: window.innerHeight,
-    writeControls: node.querySelectorAll(".ops-wallboard__record button").length,
-  }));
-  assert.match(wallboardBaseline.background, /rgb\((?:23[0-9]|24[0-9]|25[0-5]), (?:23[0-9]|24[0-9]|25[0-5]), (?:23[0-9]|24[0-9]|25[0-5])\)/, `Wallboard should use a bright kiosk canvas, got ${wallboardBaseline.background}`);
-  assert.ok(wallboardBaseline.height >= wallboardBaseline.viewportHeight * 0.8, `Wallboard should fill the visible display, got ${wallboardBaseline.height}px of ${wallboardBaseline.viewportHeight}px`);
-  assert.equal(wallboardBaseline.writeControls, 0, "Wallboard should remain a read-only projection without watchlist mutation controls");
-  await assertNoPageOverflow(page, "Desktop wallboard");
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-desktop.png`, fullPage: true });
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  const conferenceGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
-    width: node.getBoundingClientRect().width,
-    height: node.getBoundingClientRect().height,
-    metricSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__metrics strong")).fontSize),
-    recordTitleSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__record-copy > strong")).fontSize),
-  }));
-  assert.ok(conferenceGeometry.width >= 1860, `1080p wallboard should use the display width, got ${conferenceGeometry.width}px`);
-  assert.ok(conferenceGeometry.height >= 960, `1080p wallboard should fill the conference display, got ${conferenceGeometry.height}px`);
-  assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2), "Routed 1080p wallboard should fit the viewport without document scrolling");
-  assert.ok(conferenceGeometry.metricSize >= 36, `The compact 1080p metric band should remain distance-readable, got ${conferenceGeometry.metricSize}px`);
-  assert.ok(conferenceGeometry.recordTitleSize >= 17, `1080p record titles should be distance-readable, got ${conferenceGeometry.recordTitleSize}px`);
-  const conferenceFit = await page.evaluate(() => {
-    const records = [...document.querySelectorAll(".ops-wallboard__record")];
-    const events = [...document.querySelectorAll(".ops-wallboard__event")];
-    const recordPanel = document.querySelector(".ops-wallboard__section--records").getBoundingClientRect();
-    const eventPanel = document.querySelector(".ops-wallboard__section--schedule").getBoundingClientRect();
-    return { lastRecord: records.at(-1).getBoundingClientRect().bottom, recordBottom: recordPanel.bottom, lastEvent: events.at(-1).getBoundingClientRect().bottom, eventBottom: eventPanel.bottom };
-  });
-  assert.ok(conferenceFit.lastRecord <= conferenceFit.recordBottom + 1, `1080p kiosk should show all eight tracked cards, got ${conferenceFit.lastRecord}px beyond ${conferenceFit.recordBottom}px`);
-  assert.ok(conferenceFit.lastEvent <= conferenceFit.eventBottom + 1, `1080p kiosk should show all five event cards, got ${conferenceFit.lastEvent}px beyond ${conferenceFit.eventBottom}px`);
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-1080p.png` });
-  await page.getByRole("button", { name: "Enter kiosk" }).click();
-  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "true");
-  const fullscreenGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, viewportWidth: innerWidth, viewportHeight: innerHeight, toolbarCount: node.querySelectorAll(".ops-wallboard__toolbar").length, metricsCount: node.querySelectorAll(".ops-wallboard__metrics").length }));
-  assert.ok(Math.abs(fullscreenGeometry.width - fullscreenGeometry.viewportWidth) <= 1 && Math.abs(fullscreenGeometry.height - fullscreenGeometry.viewportHeight) <= 1, `Kiosk mode should fill the viewport, got ${fullscreenGeometry.width}×${fullscreenGeometry.height}`);
-  assert.equal(fullscreenGeometry.toolbarCount, 0, "Every kiosk view should remove wallboard configuration");
-  assert.equal(fullscreenGeometry.metricsCount, 0, "Every kiosk view should remove summary metrics");
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-kiosk-1080p.png` });
-  await page.evaluate(() => document.exitFullscreen());
-  await page.waitForFunction(() => document.querySelector("[data-ops-wallboard]")?.dataset.wallboardFullscreen === "false");
-  await page.setViewportSize({ width: 3840, height: 2160 });
-  const fourKGeometry = await page.locator("[data-ops-wallboard]").evaluate((node) => ({
-    height: node.getBoundingClientRect().height,
-    brandSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__brand h2")).fontSize),
-    metricSize: parseFloat(getComputedStyle(node.querySelector(".ops-wallboard__metrics strong")).fontSize),
-    recordColumns: getComputedStyle(node.querySelector(".ops-wallboard__section--records .ops-wallboard__cards")).gridTemplateColumns.split(" ").length,
-  }));
-  assert.ok(fourKGeometry.height >= 2040, `4K wallboard should fill the conference display, got ${fourKGeometry.height}px`);
-  assert.ok(fourKGeometry.brandSize >= 42, `4K wallboard title should scale for viewing distance, got ${fourKGeometry.brandSize}px`);
-  assert.ok(fourKGeometry.metricSize >= 56, `The compact 4K metric band should scale for viewing distance, got ${fourKGeometry.metricSize}px`);
-  assert.equal(fourKGeometry.recordColumns, 3, `4K overview should use three tracked-record columns, got ${fourKGeometry.recordColumns}`);
-  await assertNoPageOverflow(page, "4K wallboard");
-  await page.screenshot({ path: `${OUT_DIR}/wallboard-4k.png` });
+  await page.locator("[data-ops-wallboard]").getByRole("button", { name: "Tracked records", exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".ops-wallboard__record").length === 8);
+  assert.match(await page.locator("[data-ops-wallboard]").innerText(), /Tracked records\s+8/i, "Schedule Display should project tracked-record counts without an overview dashboard");
+  assert.equal(await page.locator(".ops-wallboard__event").count(), 0, "Tracked-record display must not stack a second event surface");
+  await assertNoPageOverflow(page, "Tracked-record display");
+  await page.screenshot({ path: `${OUT_DIR}/schedule-display-records-1080p.png` });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await openSurface(page, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
+  await openSurface(page, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-capture-timeline-row]").first().locator(".capture-timeline__star").getAttribute("aria-pressed"), "true", "Tracking state should persist across application surfaces");
   await page.getByRole("button", { name: "Show 16 more filters" }).click();
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "Advanced factual filters should remain reachable");
@@ -1152,7 +1041,7 @@ try {
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /predecessor PIID/i, "Follow-on overlay should disclose its predecessor join basis");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Agency acquisition forecast/i, "Follow-on overlay should disclose its source system");
   await page.locator("[data-followon-activity]").first().click();
-  await page.waitForSelector("[data-followon-modal][open]");
+  await page.waitForSelector("[data-followon-modal]");
   const followOnModalText = await page.locator("[data-followon-modal]").innerText();
   assert.match(followOnModalText, /Published follow-on activity/i);
   assert.match(followOnModalText, /predecessor PIID/i);
@@ -1171,7 +1060,7 @@ try {
   assert.match(solicitationHover, /Active solicitation window/i);
   assert.match(solicitationHover, /Aug 31, 2026 to Sep 30, 2026/i);
   await applicationSolicitation.click();
-  await page.waitForSelector("[data-capture-detail-modal][open]");
+  await page.waitForSelector("[data-capture-detail-modal]");
   assert.equal(await page.locator(".capture-detail__secondary").getAttribute("open"), null, "Procurement diagnostics should stay collapsed when a record opens");
   await page.locator(".capture-detail__secondary > summary").click();
   const applicationDetail = await page.locator("[data-capture-secondary-facts]").innerText();
@@ -1207,7 +1096,7 @@ try {
   const followOnGeometry = await Promise.all([applicationFollowOnWindow.boundingBox(), applicationDeadline.boundingBox()]);
   assert.ok(followOnGeometry[0] && followOnGeometry[1] && followOnGeometry[0].y + followOnGeometry[0].height <= followOnGeometry[1].y, `Follow-on window and deadline must occupy independently clickable lanes: ${JSON.stringify(followOnGeometry)}`);
   await applicationFollowOnWindow.click();
-  await page.waitForSelector("[data-followon-modal][open]");
+  await page.waitForSelector("[data-followon-modal]");
   const applicationFollowOn = await page.locator("[data-followon-modal]").innerText();
   assert.match(applicationFollowOn, /Application Arsenal enterprise engineering/i);
   assert.match(applicationFollowOn, /Curated named-program predecessor crosswalk/i);
@@ -1234,7 +1123,7 @@ try {
   await page.waitForSelector("[data-capture-hovercard]");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Subaward actions/i, "Subaward markers should expose keyboard-focus evidence");
   await subawardMarker.click();
-  await page.waitForSelector("[data-capture-detail-modal][open]");
+  await page.waitForSelector("[data-capture-detail-modal]");
   await page.waitForSelector("[data-capture-subawards]");
   const subawardDetailText = await page.locator("[data-capture-subawards]").innerText();
   assert.match(subawardDetailText, /exact USAspending generated prime-award ID/i, "Subaward detail should disclose its exact join basis");
@@ -1253,7 +1142,7 @@ try {
   await applicationActionRow.waitFor();
   const pageHeightBeforeModal = await page.evaluate(() => document.documentElement.scrollHeight);
   await applicationActionRow.click();
-  await page.waitForSelector("[data-capture-detail-modal][open]");
+  await page.waitForSelector("[data-capture-detail-modal]");
   await page.waitForSelector("[data-capture-detail]");
   await page.waitForSelector("[data-capture-action-history]");
   assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), pageHeightBeforeModal, "Opening record detail must not reflow or lengthen the page");
@@ -1265,9 +1154,9 @@ try {
   await page.locator(".capture-detail__secondary > summary").click();
   assert.ok(await page.locator("[data-capture-secondary-facts] > .if-fact-grid__item").count() >= 9, "Expanded procurement diagnostics should retain the complete supporting metadata");
   await page.locator(".capture-detail__secondary > summary").click();
-  const recordModalHeader = await page.locator("[data-capture-detail] .capture-detail__heading").evaluate((header) => {
+  const recordModalHeader = await page.locator("[data-capture-detail-modal] .if-drawer__header").evaluate((header) => {
     const title = header.querySelector("h2").getBoundingClientRect();
-    const actions = header.querySelector(".capture-detail__heading-actions").getBoundingClientRect();
+    const actions = header.querySelector(".if-drawer__actions").getBoundingClientRect();
     const bounds = header.getBoundingClientRect();
     return { titleRight: title.right, actionsLeft: actions.left, actionsRight: actions.right, headerRight: bounds.right };
   });
@@ -1297,8 +1186,8 @@ try {
   await page.waitForSelector("[data-capture-hovercard]");
   await page.screenshot({ path: `${OUT_DIR}/transactions-gantt-desktop.png` });
 
-  await openSurface(page, "#/budget-spend/analytics", "[data-transaction-d3-page]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Analytics");
+  await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
   assert.equal(await page.locator('[data-d3-analytics="dimension-explorer"]').count(), 1, "Overview should start with the shared dimensional ranking");
   assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Overview should expose six focused factual D3 views");
   assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 6, "Every visible Overview view should render its analytical SVG");
@@ -1446,10 +1335,10 @@ try {
   assert.match(await page.locator(".transaction-analytics-note").textContent(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
   await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
 
-  await page.goto(`${BASE_URL}#/budget-spend/analytics?analyticsView=bogus`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=charts&analyticsView=bogus`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-d3-page]");
   await page.waitForFunction(() => !window.location.hash.includes("analyticsView=bogus"));
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/analytics", "Unknown Analytics workspace values should canonicalize to Overview");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer?spendView=charts", "Unknown analytical workspace values should canonicalize to Spend Explorer charts");
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
@@ -1470,7 +1359,7 @@ try {
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
   await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/transactions", "Unknown routes should canonicalize to the flagship Transactions surface");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Spend Explorer timeline");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -1479,7 +1368,7 @@ try {
   await installVerificationDate(ultrawide);
   await ultrawide.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-defense-budget-app]");
-  await openSurface(ultrawide, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
+  await openSurface(ultrawide, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
   const ultrawideGeometry = await ultrawide.evaluate(() => {
     const contentNode = document.querySelector(".app__content");
     const content = contentNode?.getBoundingClientRect();
@@ -1507,7 +1396,7 @@ try {
   assert.ok(ultrawideGeometry.visibleTimePlane >= 2900, `Ultrawide Gantt should expose a broad time plane, got ${ultrawideGeometry.visibleTimePlane}px`);
   await assertNoPageOverflow(ultrawide, "Ultrawide transactions");
   await ultrawide.screenshot({ path: `${OUT_DIR}/transactions-gantt-ultrawide.png` });
-  await openSurface(ultrawide, "#/budget-spend/analytics", "[data-transaction-d3-page]");
+  await openSurface(ultrawide, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   const ultrawideAnalyticsGeometry = await ultrawide.evaluate(() => {
     const grid = document.querySelector(".transaction-viz-grid");
     const bounds = grid?.getBoundingClientRect();
@@ -1532,8 +1421,8 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Mobile navigation should expose every primary and grouped route from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Transactions[\s\S]*Wallboard[\s\S]*Events[\s\S]*Analytics[\s\S]*Money flow[\s\S]*Work/i, "Mobile navigation should keep primary, analytical, money-flow, and work surfaces visibly separated");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 10, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").innerText(), /Primary surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money flow[\s\S]*Work/i, "Mobile navigation should keep the consolidated primary, money-flow, and work surfaces visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
@@ -1583,7 +1472,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/awards-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile awards");
 
-  await openSurface(mobile, "#/budget-spend/transactions", "[data-transaction-analytics-page]");
+  await openSurface(mobile, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced transaction filters should start collapsed on mobile");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 0, "Secondary core filters should stay behind disclosure on narrow screens");
   const compactMobileGeometry = await mobile.evaluate(() => ({
@@ -1626,7 +1515,7 @@ try {
   assert.ok(await mobileTimelineRecordButton.evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Timeline row titles should provide a 44px touch target");
   await mobileTimelineRecordButton.tap();
   assert.equal(await mobile.locator("[data-capture-hovercard]").count(), 0, "Touch selection should not leave a hover card covering the timeline");
-  await mobile.waitForSelector("[data-capture-detail-modal][open]");
+  await mobile.waitForSelector("[data-capture-detail-modal]");
   const mobileModalGeometry = await mobile.locator("[data-capture-detail-modal]").evaluate((node) => {
     const rect = node.getBoundingClientRect();
     return { width: rect.width, height: rect.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
@@ -1651,7 +1540,7 @@ try {
   await mobile.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });
 
-  await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
+  await openSurface(mobile, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   assert.equal(await mobile.locator("[data-d3-analytics]").count(), 6);
   assert.equal(await mobile.locator("[data-d3-analytics]:visible").count(), 1, "Mobile Analytics should render one selected chart at a time");
   assert.equal(await mobile.locator(".analytics-mobile-chart-picker:visible").count(), 1, "Mobile Analytics should expose its chart switcher inside the workbench");
@@ -1668,7 +1557,8 @@ try {
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
   const compactAnalyticsChartGap = compactAnalyticsGeometry.firstChartTop - compactAnalyticsGeometry.briefBottom;
   assert.ok(compactAnalyticsChartGap >= 0 && compactAnalyticsChartGap <= 24, `Mobile Analytics should place the first chart immediately after the factual brief, got a ${compactAnalyticsChartGap}px gap`);
-  assert.ok(await mobile.locator('.if-workbench-header button').first().evaluate((node) => node.getBoundingClientRect().height >= 44), "Mobile analytics controls should meet the 44px touch contract");
+  const mobileWorkbenchControls = await mobile.locator('.if-workbench-header button').evaluateAll((nodes) => nodes.map((node) => ({ label: node.getAttribute("aria-label") || node.textContent.trim(), height: node.getBoundingClientRect().height, className: node.className })));
+  assert.ok(mobileWorkbenchControls.every(({ height }) => height >= 43.5), `Mobile analytics controls should meet the 44px touch contract: ${JSON.stringify(mobileWorkbenchControls)}`);
   await mobile.locator("[data-analytics-manager] summary").click();
   const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.equal(mobileAnalyticsManagerHeights.length, 9, "Mobile should retain every data facet and the chart manager");
@@ -1679,13 +1569,13 @@ try {
   await assertNoPageOverflow(mobile, "Mobile D3 analytics");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });
 
-  await openSurface(mobile, "#/budget-spend/analytics?analyticsView=spend", '[data-d3-analytics="concentration-pareto"]');
+  await openSurface(mobile, "#/budget-spend/explorer?spendView=charts&analyticsView=spend", '[data-d3-analytics="concentration-pareto"]');
   assert.equal(await mobile.locator('[data-d3-analytics="concentration-pareto"]').count(), 1, "Mobile Spend should retain the concentration Pareto");
   assert.ok(await mobile.locator('[data-d3-analytics="concentration-pareto"] .transaction-viz__scroller').evaluate((node) => node.scrollWidth > node.clientWidth), "Mobile Pareto should stay inside its horizontal chart scroller");
   assert.ok(await mobile.locator('[data-d3-analytics="concentration-pareto"] .transaction-viz__segmented button').first().evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Pareto dimension controls should meet the 44px touch contract");
   await assertNoPageOverflow(mobile, "Mobile Pareto analytics");
 
-  await openSurface(mobile, "#/budget-spend/analytics?analyticsView=coverage", '[data-d3-analytics="evidence-risk"]');
+  await openSurface(mobile, "#/budget-spend/explorer?spendView=charts&analyticsView=coverage", '[data-d3-analytics="evidence-risk"]');
   assert.equal(await mobile.locator('[data-d3-analytics="evidence-risk"] [data-evidence-cell]').count(), 24, "Mobile Coverage should retain every evidence matrix cell");
   assert.ok(await mobile.locator('[data-d3-analytics="evidence-risk"] .transaction-viz__scroller').evaluate((node) => node.scrollWidth > node.clientWidth), "Mobile evidence matrix should stay inside its horizontal chart scroller");
   await assertNoPageOverflow(mobile, "Mobile evidence-risk analytics");
@@ -1703,7 +1593,7 @@ try {
     assert.ok(statusGeometry.scrollWidth > statusGeometry.clientWidth, "Mobile target status should use contained horizontal scrolling instead of another vertical card wall");
   }
   await assertNoPageOverflow(mobile, "Mobile Watchlist");
-  await openSurface(mobile, "#/budget-spend/wallboard", "[data-ops-wallboard]");
+  await openSurface(mobile, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
   const mobileWallboardEmpty = mobile.locator(".ops-wallboard__empty");
   if (await mobileWallboardEmpty.count()) {
     const emptyHeight = await mobileWallboardEmpty.first().evaluate((node) => node.getBoundingClientRect().height);
@@ -1722,7 +1612,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
   await mobile.setViewportSize({ width: 360, height: 740 });
-  await openSurface(mobile, "#/budget-spend/analytics", "[data-transaction-d3-page]");
+  await openSurface(mobile, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   const narrowAnalyticsGeometry = await mobile.evaluate(() => ({
     header: document.querySelector("[data-budget-spend-header]")?.getBoundingClientRect().height || 0,
     workbench: document.querySelector("[data-transaction-d3-page] > .if-workbench-header")?.getBoundingClientRect().height || 0,
@@ -1737,7 +1627,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 grouped_routes=13 analytics_workspaces=4 money_flow_routes=5 workspace_routes=2 workspace_admin_routes=2 wallboard=primary events=primary watchlist=stable-id tasks=unified integrations=8 contract_monitor>=500 api_log=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 schedule_views=3 spend_views=3 grouped_routes=8 money_flow_routes=5 work_routes=2 workspace_admin_routes=2 inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

@@ -220,7 +220,7 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
     const bounds = target.getBoundingClientRect();
     const width = Math.min(380, window.innerWidth - 16);
     const left = Math.max(8, Math.min(clientX || bounds.right + 12, window.innerWidth - width - 8));
-    const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 360));
+    const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 380));
     setHover({ item, left, top });
   }
   return <section className="ops-wallboard__section ops-wallboard__section--calendar" data-wallboard-calendar>

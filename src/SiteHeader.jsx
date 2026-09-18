@@ -4,18 +4,11 @@ import { useAuth } from "./AuthContext.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 
-const PRIMARY_IDS = ["calendar", "wallboard", "events"];
+const PRIMARY_IDS = ["spend", "schedule"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
 const WORK_IDS = new Set(["watchlist", "tasks"]);
-const WORKSPACE_ADMIN_IDS = new Set(["integrations", "activity", "workspace-settings", "agents"]);
+const WORKSPACE_ADMIN_IDS = new Set(["connections", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
-
-const ANALYTICS_ITEMS = [
-  { id: "analytics-overview", tabId: "analytics", label: "Overview", href: "#/budget-spend/analytics", badge: "6 views", description: "Composition, schedule activity, value distribution, recipients, and work categories." },
-  { id: "analytics-schedule", tabId: "analytics", analyticsView: "schedule", label: "Schedule", href: "#/budget-spend/analytics?analyticsView=schedule", badge: "5 views", description: "Reported endpoints, duration, seasonality, quarterly activity, and value timing." },
-  { id: "analytics-spend", tabId: "analytics", analyticsView: "spend", label: "Spend & structure", href: "#/budget-spend/analytics?analyticsView=spend", badge: "6 views", description: "Obligations, buyers, pricing, competition, vehicles, and subaward concentration." },
-  { id: "analytics-coverage", tabId: "analytics", analyticsView: "coverage", label: "Coverage & lineage", href: "#/budget-spend/analytics?analyticsView=coverage", badge: "5 views", description: "Field coverage, sources, provenance, money lineage, and refresh changes." },
-];
 
 const MONEY_META = {
   overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
@@ -27,14 +20,11 @@ const MONEY_META = {
 
 const ADMIN_META = {
   watchlist: { badge: "Track", description: "Starred records, notes, review dates, and wallboard visibility." },
-  events: { badge: "Schedule", description: "Operator events, checkpoints, linked records, and display timing." },
   tasks: { badge: "Progress", description: "Background augmentation and API tasks, stages, outcomes, and review." },
-  integrations: { badge: "7 feeds", description: "Connector health, refresh cadence, yields, and unavailable probes." },
-  activity: { badge: "Audit", description: "Append-only human and agent API activity across the shared workspace." },
+  connections: { badge: "Admin", description: "Integration health, credentials, request diagnostics, and workspace audit." },
   users: { badge: "Owner", description: "Create global accounts, recover passwords, suspend access, and emulate users." },
   workspaces: { badge: "Access", description: "Create workspaces, review access requests, and control membership." },
   "workspace-settings": { badge: "Access", description: "Configure workspace identity, membership roles, teams, and AI policy." },
-  agents: { badge: "Keys", description: "Issue, scope, expire, review, and revoke one-time agent credentials." },
 };
 
 function menuItems(menu) {
@@ -45,12 +35,6 @@ function focusMenuItem(menu, direction = "first") {
   const items = menuItems(menu);
   if (!items.length) return;
   (direction === "last" ? items.at(-1) : items[0]).focus();
-}
-
-function analyticsViewFromHash() {
-  if (typeof window === "undefined") return "overview";
-  const value = new URLSearchParams(window.location.hash.split("?")[1] || "").get("analyticsView");
-  return ["schedule", "spend", "coverage"].includes(value) ? value : "overview";
 }
 
 export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
@@ -71,7 +55,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
-  const workspaceAdminItems = ["integrations", "activity", ...(auth?.user?.canManageWorkspace ? ["workspace-settings"] : []), ...(auth?.user?.canManageAgents ? ["agents"] : [])].map((id) => {
+  const workspaceAdminItems = ["connections", ...(auth?.user?.canManageWorkspace ? ["workspace-settings"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
@@ -80,7 +64,6 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
   const groups = [
-    { id: "analytics", label: "Analytics", items: ANALYTICS_ITEMS },
     { id: "money", label: "Money flow", items: moneyItems },
     { id: "work", label: "Work", items: workItems },
     ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace admin", items: workspaceAdminItems }] : []),
@@ -94,17 +77,15 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         ...tab,
         tabId: tab.id,
         href: routes[tab.id],
-        badge: tab.id === "calendar" ? "Analyze" : tab.id === "wallboard" ? "Display" : "Schedule",
-        description: tab.id === "calendar"
-          ? "Explore contract transactions, timelines, evidence, and detail."
-          : tab.id === "wallboard"
-            ? "View the shared calendar, operational signals, and room display."
-            : "Create, filter, augment, and manage workspace events.",
+        badge: tab.id === "spend" ? "Analyze" : "Schedule",
+        description: tab.id === "spend"
+          ? "Explore transactions as a timeline, table, or chart workspace."
+          : "Create events and switch between list, calendar, and room display.",
       })),
     },
     ...groups,
   ];
-  const activeGroup = activeTab === "analytics" ? "analytics" : MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
+  const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
 
   function activeChildLabel(group) {
     return group.items.find(isItemActive)?.label || "";
@@ -154,8 +135,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
 
   function isItemActive(item) {
     if (item.tabId !== activeTab) return false;
-    if (item.tabId !== "analytics") return true;
-    return analyticsViewFromHash() === (item.analyticsView || "overview");
+    return true;
   }
 
   const primaryLink = (tab) => (
@@ -185,7 +165,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   return (
     <header ref={navRef} className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--mobile-condensed if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
-        <a href={routes.calendar} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Transactions" title="Go to Transactions">
+        <a href={routes.spend} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Spend Explorer" title="Go to Spend Explorer">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
           <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
         </a>
@@ -194,9 +174,8 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
           {primaryTabs.map(primaryLink)}
           <div className="ci-header-nav__desktop-groups">
             {desktopGroup(groups[0])}
-            {desktopGroup(groups[1])}
             <span className="if-operations-topnav__divider ci-domain-nav-separator ci-header-nav__desktop-menu" aria-hidden="true">|</span>
-            {groups.slice(2).map(desktopGroup)}
+            {groups.slice(1).map(desktopGroup)}
           </div>
         </nav>
         <div className="if-cluster if-cluster--nowrap if-utility-cluster if-product-header__account">
