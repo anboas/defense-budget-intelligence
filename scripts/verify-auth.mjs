@@ -602,6 +602,16 @@ try {
   }));
   assert.equal(authenticatedScheduleCalendar.days, 42, "Authenticated Schedule Calendar must render the complete six-week month");
   assert.ok(authenticatedScheduleCalendar.height >= 539, `Authenticated Schedule Calendar must not collapse: ${JSON.stringify(authenticatedScheduleCalendar)}`);
+  const publicDirectoryMember = await page.evaluate(async () => {
+    const response = await fetch("/api/v1/auth/directory");
+    const body = await response.json();
+    return body.users.find((user) => user.displayName === "Workspace Owner");
+  });
+  assert.equal(publicDirectoryMember.role, "Super user", "Workspace-public profiles require the directory's scoped role label");
+  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=calendar&member=${encodeURIComponent(publicDirectoryMember.id)}`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(`[data-workspace-member-profile][data-member-id="${publicDirectoryMember.id}"]`);
+  assert.match(await page.locator("[data-workspace-member-profile]").innerText(), /Workspace Owner[\s\S]*Super user[\s\S]*Teams[\s\S]*Schedule associations[\s\S]*Linked work/i, "Authenticated workspace profiles must expose only role, visible teams, and visible work associations");
+  assert.doesNotMatch(await page.locator("[data-workspace-member-profile]").innerText(), new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "Workspace-public profiles must not expose account email addresses");
   await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
   const augmentedEventAction = page.getByRole("button", { name: /^Research and augment / }).first();

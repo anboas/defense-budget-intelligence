@@ -878,10 +878,10 @@ export async function registerAuthRoutes(app, pool) {
     const user = await authenticated(pool, request);
     if (!user) return reply.code(401).send({ error: "sign in required" });
     if (!user.active_workspace_id) return reply.code(409).send({ error: "select a workspace first" });
-    const result = await pool.query(`SELECT u.user_id, u.display_name, u.title, u.avatar_data_url
+    const result = await pool.query(`SELECT u.user_id, u.display_name, u.title, u.avatar_data_url, membership.role
       FROM app_workspace_memberships membership JOIN app_users u ON u.user_id = membership.user_id
       WHERE membership.workspace_id = $1 AND u.status = 'active' ORDER BY u.display_name`, [user.active_workspace_id]);
-    return { users: result.rows.map((row) => ({ id: row.user_id, displayName: row.display_name, title: row.title, avatarDataUrl: row.avatar_data_url })) };
+    return { users: result.rows.map((row) => ({ id: row.user_id, displayName: row.display_name, title: row.title, avatarDataUrl: row.avatar_data_url, roleId: row.role, role: ROLE_LABELS[row.role] || "Viewer" })) };
   });
 
   app.get("/api/v1/auth/workspaces", async (request, reply) => {

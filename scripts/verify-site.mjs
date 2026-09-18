@@ -87,6 +87,19 @@ async function assertNoPageOverflow(page, label) {
   assert.ok(overflow <= 2, `${label} page overflow should be contained, got ${overflow}px`);
 }
 
+async function assertButtonIntegrity(page, label, root = "body") {
+  const malformed = await page.locator(root).evaluate((node) => [...node.querySelectorAll("button")].filter((button) => {
+    const style = getComputedStyle(button);
+    const rect = button.getBoundingClientRect();
+    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0
+      && (rect.width < 24 || rect.height < 24 || button.scrollHeight > button.clientHeight + 2);
+  }).map((button) => {
+    const rect = button.getBoundingClientRect();
+    return { label: button.getAttribute("aria-label") || button.textContent.trim().replace(/\s+/g, " ").slice(0, 80), width: rect.width, height: rect.height, clientHeight: button.clientHeight, scrollHeight: button.scrollHeight, className: button.className };
+  }));
+  assert.deepEqual(malformed, [], `${label} should not render undersized or vertically clipped buttons`);
+}
+
 async function assertActiveGroupState(page, group, childLabel) {
   const trigger = page.locator(`[data-nav-group-trigger="${group}"]`);
   await page.waitForFunction((groupId) => document.querySelector(`[data-nav-group-trigger="${groupId}"]`)?.getAttribute("aria-expanded") === "false", group);
@@ -321,6 +334,7 @@ try {
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should not repeat a secondary administration shell below global navigation");
   assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header').count(), 1, "Connections should expose one framework-owned workbench header");
   assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header .if-tab').count(), 3, "Connections should consolidate integrations, credentials, and API activity");
+  await assertButtonIntegrity(page, "Connections", "[data-connections-surface]");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
@@ -393,6 +407,7 @@ try {
   assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689\s+of 689 records/i, "Awards should preserve the complete matched sample in pagination and export");
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
   assert.equal(await page.locator("[data-award-record-table] .dbi-data-table__columns").count(), 1, "Awards should expose persistent column configuration");
+  await assertButtonIntegrity(page, "Awards", "[data-awards-page]");
   const awardColumnManager = page.locator("[data-award-record-table] .dbi-data-table__columns");
   const awardColumnTrigger = awardColumnManager.locator("summary").first();
   await awardColumnTrigger.click();
@@ -470,6 +485,7 @@ try {
   const automaticAdditionCount = Number(transactionText.match(/198 normalized source rows · ([\d,]+) automatic feed additions/i)?.[1].replaceAll(",", "") || 0);
   assert.ok(publicRecordCount >= 875, `Transactions should expose the current expanded baseline or more, got ${publicRecordCount}`);
   assert.ok(automaticAdditionCount >= 677, `Transactions should retain the automated USAspending baseline and permit new feeds, got ${automaticAdditionCount}`);
+  await assertButtonIntegrity(page, "Spend Explorer", "[data-transaction-analytics-page]");
   assert.match(transactionText, /FPDS ACTIONS\s+3,085/i);
   const capturePayload = await page.evaluate(() => fetch(new URL("data/capture-calendar.json", document.baseURI)).then((response) => response.json()));
   const subawardPayload = await page.evaluate(() => fetch(new URL("data/usaspending-subawards.json", document.baseURI)).then((response) => response.json()));
@@ -620,7 +636,40 @@ try {
   const standaloneWorkspaceMark = page.locator('[data-wallboard-calendar] .ops-wall-calendar__identity > img');
   assert.ok((await standaloneWorkspaceMark.getAttribute("title"))?.trim(), "Calendar workspace images must disclose the workspace name on hover");
   const standaloneAttendeeAvatars = page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-attendees .user-avatar');
-  assert.deepEqual(await standaloneAttendeeAvatars.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title"))), ["Jon VandeMark", "Adam Boas"], "Calendar attendee profile pictures must disclose each person's name on hover");
+  assert.deepEqual(await standaloneAttendeeAvatars.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("title"))), [null, null], "Calendar attendee profile pictures must not compete with the rich calendar hover card using native title tooltips");
+  const adamProfileButton = page.getByRole("button", { name: "Open Adam Boas workspace profile" }).first();
+  await adamProfileButton.hover();
+  await page.waitForSelector('[data-calendar-hovercard][data-kind="attendee"]');
+  assert.match(await page.locator('[data-calendar-hovercard][data-kind="attendee"]').innerText(), /Attendee[\s\S]*Adam Boas[\s\S]*Attending Air, Space & Cyber Conference/i, "Hovering an attendee avatar should update the existing calendar hover card with that member's identity");
+  assert.equal(await page.locator('[data-calendar-hovercard]').count(), 1, "Attendee identity should use the existing calendar hover surface instead of opening a second tooltip");
+  await adamProfileButton.click();
+  await page.waitForSelector('[data-workspace-member-profile][data-member-id="user-adam"]');
+  assert.match(await page.locator("[data-workspace-member-profile]").innerText(), /Workspace profile[\s\S]*Adam Boas[\s\S]*Schedule associations[\s\S]*Air, Space & Cyber Conference/i, "Selecting an attendee should open a workspace-public profile with visible schedule associations");
+  assert.doesNotMatch(await page.locator("[data-workspace-member-profile]").innerText(), /email|password|credential/i, "Workspace-public profiles must exclude private account and authentication data");
+  await page.screenshot({ path: `${OUT_DIR}/workspace-member-profile-desktop.png`, fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileMemberProfile = await page.locator("[data-workspace-member-profile]").evaluate((node) => ({
+    documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    columns: getComputedStyle(node.querySelector(".workspace-member-profile__grid")).gridTemplateColumns.split(" ").length,
+    buttonHeights: [...node.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => button.getBoundingClientRect().height),
+  }));
+  assert.ok(mobileMemberProfile.documentOverflow <= 1, `Workspace member profiles must not overflow mobile: ${JSON.stringify(mobileMemberProfile)}`);
+  assert.equal(mobileMemberProfile.columns, 1, "Workspace member associations should stack into one mobile column");
+  assert.ok(mobileMemberProfile.buttonHeights.every((height) => height >= 43.5), `Workspace member profile actions must retain 44px touch targets: ${mobileMemberProfile.buttonHeights.join(", ")}`);
+  await page.screenshot({ path: `${OUT_DIR}/workspace-member-profile-mobile.png`, fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: "Back to Schedule" }).click();
+  await page.waitForSelector('[data-wallboard-calendar][data-calendar-layout="standalone"]');
+  const standaloneToolbar = await page.locator(".ops-wall-calendar__controls").evaluate((node) => {
+    const count = node.querySelector("[data-calendar-count]");
+    const main = count.querySelector(":scope > span").getBoundingClientRect();
+    const milestones = count.querySelector("small").getBoundingClientRect();
+    return { directButtons: node.querySelectorAll(":scope > button").length, countRows: Math.abs(main.top - milestones.top), countHeight: count.getBoundingClientRect().height };
+  });
+  assert.equal(standaloneToolbar.directButtons, 3, "Calendar navigation should expose exactly previous, Today, and next as top-level buttons");
+  assert.ok(standaloneToolbar.countRows <= 8, `Calendar event and milestone counts should remain on one compact row: ${JSON.stringify(standaloneToolbar)}`);
+  assert.ok(standaloneToolbar.countHeight <= 58, `Calendar count status should not become a malformed two-row control: ${JSON.stringify(standaloneToolbar)}`);
+  await assertButtonIntegrity(page, "Standalone Schedule Calendar", "[data-wallboard-calendar]");
   await page.screenshot({ path: `${OUT_DIR}/schedule-calendar-standalone-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Schedule");
@@ -684,10 +733,10 @@ try {
   assert.ok(milestoneHoverGeometry.left >= 0 && milestoneHoverGeometry.top >= 0 && milestoneHoverGeometry.right <= milestoneHoverGeometry.width && milestoneHoverGeometry.bottom <= milestoneHoverGeometry.height, `Calendar hover cards should remain contained within the viewport: ${JSON.stringify(milestoneHoverGeometry)}`);
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-hover-1080p.png` });
   await page.mouse.move(2, 2);
-  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').focus();
+  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-main').focus();
   await page.waitForSelector('[data-calendar-hovercard][data-kind="event"]');
   assert.match(await page.locator('[data-calendar-hovercard][data-kind="event"]').innerText(), /Event schedule[\s\S]*2 milestones[\s\S]*National Harbor/i, "Keyboard focus should expose the rich event hover card");
-  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').blur();
+  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-main').blur();
   const calendarGeometry = await page.locator("[data-wallboard-calendar]").evaluate((node) => {
     const grid = node.querySelector(".ops-wall-calendar__weeks");
     const cells = [...grid.querySelectorAll("[data-calendar-day]")];
@@ -714,7 +763,8 @@ try {
           barHeight: barBox.height,
         };
       })(),
-      writeControls: node.querySelectorAll("[data-calendar-event] button, [data-calendar-event] input, [data-calendar-event] textarea, [data-calendar-event] select").length,
+      formControls: node.querySelectorAll("[data-calendar-event] input, [data-calendar-event] textarea, [data-calendar-event] select").length,
+      profileButtons: node.querySelectorAll("[data-calendar-event] [data-calendar-attendee]").length,
     };
   });
   assert.equal(calendarGeometry.columns, 7, "Desktop calendar should retain seven weekday columns");
@@ -727,12 +777,13 @@ try {
   assert.equal(calendarGeometry.eventCopy.lineCount, 1, "Calendar bars should keep one scan-first title line and move detail into hover and agenda surfaces");
   assert.ok(calendarGeometry.eventCopy.barHeight <= 42, `1080p calendar lanes should remain compact, got ${calendarGeometry.eventCopy.barHeight}px`);
   assert.ok(calendarGeometry.lastCellBottom <= calendarGeometry.gridBottom + 1, "Every calendar week should fit within the 1080p wallboard");
-  assert.equal(calendarGeometry.writeControls, 0, "Calendar event entries should remain read-only");
+  assert.equal(calendarGeometry.formControls, 0, "Calendar event entries should remain read-only");
+  assert.ok(calendarGeometry.profileButtons >= 1, "Calendar event entries should expose attendee profiles as bounded read-only navigation");
   const calendarAttendeeAvatar = page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-attendees .user-avatar').first();
   assert.equal(await calendarAttendeeAvatar.count(), 1, "Calendar bars should render the attendee identity rail");
   const calendarAttendeeAvatarBox = await calendarAttendeeAvatar.boundingBox();
   assert.ok(calendarAttendeeAvatarBox?.width >= 31.5 && calendarAttendeeAvatarBox?.height >= 31.5, `Calendar attendee images should use the larger 32px profile primitive, got ${calendarAttendeeAvatarBox?.width}×${calendarAttendeeAvatarBox?.height}`);
-  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"]').click();
+  await page.locator('[data-calendar-event="event-air-space-cyber-conference-2026"] .ops-wall-calendar__bar-main').click();
   await page.waitForSelector("[data-calendar-event-detail]");
   assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Air, Space & Cyber Conference[\s\S]*National Harbor[\s\S]*Attendees/i, "Clicking a calendar bar should open the complete event detail modal");
   assert.match(await page.locator("[data-calendar-event-detail]").innerText(), /Conference[\s\S]*Official event page[\s\S]*Agenda/i, "Event details should separate category, venue, and multiple event links");
@@ -857,7 +908,7 @@ try {
       viewportClientWidth: viewport.clientWidth,
       viewportScrollWidth: viewport.scrollWidth,
       viewportOverflowX: getComputedStyle(viewport).overflowX,
-      minControlHeight: Math.min(...[...node.querySelectorAll("button")].map((button) => button.getBoundingClientRect().height)),
+      minControlHeight: Math.min(...[...node.querySelectorAll(".ops-wall-calendar__controls button, .ops-calendar-overlays button, .ops-wall-calendar__more")].map((button) => button.getBoundingClientRect().height)),
       documentWidth: document.documentElement.scrollWidth,
       windowWidth: innerWidth,
       weekHeight: targetWeekBox.height,

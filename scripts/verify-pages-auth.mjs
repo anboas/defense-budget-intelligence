@@ -197,6 +197,8 @@ async function verifyApiLifecycle(persistPath) {
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
     body = await response.json();
     assert.deepEqual(body.users.map((user) => user.displayName), [winner.displayName], "The attendee directory should initially contain the active owner only");
+    assert.equal(body.users[0].roleId, "super_user", "The workspace directory must expose the member's workspace role identifier");
+    assert.equal(body.users[0].role, "Super user", "The workspace directory must expose the member's public workspace role label");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/users");
     assert.equal(response.status, 401, "Anonymous callers must not enumerate workspace users");
@@ -217,6 +219,7 @@ async function verifyApiLifecycle(persistPath) {
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.users.length, 2, "The attendee directory should include newly created active users");
+    assert.equal(body.users.find((user) => user.id === viewerId)?.role, "Viewer", "The directory must retain each member's workspace-scoped role");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: ownerCookie });
     body = await response.json();

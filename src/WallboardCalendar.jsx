@@ -110,12 +110,12 @@ function daysBetween(left, right) {
 
 function CalendarHoverCard({ hover, categories }) {
   if (!hover) return null;
-  const { item, left, top } = hover;
+  const { item, attendee, left, top } = hover;
   const { event, milestone } = item;
   const attendees = event.attendees || [];
   const deadlineLead = milestone ? daysBetween(milestone.occursAt, event.startsAt) : null;
-  return createPortal(<aside id="ops-wall-calendar-tooltip" className="capture-timeline-tooltip ops-wall-calendar-tooltip" role="tooltip" style={{ left, top }} data-calendar-hovercard data-kind={item.kind}>
-    <header><span>{milestone ? milestoneTypeLabel(milestone.type) : "Event schedule"}</span><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong><small>{milestone ? event.title : `${event.status || "scheduled"} · ${event.milestones?.length || 0} milestone${event.milestones?.length === 1 ? "" : "s"}`}</small></header>
+  return createPortal(<aside id="ops-wall-calendar-tooltip" className="capture-timeline-tooltip ops-wall-calendar-tooltip" role="tooltip" style={{ left, top }} data-calendar-hovercard data-kind={attendee ? "attendee" : item.kind}>
+    <header><span>{attendee ? "Attendee" : milestone ? milestoneTypeLabel(milestone.type) : "Event schedule"}</span><strong>{attendee?.displayName || (milestone ? milestoneLabel(milestone) : event.title)}</strong><small>{attendee ? `${attendee.title || "Workspace member"} · Attending ${event.title}` : milestone ? event.title : `${event.status || "scheduled"} · ${event.milestones?.length || 0} milestone${event.milestones?.length === 1 ? "" : "s"}`}</small></header>
     <dl>{milestone ? <>
       <div><dt>Deadline</dt><dd>{compactDate(milestone.occursAt)}</dd></div>
       <div><dt>Lead time</dt><dd>{deadlineLead === null ? "Unavailable" : deadlineLead < 0 ? `${Math.abs(deadlineLead)} days after start` : deadlineLead === 0 ? "Event start day" : `${deadlineLead} days before start`}</dd></div>
@@ -135,11 +135,11 @@ function CalendarHoverCard({ hover, categories }) {
     {event.categoryIds?.length ? <p><b>Categories</b>{eventCategoryLabels(event, categories).join(" · ")}</p> : null}
     {attendees.length ? <p><b>Attending</b>{attendees.map((attendee) => attendee.displayName).join(" · ")}</p> : null}
     {(milestone?.notes || (!milestone && event.notes)) ? <p><b>Context</b>{milestone?.notes || event.notes}</p> : null}
-    <footer>Workspace event calendar · hover or keyboard focus for context</footer>
+    <footer>{attendee ? "Select profile to view workspace associations" : "Workspace event calendar · hover or keyboard focus for context"}</footer>
   </aside>, document.body);
 }
 
-function CalendarEventModal({ detail, categories, onClose }) {
+function CalendarEventModal({ detail, categories, onClose, onOpenMember }) {
   if (!detail) return null;
   const { event, milestone } = detail;
   return <ControlDialog open onClose={onClose} title={milestone ? milestoneLabel(milestone) : event.title} eyebrow={milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"} summary={milestone ? event.title : null} size="detail" closeLabel="Close event details" surfaceProps={{ className: "ops-event-detail", "data-calendar-event-detail": true }} bodyProps={{ className: "ops-event-detail__body" }} footer={<button type="button" className="if-btn if-btn--secondary" onClick={onClose}>Close</button>}>
@@ -152,7 +152,7 @@ function CalendarEventModal({ detail, categories, onClose }) {
       <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
       <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
     </dl>
-    {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <span key={attendee.id || attendee.displayName}><UserAvatar user={attendee} size={34} decorative={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></span>)}</div></section> : null}
+    {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <button type="button" key={attendee.id || attendee.displayName} onClick={() => { onClose(); onOpenMember?.(attendee); }} aria-label={`Open ${attendee.displayName} workspace profile`}><UserAvatar user={attendee} size={34} nativeTitle={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></button>)}</div></section> : null}
     {event.links?.length ? <section><h3>Event links</h3><div>{event.links.map((link) => <a key={link.id} className="if-btn if-btn--secondary" href={link.url} target="_blank" rel="noreferrer"><Link2 size={15} aria-hidden="true" />{link.label || new URL(link.url).hostname}</a>)}</div></section> : null}
     {event.milestones?.length ? <section><h3>Deadlines &amp; milestones</h3><div className="ops-event-detail__milestones">{event.milestones.map((entry) => <article key={entry.id} className={milestone?.id === entry.id ? "is-focused" : ""}><i aria-hidden="true" /><span><strong>{milestoneLabel(entry)}</strong><small>{milestoneTypeLabel(entry.type)}</small></span><time dateTime={entry.occursAt}>{compactDate(entry.occursAt)}</time>{entry.notes ? <p>{entry.notes}</p> : null}</article>)}</div></section> : null}
     {(milestone?.notes || event.notes) ? <section className="ops-event-detail__context"><h3>Context</h3><p>{milestone?.notes || event.notes}</p></section> : null}
@@ -177,7 +177,7 @@ function CalendarDayAgenda({ day, events, onOpenItem, onClose }) {
   </ControlDialog>;
 }
 
-export default function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace, standalone = false }) {
+export default function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace, standalone = false, onOpenMember }) {
   const [hover, setHover] = useState(null);
   const [detail, setDetail] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -216,12 +216,12 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
   const monthEvents = filteredEvents.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
   const monthMilestones = filteredEvents.flatMap((event) => (event.milestones || []).filter((milestone) => String(milestone.occursAt || "").slice(0, 10) >= monthStart && String(milestone.occursAt || "").slice(0, 10) <= monthEnd));
   const weeks = Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
-  function showHover(item, target, clientX, clientY) {
+  function showHover(item, target, clientX, clientY, attendee = null) {
     const bounds = target.getBoundingClientRect();
     const width = Math.min(380, window.innerWidth - 16);
     const left = Math.max(8, Math.min(clientX || bounds.right + 12, window.innerWidth - width - 8));
     const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 380));
-    setHover({ item, left, top });
+    setHover({ item, attendee, left, top });
   }
   return <section className={`ops-wallboard__section ops-wallboard__section--calendar${standalone ? " ops-wallboard__section--standalone-calendar" : ""}`} data-wallboard-calendar data-calendar-layout={standalone ? "standalone" : "display"}>
     <header>
@@ -231,12 +231,12 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
         <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
         <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
         <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
-        <b aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}>{monthEvents.length}<small>+{monthMilestones.length}</small></b>
+        <b data-calendar-count aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}><span>{monthEvents.length}</span><small>+{monthMilestones.length}</small></b>
       </div>
     </header>
     <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Calendar overlays</strong><small>Toggle visible schedules.</small></span><div>{overlayOptions.map((team) => {
       const active = !hiddenOverlaySet.has(team.id);
-      return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}<span>{active ? "Shown" : "Hidden"}</span></small></button>;
+      return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} nativeTitle={false} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}<span>{active ? "Shown" : "Hidden"}</span></small></button>;
     })}</div></div>
     <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
       <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
@@ -255,8 +255,10 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
             const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
-            return <div key={item.id} role="button" tabIndex="0" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} data-calendar-lane={lane} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter" || keyEvent.key === " ") { keyEvent.preventDefault(); setHover(null); setDetail({ event, milestone }); } }} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
-              <i aria-hidden="true" />{!milestone && event.teams?.length ? <span className="ops-wall-calendar__bar-team"><TeamAvatar team={event.teams[0]} size={20} />{event.teams.length > 1 ? <b>+{event.teams.length - 1}</b> : null}</span> : null}<div className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong></div>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <UserAvatar key={attendee.id} user={attendee} className="if-profile-avatar" />)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
+            return <div key={item.id} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} data-calendar-lane={lane} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse" && !pointerEvent.target.closest?.("[data-calendar-attendee]")) showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)}>
+              <button type="button" className="ops-wall-calendar__bar-main" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
+                <i aria-hidden="true" />{!milestone && event.teams?.length ? <span className="ops-wall-calendar__bar-team"><TeamAvatar team={event.teams[0]} size={20} nativeTitle={false} />{event.teams.length > 1 ? <b>+{event.teams.length - 1}</b> : null}</span> : null}<span className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong></span>
+              </button>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <button type="button" key={attendee.id || attendee.displayName} className="ops-wall-calendar__profile-link" data-calendar-attendee={attendee.id || attendee.displayName} aria-label={`Open ${attendee.displayName} workspace profile`} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14, attendee); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14, attendee); }} onFocus={(focusEvent) => showHover(item, focusEvent.currentTarget, undefined, undefined, attendee)} onBlur={() => setHover(null)} onClick={() => { setHover(null); onOpenMember?.(attendee); }}><UserAvatar user={attendee} className="if-profile-avatar" nativeTitle={false} /></button>)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
           {busyDays.length ? <div className="ops-wall-calendar__busy-days">{busyDays.map((day) => <button key={day.key} type="button" className="ops-wall-calendar__more" style={{ gridColumn: day.dayIndex + 1 }} data-calendar-overflow={day.key} aria-label={`Show all ${day.total} items on ${compactDate(day.key)}`} onClick={() => { setHover(null); setSelectedDay(day.key); }}>
@@ -270,6 +272,6 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
     </div>
     <CalendarHoverCard hover={hover} categories={categories} />
     <CalendarDayAgenda day={selectedDay} events={filteredEvents} onOpenItem={(item) => { setSelectedDay(null); setDetail(item); }} onClose={() => setSelectedDay(null)} />
-    <CalendarEventModal detail={detail} categories={categories} onClose={() => setDetail(null)} />
+    <CalendarEventModal detail={detail} categories={categories} onClose={() => setDetail(null)} onOpenMember={onOpenMember} />
   </section>;
 }

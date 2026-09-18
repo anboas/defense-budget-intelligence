@@ -39,6 +39,7 @@ const IntegrationManagement = lazy(() => import("./IntegrationManagement.jsx"));
 const UserManagement = lazy(() => import("./UserManagement.jsx"));
 const WorkspaceManagement = lazy(() => import("./WorkspaceManagement.jsx"));
 const WallboardCalendar = lazy(() => import("./WallboardCalendar.jsx"));
+const WorkspaceMemberProfile = lazy(() => import("./WorkspaceMemberProfile.jsx"));
 
 const VIEWS = new Set(["watchlist", "schedule", "tasks", "connections", "users", "workspaces", "workspace-settings"]);
 
@@ -810,7 +811,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
   </section>;
 }
 
-function WallboardView({ records, watchlist, events, categories, teams, asOf, workspace, lastRefreshedAt }) {
+function WallboardView({ records, watchlist, events, categories, teams, asOf, workspace, lastRefreshedAt, onOpenMember }) {
   const [mode, setMode] = useState("calendar");
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -854,7 +855,7 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
       <nav aria-label="Display view"><button type="button" className={mode === "calendar" ? "is-active" : ""} onClick={() => setMode("calendar")}>Calendar</button><button type="button" className={mode === "records" ? "is-active" : ""} onClick={() => setMode("records")}>Tracked records</button></nav>
       <div><button type="button" data-wallboard-action="rotate" aria-label={rotate ? "Auto-cycle on" : "Auto-cycle off"} title={rotate ? "Auto-cycle on" : "Auto-cycle off"} aria-pressed={rotate} onClick={() => setRotate((value) => !value)}><RotateCw size={17} aria-hidden="true" /><span>{rotate ? "Auto-cycle on" : "Auto-cycle off"}</span></button><button type="button" data-wallboard-action="kiosk" aria-label={isFullscreen ? "Exit kiosk" : "Enter kiosk"} title={isFullscreen ? "Exit kiosk" : "Enter kiosk"} aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}<span>{isFullscreen ? "Exit kiosk" : "Enter kiosk"}</span></button></div>
     </div> : null}
-    {mode === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar events={wallboardEvents} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} /></Suspense> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
+    {mode === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar events={wallboardEvents} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={now} workspace={workspace} onOpenMember={onOpenMember} /></Suspense> : <WallboardRecords records={visibleRecords.slice(0, 12)} asOf={asOf} watchById={watchById} />}
   </section>;
 }
 
@@ -897,12 +898,32 @@ function useRouteSurface(parameter, allowed, fallback, onChange) {
 
 function ScheduleView({ state, records, watchedRecords, categories, teams, auth, dataset, onAdd, onEdit, onDelete, onManageCategories }) {
   const [surface, setSurface] = useRouteSurface("scheduleView", ["list", "calendar", "display"], "list");
+  const readMemberId = () => new URLSearchParams(window.location.hash.split("?")[1] || "").get("member") || "";
+  const [memberId, setMemberId] = useState(readMemberId);
+  const [selectedMember, setSelectedMember] = useState(null);
+  useEffect(() => {
+    const sync = () => setMemberId(readMemberId());
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+  function routeMember(member = null) {
+    const [path, search = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(search);
+    if (member?.id) params.set("member", member.id);
+    else params.delete("member");
+    const query = params.toString();
+    setSelectedMember(member);
+    setMemberId(member?.id || "");
+    window.location.hash = `${path}${query ? `?${query}` : ""}`;
+  }
+  const seedMember = useMemo(() => selectedMember?.id === memberId ? selectedMember : state.events.flatMap((event) => event.attendees || []).find((attendee) => String(attendee.id) === String(memberId)) || null, [memberId, selectedMember, state.events]);
   const [calendarMonth, setCalendarMonth] = useState(() => String(state.events.find((event) => event.status === "scheduled")?.startsAt || new Date().toISOString()).slice(0, 7));
   const scheduled = state.events.filter((event) => event.status === "scheduled").length;
   const needsValidation = state.events.filter((event) => event.requiresValidation).length;
   const tabs = <nav className="if-tabs__list" aria-label="Schedule view">
     {[['list', 'List'], ['calendar', 'Calendar'], ['display', 'Display']].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}
   </nav>;
+  if (memberId) return <Suspense fallback={<RouteFallback title="member profile" />}><WorkspaceMemberProfile auth={auth} memberId={memberId} seedMember={seedMember} events={state.events} teams={teams} records={records} onBack={() => routeMember(null)} /></Suspense>;
   return <section className="ops-panel schedule-surface" data-schedule-surface={surface}>
     <ControlWorkbenchHeader eyebrow="Workspace schedule" title="Schedule" summary="Create events once, then work in a list, calendar, or conference-room display." metrics={[
       { id: "scheduled", label: "Scheduled", value: scheduled, meta: "Visible events" },
@@ -911,8 +932,8 @@ function ScheduleView({ state, records, watchedRecords, categories, teams, auth,
     ]} metricLabel="Schedule summary" tabs={tabs} />
     <ControlPageBody compact>
       {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} /> : null}
-      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} /></Suspense> : null}
-      {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} /> : null}
+      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} onOpenMember={routeMember} /></Suspense> : null}
+      {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} onOpenMember={routeMember} /> : null}
     </ControlPageBody>
   </section>;
 }

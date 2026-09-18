@@ -4,9 +4,9 @@ function initials(name = "") {
   return (words.length === 1 ? words[0].slice(0, 2) : `${words[0][0]}${words.at(-1)[0]}`).toUpperCase();
 }
 
-export default function TeamAvatar({ team, size = 32, className = "" }) {
+export default function TeamAvatar({ team, size = 32, className = "", nativeTitle = true, ...props }) {
   const label = team?.name || "Team";
-  return <span className={`team-avatar ${className}`.trim()} style={{ "--team-avatar-size": `${size}px` }} aria-label={label} title={label}>
+  return <span className={`team-avatar ${className}`.trim()} style={{ "--team-avatar-size": `${size}px` }} aria-label={label} title={nativeTitle ? label : undefined} {...props}>
     {team?.iconDataUrl ? <img src={team.iconDataUrl} alt="" /> : <span aria-hidden="true">{initials(label)}</span>}
   </span>;
 }

@@ -59,6 +59,8 @@ assert.equal(body.user.isEmulating, true);
 assert.equal(body.user.mustChangePassword, false, "PostgreSQL emulation must not force the actor through the target password gate");
 response = await request("/api/v1/auth/directory", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL pre-setup emulation must expose the target role's effective workspace read access");
+body = await response.json();
+assert.equal(body.users.find((user) => user.id === pendingSetupUserId)?.role, "Viewer", "PostgreSQL directory entries must expose workspace-scoped public roles");
 response = await request("/api/v1/auth/emulation", { method: "DELETE", cookie: ownerCookie, body: {} });
 assert.equal(response.status, 200);
 

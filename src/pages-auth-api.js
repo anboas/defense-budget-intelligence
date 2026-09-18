@@ -1437,7 +1437,7 @@ async function directoryResponse(request, db) {
   const user = await sessionUser(db, request);
   if (!user) return json({ error: "Sign in required" }, 401);
   const result = await db.prepare(`
-    SELECT user.user_id, user.display_name, user.title, profile.avatar_data_url
+    SELECT user.user_id, user.display_name, user.title, profile.avatar_data_url, membership.role
     FROM dbi_workspace_memberships membership
     JOIN dbi_users user ON user.user_id = membership.user_id
     LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
@@ -1449,6 +1449,8 @@ async function directoryResponse(request, db) {
     displayName: entry.display_name,
     title: entry.title || "",
     avatarDataUrl: entry.avatar_data_url || "",
+    roleId: entry.role,
+    role: ROLE_LABELS[entry.role] || "Viewer",
   })) });
 }
 
