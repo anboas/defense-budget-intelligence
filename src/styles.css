@@ -607,7 +607,11 @@ button {
 .account-gate h1 + p { margin: 9px 0 22px; color: var(--muted); line-height: 1.5; }
 .account-gate form { display: grid; gap: 14px; }
 .account-gate .if-field__label { text-align: left; }
-.account-gate form > .if-btn { width: 100%; min-height: var(--if-control-height-lg); }
+.account-gate form > .if-btn {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-block: .625rem;
+}
 .account-form__error,
 .account-form__message { margin: 0; font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); text-align: left; }
 

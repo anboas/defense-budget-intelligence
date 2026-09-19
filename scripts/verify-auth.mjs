@@ -585,10 +585,18 @@ try {
   assert.equal(await page.locator(`${workspaceTriggerSelector} strong`).innerText(), initialWorkspaceName, "Workspace switcher should return to the original active workspace");
   await page.locator("[data-profile-menu-trigger]").click();
 
-  const signupContext = await browser.newContext({ viewport: { width: 1080, height: 900 } });
+  const signupContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const signupPage = await signupContext.newPage();
   await signupPage.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await signupPage.waitForSelector('[data-account-gate="login"]');
+  const mobileLoginGeometry = await signupPage.locator(".account-gate form > .if-btn").evaluateAll((buttons) => buttons.map((button) => ({
+    height: button.getBoundingClientRect().height,
+    label: button.textContent.trim().replace(/\s+/g, " "),
+  })));
+  assert.equal(mobileLoginGeometry.length, 2, "Mobile sign-in should expose one submit action and one account-creation action");
+  assert.ok(mobileLoginGeometry.every(({ height }) => height >= 43.5), `Mobile sign-in actions must retain 44px targets: ${JSON.stringify(mobileLoginGeometry)}`);
+  await signupPage.screenshot({ path: "test-results/account-login-mobile.png" });
+  await signupPage.setViewportSize({ width: 1080, height: 900 });
   await signupPage.getByRole("button", { name: "New here? Create an account" }).click();
   await signupPage.waitForSelector('[data-account-gate="register"]');
   await signupPage.getByLabel("Display name").fill("Self Signup User");
