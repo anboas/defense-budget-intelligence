@@ -100,6 +100,8 @@ body = await response.json();
 assert.equal(body.users.find((user) => user.id === pendingSetupUserId)?.role, "Viewer", "PostgreSQL directory entries must expose workspace-scoped public roles");
 response = await request("/api/v1/auth/acquisition/operations", { cookie: ownerCookie });
 assert.equal(response.status, 403, "PostgreSQL acquisition operations must reject an emulated Super-user session");
+response = await request("/api/v1/auth/acquisition/email-provider", { cookie: ownerCookie });
+assert.equal(response.status, 403, "PostgreSQL provider metadata must reject an emulated Super-user session");
 response = await request("/api/v1/auth/emulation", { method: "DELETE", cookie: ownerCookie, body: {} });
 assert.equal(response.status, 200);
 
@@ -214,6 +216,18 @@ assert.equal(response.status, 200, "PostgreSQL real Super user must read acquisi
 body = await response.json();
 assert.equal(typeof body.provider.configured, "boolean");
 assert.ok(body.summary.workspaces >= 1);
+response = await request("/api/v1/auth/acquisition/email-provider", { method: "POST", cookie: ownerCookie, body: { label: "Verification provider", apiKey: `re_${"p".repeat(32)}`, fromName: "DBI Verification", fromEmail: "alerts@example.test", replyToEmail: "reply@example.test" } });
+assert.equal(response.status, 201, "PostgreSQL Super user must configure the protected platform email provider");
+body = await response.json();
+assert.equal(body.provider.lastFour, "pppp");
+assert.doesNotMatch(JSON.stringify(body), /re_p{8}/, "PostgreSQL provider responses must never expose the write-only key");
+response = await request("/api/v1/auth/acquisition/email-provider", { cookie: ownerCookie });
+assert.equal(response.status, 200);
+body = await response.json();
+assert.equal(body.provider.source, "platform_vault");
+assert.equal(body.provider.fromEmail, "alerts@example.test");
+response = await request("/api/v1/auth/acquisition/email-provider", { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 200, "PostgreSQL Super user must revoke the platform email provider without exposing its value");
 response = await request("/api/v1/auth/acquisition/delivery-jobs/00000000-0000-4000-8000-000000000099", { method: "PATCH", cookie: ownerCookie, body: { action: "retry" } });
 assert.equal(response.status, 404, "PostgreSQL delivery retry must not expose nonexistent jobs");
 response = await request(`/api/v1/auth/acquisition/saved-views/${acquisitionViewId}`, { method: "DELETE", cookie: ownerCookie, body: {} });

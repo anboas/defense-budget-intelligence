@@ -15,10 +15,17 @@ import { deliveryJobSchedule } from "./acquisition-delivery-core.js";
 import {
   ACQUISITION_DELIVERY_SCHEMA,
   d1AcquisitionOperations,
+  d1EmailProviderMetadata,
   d1DeliveryPreferences,
   mutateD1DeliveryJob,
+  mutateD1OperationalIncident,
   processD1AcquisitionDeliveryQueue,
+  reconcileD1OperationalIncidents,
+  revokeD1EmailProvider,
+  saveD1EmailProvider,
+  sendD1EmailProviderTest,
   updateD1DeliveryPreferences,
+  verifyD1EmailProvider,
 } from "./d1-acquisition-delivery.js";
 
 export const ACQUISITION_SCHEMA = [
@@ -214,12 +221,13 @@ export async function acquisitionSchedulerResponse(request, db, env, deps) {
   if (request.method !== "POST") return deps.json({ error: "Method not allowed" }, 405);
   if (!await schedulerAuthorized(request, env)) return deps.json({ error: "Unauthorized" }, 401);
   const acquisition = await runScheduledAcquisitionSweep(db, env, { decryptSecret: deps.decryptSecret, maxWorkspaces: 1 });
-  const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100 });
-  return deps.json({ ...acquisition, delivery });
+  const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100, decryptSecret: deps.decryptSecret });
+  const incidents = await reconcileD1OperationalIncidents(db, env, { decryptSecret: deps.decryptSecret });
+  return deps.json({ ...acquisition, delivery, incidents });
 }
 
 export async function acquisitionRuntimeResponse(request, db, env, deps) {
-  const { canAdministerWorkspaces, decryptSecret, json, safeJson, sameOriginRequest, sessionUser } = deps;
+  const { canAdministerWorkspaces, decryptSecret, encryptSecret, json, safeJson, sameOriginRequest, sessionUser } = deps;
   const session = await sessionUser(db, request); if (!session) return json({ error: "Sign in required" }, 401);
   const workspaceId = session.active_workspace_id || ""; if (!workspaceId) return json({ error: "Select a workspace first" }, 409);
   const url = new URL(request.url); const prefix = "/api/v1/auth/acquisition"; const segments = url.pathname.slice(prefix.length).split("/").filter(Boolean).map(decodeURIComponent);
@@ -236,6 +244,21 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
     if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
     return json(await d1AcquisitionOperations(db, env));
   }
+  if (segments[0] === "email-provider") {
+    if (session.role !== "super_user" || session.is_emulating) return json({ error: "Super user access is required" }, 403);
+    if (request.method === "GET" && !segments[1]) return json({ provider: await d1EmailProviderMetadata(db, env) });
+    if (request.method === "POST" && !segments[1]) {
+      const result = await saveD1EmailProvider(db, env, session.user_id, await safeJson(request), encryptSecret);
+      return result.error ? json({ error: result.error }, result.status) : json(result, 201);
+    }
+    if (request.method === "DELETE" && !segments[1]) return json(await revokeD1EmailProvider(db, env));
+    if (request.method === "POST" && segments[1] === "verify") return json(await verifyD1EmailProvider(db, env, decryptSecret));
+    if (request.method === "POST" && segments[1] === "test") {
+      const outcome = await sendD1EmailProviderTest(db, env, decryptSecret, session.email);
+      return outcome.ok ? json({ sent: true, providerMessageId: outcome.providerMessageId || null }) : json({ error: "The provider test could not be delivered", code: outcome.code }, outcome.retryable ? 503 : 422);
+    }
+    return json({ error: "Method not allowed" }, 405);
+  }
   if (segments[0] === "delivery-jobs" && segments[1]) {
     if (session.role !== "super_user" || session.is_emulating) return json({ error: "Super user access is required" }, 403);
     if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
@@ -243,6 +266,14 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
     if (!action) return json({ error: "A retry or cancel action is required" }, 400);
     const job = await mutateD1DeliveryJob(db, cleanText(segments[1], 80), action);
     return job ? json({ job }) : json({ error: "Delivery job not found" }, 404);
+  }
+  if (segments[0] === "incidents" && segments[1]) {
+    if (session.role !== "super_user" || session.is_emulating) return json({ error: "Super user access is required" }, 403);
+    if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
+    const body = await safeJson(request); const action = ["acknowledge", "resolve", "reopen"].includes(body?.action) ? body.action : "";
+    if (!action) return json({ error: "An acknowledge, resolve, or reopen action is required" }, 400);
+    const incident = await mutateD1OperationalIncident(db, cleanText(segments[1], 80), action);
+    return incident ? json({ incident }) : json({ error: "Operational incident not found" }, 404);
   }
   if (segments[0] === "config") {
     if (request.method === "GET") return json({ config: await sourceConfig(db, workspaceId) });
@@ -261,7 +292,7 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
     const result = await runD1AcquisitionRefresh({ db, env, workspaceId, trigger, decryptSecret });
     if (result.skipped) return json({ error: result.reason === "refresh_running" ? "A SAM.gov refresh is already running" : "Configure the workspace SAM.gov credential before refreshing", code: result.reason, runId: result.runId }, result.reason === "refresh_running" ? 409 : 409);
     if (result.failed) return json({ error: "SAM.gov refresh could not be completed; the prior verified corpus was preserved", code: result.code, runId: result.runId }, result.code === "rate_limited" ? 429 : 502);
-    const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100 });
+    const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100, decryptSecret });
     return json({ run: result.run, delivery }, 202);
   }
   if (segments[0] === "saved-views") {

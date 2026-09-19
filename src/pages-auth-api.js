@@ -3288,7 +3288,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname.startsWith("/api/v1/auth/provider-credentials/")) return handleProviderCredentialsResponse(request, db, env, {
     canAdministerWorkspaces, cleanText, encryptSecret: encryptOpenAiKey, json, recordActivity, recordApiRequest, safeJson, sameOriginRequest, sessionUser,
   });
-  if (pathname === "/api/v1/auth/acquisition" || pathname.startsWith("/api/v1/auth/acquisition/")) return acquisitionRuntimeResponse(request, db, env, { canAdministerWorkspaces, decryptSecret: decryptOpenAiKey, json, safeJson, sameOriginRequest, sessionUser });
+  if (pathname === "/api/v1/auth/acquisition" || pathname.startsWith("/api/v1/auth/acquisition/")) return acquisitionRuntimeResponse(request, db, env, { canAdministerWorkspaces, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey, json, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/event-ai" || pathname.startsWith("/api/v1/auth/event-ai/")) return eventAiResponse(request, db, env);
   if (pathname === "/api/v1/client-errors") return handleClientErrorsResponse(request, db, { json, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);

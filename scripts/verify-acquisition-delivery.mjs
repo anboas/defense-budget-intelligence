@@ -6,10 +6,15 @@ import {
   nextDailyDeliveryAt,
   renderAcquisitionEmail,
   sendAcquisitionEmail,
+  verifyResendSender,
 } from "../src/acquisition-delivery-core.js";
 
 assert.equal(deliveryProviderConfig({}).configured, false, "Email delivery must fail closed without protected provider configuration");
 assert.equal(deliveryProviderConfig({ RESEND_API_KEY: "x".repeat(24), DBI_ALERT_FROM_EMAIL: "alerts@example.com" }).configured, true, "Provider readiness should require a key and valid sender");
+const vaulted = deliveryProviderConfig({}, { apiKey: "x".repeat(24), fromName: "DBI Alerts", fromEmail: "alerts@example.com", replyToEmail: "reply@example.com" });
+assert.equal(vaulted.configured, true, "A decrypted platform-vault provider should be accepted without environment credentials");
+assert.equal(vaulted.source, "platform_vault");
+assert.equal(vaulted.from, "DBI Alerts <alerts@example.com>");
 assert.equal(nextDailyDeliveryAt(new Date("2026-09-19T12:00:00Z"), 13), "2026-09-19T13:00:00.000Z");
 assert.equal(nextDailyDeliveryAt(new Date("2026-09-19T14:00:00Z"), 13), "2026-09-20T13:00:00.000Z");
 assert.equal(deliveryJobSchedule("immediate", {}, new Date("2026-09-19T12:00:00Z")), "2026-09-19T12:00:00.000Z");
@@ -39,4 +44,10 @@ try {
   assert.ok(!captured.options.body.includes("x".repeat(24)), "Protected provider keys must never enter message bodies");
 } finally { globalThis.fetch = originalFetch; }
 
-console.log("Verified provider readiness, digest scheduling, retry backoff, safe templates, and idempotent outbound delivery.");
+globalThis.fetch = async () => new Response(JSON.stringify({ data: [{ id: "domain_123", name: "example.com", status: "verified" }] }), { status: 200, headers: { "content-type": "application/json" } });
+try {
+  const verification = await verifyResendSender(vaulted);
+  assert.deepEqual(verification, { ok: true, status: "verified", domain: "example.com", providerDomainId: "domain_123" });
+} finally { globalThis.fetch = originalFetch; }
+
+console.log("Verified environment and platform-vault readiness, sender verification, digest scheduling, retry backoff, safe templates, and idempotent outbound delivery.");

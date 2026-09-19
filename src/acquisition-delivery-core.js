@@ -12,19 +12,45 @@ function escapeHtml(value) {
   return text(value, 2_000).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
 }
 
-export function deliveryProviderConfig(env = {}) {
-  const apiKey = String(env.RESEND_API_KEY || "").trim();
-  const from = text(env.DBI_ALERT_FROM_EMAIL, 200);
-  const replyTo = text(env.DBI_ALERT_REPLY_TO, 200);
+export function deliveryProviderConfig(env = {}, stored = {}) {
+  const apiKey = String(stored.apiKey || env.RESEND_API_KEY || "").trim();
+  const fromEmail = text(stored.fromEmail || env.DBI_ALERT_FROM_EMAIL, 200);
+  const fromName = text(stored.fromName || "DBI Acquisition Alerts", 120);
+  const from = fromEmail && fromName ? `${fromName} <${fromEmail}>` : fromEmail;
+  const replyTo = text(stored.replyToEmail || env.DBI_ALERT_REPLY_TO, 200);
   const appUrl = String(env.DBI_PUBLIC_APP_URL || DEFAULT_APP_URL).replace(/\/+$/, "");
   return {
     provider: "resend",
-    configured: apiKey.length >= 20 && /^[^\s@]+@[^\s@]+$/.test(from),
+    configured: apiKey.length >= 20 && /^[^\s@]+@[^\s@]+$/.test(fromEmail),
     apiKey,
     from,
+    fromEmail,
+    fromName,
     replyTo: /^[^\s@]+@[^\s@]+$/.test(replyTo) ? replyTo : "",
     appUrl: /^https:\/\//i.test(appUrl) ? appUrl : DEFAULT_APP_URL,
+    source: stored.apiKey ? "platform_vault" : apiKey ? "environment" : "unconfigured",
   };
+}
+
+function resolvedProvider(value = {}) {
+  return value?.provider === "resend" && Object.hasOwn(value, "configured") ? value : deliveryProviderConfig(value);
+}
+
+export async function verifyResendSender(providerValue) {
+  const provider = resolvedProvider(providerValue);
+  if (!provider.configured) return { ok: false, status: "unconfigured", domain: "", code: "provider_unavailable" };
+  const domain = provider.fromEmail.split("@")[1]?.toLowerCase() || "";
+  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch("https://api.resend.com/domains", { headers: { authorization: `Bearer ${provider.apiKey}` }, signal: controller.signal });
+    if (!response.ok) return { ok: false, status: "error", domain, code: response.status === 429 ? "rate_limited" : response.status >= 500 ? "provider_unavailable" : "provider_rejected" };
+    const body = await response.json().catch(() => ({}));
+    const match = (Array.isArray(body?.data) ? body.data : []).find((entry) => text(entry?.name, 253).toLowerCase() === domain);
+    const status = text(match?.status || "not_found", 40).toLowerCase();
+    return { ok: status === "verified", status, domain, providerDomainId: text(match?.id, 120) };
+  } catch (error) {
+    return { ok: false, status: "error", domain, code: error?.name === "AbortError" ? "provider_timeout" : "provider_unavailable" };
+  } finally { clearTimeout(timeout); }
 }
 
 export function nextDailyDeliveryAt(now = new Date(), hourUtc = 13) {
@@ -70,8 +96,8 @@ export function renderAcquisitionEmail({ displayName, workspaceName, savedViewNa
   return { subject: text(subject, 180), html, text: `${displayName ? `Hi ${displayName},\n\n` : ""}${workspaceName || "Your workspace"} has ${safeItems.length}${hiddenCount ? "+" : ""} retained updates for ${savedViewName || "your saved view"}.\n\n${plainRows}\n\nOpen: ${viewUrl}\nManage alerts: ${settingsUrl}` };
 }
 
-export async function sendAcquisitionEmail(env, { to, idempotencyKey, message }) {
-  const provider = deliveryProviderConfig(env);
+export async function sendAcquisitionEmail(providerValue, { to, idempotencyKey, message }) {
+  const provider = resolvedProvider(providerValue);
   if (!provider.configured) return { ok: false, code: "provider_unavailable", retryable: false };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
@@ -91,6 +117,17 @@ export async function sendAcquisitionEmail(env, { to, idempotencyKey, message })
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function renderOperationalIncidentEmail({ incident, appUrl }) {
+  const operationsUrl = `${String(appUrl || DEFAULT_APP_URL).replace(/\/+$/, "")}/#/connections?surface=operations`;
+  const title = text(incident?.title || "DBI operational incident", 180);
+  const summary = text(incident?.summary || "An operational condition requires review.", 500);
+  return {
+    subject: `[${text(incident?.severity || "warning", 20).toUpperCase()}] ${title}`,
+    html: `<!doctype html><html><body style="margin:0;background:#f4f7fb;color:#172235;font-family:Arial,sans-serif"><main style="max-width:680px;margin:0 auto;padding:28px"><section style="background:#fff;border:1px solid #dbe3ee;border-radius:14px;padding:28px"><h1 style="font-size:22px;margin:0 0 12px">${escapeHtml(title)}</h1><p>${escapeHtml(summary)}</p><p style="margin-top:24px"><a href="${escapeHtml(operationsUrl)}" style="display:inline-block;background:#315ee8;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px">Open operations</a></p></section></main></body></html>`,
+    text: `${title}\n\n${summary}\n\nOpen operations: ${operationsUrl}`,
+  };
 }
 
 export const ACQUISITION_DELIVERY_MAX_ATTEMPTS = 5;

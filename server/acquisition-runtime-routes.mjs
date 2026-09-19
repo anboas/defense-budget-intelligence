@@ -149,7 +149,7 @@ async function persistRefresh(pool, workspaceId, runId, records, metadata) {
 }
 
 export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
-  const { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret } = deps;
+  const { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret, encryptSecret } = deps;
   async function context(request, reply, manage = false) {
     const user = await authenticated(pool, request);
     if (!user) { reply.code(401).send({ error: "sign in required" }); return null; }
@@ -202,7 +202,7 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
       const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest.rows[0]?.completed_at, config });
       const counts = await persistRefresh(pool, current.workspaceId, runId, result.records, result.metadata);
       await pool.query("UPDATE app_workspace_provider_credentials SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [credential.rows[0].id]);
-      await processPostgresAcquisitionDeliveryQueue(pool, process.env, { limit: 100 });
+      await processPostgresAcquisitionDeliveryQueue(pool, process.env, { limit: 100, decryptSecret });
       return reply.code(202).send({ run: { id: runId, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded } });
     } catch (error) {
       await pool.query("UPDATE app_acquisition_refresh_runs SET status = 'failed', error_code = $1, error_message = $2, completed_at = NOW() WHERE id = $3", [cleanText(error.code || "source_unavailable", 80), cleanText(error.message, 500), runId]);
@@ -281,5 +281,5 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
       AND ($2 = '' OR from_record_id = $2 OR to_record_id = $2) ORDER BY created_at DESC LIMIT 250`, [current.workspaceId, recordId]);
     return { links: result.rows.map((row) => ({ fromSource: row.from_source, fromId: row.from_record_id, toSource: row.to_source, toId: row.to_record_id, relationship: row.relationship, basis: row.basis, identifier: row.identifier })) };
   });
-  registerAcquisitionDeliveryRoutes(app, pool, { assertSameOrigin, context });
+  registerAcquisitionDeliveryRoutes(app, pool, { assertSameOrigin, context, decryptSecret, encryptSecret });
 }

@@ -577,7 +577,7 @@ export async function registerAuthRoutes(app, pool) {
   registerUserActivityRoutes(app, pool, { assertSameOrigin, authenticated });
   registerRecordDispositionRoutes(app, pool, { assertSameOrigin, authenticated });
   registerProviderCredentialRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, encryptSecret: encryptOpenAiKey, recordApiRequest });
-  registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey });
+  registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey });
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
     const [owner, session] = await Promise.all([account(pool), authenticated(pool, request)]);

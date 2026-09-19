@@ -1274,8 +1274,13 @@ try {
     const disabled = await fetch("/api/v1/auth/acquisition/delivery-preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ emailEnabled: false }) });
     const disabledBody = await disabled.json();
     const enabled = await fetch("/api/v1/auth/acquisition/delivery-preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ emailEnabled: true }) });
-    const operations = await fetch("/api/v1/auth/acquisition/operations");
-    return { initialStatus: initial.status, initialBody: await initial.json(), disabledStatus: disabled.status, disabledBody, enabledStatus: enabled.status, enabledBody: await enabled.json(), operationsStatus: operations.status, operationsBody: await operations.json() };
+    const providerSaved = await fetch("/api/v1/auth/acquisition/email-provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ label: "Verification provider", apiKey: `re_${"x".repeat(32)}`, fromName: "DBI Verification", fromEmail: "alerts@example.test", replyToEmail: "reply@example.test" }) });
+    const providerSavedBody = await providerSaved.json();
+    const providerRead = await fetch("/api/v1/auth/acquisition/email-provider");
+    const providerReadBody = await providerRead.json();
+    const operations = await fetch("/api/v1/auth/acquisition/operations"); const operationsBody = await operations.json();
+    const providerRevoked = await fetch("/api/v1/auth/acquisition/email-provider", { method: "DELETE", headers: { "content-type": "application/json" }, body: "{}" });
+    return { initialStatus: initial.status, initialBody: await initial.json(), disabledStatus: disabled.status, disabledBody, enabledStatus: enabled.status, enabledBody: await enabled.json(), providerSavedStatus: providerSaved.status, providerSavedBody, providerReadStatus: providerRead.status, providerReadBody, operationsStatus: operations.status, operationsBody, providerRevokedStatus: providerRevoked.status };
   });
   assert.equal(deliveryContract.initialStatus, 200, "Authenticated users must read their acquisition delivery preference");
   assert.equal(deliveryContract.initialBody.preferences.emailEnabled, true);
@@ -1283,9 +1288,28 @@ try {
   assert.equal(deliveryContract.disabledBody.preferences.emailEnabled, false, "Email opt-out must be retained without disabling in-app alerts");
   assert.equal(deliveryContract.enabledStatus, 200);
   assert.equal(deliveryContract.enabledBody.preferences.emailEnabled, true);
+  assert.equal(deliveryContract.providerSavedStatus, 201, "The real Super user must configure the protected email provider");
+  assert.equal(deliveryContract.providerSavedBody.provider.lastFour, "xxxx");
+  assert.equal(deliveryContract.providerReadStatus, 200);
+  assert.equal(deliveryContract.providerReadBody.provider.fromEmail, "alerts@example.test");
+  assert.doesNotMatch(JSON.stringify(deliveryContract.providerReadBody), /re_x{8}/, "Provider API responses must never expose the write-only key");
   assert.equal(deliveryContract.operationsStatus, 200, "The real Super user must read acquisition operations");
-  assert.equal(typeof deliveryContract.operationsBody.provider.configured, "boolean");
+  assert.equal(deliveryContract.operationsBody.provider.configured, true);
+  assert.equal(Array.isArray(deliveryContract.operationsBody.incidents), true);
   assert.equal(deliveryContract.operationsBody.summary.workspaces >= 1, true);
+  assert.equal(deliveryContract.providerRevokedStatus, 200);
+
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=operations`, { waitUntil: "domcontentloaded" });
+  const acquisitionOperations = page.locator("[data-acquisition-operations]");
+  await acquisitionOperations.waitFor();
+  await acquisitionOperations.getByRole("button", { name: "Configure" }).click();
+  const providerDialog = page.getByRole("dialog", { name: "Configure Resend" });
+  await providerDialog.waitFor();
+  const providerDialogBounds = await providerDialog.boundingBox();
+  assert.ok(providerDialogBounds && providerDialogBounds.x >= 0 && providerDialogBounds.x + providerDialogBounds.width <= 390, `Mobile provider dialog must remain horizontally contained: ${JSON.stringify(providerDialogBounds)}`);
+  const providerControlHeights = await providerDialog.locator("input, button").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none" && node.getBoundingClientRect().width > 0).map((node) => node.getBoundingClientRect().height));
+  assert.ok(providerControlHeights.every((height) => height >= 43.5), `Mobile provider controls must retain 44px touch geometry: ${providerControlHeights.join(", ")}`);
+  await providerDialog.getByRole("button", { name: "Cancel" }).click();
 
   const interactionSurfaces = [
     ["#/budget-spend/explorer?spendView=today", '[data-spend-explorer="today"]', "Acquisition Today"],
