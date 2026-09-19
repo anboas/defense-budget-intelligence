@@ -38,6 +38,7 @@ const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) =>
 const OpenAiKeyManagement = lazy(() => import("./OpenAiKeyManagement.jsx"));
 const SamGovKeyManagement = lazy(() => import("./SamGovKeyManagement.jsx"));
 const IntegrationManagement = lazy(() => import("./IntegrationManagement.jsx"));
+const AcquisitionOperations = lazy(() => import("./AcquisitionOperations.jsx"));
 const UserManagement = lazy(() => import("./UserManagement.jsx"));
 const WorkspaceManagement = lazy(() => import("./WorkspaceManagement.jsx"));
 const WallboardCalendar = lazy(() => import("./WallboardCalendar.jsx"));
@@ -934,16 +935,18 @@ function DirectoryView({ auth, state, records, teams }) {
 }
 
 function ConnectionsView({ auth, state, records, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor, onSurfaceChange }) {
-  const [surface, setSurface] = useRouteSurface("connectionsView", ["integrations", "credentials", "activity"], "integrations", onSurfaceChange);
+  const isSuper = auth?.user?.roleId === "super_user" && !auth?.user?.isEmulating;
+  const [surface, setSurface] = useRouteSurface("connectionsView", isSuper ? ["integrations", "credentials", "activity", "operations"] : ["integrations", "credentials", "activity"], "integrations", onSurfaceChange);
   const [credentialProvider, setCredentialProvider] = useState(() => auth?.user?.canManageWorkspace ? "openai" : "agents");
   const tabs = <nav className="if-tabs__list" aria-label="Connections view">
-    {[['integrations', 'Integrations'], ['credentials', 'Credentials'], ['activity', 'API activity']].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}
+    {[['integrations', 'Integrations'], ['credentials', 'Credentials'], ['activity', 'API activity'], ...(isSuper ? [['operations', 'Operations']] : [])].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}
   </nav>;
   return <section className="ops-panel connections-surface" data-connections-surface={surface}>
     <ControlWorkbenchHeader eyebrow="Workspace administration" title="Connections" summary="Source coverage, protected credentials, and technical request diagnostics in one bounded surface." tabs={tabs} />
     {surface === "integrations" ? <Suspense fallback={<RouteFallback title="integrations" />}><IntegrationManagement embedded auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={onRetryContractMonitor} /></Suspense> : null}
     {surface === "credentials" ? <ControlPageBody compact><nav className="if-tabs__list" aria-label="Credential provider">{auth?.user?.canManageWorkspace ? <><button type="button" className={`if-tab${credentialProvider === "openai" ? " is-active" : ""}`} aria-pressed={credentialProvider === "openai"} onClick={() => setCredentialProvider("openai")}>OpenAI</button><button type="button" className={`if-tab${credentialProvider === "sam-gov" ? " is-active" : ""}`} aria-pressed={credentialProvider === "sam-gov"} onClick={() => setCredentialProvider("sam-gov")}>SAM.gov</button></> : null}{auth?.user?.canManageAgents ? <button type="button" className={`if-tab${credentialProvider === "agents" ? " is-active" : ""}`} aria-pressed={credentialProvider === "agents"} onClick={() => setCredentialProvider("agents")}>Agent access</button> : null}</nav><div className="connections-credential-grid">{auth?.user?.canManageWorkspace && credentialProvider === "openai" ? <Suspense fallback={<RouteFallback title="workspace OpenAI credentials" />}><OpenAiKeyManagement auth={auth} scope="workspace" embedded /></Suspense> : null}{auth?.user?.canManageWorkspace && credentialProvider === "sam-gov" ? <Suspense fallback={<RouteFallback title="workspace SAM.gov credential" />}><SamGovKeyManagement auth={auth} embedded /></Suspense> : null}{auth?.user?.canManageAgents && credentialProvider === "agents" ? <Suspense fallback={<RouteFallback title="agent credentials" />}><AgentAccessPanel auth={auth} embedded /></Suspense> : null}{!auth?.user?.canManageWorkspace && !auth?.user?.canManageAgents ? <ControlAsyncState compact state="empty" icon={<Bot size={22} />} title="Administrator access required" message="Your role cannot manage workspace or agent credentials." /> : null}</div></ControlPageBody> : null}
     {surface === "activity" ? <ActivityView embedded activity={state.activity} apiRequests={state.apiRequests} apiRequestSummary={state.apiRequestSummary} records={records} /> : null}
+    {surface === "operations" && isSuper ? <Suspense fallback={<RouteFallback title="acquisition operations" />}><AcquisitionOperations auth={auth} /></Suspense> : null}
   </section>;
 }
 

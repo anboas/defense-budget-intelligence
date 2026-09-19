@@ -6713,6 +6713,15 @@ td .dot {
 .spend-saved-views__create input { min-height: 38px; width: 100%; padding: 0 var(--if-space-2); border: var(--if-border); border-radius: var(--if-radius-sm); background: var(--if-bg-surface); color: var(--if-text); }
 .spend-saved-views__alert { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-left: var(--if-divider); color: var(--if-text-muted); }
 .spend-saved-views__alert .if-picker { width: 118px; }
+.spend-saved-views__delivery { display: flex; align-items: center; justify-content: space-between; gap: var(--if-space-3); min-height: 48px; padding: var(--if-space-2) var(--if-space-3); border-bottom: var(--if-divider); }
+.spend-saved-views__delivery > span { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px var(--if-space-2); color: var(--if-text-strong); }
+.spend-saved-views__delivery small { grid-column: 2; color: var(--if-text-muted); font-weight: var(--if-font-weight-normal); }
+.spend-saved-views__delivery input { width: 20px; height: 20px; }
+.acquisition-operations { display: grid; gap: var(--if-space-3); }
+.acquisition-operations .if-alert { display: flex; align-items: center; gap: var(--if-space-2); }
+.acquisition-operations .if-alert > div { display: grid; gap: 2px; flex: 1; }
+.acquisition-operations .if-alert p { margin: 0; }
+.acquisition-operations__actions { display: inline-flex; justify-content: flex-end; gap: 4px; }
 .acquisition-runtime { margin: var(--if-space-3); border: var(--if-border); border-radius: var(--if-radius-md); background: var(--if-bg-surface); }
 .acquisition-runtime > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--if-space-3); min-height: 44px; padding: var(--if-space-2) var(--if-space-3); cursor: pointer; list-style: none; }
 .acquisition-runtime > summary::-webkit-details-marker { display: none; }

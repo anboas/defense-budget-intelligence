@@ -24,6 +24,7 @@ COPY --chown=node:node src/openai-models.js ./src/openai-models.js
 COPY --chown=node:node src/security-policy.js ./src/security-policy.js
 COPY --chown=node:node src/access-model.js ./src/access-model.js
 COPY --chown=node:node src/acquisition-runtime-core.js ./src/acquisition-runtime-core.js
+COPY --chown=node:node src/acquisition-delivery-core.js ./src/acquisition-delivery-core.js
 
 USER node
 EXPOSE 8080

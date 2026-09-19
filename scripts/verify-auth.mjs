@@ -1269,6 +1269,24 @@ try {
   assert.ok(ingestionControlHeights.every((height) => height >= 43.5), `Mobile SAM.gov configuration controls must retain 44px touch geometry: ${ingestionControlHeights.join(", ")}`);
   await ingestionConfig.getByRole("button", { name: "Cancel" }).click();
 
+  const deliveryContract = await page.evaluate(async () => {
+    const initial = await fetch("/api/v1/auth/acquisition/delivery-preferences");
+    const disabled = await fetch("/api/v1/auth/acquisition/delivery-preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ emailEnabled: false }) });
+    const disabledBody = await disabled.json();
+    const enabled = await fetch("/api/v1/auth/acquisition/delivery-preferences", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ emailEnabled: true }) });
+    const operations = await fetch("/api/v1/auth/acquisition/operations");
+    return { initialStatus: initial.status, initialBody: await initial.json(), disabledStatus: disabled.status, disabledBody, enabledStatus: enabled.status, enabledBody: await enabled.json(), operationsStatus: operations.status, operationsBody: await operations.json() };
+  });
+  assert.equal(deliveryContract.initialStatus, 200, "Authenticated users must read their acquisition delivery preference");
+  assert.equal(deliveryContract.initialBody.preferences.emailEnabled, true);
+  assert.equal(deliveryContract.disabledStatus, 200);
+  assert.equal(deliveryContract.disabledBody.preferences.emailEnabled, false, "Email opt-out must be retained without disabling in-app alerts");
+  assert.equal(deliveryContract.enabledStatus, 200);
+  assert.equal(deliveryContract.enabledBody.preferences.emailEnabled, true);
+  assert.equal(deliveryContract.operationsStatus, 200, "The real Super user must read acquisition operations");
+  assert.equal(typeof deliveryContract.operationsBody.provider.configured, "boolean");
+  assert.equal(deliveryContract.operationsBody.summary.workspaces >= 1, true);
+
   const interactionSurfaces = [
     ["#/budget-spend/explorer?spendView=today", '[data-spend-explorer="today"]', "Acquisition Today"],
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],
@@ -1280,6 +1298,7 @@ try {
     ["#/budget-spend/connections?connectionsView=integrations", "[data-connections-surface]", "Connections integrations"],
     ["#/budget-spend/connections?connectionsView=credentials", "[data-connections-surface]", "Connections credentials"],
     ["#/budget-spend/connections?connectionsView=activity", "[data-connections-surface]", "Connections activity"],
+    ["#/budget-spend/connections?connectionsView=operations", "[data-acquisition-operations]", "Acquisition operations"],
     ["#/budget-spend/workspace", "[data-workspace-management]", "Workspace settings"],
     ["#/budget-spend/users", "[data-user-management]", "Accounts"],
     ["#/budget-spend/workspaces", "[data-workspace-management]", "Workspaces"],

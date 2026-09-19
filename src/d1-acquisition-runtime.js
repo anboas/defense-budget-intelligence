@@ -11,6 +11,15 @@ import {
   sha256,
   stableJson,
 } from "./acquisition-runtime-core.js";
+import { deliveryJobSchedule } from "./acquisition-delivery-core.js";
+import {
+  ACQUISITION_DELIVERY_SCHEMA,
+  d1AcquisitionOperations,
+  d1DeliveryPreferences,
+  mutateD1DeliveryJob,
+  processD1AcquisitionDeliveryQueue,
+  updateD1DeliveryPreferences,
+} from "./d1-acquisition-delivery.js";
 
 export const ACQUISITION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS dbi_acquisition_refresh_runs (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, trigger_type TEXT NOT NULL,
@@ -51,6 +60,7 @@ export const ACQUISITION_SCHEMA = [
     attempt_count INTEGER NOT NULL DEFAULT 0, next_attempt_at TEXT NOT NULL, last_error TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL, delivered_at TEXT NOT NULL DEFAULT '', UNIQUE(alert_id, delivery_mode))`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_jobs_queue ON dbi_acquisition_delivery_jobs (status, next_attempt_at)",
+  ...ACQUISITION_DELIVERY_SCHEMA,
 ];
 
 function parsed(value, fallback) { try { return JSON.parse(value || ""); } catch { return fallback; } }
@@ -94,7 +104,7 @@ async function status(db, workspaceId) {
   };
 }
 
-async function persist(db, workspaceId, runId, records, metadata) {
+async function persist(db, env, workspaceId, runId, records, metadata) {
   const now = new Date().toISOString(); const statements = []; const changedRecords = []; let added = 0; let updated = 0;
   const existingResult = await db.prepare("SELECT source_record_id, content_hash, record_json FROM dbi_acquisition_records WHERE workspace_id = ? AND source = ?").bind(workspaceId, ACQUISITION_SOURCE).all();
   const existing = new Map((existingResult.results || []).map((row) => [row.source_record_id, row]));
@@ -140,7 +150,7 @@ async function persist(db, workspaceId, runId, records, metadata) {
         VALUES (?,?,?,?,?,?,?,?,?,'')`).bind(alertId, workspaceId, saved.user_id, saved.id, ACQUISITION_SOURCE, changed.record.sourceRecordId, runId, changed.changeType, now));
       statements.push(db.prepare(`INSERT OR IGNORE INTO dbi_acquisition_delivery_jobs
         (id, workspace_id, user_id, saved_view_id, alert_id, delivery_mode, status, next_attempt_at, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,'pending_provider',?,?,?)`).bind(crypto.randomUUID(), workspaceId, saved.user_id, saved.id, alertId, saved.alert_mode, now, now, now));
+        VALUES (?,?,?,?,?,?,'pending_provider',?,?,?)`).bind(crypto.randomUUID(), workspaceId, saved.user_id, saved.id, alertId, saved.alert_mode, deliveryJobSchedule(saved.alert_mode, env, new Date(now)), now, now));
     }
   }
   statements.push(db.prepare(`UPDATE dbi_acquisition_refresh_runs SET status = 'succeeded', records_seen = ?, records_added = ?,
@@ -164,7 +174,7 @@ export async function runD1AcquisitionRefresh({ db, env, workspaceId, trigger = 
   await db.prepare("INSERT INTO dbi_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type, started_at) VALUES (?,?,?,'running',?,?)").bind(id, workspaceId, ACQUISITION_SOURCE, trigger, started).run();
   try {
     const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest?.completed_at, config });
-    const counts = await persist(db, workspaceId, id, result.records, result.metadata); const completed = new Date().toISOString();
+    const counts = await persist(db, env, workspaceId, id, result.records, result.metadata); const completed = new Date().toISOString();
     await db.prepare("UPDATE dbi_workspace_provider_credentials SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completed, completed, credential.id).run();
     return { skipped: false, run: { id, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded }, metadata: result.metadata };
   } catch (error) {
@@ -203,7 +213,9 @@ async function schedulerAuthorized(request, env) {
 export async function acquisitionSchedulerResponse(request, db, env, deps) {
   if (request.method !== "POST") return deps.json({ error: "Method not allowed" }, 405);
   if (!await schedulerAuthorized(request, env)) return deps.json({ error: "Unauthorized" }, 401);
-  return deps.json(await runScheduledAcquisitionSweep(db, env, { decryptSecret: deps.decryptSecret, maxWorkspaces: 1 }));
+  const acquisition = await runScheduledAcquisitionSweep(db, env, { decryptSecret: deps.decryptSecret, maxWorkspaces: 1 });
+  const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100 });
+  return deps.json({ ...acquisition, delivery });
 }
 
 export async function acquisitionRuntimeResponse(request, db, env, deps) {
@@ -213,6 +225,25 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
   const url = new URL(request.url); const prefix = "/api/v1/auth/acquisition"; const segments = url.pathname.slice(prefix.length).split("/").filter(Boolean).map(decodeURIComponent);
   if (request.method !== "GET" && !sameOriginRequest(request)) return json({ error: "Cross-origin acquisition changes are not allowed" }, 403);
   if (request.method === "GET" && segments[0] === "status") return json(await status(db, workspaceId));
+  if (segments[0] === "delivery-preferences") {
+    if (request.method === "GET") return json({ preferences: await d1DeliveryPreferences(db, workspaceId, session.user_id) });
+    if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
+    const body = await safeJson(request);
+    return json({ preferences: await updateD1DeliveryPreferences(db, workspaceId, session.user_id, body?.emailEnabled !== false) });
+  }
+  if (segments[0] === "operations") {
+    if (session.role !== "super_user" || session.is_emulating) return json({ error: "Super user access is required" }, 403);
+    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+    return json(await d1AcquisitionOperations(db, env));
+  }
+  if (segments[0] === "delivery-jobs" && segments[1]) {
+    if (session.role !== "super_user" || session.is_emulating) return json({ error: "Super user access is required" }, 403);
+    if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
+    const body = await safeJson(request); const action = body?.action === "retry" ? "retry" : body?.action === "cancel" ? "cancel" : "";
+    if (!action) return json({ error: "A retry or cancel action is required" }, 400);
+    const job = await mutateD1DeliveryJob(db, cleanText(segments[1], 80), action);
+    return job ? json({ job }) : json({ error: "Delivery job not found" }, 404);
+  }
   if (segments[0] === "config") {
     if (request.method === "GET") return json({ config: await sourceConfig(db, workspaceId) });
     if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
@@ -230,7 +261,8 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
     const result = await runD1AcquisitionRefresh({ db, env, workspaceId, trigger, decryptSecret });
     if (result.skipped) return json({ error: result.reason === "refresh_running" ? "A SAM.gov refresh is already running" : "Configure the workspace SAM.gov credential before refreshing", code: result.reason, runId: result.runId }, result.reason === "refresh_running" ? 409 : 409);
     if (result.failed) return json({ error: "SAM.gov refresh could not be completed; the prior verified corpus was preserved", code: result.code, runId: result.runId }, result.code === "rate_limited" ? 429 : 502);
-    return json({ run: result.run }, 202);
+    const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100 });
+    return json({ run: result.run, delivery }, 202);
   }
   if (segments[0] === "saved-views") {
     const id = cleanText(segments[1], 80);
@@ -254,11 +286,14 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
       const body = await safeJson(request); const now = new Date().toISOString(); const name = cleanText(body?.name, 100) || stored.name; const alertMode = ["none", "daily", "immediate"].includes(body?.alertMode) ? body.alertMode : stored.alert_mode; const opened = body?.opened ? now : stored.last_opened_at;
       const statements = [db.prepare("UPDATE dbi_acquisition_saved_views SET name = ?, alert_mode = ?, last_opened_at = ?, updated_at = ? WHERE id = ?").bind(name, alertMode, opened, now, id)];
       if (body?.opened) statements.push(db.prepare("UPDATE dbi_acquisition_alerts SET read_at = ? WHERE saved_view_id = ? AND user_id = ? AND read_at = ''").bind(now, id, session.user_id));
+      if (alertMode === "none") statements.push(db.prepare("UPDATE dbi_acquisition_delivery_jobs SET status = 'cancelled', last_error = 'alert_disabled', updated_at = ? WHERE saved_view_id = ? AND user_id = ? AND status IN ('pending_provider','pending')").bind(now, id, session.user_id));
       await db.batch(statements);
       return json({ view: view({ ...stored, name, alert_mode: alertMode, unread_count: body?.opened ? 0 : stored.unread_count, last_opened_at: opened, updated_at: now }) });
     }
     if (request.method === "DELETE") {
       await db.batch([
+        db.prepare("DELETE FROM dbi_acquisition_delivery_attempts WHERE job_id IN (SELECT id FROM dbi_acquisition_delivery_jobs WHERE saved_view_id = ? AND user_id = ?)").bind(id, session.user_id),
+        db.prepare("DELETE FROM dbi_acquisition_delivery_jobs WHERE saved_view_id = ? AND user_id = ?").bind(id, session.user_id),
         db.prepare("DELETE FROM dbi_acquisition_alerts WHERE saved_view_id = ? AND user_id = ?").bind(id, session.user_id),
         db.prepare("DELETE FROM dbi_acquisition_saved_views WHERE id = ? AND user_id = ?").bind(id, session.user_id),
       ]);

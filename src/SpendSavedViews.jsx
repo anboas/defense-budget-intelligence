@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, Bookmark, Trash2 } from "lucide-react";
+import { Bell, Bookmark, Mail, Trash2 } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 
@@ -23,12 +23,13 @@ function unreadForView(rows, view, tombstonedIds) {
 
 export default function SpendSavedViews({ rows, tombstonedIds, query, filters, onLoad, onHasViews }) {
   const auth = useAuth(); const remote = Boolean(auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
-  const [views, setViews] = useState(() => typeof window === "undefined" ? [] : readLocal()); const [name, setName] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  const [views, setViews] = useState(() => typeof window === "undefined" ? [] : readLocal()); const [name, setName] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [emailEnabled, setEmailEnabled] = useState(true);
   const counts = useMemo(() => new Map(views.map((entry) => [entry.id, remote ? Number(entry.unreadCount || 0) : unreadForView(rows, entry, tombstonedIds)])), [remote, rows, tombstonedIds, views]);
   useEffect(() => { onHasViews?.(views.length > 0); }, [onHasViews, views.length]);
   const refresh = useCallback(async () => {
     if (!remote) { setViews(readLocal()); return; }
-    const payload = await auth.listAcquisitionSavedViews(); let next = payload.views || []; const local = readLocal();
+    const [payload, delivery] = await Promise.all([auth.listAcquisitionSavedViews(), auth.getAcquisitionDeliveryPreferences()]); let next = payload.views || []; const local = readLocal();
+    setEmailEnabled(delivery.preferences?.emailEnabled !== false);
     if (!next.length && local.length) {
       next = [];
       for (const entry of local) next.push((await auth.createAcquisitionSavedView({ name: entry.name, query: entry.query || "", filters: entry.filters || {}, alertMode: "none" })).view);
@@ -48,10 +49,12 @@ export default function SpendSavedViews({ rows, tombstonedIds, query, filters, o
   async function load(entry) { const opened = new Date().toISOString(); setError(""); try { if (remote) { await auth.updateAcquisitionSavedView(entry.id, { opened: true }); await refresh(); } else { const next = views.map((item) => item.id === entry.id ? { ...item, lastOpenedAt: opened } : item); setViews(next); storeLocal(next); } onLoad(entry); } catch (requestError) { setError(requestError.message); } }
   async function remove(entry) { setError(""); try { if (remote) { await auth.deleteAcquisitionSavedView(entry.id); await refresh(); } else { const next = views.filter((item) => item.id !== entry.id); setViews(next); storeLocal(next); } } catch (requestError) { setError(requestError.message); } }
   async function setAlert(entry, alertMode) { setError(""); try { if (remote) { await auth.updateAcquisitionSavedView(entry.id, { alertMode }); await refresh(); } else { const next = views.map((item) => item.id === entry.id ? { ...item, alertMode } : item); setViews(next); storeLocal(next); } } catch (requestError) { setError(requestError.message); } }
+  async function toggleEmail(enabled) { setError(""); setBusy(true); try { if (remote) { const result = await auth.updateAcquisitionDeliveryPreferences({ emailEnabled: enabled }); setEmailEnabled(result.preferences.emailEnabled); } } catch (requestError) { setError(requestError.message); } finally { setBusy(false); } }
   return <details className="capture-saved-views spend-saved-views" data-spend-saved-views>
     <summary><Bookmark size={16} /><strong>Saved acquisition views</strong><span>{views.length}</span><small>{views.length ? `${[...counts.values()].reduce((total, value) => total + value, 0)} unread changes` : remote ? "Cross-device" : "Browser-local"}</small></summary>
     <div className="spend-saved-views__create"><label><span>View name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={`Explorer view ${views.length + 1}`} /></label><button type="button" className="if-button if-button--secondary" onClick={() => void save()} disabled={busy}><Bookmark size={15} />{busy ? "Saving…" : "Save current view"}</button></div>
     {error ? <p className="if-alert if-alert--warning" role="status">{error}</p> : null}
+    {remote && views.some((entry) => entry.alertMode && entry.alertMode !== "none") ? <label className="spend-saved-views__delivery"><span><Mail size={15} /><b>Email delivery</b><small>In-app alerts remain available if email is disabled or cannot be delivered.</small></span><input type="checkbox" checked={emailEnabled} disabled={busy} onChange={(event) => void toggleEmail(event.target.checked)} /></label> : null}
     {views.length ? <div className="capture-saved-views__list">{views.map((entry) => <span key={entry.id}>
       <button type="button" onClick={() => void load(entry)}><b>{entry.name}</b><small>{counts.get(entry.id) ? `${counts.get(entry.id)} unread changes` : "No unread changes"}</small></button>
       <span className="spend-saved-views__alert"><Bell size={13} /><ControlSelect ariaLabel={`Alert preference for ${entry.name}`} value={entry.alertMode || "none"} options={[{ value: "none", label: "No alerts" }, { value: "daily", label: "Daily digest" }, { value: "immediate", label: "Immediate" }]} onChange={(value) => void setAlert(entry, value)} /></span>

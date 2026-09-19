@@ -11,6 +11,8 @@ import {
   sha256,
   stableJson,
 } from "../src/acquisition-runtime-core.js";
+import { deliveryJobSchedule } from "../src/acquisition-delivery-core.js";
+import { processPostgresAcquisitionDeliveryQueue, registerAcquisitionDeliveryRoutes } from "./acquisition-delivery-routes.mjs";
 
 function publicRun(row) {
   return row ? {
@@ -133,7 +135,7 @@ async function persistRefresh(pool, workspaceId, runId, records, metadata) {
         if (insertedAlert.rowCount) await client.query(`INSERT INTO app_acquisition_delivery_jobs
           (id, workspace_id, user_id, saved_view_id, alert_id, delivery_mode, status, next_attempt_at)
           VALUES ($1,$2,$3,$4,$5,$6,'pending_provider',$7) ON CONFLICT DO NOTHING`,
-        [randomUUID(), workspaceId, saved.user_id, saved.id, alertId, saved.alert_mode, now]);
+        [randomUUID(), workspaceId, saved.user_id, saved.id, alertId, saved.alert_mode, deliveryJobSchedule(saved.alert_mode, process.env, new Date(now))]);
       }
     }
     await client.query(`UPDATE app_acquisition_refresh_runs SET status = 'succeeded', records_seen = $1, records_added = $2,
@@ -200,6 +202,7 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
       const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest.rows[0]?.completed_at, config });
       const counts = await persistRefresh(pool, current.workspaceId, runId, result.records, result.metadata);
       await pool.query("UPDATE app_workspace_provider_credentials SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [credential.rows[0].id]);
+      await processPostgresAcquisitionDeliveryQueue(pool, process.env, { limit: 100 });
       return reply.code(202).send({ run: { id: runId, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded } });
     } catch (error) {
       await pool.query("UPDATE app_acquisition_refresh_runs SET status = 'failed', error_code = $1, error_message = $2, completed_at = NOW() WHERE id = $3", [cleanText(error.code || "source_unavailable", 80), cleanText(error.message, 500), runId]);
@@ -237,6 +240,7 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
         WHERE id = $4 AND workspace_id = $5 AND user_id = $6 RETURNING *`, [cleanText(request.body?.name, 100) || null, alertMode, Boolean(request.body?.opened), request.params.id, current.workspaceId, current.user.user_id]);
       if (!result.rowCount) { await client.query("ROLLBACK"); return reply.code(404).send({ error: "saved view not found" }); }
       if (request.body?.opened) await client.query("UPDATE app_acquisition_alerts SET read_at = NOW() WHERE saved_view_id = $1 AND user_id = $2 AND read_at IS NULL", [request.params.id, current.user.user_id]);
+      if (alertMode === "none") await client.query("UPDATE app_acquisition_delivery_jobs SET status = 'cancelled', last_error = 'alert_disabled', updated_at = NOW() WHERE saved_view_id = $1 AND user_id = $2 AND status IN ('pending_provider','pending')", [request.params.id, current.user.user_id]);
       await client.query("COMMIT");
       return { view: publicView({ ...result.rows[0], unread_count: request.body?.opened ? 0 : result.rows[0].unread_count }) };
     } catch (error) {
@@ -277,4 +281,5 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
       AND ($2 = '' OR from_record_id = $2 OR to_record_id = $2) ORDER BY created_at DESC LIMIT 250`, [current.workspaceId, recordId]);
     return { links: result.rows.map((row) => ({ fromSource: row.from_source, fromId: row.from_record_id, toSource: row.to_source, toId: row.to_record_id, relationship: row.relationship, basis: row.basis, identifier: row.identifier })) };
   });
+  registerAcquisitionDeliveryRoutes(app, pool, { assertSameOrigin, context });
 }

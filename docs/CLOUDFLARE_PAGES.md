@@ -12,6 +12,12 @@ The primary application is deployed as the `defense-budget-intelligence` Cloudfl
 - The static GitHub Pages fallback remains publicly readable, hides account controls, rejects the Agent API, and keeps management state browser-local.
 - The Docker and PostgreSQL stack remains a portability and release-contract target; it is not required by the Cloudflare deployment.
 
+## Acquisition email delivery
+
+The hourly scheduler also drains due acquisition alert jobs. Immediate saved-view matches are eligible on the next scheduler invocation or immediately after a manual refresh; daily jobs wait for the configured UTC digest hour. Configure Pages with protected `RESEND_API_KEY` and the non-secret deployment values `DBI_ALERT_FROM_EMAIL`, optional `DBI_ALERT_REPLY_TO`, `DBI_PUBLIC_APP_URL`, and `DBI_ALERT_DIGEST_HOUR_UTC`. Pages secrets bind on the next deployment. Never place the provider key in repository files, chat, shell arguments, or logs.
+
+If the provider is absent, no email request is attempted and jobs remain `pending_provider`. In-app alerts remain the source of truth. Delivery attempts retain only status, bounded error code, provider message ID, and timestamp. The real Super user can inspect and retry or cancel jobs under **Connections → Operations**; emulated sessions cannot access that surface.
+
 ## Authentication boundary
 
 - `DBI_AUTH_REQUIRED=1` gates the Cloudflare-hosted application UI.
