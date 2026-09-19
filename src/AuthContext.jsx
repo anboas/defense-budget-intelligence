@@ -174,6 +174,8 @@ export default function AuthProvider({ children }) {
     createAgentKey: (values) => authApi.createAgentKey(values),
     revokeAgentKey: (id) => authApi.revokeAgentKey(id),
     listUsers: () => authApi.listUsers(),
+    listUserActivity: () => authApi.listUserActivity(),
+    recordPageVisit: (surface) => authApi.recordPageVisit(surface),
     listDirectory: () => authApi.listDirectory(),
     listWorkspaces: () => authApi.listWorkspaces(),
     requestWorkspaceAccess: (workspaceId, note) => authApi.requestWorkspaceAccess(workspaceId, note),

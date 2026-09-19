@@ -75,7 +75,11 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   const [busy, setBusy] = useState(true);
   const [creating, setCreating] = useState(false);
   const [addingMemberTo, setAddingMemberTo] = useState("");
-  const [activeSection, setActiveSection] = useState("general");
+  const [activeSection, setActiveSection] = useState(() => {
+    if (!activeOnly || typeof window === "undefined") return "general";
+    const value = new URLSearchParams(String(window.location.hash || "").split("?")[1] || "").get("workspaceSection");
+    return ["general", "people", "teams", "ai"].includes(value) ? value : "general";
+  });
   const [expandedId, setExpandedId] = useState(() => activeOnly ? auth.user?.activeWorkspace?.id || "" : "");
   const dialogRef = useRef(null);
   const manageDialogRef = useRef(null);
@@ -190,7 +194,14 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       ["people", "Access"],
       ["teams", "Teams"],
       ["ai", "AI policy"],
-    ].map(([id, label]) => <button key={id} type="button" className={activeSection === id ? "is-active" : ""} aria-pressed={activeSection === id} onClick={() => setActiveSection(id)}>{label}</button>)}</nav> : null}
+    ].map(([id, label]) => <button key={id} type="button" className={activeSection === id ? "is-active" : ""} aria-pressed={activeSection === id} onClick={() => {
+      setActiveSection(id);
+      const next = new URL(window.location.href);
+      const hashPath = String(next.hash || "").split("?")[0];
+      const params = new URLSearchParams(String(next.hash || "").split("?")[1] || "");
+      params.set("workspaceSection", id);
+      window.history.replaceState(null, "", `${next.pathname}${next.search}${hashPath}?${params.toString()}`);
+    }}>{label}</button>)}</nav> : null}
 
     {creating ? <ControlDialog open onClose={() => setCreating(false)} title="Create workspace" eyebrow="Platform administration" summary="Create a new isolated data and access boundary." dialogRef={dialogRef} surfaceProps={{ "data-workspace-create": true }} footer={<><button type="button" className="if-btn" onClick={() => setCreating(false)}>Cancel</button><button className="if-btn if-btn--primary" type="submit" form="workspace-create-form" disabled={busy}><Plus size={15} />Create workspace</button></>}><form id="workspace-create-form" className="if-form-grid" onSubmit={createWorkspace}>
       <label className="if-field"><span className="if-field__label">Name</span><input className="if-input" required minLength={2} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Program intelligence" /></label>

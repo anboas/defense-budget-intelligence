@@ -218,6 +218,8 @@ async function verifyApiLifecycle(persistPath) {
 
     response = await apiRequest(baseUrl, "/api/v1/auth/users");
     assert.equal(response.status, 401, "Anonymous callers must not enumerate workspace users");
+    response = await apiRequest(baseUrl, "/api/v1/auth/activity");
+    assert.equal(response.status, 401, "Anonymous callers must not enumerate user activity");
 
     const viewer = userPayload(4);
     response = await apiRequest(baseUrl, "/api/v1/auth/users", {
@@ -231,6 +233,17 @@ async function verifyApiLifecycle(persistPath) {
     const viewerId = body.user.id;
     assert.equal(body.user.role, "Viewer");
     assert.equal(body.user.mustChangePassword, true);
+
+    response = await apiRequest(baseUrl, "/api/v1/auth/activity", { method: "POST", body: { eventType: "page_visit", surface: "users", ignoredSecret: "never-store-this" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 202, "Authenticated page visits must enter the bounded activity ledger");
+    response = await apiRequest(baseUrl, "/api/v1/auth/activity", { method: "POST", body: { eventType: "page_visit", surface: "users" }, cookie: ownerCookie, origin: "https://attacker.example" });
+    assert.equal(response.status, 403, "Page-visit telemetry must reject cross-origin writes");
+    response = await apiRequest(baseUrl, "/api/v1/auth/activity", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Super user must be able to read retained user activity");
+    body = await response.json();
+    assert.ok(body.activities.some((entry) => entry.action === "account_created" && entry.targetId === viewerId), "Account creation must be retained as a server-authored action");
+    assert.ok(body.activities.some((entry) => entry.eventType === "page_visit" && entry.surface === "users"), "Page visits must retain only their canonical surface");
+    assert.doesNotMatch(JSON.stringify(body), /never-store-this/, "User activity must exclude arbitrary browser payload values");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
     body = await response.json();
@@ -291,6 +304,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 403, "Viewer writes must be rejected server-side");
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: viewerCookie });
     assert.equal(response.status, 403, "Viewer must not enumerate or manage human accounts");
+    response = await apiRequest(baseUrl, "/api/v1/auth/activity", { cookie: viewerCookie });
+    assert.equal(response.status, 403, "Only the real Super user may enumerate user activity");
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: viewerCookie });
     assert.equal(response.status, 200, "Signed-in viewers may read the minimal active-user directory used by event filters");
     response = await apiRequest(baseUrl, "/api/v1/agent/event-categories", { cookie: viewerCookie });

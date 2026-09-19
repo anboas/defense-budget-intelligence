@@ -153,24 +153,25 @@
 .user-management__form-grid label small,
 .user-management__field small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); font-weight: 500; line-height: var(--if-line-height-normal); }
 .user-management__editor--reset .user-management__form-grid { max-width: 720px; }
-.user-management__list { display: grid; }
-.user-management__list-header { display: grid; grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1.2fr) minmax(165px, .9fr) auto; gap: 12px; padding: 8px 14px; border-block: var(--if-divider); background: var(--if-bg-subtle); color: var(--if-text-muted); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-black); letter-spacing: .04em; text-transform: uppercase; }
-.user-management__list-header span:first-child { grid-column: 1 / 3; }
-.user-management__row { display: grid; grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1.2fr) minmax(165px, .9fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 12px 14px; border-bottom: var(--if-divider); }
-.user-management__row.is-suspended { background: var(--if-bg-subtle); }
+.user-management__tabs { padding-inline: var(--if-space-3); border-bottom: var(--if-divider); }
+.user-management__account-cell { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; }
 .user-management__avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--if-info-soft); color: var(--if-info); font-size: var(--if-font-size-xs); font-weight: 800; }
 .user-management__identity,
 .user-management__role,
-.user-management__access { display: grid; gap: 2px; min-width: 0; }
+.user-activity__account,
+.user-activity__target { display: grid; gap: 2px; min-width: 0; }
 .user-management__identity strong,
-.user-management__access strong { overflow: hidden; color: var(--if-text-strong); font-size: var(--if-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.user-activity__account strong,
+.user-activity__target strong { overflow: hidden; color: var(--if-text-strong); font-size: var(--if-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
 .user-management__identity span,
-.user-management__access span { overflow: hidden; color: var(--if-text-muted); font-size: var(--if-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.user-activity__account span { overflow: hidden; color: var(--if-text-muted); font-size: var(--if-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .user-management__identity small,
 .user-management__role small,
-.user-management__access small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-normal); }
+.user-activity__account small,
+.user-activity__target small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: var(--if-line-height-normal); }
+.user-management__role small a { color: var(--if-link); font-weight: var(--if-font-weight-semibold); }
 .user-management__role .if-badge { justify-self: start; }
-.user-management__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.user-management__actions { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 5px; white-space: nowrap; }
 .user-management__actions .if-btn { min-height: 36px; }
 .user-management__owner { display: inline-flex; align-items: center; gap: 5px; color: var(--if-info); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); white-space: nowrap; }
 
@@ -261,12 +262,8 @@
 
 @media (max-width: 740px) {
   .user-management__form-grid { grid-template-columns: 1fr; }
-  .user-management__list-header { display: none; }
   .user-management__form-grid input { min-height: 44px; }
-  .user-management__row { grid-template-columns: 42px minmax(0, 1fr); gap: 8px 10px; padding: 12px 10px; }
-  .user-management__role,
-  .user-management__access,
-  .user-management__actions { grid-column: 2; }
+  .user-management__tabs { padding-inline: var(--if-space-2); }
   .user-management__actions { justify-content: flex-start; }
   .user-management__actions .if-btn { min-height: 44px; }
   .workspace-request-queue > article { grid-template-columns: 1fr; }

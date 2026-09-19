@@ -36,6 +36,7 @@ import {
   validPasswordProof,
 } from "../src/security-policy.js";
 import { registerTeamEmulationRoutes } from "./team-emulation-routes.mjs";
+import { recordUserActivity, registerUserActivityRoutes } from "./user-activity-routes.mjs";
 import { registerRecordDispositionRoutes } from "./record-disposition-routes.mjs";
 import { registerProviderCredentialRoutes } from "./provider-credential-routes.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
@@ -101,7 +102,6 @@ async function issueSession(pool, reply, userId, preferredWorkspaceId = null) {
   reply.header("set-cookie", sessionCookie(token, expiresAt));
   return { sessionId, workspaceId: membership.rows[0]?.workspace_id || null };
 }
-
 export async function authenticated(pool, request) {
   const token = parseCookies(request.headers.cookie)[COOKIE_NAME];
   if (!token) return null;
@@ -127,7 +127,6 @@ export async function authenticated(pool, request) {
   await pool.query("UPDATE app_auth_sessions SET last_seen_at = NOW() WHERE id = $1", [result.rows[0].id]);
   return result.rows[0];
 }
-
 function publicUser(row) {
   const capabilities = accessCapabilities(row?.role, row?.membership_role, { isEmulating: Boolean(row?.is_emulating) }); const roleId = capabilities.roleId;
   return row ? {
@@ -149,9 +148,7 @@ function publicUser(row) {
     actor: row.is_emulating ? { id: row.actor_user_id, displayName: row.actor_display_name || "Super user", email: row.actor_email || "", role: "Super user", roleId: "super_user" } : null,
   } : null;
 }
-
 const validAvatar = validAvatarDataUrl;
-
 function encryptOpenAiKey(value) {
   const secret = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "");
   if (secret.length < 32) return null;
@@ -160,7 +157,6 @@ function encryptOpenAiKey(value) {
   const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final(), cipher.getAuthTag()]);
   return { encryptedKey: encrypted.toString("base64"), keyIv: iv.toString("base64"), keyVersion: 1 };
 }
-
 function decryptOpenAiKey(row) {
   const secret = String(process.env.DBI_CREDENTIAL_ENCRYPTION_KEY || "");
   if (!row || secret.length < 32 || Number(row.key_version || 0) !== 1) return "";
@@ -174,7 +170,6 @@ function decryptOpenAiKey(row) {
     return "";
   }
 }
-
 function openAiKeyMetadata(row) {
   return {
     id: row.id,
@@ -209,7 +204,6 @@ async function openAiKeyUsage(pool, credentialIds) {
     averageLatencyMs: row.average_latency_ms || 0, lastRequestAt: row.last_request_at || null,
   }]));
 }
-
 export async function recordApiRequest(pool, input = {}) {
   const now = new Date();
   const id = randomUUID();
@@ -235,6 +229,7 @@ export async function runAuthRetentionMaintenance(pool) {
   await pool.query("DELETE FROM app_api_request_log WHERE completed_at < NOW() - INTERVAL '90 days'");
   await pool.query("DELETE FROM app_event_ai_jobs WHERE completed_at < NOW() - INTERVAL '90 days'");
   await pool.query("DELETE FROM app_login_attempts WHERE attempted_at < NOW() - INTERVAL '24 hours'");
+  await pool.query("DELETE FROM app_user_activity WHERE occurred_at < NOW() - INTERVAL '90 days'");
 }
 
 async function hydratedUser(pool, row) {
@@ -579,6 +574,7 @@ export async function registerAuthRoutes(app, pool) {
   const required = enabled && process.env.AUTH_REQUIRE_LOGIN === "true";
   const allowFirstClaim = process.env.ALLOW_FIRST_CLAIM !== "false";
   registerTeamEmulationRoutes(app, pool, { assertSameOrigin, authenticated, hydratedUser, canAdministerWorkspaces });
+  registerUserActivityRoutes(app, pool, { assertSameOrigin, authenticated });
   registerRecordDispositionRoutes(app, pool, { assertSameOrigin, authenticated });
   registerProviderCredentialRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, encryptSecret: encryptOpenAiKey, recordApiRequest });
   app.get("/api/v1/auth/status", async (request) => {
@@ -808,6 +804,7 @@ export async function registerAuthRoutes(app, pool) {
       );
       await pool.query(`INSERT INTO app_workspace_memberships (workspace_id, user_id, role, created_by)
         VALUES ($1, $2, $3, $4)`, [administrator.active_workspace_id, userId, role, administrator.user_id]);
+      await recordUserActivity(pool, administrator, { eventType: "action", action: "account_created", surface: "users", targetType: "account", targetId: userId });
       return reply.code(201).send({ user: { ...publicUser({ ...result.rows[0], membership_role: role }), activeSessions: 0, isOwner: false } });
     } catch (error) {
       if (error.code === "23505") return reply.code(409).send({ error: "an account with that email already exists" });
@@ -839,6 +836,7 @@ export async function registerAuthRoutes(app, pool) {
         [email, displayName, title, status, request.params.userId],
       );
       if (status === "suspended") await pool.query("DELETE FROM app_auth_sessions WHERE user_id = $1", [request.params.userId]);
+      await recordUserActivity(pool, administrator, { eventType: "action", action: status === target.rows[0].status ? "account_updated" : status === "suspended" ? "account_suspended" : "account_reactivated", surface: "users", targetType: "account", targetId: request.params.userId });
       return { user: { ...publicUser({ ...result.rows[0], membership_role: target.rows[0].membership_role }), activeSessions: 0, isOwner: false } };
     } catch (error) {
       if (error.code === "23505") return reply.code(409).send({ error: "an account with that email already exists" });
@@ -872,6 +870,7 @@ export async function registerAuthRoutes(app, pool) {
     } finally {
       client.release();
     }
+    await recordUserActivity(pool, administrator, { eventType: "action", action: "account_password_reset", surface: "users", targetType: "account", targetId: request.params.userId });
     return { ok: true };
   });
 

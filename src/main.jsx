@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-surface-ui/react";
 import { installClientErrorReporting, reportClientError } from "./client-error-reporting.js";
@@ -17,7 +17,7 @@ import {
   Star,
   TrendingUp,
 } from "lucide-react";
-import AuthProvider from "./AuthContext.jsx";
+import AuthProvider, { useAuth } from "./AuthContext.jsx";
 import NotificationProvider from "./NotificationContext.jsx";
 import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
@@ -267,6 +267,8 @@ function RuntimeDataState({ error = "", loadingTitle, loadingMessage, errorTitle
 }
 
 function App() {
+  const auth = useAuth();
+  const lastRecordedVisit = useRef("");
   const [activeTab, , routeHash] = useBudgetRoute();
   const [executionRevision, setExecutionRevision] = useState(0);
   const [executionLoadAttempt, setExecutionLoadAttempt] = useState(0);
@@ -292,6 +294,14 @@ function App() {
     document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [activeTitle]);
+
+  useEffect(() => {
+    if (!auth?.user?.id || auth.user.mustChangePassword || !auth.user.hasWorkspaceAccess) return;
+    const visitKey = [auth.user.actor?.id || auth.user.id, auth.user.id, auth.user.activeWorkspace?.id || "none", activeTab].join(":");
+    if (lastRecordedVisit.current === visitKey) return;
+    lastRecordedVisit.current = visitKey;
+    void auth.recordPageVisit(activeTab).catch(() => {});
+  }, [activeTab, auth, auth?.user?.hasWorkspaceAccess, auth?.user?.id, auth?.user?.mustChangePassword]);
 
   useEffect(() => {
     if (!needsCore || coreReady) return;

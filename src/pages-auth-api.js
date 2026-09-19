@@ -1,5 +1,4 @@
 const encoder = new TextEncoder();
-
 import {
   EVENT_AI_PRODUCER_MODEL,
   EVENT_AI_VERIFIER_MODEL,
@@ -59,6 +58,7 @@ import {
 } from "./d1-event-store.js";
 import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
+import { D1_USER_ACTIVITY_SCHEMA, recordUserActivityD1, userActivityResponse as handleUserActivityResponse } from "./d1-user-activity.js";
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
 import { clientErrorsResponse as handleClientErrorsResponse } from "./d1-client-errors.js";
@@ -69,12 +69,10 @@ import {
   WORKSPACE_ROLE_IDS,
   accessCapabilities,
 } from "./access-model.js";
-
 export const PAGES_AUTH_VERSION = "dbi-pages-auth-v1";
 export const PASSWORD_ITERATIONS = 310_000;
 export const SESSION_COOKIE = "dbi_session";
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-
 const MAX_ATTEMPTS = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const RETENTION_MAINTENANCE_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -104,7 +102,6 @@ const DEFAULT_EVENT_CATEGORIES = Object.freeze([
   ["other", "Other", "Workspace events outside the managed categories"],
 ]);
 const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read"]);
-
 function defaultEventCategoryStatements(db, workspaceId, now) {
   return DEFAULT_EVENT_CATEGORIES.map(([categoryId, name, description]) => db.prepare(`
     INSERT OR IGNORE INTO dbi_workspace_event_categories
@@ -112,7 +109,6 @@ function defaultEventCategoryStatements(db, workspaceId, now) {
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(workspaceId, categoryId, name, description, now, now));
 }
-
 const SCHEMA = Object.freeze([
   `CREATE TABLE IF NOT EXISTS dbi_super_user (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -654,6 +650,7 @@ const SCHEMA = Object.freeze([
     occurred_at TEXT NOT NULL
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_activity_workspace ON dbi_workspace_activity (workspace_id, occurred_at DESC)",
+  ...D1_USER_ACTIVITY_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_manual_records (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -740,6 +737,7 @@ async function runD1RetentionMaintenance(db, now = new Date()) {
     db.prepare("DELETE FROM dbi_api_request_log WHERE completed_at < ?").bind(completedCutoff),
     db.prepare("DELETE FROM dbi_event_ai_jobs WHERE completed_at <> '' AND completed_at < ?").bind(completedCutoff),
     db.prepare("DELETE FROM dbi_login_attempts WHERE attempted_at < ?").bind(loginCutoff),
+    db.prepare("DELETE FROM dbi_user_activity WHERE occurred_at < ?").bind(completedCutoff),
     db.prepare(`INSERT INTO dbi_maintenance_state (task, last_run_at) VALUES (?, ?)
       ON CONFLICT(task) DO UPDATE SET last_run_at = excluded.last_run_at`).bind(task, now.toISOString()),
   ]);
@@ -1859,6 +1857,11 @@ async function recordActivity(db, principal, action, entityType, entityId = "", 
     crypto.randomUUID(), principal.workspaceId, principal.type, principal.actorId || principal.id, cleanText(action, 80), cleanText(entityType, 80),
     cleanText(entityId, 180), JSON.stringify(principal.isEmulating ? { ...(detail || {}), emulatedUserId: principal.id } : (detail || {})).slice(0, 8_000), new Date().toISOString(),
   ).run();
+  if (principal.type === "user") await recordUserActivityD1(db, {
+    actor_user_id: principal.actorId || principal.id,
+    user_id: principal.id,
+    active_workspace_id: principal.workspaceId,
+  }, { eventType: "action", action: entityType === "user" && !String(action).startsWith("user_emulation") ? String(action).replace(/^user_/, "account_") : action, surface: entityType === "user" ? "users" : entityType === "event" ? "schedule" : entityType, targetType: entityType, targetId: entityId });
 }
 
 function safeObject(value) {
@@ -3131,7 +3134,6 @@ async function eventsResponse(request, env, db, principal, segments) {
   }
   return agentError("method_not_allowed", "Method not allowed", 405);
 }
-
 async function activityResponse(request, db, principal) {
   const scope = request.method === "GET" ? "activity:read" : "activity:write";
   if (!hasScope(principal, scope)) return agentError("insufficient_scope", `Scope ${scope} is required`, 403);
@@ -3153,7 +3155,6 @@ async function activityResponse(request, db, principal) {
   });
   return agentError("method_not_allowed", "Method not allowed", 405);
 }
-
 async function apiRequestsResponse(request, db, principal) {
   if (request.method !== "GET") return agentError("method_not_allowed", "Method not allowed", 405);
   if (!hasScope(principal, "activity:read")) return agentError("insufficient_scope", "Scope activity:read is required", 403);
@@ -3192,7 +3193,6 @@ async function apiRequestsResponse(request, db, principal) {
     limit,
   });
 }
-
 async function integrationsResponse(request, env, principal) {
   if (request.method !== "GET") return agentError("method_not_allowed", "Method not allowed", 405);
   if (!hasScope(principal, "integrations:read")) return agentError("insufficient_scope", "Scope integrations:read is required", 403);
@@ -3206,7 +3206,6 @@ async function integrationsResponse(request, env, principal) {
     { id: "subawards", name: "USAspending subawards", status: payloads[3].metadata?.status || "unknown", reportedCount: payloads[3].metadata?.reportedSubawardCount || 0 },
   ]);
 }
-
 async function agentApiResponse(request, env, db) {
   const requestId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
@@ -3266,7 +3265,6 @@ async function agentApiResponse(request, env, db) {
   if (thrownError) console.error("Agent API request failed", { requestId, resource, error: thrownError?.message });
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
-
 export async function pagesAuthApiResponse(request, env = {}) {
   const db = databaseFromEnv(env);
   if (!db) return json({ error: "Persistent account database is unavailable" }, 503);
@@ -3282,6 +3280,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
   if (pathname === "/api/v1/auth/emulation") return handleEmulationResponse(request, db, { sessionUser, publicSessionUser, recordActivity, json, safeJson });
+  if (pathname === "/api/v1/auth/activity") return handleUserActivityResponse(request, db, { json, safeJson, sessionUser });
   if (pathname === "/api/v1/auth/directory") return handleDirectoryResponse(request, db, { sessionUser, json, roleLabels: ROLE_LABELS });
   if (pathname === "/api/v1/auth/teams" || pathname.startsWith("/api/v1/auth/teams/")) return handleTeamsResponse(request, db, { sessionUser, canAdministerWorkspaces, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);

@@ -291,12 +291,20 @@ try {
   await addUser.getByLabel("Temporary password", { exact: true }).fill("Temporary-User-2026!");
   await addUser.getByLabel("Confirm temporary password").fill("Temporary-User-2026!");
   await addUser.getByRole("button", { name: "Create account" }).click();
-  const teammate = page.locator("[data-user-row]", { hasText: "browser-teammate@example.test" });
+  const teammate = page.locator('[data-dbi-data-table="platform-accounts"] [data-if-table-row]', { hasText: "browser-teammate@example.test" });
   await teammate.waitFor();
   await page.getByText("Account created", { exact: true }).waitFor();
   assert.match(await teammate.innerText(), /Viewer[\s\S]*Active/);
+  const accountColumnAlignment = await page.locator('[data-dbi-data-table="platform-accounts"]').evaluate((table) => {
+    const headers = [...table.querySelectorAll("thead th")];
+    const cells = [...table.querySelectorAll("tbody tr:first-child > td")];
+    return headers.map((header, index) => Math.abs(header.getBoundingClientRect().left - cells[index].getBoundingClientRect().left));
+  });
+  assert.ok(accountColumnAlignment.every((delta) => delta < 1), `Account headers and cells must share exact column tracks, got ${accountColumnAlignment.join(", ")}`);
   await teammate.getByRole("button", { name: "Edit" }).click();
   const editUser = page.locator("[data-user-edit]");
+  const accessLink = editUser.getByRole("link", { name: "Workspace Settings → Access" });
+  assert.equal(await accessLink.getAttribute("href"), "#/budget-spend/workspace?workspaceSection=people", "Account editors must link directly to workspace access management");
   await editUser.getByLabel(/Title/).fill("Read-only reviewer updated");
   assert.equal(await editUser.getByRole("button", { name: /role/i }).count(), 0, "Global account editing must not duplicate workspace role management");
   await editUser.getByRole("button", { name: "Save account" }).click();
@@ -324,12 +332,30 @@ try {
   await emulationBanner.waitFor({ state: "detached" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="users"]');
   await page.locator("[data-user-management]").waitFor();
+  await page.getByRole("button", { name: /^Activity/ }).click();
+  const activityTable = page.locator('[data-platform-activity-table]');
+  await activityTable.waitFor();
+  assert.match(await activityTable.innerText(), /Browser teammate[\s\S]*Account Created[\s\S]*Users/i, "Platform activity must retain account lifecycle actions with account and surface metadata");
+  assert.ok(await activityTable.getByRole("button", { name: "Account filter" }).count(), "Activity must expose an account filter");
+  assert.ok(await activityTable.getByRole("button", { name: "Activity type filter" }).count(), "Activity must expose an activity-type filter");
+  assert.ok(await activityTable.getByRole("button", { name: "Action filter" }).count(), "Activity must expose an action filter");
+  await page.screenshot({ path: "test-results/admin-user-activity-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForSelector('[data-platform-activity-table][data-table-layout="cards"]');
+  const activityMobileGeometry = await page.locator('[data-user-management]').evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+  }));
+  assert.ok(activityMobileGeometry.documentWidth <= activityMobileGeometry.viewportWidth, "Platform activity must not create mobile overflow");
+  await page.screenshot({ path: "test-results/admin-user-activity-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: /^Accounts/ }).click();
   await page.screenshot({ path: "test-results/admin-users-desktop.png", fullPage: true });
-
-  await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
+  await teammate.getByRole("button", { name: "Edit" }).click();
+  await page.locator("[data-user-edit]").getByRole("link", { name: "Workspace Settings → Access" }).click();
   await page.waitForSelector("[data-workspace-management]");
   assert.equal(await page.locator("[data-workspace-teams]").count(), 0, "Workspace settings should show only the selected section instead of stacking teams below General");
-  await page.getByRole("button", { name: "Access", exact: true }).click();
+  assert.equal(await page.getByRole("button", { name: "Access", exact: true }).getAttribute("aria-pressed"), "true", "The account-editor access link must open the Access section directly");
   const accessModel = page.locator(".workspace-access-model");
   await accessModel.waitFor();
   assert.equal(await page.locator('[data-workspace-scope="active"] .workspace-card > header').count(), 0, "Focused workspace tabs must not repeat workspace identity above their content");

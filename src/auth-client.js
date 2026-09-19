@@ -71,6 +71,8 @@ export const authApi = {
   createAgentKey: (values) => request("/agent-keys", { method: "POST", body: JSON.stringify(values) }),
   revokeAgentKey: (id) => request(`/agent-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   listUsers: () => request("/users", { method: "GET", headers: {} }),
+  listUserActivity: () => request("/activity", { method: "GET", headers: {} }),
+  recordPageVisit: (surface) => request("/activity", { method: "POST", body: JSON.stringify({ eventType: "page_visit", surface }) }),
   listDirectory: () => request("/directory", { method: "GET", headers: {} }),
   listWorkspaces: () => request("/workspaces", { method: "GET", headers: {} }),
   requestWorkspaceAccess: (workspaceId, note = "") => request(`/workspaces/${encodeURIComponent(workspaceId)}/request`, { method: "POST", body: JSON.stringify({ note }) }),

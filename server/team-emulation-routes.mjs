@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { cleanText, validAvatarDataUrl } from "../src/security-policy.js";
+import { recordUserActivity } from "./user-activity-routes.mjs";
 
 async function teamPayload(pool, workspaceId) {
   const [teams, members] = await Promise.all([
@@ -30,6 +31,7 @@ export function registerTeamEmulationRoutes(app, pool, deps) {
     await pool.query(`INSERT INTO app_session_emulations (session_id,actor_user_id,target_user_id) VALUES ($1,$2,$3)
       ON CONFLICT (session_id) DO UPDATE SET target_user_id=EXCLUDED.target_user_id,started_at=NOW()`, [session.id, session.actor_user_id, targetUserId]);
     await pool.query("UPDATE app_auth_sessions SET workspace_id=$1 WHERE id=$2", [target.rows[0].workspace_id, session.id]);
+    await recordUserActivity(pool, { ...session, active_workspace_id: target.rows[0].workspace_id }, { eventType: "action", action: "user_emulation_started", surface: "users", targetType: "account", targetId: targetUserId });
     return { user: await hydratedUser(pool, await authenticated(pool, request)) };
   });
   app.delete("/api/v1/auth/emulation", async (request, reply) => {
@@ -38,6 +40,7 @@ export function registerTeamEmulationRoutes(app, pool, deps) {
     if (!session) return reply.code(401).send({ error: "sign in required" });
     if (session.actor_role !== "super_user") return reply.code(403).send({ error: "Super user access is required" });
     await pool.query("DELETE FROM app_session_emulations WHERE session_id=$1", [session.id]);
+    await recordUserActivity(pool, session, { eventType: "action", action: "user_emulation_stopped", surface: "users", targetType: "account", targetId: session.user_id });
     return { user: await hydratedUser(pool, await authenticated(pool, request)) };
   });
   app.get("/api/v1/auth/teams", async (request, reply) => {
