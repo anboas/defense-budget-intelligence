@@ -37,7 +37,7 @@ import {
   validPasswordProof,
   validSalt,
 } from "./security-policy.js";
-import { ACQUISITION_SCHEMA, acquisitionRuntimeResponse } from "./d1-acquisition-runtime.js";
+import { ACQUISITION_SCHEMA, acquisitionRuntimeResponse, acquisitionSchedulerResponse } from "./d1-acquisition-runtime.js";
 import {
   activeEventAttendeeIds,
   activeEventCategoryIds,
@@ -3268,9 +3268,8 @@ async function agentApiResponse(request, env, db) {
 export async function pagesAuthApiResponse(request, env = {}) {
   const db = databaseFromEnv(env);
   if (!db) return json({ error: "Persistent account database is unavailable" }, 503);
-  await ensureSchema(db);
-
-  const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+  await ensureSchema(db); const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+  if (pathname === "/api/v1/system/acquisition-schedule") return acquisitionSchedulerResponse(request, db, env, { decryptSecret: decryptOpenAiKey, json });
   if (pathname === "/api/v1/auth/status") return statusResponse(request, db, env);
   if (pathname === "/api/v1/auth/claim") return claimResponse(request, db, env);
   if (pathname === "/api/v1/auth/register") return registrationResponse(request, db, env);

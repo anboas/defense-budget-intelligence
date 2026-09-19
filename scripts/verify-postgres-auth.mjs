@@ -165,7 +165,17 @@ response = await request("/api/v1/auth/acquisition/status", { cookie: ownerCooki
 assert.equal(response.status, 200, "PostgreSQL must expose workspace acquisition runtime status");
 body = await response.json();
 assert.equal(body.credential.configured, false);
-assert.equal(body.refresh.schedule, "daily-ready");
+assert.equal(body.refresh.execution, "cloudflare-cron-with-first-access-fallback");
+response = await request("/api/v1/auth/acquisition/config", { cookie: ownerCookie });
+assert.equal(response.status, 200, "PostgreSQL must expose workspace SAM.gov ingestion configuration");
+body = await response.json();
+assert.equal(body.config.cadenceHours, 24);
+response = await request("/api/v1/auth/acquisition/config", { method: "PATCH", cookie: ownerCookie,
+  body: { enabled: false, cadenceHours: 48, pageSize: 500, maxPages: 3, requestIntervalMs: 2000, maxRetries: 2, initialLookbackDays: 60, incrementalLookbackDays: 7, organizationName: "DEPT OF DEFENSE", noticeTypes: ["o", "s"] } });
+assert.equal(response.status, 200);
+body = await response.json();
+assert.equal(body.config.enabled, false);
+assert.deepEqual(body.config.noticeTypes, ["o", "s"]);
 response = await request("/api/v1/auth/acquisition/refresh", { method: "POST", cookie: ownerCookie, body: {} });
 assert.equal(response.status, 409, "PostgreSQL acquisition refresh must fail safely when the workspace key is unavailable");
 response = await request("/api/v1/auth/acquisition/records?limit=10", { cookie: ownerCookie });

@@ -51,7 +51,7 @@ export function registerProviderCredentialRoutes(app, pool, deps) {
         canManage: true,
         activeWorkspaceId: current.workspaceId,
         runtimeScope: "workspace",
-        scheduledSnapshotMode: "repository-secret",
+        scheduledSnapshotMode: "workspace-runtime",
       },
       credentials: result.rows.map(credentialMetadata),
     };

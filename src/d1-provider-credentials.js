@@ -49,7 +49,7 @@ export async function providerCredentialsResponse(request, db, env, deps) {
         canManage: true,
         activeWorkspaceId: workspaceId,
         runtimeScope: "workspace",
-        scheduledSnapshotMode: "repository-secret",
+        scheduledSnapshotMode: "workspace-runtime",
       },
       credentials: (result.results || []).map(metadata),
     });

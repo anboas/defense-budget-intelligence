@@ -51,6 +51,8 @@ async function startPages(persistPath) {
     "--binding",
     "DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001",
     "--binding",
+    "DBI_SCHEDULER_TOKEN=verification-only-scheduler-token-0000001",
+    "--binding",
     "DBI_EVENT_AI_MOCK_MODE=true",
     "--log-level",
     "error",
@@ -601,7 +603,26 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200, "D1 must expose workspace acquisition runtime status");
     body = await response.json();
     assert.equal(body.credential.configured, false, "Revoking the workspace SAM.gov key must disable runtime refresh without deleting history");
-    assert.equal(body.refresh.schedule, "daily-ready");
+    assert.equal(body.refresh.execution, "cloudflare-cron-with-first-access-fallback");
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/config", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "D1 must expose workspace-scoped SAM.gov ingestion configuration");
+    body = await response.json();
+    assert.equal(body.config.cadenceHours, 24);
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/config", { method: "PATCH", cookie: viewerCookie, origin: baseUrl.slice(0, -1), body: { cadenceHours: 6 } });
+    assert.ok([401, 403].includes(response.status), "Only workspace managers may change SAM.gov ingestion configuration");
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/config", { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { enabled: true, cadenceHours: 12, pageSize: 250, maxPages: 4, requestIntervalMs: 1500, maxRetries: 2, initialLookbackDays: 30, incrementalLookbackDays: 5, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p", "r"] } });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.deepEqual(body.config.noticeTypes, ["p", "r"]);
+    assert.equal(body.config.pageSize * body.config.maxPages, 1000, "The workspace request budget must be explicit and bounded");
+    response = await apiRequest(baseUrl, "/api/v1/system/acquisition-schedule", { method: "POST", headers: { authorization: "Bearer verification-only-scheduler-token-0000001" } });
+    assert.equal(response.status, 200, "The protected scheduler endpoint must accept the configured service token");
+    body = await response.json();
+    assert.equal(body.executed, 0, "The scheduler must not create a task after the workspace SAM.gov key is revoked");
+    assert.equal(body.keyedWorkspaces, 0, "No-key workspaces must be filtered before scheduler execution");
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/status", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.refresh.latest, null, "A no-key scheduler sweep must not create a refresh run row");
     response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/refresh", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {} });
     assert.equal(response.status, 409, "D1 acquisition refresh must fail safely when the workspace key is unavailable");
     response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/records?limit=10", { cookie: ownerCookie });

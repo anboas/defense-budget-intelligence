@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import {
   ACQUISITION_SOURCE,
+  acquisitionNextDueAt,
   changedFields,
   exactLifecycleLinks,
   fetchSamOpportunities,
   matchesSavedAcquisitionView,
+  normalizeAcquisitionConfig,
   normalizeSavedAcquisitionView,
   sha256,
   stableJson,
@@ -39,8 +41,14 @@ function publicRecord(row) {
   };
 }
 
+async function sourceConfig(pool, workspaceId) {
+  const result = await pool.query("SELECT * FROM app_acquisition_source_configs WHERE workspace_id = $1", [workspaceId]);
+  const row = result.rows[0];
+  return normalizeAcquisitionConfig(row ? { ...(row.config_json || {}), enabled: row.enabled, cadenceHours: row.cadence_hours } : {});
+}
+
 async function acquisitionStatus(pool, workspaceId) {
-  const [credential, run, counts, quality, linkCount] = await Promise.all([
+  const [credential, run, counts, quality, linkCount, config, delivery] = await Promise.all([
     pool.query("SELECT id, label, secret_last_four, last_used_at FROM app_workspace_provider_credentials WHERE workspace_id = $1 AND provider = 'sam_gov' AND revoked_at IS NULL LIMIT 1", [workspaceId]),
     pool.query("SELECT * FROM app_acquisition_refresh_runs WHERE workspace_id = $1 AND source = $2 ORDER BY started_at DESC LIMIT 1", [workspaceId, ACQUISITION_SOURCE]),
     pool.query(`SELECT COUNT(*)::int AS records, COUNT(*) FILTER (WHERE removed_at IS NULL)::int AS active,
@@ -53,17 +61,25 @@ async function acquisitionStatus(pool, workspaceId) {
       COUNT(*) FILTER (WHERE last_seen_at < NOW() - INTERVAL '7 days' AND removed_at IS NULL)::int AS stale,
       COUNT(*)::int AS total FROM app_acquisition_records WHERE workspace_id = $1`, [workspaceId]),
     pool.query("SELECT COUNT(*)::int AS total FROM app_acquisition_lifecycle_links WHERE workspace_id = $1", [workspaceId]),
+    sourceConfig(pool, workspaceId),
+    pool.query(`SELECT COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'pending_provider')::int AS pending_provider,
+      COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
+      FROM app_acquisition_delivery_jobs WHERE workspace_id = $1`, [workspaceId]),
   ]);
   const latest = run.rows[0] || null;
   const completed = Date.parse(latest?.completed_at || latest?.started_at || "");
+  const nextDueAt = acquisitionNextDueAt(latest?.completed_at, config);
   return {
     source: "SAM.gov", credential: credential.rowCount ? { configured: true, label: credential.rows[0].label, lastFour: credential.rows[0].secret_last_four, lastUsedAt: credential.rows[0].last_used_at || null } : { configured: false },
-    refresh: { latest: publicRun(latest), due: !Number.isFinite(completed) || Date.now() - completed >= 86_400_000, schedule: "daily-ready", execution: "manual-or-first-access-until-cron-worker" },
+    config,
+    refresh: { latest: publicRun(latest), due: config.enabled && (!Number.isFinite(completed) || !nextDueAt || Date.now() >= Date.parse(nextDueAt)), nextDueAt, schedule: `Every ${config.cadenceHours} hours`, execution: "cloudflare-cron-with-first-access-fallback", eligible: Boolean(credential.rowCount && config.enabled) },
     durableHistory: {
       records: Number(counts.rows[0]?.records || 0), active: Number(counts.rows[0]?.active || 0),
       changedToday: Number(counts.rows[0]?.changed_today || 0), lifecycleLinks: Number(linkCount.rows[0]?.total || 0),
     },
     quality: quality.rows[0] || { total: 0, missing_identifier: 0, missing_office: 0, missing_naics: 0, stale: 0 },
+    delivery: { total: Number(delivery.rows[0]?.total || 0), pendingProvider: Number(delivery.rows[0]?.pending_provider || 0), failed: Number(delivery.rows[0]?.failed || 0) },
   };
 }
 
@@ -109,10 +125,15 @@ async function persistRefresh(pool, workspaceId, runId, records, metadata) {
     for (const saved of savedViews.rows) {
       for (const changed of changedRecords) {
         if (!matchesSavedAcquisitionView(changed.record, saved.query_json || {})) continue;
-        await client.query(`INSERT INTO app_acquisition_alerts
+        const alertId = randomUUID();
+        const insertedAlert = await client.query(`INSERT INTO app_acquisition_alerts
           (id, workspace_id, user_id, saved_view_id, source, source_record_id, refresh_run_id, change_type, matched_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
-        [randomUUID(), workspaceId, saved.user_id, saved.id, ACQUISITION_SOURCE, changed.record.sourceRecordId, runId, changed.changeType, now]);
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING RETURNING id`,
+        [alertId, workspaceId, saved.user_id, saved.id, ACQUISITION_SOURCE, changed.record.sourceRecordId, runId, changed.changeType, now]);
+        if (insertedAlert.rowCount) await client.query(`INSERT INTO app_acquisition_delivery_jobs
+          (id, workspace_id, user_id, saved_view_id, alert_id, delivery_mode, status, next_attempt_at)
+          VALUES ($1,$2,$3,$4,$5,$6,'pending_provider',$7) ON CONFLICT DO NOTHING`,
+        [randomUUID(), workspaceId, saved.user_id, saved.id, alertId, saved.alert_mode, now]);
       }
     }
     await client.query(`UPDATE app_acquisition_refresh_runs SET status = 'succeeded', records_seen = $1, records_added = $2,
@@ -141,6 +162,21 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
     return acquisitionStatus(pool, current.workspaceId);
   });
 
+  app.get("/api/v1/auth/acquisition/config", async (request, reply) => {
+    const current = await context(request, reply); if (!current) return;
+    return { config: await sourceConfig(pool, current.workspaceId) };
+  });
+  app.patch("/api/v1/auth/acquisition/config", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const current = await context(request, reply, true); if (!current) return;
+    const config = normalizeAcquisitionConfig(request.body || {});
+    await pool.query(`INSERT INTO app_acquisition_source_configs (workspace_id, enabled, cadence_hours, config_json, updated_by)
+      VALUES ($1,$2,$3,$4::jsonb,$5) ON CONFLICT (workspace_id) DO UPDATE SET enabled = EXCLUDED.enabled,
+      cadence_hours = EXCLUDED.cadence_hours, config_json = EXCLUDED.config_json, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+    [current.workspaceId, config.enabled, config.cadenceHours, JSON.stringify(config), current.user.user_id]);
+    return { config };
+  });
+
   app.post("/api/v1/auth/acquisition/refresh", async (request, reply) => {
     if (!assertSameOrigin(request, reply)) return;
     const current = await context(request, reply, true); if (!current) return;
@@ -160,7 +196,8 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
     const trigger = cleanText(request.body?.trigger, 30) === "first_access" ? "first_access" : "manual";
     await pool.query("INSERT INTO app_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type) VALUES ($1,$2,$3,'running',$4)", [runId, current.workspaceId, ACQUISITION_SOURCE, trigger]);
     try {
-      const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest.rows[0]?.completed_at });
+      const config = await sourceConfig(pool, current.workspaceId);
+      const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest.rows[0]?.completed_at, config });
       const counts = await persistRefresh(pool, current.workspaceId, runId, result.records, result.metadata);
       await pool.query("UPDATE app_workspace_provider_credentials SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [credential.rows[0].id]);
       return reply.code(202).send({ run: { id: runId, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded } });

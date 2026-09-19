@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQueryWindow } from "../src/acquisition-runtime-core.js";
+import { exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQueryWindow } from "../src/acquisition-runtime-core.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureRoot = mkdtempSync(resolve(tmpdir(), "dbi-procurement-discovery-"));
@@ -75,9 +75,28 @@ try {
     return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "notice-runtime-1", solicitationNumber: "W15P7T-26-R-0001", title: "Runtime notice", type: "Solicitation", postedDate: "2026-09-19", active: "Yes" }] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.equal(fetched.records.length, 1);
-  assert.match(requestedUrl, /deptname=DEPT\+OF\+DEFENSE/);
+  assert.match(requestedUrl, /organizationName=DEPT\+OF\+DEFENSE/);
   assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must travel only in the protected request header");
-  await assert.rejects(() => fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", maxPages: 1, fetchImpl: async () => new Response(JSON.stringify({ totalRecords: 2000, opportunitiesData: [{ noticeId: "truncated-1", title: "Partial" }] }), { status: 200, headers: { "content-type": "application/json" } }) }), (error) => error.code === "source_truncated", "A bounded partial SAM response must fail closed");
+  assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
+    enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
+    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"],
+  }, "Workspace acquisition settings must be clamped to the documented and operational safety envelope");
+  const waits = []; let rateAttempts = 0;
+  const recovered = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { maxRetries: 1, requestIntervalMs: 250 }, sleep: async (milliseconds) => waits.push(milliseconds), fetchImpl: async () => {
+    rateAttempts += 1;
+    if (rateAttempts === 1) return new Response("{}", { status: 429, headers: { "retry-after": "2" } });
+    return new Response(JSON.stringify({ totalRecords: 0, opportunitiesData: [] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.deepEqual(waits, [2000], "SAM.gov Retry-After must control bounded rate-limit backoff");
+  assert.equal(recovered.metadata.retries, 1);
+  assert.equal(recovered.metadata.requests, 2);
+  const typeUrls = [];
+  await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { noticeTypes: ["p", "r"], maxPages: 2, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async (url) => {
+    typeUrls.push(String(url));
+    return new Response(JSON.stringify({ totalRecords: 0, opportunitiesData: [] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.deepEqual(typeUrls.map((url) => new URL(url).searchParams.get("ptype")), ["p", "r"], "Each selected SAM.gov notice type must use its documented scalar ptype request");
+  await assert.rejects(() => fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { maxPages: 1, pageSize: 1000, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async () => new Response(JSON.stringify({ totalRecords: 2000, opportunitiesData: [{ noticeId: "truncated-1", title: "Partial" }] }), { status: 200, headers: { "content-type": "application/json" } }) }), (error) => error.code === "source_truncated", "A bounded partial SAM response must fail closed");
   const links = exactLifecycleLinks([{ sourceRecordId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceRecordId: "notice-b", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);
   assert.deepEqual(links.map((link) => [link.fromId, link.toId, link.relationship, link.basis]), [["notice-a", "notice-b", "resulted_in_award", "solicitation_number"]], "Lifecycle links must require an exact disclosed identifier");
   const crossSourceLinks = exactLifecycleLinks([{ sourceSystem: "SAM.gov", noticeId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceSystem: "USAspending", awardId: "CONT_AWD_W15P7T26C0001", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);

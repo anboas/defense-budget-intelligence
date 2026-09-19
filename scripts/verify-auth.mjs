@@ -1255,6 +1255,20 @@ try {
   assert.ok(mobileSamBounds && mobileSamBounds.x >= 0 && mobileSamBounds.y >= 0 && mobileSamBounds.x + mobileSamBounds.width <= 390 && mobileSamBounds.y + mobileSamBounds.height <= 844, `Mobile SAM.gov key dialog must stay inside the viewport: ${JSON.stringify(mobileSamBounds)}`);
   await mobileSamDialog.getByRole("button", { name: "Close SAM.gov key form" }).click();
 
+  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
+  const acquisitionRuntime = page.locator("[data-acquisition-runtime]");
+  await acquisitionRuntime.waitFor();
+  await acquisitionRuntime.locator("summary").click();
+  assert.match(await acquisitionRuntime.innerText(), /No key\. Scheduler skips this workspace before creating a run/i, "No-key workspaces must explain the scheduler boundary");
+  await acquisitionRuntime.getByRole("button", { name: "Configure" }).click();
+  const ingestionConfig = page.locator("[data-sam-ingestion-config]");
+  await ingestionConfig.waitFor();
+  const ingestionBounds = await ingestionConfig.boundingBox();
+  assert.ok(ingestionBounds && ingestionBounds.x >= 0 && ingestionBounds.x + ingestionBounds.width <= 390, `Mobile SAM.gov configuration must remain horizontally contained: ${JSON.stringify(ingestionBounds)}`);
+  const ingestionControlHeights = await ingestionConfig.locator("input, button, [role='button']").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none" && node.getBoundingClientRect().width > 0).map((node) => node.closest("label.if-checkbox")?.getBoundingClientRect().height || node.getBoundingClientRect().height));
+  assert.ok(ingestionControlHeights.every((height) => height >= 43.5), `Mobile SAM.gov configuration controls must retain 44px touch geometry: ${ingestionControlHeights.join(", ")}`);
+  await ingestionConfig.getByRole("button", { name: "Cancel" }).click();
+
   const interactionSurfaces = [
     ["#/budget-spend/explorer?spendView=today", '[data-spend-explorer="today"]', "Acquisition Today"],
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],

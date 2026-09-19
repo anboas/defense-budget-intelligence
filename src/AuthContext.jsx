@@ -227,6 +227,8 @@ export default function AuthProvider({ children }) {
     createProviderCredential: (provider, values) => authApi.createProviderCredential(provider, values),
     revokeProviderCredential: (provider, id) => authApi.revokeProviderCredential(provider, id),
     getAcquisitionStatus: () => authApi.getAcquisitionStatus(),
+    getAcquisitionConfig: () => authApi.getAcquisitionConfig(),
+    updateAcquisitionConfig: (values) => authApi.updateAcquisitionConfig(values),
     refreshAcquisitionSource: (trigger) => authApi.refreshAcquisitionSource(trigger),
     listAcquisitionRecords: (values) => authApi.listAcquisitionRecords(values),
     listAcquisitionSavedViews: () => authApi.listAcquisitionSavedViews(),

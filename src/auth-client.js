@@ -98,6 +98,8 @@ export const authApi = {
   createProviderCredential: (provider, values) => request(`/provider-credentials/${encodeURIComponent(provider)}`, { method: "POST", body: JSON.stringify(values) }),
   revokeProviderCredential: (provider, id) => request(`/provider-credentials/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   getAcquisitionStatus: () => request("/acquisition/status", { method: "GET", headers: {} }),
+  getAcquisitionConfig: () => request("/acquisition/config", { method: "GET", headers: {} }),
+  updateAcquisitionConfig: (values) => request("/acquisition/config", { method: "PATCH", body: JSON.stringify(values) }),
   refreshAcquisitionSource: (trigger = "manual") => request("/acquisition/refresh", { method: "POST", body: JSON.stringify({ trigger }) }),
   listAcquisitionRecords: ({ limit = 1000, offset = 0, removed = false } = {}) => request(`/acquisition/records?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}${removed ? "&removed=1" : ""}`, { method: "GET", headers: {} }),
   listAcquisitionSavedViews: () => request("/acquisition/saved-views", { method: "GET", headers: {} }),

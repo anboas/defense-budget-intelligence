@@ -32,10 +32,11 @@
     "verify:ui-conformance": "node scripts/check-ui-conformance.mjs",
     "verify:event-ai": "node scripts/verify-event-ai-runtime.mjs",
     "verify:procurement-discovery": "node scripts/verify-procurement-discovery.mjs",
+    "verify:acquisition-scheduler": "node scripts/verify-acquisition-scheduler.mjs",
     "verify:d1-efficiency": "node scripts/verify-d1-query-efficiency.mjs",
     "verify:security": "node scripts/verify-security-runtime.mjs",
     "verify:site": "node scripts/verify-site.mjs",
-    "verify": "npm run lint && npm run verify:ui-conformance && npm run verify:event-ai && npm run verify:procurement-discovery && npm run verify:d1-efficiency && npm run build && npm run verify:security && npm run verify:site",
+    "verify": "npm run lint && npm run verify:ui-conformance && npm run verify:event-ai && npm run verify:procurement-discovery && npm run verify:acquisition-scheduler && npm run verify:d1-efficiency && npm run build && npm run verify:security && npm run verify:site",
     "verify:auth": "node scripts/verify-auth.mjs",
     "verify:pages-auth": "npm run build:cloudflare && node scripts/verify-pages-auth.mjs",
     "verify:agent-api": "npm run build:cloudflare && node scripts/verify-agent-api.mjs",
@@ -45,6 +46,7 @@
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",
     "pages:dev": "npm run build:cloudflare && wrangler pages dev dist",
     "pages:deploy": "npm run build:cloudflare && wrangler pages deploy dist --project-name defense-budget-intelligence",
+    "scheduler:deploy": "wrangler deploy --config wrangler.scheduler.toml",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
