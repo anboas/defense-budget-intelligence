@@ -14,6 +14,7 @@ import { registerStateRoutes } from "./state-routes.mjs";
 import { importAccountSpine, registerAccountSpineRoutes } from "./account-spine.mjs";
 import { importCaptureCalendar, registerCaptureCalendarRoutes } from "./capture-calendar.mjs";
 import { registerAuthRoutes, runAuthRetentionMaintenance } from "./auth-routes.mjs";
+import { registerClientErrorRoutes } from "./client-error-routes.mjs";
 import { MAX_JSON_BODY_BYTES, securityHeadersForPath } from "../src/security-policy.js";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -65,6 +66,7 @@ app.get("/api/readyz", async (_request, reply) => {
   }
 });
 
+await registerClientErrorRoutes(app, pool);
 await registerAuthRoutes(app, pool);
 
 app.get("/api/v1/snapshots", async () => ({ snapshots: await latestSnapshotMetadata(pool) }));

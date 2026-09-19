@@ -61,6 +61,7 @@ import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
+import { clientErrorsResponse as handleClientErrorsResponse } from "./d1-client-errors.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import {
   ROLE_LABELS,
@@ -3269,6 +3270,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);
   if (pathname === "/api/v1/auth/openai-keys" || pathname.startsWith("/api/v1/auth/openai-keys/")) return openAiKeysResponse(request, db, env);
   if (pathname === "/api/v1/auth/event-ai" || pathname.startsWith("/api/v1/auth/event-ai/")) return eventAiResponse(request, db, env);
+  if (pathname === "/api/v1/client-errors") return handleClientErrorsResponse(request, db, { json, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
   if (pathname === "/api/v1/auth/agent-keys" || pathname.startsWith("/api/v1/auth/agent-keys/")) return agentKeysResponse(request, db);
   if (pathname === "/api/v1/agent" || pathname.startsWith("/api/v1/agent/")) return agentApiResponse(request, env, db);

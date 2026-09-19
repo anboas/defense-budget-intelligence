@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, Link2 } from "lucide-react";
-import { ControlDrawer, ControlIdentityLink, ControlMultiSelect, ControlStatusBadge } from "control-surface-ui/react";
+import {
+  ControlCalendarGrid,
+  ControlCalendarHeader,
+  ControlCalendarOverlayRail,
+  ControlCalendarSurface,
+  ControlDrawer,
+  ControlIdentityLink,
+  ControlMonthNavigator,
+  ControlMultiSelect,
+  ControlStatusBadge,
+} from "control-surface-ui/react";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
@@ -271,24 +281,23 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
     const top = Math.max(8, Math.min(clientY || bounds.top, window.innerHeight - 380));
     setHover({ item, attendee, left, top });
   }
-  return <section className={`ops-wallboard__section ops-wallboard__section--calendar${standalone ? " ops-wallboard__section--standalone-calendar" : ""}`} data-wallboard-calendar data-calendar-layout={standalone ? "standalone" : "display"}>
-    <header>
-      <div className="ops-wall-calendar__identity"><WorkspaceMark workspace={workspace} /><span><small>{workspace?.name || "Operator calendar"}</small><strong data-calendar-month-heading><span className="ops-wall-calendar__month-full">{monthLabel}</span><span className="ops-wall-calendar__month-compact">{compactMonthLabel}</span></strong></span></div>
-      <div className="ops-wall-calendar__controls">
-        <ControlMultiSelect label="Event types" placeholder="Types" value={selectedCategoryIds} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description, meta: `${category.assignedEventCount || 0}` }))} onChange={setSelectedCategoryIds} searchable clearable compact triggerProps={{ "data-calendar-category-filter": true }} />
-        <button type="button" aria-label="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={17} aria-hidden="true" /></button>
-        <button type="button" onClick={() => onMonthChange(currentMonth)}>Today</button>
-        <button type="button" aria-label="Next month" onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={17} aria-hidden="true" /></button>
-        <b data-calendar-count aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}><span>{monthEvents.length}</span><small>+{monthMilestones.length}</small></b>
-      </div>
-    </header>
-    <div className="ops-calendar-overlays" aria-label="Calendar overlays" data-calendar-overlays><span><strong>Calendar overlays</strong><small>Toggle visible schedules.</small></span><div>{overlayOptions.map((team) => {
+  return <ControlCalendarSurface className={`ops-wallboard__section ops-wallboard__section--calendar${standalone ? " ops-wallboard__section--standalone-calendar" : ""}`} data-wallboard-calendar data-calendar-layout={standalone ? "standalone" : "display"}>
+    <ControlCalendarHeader
+      identity={<WorkspaceMark workspace={workspace} />}
+      eyebrow={workspace?.name || "Operator calendar"}
+      title={<span data-calendar-month-heading>{monthLabel}</span>}
+      compactTitle={compactMonthLabel}
+      identityClassName="ops-wall-calendar__identity"
+      controlsClassName="ops-wall-calendar__controls"
+      filters={<ControlMultiSelect label="Event types" placeholder="Types" value={selectedCategoryIds} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description, meta: `${category.assignedEventCount || 0}` }))} onChange={setSelectedCategoryIds} searchable clearable compact triggerProps={{ "data-calendar-category-filter": true }} />}
+      navigation={<ControlMonthNavigator onPrevious={() => onMonthChange(shiftMonth(month, -1))} onToday={() => onMonthChange(currentMonth)} onNext={() => onMonthChange(shiftMonth(month, 1))} previousIcon={<ChevronLeft size={17} />} nextIcon={<ChevronRight size={17} />} />}
+      summary={<b data-calendar-count aria-label={`${monthEvents.length} events and ${monthMilestones.length} milestones in ${monthLabel}`}><span>{monthEvents.length}</span><small>+{monthMilestones.length}</small></b>}
+    />
+    <ControlCalendarOverlayRail className="ops-calendar-overlays" label="Calendar overlays" summary="Toggle visible schedules." data-calendar-overlays>{overlayOptions.map((team) => {
       const active = !hiddenOverlaySet.has(team.id);
       return <button key={team.id} type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${team.name} overlay ${active ? "shown" : "hidden"}`} onClick={() => toggleOverlay(team.id)}><TeamAvatar team={team} size={26} nativeTitle={false} /><span>{team.name}</span><small className="ops-calendar-overlay__state">{active ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}<span>{active ? "Shown" : "Hidden"}</span></small></button>;
-    })}</div></div>
-    <div className="ops-wall-calendar__viewport" tabIndex="0" aria-label={`${monthLabel} event calendar`}>
-      <div className="ops-wall-calendar__weekdays" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="ops-wall-calendar__weeks">{weeks.map((week) => {
+    })}</ControlCalendarOverlayRail>
+    <ControlCalendarGrid label={`${monthLabel} event calendar`} className="ops-wall-calendar__viewport" weekdaysClassName="ops-wall-calendar__weekdays" weeksClassName="ops-wall-calendar__weeks">{weeks.map((week) => {
         const segments = calendarWeekSegments(filteredEvents, week);
         const visibleSegments = segments.filter((segment) => segment.lane < MAX_VISIBLE_CALENDAR_LANES);
         const totalByDay = week.map((day, dayIndex) => segments.filter((segment) => segment.startColumn <= dayIndex && segment.endColumn >= dayIndex).length);
@@ -316,10 +325,9 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
             <ChevronRight size={15} aria-hidden="true" />
           </button>)}</div> : null}
         </section>;
-      })}</div>
-    </div>
+      })}</ControlCalendarGrid>
     <CalendarHoverCard hover={hover} categories={categories} />
     <CalendarDayAgenda day={selectedDay} events={filteredEvents} onOpenItem={(item) => navigateCalendarSelection(item)} onClose={closeSelection} />
     <CalendarEventDrawer detail={detail} categories={categories} onClose={closeSelection} onOpenMember={onOpenMember} />
-  </section>;
+  </ControlCalendarSurface>;
 }

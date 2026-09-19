@@ -1,6 +1,8 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-surface-ui/react";
+import { installClientErrorReporting, reportClientError } from "./client-error-reporting.js";
+import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import "./control-surface.css";
 import {
   BarChart3,
@@ -21,12 +23,12 @@ import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
 import "./styles.generated.css";
 
-const SpendExplorer = lazy(() => import("./SpendExplorer.jsx"));
-const OperationsHub = lazy(() => import("./OperationsHub.jsx"));
-const AnalyticsSources = lazy(() => import("./AnalyticsSources.jsx"));
-const AwardsRoute = lazy(() => import("./AwardsRoute.jsx"));
-const BudgetRequestRoutes = lazy(() => import("./BudgetRequestRoutes.jsx"));
-const ProfilePage = lazy(() => import("./ProfilePage.jsx"));
+const SpendExplorer = lazyWithRefresh(() => import("./SpendExplorer.jsx"), "spend-explorer");
+const OperationsHub = lazyWithRefresh(() => import("./OperationsHub.jsx"), "operations-hub");
+const AnalyticsSources = lazyWithRefresh(() => import("./AnalyticsSources.jsx"), "analytics-sources");
+const AwardsRoute = lazyWithRefresh(() => import("./AwardsRoute.jsx"), "awards-route");
+const BudgetRequestRoutes = lazyWithRefresh(() => import("./BudgetRequestRoutes.jsx"), "budget-request-routes");
+const ProfilePage = lazyWithRefresh(() => import("./ProfilePage.jsx"), "profile-page");
 
 const TABS = [
   { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
@@ -404,4 +406,5 @@ function RuntimeApp() {
   return <App />;
 }
 
-createRoot(document.getElementById("root")).render(<ToastProvider placement="bottom" maxVisible={1}><ControlErrorBoundary title="Defense Budget Intelligence could not render" message="Retry the application. If the problem continues, check the current deployment and request logs."><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ControlErrorBoundary></ToastProvider>);
+installClientErrorReporting();
+createRoot(document.getElementById("root")).render(<ToastProvider placement="bottom" maxVisible={1}><ControlErrorBoundary title="Defense Budget Intelligence could not render" message="Retry the application. This failure was recorded in Connections → API Log for monitoring." onError={(error, info) => reportClientError(error, { kind: "render_error", componentStack: info?.componentStack })}><AuthProvider><NotificationProvider><RuntimeApp /></NotificationProvider></AuthProvider></ControlErrorBoundary></ToastProvider>);

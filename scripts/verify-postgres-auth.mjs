@@ -48,6 +48,22 @@ assert.equal(body.user.canManageWorkspaces, true);
 const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
 
+response = await request("/api/v1/client-errors");
+body = await response.json();
+assert.equal(response.status, 200, "PostgreSQL client-error health must remain available without report details");
+assert.equal(body.status, "ok");
+response = await request("/api/v1/client-errors", { method: "POST", cookie: ownerCookie, body: {
+  reportId: "22222222-2222-4222-8222-222222222222", kind: "route_render_error", name: "TypeError", message: "Charts failed sk-sensitive-postgres-value",
+  route: "/#/budget-spend/explorer?secret=value&spendView=charts", asset: "TransactionAnalytics.js", stack: "TypeError at https://example.test/app.js?token=secret", componentStack: "at TransactionAnalytics",
+} });
+assert.equal(response.status, 202, "PostgreSQL must retain authenticated client render failures");
+response = await request("/api/v1/client-errors", { method: "POST", cookie: ownerCookie, origin: "https://attacker.example", body: { kind: "render_error", message: "cross origin" } });
+assert.equal(response.status, 403, "PostgreSQL client-error ingestion must reject cross-origin writes");
+response = await request("/api/v1/client-errors");
+body = await response.json();
+assert.equal(body.status, "degraded");
+assert.equal(body.count24h, 1);
+
 const dispositionRecordId = "postgres-disposition-contract";
 response = await request(`/api/v1/agent/record-dispositions/${dispositionRecordId}`, { method: "PUT", cookie: ownerCookie,
   body: { disposition: "tombstoned", reason: "PostgreSQL workspace disposition contract" } });
@@ -188,6 +204,10 @@ assert.ok(body.requests.some((entry) => entry.operation === "credential.revoked"
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"));
 assert.ok(body.requests.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"));
 assert.ok(body.requests.some((entry) => entry.operation === "model_inventory.list" && entry.status === "succeeded"));
+const clientErrorEntry = body.requests.find((entry) => entry.requestKind === "client_error");
+assert.equal(clientErrorEntry?.operation, "client.route_render_error");
+assert.equal(clientErrorEntry?.route, "/#/budget-spend/explorer?secret&spendView");
+assert.doesNotMatch(JSON.stringify(clientErrorEntry), /sensitive-postgres-value|token=secret|secret=value/i, "PostgreSQL client telemetry must redact credentials and route values");
 const transportGapEntry = body.requests.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded" && entry.metadata?.jobId === reviewEventAiJobId);
 assert.equal(transportGapEntry?.errorCode, null);
 assert.equal(transportGapEntry?.metadata?.evidence?.webSearchCallCount, 0);

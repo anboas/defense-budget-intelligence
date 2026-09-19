@@ -256,14 +256,14 @@ try {
 
   await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary]");
-  assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 4, "API Log must summarize request volume, success, latency, and tokens");
+  assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 5, "Runtime & API Log must summarize request volume, success, latency, tokens, and client errors");
   await page.waitForSelector("[data-api-request-table], [data-api-request-empty]");
   const requestTableCount = await page.locator("[data-api-request-table]").count();
   if (requestTableCount) assert.ok(await page.locator('[data-api-request-table] tbody tr').count() <= 10, "API Log should default to a scannable ten-row desktop page");
-  else assert.match(await page.locator("[data-api-request-empty]").innerText(), /No API requests retained/i, "A fresh workspace should expose an explicit empty request ledger while retaining the API Log shell");
+  else assert.match(await page.locator("[data-api-request-empty]").innerText(), /No runtime or API requests retained/i, "A fresh workspace should expose an explicit empty request ledger while retaining the Runtime & API Log shell");
   const requestChartCount = await page.locator("[data-api-observability-charts] .if-chart-card").count();
   assert.ok(requestChartCount === 0 || requestChartCount === 2, `API Log should render either no charts for a fresh workspace or the complete two-chart observability band, got ${requestChartCount}`);
-  assert.match(await page.locator("[data-ops-activity]").innerText(), /API requests[\s\S]*Workspace changes/i, "Connections activity must expose distinct request and workspace-change ledgers");
+  assert.match(await page.locator("[data-ops-activity]").innerText(), /Runtime & API[\s\S]*Workspace changes/i, "Connections activity must expose distinct runtime/API and workspace-change ledgers");
   assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
   await assertPageBodyGutter(page, "[data-ops-activity]", "API Log");
 
@@ -1206,6 +1206,7 @@ try {
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],
     ["#/budget-spend/schedule?scheduleView=calendar", "[data-wallboard-calendar]", "Schedule calendar"],
     ["#/budget-spend/explorer?spendView=timeline", "[data-capture-calendar-page]", "Spend timeline"],
+    ["#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]", "Spend charts"],
     ["#/budget-spend/awards", "[data-awards-page]", "Awards"],
     ["#/budget-spend/tasks", "[data-task-center]", "Task Center"],
     ["#/budget-spend/connections?connectionsView=integrations", "[data-connections-surface]", "Connections integrations"],

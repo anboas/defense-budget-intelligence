@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox } from "lucide-react";
-import { ControlAsyncState, ControlPageBody } from "control-surface-ui/react";
+import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ControlSelect from "./ControlSelect.jsx";
@@ -9,9 +9,11 @@ import { useRecordDispositions } from "./record-dispositions.js";
 import { emptyProcurementDiscovery, emptyProcurementFeed, loadProcurementDiscovery, loadProcurementFeed } from "./procurement-discovery.js";
 import SpendSavedViews from "./SpendSavedViews.jsx";
 import SpendToday from "./SpendToday.jsx";
+import { reportClientError } from "./client-error-reporting.js";
+import { lazyWithRefresh } from "./lazy-with-refresh.js";
 
-const CaptureCalendar = lazy(() => import("./CaptureCalendar.jsx"));
-const TransactionAnalytics = lazy(() => import("./TransactionAnalytics.jsx"));
+const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
+const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
 
 const VIEWS = new Set(["today", "timeline", "table", "charts"]);
 
@@ -48,6 +50,10 @@ function date(value) {
 
 function RouteLoading({ label }) {
   return <ControlAsyncState compact state="loading" title={`Loading ${label}`} message="Preparing the selected spend view." />;
+}
+
+function SpendViewBoundary({ view, children }) {
+  return <ControlErrorBoundary resetKey={view} title={`${view === "charts" ? "Charts" : "Timeline"} could not render`} message="Retry this view. The failure was recorded in Connections → API Log." onError={(error, info) => reportClientError(error, { kind: "route_render_error", componentStack: info?.componentStack })}>{children}</ControlErrorBoundary>;
 }
 
 export default function SpendExplorer({ dataset, awards, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, accountSpine, requestLineCount }) {
@@ -158,8 +164,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <ControlWorkbenchHeader eyebrow="Daily acquisition feed" title="Today" summary="New, changed, closing, and removed records within DBI's disclosed source boundary." metrics={todayMetrics} metricLabel="Daily acquisition summary" tabs={tabs} />
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} /></ControlPageBody>
   </section>;
-  if (view === "timeline") return <Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /></Suspense>;
-  if (view === "charts") return <Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense>;
+  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /></Suspense></SpendViewBoundary>;
+  if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Spend intelligence" title="Spend Explorer" summary="Timeline, records, and charts share one public-data scope." metrics={tableMetrics} metricLabel="Spend table summary" tabs={tabs} />
     <ControlPageBody compact>

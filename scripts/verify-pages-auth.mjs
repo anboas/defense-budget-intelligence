@@ -194,6 +194,22 @@ async function verifyApiLifecycle(persistPath) {
     const ownerId = body.user.id;
     const defaultWorkspaceId = body.user.activeWorkspace.id;
 
+    response = await apiRequest(baseUrl, "/api/v1/client-errors");
+    body = await response.json();
+    assert.equal(response.status, 200, "Client-error health must remain available without exposing report details");
+    assert.equal(body.status, "ok");
+    response = await apiRequest(baseUrl, "/api/v1/client-errors", {
+      method: "POST", body: { reportId: "11111111-1111-4111-8111-111111111111", kind: "render_error", name: "TypeError", message: "Charts failed sk-sensitive-client-value", route: "/#/budget-spend/explorer?secret=value&spendView=charts", asset: "TransactionAnalytics.js", stack: "TypeError at https://example.test/app.js?token=secret", componentStack: "at TransactionAnalytics" },
+      cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 202, "Authenticated browser render failures must enter the retained request ledger");
+    response = await apiRequest(baseUrl, "/api/v1/client-errors", { method: "POST", body: { kind: "render_error", message: "cross origin" }, cookie: ownerCookie, origin: "https://attacker.example" });
+    assert.equal(response.status, 403, "Client-error ingestion must reject cross-origin writes");
+    response = await apiRequest(baseUrl, "/api/v1/client-errors");
+    body = await response.json();
+    assert.equal(body.status, "degraded");
+    assert.equal(body.count24h, 1);
+
     response = await apiRequest(baseUrl, "/api/v1/auth/directory", { cookie: ownerCookie });
     body = await response.json();
     assert.deepEqual(body.users.map((user) => user.displayName), [winner.displayName], "The attendee directory should initially contain the active owner only");
@@ -673,6 +689,10 @@ async function verifyApiLifecycle(persistPath) {
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded"), "Research-stage metadata must be logged");
     assert.ok(body.data.some((entry) => entry.operation === "event_enrichment.verify" && entry.status === "succeeded"), "Verifier-stage metadata must be logged independently");
     assert.ok(body.data.some((entry) => entry.operation === "model_inventory.list" && entry.status === "succeeded"), "Credential-specific model inventory requests must be logged safely");
+    const clientErrorEntry = body.data.find((entry) => entry.requestKind === "client_error");
+    assert.equal(clientErrorEntry?.operation, "client.render_error", "Client render failures must remain distinguishable from API calls");
+    assert.equal(clientErrorEntry?.route, "/#/budget-spend/explorer?secret&spendView", "Client routes may retain parameter names but never values");
+    assert.doesNotMatch(JSON.stringify(clientErrorEntry), /sensitive-client-value|token=secret|secret=value/i, "Client error telemetry must redact credentials and route values");
     const transportGapEntry = body.data.find((entry) => entry.operation === "event_enrichment.research" && entry.status === "succeeded" && entry.metadata?.jobId === reviewEventAiJobId);
     assert.equal(transportGapEntry?.errorCode, null, "Citation transport gaps must not be logged as whole-stage failures");
     assert.equal(transportGapEntry?.metadata?.evidence?.webSearchCallCount, 0, "D1 logs must preserve redacted evidence-shape diagnostics");

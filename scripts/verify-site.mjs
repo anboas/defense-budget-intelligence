@@ -724,9 +724,9 @@ try {
     const count = node.querySelector("[data-calendar-count]");
     const main = count.querySelector(":scope > span").getBoundingClientRect();
     const milestones = count.querySelector("small").getBoundingClientRect();
-    return { directButtons: node.querySelectorAll(":scope > button").length, countRows: Math.abs(main.top - milestones.top), countHeight: count.getBoundingClientRect().height };
+    return { navigatorButtons: node.querySelectorAll(":scope > .if-month-navigator > button").length, countRows: Math.abs(main.top - milestones.top), countHeight: count.getBoundingClientRect().height };
   });
-  assert.equal(standaloneToolbar.directButtons, 3, "Calendar navigation should expose exactly previous, Today, and next as top-level buttons");
+  assert.equal(standaloneToolbar.navigatorButtons, 3, "The framework month navigator should expose exactly previous, Today, and next");
   assert.ok(standaloneToolbar.countRows <= 8, `Calendar event and milestone counts should remain on one compact row: ${JSON.stringify(standaloneToolbar)}`);
   assert.ok(standaloneToolbar.countHeight <= 58, `Calendar count status should not become a malformed two-row control: ${JSON.stringify(standaloneToolbar)}`);
   await assertButtonIntegrity(page, "Standalone Schedule Calendar", "[data-wallboard-calendar]");
@@ -1006,13 +1006,14 @@ try {
     const bounds = node.getBoundingClientRect();
     const masthead = node.querySelector(".ops-wallboard__masthead");
     const toolbar = node.querySelector(".ops-wallboard__toolbar").getBoundingClientRect();
-    const calendarHeader = node.querySelector("[data-wallboard-calendar] > header").getBoundingClientRect();
+    const calendarHeader = node.querySelector("[data-wallboard-calendar] .if-calendar-header").getBoundingClientRect();
     const overlays = node.querySelector("[data-calendar-overlays]").getBoundingClientRect();
     const calendarViewport = node.querySelector(".ops-wall-calendar__viewport").getBoundingClientRect();
     const actions = [...node.querySelectorAll("[data-wallboard-action]")].map((button) => {
       const box = button.getBoundingClientRect();
       return { width: box.width, height: box.height };
     });
+    const calendarSummary = node.querySelector(".if-calendar-header__summary");
     return {
       mastheadVisible: getComputedStyle(masthead).display !== "none",
       toolbarHeight: toolbar.height,
@@ -1020,7 +1021,9 @@ try {
       calendarHeaderHeight: calendarHeader.height,
       overlayHeight: overlays.height,
       chromeBeforeCalendar: calendarViewport.top - bounds.top,
-      countVisible: node.querySelector(".ops-wall-calendar__controls > b").getBoundingClientRect().height > 0,
+      fullscreen: node.dataset.wallboardFullscreen,
+      summaryDisplay: getComputedStyle(calendarSummary).display,
+      countVisible: calendarSummary.getBoundingClientRect().height > 0,
       actions,
     };
   });
@@ -1030,7 +1033,7 @@ try {
   assert.ok(mobileWallboardChrome.calendarHeaderHeight <= 53, `Mobile month navigation should stay in one command row, got ${mobileWallboardChrome.calendarHeaderHeight}px`);
   assert.ok(mobileWallboardChrome.overlayHeight <= 53, `Mobile overlays should stay in one compact rail, got ${mobileWallboardChrome.overlayHeight}px`);
   assert.ok(mobileWallboardChrome.chromeBeforeCalendar <= 160, `The month grid should begin within 160px of the routed wallboard, got ${mobileWallboardChrome.chromeBeforeCalendar}px`);
-  assert.equal(mobileWallboardChrome.countVisible, false, "Mobile wallboard should omit the redundant event-count bubble");
+  assert.equal(mobileWallboardChrome.countVisible, false, `Mobile wallboard should omit the redundant event-count bubble: ${JSON.stringify(mobileWallboardChrome)}`);
   assert.ok(mobileWallboardChrome.actions.every(({ width, height }) => width <= 45 && height >= 43.5), `Mobile wallboard actions should be compact 44px icon controls: ${JSON.stringify(mobileWallboardChrome.actions)}`);
   await page.screenshot({ path: `${OUT_DIR}/wallboard-calendar-mobile.png`, fullPage: true });
 

@@ -4115,6 +4115,85 @@ button.if-chart-bar.is-selected {
   }
 }
 
+.if-calendar-surface {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: var(--if-outline);
+  border-radius: var(--if-radius-3);
+  background: var(--if-bg-surface);
+  box-shadow: var(--if-shadow-1);
+}
+
+.if-calendar-header {
+  display: flex;
+  min-width: 0;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--if-space-3);
+  padding: var(--if-space-2) var(--if-space-3);
+  border-bottom: var(--if-divider);
+  background: var(--if-bg-surface);
+}
+
+.if-calendar-header__identity,
+.if-calendar-header__controls,
+.if-calendar-header__filters,
+.if-month-navigator {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.if-calendar-header__identity { gap: var(--if-space-2); }
+.if-calendar-header__identity > span { display: grid; gap: 0.1rem; min-width: 0; }
+.if-calendar-header__identity small { color: var(--if-text-muted); font-size: var(--if-font-size-2xs); font-weight: var(--if-font-weight-bold); letter-spacing: 0.05em; text-transform: uppercase; }
+.if-calendar-header__identity strong { color: var(--if-text-strong); font-size: var(--if-font-size-lg); line-height: 1.1; white-space: nowrap; }
+.if-calendar-header__compact-title { display: none; }
+.if-calendar-header__controls { justify-content: flex-end; gap: var(--if-space-2); }
+.if-calendar-header__filters,
+.if-month-navigator { gap: var(--if-space-1); }
+.if-month-navigator .if-btn { min-height: 2.375rem; }
+.if-month-navigator .if-btn--icon { width: 2.375rem; min-width: 2.375rem; padding-inline: 0; }
+.if-month-navigator .if-btn--icon > span { font-size: 1.35rem; line-height: 1; }
+.if-calendar-header__summary { display: inline-flex; min-height: 2.375rem; align-items: center; justify-content: center; padding-inline: var(--if-space-2); border-radius: 999px; background: var(--if-info-soft); color: var(--if-info); font-weight: var(--if-font-weight-bold); }
+
+.if-calendar-overlay-rail {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--if-space-2);
+  padding: var(--if-space-1) var(--if-space-3);
+  border-bottom: var(--if-divider);
+  background: var(--if-bg-subtle);
+}
+.if-calendar-overlay-rail > span { display: grid; flex: 0 0 auto; }
+.if-calendar-overlay-rail > span small { color: var(--if-text-muted); }
+.if-calendar-overlay-rail > div { display: flex; min-width: 0; align-items: center; gap: var(--if-space-1); overflow-x: auto; scrollbar-width: thin; }
+
+.if-month-calendar { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; background: var(--if-bg-subtle); }
+.if-month-calendar__weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 2rem; border-bottom: var(--if-divider); background: var(--if-bg-subtle); }
+.if-month-calendar__weekdays > span { display: grid; place-items: center; border-right: var(--if-divider); color: var(--if-text-muted); font-size: var(--if-font-size-2xs); font-weight: var(--if-font-weight-bold); letter-spacing: 0.05em; text-transform: uppercase; }
+.if-month-calendar__weekdays > span:last-child { border-right: 0; }
+.if-month-calendar__weeks { display: grid; min-height: 0; flex: 1; grid-template-rows: repeat(6, minmax(0, 1fr)); }
+
+@media (max-width: 720px) {
+  .if-calendar-header { gap: var(--if-space-2); padding-inline: var(--if-space-2); }
+  .if-calendar-header__identity small { display: none; }
+  .if-calendar-header__title { display: none; }
+  .if-calendar-header__compact-title { display: inline; }
+  .if-calendar-header__controls { gap: var(--if-space-1); }
+  .if-calendar-header__filters { min-width: 0; }
+  .if-month-navigator .if-btn { min-height: 2.75rem; }
+  .if-month-navigator .if-btn--icon { width: 2.75rem; min-width: 2.75rem; }
+  .if-calendar-overlay-rail { min-height: 3.25rem; padding-inline: var(--if-space-2); }
+  .if-calendar-overlay-rail > span { display: none; }
+}
+
 .if-stepper--interactive {
   display: grid;
   grid-template-columns: repeat(var(--step-count, 4), minmax(0, 1fr));

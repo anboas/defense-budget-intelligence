@@ -49,6 +49,7 @@ const [application] = await new PurgeCSS().purge({
       /^target-/,
       /^app__content--/,
       /^operations-hub--/,
+      /^if-calendar-/,
       /^if-workbench-header/,
       /^freshness-chip--/,
       /^dbi-status-badge/,

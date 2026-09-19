@@ -101,7 +101,7 @@ async function issueSession(pool, reply, userId, preferredWorkspaceId = null) {
   return { sessionId, workspaceId: membership.rows[0]?.workspace_id || null };
 }
 
-async function authenticated(pool, request) {
+export async function authenticated(pool, request) {
   const token = parseCookies(request.headers.cookie)[COOKIE_NAME];
   if (!token) return null;
   const result = await pool.query(
@@ -209,7 +209,7 @@ async function openAiKeyUsage(pool, credentialIds) {
   }]));
 }
 
-async function recordApiRequest(pool, input = {}) {
+export async function recordApiRequest(pool, input = {}) {
   const now = new Date();
   const id = randomUUID();
   const metadata = safeLogMetadata(input.metadata) || {};
@@ -1391,7 +1391,7 @@ export async function registerAuthRoutes(app, pool) {
 
   if (required) {
     app.addHook("preHandler", async (request, reply) => {
-      if (!request.url.startsWith("/api/v1/") || request.url.startsWith("/api/v1/auth/")) return;
+      if (!request.url.startsWith("/api/v1/") || request.url.startsWith("/api/v1/auth/") || request.url.startsWith("/api/v1/client-errors")) return;
       if (!await authenticated(pool, request)) return reply.code(401).send({ error: "sign in required" });
     });
   }
