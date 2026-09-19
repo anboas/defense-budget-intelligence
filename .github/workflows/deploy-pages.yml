@@ -30,7 +30,7 @@ jobs:
       - name: Verify stateful API contract
         run: node scripts/verify-container.mjs
       - name: Start PostgreSQL authentication contract
-        run: docker compose run --rm --detach --name dbi-auth-contract -e ENABLE_AUTH=true -e AUTH_REQUIRE_LOGIN=true -e AUTH_SECURE_COOKIE=false -e DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001 -e DBI_EVENT_AI_MOCK_MODE=true -e PORT=8081 -p 18081:8081 app
+        run: docker compose run --rm --detach --name dbi-auth-contract -e ENABLE_AUTH=true -e AUTH_REQUIRE_LOGIN=true -e ALLOW_SELF_REGISTRATION=true -e AUTH_SECURE_COOKIE=false -e DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001 -e DBI_EVENT_AI_MOCK_MODE=true -e PORT=8081 -p 18081:8081 app
       - name: Verify PostgreSQL workspace and account lifecycle
         run: npm run verify:postgres-auth
       - name: Inspect container state

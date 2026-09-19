@@ -56,6 +56,8 @@ async function startPages(persistPath) {
     "DBI_EVENT_AI_MOCK_MODE=true",
     "--binding",
     "DBI_ALLOW_FIRST_CLAIM=1",
+    "--binding",
+    "DBI_ALLOW_SELF_REGISTRATION=1",
     "--log-level",
     "error",
   ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });

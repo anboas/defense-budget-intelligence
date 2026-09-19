@@ -32,6 +32,7 @@ Restricted values must never enter chat, source, URLs, issue bodies, CI argument
 - New agent credentials require a purpose, least-privilege scopes, and an expiration. Indefinite legacy credentials are reviewed and rotated during the next quarterly review.
 - Emulation is support-only. The audit ledger must retain both the real actor and effective user.
 - Production bootstrap claiming remains disabled after the first owner is established.
+- Production self-registration remains disabled. The Super user provisions accounts and workspace access through the authenticated administration surface.
 
 ## Authentication and secret management
 

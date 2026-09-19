@@ -573,6 +573,7 @@ export async function registerAuthRoutes(app, pool) {
   const enabled = process.env.ENABLE_AUTH === "true";
   const required = enabled && process.env.AUTH_REQUIRE_LOGIN === "true";
   const allowFirstClaim = process.env.ALLOW_FIRST_CLAIM !== "false";
+  const allowSelfRegistration = process.env.ALLOW_SELF_REGISTRATION === "true";
   registerTeamEmulationRoutes(app, pool, { assertSameOrigin, authenticated, hydratedUser, canAdministerWorkspaces });
   registerUserActivityRoutes(app, pool, { assertSameOrigin, authenticated });
   registerRecordDispositionRoutes(app, pool, { assertSameOrigin, authenticated });
@@ -581,7 +582,7 @@ export async function registerAuthRoutes(app, pool) {
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
     const [owner, session] = await Promise.all([account(pool), authenticated(pool, request)]);
-    return { enabled: true, required, claimed: Boolean(owner), registrationEnabled: Boolean(owner), user: await hydratedUser(pool, session) };
+    return { enabled: true, required, claimed: Boolean(owner), registrationEnabled: Boolean(owner) && allowSelfRegistration, user: await hydratedUser(pool, session) };
   });
 
   app.post("/api/v1/auth/claim", async (request, reply) => {
@@ -634,6 +635,7 @@ export async function registerAuthRoutes(app, pool) {
 
   app.post("/api/v1/auth/register", async (request, reply) => {
     if (!enabled) return reply.code(404).send({ error: "authentication is unavailable" });
+    if (!allowSelfRegistration) return reply.code(403).send({ error: "self-registration is unavailable" });
     if (!assertSameOrigin(request, reply)) return;
     if (!await account(pool)) return reply.code(409).send({ error: "the Super user must claim the service before registration opens" });
     const email = cleanText(request.body?.email, 254).toLowerCase();

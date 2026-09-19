@@ -1114,7 +1114,7 @@ async function statusResponse(request, db, env) {
     enabled: true,
     required: env.DBI_AUTH_REQUIRED !== "0",
     claimed: Boolean(owner),
-    registrationEnabled: Boolean(owner),
+    registrationEnabled: Boolean(owner) && env.DBI_ALLOW_SELF_REGISTRATION === "1",
     user: await publicSessionUser(db, session),
   });
 }
@@ -1187,6 +1187,7 @@ async function claimResponse(request, db, env) {
 
 async function registrationResponse(request, db, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (env.DBI_ALLOW_SELF_REGISTRATION !== "1") return json({ error: "Self-registration is unavailable" }, 403);
   if (!sameOriginRequest(request)) return json({ error: "Cross-origin registration is not allowed" }, 403);
   if (!await superUser(db)) return json({ error: "The Super user must claim the service before registration opens" }, 409);
   const body = await safeJson(request);

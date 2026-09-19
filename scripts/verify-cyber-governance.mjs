@@ -34,6 +34,7 @@ for (const source of [securityPolicy, headers]) {
 
 assert.match(wrangler, /DBI_AUTH_REQUIRED\s*=\s*"1"/, "Production must require authentication");
 assert.match(wrangler, /DBI_ALLOW_FIRST_CLAIM\s*=\s*"0"/, "Production bootstrap claiming must remain disabled after ownership is established");
+assert.match(wrangler, /DBI_ALLOW_SELF_REGISTRATION\s*=\s*"0"/, "Production self-registration must remain disabled");
 assert.match(wrangler, /DBI_FORCE_SECURE_COOKIES\s*=\s*"1"/, "Production cookies must remain Secure");
 assert.match(pagesAuth, /SESSION_MAX_AGE_SECONDS\s*=\s*14 \* 24 \* 60 \* 60/, "Pages sessions must expire within fourteen days");
 assert.match(postgresAuth, /SESSION_DAYS \|\| 14/, "PostgreSQL sessions must default to fourteen days");
