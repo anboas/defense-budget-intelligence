@@ -1267,8 +1267,10 @@ try {
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await overlayTrigger.click();
+  const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
   await page.getByRole("option", { name: "FPDS action pulses" }).click();
   await page.keyboard.press("Escape");
+  await fpdsReady;
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
   assert.ok(await page.locator(".capture-timeline__action-marker").count() > 0, "FPDS feed should render timeline action pulses");
