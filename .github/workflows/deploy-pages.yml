@@ -60,6 +60,8 @@ jobs:
         run: npm ci
       - name: Audit dependency graph
         run: npm audit --audit-level=high
+      - name: Verify registry signatures and attestations
+        run: npm audit signatures
       - name: Build CycloneDX SBOM
         run: mkdir -p test-results/security && npm sbom --sbom-format=cyclonedx > test-results/security/defense-budget-intelligence.sbom.cdx.json
       - name: Install browser contract runtime

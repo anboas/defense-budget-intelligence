@@ -10,6 +10,14 @@ Report suspected vulnerabilities privately through GitHub Security Advisories fo
 
 Include the affected commit or deployment, route/runtime, bounded reproduction steps, expected impact, and whether the issue affects Cloudflare/D1, Fastify/PostgreSQL, or both.
 
+The maintainer will acknowledge complete reports within two business days. Critical reports are triaged within 24 hours, High reports within three business days, and lower-severity reports within five business days. Remediation targets are defined in [Cybersecurity Governance](docs/cybersecurity-governance.md); a validated issue may require coordinated disclosure rather than immediate public detail.
+
+Good-faith research that avoids privacy violations, service disruption, persistence, lateral movement, and data destruction is welcome. Stop testing and report immediately if you encounter credentials, personal data, or access outside the minimum needed to demonstrate the issue. The maintainer will not pursue action against research performed within this policy.
+
+## Scope
+
+In scope are the current `main` application, its Cloudflare Pages/D1 runtime, the portable Fastify/PostgreSQL runtime, release automation, and first-party source integrations. Third-party services, upstream public datasets, social engineering, denial-of-service testing, and attacks requiring stolen credentials are out of scope unless the defect is caused by this repository's handling of those systems.
+
 ## Security invariants
 
 - Workspace data and mutations are server-scoped. Browser filtering is never an authorization boundary.
@@ -19,3 +27,4 @@ Include the affected commit or deployment, route/runtime, bounded reproduction s
 - GitHub Actions are commit pinned and least privilege. CI produces dependency, SBOM, CodeQL, parity, and browser evidence.
 
 See [Architecture, Performance, and Security Baseline](docs/architecture-security.md) for the maintained trust-boundary and verification contract.
+See [Threat Model](docs/threat-model.md) and [Cybersecurity Governance](docs/cybersecurity-governance.md) for abuse cases, residual risks, ownership, review cadence, incident handling, recovery, and evidence retention.

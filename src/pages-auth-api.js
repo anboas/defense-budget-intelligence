@@ -73,7 +73,7 @@ import {
 export const PAGES_AUTH_VERSION = "dbi-pages-auth-v1";
 export const PASSWORD_ITERATIONS = 310_000;
 export const SESSION_COOKIE = "dbi_session";
-export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+export const SESSION_MAX_AGE_SECONDS = 14 * 24 * 60 * 60;
 const MAX_ATTEMPTS = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const RETENTION_MAINTENANCE_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -792,7 +792,7 @@ function sessionCookie(token, request, env, maxAge = SESSION_MAX_AGE_SECONDS) {
   const secure = env.DBI_FORCE_SECURE_COOKIES === "1" || new URL(request.url).protocol === "https:"
     ? "; Secure"
     : "";
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=${maxAge}${secure}`;
 }
 
 async function safeJson(request, maxBytes = MAX_BODY_BYTES) {

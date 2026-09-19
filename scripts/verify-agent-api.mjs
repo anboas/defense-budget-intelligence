@@ -37,7 +37,7 @@ async function startPages(persistPath) {
   const output = [];
   const child = spawn("npx", [
     "wrangler", "pages", "dev", "dist", "--ip", "127.0.0.1", "--port", String(port),
-    "--persist-to", persistPath, "--log-level", "error",
+    "--persist-to", persistPath, "--binding", "DBI_ALLOW_FIRST_CLAIM=1", "--log-level", "error",
   ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
   child.stdout.on("data", (chunk) => output.push(chunk.toString()));
   child.stderr.on("data", (chunk) => output.push(chunk.toString()));

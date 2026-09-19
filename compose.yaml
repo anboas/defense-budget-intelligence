@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:17-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: defense-budget-intelligence-postgres
     environment:
       POSTGRES_DB: budget_intelligence
       POSTGRES_USER: postgres
@@ -10,6 +13,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /var/run/postgresql:rw,noexec,nosuid,uid=70,gid=70,mode=3775,size=16m
     volumes:
       - budget_intelligence_db:/var/lib/postgresql/data
     restart: unless-stopped

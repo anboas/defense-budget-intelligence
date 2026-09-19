@@ -26,6 +26,9 @@ const requiredHeaders = [
 ];
 for (const header of requiredHeaders) assert.ok(SECURITY_HEADERS[header], `Security policy must define ${header}`);
 assert.match(SECURITY_HEADERS["Content-Security-Policy"], /frame-ancestors 'none'/);
+assert.match(SECURITY_HEADERS["Content-Security-Policy"], /script-src-attr 'none'/);
+assert.match(SECURITY_HEADERS["Content-Security-Policy"], /style-src-elem 'self'/);
+assert.match(SECURITY_HEADERS["Content-Security-Policy"], /upgrade-insecure-requests/);
 assert.equal(cacheControlForPath("/api/v1/auth/status"), "no-store");
 assert.match(cacheControlForPath("/assets/index-abcdef.js"), /immutable/);
 assert.match(cacheControlForPath("/data/runtime-manifest.json"), /stale-while-revalidate/);

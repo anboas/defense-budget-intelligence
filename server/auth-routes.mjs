@@ -42,7 +42,7 @@ import { registerProviderCredentialRoutes } from "./provider-credential-routes.m
 import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
 const COOKIE_NAME = "dbi_session";
-const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
+const SESSION_DAYS = Math.min(14, Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 14)));
 const MAX_ATTEMPTS = Math.max(3, Number(process.env.AUTH_MAX_ATTEMPTS || 8));
 const WINDOW_MINUTES = Math.max(1, Number(process.env.AUTH_ATTEMPT_WINDOW_MINUTES || 15));
 const USER_ROLES = WORKSPACE_ROLE_IDS;
@@ -66,11 +66,11 @@ function parseCookies(header = "") {
 }
 function sessionCookie(token, expiresAt) {
   const secure = process.env.AUTH_SECURE_COOKIE !== "false";
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Expires=${expiresAt.toUTCString()}${secure ? "; Secure" : ""}`;
+  return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Priority=High; Expires=${expiresAt.toUTCString()}${secure ? "; Secure" : ""}`;
 }
 function clearCookie() {
   const secure = process.env.AUTH_SECURE_COOKIE !== "false";
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`;
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Priority=High; Max-Age=0${secure ? "; Secure" : ""}`;
 }
 function validProof(value) {
   return validPasswordProof(value);

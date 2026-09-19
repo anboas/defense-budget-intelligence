@@ -1,0 +1,20 @@
+# Defense Budget Intelligence has one accountable security owner today.
+* @anboas
+
+# Changes to trust boundaries, identity, credentials, delivery, deployment, and CI require explicit owner review.
+/.github/workflows/ @anboas
+/Dockerfile @anboas
+/Dockerfile.postgres @anboas
+/compose.yaml @anboas
+/functions/ @anboas
+/server/ @anboas
+/workers/ @anboas
+/src/pages-auth-api.js @anboas
+/src/security-policy.js @anboas
+/src/access-model.js @anboas
+/src/d1-provider-credentials.js @anboas
+/src/d1-acquisition-delivery.js @anboas
+/SECURITY.md @anboas
+/docs/architecture-security.md @anboas
+/docs/cybersecurity-governance.md @anboas
+/docs/threat-model.md @anboas

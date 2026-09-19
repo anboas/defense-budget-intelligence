@@ -32,6 +32,8 @@ jobs:
         run: npm ci
       - name: Audit dependency graph
         run: npm audit --audit-level=high
+      - name: Verify registry signatures and attestations
+        run: npm audit signatures
       - name: Preserve previous daily snapshots
         run: |
           cp src/data/sam-opportunities.json "$RUNNER_TEMP/previous-sam-opportunities.json"
@@ -43,7 +45,7 @@ jobs:
           PREVIOUS_CONTRACT_MONITOR_FILE: ${{ runner.temp }}/previous-contract-monitor.json
         run: npm run source:sam && npm run source:contracts && npm run data:procurement-delta
       - name: Verify generated runtime and UI contracts
-        run: npm run lint && npm run verify:ui-conformance && npm run build
+        run: npm run lint && npm run verify:ui-conformance && npm run verify:cyber && npm run build
       - name: Commit changed contract observations
         run: |
           if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json; then

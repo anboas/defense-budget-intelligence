@@ -15,6 +15,95 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Block high dependency vulnerabilities
+        run: npm audit --audit-level=high
+      - name: Verify registry signatures and attestations
+        run: npm audit signatures
+      - name: Enforce cyber governance contracts
+        run: npm run verify:cyber
+      - name: Build CycloneDX SBOM
+        run: mkdir -p test-results/security && npm sbom --sbom-format=cyclonedx > test-results/security/defense-budget-intelligence.sbom.cdx.json
+      - name: Upload policy evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: cyber-policy-evidence
+          path: test-results/security
+          if-no-files-found: warn
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build release container
+        run: docker build --tag dbi-security-scan:${{ github.sha }} .
+      - name: Build PostgreSQL container
+        run: docker build --file Dockerfile.postgres --tag dbi-postgres-security-scan:${{ github.sha }} .
+      - name: Prepare security evidence directory
+        run: mkdir -p test-results/security
+      - name: Scan release container
+        id: application-scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: dbi-security-scan:${{ github.sha }}
+          format: sarif
+          output: test-results/security/trivy.sarif
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Scan PostgreSQL container
+        id: postgresql-scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: dbi-postgres-security-scan:${{ github.sha }}
+          format: sarif
+          output: test-results/security/trivy-postgres.sarif
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Upload application container findings to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@c20e34f438d671fc35777cc9820dd7adf8252874 # v3
+        with:
+          sarif_file: test-results/security/trivy.sarif
+          category: application-container
+      - name: Upload PostgreSQL container findings to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@c20e34f438d671fc35777cc9820dd7adf8252874 # v3
+        with:
+          sarif_file: test-results/security/trivy-postgres.sarif
+          category: postgresql-container
+      - name: Upload container evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: container-security-evidence
+          path: test-results/security
+          if-no-files-found: warn
+      - name: Block vulnerable container release
+        if: always() && (steps.application-scan.outcome == 'failure' || steps.postgresql-scan.outcome == 'failure')
+        run: exit 1
+
   codeql:
     runs-on: ubuntu-latest
     timeout-minutes: 25

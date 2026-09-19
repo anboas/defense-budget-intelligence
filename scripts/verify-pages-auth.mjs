@@ -54,6 +54,8 @@ async function startPages(persistPath) {
     "DBI_SCHEDULER_TOKEN=verification-only-scheduler-token-0000001",
     "--binding",
     "DBI_EVENT_AI_MOCK_MODE=true",
+    "--binding",
+    "DBI_ALLOW_FIRST_CLAIM=1",
     "--log-level",
     "error",
   ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });

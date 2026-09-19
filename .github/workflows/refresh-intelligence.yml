@@ -55,6 +55,8 @@ jobs:
         run: npm run data:procurement-delta
       - name: Audit dependency graph
         run: npm audit --audit-level=high
+      - name: Verify registry signatures and attestations
+        run: npm audit signatures
       - name: Install browser contract runtime
         run: npx playwright-core install --with-deps chromium
       - name: Verify Cloudflare Pages and D1 account lifecycle

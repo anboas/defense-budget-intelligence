@@ -33,15 +33,15 @@ The implementations differ only at persistence and platform adapters. Validation
 
 | Boundary | Required controls |
 | --- | --- |
-| Browser to authenticated API | HttpOnly, Secure, SameSite=Strict sessions; same-origin and Fetch Metadata rejection; bounded JSON; no-store responses; role and active-workspace checks |
+| Browser to authenticated API | HttpOnly, Secure, SameSite=Strict, Priority=High sessions with a 14-day absolute lifetime; same-origin and Fetch Metadata rejection; bounded JSON; no-store responses; role and active-workspace checks |
 | Effective-user emulation | Only the real, non-emulating Super user can start or stop emulation; authorization and team visibility use the target user; audit records retain the real actor plus the emulated user ID; profile and password mutation are blocked |
 | Team event visibility | Unassigned events remain workspace-wide; assigned events require membership in at least one selected team; multi-team users receive the union; only the real Super user and scoped agents bypass human team filters |
 | Agent API | Hashed scoped bearer tokens; expiration/revocation; per-principal rate limit; idempotency for writes; optimistic versions; workspace-scoped queries; redacted request ledger |
 | Credential vault | AES-256-GCM at rest; host-owned encryption key; write-only secret input; metadata-only browser responses; no keys/prompts/raw provider bodies in logs |
 | OpenAI enrichment | Background request IDs; forced producer search; claim-level provider-source binding; pinned evidence for bounded verification; item-level merge allowlists; explicit wrong-entity rejection; default operator review; opt-in auto-apply only for verified additive conflict-free drafts with optimistic event-version checks |
 | Public data | Build-time validation, stable identifiers, explicit source lineage, deferred route-specific payloads, bounded cache lifetime |
-| Container | Non-root user; read-only filesystem; dropped Linux capabilities; no-new-privileges; bounded temporary filesystem; private PostgreSQL network |
-| Release | Lockfile install; zero-high dependency audit; CycloneDX SBOM; immutable action pins; CodeQL; least-privilege workflow permissions; exact framework commit pin; D1/PostgreSQL/browser parity before deployment |
+| Container | Digest-pinned base images; build-only package tooling and root-only privilege helpers removed from runtime; application and PostgreSQL run as dedicated non-root users; read-only application filesystem; all runtime capabilities dropped; no-new-privileges; bounded noexec temporary filesystems; private PostgreSQL network; HIGH/CRITICAL image scanning |
+| Release | Lockfile install; zero-high dependency audit; registry-signature verification; CycloneDX SBOM; immutable action pins; CodeQL; container scan; least-privilege workflow permissions; exact framework commit pin; D1/PostgreSQL/browser parity before deployment |
 
 ## Performance budgets
 
@@ -62,7 +62,7 @@ The contract monitor is intentionally emitted as `data/contract-monitor.json` an
 
 ## Maintainability budgets
 
-`npm run verify:security` enforces shared headers, request bounds, origin handling, log redaction, immutable action pins, framework pinning, prohibited dynamic-code sinks, route chunk budgets, and current monolith ceilings.
+`npm run verify:security` enforces shared headers, request bounds, origin handling, log redaction, immutable action pins, framework pinning, prohibited dynamic-code sinks, route chunk budgets, and current monolith ceilings. `npm run verify:cyber` independently enforces production authentication posture, session limits, container/image controls, governance artifacts, ownership, dependency-security workflow gates, and tracked-secret hygiene.
 
 The line ceilings are migration guards, not design targets. When a ceiling is approached, split by owned route or adapter instead of raising it. Preferred seams are:
 
@@ -83,6 +83,8 @@ Server exceptions are logged internally with request context but return generic 
 1. Decide whether the capability belongs in Control Surface, shared runtime policy, a platform adapter, or a route.
 2. Keep permissions and workspace predicates next to every storage operation.
 3. Add a failure-path contract, not only a success test.
-4. Run `npm audit --audit-level=high`, `npm run verify`, authenticated D1, Agent API, and disposable PostgreSQL contracts.
+4. Run `npm audit --audit-level=high`, `npm audit signatures`, `npm run verify`, authenticated D1, Agent API, and disposable PostgreSQL contracts.
 5. Confirm bundle and CSS budgets, security headers, cache behavior, and anonymous rejection.
 6. Push the exact framework commit first, pin it in DBI, then release DBI only after CI is green.
+
+Governance, threat ownership, remediation targets, incident roles, access-review cadence, and recovery evidence are maintained in [Cybersecurity Governance](cybersecurity-governance.md) and the [Threat Model](threat-model.md). Changes to security-sensitive code and automation are explicitly owned through `.github/CODEOWNERS`.
