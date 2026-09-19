@@ -555,6 +555,33 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.workspaceKeys[0].status, "active");
     assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null }, "New credentials must expose an empty aggregate usage boundary without inventing calls");
     assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "Credential listings must expose metadata only");
+    const samGovKey = "sam_verification_workspace_0001";
+    response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", { cookie: viewerCookie });
+    assert.ok([401, 403].includes(response.status), "Non-manager sessions must not read workspace provider credential metadata");
+    response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Workspace SAM.gov", apiKey: samGovKey },
+    });
+    assert.equal(response.status, 201, "Workspace managers must be able to save a SAM.gov credential");
+    body = await response.json();
+    const samGovKeyId = body.credential.id;
+    assert.equal(body.credential.lastFour, "0001");
+    assert.doesNotMatch(JSON.stringify(body), new RegExp(samGovKey), "SAM.gov credential responses must never echo the secret");
+    response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.credentials[0].status, "active");
+    assert.equal(body.capability.runtimeScope, "workspace");
+    assert.doesNotMatch(JSON.stringify(body), /encryptedSecret|encrypted_secret|secretIv|secret_iv/i, "SAM.gov credential listings must expose metadata only");
+    response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Workspace SAM.gov replacement", apiKey: "sam_verification_workspace_0002" },
+    });
+    assert.equal(response.status, 201, "Saving a second SAM.gov key must atomically replace the active workspace credential");
+    const replacementSamGovKeyId = (await response.json()).credential.id;
+    response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.credentials.filter((credential) => credential.status === "active").length, 1, "A workspace must retain exactly one active SAM.gov key");
+    assert.ok(body.credentials.some((credential) => credential.id === samGovKeyId && credential.status === "revoked"), "Replaced SAM.gov keys must remain in lifecycle history");
+    response = await apiRequest(baseUrl, `/api/v1/auth/provider-credentials/sam-gov/${replacementSamGovKeyId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 200, "Workspace managers must be able to revoke a SAM.gov credential");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
     assert.equal(response.status, 200);
     body = await response.json();

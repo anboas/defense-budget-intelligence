@@ -91,10 +91,9 @@ try {
   });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   const loadingGate = page.locator(".account-gate--loading");
-  const observedLoadingGate = await Promise.race([
-    loadingGate.waitFor({ timeout: 5000 }).then(() => true),
-    page.locator('[data-account-gate="setup"]').waitFor({ timeout: 5000 }).then(() => false),
-  ]);
+  const setupGate = page.locator('[data-account-gate="setup"]');
+  await loadingGate.or(setupGate).first().waitFor({ timeout: 5000 });
+  const observedLoadingGate = await loadingGate.count() > 0;
   if (observedLoadingGate) {
     assert.equal(await loadingGate.getByRole("heading", { name: "Loading workspace" }).count(), 1, "Loading state should retain a clear status label");
     assert.equal(await loadingGate.locator(".account-gate__loading-dots i").count(), 3, "Loading state should render the three-dot progress cadence");
@@ -252,6 +251,17 @@ try {
   await page.waitForSelector('[data-connections-surface="credentials"] [data-openai-key-vault="workspace"]');
   assert.equal(await page.locator("[data-ops-integration-table]").count(), 0, "Credential management should replace the source ledger instead of stacking below it");
   assert.equal(await page.locator('[data-openai-key-vault="workspace"] .if-page-header').count(), 1, "Embedded workspace credentials should use one compact section header");
+  await page.getByRole("button", { name: "SAM.gov", exact: true }).click();
+  const samVault = page.locator("[data-sam-gov-key-management]");
+  await samVault.waitFor();
+  await samVault.locator('[data-if-async-state="loading"]').waitFor({ state: "detached" }).catch(() => {});
+  assert.match(await samVault.innerText(), /SAM\.gov API key[\s\S]*Encrypted workspace credential[\s\S]*Configured credential/i, "Connections must expose a dedicated workspace SAM.gov credential vault");
+  await samVault.getByRole("button", { name: /Add key|Replace key/ }).click();
+  const samDialog = page.locator("[data-sam-gov-key-dialog]");
+  await samDialog.waitFor();
+  assert.equal(await samDialog.getByLabel("SAM.gov API key").getAttribute("type"), "password", "SAM.gov credential entry must remain write-only");
+  await samDialog.getByRole("button", { name: "Close SAM.gov key form" }).click();
+  await page.getByRole("button", { name: "OpenAI", exact: true }).click();
   await page.screenshot({ path: "test-results/admin-integrations-credentials-desktop.png", fullPage: true });
 
   await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
@@ -935,6 +945,7 @@ try {
   await teammateContext.close();
 
   await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=credentials`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Agent access", exact: true }).click();
   await page.waitForSelector('[data-operations-hub][data-operations-view="connections"] [data-profile-agents]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Agent access should show its credential list before any creation form");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "Agent access should not repeat a second administration shell");
@@ -956,6 +967,7 @@ try {
   assert.equal(await page.locator("[data-profile-page]").count(), 0, "API Log should not jump into or out of the account-settings page");
   await page.screenshot({ path: "test-results/admin-api-log-desktop.png", fullPage: true });
   await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=credentials`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Agent access", exact: true }).click();
   await page.waitForSelector('[data-operations-hub][data-operations-view="connections"] [data-profile-agents]');
   const activeAdminTrigger = page.locator('[data-nav-group-trigger="workspace-admin"]');
   assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Connections", "Authenticated Workspace trigger should name the consolidated active child");
@@ -1201,6 +1213,21 @@ try {
   assert.ok(mobileKeyFields.every((height) => height >= 43.5), `Mobile key fields must retain 44px controls: ${mobileKeyFields.join(", ")}`);
   await page.screenshot({ path: "test-results/openai-key-vault-mobile.png", fullPage: true });
   await mobileKeyDialog.getByRole("button", { name: "Close OpenAI key form" }).click();
+
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=credentials`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "SAM.gov", exact: true }).click();
+  const mobileSamVault = page.locator("[data-sam-gov-key-management]");
+  await mobileSamVault.waitFor();
+  const mobileSamOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
+  assert.ok(mobileSamOverflow <= 2, `Mobile SAM.gov credential vault should not overflow, got ${mobileSamOverflow}px`);
+  const mobileSamButtons = await mobileSamVault.locator(".if-btn, .if-icon-btn").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileSamButtons.every((height) => height >= 43.5), `Mobile SAM.gov credential controls must retain 44px targets: ${mobileSamButtons.join(", ")}`);
+  await mobileSamVault.getByRole("button", { name: /Add key|Replace key/ }).click();
+  const mobileSamDialog = page.locator("[data-sam-gov-key-dialog]");
+  await mobileSamDialog.waitFor();
+  const mobileSamBounds = await mobileSamDialog.boundingBox();
+  assert.ok(mobileSamBounds && mobileSamBounds.x >= 0 && mobileSamBounds.y >= 0 && mobileSamBounds.x + mobileSamBounds.width <= 390 && mobileSamBounds.y + mobileSamBounds.height <= 844, `Mobile SAM.gov key dialog must stay inside the viewport: ${JSON.stringify(mobileSamBounds)}`);
+  await mobileSamDialog.getByRole("button", { name: "Close SAM.gov key form" }).click();
 
   const interactionSurfaces = [
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],

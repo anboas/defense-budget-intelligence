@@ -62,6 +62,7 @@ import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js"
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
 import { clientErrorsResponse as handleClientErrorsResponse } from "./d1-client-errors.js";
+import { providerCredentialsResponse as handleProviderCredentialsResponse } from "./d1-provider-credentials.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import {
   ROLE_LABELS,
@@ -401,6 +402,23 @@ const SCHEMA = Object.freeze([
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_openai_keys_workspace ON dbi_openai_keys (workspace_id, scope_type, revoked_at, created_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_openai_keys_user ON dbi_openai_keys (user_id, scope_type, revoked_at, created_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_provider_credentials (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    provider TEXT NOT NULL CHECK (provider IN ('sam_gov')),
+    label TEXT NOT NULL,
+    encrypted_secret TEXT NOT NULL,
+    secret_iv TEXT NOT NULL,
+    secret_version INTEGER NOT NULL DEFAULT 1,
+    secret_last_four TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    revoked_at TEXT NOT NULL DEFAULT '',
+    last_used_at TEXT NOT NULL DEFAULT ''
+  )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_workspace_provider_credentials_active ON dbi_workspace_provider_credentials (workspace_id, provider) WHERE revoked_at = ''",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_provider_credentials_history ON dbi_workspace_provider_credentials (workspace_id, provider, revoked_at, created_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_api_request_log (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL DEFAULT '',
@@ -3269,6 +3287,9 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);
   if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);
   if (pathname === "/api/v1/auth/openai-keys" || pathname.startsWith("/api/v1/auth/openai-keys/")) return openAiKeysResponse(request, db, env);
+  if (pathname.startsWith("/api/v1/auth/provider-credentials/")) return handleProviderCredentialsResponse(request, db, env, {
+    canAdministerWorkspaces, cleanText, encryptSecret: encryptOpenAiKey, json, recordActivity, recordApiRequest, safeJson, sameOriginRequest, sessionUser,
+  });
   if (pathname === "/api/v1/auth/event-ai" || pathname.startsWith("/api/v1/auth/event-ai/")) return eventAiResponse(request, db, env);
   if (pathname === "/api/v1/client-errors") return handleClientErrorsResponse(request, db, { json, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
