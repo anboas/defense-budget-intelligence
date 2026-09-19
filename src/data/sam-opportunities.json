@@ -5,8 +5,9 @@
     "status": "unavailable",
     "sourceSystem": "SAM.gov Contract Opportunities",
     "sourceUrl": "https://sam.gov/content/opportunities",
-    "note": "Automatic ingestion is configured but no protected SAM.gov API key was available for this snapshot.",
-    "recordCount": 0
+    "note": "SAM_GOV_API_KEY was unavailable. Prior records were preserved and no discovery claim was made.",
+    "recordCount": 0,
+    "lastAttemptAt": "2026-09-19T13:19:06.702Z"
   },
   "records": []
 }
