@@ -63,7 +63,7 @@
     "lucide-react": "^0.542.0",
     "playwright-core": "^1.63.0",
     "purgecss": "^8.0.0",
-    "react": "^18.3.1",
+    "react": "^19.3.0",
     "react-dom": "^18.3.1",
     "typescript": "^5.9.2",
     "vite": "^8.0.16",
