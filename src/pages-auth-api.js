@@ -37,6 +37,7 @@ import {
   validPasswordProof,
   validSalt,
 } from "./security-policy.js";
+import { ACQUISITION_SCHEMA, acquisitionRuntimeResponse } from "./d1-acquisition-runtime.js";
 import {
   activeEventAttendeeIds,
   activeEventCategoryIds,
@@ -415,6 +416,7 @@ const SCHEMA = Object.freeze([
   )`,
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_workspace_provider_credentials_active ON dbi_workspace_provider_credentials (workspace_id, provider) WHERE revoked_at = ''",
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_provider_credentials_history ON dbi_workspace_provider_credentials (workspace_id, provider, revoked_at, created_at DESC)",
+  ...ACQUISITION_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_api_request_log (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL DEFAULT '',
@@ -707,11 +709,9 @@ const SCHEMA = Object.freeze([
     VALUES ('2026-09-14-multi-workspace-v1', '2026-09-14T20:20:00.000Z')`,
 ]);
 const schemaInitialization = new WeakMap();
-
 function databaseFromEnv(env = {}) {
   return env.DBI_DB?.prepare ? env.DBI_DB : null;
 }
-
 async function ensureSchema(db) {
   let initialization = schemaInitialization.get(db);
   if (!initialization) {
@@ -3289,6 +3289,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname.startsWith("/api/v1/auth/provider-credentials/")) return handleProviderCredentialsResponse(request, db, env, {
     canAdministerWorkspaces, cleanText, encryptSecret: encryptOpenAiKey, json, recordActivity, recordApiRequest, safeJson, sameOriginRequest, sessionUser,
   });
+  if (pathname === "/api/v1/auth/acquisition" || pathname.startsWith("/api/v1/auth/acquisition/")) return acquisitionRuntimeResponse(request, db, env, { canAdministerWorkspaces, decryptSecret: decryptOpenAiKey, json, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/event-ai" || pathname.startsWith("/api/v1/auth/event-ai/")) return eventAiResponse(request, db, env);
   if (pathname === "/api/v1/client-errors") return handleClientErrorsResponse(request, db, { json, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);

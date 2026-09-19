@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -9,8 +9,10 @@ import { useRecordDispositions } from "./record-dispositions.js";
 import { emptyProcurementDiscovery, emptyProcurementFeed, loadProcurementDiscovery, loadProcurementFeed } from "./procurement-discovery.js";
 import SpendSavedViews from "./SpendSavedViews.jsx";
 import SpendToday from "./SpendToday.jsx";
+import AcquisitionRuntimePanel from "./AcquisitionRuntimePanel.jsx";
 import { reportClientError } from "./client-error-reporting.js";
 import { lazyWithRefresh } from "./lazy-with-refresh.js";
+import { useAuth } from "./AuthContext.jsx";
 
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
@@ -57,6 +59,8 @@ function SpendViewBoundary({ view, children }) {
 }
 
 export default function SpendExplorer({ dataset, awards, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, accountSpine, requestLineCount }) {
+  const auth = useAuth();
+  const runtimeAvailable = Boolean(auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
   const [view, setView] = useState(readRoute);
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capQuery") || "");
   const [tableFilters, setTableFilters] = useState(() => {
@@ -67,6 +71,21 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [dailyFeed, setDailyFeed] = useState(emptyProcurementFeed);
   const [hasSavedViews, setHasSavedViews] = useState(false);
+  const [runtimeSamRecords, setRuntimeSamRecords] = useState([]);
+  const loadRuntimeRecords = useCallback(async () => {
+    if (!runtimeAvailable) { setRuntimeSamRecords([]); return; }
+    const records = [];
+    let offset = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const payload = await auth.listAcquisitionRecords({ limit: 1000, offset });
+      const page = payload.records || [];
+      records.push(...page);
+      hasMore = Boolean(payload.pagination?.hasMore) && page.length > 0;
+      offset += page.length;
+    }
+    setRuntimeSamRecords(records);
+  }, [auth, runtimeAvailable]);
   useEffect(() => {
     const sync = () => {
       setView(readRoute());
@@ -93,6 +112,24 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       .catch(() => { /* Daily source status remains explicitly unavailable when the compact feed cannot load. */ });
     return () => { active = false; };
   }, [dailyFeed.history.length, view]);
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void loadRuntimeRecords().catch((error) => { if (active) reportClientError(error, { kind: "acquisition_runtime_records" }); });
+    }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [loadRuntimeRecords]);
+  const effectiveSamOpportunities = useMemo(() => {
+    if (!runtimeSamRecords.length) return samOpportunities;
+    const merged = new Map();
+    for (const record of samOpportunities?.records || []) merged.set(record.sourceRecordId || record.noticeId, record);
+    for (const record of runtimeSamRecords) merged.set(record.sourceRecordId || record.noticeId, record);
+    return {
+      ...(samOpportunities || {}),
+      metadata: { ...(samOpportunities?.metadata || {}), status: "workspace-runtime", runtimeRecordCount: runtimeSamRecords.length },
+      records: [...merged.values()],
+    };
+  }, [runtimeSamRecords, samOpportunities]);
   const select = (next) => { setView(next); updateRoute(next); };
   const tabs = <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
     <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Today</button>
@@ -101,8 +138,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <button type="button" className={`if-tab${view === "charts" ? " is-active" : ""}`} aria-pressed={view === "charts"} onClick={() => select("charts")}><BarChart3 size={15} />Charts</button>
   </nav>;
   const rows = useMemo(
-    () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, samOpportunities?.records || [], manualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
-    [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, manualProcurement?.records, procurementDelta?.records, samOpportunities?.records, subawardSnapshot],
+    () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], manualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
+    [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveSamOpportunities?.records, manualProcurement?.records, procurementDelta?.records, subawardSnapshot],
   );
   const technologyOptions = useMemo(() => [...new Set(rows.flatMap((record) => record.technologyAreas || []))].sort((left, right) => (TECHNOLOGY_AREA_BY_ID.get(left)?.label || left).localeCompare(TECHNOLOGY_AREA_BY_ID.get(right)?.label || right)), [rows]);
   const latestFeed = dailyFeed.history?.[0];
@@ -162,10 +199,10 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
 
   if (view === "today") return <section className="spend-explorer spend-explorer--today" data-spend-explorer="today">
     <ControlWorkbenchHeader eyebrow="Daily acquisition feed" title="Today" summary="New, changed, closing, and removed records within DBI's disclosed source boundary." metrics={todayMetrics} metricLabel="Daily acquisition summary" tabs={tabs} />
-    <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} /></ControlPageBody>
+    <ControlPageBody compact><AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} /><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} /></ControlPageBody>
   </section>;
-  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /></Suspense></SpendViewBoundary>;
-  if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
+  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /></Suspense></SpendViewBoundary>;
+  if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Spend intelligence" title="Spend Explorer" summary="Timeline, records, and charts share one public-data scope." metrics={tableMetrics} metricLabel="Spend table summary" tabs={tabs} />
     <ControlPageBody compact>

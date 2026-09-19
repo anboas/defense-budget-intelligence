@@ -1256,6 +1256,7 @@ try {
   await mobileSamDialog.getByRole("button", { name: "Close SAM.gov key form" }).click();
 
   const interactionSurfaces = [
+    ["#/budget-spend/explorer?spendView=today", '[data-spend-explorer="today"]', "Acquisition Today"],
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],
     ["#/budget-spend/schedule?scheduleView=calendar", "[data-wallboard-calendar]", "Schedule calendar"],
     ["#/budget-spend/explorer?spendView=timeline", "[data-capture-calendar-page]", "Spend timeline"],

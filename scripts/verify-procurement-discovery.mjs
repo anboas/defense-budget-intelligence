@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQueryWindow } from "../src/acquisition-runtime-core.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureRoot = mkdtempSync(resolve(tmpdir(), "dbi-procurement-discovery-"));
@@ -63,6 +64,27 @@ try {
   assert.equal(discovery.metadata.coverage.contractMonitor.excludedTargetCount, 2, "Coverage metadata should distinguish eligible records outside the exact-detail monitor limit");
   assert.equal(discovery.metadata.coverage.contractMonitor.corpusCoveragePct, 33.3, "Coverage metadata should distinguish checked-record coverage from eligible-corpus coverage");
   assert.match(discovery.metadata.coverage.scope, /not exhaustive/i, "Coverage metadata should reject exhaustive-coverage claims");
+  const normalized = normalizeSamOpportunity({ noticeId: "notice-runtime-1", solicitationNumber: "W15P7T-26-R-0001", title: "Runtime notice", type: "Solicitation", postedDate: "2026-09-19", responseDeadLine: "2026-10-15", active: "Yes", uiLink: "https://sam.gov/opp/notice-runtime-1/view" });
+  assert.equal(normalized.sourceRecordId, "notice-runtime-1");
+  assert.equal(normalized.lifecycleStage, "opportunity");
+  const window = samQueryWindow({ lastCompletedAt: "2026-09-18T00:00:00Z", now: new Date("2026-09-19T12:00:00Z") });
+  assert.equal(window.lookbackDays, 3, "Incremental workspace refreshes must overlap three days to catch late amendments");
+  let requestedUrl = ""; let requestedKey = "";
+  const fetched = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", lastCompletedAt: "2026-09-18T00:00:00Z", fetchImpl: async (url, options) => {
+    requestedUrl = String(url); requestedKey = options.headers["x-api-key"];
+    return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "notice-runtime-1", solicitationNumber: "W15P7T-26-R-0001", title: "Runtime notice", type: "Solicitation", postedDate: "2026-09-19", active: "Yes" }] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.equal(fetched.records.length, 1);
+  assert.match(requestedUrl, /deptname=DEPT\+OF\+DEFENSE/);
+  assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must travel only in the protected request header");
+  await assert.rejects(() => fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", maxPages: 1, fetchImpl: async () => new Response(JSON.stringify({ totalRecords: 2000, opportunitiesData: [{ noticeId: "truncated-1", title: "Partial" }] }), { status: 200, headers: { "content-type": "application/json" } }) }), (error) => error.code === "source_truncated", "A bounded partial SAM response must fail closed");
+  const links = exactLifecycleLinks([{ sourceRecordId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceRecordId: "notice-b", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);
+  assert.deepEqual(links.map((link) => [link.fromId, link.toId, link.relationship, link.basis]), [["notice-a", "notice-b", "resulted_in_award", "solicitation_number"]], "Lifecycle links must require an exact disclosed identifier");
+  const crossSourceLinks = exactLifecycleLinks([{ sourceSystem: "SAM.gov", noticeId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceSystem: "USAspending", awardId: "CONT_AWD_W15P7T26C0001", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);
+  assert.deepEqual(crossSourceLinks.map((link) => [link.fromSource, link.fromId, link.toSource, link.toId, link.relationship]), [["sam_gov", "notice-a", "usaspending", "CONT_AWD_W15P7T26C0001", "resulted_in_award"]], "The lifecycle-link contract must support cross-source exact identifiers without fuzzy inference");
+  const saved = normalizeSavedAcquisitionView({ query: "runtime", filters: { branch: "Army", naics: "541512", untrustedField: "discard me" }, credential: "must-not-survive" });
+  assert.deepEqual(saved, { query: "runtime", filters: { branch: "Army", naics: "541512" } }, "Saved acquisition views must retain only the allowlisted filter contract");
+  assert.equal(matchesSavedAcquisitionView({ ...normalized, naicsCode: "541512", organization: { branch: "Army" } }, saved), true, "Durable alert matching must use the normalized saved-view contract");
   console.log("Procurement discovery contract passed: field-level diffs, daily history, and explicit coverage boundaries.");
 } finally {
   if (process.env.KEEP_PROCUREMENT_DISCOVERY_FIXTURE) console.log(`Retained fixture at ${fixtureRoot}`);
