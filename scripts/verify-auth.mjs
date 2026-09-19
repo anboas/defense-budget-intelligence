@@ -29,6 +29,42 @@ async function assertPageBodyGutter(page, selector, label) {
   assert.ok(geometry.left >= 10 && geometry.right >= 10, `${label} content must not touch its page boundary (${geometry.left}px / ${geometry.right}px)`);
 }
 
+async function assertInteractionSurface(page, selector, label, mobile = false) {
+  const root = page.locator(selector);
+  await root.locator("details").evaluateAll((nodes) => nodes.forEach((node) => { node.open = true; }));
+  const defects = await root.evaluate((node, narrow) => [...node.querySelectorAll("button, [role='button'], summary, input:not([type='hidden']), select, textarea")].flatMap((control) => {
+    const binaryInput = control.matches("input[type='checkbox'], input[type='radio']");
+    const hitTarget = binaryInput ? control.closest("label") || control : control;
+    const style = getComputedStyle(hitTarget);
+    const rect = hitTarget.getBoundingClientRect();
+    if (style.display === "none" || style.visibility === "hidden" || rect.width <= 0 || rect.height <= 0) return [];
+    const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.labels?.[0]?.textContent || control.textContent.trim();
+    const dataMark = control.matches("[data-timeline-context], [data-analytics-tooltip], svg [role='button']");
+    const touchCritical = control.matches(".if-btn, summary, input, select, textarea, [aria-haspopup]");
+    const minimum = narrow && touchCritical ? 43.5 : 24;
+    const issues = [];
+    if (!label) issues.push("missing accessible name");
+    if (!dataMark && rect.width < 24) issues.push(`width ${rect.width.toFixed(1)}`);
+    if (!dataMark && rect.height < minimum) issues.push(`height ${rect.height.toFixed(1)} < ${minimum}`);
+    if (!dataMark && hitTarget.scrollHeight > hitTarget.clientHeight + 2) issues.push(`vertical clip ${hitTarget.clientHeight}/${hitTarget.scrollHeight}`);
+    return issues.length ? [{ tag: control.tagName, label: String(label || "").trim().replace(/\s+/g, " ").slice(0, 80), issues, className: control.className?.baseVal || control.className }] : [];
+  }), mobile);
+  assert.deepEqual(defects, [], `${label} must keep every open-state control named, measurable, and unclipped`);
+  const overflowSources = await page.evaluate(() => [...document.body.querySelectorAll("*")].flatMap((element) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || (rect.right <= innerWidth + 2 && rect.left >= -2)) return [];
+    let ancestor = element.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      const ancestorRect = ancestor.getBoundingClientRect();
+      const overflowX = getComputedStyle(ancestor).overflowX;
+      if (["auto", "scroll", "hidden", "clip"].includes(overflowX) && ancestorRect.left >= -2 && ancestorRect.right <= innerWidth + 2) return [];
+      ancestor = ancestor.parentElement;
+    }
+    return [{ tag: element.tagName, className: element.className?.baseVal || element.className || "", left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) }];
+  }).sort((left, right) => (right.right - innerWidth) - (left.right - innerWidth)).slice(0, 8));
+  assert.deepEqual(overflowSources, [], `${label} must not introduce uncontained page overflow`);
+}
+
 const executablePath = [
   process.env.CHROMIUM_PATH,
   "/usr/bin/google-chrome",
@@ -415,10 +451,9 @@ try {
   assert.ok(mobileOverlayGeometry.buttons.every((height) => height >= 43.5), `Mobile overlay toggles must retain 44px targets: ${mobileOverlayGeometry.buttons.join(", ")}`);
   await page.screenshot({ path: "test-results/calendar-team-overlays-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.evaluate(async ({ eventId, teamId }) => {
+  await page.evaluate(async ({ eventId }) => {
     await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" });
-    await fetch(`/api/v1/auth/teams/${encodeURIComponent(teamId)}`, { method: "DELETE" });
-  }, { eventId: browserOverlayEvent.id, teamId: browserTeamId });
+  }, { eventId: browserOverlayEvent.id });
 
   await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-workspace-management]");
@@ -444,6 +479,9 @@ try {
   await chooseControlSelect(page, "User to add to Browser verification", "Browser teammate");
   await chooseControlSelect(page, "Role for new member in Browser verification", "Viewer");
   await addMemberDialog.getByRole("button", { name: "Add member" }).click();
+  await addMemberDialog.waitFor({ state: "hidden" });
+  await createdWorkspace.getByRole("button", { name: "Manage" }).click();
+  await manageWorkspaceDialog.waitFor();
   await manageWorkspaceDialog.getByText("Browser teammate", { exact: true }).waitFor();
   assert.match(await manageWorkspaceDialog.getByRole("button", { name: /^Workspace role for Browser teammate.*:/ }).getAttribute("aria-label"), /Viewer/, "Super user should see the member's current workspace role");
   await chooseControlSelect(page, "Workspace role for Browser teammate in Browser verification", "Analyst");
@@ -608,10 +646,18 @@ try {
     return body.users.find((user) => user.displayName === "Workspace Owner");
   });
   assert.equal(publicDirectoryMember.role, "Super user", "Workspace-public profiles require the directory's scoped role label");
-  await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=calendar&member=${encodeURIComponent(publicDirectoryMember.id)}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/workspace/directory?member=${encodeURIComponent(publicDirectoryMember.id)}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(`[data-workspace-member-profile][data-member-id="${publicDirectoryMember.id}"]`);
+  assert.equal(new URL(page.url()).hash, `#/workspace/directory?member=${encodeURIComponent(publicDirectoryMember.id)}`, "Member profiles must use a canonical workspace-public URL independent of Schedule state");
   assert.match(await page.locator("[data-workspace-member-profile]").innerText(), /Workspace Owner[\s\S]*Super user[\s\S]*Teams[\s\S]*Schedule associations[\s\S]*Linked work/i, "Authenticated workspace profiles must expose only role, visible teams, and visible work associations");
   assert.doesNotMatch(await page.locator("[data-workspace-member-profile]").innerText(), new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "Workspace-public profiles must not expose account email addresses");
+  await page.goto(`${BASE_URL}#/workspace/directory?team=${encodeURIComponent(browserTeamId)}`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(`[data-workspace-team-profile][data-team-id="${browserTeamId}"]`);
+  assert.match(await page.locator("[data-workspace-team-profile]").innerText(), /Browser HR[\s\S]*Members[\s\S]*Team schedule[\s\S]*Linked work/i, "Team profiles must expose only caller-visible membership, schedule, and linked work");
+  assert.doesNotMatch(await page.locator("[data-workspace-team-profile]").innerText(), /password|credential|authorization/i, "Workspace-public team profiles must exclude private authentication data");
+  await page.evaluate(async (teamId) => {
+    await fetch(`/api/v1/auth/teams/${encodeURIComponent(teamId)}`, { method: "DELETE" });
+  }, browserTeamId);
   await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
   const augmentedEventAction = page.getByRole("button", { name: /^Research and augment / }).first();
@@ -1131,6 +1177,29 @@ try {
   assert.ok(mobileKeyFields.every((height) => height >= 43.5), `Mobile key fields must retain 44px controls: ${mobileKeyFields.join(", ")}`);
   await page.screenshot({ path: "test-results/openai-key-vault-mobile.png", fullPage: true });
   await mobileKeyDialog.getByRole("button", { name: "Close OpenAI key form" }).click();
+
+  const interactionSurfaces = [
+    ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],
+    ["#/budget-spend/schedule?scheduleView=calendar", "[data-wallboard-calendar]", "Schedule calendar"],
+    ["#/budget-spend/explorer?spendView=timeline", "[data-capture-calendar-page]", "Spend timeline"],
+    ["#/budget-spend/awards", "[data-awards-page]", "Awards"],
+    ["#/budget-spend/tasks", "[data-task-center]", "Task Center"],
+    ["#/budget-spend/connections?connectionsView=integrations", "[data-connections-surface]", "Connections integrations"],
+    ["#/budget-spend/connections?connectionsView=credentials", "[data-connections-surface]", "Connections credentials"],
+    ["#/budget-spend/connections?connectionsView=activity", "[data-connections-surface]", "Connections activity"],
+    ["#/budget-spend/workspace", "[data-workspace-management]", "Workspace settings"],
+    ["#/budget-spend/users", "[data-user-management]", "Accounts"],
+    ["#/budget-spend/workspaces", "[data-workspace-management]", "Workspaces"],
+    ["#/profile", "[data-profile-page]", "Profile"],
+  ];
+  for (const [width, height, narrow] of [[1440, 1000, false], [390, 844, true]]) {
+    await page.setViewportSize({ width, height });
+    for (const [route, selector, label] of interactionSurfaces) {
+      await page.goto(`${BASE_URL}${route}`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector(selector);
+      await assertInteractionSurface(page, selector, `${narrow ? "Mobile" : "Desktop"} ${label}`, narrow);
+    }
+  }
 
   console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, OpenAI credential vault and API request log, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
 } finally {

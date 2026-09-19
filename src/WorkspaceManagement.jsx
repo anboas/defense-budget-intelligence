@@ -14,8 +14,9 @@ import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import WorkspaceTeams from "./WorkspaceTeams.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
+import { workspaceMemberHref } from "./workspace-profile-routes.js";
 const CONTENT_METRICS = [
   ["trackedRecords", "Tracked", "info"],
   ["events", "Events", "purple"],
@@ -159,8 +160,8 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
           <div className="workspace-access-model__roles">{Object.values(ACCESS_ROLES).map((role) => <article key={role.id} data-access-role={role.id}><span><strong>{role.label}</strong><small>{role.scope}</small></span><p>{role.summary}</p></article>)}</div>
           <p className="workspace-access-model__note"><strong>Teams are visibility overlays.</strong> They never grant write or administration permission. Every member sees workspace-wide events; team-scoped events are the union of that member&apos;s assigned teams.</p>
         </details>
-        <section className="workspace-card__members if-analytics-panel if-analytics-panel--flat" aria-label={`${workspace.name} members`}><header><span>Workspace access <strong>{workspace.members.length}</strong></span>{isSuperUser && candidates.length ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setAddingMemberTo(workspace.id)} disabled={busy}><UserPlus size={14} />Add account</button> : null}</header>{workspace.members.map((member) => <div key={member.id}>
-        <UserAvatar user={member} size={34} /><span><strong>{member.displayName}</strong><small>{member.email}</small></span>
+        <section className="workspace-card__members if-analytics-panel if-analytics-panel--flat" aria-label={`${workspace.name} members`}><header><span>Workspace access <strong>{workspace.members.length}</strong></span>{isSuperUser && candidates.length ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => { setExpandedId(""); setAddingMemberTo(workspace.id); }} disabled={busy}><UserPlus size={14} />Add account</button> : null}</header>{workspace.members.map((member) => <div key={member.id}>
+        <ControlIdentityLink compact href={workspaceMemberHref(member.id)} name={member.displayName} detail={member.email} avatar={<UserAvatar user={member} size={34} nativeTitle={false} decorative />} ariaLabel={`Open ${member.displayName} workspace profile`} />
         {member.roleId !== "super_user" ? <ControlSelect compact ariaLabel={`Workspace role for ${member.displayName} in ${workspace.name}`} value={member.roleId} disabled={busy} options={roleOptions} portalTarget={portalTarget} onChange={(role) => void mutate(() => auth.addWorkspaceMember(workspace.id, { userId: member.id, role }), `${member.displayName} is now ${WORKSPACE_ROLE_LABELS[role]}.`).catch(() => {})} /> : <b>{member.role}</b>}
         {member.roleId !== "super_user" ? <button type="button" className="if-btn if-btn--danger if-btn--sm" aria-label={`Remove ${member.displayName} from ${workspace.name}`} disabled={busy} onClick={() => void mutate(() => auth.removeWorkspaceMember(workspace.id, member.id), `${member.displayName} removed from ${workspace.name}.`).catch(() => {})}><UserX size={14} />Remove</button> : <em>Immutable owner</em>}
       </div>)}</section></div> : null}

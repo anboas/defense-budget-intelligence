@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { ControlAsyncState, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlStatusBadge } from "control-surface-ui/react";
 import sourceHealth from "./data/source-health.json";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -43,7 +43,7 @@ function ContractMonitorCoverage({ contractMonitor }) {
   const columns = [
     { key: "contract", label: "Contract", required: true, sticky: true, minWidth: 260, value: (row) => `${row.reference || "Unidentified"} ${row.title}`, render: (row) => <><strong>{row.reference || "Identifier unavailable"}</strong><small>{row.title}</small></> },
     { key: "lifecycle", label: "Lifecycle", facet: true, minWidth: 135, value: (row) => row.lifecycle, render: (row) => row.lifecycle.replaceAll("-", " ") },
-    { key: "status", label: "Automation", facet: true, minWidth: 135, value: (row) => row.status, render: (row) => <span className={`dbi-status-badge is-${row.status}`}>{row.status.replaceAll("-", " ")}</span> },
+    { key: "status", label: "Automation", facet: true, minWidth: 135, value: (row) => row.status, render: (row) => <ControlStatusBadge status={row.status} /> },
     { key: "method", label: "Method", facet: true, minWidth: 200, value: (row) => row.method, render: (row) => <><strong>{row.method.replaceAll("-", " ")}</strong><small>{row.generatedAwardId || row.sourceSystem || "No exact automated key"}</small></> },
     { key: "checked", label: "Checked", minWidth: 165, value: (row) => row.checkedAt || row.lastAttemptAt || "", render: (row) => row.checkedAt || row.lastAttemptAt ? dateTime(row.checkedAt || row.lastAttemptAt) : "Not refreshable" },
     { key: "diagnostic", label: "Coverage note", minWidth: 260, role: "prose", value: (row) => row.diagnostic?.message || "Exact public record refreshed.", render: (row) => row.diagnostic?.message || "Exact public record refreshed." },
@@ -74,7 +74,7 @@ export default function IntegrationManagement({ auth, dataset, samOpportunities,
   ];
   const columns = [
     { key: "name", label: "Integration", required: true, sticky: true, minWidth: 230, value: (row) => row.name, render: (row) => <><strong>{row.name}</strong><small>{row.detail}</small></> },
-    { key: "status", label: "Status", facet: true, minWidth: 110, value: (row) => row.status, render: (row) => <span className={`dbi-status-badge is-${String(row.status).toLowerCase().replaceAll(" ", "-")}`}>{row.status}</span> },
+    { key: "status", label: "Status", facet: true, minWidth: 110, value: (row) => row.status, render: (row) => <ControlStatusBadge status={row.status} /> },
     { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];

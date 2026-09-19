@@ -88,16 +88,35 @@ async function assertNoPageOverflow(page, label) {
 }
 
 async function assertButtonIntegrity(page, label, root = "body") {
-  const malformed = await page.locator(root).evaluate((node) => [...node.querySelectorAll("button")].filter((button) => {
-    const style = getComputedStyle(button);
-    const rect = button.getBoundingClientRect();
-    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0
-      && (rect.width < 24 || rect.height < 24 || button.scrollHeight > button.clientHeight + 2);
-  }).map((button) => {
-    const rect = button.getBoundingClientRect();
-    return { label: button.getAttribute("aria-label") || button.textContent.trim().replace(/\s+/g, " ").slice(0, 80), width: rect.width, height: rect.height, clientHeight: button.clientHeight, scrollHeight: button.scrollHeight, className: button.className };
+  const malformed = await page.locator(root).evaluate((node) => [...node.querySelectorAll("button, [role='button'], summary")].filter((control) => {
+    const style = getComputedStyle(control);
+    const rect = control.getBoundingClientRect();
+    if (style.display === "none" || style.visibility === "hidden" || rect.width <= 0 || rect.height <= 0) return false;
+    const label = control.getAttribute("aria-label") || control.getAttribute("title") || control.textContent.trim();
+    const dataMark = control.matches("[data-timeline-context], [data-analytics-tooltip], svg [role='button']");
+    return !label || (!dataMark && (rect.width < 24 || rect.height < 24 || control.scrollHeight > control.clientHeight + 2));
+  }).map((control) => {
+    const rect = control.getBoundingClientRect();
+    return { tag: control.tagName, label: control.getAttribute("aria-label") || control.textContent.trim().replace(/\s+/g, " ").slice(0, 80), width: rect.width, height: rect.height, clientHeight: control.clientHeight, scrollHeight: control.scrollHeight, className: control.className?.baseVal || control.className };
   }));
   assert.deepEqual(malformed, [], `${label} should not render undersized or vertically clipped buttons`);
+}
+
+async function assertOpenStateControls(page, label, root = "body") {
+  const details = page.locator(`${root} details:visible`);
+  const initial = await details.evaluateAll((nodes) => nodes.map((node) => node.open));
+  await details.evaluateAll((nodes) => nodes.forEach((node) => { node.open = true; }));
+  await assertButtonIntegrity(page, `${label} expanded disclosures`, root);
+  const popupTriggers = page.locator(`${root} [aria-haspopup="menu"]:visible, ${root} [aria-haspopup="listbox"]:visible`);
+  const triggerCount = Math.min(await popupTriggers.count(), 12);
+  for (let index = 0; index < triggerCount; index += 1) {
+    const trigger = popupTriggers.nth(index);
+    if (!await trigger.isVisible()) continue;
+    await trigger.click();
+    await assertButtonIntegrity(page, `${label} popup ${index + 1}`);
+    await page.keyboard.press("Escape");
+  }
+  await details.evaluateAll((nodes, states) => nodes.forEach((node, index) => { node.open = states[index]; }), initial);
 }
 
 async function assertActiveGroupState(page, group, childLabel) {
@@ -335,6 +354,7 @@ try {
   assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header').count(), 1, "Connections should expose one framework-owned workbench header");
   assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header .if-tab').count(), 3, "Connections should consolidate integrations, credentials, and API activity");
   await assertButtonIntegrity(page, "Connections", "[data-connections-surface]");
+  await assertOpenStateControls(page, "Connections", "[data-connections-surface]");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
@@ -408,6 +428,7 @@ try {
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
   assert.equal(await page.locator("[data-award-record-table] .dbi-data-table__columns").count(), 1, "Awards should expose persistent column configuration");
   await assertButtonIntegrity(page, "Awards", "[data-awards-page]");
+  await assertOpenStateControls(page, "Awards", "[data-awards-page]");
   const awardColumnManager = page.locator("[data-award-record-table] .dbi-data-table__columns");
   const awardColumnTrigger = awardColumnManager.locator("summary").first();
   await awardColumnTrigger.click();
@@ -486,6 +507,7 @@ try {
   assert.ok(publicRecordCount >= 875, `Transactions should expose the current expanded baseline or more, got ${publicRecordCount}`);
   assert.ok(automaticAdditionCount >= 677, `Transactions should retain the automated USAspending baseline and permit new feeds, got ${automaticAdditionCount}`);
   await assertButtonIntegrity(page, "Spend Explorer", "[data-transaction-analytics-page]");
+  await assertOpenStateControls(page, "Spend Explorer", "[data-transaction-analytics-page]");
   assert.match(transactionText, /FPDS ACTIONS\s+3,085/i);
   const capturePayload = await page.evaluate(() => fetch(new URL("data/capture-calendar.json", document.baseURI)).then((response) => response.json()));
   const subawardPayload = await page.evaluate(() => fetch(new URL("data/usaspending-subawards.json", document.baseURI)).then((response) => response.json()));
@@ -644,6 +666,7 @@ try {
   assert.equal(await page.locator('[data-calendar-hovercard]').count(), 1, "Attendee identity should use the existing calendar hover surface instead of opening a second tooltip");
   await adamProfileButton.click();
   await page.waitForSelector('[data-workspace-member-profile][data-member-id="user-adam"]');
+  assert.equal(new URL(page.url()).hash, "#/workspace/directory?member=user-adam", "Calendar identities should open the canonical workspace-public profile route");
   assert.match(await page.locator("[data-workspace-member-profile]").innerText(), /Workspace profile[\s\S]*Adam Boas[\s\S]*Schedule associations[\s\S]*Air, Space & Cyber Conference/i, "Selecting an attendee should open a workspace-public profile with visible schedule associations");
   assert.doesNotMatch(await page.locator("[data-workspace-member-profile]").innerText(), /email|password|credential/i, "Workspace-public profiles must exclude private account and authentication data");
   await page.screenshot({ path: `${OUT_DIR}/workspace-member-profile-desktop.png`, fullPage: true });
@@ -670,6 +693,7 @@ try {
   assert.ok(standaloneToolbar.countRows <= 8, `Calendar event and milestone counts should remain on one compact row: ${JSON.stringify(standaloneToolbar)}`);
   assert.ok(standaloneToolbar.countHeight <= 58, `Calendar count status should not become a malformed two-row control: ${JSON.stringify(standaloneToolbar)}`);
   await assertButtonIntegrity(page, "Standalone Schedule Calendar", "[data-wallboard-calendar]");
+  await assertOpenStateControls(page, "Standalone Schedule Calendar", "[data-wallboard-calendar]");
   await page.screenshot({ path: `${OUT_DIR}/schedule-calendar-standalone-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Schedule");
@@ -1388,19 +1412,19 @@ try {
   await page.locator('[data-analytics-records] > summary').click();
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
-  await page.waitForSelector('[data-analytics-record-modal][open]');
-  assert.match(await page.locator('[data-analytics-record-modal][open]').innerText(), /Observed obligations|Reported potential/i);
-  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
-  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
-  assert.match(await page.locator('[data-analytics-record-modal][open] footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  await page.waitForSelector('[data-analytics-record-drawer]');
+  assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Observed obligations|Reported potential/i);
+  assert.equal(await page.locator('[data-analytics-record-drawer] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
+  assert.equal(await page.locator('[data-analytics-record-drawer] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
+  assert.match(await page.locator('[data-analytics-record-drawer] footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
   await page.screenshot({ path: `${OUT_DIR}/analytics-record-detail-desktop.png`, fullPage: true });
-  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-dialog__close').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
+  assert.equal(await page.locator('[data-analytics-record-drawer] .if-drawer__actions .if-icon-btn').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
   await page.keyboard.press("Shift+Tab");
-  assert.equal(await page.locator('[data-analytics-record-modal][open]').evaluate((dialog) => dialog.contains(document.activeElement)), true, "Shift+Tab must wrap within analytical detail");
+  assert.equal(await page.locator('[data-analytics-record-drawer]').evaluate((drawer) => drawer.contains(document.activeElement)), true, "Shift+Tab must wrap within analytical detail");
   await page.keyboard.press("Tab");
-  assert.equal(await page.locator('[data-analytics-record-modal][open] .if-dialog__close').evaluate((node) => node === document.activeElement), true, "Tab must wrap back to the first analytical-detail control");
+  assert.equal(await page.locator('[data-analytics-record-drawer] .if-drawer__actions .if-icon-btn').evaluate((node) => node === document.activeElement), true, "Tab must wrap back to the first analytical-detail control");
   await page.keyboard.press("Escape");
-  await page.waitForSelector('[data-analytics-record-modal][open]', { state: "detached" });
+  await page.waitForSelector('[data-analytics-record-drawer]', { state: "detached" });
   assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
   assert.match(await page.locator(".transaction-analytics-note").textContent(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");

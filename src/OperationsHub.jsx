@@ -29,9 +29,10 @@ import { useManagementState } from "./management-state.js";
 import SearchMultiSelect from "./SearchMultiSelect.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline } from "control-surface-ui/react";
+import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline, ControlStatusBadge } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
+import { directorySelection, openWorkspaceProfile, workspaceTeamHref } from "./workspace-profile-routes.js";
 
 const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
 const OpenAiKeyManagement = lazy(() => import("./OpenAiKeyManagement.jsx"));
@@ -40,8 +41,9 @@ const UserManagement = lazy(() => import("./UserManagement.jsx"));
 const WorkspaceManagement = lazy(() => import("./WorkspaceManagement.jsx"));
 const WallboardCalendar = lazy(() => import("./WallboardCalendar.jsx"));
 const WorkspaceMemberProfile = lazy(() => import("./WorkspaceMemberProfile.jsx"));
+const WorkspaceTeamProfile = lazy(() => import("./WorkspaceTeamProfile.jsx"));
 
-const VIEWS = new Set(["watchlist", "schedule", "tasks", "connections", "users", "workspaces", "workspace-settings"]);
+const VIEWS = new Set(["watchlist", "schedule", "tasks", "connections", "users", "workspaces", "workspace-settings", "directory"]);
 
 const EVENT_MILESTONE_TYPES = [
   ["registration_deadline", "Registration closes"],
@@ -548,13 +550,6 @@ function taskStatusLabel(status) {
   return ({ researching: "Researching", verifying: "Verifying", needs_review: "Needs review", completed: "Completed", succeeded: "Completed", failed: "Failed", rejected: "Rejected", rate_limited: "Rate limited", running: "Running", pending: "Pending" })[status] || String(status || "Unknown").replaceAll("_", " ");
 }
 
-function taskStatusClass(status) {
-  if (["failed", "rejected", "rate_limited"].includes(status)) return "if-status if-status--sm if-status--danger";
-  if (status === "needs_review") return "if-status if-status--sm if-status--warning";
-  if (TASK_ACTIVE_STATUSES.has(status)) return "if-status if-status--sm if-status--info";
-  return "if-status if-status--sm if-status--success";
-}
-
 function eventAugmentationValue(event) {
   const states = [];
   if (event.aiValidationRequired) states.push("Validation required");
@@ -565,9 +560,9 @@ function eventAugmentationValue(event) {
 
 function EventAugmentationState({ event }) {
   return <span className="ops-event-ai-state">
-    {event.aiValidationRequired ? <span className="if-status if-status--sm if-status--warning"><CircleAlert size={14} aria-hidden="true" />Validation required</span> : null}
-    {event.aiAmended ? <span className="if-status if-status--sm if-status--success"><Sparkles size={14} aria-hidden="true" />AI amended</span> : null}
-    {!event.aiValidationRequired && !event.aiAmended && event.lastAugmentedAt ? <span className="if-status if-status--sm if-status--info">Checked</span> : null}
+    {event.aiValidationRequired ? <ControlStatusBadge status="validation required" label="Validation required" /> : null}
+    {event.aiAmended ? <ControlStatusBadge status="amended" label="AI amended" /> : null}
+    {!event.aiValidationRequired && !event.aiAmended && event.lastAugmentedAt ? <ControlStatusBadge status="complete" label="Checked" /> : null}
     {!event.lastAugmentedAt ? <span className="if-field__hint">Not augmented</span> : null}
     {event.lastAugmentedAt ? <small>Last augmented {dateTime(event.lastAugmentedAt)}</small> : null}
   </span>;
@@ -637,7 +632,7 @@ function ApiTaskDetail({ task }) {
       { id: "provider", label: "Provider", value: task.provider || "DBI", meta: task.model || "No model recorded" },
       { id: "outcome", label: "Outcome", value: taskStatusLabel(task.status), meta: task.detail, tone: TASK_ATTENTION_STATUSES.has(task.status) ? "danger" : "success" },
     ]} metricLabel="Task summary" />
-    {panel === "summary" ? <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Latest outcome</h3><p className="if-analytics-panel__summary">{task.detail}</p></div><span className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</span></header></section> : <section className="if-analytics-panel if-analytics-panel--flat" data-task-activity><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Activity chain</h3><p className="if-analytics-panel__summary">Select a retained stage to inspect its normalized, redacted request and response.</p></div></header><ApiTaskActivity entries={task.entries} /></section>}
+    {panel === "summary" ? <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Latest outcome</h3><p className="if-analytics-panel__summary">{task.detail}</p></div><ControlStatusBadge status={task.status} label={taskStatusLabel(task.status)} /></header></section> : <section className="if-analytics-panel if-analytics-panel--flat" data-task-activity><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Activity chain</h3><p className="if-analytics-panel__summary">Select a retained stage to inspect its normalized, redacted request and response.</p></div></header><ApiTaskActivity entries={task.entries} /></section>}
   </section>;
 }
 
@@ -656,7 +651,7 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onRefresh }) {
   const columns = [
     { key: "task", label: "Task", required: true, sticky: true, minWidth: 300, value: (task) => task.title, searchValue: (task) => [task.title, task.type, task.stage, task.detail, task.traceId], render: (task) => <><strong>{task.title}</strong><small>{task.detail}</small></> },
     { key: "type", label: "Type", facet: true, minWidth: 145, value: (task) => task.type },
-    { key: "status", label: "Status", facet: true, minWidth: 120, value: (task) => taskStatusLabel(task.status), render: (task) => <span className={taskStatusClass(task.status)}>{TASK_ACTIVE_STATUSES.has(task.status) ? workingSpinner("") : null}{taskStatusLabel(task.status)}</span> },
+    { key: "status", label: "Status", facet: true, minWidth: 120, value: (task) => taskStatusLabel(task.status), render: (task) => <span className="task-status-cell">{TASK_ACTIVE_STATUSES.has(task.status) ? workingSpinner("") : null}<ControlStatusBadge status={task.status} label={taskStatusLabel(task.status)} /></span> },
     { key: "stage", label: "Current stage", facet: true, minWidth: 160, value: (task) => task.stage },
     { key: "updated", label: "Updated", minWidth: 165, value: (task) => task.updatedAt || task.startedAt || "", render: (task) => dateTime(task.updatedAt || task.startedAt) },
     { key: "trace", label: "Trace", minWidth: 170, value: (task) => task.traceId || "Not recorded" },
@@ -688,11 +683,11 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, ...(event.links || []).flatMap((link) => [link.label, link.url]), ...eventCategoryLabels(event, categories), ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
     { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt, render: (event) => dateTime(event.startsAt) },
     { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt, render: (event) => dateTime(event.endsAt || event.startsAt) },
-    { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <span className={`dbi-status-badge is-${event.status || "scheduled"}`}>{event.status || "scheduled"}</span> },
+    { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <ControlStatusBadge status={event.status || "scheduled"} /> },
     { key: "augmentation", label: "AI augmentation", facet: true, minWidth: 190, value: eventAugmentationValue, sortValue: (event) => event.lastAugmentedAt || "", render: (event) => <EventAugmentationState event={event} /> },
     { key: "display", label: "Wallboard", facet: true, value: (event) => event.wallboard ? "Shown" : "Hidden" },
     { key: "categories", label: "Categories", facet: true, minWidth: 150, value: (event) => eventCategoryLabels(event, categories).join(" · ") || "Uncategorized" },
-    { key: "teams", label: "Visibility", facet: true, minWidth: 180, value: (event) => event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide", render: (event) => event.teams?.length ? <span className="event-team-stack">{event.teams.slice(0, 3).map((team) => <span key={team.id}><TeamAvatar team={team} size={24} />{team.name}</span>)}</span> : <span className="if-badge if-badge--neutral">Workspace-wide</span> },
+    { key: "teams", label: "Visibility", facet: true, minWidth: 180, value: (event) => event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide", render: (event) => event.teams?.length ? <span className="event-team-stack">{event.teams.slice(0, 3).map((team) => <a key={team.id} href={workspaceTeamHref(team.id)} aria-label={`Open ${team.name} workspace profile`}><TeamAvatar team={team} size={24} nativeTitle={false} />{team.name}</a>)}</span> : <span className="if-badge if-badge--neutral">Workspace-wide</span> },
     { key: "links", label: "Links", minWidth: 100, sortValue: (event) => event.links?.length || 0, value: (event) => `${event.links?.length || 0}`, render: (event) => <strong>{event.links?.length || 0}</strong> },
     { key: "milestones", label: "Milestones", minWidth: 120, sortValue: (event) => event.milestones?.length || 0, value: (event) => `${event.milestones?.length || 0}`, render: (event) => <strong>{event.milestones?.length || 0}</strong> },
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
@@ -717,7 +712,7 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
   ];
   const requestColumns = [
     { key: "at", label: "Time", required: true, sticky: true, minWidth: 170, value: (entry) => entry.at, render: (entry) => dateTime(entry.at) },
-    { key: "status", label: "Status", facet: true, minWidth: 120, value: (entry) => entry.status, render: (entry) => <span className={`dbi-status-badge is-${entry.status}`}>{entry.status.replaceAll("_", " ")}</span> },
+    { key: "status", label: "Status", facet: true, minWidth: 120, value: (entry) => entry.status, render: (entry) => <ControlStatusBadge status={entry.status} /> },
     { key: "operation", label: "Operation", facet: true, mobileWide: true, minWidth: 220, value: (entry) => `${entry.provider} ${entry.operation}`, filterValue: (entry) => entry.operation, render: (entry) => <><strong>{entry.operation}</strong><small>{entry.provider}{entry.model ? ` · ${entry.model}` : ""}</small></> },
     { key: "route", label: "Interface", facet: true, minWidth: 190, value: (entry) => entry.route || entry.requestKind, render: (entry) => <><strong>{entry.method ? `${entry.method} ` : ""}{entry.route || entry.requestKind}</strong><small>{entry.requestKind.replaceAll("_", " ")}{entry.credentialScope ? ` · ${entry.credentialScope} key` : ""}</small></> },
     { key: "latency", label: "Latency", minWidth: 105, sortValue: (entry) => entry.latencyMs, value: (entry) => entry.latencyMs ? `${entry.latencyMs} ms` : "Not measured" },
@@ -898,32 +893,12 @@ function useRouteSurface(parameter, allowed, fallback, onChange) {
 
 function ScheduleView({ state, records, watchedRecords, categories, teams, auth, dataset, onAdd, onEdit, onDelete, onManageCategories }) {
   const [surface, setSurface] = useRouteSurface("scheduleView", ["list", "calendar", "display"], "list");
-  const readMemberId = () => new URLSearchParams(window.location.hash.split("?")[1] || "").get("member") || "";
-  const [memberId, setMemberId] = useState(readMemberId);
-  const [selectedMember, setSelectedMember] = useState(null);
-  useEffect(() => {
-    const sync = () => setMemberId(readMemberId());
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
-  }, []);
-  function routeMember(member = null) {
-    const [path, search = ""] = window.location.hash.split("?");
-    const params = new URLSearchParams(search);
-    if (member?.id) params.set("member", member.id);
-    else params.delete("member");
-    const query = params.toString();
-    setSelectedMember(member);
-    setMemberId(member?.id || "");
-    window.location.hash = `${path}${query ? `?${query}` : ""}`;
-  }
-  const seedMember = useMemo(() => selectedMember?.id === memberId ? selectedMember : state.events.flatMap((event) => event.attendees || []).find((attendee) => String(attendee.id) === String(memberId)) || null, [memberId, selectedMember, state.events]);
   const [calendarMonth, setCalendarMonth] = useState(() => String(state.events.find((event) => event.status === "scheduled")?.startsAt || new Date().toISOString()).slice(0, 7));
   const scheduled = state.events.filter((event) => event.status === "scheduled").length;
   const needsValidation = state.events.filter((event) => event.requiresValidation).length;
   const tabs = <nav className="if-tabs__list" aria-label="Schedule view">
     {[['list', 'List'], ['calendar', 'Calendar'], ['display', 'Display']].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}
   </nav>;
-  if (memberId) return <Suspense fallback={<RouteFallback title="member profile" />}><WorkspaceMemberProfile auth={auth} memberId={memberId} seedMember={seedMember} events={state.events} teams={teams} records={records} onBack={() => routeMember(null)} /></Suspense>;
   return <section className="ops-panel schedule-surface" data-schedule-surface={surface}>
     <ControlWorkbenchHeader eyebrow="Workspace schedule" title="Schedule" summary="Create events once, then work in a list, calendar, or conference-room display." metrics={[
       { id: "scheduled", label: "Scheduled", value: scheduled, meta: "Visible events" },
@@ -932,10 +907,27 @@ function ScheduleView({ state, records, watchedRecords, categories, teams, auth,
     ]} metricLabel="Schedule summary" tabs={tabs} />
     <ControlPageBody compact>
       {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} /> : null}
-      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} onOpenMember={routeMember} /></Suspense> : null}
-      {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} onOpenMember={routeMember} /> : null}
+      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /></Suspense> : null}
+      {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /> : null}
     </ControlPageBody>
   </section>;
+}
+
+function DirectoryView({ auth, state, records, teams }) {
+  const [{ memberId, teamId }, setSelection] = useState(() => directorySelection());
+  useEffect(() => {
+    const sync = () => setSelection(directorySelection());
+    window.addEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("popstate", sync);
+    };
+  }, []);
+  const seedMember = state.events.flatMap((event) => event.attendees || []).find((attendee) => String(attendee.id) === String(memberId)) || teams.flatMap((team) => team.members || []).find((member) => String(member.id) === String(memberId)) || null;
+  const back = () => { window.location.hash = "#/budget-spend/schedule?scheduleView=calendar"; };
+  if (teamId) return <Suspense fallback={<RouteFallback title="team profile" />}><WorkspaceTeamProfile teamId={teamId} teams={teams} events={state.events} records={records} onBack={back} /></Suspense>;
+  return <Suspense fallback={<RouteFallback title="member profile" />}><WorkspaceMemberProfile auth={auth} memberId={memberId} seedMember={seedMember} events={state.events} teams={teams} records={records} onBack={back} /></Suspense>;
 }
 
 function ConnectionsView({ auth, state, records, dataset, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, budgetGeneratedAt, awardGeneratedAt, contractMonitor, contractMonitorState, onRetryContractMonitor, onSurfaceChange }) {
@@ -1000,6 +992,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
+    {view === "directory" ? <DirectoryView auth={auth} state={state} records={records} teams={calendarTeams} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
     {view === "connections" ? <ConnectionsView auth={auth} state={state} records={records} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} contractMonitorState={contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} onSurfaceChange={setConnectionsSurface} /> : null}
     {view === "users" ? auth?.user?.canManageAccounts ? <Suspense fallback={<RouteFallback title="Accounts" />}><UserManagement auth={auth} /></Suspense> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Super user access required" message="Global account lifecycle and emulation belong to the immutable Super user." /></section> : null}

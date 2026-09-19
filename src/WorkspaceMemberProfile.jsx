@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, UsersRound } from "lucide-react";
-import { ControlAsyncState, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
+import { ControlAsyncState, ControlIdentityLink, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
 import TeamAvatar from "./TeamAvatar.jsx";
 import UserAvatar from "./UserAvatar.jsx";
+import { workspaceTeamHref } from "./workspace-profile-routes.js";
 
 function day(value) {
   const date = new Date(value || "");
@@ -55,7 +56,7 @@ export default function WorkspaceMemberProfile({ auth, memberId, seedMember, eve
         <div><span>{member.role || "Workspace member"}</span><strong>{member.displayName}</strong><small>{member.title || "No role title published"}</small></div>
       </div>
       <div className="workspace-member-profile__grid">
-        <section data-member-teams><header><UsersRound size={18} aria-hidden="true" /><span><strong>Teams</strong><small>Visible memberships</small></span><b>{visibleTeams.length}</b></header>{visibleTeams.length ? <div className="workspace-member-profile__teams">{visibleTeams.map((team) => <article key={team.id}><TeamAvatar team={team} size={34} nativeTitle={false} /><span><strong>{team.name}</strong><small>{team.description || "Workspace team"}</small></span></article>)}</div> : <p>No visible team memberships.</p>}</section>
+        <section data-member-teams><header><UsersRound size={18} aria-hidden="true" /><span><strong>Teams</strong><small>Visible memberships</small></span><b>{visibleTeams.length}</b></header>{visibleTeams.length ? <div className="workspace-member-profile__teams">{visibleTeams.map((team) => <ControlIdentityLink key={team.id} href={workspaceTeamHref(team.id)} name={team.name} detail={team.description || "Workspace team"} avatar={<TeamAvatar team={team} size={34} nativeTitle={false} />} ariaLabel={`Open ${team.name} workspace profile`} />)}</div> : <p>No visible team memberships.</p>}</section>
         <section data-member-events><header><CalendarDays size={18} aria-hidden="true" /><span><strong>Schedule associations</strong><small>Visible events only</small></span><b>{associations.length}</b></header>{associations.length ? <div className="workspace-member-profile__events">{associations.map(({ event, attending, eventTeams }) => <article key={event.id}><time dateTime={event.startsAt}>{day(event.startsAt)}</time><span><strong>{event.title}</strong><small>{attending ? "Attending" : eventTeams.map((team) => team.name).join(" · ")}</small></span></article>)}</div> : <p>No visible schedule associations.</p>}</section>
         <section data-member-records><header><BriefcaseBusiness size={18} aria-hidden="true" /><span><strong>Linked work</strong><small>Through associated events</small></span><b>{linkedRecords.length}</b></header>{linkedRecords.length ? <div className="workspace-member-profile__records">{linkedRecords.map((record) => <article key={record.opportunityId}><span><strong>{record.id}</strong><small>{record.title}</small></span></article>)}</div> : <p>No linked records on visible associated events.</p>}</section>
       </div>

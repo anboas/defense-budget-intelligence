@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   hierarchy,
   interpolateBlues,
@@ -27,11 +27,12 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
-import { ControlDialog, ControlDisclosure, ControlFactGrid } from "control-surface-ui/react";
+import { ControlDisclosure } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
+const AnalyticsRecordDrawer = lazy(() => import("./AnalyticsRecordDrawer.jsx"));
 import {
   applyProcurementChanges,
   assembleProcurementRecords,
@@ -1749,40 +1750,6 @@ function RecordExplorer({ records, metricId, onSelect }) {
   );
 }
 
-function AnalyticsRecordModal({ record, onClose }) {
-  const primaryFacts = record ? [
-    { id: "party", label: "Recipient / sponsor", value: record.party || "Not published", wide: true },
-    { id: "work", label: "Type of work", value: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", meta: record.workCategoryBasis || "No classification basis published", wide: true },
-    { id: "obligations", label: "Observed obligations", value: money(recordObligations(record)) },
-    { id: "potential", label: "Reported potential", value: money(recordValue(record)) },
-  ] : [];
-  const secondaryFacts = record ? [
-    { id: "schedule", label: "Reported schedule", value: `${record.start || record.solicitationStart || "Unknown"} → ${record.currentEnd || record.solicitationEnd || "Unknown"}`, wide: true },
-    { id: "structure", label: "Acquisition structure", value: [record.vehicle, record.pricingType, record.awardType].filter(Boolean).join(" · ") || "Not published", meta: record.setAside || record.competitionType || "Competition not published", wide: true },
-    { id: "actions", label: "FPDS actions", value: Number(record.transactionSummary?.actions || 0).toLocaleString() },
-    { id: "subawards", label: "Reported subawards", value: Number(record.subawardSummary?.reportedCount || 0).toLocaleString(), meta: record.subawardSummary?.detailTruncated ? "Recent detail is sampled" : "Exact prime count where available" },
-    { id: "provenance", label: "Ingestion provenance", value: record.ingestionLabel || record.ingestionMethod || "Not published", meta: record.sourceSystem || "Source system not published", wide: true },
-  ] : [];
-  return (
-    <ControlDialog
-      open={Boolean(record)}
-      onClose={onClose}
-      eyebrow={record ? `${record.id} · ${record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"}` : "Analytical detail"}
-      title={record?.title || "Analytical detail"}
-      size="detail"
-      closeLabel="Close analytical detail"
-      dialogProps={{ "data-analytics-record-modal": "" }}
-      bodyProps={{ className: "if-record-detail if-record-detail--intelligence" }}
-      footer={record ? <><a className="if-btn if-btn--primary" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in timeline</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</> : null}
-    >
-      <ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} />
-      <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>
-        <ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} />
-      </ControlDisclosure>
-    </ControlDialog>
-  );
-}
-
 export default function TransactionAnalytics({
   dataset,
   awards = [],
@@ -2085,7 +2052,7 @@ export default function TransactionAnalytics({
           crosswalk connects every request line, award, and action.
         </p>
       </details>
-      <AnalyticsRecordModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
+      {selectedRecord ? <Suspense fallback={null}><AnalyticsRecordDrawer record={selectedRecord} onClose={() => setSelectedRecord(null)} /></Suspense> : null}
     </div>
   );
 }

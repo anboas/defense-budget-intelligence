@@ -54,6 +54,7 @@ const HASH_ROUTES = {
   awards: "#/budget-spend/awards",
   spend: "#/budget-spend/explorer",
   schedule: "#/budget-spend/schedule",
+  directory: "#/workspace/directory",
   watchlist: "#/budget-spend/watchlist",
   tasks: "#/budget-spend/tasks",
   connections: "#/budget-spend/connections",
@@ -161,7 +162,7 @@ let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawar
 let captureCalendarReady = false;
 
 const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "tasks", "connections", "users", "workspaces", "workspace-settings"]);
-const OPERATIONS_TAB_IDS = new Set(["schedule", ...ADMINISTRATION_TAB_IDS]);
+const OPERATIONS_TAB_IDS = new Set(["schedule", "directory", ...ADMINISTRATION_TAB_IDS]);
 const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const BUDGET_REQUEST_TAB_IDS = new Set(["overview", "trends", "lifecycle"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
@@ -277,7 +278,7 @@ function App() {
   const [coreRevision, setCoreRevision] = useState(0);
   const [coreLoadAttempt, setCoreLoadAttempt] = useState(0);
   const [coreError, setCoreError] = useState("");
-  const activeTitle = TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
+  const activeTitle = activeTab === "directory" ? "Workspace Directory" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const needsCore = CORE_TAB_IDS.has(activeTab);
   const needsExecution = EXECUTION_TAB_IDS.has(activeTab) || activeTab === "sources";
   const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "timeline";

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Pencil, Plus, Save, Trash2, UsersRound } from "lucide-react";
-import { ControlAsyncState, ControlDialog, useToast } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlIdentityLink, useToast } from "control-surface-ui/react";
 import TeamAvatar from "./TeamAvatar.jsx";
 import UserAvatar from "./UserAvatar.jsx";
+import { workspaceMemberHref, workspaceTeamHref } from "./workspace-profile-routes.js";
 
 const EMPTY_TEAM = { id: "", name: "", description: "", iconDataUrl: "", userIds: [] };
 
@@ -81,9 +82,8 @@ export default function WorkspaceTeams({ auth, users = [] }) {
   return <section className="workspace-teams if-analytics-panel if-analytics-panel--flat" data-workspace-teams>
     <header className="workspace-teams__header"><span><strong>Teams &amp; event visibility</strong><small>Visibility overlays only. Teams never grant workspace permissions; members see workspace-wide events plus the union of their assigned teams.</small></span><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setDraft(EMPTY_TEAM)} disabled={busy}><Plus size={14} />Add team</button></header>
     {loading ? <ControlAsyncState compact state="loading" title="Loading teams" message="Reading team membership and event overlays." /> : teams.length ? <div className="workspace-teams__list">{teams.map((team) => <article key={team.id} className="workspace-team" data-team={team.id}>
-      <TeamAvatar team={team} size={42} />
-      <span className="workspace-team__identity"><strong>{team.name}</strong><small>{team.description || "No description"}</small><em>{team.eventCount} event{team.eventCount === 1 ? "" : "s"}</em></span>
-      <span className="workspace-team__members" aria-label={`${team.members.length} members`}>{team.members.slice(0, 4).map((member) => <UserAvatar key={member.id} user={member} size={28} />)}{team.members.length > 4 ? <b>+{team.members.length - 4}</b> : null}{!team.members.length ? <small>No members</small> : null}</span>
+      <ControlIdentityLink className="workspace-team__identity" href={workspaceTeamHref(team.id)} name={team.name} detail={team.description || "No description"} meta={`${team.eventCount} event${team.eventCount === 1 ? "" : "s"}`} avatar={<TeamAvatar team={team} size={42} nativeTitle={false} />} ariaLabel={`Open ${team.name} workspace profile`} />
+      <span className="workspace-team__members" aria-label={`${team.members.length} members`}>{team.members.slice(0, 4).map((member) => <a key={member.id} href={workspaceMemberHref(member.id)} aria-label={`Open ${member.displayName} workspace profile`}><UserAvatar user={member} size={28} nativeTitle={false} /></a>)}{team.members.length > 4 ? <b>+{team.members.length - 4}</b> : null}{!team.members.length ? <small>No members</small> : null}</span>
       <span className="workspace-team__actions"><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setDraft({ id: team.id, name: team.name, description: team.description, iconDataUrl: team.iconDataUrl, userIds: team.members.map((member) => member.id) })} disabled={busy}><Pencil size={14} />Edit</button><button type="button" className="if-btn if-btn--danger if-btn--sm" onClick={() => void remove(team)} disabled={busy || team.eventCount > 0} title={team.eventCount ? "Reassign this team's events before deleting it" : "Delete team"}><Trash2 size={14} />Delete</button></span>
     </article>)}</div> : <ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="No team overlays" message="Everyone still sees workspace-wide events. Add a team only when some events need a narrower audience." action={<button type="button" className="if-btn if-btn--primary" onClick={() => setDraft(EMPTY_TEAM)}><Plus size={14} />Create first team</button>} />}
     {draft ? <ControlDialog open onClose={() => setDraft(null)} title={draft.id ? `Edit ${draft.name}` : "Create team"} eyebrow="Workspace visibility" summary="Members can see workspace-wide events plus events assigned to this team." size="wide" dialogRef={dialogRef} footer={<><button type="button" className="if-btn" onClick={() => setDraft(null)} disabled={busy}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="workspace-team-form" disabled={busy}><Save size={14} />Save team</button></>}>

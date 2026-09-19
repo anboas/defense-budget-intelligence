@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, Link2 } from "lucide-react";
-import { ControlDialog, ControlMultiSelect } from "control-surface-ui/react";
+import { ControlDrawer, ControlIdentityLink, ControlMultiSelect, ControlStatusBadge } from "control-surface-ui/react";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
@@ -108,6 +108,40 @@ function daysBetween(left, right) {
   return Number.isFinite(leftDate) && Number.isFinite(rightDate) ? Math.round((rightDate - leftDate) / 86400000) : null;
 }
 
+function calendarSelection(events, hash = window.location.hash) {
+  const params = new URLSearchParams(String(hash).split("?")[1] || "");
+  const eventId = params.get("calendarEvent") || "";
+  const milestoneId = params.get("calendarMilestone") || "";
+  const event = events.find((candidate) => String(candidate.id) === eventId);
+  return {
+    day: params.get("calendarDay") || null,
+    detail: event ? { event, milestone: milestoneId ? (event.milestones || []).find((candidate) => String(candidate.id) === milestoneId) || null : null } : null,
+  };
+}
+
+function navigateCalendarSelection({ event = null, milestone = null, day = "" } = {}) {
+  const [path, search = ""] = window.location.hash.split("?");
+  const params = new URLSearchParams(search);
+  params.delete("calendarEvent");
+  params.delete("calendarMilestone");
+  params.delete("calendarDay");
+  if (event?.id) params.set("calendarEvent", event.id);
+  if (milestone?.id) params.set("calendarMilestone", milestone.id);
+  if (day) params.set("calendarDay", day);
+  window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
+}
+
+function clearCalendarSelection() {
+  const [path, search = ""] = window.location.hash.split("?");
+  const params = new URLSearchParams(search);
+  params.delete("calendarEvent");
+  params.delete("calendarMilestone");
+  params.delete("calendarDay");
+  const nextHash = `${path}${params.size ? `?${params}` : ""}`;
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${nextHash}`);
+  return nextHash;
+}
+
 function CalendarHoverCard({ hover, categories }) {
   if (!hover) return null;
   const { item, attendee, left, top } = hover;
@@ -126,7 +160,7 @@ function CalendarHoverCard({ hover, categories }) {
     </> : <>
       <div><dt>Starts</dt><dd>{dateTime(event.startsAt)}</dd></div>
       <div><dt>Ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
-      <div><dt>Status</dt><dd>{event.status || "scheduled"}</dd></div>
+      <div><dt>Status</dt><dd><ControlStatusBadge status={event.status || "scheduled"} /></dd></div>
       <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
       <div><dt>Attendees</dt><dd>{attendees.length || "None"}</dd></div>
       <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
@@ -139,10 +173,10 @@ function CalendarHoverCard({ hover, categories }) {
   </aside>, document.body);
 }
 
-function CalendarEventModal({ detail, categories, onClose, onOpenMember }) {
+function CalendarEventDrawer({ detail, categories, onClose, onOpenMember }) {
   if (!detail) return null;
   const { event, milestone } = detail;
-  return <ControlDialog open onClose={onClose} title={milestone ? milestoneLabel(milestone) : event.title} eyebrow={milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"} summary={milestone ? event.title : null} size="detail" closeLabel="Close event details" surfaceProps={{ className: "ops-event-detail", "data-calendar-event-detail": true }} bodyProps={{ className: "ops-event-detail__body" }} footer={<button type="button" className="if-btn if-btn--secondary" onClick={onClose}>Close</button>}>
+  return <ControlDrawer open onClose={onClose} title={milestone ? milestoneLabel(milestone) : event.title} eyebrow={milestone ? milestoneTypeLabel(milestone.type) : "Workspace event"} summary={milestone ? event.title : null} size="wide" closeLabel="Close event details" className="ops-event-detail" drawerProps={{ "data-calendar-event-detail": true }} bodyProps={{ className: "ops-event-detail__body" }} footer={<button type="button" className="if-btn if-btn--secondary" onClick={onClose}>Close</button>}>
     <dl>
       <div><dt>{milestone ? "Milestone date" : "Starts"}</dt><dd>{dateTime(milestone?.occursAt || event.startsAt)}</dd></div>
       <div><dt>Event ends</dt><dd>{dateTime(event.endsAt || event.startsAt)}</dd></div>
@@ -152,18 +186,18 @@ function CalendarEventModal({ detail, categories, onClose, onOpenMember }) {
       <div><dt>Linked records</dt><dd>{event.recordIds?.length || "None"}</dd></div>
       <div><dt>Milestones</dt><dd>{event.milestones?.length || "None"}</dd></div>
     </dl>
-    {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <button type="button" key={attendee.id || attendee.displayName} onClick={() => { onClose(); onOpenMember?.(attendee); }} aria-label={`Open ${attendee.displayName} workspace profile`}><UserAvatar user={attendee} size={34} nativeTitle={false} /><span><strong>{attendee.displayName}</strong><small>{attendee.title || "Workspace member"}</small></span></button>)}</div></section> : null}
+    {event.attendees?.length ? <section><h3>Attendees</h3><div className="ops-event-detail__attendees">{event.attendees.map((attendee) => <ControlIdentityLink key={attendee.id || attendee.displayName} onClick={() => { onClose(); onOpenMember?.(attendee); }} name={attendee.displayName} detail={attendee.title || "Workspace member"} avatar={<UserAvatar user={attendee} size={34} nativeTitle={false} decorative />} ariaLabel={`Open ${attendee.displayName} workspace profile`} />)}</div></section> : null}
     {event.links?.length ? <section><h3>Event links</h3><div>{event.links.map((link) => <a key={link.id} className="if-btn if-btn--secondary" href={link.url} target="_blank" rel="noreferrer"><Link2 size={15} aria-hidden="true" />{link.label || new URL(link.url).hostname}</a>)}</div></section> : null}
     {event.milestones?.length ? <section><h3>Deadlines &amp; milestones</h3><div className="ops-event-detail__milestones">{event.milestones.map((entry) => <article key={entry.id} className={milestone?.id === entry.id ? "is-focused" : ""}><i aria-hidden="true" /><span><strong>{milestoneLabel(entry)}</strong><small>{milestoneTypeLabel(entry.type)}</small></span><time dateTime={entry.occursAt}>{compactDate(entry.occursAt)}</time>{entry.notes ? <p>{entry.notes}</p> : null}</article>)}</div></section> : null}
     {(milestone?.notes || event.notes) ? <section className="ops-event-detail__context"><h3>Context</h3><p>{milestone?.notes || event.notes}</p></section> : null}
-  </ControlDialog>;
+  </ControlDrawer>;
 }
 
 function CalendarDayAgenda({ day, events, onOpenItem, onClose }) {
   if (!day) return null;
   const items = calendarItemsForDay(events, day);
   const dayLabel = new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
-  return <ControlDialog open onClose={onClose} title={dayLabel} eyebrow="Day agenda" summary={`${items.length} scheduled item${items.length === 1 ? "" : "s"}`} size="detail" closeLabel="Close day agenda" surfaceProps={{ className: "ops-day-agenda", "data-calendar-day-agenda": day }} bodyProps={{ className: "ops-day-agenda__body" }} footer={<button type="button" className="if-btn if-btn--secondary" onClick={onClose}>Close</button>}>
+  return <ControlDrawer open onClose={onClose} title={dayLabel} eyebrow="Day agenda" summary={`${items.length} scheduled item${items.length === 1 ? "" : "s"}`} size="default" closeLabel="Close day agenda" className="ops-day-agenda" drawerProps={{ "data-calendar-day-agenda": day }} bodyProps={{ className: "ops-day-agenda__body" }} footer={<button type="button" className="if-btn if-btn--secondary" onClick={onClose}>Close</button>}>
     <div className="ops-day-agenda__list">{items.map((item) => {
       const { event, milestone } = item;
       const time = milestone ? "Milestone" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -174,13 +208,12 @@ function CalendarDayAgenda({ day, events, onOpenItem, onClose }) {
         <ChevronRight size={17} aria-hidden="true" />
       </button>;
     })}</div>
-  </ControlDialog>;
+  </ControlDrawer>;
 }
 
 export default function WallboardCalendar({ events, categories, teams = [], month, onMonthChange, now, workspace, standalone = false, onOpenMember }) {
   const [hover, setHover] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectionHash, setSelectionHash] = useState(() => window.location.hash);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const overlayStorageKey = `dbi:calendar-overlays:hidden:${workspace?.id || "workspace"}`;
   const [hiddenOverlayIds, setHiddenOverlayIds] = useState(() => {
@@ -216,6 +249,21 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
   const monthEvents = filteredEvents.filter((event) => String(event.startsAt || "").slice(0, 10) <= monthEnd && String(event.endsAt || event.startsAt || "").slice(0, 10) >= monthStart);
   const monthMilestones = filteredEvents.flatMap((event) => (event.milestones || []).filter((milestone) => String(milestone.occursAt || "").slice(0, 10) >= monthStart && String(milestone.occursAt || "").slice(0, 10) <= monthEnd));
   const weeks = Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
+  const { day: selectedDay, detail } = calendarSelection(events, selectionHash);
+  // Calendar inspection state belongs to the URL so browser Back closes drawers predictably.
+  useEffect(() => {
+    const syncSelection = () => setSelectionHash(window.location.hash);
+    window.addEventListener("hashchange", syncSelection);
+    window.addEventListener("popstate", syncSelection);
+    return () => {
+      window.removeEventListener("hashchange", syncSelection);
+      window.removeEventListener("popstate", syncSelection);
+    };
+  // The listener is stable; render-time event data resolves the selected identity.
+  }, []);
+  function closeSelection() {
+    setSelectionHash(clearCalendarSelection());
+  }
   function showHover(item, target, clientX, clientY, attendee = null) {
     const bounds = target.getBoundingClientRect();
     const width = Math.min(380, window.innerWidth - 16);
@@ -256,12 +304,12 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
             const countdown = eventCountdown(event, now);
             const milestoneType = milestone?.type?.replaceAll("_", "-") || "";
             return <div key={item.id} className={`ops-wall-calendar__bar ${milestone ? `ops-wall-calendar__bar--milestone is-${milestoneType}` : `is-${countdown.tone}`}${startsBefore ? " continues-before" : ""}${endsAfter ? " continues-after" : ""}`} style={{ gridColumn: `${startColumn + 1} / ${endColumn + 2}`, gridRow: lane + 1 }} data-calendar-lane={lane} {...(milestone ? { "data-calendar-milestone": milestone.id, "data-parent-event": event.id, "data-milestone-date": String(milestone.occursAt).slice(0, 10) } : { "data-calendar-event": event.id })} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse" && !pointerEvent.target.closest?.("[data-calendar-attendee]")) showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14); }} onPointerLeave={() => setHover(null)}>
-              <button type="button" className="ops-wall-calendar__bar-main" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} onClick={() => { setHover(null); setDetail({ event, milestone }); }} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
+              <button type="button" className="ops-wall-calendar__bar-main" aria-haspopup="dialog" aria-label={milestone ? `${milestoneLabel(milestone)} for ${event.title} on ${compactDate(milestone.occursAt)}` : `${event.title}, ${compactDate(event.startsAt)} to ${compactDate(event.endsAt || event.startsAt)}`} onClick={() => { setHover(null); navigateCalendarSelection({ event, milestone }); }} onFocus={(focusEvent) => { if (!window.matchMedia("(pointer: coarse)").matches) showHover(item, focusEvent.currentTarget); }} onBlur={() => setHover(null)}>
                 <i aria-hidden="true" />{!milestone && event.teams?.length ? <span className="ops-wall-calendar__bar-team"><TeamAvatar team={event.teams[0]} size={20} nativeTitle={false} />{event.teams.length > 1 ? <b>+{event.teams.length - 1}</b> : null}</span> : null}<span className="ops-wall-calendar__bar-copy"><strong>{milestone ? milestoneLabel(milestone) : event.title}</strong></span>
               </button>{!milestone && event.attendees?.length ? <span className="if-profile-avatar-stack ops-wall-calendar__bar-attendees" aria-label={`${event.attendees.length} attendee${event.attendees.length === 1 ? "" : "s"}`}>{event.attendees.slice(0, 3).map((attendee) => <button type="button" key={attendee.id || attendee.displayName} className="ops-wall-calendar__profile-link" data-calendar-attendee={attendee.id || attendee.displayName} aria-label={`Open ${attendee.displayName} workspace profile`} onPointerEnter={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14, attendee); }} onPointerMove={(pointerEvent) => { if (pointerEvent.pointerType === "mouse") showHover(item, pointerEvent.currentTarget, pointerEvent.clientX + 14, pointerEvent.clientY + 14, attendee); }} onFocus={(focusEvent) => showHover(item, focusEvent.currentTarget, undefined, undefined, attendee)} onBlur={() => setHover(null)} onClick={() => { setHover(null); onOpenMember?.(attendee); }}><UserAvatar user={attendee} className="if-profile-avatar" nativeTitle={false} /></button>)}{event.attendees.length > 3 ? <b className="if-profile-avatar">+{event.attendees.length - 3}</b> : null}</span> : null}
             </div>;
           })}</div>
-          {busyDays.length ? <div className="ops-wall-calendar__busy-days">{busyDays.map((day) => <button key={day.key} type="button" className="ops-wall-calendar__more" style={{ gridColumn: day.dayIndex + 1 }} data-calendar-overflow={day.key} aria-label={`Show all ${day.total} items on ${compactDate(day.key)}`} onClick={() => { setHover(null); setSelectedDay(day.key); }}>
+          {busyDays.length ? <div className="ops-wall-calendar__busy-days">{busyDays.map((day) => <button key={day.key} type="button" className="ops-wall-calendar__more" style={{ gridColumn: day.dayIndex + 1 }} data-calendar-overflow={day.key} aria-label={`Show all ${day.total} items on ${compactDate(day.key)}`} onClick={() => { setHover(null); navigateCalendarSelection({ day: day.key }); }}>
             <CalendarDays size={16} aria-hidden="true" />
             <span className="ops-wall-calendar__more-full"><strong>+{day.total - 1} more</strong><small>{day.total} total</small></span>
             <span className="ops-wall-calendar__more-compact" aria-hidden="true"><strong>{day.total}</strong><small>items</small></span>
@@ -271,7 +319,7 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
       })}</div>
     </div>
     <CalendarHoverCard hover={hover} categories={categories} />
-    <CalendarDayAgenda day={selectedDay} events={filteredEvents} onOpenItem={(item) => { setSelectedDay(null); setDetail(item); }} onClose={() => setSelectedDay(null)} />
-    <CalendarEventModal detail={detail} categories={categories} onClose={() => setDetail(null)} onOpenMember={onOpenMember} />
+    <CalendarDayAgenda day={selectedDay} events={filteredEvents} onOpenItem={(item) => navigateCalendarSelection(item)} onClose={closeSelection} />
+    <CalendarEventDrawer detail={detail} categories={categories} onClose={closeSelection} onOpenMember={onOpenMember} />
   </section>;
 }

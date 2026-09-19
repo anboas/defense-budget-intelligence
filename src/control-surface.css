@@ -839,6 +839,89 @@ code {
   flex-basis: 3rem;
 }
 
+.if-identity-link {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: var(--if-space-2);
+  padding: var(--if-space-1);
+  border: 0;
+  border-radius: var(--if-radius-2);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.if-identity-link:hover {
+  background: var(--if-bg-subtle);
+}
+
+.if-identity-link:focus-visible {
+  outline: 2px solid var(--if-focus);
+  outline-offset: 2px;
+}
+
+.if-identity-link__avatar {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  place-items: center;
+}
+
+.if-identity-link__avatar > * {
+  width: 100%;
+  height: 100%;
+}
+
+.if-identity-link__copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+}
+
+.if-identity-link__name,
+.if-identity-link__detail,
+.if-identity-link__meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.if-identity-link__name {
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-sm);
+}
+
+.if-identity-link__detail,
+.if-identity-link__meta {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+  line-height: var(--if-line-height-snug);
+}
+
+.if-identity-link--compact {
+  gap: var(--if-space-1);
+  padding: 0.15rem;
+}
+
+.if-identity-link--compact .if-identity-link__avatar {
+  width: 2rem;
+  height: 2rem;
+  flex-basis: 2rem;
+}
+
+@media (pointer: coarse) {
+  :where(a, button).if-identity-link {
+    min-height: 2.75rem;
+  }
+}
+
 @media (max-width: 30rem) {
   .if-identity-editor {
     align-items: flex-start;
@@ -1633,18 +1716,10 @@ code {
 }
 
 
-.if-badge--warning,
-.if-status--warning {
+.if-badge--warning {
   border-color: #f8c471;
   background: var(--if-warning-soft);
   color: var(--if-warning);
-}
-
-
-.if-status--danger {
-  border-color: #fca5a5;
-  background: var(--if-danger-soft);
-  color: var(--if-danger);
 }
 
 .if-badge--info,
@@ -5232,6 +5307,17 @@ button.if-chart-bar.is-selected {
 
   .if-operations-signal-grid--compact.if-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 47.5rem) {
+  .if-btn,
+  .if-icon-btn {
+    min-height: 2.75rem;
+  }
+
+  .if-icon-btn {
+    min-width: 2.75rem;
   }
 }
 

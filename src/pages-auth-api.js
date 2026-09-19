@@ -59,6 +59,7 @@ import {
 } from "./d1-event-store.js";
 import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
+import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import {
   ROLE_LABELS,
   WORKSPACE_ROLE_IDS,
@@ -1430,28 +1431,6 @@ async function usersResponse(request, db) {
   }
 
   return json({ error: "Method not allowed" }, 405);
-}
-
-async function directoryResponse(request, db) {
-  if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
-  const user = await sessionUser(db, request);
-  if (!user) return json({ error: "Sign in required" }, 401);
-  const result = await db.prepare(`
-    SELECT user.user_id, user.display_name, user.title, profile.avatar_data_url, membership.role
-    FROM dbi_workspace_memberships membership
-    JOIN dbi_users user ON user.user_id = membership.user_id
-    LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
-    WHERE membership.workspace_id = ? AND user.status = 'active'
-    ORDER BY user.display_name COLLATE NOCASE
-  `).bind(user.active_workspace_id).all();
-  return json({ users: (result.results || []).map((entry) => ({
-    id: entry.user_id,
-    displayName: entry.display_name,
-    title: entry.title || "",
-    avatarDataUrl: entry.avatar_data_url || "",
-    roleId: entry.role,
-    role: ROLE_LABELS[entry.role] || "Viewer",
-  })) });
 }
 
 function workspaceSummary(row, membership = null, request = null) {
@@ -3275,7 +3254,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
   if (pathname === "/api/v1/auth/emulation") return handleEmulationResponse(request, db, { sessionUser, publicSessionUser, recordActivity, json, safeJson });
-  if (pathname === "/api/v1/auth/directory") return directoryResponse(request, db);
+  if (pathname === "/api/v1/auth/directory") return handleDirectoryResponse(request, db, { sessionUser, json, roleLabels: ROLE_LABELS });
   if (pathname === "/api/v1/auth/teams" || pathname.startsWith("/api/v1/auth/teams/")) return handleTeamsResponse(request, db, { sessionUser, canAdministerWorkspaces, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);
   if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);

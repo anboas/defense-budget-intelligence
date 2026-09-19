@@ -53,6 +53,11 @@ if (!/control-surface-ui\/archive\/[0-9a-f]{40}\.tar\.gz$/.test(frameworkPin)) {
   violations.push("control-surface-ui must be pinned to an exact 40-character upstream commit archive");
 }
 
+const nonSemanticClickTargets = [...source.matchAll(/<(span|div|i)\b(?=[^>]*onClick=)(?![^>]*role=)[^>]*>/g)];
+if (nonSemanticClickTargets.length) violations.push(`${nonSemanticClickTargets.length} generic elements use onClick without an explicit semantic role`);
+const unfocusableButtons = [...source.matchAll(/<([a-z]+)\b(?=[^>]*role=["']button["'])(?![^>]*tabIndex=)(?![^>]*tabindex=)[^>]*>/gi)];
+if (unfocusableButtons.length) violations.push(`${unfocusableButtons.length} role=button elements are missing keyboard focusability`);
+
 if (violations.length) {
   console.error("UI conformance failed:\n- " + violations.join("\n- "));
   process.exit(1);

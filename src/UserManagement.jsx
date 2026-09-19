@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Eye, KeyRound, Pencil, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlStatusBadge, useToast } from "control-surface-ui/react";
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
+import { workspaceMemberHref } from "./workspace-profile-routes.js";
 
 const EMPTY_CREATE = { displayName: "", email: "", title: "", role: "analyst", password: "", confirm: "" };
 
@@ -179,10 +180,10 @@ export default function UserManagement({ auth }) {
     <div className="user-management__list" aria-label="Platform accounts">
       {users.length ? <div className="user-management__list-header" aria-hidden="true"><span>Account</span><span>Current workspace</span><span>Status</span><span>Actions</span></div> : null}
       {busy && !users.length ? <ControlAsyncState compact state="loading" title="Loading users" message="Reading workspace accounts and active sessions." /> : users.map((user) => <article key={user.id} className={`user-management__row${user.status === "suspended" ? " is-suspended" : ""}`} data-user-row={user.id}>
-        <UserAvatar user={user} className="user-management__avatar" />
-        <div className="user-management__identity"><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.title || "No title"}</small></div>
+        {user.hasWorkspaceMembership ? <a href={workspaceMemberHref(user.id)} aria-label={`Open ${user.displayName} workspace profile`}><UserAvatar user={user} className="user-management__avatar" nativeTitle={false} /></a> : <UserAvatar user={user} className="user-management__avatar" nativeTitle={false} />}
+        {user.hasWorkspaceMembership ? <ControlIdentityLink className="user-management__identity" href={workspaceMemberHref(user.id)} name={user.displayName} detail={user.email} meta={user.title || "No title"} ariaLabel={`Open ${user.displayName} workspace profile`} /> : <div className="user-management__identity"><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.title || "No title"}</small></div>}
         <div className="user-management__role"><span className="if-badge if-badge--info if-badge--sm">{user.hasWorkspaceMembership ? user.role : "No workspace access"}</span><small>{user.hasWorkspaceMembership ? roleDescription(user.workspaceRoleId || user.roleId) : "Grant access from Workspace settings → Access."}</small></div>
-        <div className="user-management__access"><span className={`if-status if-status--sm ${user.status === "active" ? "if-status--info" : "if-status--danger"}`}>{user.status === "active" ? "Active" : "Suspended"}</span><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>
+        <div className="user-management__access"><ControlStatusBadge status={user.status === "active" ? "active" : "blocked"} label={user.status === "active" ? "Active" : "Suspended"} /><span>{user.activeSessions} active session{user.activeSessions === 1 ? "" : "s"}</span><small>Last sign-in: {dateTime(user.lastLoginAt)}</small></div>
         <div className="user-management__actions">
           {user.isOwner ? <span className="user-management__owner"><ShieldCheck size={15} />Permanent owner</span> : <>
             {auth.user?.roleId === "super_user" && user.status === "active" ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => void auth.startEmulation(user.id).catch((error) => notify("View unavailable", error.message, "danger"))} disabled={busy}><Eye size={14} />View as</button> : null}

@@ -344,7 +344,7 @@ export default function OperationalDataTable({
         {showSearch ? <label className="if-search dbi-data-table__search">
           <Search size={15} aria-hidden="true" />
           <span className="sr-only">Search {label}</span>
-          <input className="if-input" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={searchPlaceholder} />
+          <input className="if-input" type="search" aria-label={searchPlaceholder} value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={searchPlaceholder} />
           {query ? <button type="button" onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear table search"><X size={14} /></button> : null}
         </label> : <div className="dbi-data-table__toolbar-spacer" aria-hidden="true" />}
         <div className="dbi-data-table__tools">
