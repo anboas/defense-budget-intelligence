@@ -14,7 +14,7 @@ const MONEY_META = {
   overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
   trends: { badge: "4 vintages", description: "Request changes across published budget vintages and fiscal years." },
   lifecycle: { badge: "153 accounts", description: "Exact account joins across apportionment, obligations, and award execution." },
-  awards: { badge: "689 awards", description: "Published USAspending awards, recipients, offices, and obligation detail." },
+  awards: { badge: "Growing feed", description: "Published USAspending awards, recipients, offices, and obligation detail." },
   sources: { badge: "6 stages", description: "Freshness, methodology, join quality, and official-source lineage." },
 };
 

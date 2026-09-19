@@ -15,7 +15,7 @@ concurrency:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -46,12 +46,12 @@ jobs:
         run: npm run lint && npm run verify:ui-conformance && npm run build
       - name: Commit changed contract observations
         run: |
-          if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json; then
+          if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json; then
             echo "No contract-monitor changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json
+          git add src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json
           git commit -m "chore(data): refresh daily acquisition feed"
           git push origin HEAD:main

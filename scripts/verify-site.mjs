@@ -234,17 +234,27 @@ try {
 
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
-  await page.waitForSelector("[data-transaction-analytics-page]");
-  assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Transactions should load the compact runtime manifest once");
-  assert.equal(await resourceCount(page, "budget-core.json"), 0, "Transactions should defer the detailed budget request dataset");
-  assert.equal(await resourceCount(page, "procurement-discovery.json"), 0, "Timeline should defer the discovery index and daily history until the Table opens");
-  assert.equal(budgetRequestRouteRequests, 0, "Transactions should defer the PDB Request, Request History, and Account Flow route family");
-  assert.equal(transactionRouteRequests, 1, "Transactions should load its lazy route module exactly once");
-  assert.equal(profileRouteRequests, 0, "Transactions should defer personal account surfaces");
+  await page.waitForSelector("[data-spend-today]");
+  assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Today should load the compact runtime manifest once");
+  assert.equal(await resourceCount(page, "budget-core.json"), 0, "Today should defer the detailed budget request dataset");
+  assert.equal(await resourceCount(page, "procurement-feed.json"), 1, "Today should load the compact daily feed exactly once");
+  assert.equal(await resourceCount(page, "procurement-discovery.json"), 0, "Today should defer the full discovery index until Table or a saved view requires it");
+  assert.equal(budgetRequestRouteRequests, 0, "Today should defer the PDB Request, Request History, and Account Flow route family");
+  assert.equal(transactionRouteRequests, 0, "Today should defer the full transaction timeline route");
+  assert.equal(profileRouteRequests, 0, "Today should defer personal account surfaces");
   const initialDecodedDataBytes = await page.evaluate(() => performance.getEntriesByType("resource")
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
-  assert.ok(initialDecodedDataBytes <= 2_000_000, `Transactions should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
+  assert.ok(initialDecodedDataBytes <= 2_000_000, `Today should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
+  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Spend Explorer should expose Today, Timeline, Table, and Charts");
+  assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Today should expose browser-local saved acquisition views with unread state");
+  assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Today should expose explicit source coverage and data-quality facts");
+  assert.match(await page.locator("[data-spend-today]").innerText(), /Source coverage is incomplete/i, "Today should disclose unavailable sources instead of treating them as empty updates");
+  await page.locator("[data-spend-saved-views] > summary").click();
+  await page.locator("[data-spend-saved-views] input").fill("AI and autonomy watch");
+  await page.getByRole("button", { name: "Save current view" }).click();
+  assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI and autonomy watch[\s\S]*No unread changes/i, "Saved acquisition views should retain the current scope and explicit unread state");
+  await page.getByRole("button", { name: "Delete saved view AI and autonomy watch" }).click();
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
   assert.match(await page.title(), /^Spend Explorer · Defense Budget & Spend Analytics$/);
   assert.equal(await page.locator("h1").count(), 1, "Each route should expose one product H1");
@@ -425,7 +435,9 @@ try {
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
   assert.equal(await page.locator("[data-award-filter-bar] .if-picker").count(), 5, "Awards should expose factual filter dimensions");
   assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
-  assert.match(await page.locator("[data-award-record-table] .dbi-data-table__status").innerText(), /689\s+of 689 records/i, "Awards should preserve the complete matched sample in pagination and export");
+  const awardStatusText = await page.locator("[data-award-record-table] .dbi-data-table__status").innerText();
+  const awardStatusCounts = awardStatusText.match(/([\d,]+)\s+of ([\d,]+) records/i)?.slice(1).map((value) => Number(value.replaceAll(",", ""))) || [];
+  assert.ok(awardStatusCounts[0] >= 689 && awardStatusCounts[0] === awardStatusCounts[1], `Awards should preserve the complete growing corpus in pagination and export, got ${awardStatusText}`);
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
   assert.equal(await page.locator("[data-award-record-table] .dbi-data-table__columns").count(), 1, "Awards should expose persistent column configuration");
   await assertButtonIntegrity(page, "Awards", "[data-awards-page]");
@@ -564,6 +576,11 @@ try {
   assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Spend Explorer views should share one deferred discovery request");
   assert.equal(await page.locator("[data-daily-acquisition-feed]").count(), 1, "Spend Explorer Table should expose a compact daily acquisition ledger");
   assert.equal(await page.locator("[data-explorer-hierarchy]").count(), 1, "Spend Explorer Table should expose one technology and DoW hierarchy rail");
+  await page.evaluate(() => { window.location.hash = "#/budget-spend/explorer?spendView=table&changes=today"; });
+  await page.waitForSelector(".spend-explorer__change-scope");
+  assert.match(await page.locator(".spend-explorer__change-scope").innerText(), /Complete daily update ledger/i, "Large daily refreshes should have a complete deferred-ledger route");
+  assert.equal(await page.getByRole("columnheader", { name: /Latest change/i }).count(), 1, "The complete daily ledger should expose field-level change summaries");
+  await page.getByRole("button", { name: "Show all records" }).click();
   assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /of (?:8\d\d|9\d\d|[1-9],\d{3,}) records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
   const tombstoneButton = page.locator('[data-spend-explorer="table"] button[title="Tombstone this record"]').first();
   await tombstoneButton.click();
@@ -1473,8 +1490,8 @@ try {
   assert.equal(new URL(page.url()).hash, "#/budget-spend", "Legacy strategy URLs should canonicalize to the request analytics surface");
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
   await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("[data-transaction-analytics-page]");
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Spend Explorer timeline");
+  await page.waitForSelector("[data-spend-today]");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Spend Explorer Today inbox");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -1529,8 +1546,13 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await installVerificationDate(mobile);
   await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
-  await mobile.waitForSelector("[data-transaction-analytics-page]");
+  await mobile.waitForSelector("[data-spend-today]");
   await assertFlowShell(mobile);
+  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Mobile Spend Explorer should expose the four focused views");
+  assert.ok(await mobile.locator("[data-spend-today] [data-if-table-row]").count() <= 5, "Mobile Today should start with a bounded acquisition inbox");
+  await assertButtonIntegrity(mobile, "Mobile Today", '[data-spend-explorer="today"]');
+  await assertNoPageOverflow(mobile, "Mobile Today");
+  await mobile.screenshot({ path: `${OUT_DIR}/spend-today-mobile.png`, fullPage: true });
   const mobileShellHeights = await mobile.locator("[data-mobile-more-menu-button], [data-notification-center-button], [data-profile-menu-trigger]").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileShellHeights.every((height) => height >= 43.5), `Mobile shell controls should preserve 44px touch targets: ${mobileShellHeights.join(", ")}`);
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
@@ -1742,7 +1764,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 schedule_views=3 spend_views=3 grouped_routes=8 money_flow_routes=5 work_routes=2 workspace_admin_routes=2 inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 schedule_views=3 spend_views=4 grouped_routes=8 money_flow_routes=5 work_routes=2 workspace_admin_routes=2 inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

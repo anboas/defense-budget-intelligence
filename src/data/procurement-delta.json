@@ -1,15 +1,344 @@
 {
   "metadata": {
     "schemaVersion": "2.0.0",
-    "generatedAt": "2026-09-19T03:51:07.013Z",
+    "generatedAt": "2026-09-19T05:52:51.102Z",
     "status": "compared",
-    "previousSnapshot": "2026-09-19T03:50:57.375Z",
-    "currentSnapshot": "2026-09-12T19:15:12.279Z"
+    "previousSnapshot": "2026-09-12T19:15:32.363Z",
+    "currentSnapshot": "2026-09-19T05:43:03.975Z"
   },
   "summary": {
-    "added": 0,
+    "added": 13,
     "updated": 0,
     "removed": 0
   },
-  "records": []
+  "records": [
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC101326FB991_9700_HC101322D0005_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 511.3,
+        "startDate": "2026-09-17",
+        "endDate": "2026-09-03",
+        "recipient": "TRACE SYSTEMS",
+        "description": "EMCC002814EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517410",
+        "pscCode": "7G22",
+        "buyerSubAgency": "U.S. Geological Survey",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "software-digital-engineering",
+          "space-systems"
+        ],
+        "title": "EMCC002814EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC101326FB991_9700_HC101322D0005_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC101326FB880_9700_HC101322D0005_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 511.3,
+        "startDate": "2026-08-31",
+        "endDate": "2026-08-21",
+        "recipient": "TRACE SYSTEMS",
+        "description": "EMCC002802EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517410",
+        "pscCode": "7G22",
+        "buyerSubAgency": "National Oceanic and Atmospheric Administration",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "software-digital-engineering",
+          "space-systems"
+        ],
+        "title": "EMCC002802EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC101326FB880_9700_HC101322D0005_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC101326FB877_9700_HC101322D0005_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 153.39,
+        "startDate": "2026-08-28",
+        "endDate": "2026-08-27",
+        "recipient": "TRACE SYSTEMS",
+        "description": "EMCC002799EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517410",
+        "pscCode": "7G22",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "software-digital-engineering",
+          "space-systems"
+        ],
+        "title": "EMCC002799EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC101326FB877_9700_HC101322D0005_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC101324FD498_9700_HC101321D0001_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 68923.33,
+        "startDate": "2024-10-28",
+        "endDate": "2030-02-25",
+        "recipient": "COMCAST GOVERNMENT SERVICES",
+        "description": "CEG1000305EBM-ETHERNET TRANSPORT SERVICES",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517311",
+        "pscCode": "DG11",
+        "buyerSubAgency": "Immediate Office of the Secretary of Transportation",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "CEG1000305EBM-ETHERNET TRANSPORT SERVICES"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC101324FD498_9700_HC101321D0001_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB249_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 12319,
+        "startDate": "2026-09-03",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002187EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY - UNITED STATES COAST, USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002187EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY - UNITED STATES COAST, USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND."
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB249_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108425FA597_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 1127.06,
+        "startDate": "2025-08-21",
+        "endDate": "2026-09-11",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB000594EBM PROCURE DMCC DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB000594EBM PROCURE DMCC DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND."
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108425FA597_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 4670.67,
+        "startDate": "2026-09-24",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002226EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "Departmental Offices",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002226EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB288_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB216_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 4203.45,
+        "startDate": "2026-09-24",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002154EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE U.S. COMMODITY FUTURES TRADING COMMISSION.",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "Commodity Futures Trading Commission",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002154EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE U.S. COMMODITY FUTURES TRADING COMMISSION."
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB216_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB291_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 1211.23,
+        "startDate": "2026-09-24",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002229EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002229EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND."
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB291_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB296_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 1211.23,
+        "startDate": "2026-09-24",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002234EBM: PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY - UNITED STATES COAST GUARD TELECOMMUNICATIONS AND INFORMATION SYSTEMS COMMAND",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002234EBM: PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY - UNITED STATES COAST GUARD TELECOMMUNICATIONS AND INFORMATION SYSTEMS COMMAND"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB296_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB306_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 10508.62,
+        "startDate": "2026-09-24",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002244EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "Departmental Offices",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002244EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB306_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 2101.72,
+        "startDate": "2026-09-24",
+        "endDate": "2029-09-30",
+        "recipient": "ATT MOBILITY",
+        "description": "DMOB002241EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+        "contractType": "DELIVERY ORDER",
+        "naicsCode": "517112",
+        "pscCode": "DG11",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "space-systems"
+        ],
+        "title": "DMOB002241EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND."
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB303_9700_HC108424D0002_9700"
+    },
+    {
+      "sourceSystem": "USAspending",
+      "sourceRecordId": "CONT_AWD_N4033926CF503_9700_-NONE-_-NONE-",
+      "change": "added",
+      "current": {
+        "awardAmountDollars": 442348,
+        "startDate": "2026-01-06",
+        "endDate": "2026-08-30",
+        "recipient": "ARAB SHIPBUILDING & REPAIR YARD CO (ASRY)",
+        "description": "USCGC JOHN SCHEUERMAN FY26 DD1 DRYDOCK AVAILABILITY",
+        "contractType": "DEFINITIVE CONTRACT",
+        "naicsCode": "336611",
+        "pscCode": "J998",
+        "buyerSubAgency": "U.S. Coast Guard",
+        "fundingOffice": "",
+        "awardingOffice": "",
+        "areaIds": [
+          "shipbuilding-maritime"
+        ],
+        "title": "USCGC JOHN SCHEUERMAN FY26 DD1 DRYDOCK AVAILABILITY"
+      },
+      "previous": null,
+      "fields": [],
+      "opportunityId": "auto_usaspending_CONT_AWD_N4033926CF503_9700__NONE___NONE_"
+    }
+  ]
 }

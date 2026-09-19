@@ -10,6 +10,7 @@ const COUNT_URL = "https://api.usaspending.gov/api/v2/awards/count/subaward/";
 const PAGE_LIMIT = Math.max(1, Math.min(100, Number(process.env.SUBAWARD_PAGE_LIMIT || 100)));
 const DETAIL_LIMIT = Math.max(1, Number(process.env.SUBAWARD_DETAIL_LIMIT || 100));
 const CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.SUBAWARD_CONCURRENCY || 4)));
+const PRIME_LIMIT = Math.max(1, Number(process.env.SUBAWARD_PRIME_LIMIT || 1000));
 
 const budget = JSON.parse(readFileSync(BUDGET_FILE, "utf8"));
 const awards = budget.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards || [];
@@ -149,7 +150,8 @@ async function mapConcurrent(items, worker, concurrency) {
 }
 
 const generatedAt = new Date().toISOString();
-const awardsToFetch = awards.filter((award) => award.id && (!retryFailuresOnly || previousFailureIds.has(award.id)));
+const eligibleAwards = awards.filter((award) => award.id).sort((left, right) => Number(right.awardAmountDollars || 0) - Number(left.awardAmountDollars || 0));
+const awardsToFetch = (retryFailuresOnly ? eligibleAwards.filter((award) => previousFailureIds.has(award.id)) : eligibleAwards.slice(0, PRIME_LIMIT));
 const fetched = await mapConcurrent(awardsToFetch, fetchPrime, CONCURRENCY);
 const failures = [];
 const allPrimeResults = retryFailuresOnly ? [...(previous.primes || [])] : [];
@@ -176,8 +178,13 @@ const out = {
     joinBasis: "Exact USAspending generated prime-award identifier",
     countUrl: COUNT_URL,
     methodology: `Exact counts use USAspending's prime-award subaward-count endpoint. Up to ${DETAIL_LIMIT} recent detail rows per positive prime are retained; their dollars are a labeled sample, not a complete subaward total.`,
-    checkedPrimeCount: awards.filter((award) => award.id).length,
-    successfulPrimeCount: awards.filter((award) => award.id).length - failures.length,
+    indexedPrimeCount: eligibleAwards.length,
+    primeLimit: PRIME_LIMIT,
+    checkedPrimeCount: awardsToFetch.length,
+    successfulPrimeCount: awardsToFetch.length - failures.length,
+    coverageStatus: failures.length
+      ? (eligibleAwards.length > awardsToFetch.length ? "partial-bounded-high-value-primes" : "partial-indexed-primes")
+      : (eligibleAwards.length > awardsToFetch.length ? "bounded-high-value-primes" : "complete-indexed-primes"),
     failedPrimeCount: failures.length,
     primeWithSubawardsCount: primes.filter((prime) => prime.reportedCount > 0).length,
     reportedSubawardCount: primes.reduce((total, prime) => total + Number(prime.reportedCount || 0), 0),

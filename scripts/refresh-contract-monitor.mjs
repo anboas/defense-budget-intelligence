@@ -8,6 +8,7 @@ const OUTPUT = resolve(ROOT, "src/data/contract-monitor.json");
 const TODAY = process.env.CONTRACT_MONITOR_AS_OF || new Date().toISOString().slice(0, 10);
 const CONCURRENCY = Math.max(1, Math.min(16, Number(process.env.CONTRACT_MONITOR_CONCURRENCY || 8)));
 const TIMEOUT_MS = Math.max(5_000, Number(process.env.CONTRACT_MONITOR_TIMEOUT_MS || 20_000));
+const TARGET_LIMIT = Math.max(500, Number(process.env.CONTRACT_MONITOR_TARGET_LIMIT || 2000));
 
 function readJson(path, fallback = {}) {
   try { return JSON.parse(readFileSync(resolve(ROOT, path), "utf8")); } catch { return fallback; }
@@ -140,10 +141,18 @@ function baseRecord(record, state, id) {
   };
 }
 
-const targets = records
+const eligibleTargets = records
   .map((record) => ({ record, state: lifecycle(record), generatedAwardId: generatedAwardId(record) }))
   .filter(({ state }) => state !== "historical")
-  .sort((left, right) => left.record.opportunityId.localeCompare(right.record.opportunityId));
+  .sort((left, right) => {
+    const priorDifference = Number(priorByOpportunity.has(right.record.opportunityId)) - Number(priorByOpportunity.has(left.record.opportunityId));
+    if (priorDifference) return priorDifference;
+    const sourceDifference = Number(left.record.sourceSystem === "USAspending") - Number(right.record.sourceSystem === "USAspending");
+    if (sourceDifference) return sourceDifference;
+    const valueDifference = Number(right.record.obligatedAmount || right.record.potentialAmount || 0) - Number(left.record.obligatedAmount || left.record.potentialAmount || 0);
+    return valueDifference || left.record.opportunityId.localeCompare(right.record.opportunityId);
+  });
+const targets = eligibleTargets.slice(0, TARGET_LIMIT);
 
 const results = new Array(targets.length);
 let cursor = 0;
@@ -230,9 +239,12 @@ const output = {
     status: byStatus.unavailable ? "partial" : byStatus["coverage-gap"] ? "gaps-disclosed" : "current",
     sourceSystem: "USAspending award detail plus SAM.gov opportunity batch",
     sourceUrls: ["https://api.usaspending.gov/api/v2/awards/", "https://open.gsa.gov/api/get-opportunities-public-api/"],
-    methodology: "Every known non-historical DBI procurement record is evaluated. Exact USAspending award identifiers are refreshed individually; single explicit active-contract PIIDs may resolve through identity-validated DoD award or IDV probes; SAM notices inherit the credentialed batch status; records without an exact automated key remain explicit coverage gaps.",
+    methodology: "Up to 2,000 priority non-historical DBI procurement records are evaluated through exact detail probes, preserving every previously monitored record before selecting additional high-value records. The paginated daily award corpus independently tracks all query-scoped USAspending additions and field changes. Exact USAspending award identifiers are refreshed individually; single explicit active-contract PIIDs may resolve through identity-validated DoD award or IDV probes; SAM notices inherit the credentialed batch status; records without an exact automated key remain explicit coverage gaps.",
     retention: "The prior verified observation is retained and marked stale when a transient refresh fails.",
     targetCount: results.length,
+    eligibleTargetCount: eligibleTargets.length,
+    excludedTargetCount: Math.max(0, eligibleTargets.length - results.length),
+    targetLimit: TARGET_LIMIT,
     exactTargetCount,
     coveredCount,
     currentCount: byStatus.current + byStatus["batch-current"],
@@ -240,6 +252,7 @@ const output = {
     unavailableCount: byStatus.unavailable,
     gapCount: byStatus["coverage-gap"],
     coveragePercent: results.length ? Number(((coveredCount / results.length) * 100).toFixed(1)) : 0,
+    corpusCoveragePercent: eligibleTargets.length ? Number(((coveredCount / eligibleTargets.length) * 100).toFixed(1)) : 0,
     byLifecycle,
     byStatus,
   },

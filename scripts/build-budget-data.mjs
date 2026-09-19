@@ -848,12 +848,11 @@ function mergeAwardEntries(awards) {
       });
       continue;
     }
-    existing.areaIds.add(award.areaId);
-    existing.areas.add(award.area);
-    if (award.awardAmount > existing.awardAmount) {
-      existing.awardAmount = award.awardAmount;
-      existing.awardAmountDollars = award.awardAmountDollars;
-    }
+    const areaIds = existing.areaIds;
+    const areas = existing.areas;
+    areaIds.add(award.areaId);
+    areas.add(award.area);
+    Object.assign(existing, award, { areaIds, areas });
   }
   return [...groups.values()].map((award) => ({
     ...award,
@@ -1565,26 +1564,33 @@ const technologyTaggedRecords = records.filter((record) => record.technologyArea
 const evidenceBackedRecords = records.filter((record) => record.justificationEvidence);
 const evidenceBackedTechnologyRecords = technologyTaggedRecords.filter((record) => record.justificationEvidence);
 const narrativeConfirmedTechnologyRecords = technologyTaggedRecords.filter((record) => record.justificationEvidence?.confirmedTechnologyAreas?.length > 0);
-const awardEntries = (usaspendingSnapshot.areas || []).flatMap((areaResult) => (
+const retainedAwardEntries = (usaspendingSnapshot.retainedAwards || []).flatMap((award) => {
+  const areaIds = award.areaIds?.length ? award.areaIds : [award.areaId].filter(Boolean);
+  return areaIds.map((areaId) => ({ ...award, areaId, area: technologyAreaLabel(areaId) }));
+});
+const refreshedAwardEntries = (usaspendingSnapshot.areas || []).flatMap((areaResult) => (
   (areaResult.results || []).map((award) => normalizeAward(award, areaResult.area))
 ));
+const awardEntries = [...retainedAwardEntries, ...refreshedAwardEntries];
 const uniqueAwards = [...new Map(awardEntries.map((award) => [award.id, award])).values()];
 const drilldownAwards = mergeAwardEntries(awardEntries);
 const uniqueAwardValue = round(uniqueAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3);
 const executionPeriods = awardPeriods(uniqueAwards);
-const awardAreaRows = (usaspendingSnapshot.areas || []).map((areaResult) => {
-  const areaAwards = (areaResult.results || []).map((award) => normalizeAward(award, areaResult.area));
+const refreshAreaById = new Map((usaspendingSnapshot.areas || []).map((areaResult) => [areaResult.area.id, areaResult.area]));
+const awardAreaRows = TECHNOLOGY_AREAS.map((configuredArea) => {
+  const area = refreshAreaById.get(configuredArea.id) || configuredArea;
+  const areaAwards = awardEntries.filter((award) => award.areaId === area.id);
   const areaUniqueAwards = [...new Map(areaAwards.map((award) => [award.id, award])).values()];
   const topVendors = aggregateAwards(areaUniqueAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 5);
   const topBuyers = aggregateAwards(areaUniqueAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency, group: buyerGroup(award.buyerSubAgency) })).slice(0, 5);
   return {
-    id: areaResult.area.id,
-    label: areaResult.area.label,
-    keywords: areaResult.area.keywords,
+    id: area.id,
+    label: area.label,
+    keywords: area.keywords || [],
     resultCount: areaAwards.length,
     uniqueAwards: areaUniqueAwards.length,
     awardAmount: round(areaUniqueAwards.reduce((totalValue, award) => totalValue + award.awardAmount, 0), 3),
-    serviceFit: serviceFitForArea(areaResult.area.id),
+    serviceFit: serviceFitForArea(area.id),
     topVendors,
     topBuyers,
     topAwards: areaUniqueAwards
@@ -1672,6 +1678,10 @@ const executionCoverage = {
   startDate: usaspendingSnapshot.metadata?.startDate,
   endDate: usaspendingSnapshot.metadata?.endDate,
   methodology: usaspendingSnapshot.metadata?.methodology,
+  coverageStatus: usaspendingSnapshot.metadata?.coverageStatus || "sampled-query-boundary",
+  pageCount: usaspendingSnapshot.metadata?.pageCount || null,
+  pageSize: usaspendingSnapshot.metadata?.pageSize || usaspendingSnapshot.metadata?.limitPerArea || null,
+  truncatedAreaCount: usaspendingSnapshot.metadata?.truncatedAreaCount || 0,
   areaCount: usaspendingSnapshot.metadata?.cachedAreaCount || awardAreaRows.length,
   failedAreaCount: usaspendingSnapshot.metadata?.failedAreaCount || 0,
   trendSeriesCount: usaspendingSnapshot.metadata?.trendSeriesCount || 0,

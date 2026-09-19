@@ -32,6 +32,12 @@
       "exactAwardAccountLinks": 487,
       "awardsMappedToCurrentAccounts": 183,
       "awardAccountFailures": 0
+    },
+    "status": "stale",
+    "lastAttemptAt": "2026-09-19T05:47:58.445Z",
+    "diagnostic": {
+      "code": "source_unavailable",
+      "message": "fetch failed"
     }
   },
   "summary": {

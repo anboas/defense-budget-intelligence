@@ -6702,6 +6702,45 @@ td .dot {
 .spend-explorer__hierarchy > div span { color: var(--if-text-muted); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-black); letter-spacing: .04em; text-transform: uppercase; }
 .spend-explorer__hierarchy > div strong { overflow: hidden; color: var(--if-text-strong); font-size: var(--if-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
 .spend-explorer__hierarchy .if-picker { min-width: 0; width: 100%; }
+.spend-saved-views__create {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: var(--if-space-2);
+  padding: var(--if-space-2) var(--if-space-3);
+  border-bottom: var(--if-divider);
+}
+.spend-saved-views__create label { display: grid; gap: 4px; color: var(--if-text-muted); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-bold); }
+.spend-saved-views__create input { min-height: 38px; width: 100%; padding: 0 var(--if-space-2); border: var(--if-border); border-radius: var(--if-radius-sm); background: var(--if-bg-surface); color: var(--if-text); }
+.spend-today { display: grid; gap: var(--if-space-3); padding: var(--if-space-3); }
+.spend-today__status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: var(--if-border);
+  border-radius: var(--if-radius-md);
+  background: var(--if-bg-surface);
+}
+.spend-today__status > div { display: grid; gap: 2px; min-width: 0; padding: var(--if-space-3); border-right: var(--if-divider); }
+.spend-today__status > div:last-child { border-right: 0; }
+.spend-today__status strong { color: var(--if-text-strong); font-size: var(--if-font-size-lg); }
+.spend-today__status span { color: var(--if-text-muted); font-size: var(--if-font-size-xs); }
+.spend-today__source-alert { display: flex; align-items: flex-start; gap: var(--if-space-2); margin: 0; }
+.spend-today__source-alert svg { flex: 0 0 auto; }
+.spend-today__source-alert span { display: grid; gap: 2px; }
+.spend-explorer__change-scope { display: flex; align-items: center; justify-content: space-between; gap: var(--if-space-3); }
+.spend-explorer__change-scope > span { display: grid; gap: 2px; }
+.spend-today__controls { display: flex; align-items: end; justify-content: flex-end; }
+.spend-today__controls .if-picker { width: min(100%, 260px); }
+.spend-today__kind { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.spend-today__coverage { border: var(--if-border); border-radius: var(--if-radius-md); background: var(--if-bg-surface); }
+.spend-today__coverage > summary { display: flex; min-height: 44px; align-items: center; padding: var(--if-space-2) var(--if-space-3); cursor: pointer; }
+.spend-today__coverage > summary > span { display: grid; gap: 2px; }
+.spend-today__coverage > summary strong { color: var(--if-text-strong); font-size: var(--if-font-size-sm); }
+.spend-today__coverage > summary small { color: var(--if-text-muted); font-size: var(--if-font-size-xs); }
+.spend-today__coverage > div { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: var(--if-divider); }
+.spend-today__coverage > div span { display: grid; gap: 2px; padding: var(--if-space-3); border-right: var(--if-divider); color: var(--if-text-muted); font-size: var(--if-font-size-xs); }
+.spend-today__coverage > div span:last-child { border-right: 0; }
+.spend-today__coverage b { color: var(--if-text-strong); font-size: var(--if-font-size-base); }
 
 @media (max-width: 1100px) {
   .spend-explorer__hierarchy { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -6713,6 +6752,14 @@ td .dot {
   .spend-explorer__hierarchy .if-picker { min-height: 44px; }
   .spend-explorer__daily-feed article { grid-template-columns: 1fr repeat(3, auto); padding: var(--if-space-2); }
   .spend-explorer__daily-feed article small { grid-column: 1 / -1; }
+  .spend-today { gap: var(--if-space-2); padding: var(--if-space-2); }
+  .spend-today__status { grid-template-columns: 1fr; }
+  .spend-today__status > div { padding: var(--if-space-2); border-right: 0; border-bottom: var(--if-divider); }
+  .spend-today__status > div:last-child { border-bottom: 0; }
+  .spend-today__coverage > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .spend-today__coverage > div span { border-bottom: var(--if-divider); }
+  .spend-saved-views__create { grid-template-columns: 1fr; padding: var(--if-space-2); }
+  .spend-saved-views__create button { min-height: 44px; }
 }
 
 @media (max-width: 440px) {

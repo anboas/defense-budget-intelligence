@@ -97,6 +97,10 @@ for (const asset of assets.filter((name) => name.endsWith(".js"))) {
   assert.ok(bytes <= 550_000, `${asset} exceeds the 550KB route-chunk ceiling (${bytes} bytes)`);
 }
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
+const procurementFeedBytes = (await stat(resolve(root, "dist/data/procurement-feed.json"))).size;
+const procurementDiscoveryBytes = (await stat(resolve(root, "dist/data/procurement-discovery.json"))).size;
+assert.ok(procurementFeedBytes <= 250_000, `The default Today feed must stay compact, got ${procurementFeedBytes} bytes`);
+assert.ok(procurementDiscoveryBytes > procurementFeedBytes, "The full discovery index must remain deferred from the compact Today feed");
 
 console.log("Security and architecture contracts passed", {
   headers: requiredHeaders.length,

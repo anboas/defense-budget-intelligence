@@ -1,8 +1,8 @@
-name: Refresh intelligence snapshots
+name: Refresh daily intelligence snapshots
 
 on:
   schedule:
-    - cron: "17 10 * * 1"
+    - cron: "17 10 * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: write
     steps:
@@ -51,6 +51,7 @@ jobs:
         env:
           PREVIOUS_BUDGET_FILE: ${{ runner.temp }}/previous-budget-intelligence.json
           PREVIOUS_SAM_FILE: ${{ runner.temp }}/previous-sam-opportunities.json
+          PREVIOUS_CONTRACT_MONITOR_FILE: ${{ runner.temp }}/previous-contract-monitor.json
         run: npm run data:procurement-delta
       - name: Audit dependency graph
         run: npm audit --audit-level=high
@@ -76,13 +77,13 @@ jobs:
         run: docker compose down --volumes
       - name: Commit changed snapshots
         run: |
-          if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json src/data/contract-monitor.json; then
+          if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json src/data/contract-monitor.json; then
             echo "No snapshot changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json src/data/contract-monitor.json
+          git add src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-subawards.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json src/data/contract-monitor.json
           git commit -m "chore(data): refresh budget intelligence snapshots"
           git push origin HEAD:main
       - name: Publish refreshed GitHub Pages

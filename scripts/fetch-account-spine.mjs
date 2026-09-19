@@ -18,9 +18,10 @@ const today = new Date();
 const defaultFiscalYear = today.getUTCMonth() >= 9 ? today.getUTCFullYear() + 1 : today.getUTCFullYear();
 const FISCAL_YEAR = Number(process.env.ACCOUNT_SPINE_FISCAL_YEAR || defaultFiscalYear);
 const AGENCY_CODE = process.env.ACCOUNT_SPINE_AGENCY_CODE || "097";
-const CONCURRENCY = Math.max(1, Number(process.env.ACCOUNT_SPINE_CONCURRENCY || 12));
+const CONCURRENCY = Math.max(1, Number(process.env.ACCOUNT_SPINE_CONCURRENCY || 6));
 const AWARD_ACCOUNT_CONCURRENCY = Math.max(1, Number(process.env.AWARD_ACCOUNT_CONCURRENCY || 4));
 const AWARD_ACCOUNT_LIMIT = Math.max(1, Number(process.env.AWARD_ACCOUNT_LIMIT || 250));
+const REQUEST_TIMEOUT_MS = Math.max(5_000, Number(process.env.ACCOUNT_SPINE_REQUEST_TIMEOUT_MS || 30_000));
 const USER_AGENT = "defense-budget-intelligence-account-spine/1.0";
 
 function normalizeTitle(value = "") {
@@ -34,7 +35,7 @@ function normalizeTitle(value = "") {
 
 async function fetchText(url, attempt = 1) {
   try {
-    const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+    const response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (!response.ok) {
       if (attempt < 6 && (response.status === 429 || response.status >= 500)) {
         await new Promise((resolvePromise) => setTimeout(resolvePromise, Math.min(8_000, attempt * 750)));
@@ -63,6 +64,7 @@ async function fetchJsonPost(url, body, attempt = 1) {
         "user-agent": USER_AGENT,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) {
       if (attempt < 8 && (response.status === 429 || response.status >= 500)) {
@@ -340,12 +342,36 @@ function accountStages(account, request, ombByTas) {
   };
 }
 
-const [omb, usa, request] = await Promise.all([
-  fetchOmbApportionments(),
-  fetchFederalAccounts(),
-  Promise.resolve(budgetRequests()),
-]);
-const awardAccounts = await fetchAwardAccountFlows();
+let omb;
+let usa;
+let request;
+let awardAccounts;
+try {
+  [omb, usa, request] = await Promise.all([
+    fetchOmbApportionments(),
+    fetchFederalAccounts(),
+    Promise.resolve(budgetRequests()),
+  ]);
+  awardAccounts = await fetchAwardAccountFlows();
+} catch (error) {
+  try {
+    const previous = JSON.parse(readFileSync(OUT_FILE, "utf8"));
+    previous.metadata = {
+      ...(previous.metadata || {}),
+      status: "stale",
+      lastAttemptAt: new Date().toISOString(),
+      diagnostic: {
+        code: error?.name === "AbortError" ? "timeout" : "source_unavailable",
+        message: String(error?.message || "Account-spine refresh failed").replace(/https?:\/\/\S+/g, "upstream endpoint").slice(0, 240),
+      },
+    };
+    writeFileSync(OUT_FILE, `${JSON.stringify(previous, null, 2)}\n`);
+    console.warn(`Account spine retained the prior verified snapshot: ${previous.metadata.diagnostic.message}`);
+    process.exit(0);
+  } catch {
+    throw error;
+  }
+}
 const ombByTas = new Map(omb.documents.map((document) => [document.tasCode, document]));
 const accounts = usa.accounts
   .map((account) => accountStages(account, request, ombByTas))
@@ -371,6 +397,9 @@ const output = {
   metadata: {
     title: `FY${FISCAL_YEAR} Department of War Exact Account Spine`,
     generatedAt: new Date().toISOString(),
+    status: "current",
+    lastAttemptAt: new Date().toISOString(),
+    diagnostic: null,
     fiscalYear: FISCAL_YEAR,
     agencyCode: AGENCY_CODE,
     relationshipPolicy: "TAFS joins are exact. Budget-request joins are derived only when normalized federal-account titles match exactly. No budget-line-to-award relationship is asserted.",

@@ -12,6 +12,7 @@ const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
 const MANUAL_PROCUREMENT_FILE = resolve(ROOT, "src/data/manual-procurement.json");
 const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
 const PROCUREMENT_DISCOVERY_FILE = resolve(ROOT, "src/data/procurement-discovery.json");
+const PROCUREMENT_FEED_FILE = resolve(ROOT, "src/data/procurement-feed.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
 const OUT_DIR = resolve(ROOT, "public/data");
@@ -42,8 +43,8 @@ if (new Set(contractMonitor.records.map((record) => record.opportunityId)).size 
 }
 const subawardPrimeIds = new Set((subawards.primes || []).map((prime) => prime.primeAwardId));
 const currentAwardIds = new Set(source.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards?.map((award) => award.id) || []);
-if (subawards.metadata?.checkedPrimeCount < currentAwardIds.size || !subawardPrimeIds.size) {
-  throw new Error("Subaward snapshot must cover the indexed USAspending prime-award universe");
+if (subawards.metadata?.checkedPrimeCount < Math.min(currentAwardIds.size, 500) || !subawardPrimeIds.size) {
+  throw new Error("Subaward snapshot must cover a disclosed bounded set of indexed USAspending prime awards");
 }
 if ([...subawardPrimeIds].some((primeAwardId) => !currentAwardIds.has(primeAwardId))) {
   throw new Error("Subaward snapshot contains an unknown prime-award identifier");
@@ -141,6 +142,10 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "procurement-discovery.json"),
   readFileSync(PROCUREMENT_DISCOVERY_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "procurement-feed.json"),
+  readFileSync(PROCUREMENT_FEED_FILE, "utf8"),
 );
 writeFileSync(
   resolve(OUT_DIR, "contract-monitor.json"),

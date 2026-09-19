@@ -1,0 +1,505 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "generatedAt": "2026-09-19T05:52:51.102Z",
+    "status": "compared",
+    "discoveryCount": 888,
+    "historyDays": 1,
+    "coverage": {
+      "scope": "Technology-focused acquisition records assembled from disclosed public-source queries; not exhaustive DoW award coverage.",
+      "knownRecords": 888,
+      "sourceCounts": {
+        "Normalized capture source packet": 198,
+        "USAspending": 690
+      },
+      "unknownHierarchy": 0,
+      "unclassifiedTechnology": 76,
+      "missingExactIdentifier": 0,
+      "contractMonitor": {
+        "targetCount": 522,
+        "eligibleTargetCount": 522,
+        "excludedTargetCount": 0,
+        "exactCount": 461,
+        "gapCount": 61,
+        "coveragePct": 88.3,
+        "corpusCoveragePct": 88.3
+      },
+      "sources": {
+        "sam": {
+          "status": "unavailable",
+          "generatedAt": null,
+          "lastAttemptAt": null
+        },
+        "usaspending": {
+          "status": "current",
+          "generatedAt": "2026-09-19T05:43:03.975Z",
+          "coverageStatus": "incremental-growing-query-boundary"
+        },
+        "contractMonitor": {
+          "status": "gaps-disclosed",
+          "generatedAt": "2026-09-18T13:46:49.542Z"
+        }
+      }
+    }
+  },
+  "history": [
+    {
+      "date": "2026-09-19",
+      "generatedAt": "2026-09-19T05:52:51.102Z",
+      "summary": {
+        "added": 13,
+        "updated": 0,
+        "removed": 0
+      },
+      "sources": {
+        "sam": "unavailable",
+        "usaspending": "current",
+        "contractMonitor": "gaps-disclosed"
+      },
+      "changes": [
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC101326FB991_9700_HC101322D0005_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC101326FB991_9700_HC101322D0005_9700",
+          "change": "added",
+          "title": "EMCC002814EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC101326FB880_9700_HC101322D0005_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC101326FB880_9700_HC101322D0005_9700",
+          "change": "added",
+          "title": "EMCC002802EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC101326FB877_9700_HC101322D0005_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC101326FB877_9700_HC101322D0005_9700",
+          "change": "added",
+          "title": "EMCC002799EBM ENHANCED MOBILE SATELLITE SERVICES (EMSS) EQUIPMENT/ACTIVATION/REPAIR",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC101324FD498_9700_HC101321D0001_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC101324FD498_9700_HC101321D0001_9700",
+          "change": "added",
+          "title": "CEG1000305EBM-ETHERNET TRANSPORT SERVICES",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB249_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB249_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002187EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY - UNITED STATES COAST, USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108425FA597_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108425FA597_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB000594EBM PROCURE DMCC DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002226EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB216_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB216_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002154EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE U.S. COMMODITY FUTURES TRADING COMMISSION.",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB291_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB291_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002229EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB296_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB296_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002234EBM: PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY - UNITED STATES COAST GUARD TELECOMMUNICATIONS AND INFORMATION SYSTEMS COMMAND",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB306_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB306_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002244EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
+          "change": "added",
+          "title": "DMOB002241EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
+          "fields": [],
+          "fieldCount": 0
+        },
+        {
+          "sourceSystem": "USAspending",
+          "sourceRecordId": "CONT_AWD_N4033926CF503_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N4033926CF503_9700__NONE___NONE_",
+          "change": "added",
+          "title": "USCGC JOHN SCHEUERMAN FY26 DD1 DRYDOCK AVAILABILITY",
+          "fields": [],
+          "fieldCount": 0
+        }
+      ],
+      "truncated": false
+    }
+  ],
+  "closingSoon": [
+    {
+      "opportunityId": "opp_53bbb59f57e8a535b143",
+      "sourceRecordId": "opp_53bbb59f57e8a535b143",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "CG-791 / CGCYBER cyberspace training",
+      "date": "2026-09-19"
+    },
+    {
+      "opportunityId": "opp_0d7cd3a12e17f4816f2d",
+      "sourceRecordId": "opp_0d7cd3a12e17f4816f2d",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "JCC2 Readiness / development and sustainment",
+      "date": "2026-09-23"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W15QKN25FA190_9700_W15QKN21D0009_9700",
+      "sourceRecordId": "CONT_AWD_W15QKN25FA190_9700_W15QKN21D0009_9700",
+      "sourceSystem": "USAspending",
+      "title": "EMERGENCY MANAGEMENT SUSTAINMENT SUPPORT SERVICES",
+      "date": "2026-09-23"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q21F0332_9700_W31P4Q18D0002_9700",
+      "sourceRecordId": "CONT_AWD_W31P4Q21F0332_9700_W31P4Q18D0002_9700",
+      "sourceSystem": "USAspending",
+      "title": "NAVAL AIR WARFARE CENTER WEAPONS DIVISION (NAWCWD) AIRBORNE ELECTRONIC ATTACK INTEGRATED PRODUCT TEAM (AEA IPT) MACHINE LEARNING SUPPORT",
+      "date": "2026-09-24"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_SP470125C0100_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_SP470125C0100_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "PROCUREMENT INTEGRATED ENTERPRISE ENVIRONMENT ARTIFICIAL INTELLIGENCE MACHINE LEARNING TRANSFORMATION",
+      "date": "2026-09-24"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA701421C0024_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA701421C0024_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "PKH-MCCRAY-MATTIS-PUBLICLY AVAILABLE INFORMATION DEPARTMENT OF DEFENSE ENTERPRISE LICENSE SUBSCRIPTION (PADELS)",
+      "date": "2026-09-25"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W911QX24C0004_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_W911QX24C0004_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "RESEARCH, DEVELOPMENT, TEST, AND EVALUATION OF CDAO SMART SENSOR AUTONOMOUS ISR UNMANNED AIRCRAFT SYSTEM PLATFORM.",
+      "date": "2026-09-25"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA830725CB031_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA830725CB031_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "MIXMODE SBIR PHASE III - ARTIFICIAL INTELLIGENCE FOR NETWORK VISIBILITY AND REAL-TIME THREAT DETECTION FOR PROTECTION OF DATA, NETWORKS, NET-CENTRIC CAPABILITIES, AND OTHER DESIGNATED SYSTEMS RESPONDING TO ATTACKS AGAINST FRIENDLY NETWORKS.",
+      "date": "2026-09-25"
+    },
+    {
+      "opportunityId": "opp_913ffcd84eb815f5c194",
+      "sourceRecordId": "opp_913ffcd84eb815f5c194",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "Space C2 analysis / NSC-24-076",
+      "date": "2026-09-26"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA873024FB028_9700_HC105023D0005_9700",
+      "sourceRecordId": "CONT_AWD_FA873024FB028_9700_HC105023D0005_9700",
+      "sourceSystem": "USAspending",
+      "title": "GLOBAL WARFIGHTING CLOUD INFRASTRUCTURE (GWCI)",
+      "date": "2026-09-26"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W519TC23F0515_9700_W519TC23G0018_9700",
+      "sourceRecordId": "CONT_AWD_W519TC23F0515_9700_W519TC23G0018_9700",
+      "sourceSystem": "USAspending",
+      "title": "6 MOBILITY ANALYSTS FOR USCENTCOM IN SUPPORT OF CDAO",
+      "date": "2026-09-26"
+    },
+    {
+      "opportunityId": "opp_1e5c1c8ded1c7f9454b0",
+      "sourceRecordId": "opp_1e5c1c8ded1c7f9454b0",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "CDAO SETA support",
+      "date": "2026-09-27"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0002423C5117_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N0002423C5117_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "SYSTEMS ENGINEERING AND SOFTWARE INTEGRATION OF THE INTEGRATED COMBAT SYSTEM",
+      "date": "2026-09-27"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N6523623F3039_9700_N0017819D7949_9700",
+      "sourceRecordId": "CONT_AWD_N6523623F3039_9700_N0017819D7949_9700",
+      "sourceSystem": "USAspending",
+      "title": "DEFENSE HEALTH AGENCY, CYBERSECURITY ASSESSMENT AND AUTHORIZATION SUPPORT",
+      "date": "2026-09-27"
+    },
+    {
+      "opportunityId": "opp_82a725c69c2b69060407",
+      "sourceRecordId": "opp_82a725c69c2b69060407",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "IT PERFORM AS SERVICES",
+      "date": "2026-09-28"
+    },
+    {
+      "opportunityId": "opp_d34b724808d18b86b3b7",
+      "sourceRecordId": "opp_d34b724808d18b86b3b7",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "Forge IT operations",
+      "date": "2026-09-28"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA810921C0001_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA810921C0001_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "ENTERPRISE SUPPLY CHAIN ANALYSIS PLANNING AND EXECUTION (ESCAPE)SOFTWARE AND CLOUD SUSTAINMENT",
+      "date": "2026-09-28"
+    },
+    {
+      "opportunityId": "opp_db445026ff60c977d312",
+      "sourceRecordId": "opp_db445026ff60c977d312",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "PMA-281 CMPC user-centered design",
+      "date": "2026-09-29"
+    },
+    {
+      "opportunityId": "opp_7656606d6acdf68a79a7",
+      "sourceRecordId": "opp_7656606d6acdf68a79a7",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "DLA enterprise platform",
+      "date": "2026-09-29"
+    },
+    {
+      "opportunityId": "opp_9d18af3f270560b3c796",
+      "sourceRecordId": "opp_9d18af3f270560b3c796",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "DLA enterprise platform / ServiceNow support",
+      "date": "2026-09-29"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_S5121A23C0007_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_S5121A23C0007_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "CHIEF DATA OFFICER & DATA ANALYTICAL SUPPORT",
+      "date": "2026-09-29"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_HQ003424C0151_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_HQ003424C0151_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "ARTIFICIAL INTELLIGENCE OPEN SOURCE INTELLIGENCE SOFTWARE SUPPORT SERVICES",
+      "date": "2026-09-29"
+    },
+    {
+      "opportunityId": "opp_78e67abb6e6635630dd8",
+      "sourceRecordId": "opp_78e67abb6e6635630dd8",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "C2BMC Spiral 8.2-7 software development",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "opp_41011bcd5455be771723",
+      "sourceRecordId": "opp_41011bcd5455be771723",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "DLA enterprise cyber / Task 1",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "opp_30dde3dd926e0c206843",
+      "sourceRecordId": "opp_30dde3dd926e0c206843",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "Application Arsenal enterprise engineering / lifecycle follow-on",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_HQ014711C0006_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_HQ014711C0006_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "IRBM TARGETS",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0001921C0723_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N0001921C0723_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "AIM-9X LOT 21-23 PRODUCTION",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA248616C0002_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA248616C0002_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "IGF::OT::IGF EGLIN - OPERATION&MAINTENANCE SERVICES (E-OMS)",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0003019C0100_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N0003019C0100_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "FY20 TRIDENT PRODUCTION AND DEPLOYED SYSTEMS SUPPORT",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0001916C0004_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N0001916C0004_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "LRIP 10 NA SUSTAINMENT FMS",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N3220521C3009_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N3220521C3009_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "N105B/PM3 AND PM5/ CREATED BY PAVELCHAK ON BEHALF OF WOOD, JAMES/ CONTRACT AWARD FOR THE OPERATION AND MAINTENANCE OF EIGHT GOVERNMENT-OWNED LARGE, MEDIUM-SPEED, ROLL-ON, ROLL-OFF (LMSR) VESSELS.",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA910124CB002_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA910124CB002_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "TEST OPERATIONS AND SUSTAINMENT (TOS) II",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0002418C2106_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N0002418C2106_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "PLANNING YEAR 1 OF CVN 74 RCOH ADVANCE PLANNING AND CVN 74 RCOH MATERIAL",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q16C0036_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_W31P4Q16C0036_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "IGF::OT:IGF HIMARS UAE",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA811022F0001_9700_FA861614D6060_9700",
+      "sourceRecordId": "CONT_AWD_FA811022F0001_9700_FA861614D6060_9700",
+      "sourceSystem": "USAspending",
+      "title": "CY22-24 B-2 PROGRAMMED DEPOT MAINTENANCE",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_HTC71124FD025_9700_HTC71123DD001_9700",
+      "sourceRecordId": "CONT_AWD_HTC71124FD025_9700_HTC71123DD001_9700",
+      "sourceSystem": "USAspending",
+      "title": "MANAGED INFORMATION TECHNOLOGY SERVICES CYBER OPERATIONS TASK ORDER",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA807520C0001_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA807520C0001_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "DEPARTMENT OF DEFENSE INFORMATION ANALYSIS CENTER PROGRAM MANAGEMENT OFFICE RESEARCH&ANALYSIS",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W911QX22C0029_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_W911QX22C0029_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "ADVANCED TEST AND EVALUATION (T&E) FOR THE EXPONENTIAL PACE OF ARTIFICIAL INTELLIGENCE / MACHINE LEARNING (AI/ML) PROGRESS.",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA873023CB037_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_FA873023CB037_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "CONTINUOUS INTEGRATION, CONTINUOUS DEVELOPMENT PIPELINE FOR CLOUD ONE",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_HC105023F0035_9700_HC105023D0005_9700",
+      "sourceRecordId": "CONT_AWD_HC105023F0035_9700_HC105023D0005_9700",
+      "sourceSystem": "USAspending",
+      "title": "USTRANSCOM CLOUD SERVICE OFFERING",
+      "date": "2026-09-30"
+    },
+    {
+      "opportunityId": "opp_c8c4dcc4c1a28face861",
+      "sourceRecordId": "opp_c8c4dcc4c1a28face861",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "NGC2 test data / API integration",
+      "date": "2026-10-05"
+    },
+    {
+      "opportunityId": "opp_bfd28009b73a6bbc1ab7",
+      "sourceRecordId": "opp_bfd28009b73a6bbc1ab7",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "ARESNET adversary-adaptive simulation",
+      "date": "2026-10-05"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0002421C2106_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N0002421C2106_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "FY21 RCOH ACCOMPLISHMENT",
+      "date": "2026-10-06"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA872624FB071_9700_GS35F540GA_4732",
+      "sourceRecordId": "CONT_AWD_FA872624FB071_9700_GS35F540GA_4732",
+      "sourceSystem": "USAspending",
+      "title": "ENTERPRISE CLOUD SERVICE PROVIDER RESELLER AND SOFTWARE MANAGEMENT",
+      "date": "2026-10-10"
+    },
+    {
+      "opportunityId": "opp_1cd0db9990a451b49109",
+      "sourceRecordId": "opp_1cd0db9990a451b49109",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "GCCS-J strategic engineering and technical support",
+      "date": "2026-10-11"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N6274223C1314_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_N6274223C1314_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "FY19 MCAF PAF189030 APSI CARGO PAD WITH TAXIWAY EXTENSION, FY19 MCAF PAF189040 APSI MAINTENANCE SUPPORT FACILITY, FY20 MCAF PAF189010 FUEL TANKS, PIPELINE & HYDRANT SYSTEM AND FY20 MCAF PAF189021 APSI AIRFIELD DEVELOPMENT PHASE I ROADS,...",
+      "date": "2026-10-11"
+    }
+  ]
+}
