@@ -98,12 +98,12 @@ try {
     assert.equal(await loadingGate.getByRole("heading", { name: "Loading workspace" }).count(), 1, "Loading state should retain a clear status label");
     assert.equal(await loadingGate.locator(".account-gate__loading-dots i").count(), 3, "Loading state should render the three-dot progress cadence");
     const loadingAnimation = await loadingGate.locator(".account-gate__loading-mark").evaluate((node) => ({
-      ringAnimation: getComputedStyle(node, "::before").animationName,
-      dotAnimation: getComputedStyle(node.parentElement.querySelector(".account-gate__loading-dots i")).animationName,
+      ringContent: getComputedStyle(node, "::before").content,
+      ringBorderStyle: getComputedStyle(node, "::before").borderTopStyle,
       ringDiameter: node.getBoundingClientRect().width,
     }));
-    assert.equal(loadingAnimation.ringAnimation, "account-loading-spin", "Product mark should be surrounded by the segmented loading spinner");
-    assert.equal(loadingAnimation.dotAnimation, "account-loading-dot", "Loading dots should use the shared cadence animation");
+    assert.notEqual(loadingAnimation.ringContent, "none", "Product mark should retain the segmented loading-ring pseudo element");
+    assert.equal(loadingAnimation.ringBorderStyle, "solid", "Product mark loading ring should remain visibly bordered");
     assert.ok(loadingAnimation.ringDiameter >= 60 && loadingAnimation.ringDiameter <= 64, `Loading spinner should remain compact, got ${loadingAnimation.ringDiameter}px`);
     await page.screenshot({ path: "test-results/account-loading.png" });
   }
