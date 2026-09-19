@@ -11,6 +11,7 @@ const CAPTURE_TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.j
 const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
 const MANUAL_PROCUREMENT_FILE = resolve(ROOT, "src/data/manual-procurement.json");
 const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
+const PROCUREMENT_DISCOVERY_FILE = resolve(ROOT, "src/data/procurement-discovery.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
 const OUT_DIR = resolve(ROOT, "public/data");
@@ -64,6 +65,8 @@ const execution = {
   coverage: strategyAnalytics.executionAnalytics?.coverage || {},
   awardDrilldown: strategyAnalytics.executionAnalytics?.awardDrilldown || {},
 };
+const procurementDelta = JSON.parse(readFileSync(PROCUREMENT_DELTA_FILE, "utf8"));
+const procurementDiscovery = JSON.parse(readFileSync(PROCUREMENT_DISCOVERY_FILE, "utf8"));
 const agentRecords = applyProcurementChanges(
   attachContractMonitor(assembleProcurementRecords(
     captureCalendar.records,
@@ -73,7 +76,8 @@ const agentRecords = applyProcurementChanges(
     JSON.parse(readFileSync(MANUAL_PROCUREMENT_FILE, "utf8")).records || [],
     subawards,
   ), contractMonitor),
-  JSON.parse(readFileSync(PROCUREMENT_DELTA_FILE, "utf8")).records || [],
+  procurementDelta.records || [],
+  procurementDiscovery.discovery || [],
 );
 if (agentRecords.length < 875 || new Set(agentRecords.map((record) => record.opportunityId)).size !== agentRecords.length) {
   throw new Error("Agent record index must contain at least 875 unique stable records");
@@ -133,6 +137,10 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "procurement-delta.json"),
   readFileSync(PROCUREMENT_DELTA_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "procurement-discovery.json"),
+  readFileSync(PROCUREMENT_DISCOVERY_FILE, "utf8"),
 );
 writeFileSync(
   resolve(OUT_DIR, "contract-monitor.json"),

@@ -32,20 +32,26 @@ jobs:
         run: npm ci
       - name: Audit dependency graph
         run: npm audit --audit-level=high
+      - name: Preserve previous daily snapshots
+        run: |
+          cp src/data/sam-opportunities.json "$RUNNER_TEMP/previous-sam-opportunities.json"
+          cp src/data/contract-monitor.json "$RUNNER_TEMP/previous-contract-monitor.json"
       - name: Refresh official contract observations
         env:
           SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
-        run: npm run source:sam && npm run source:contracts
+          PREVIOUS_SAM_FILE: ${{ runner.temp }}/previous-sam-opportunities.json
+          PREVIOUS_CONTRACT_MONITOR_FILE: ${{ runner.temp }}/previous-contract-monitor.json
+        run: npm run source:sam && npm run source:contracts && npm run data:procurement-delta
       - name: Verify generated runtime and UI contracts
         run: npm run lint && npm run verify:ui-conformance && npm run build
       - name: Commit changed contract observations
         run: |
-          if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json; then
+          if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json; then
             echo "No contract-monitor changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/sam-opportunities.json src/data/contract-monitor.json
-          git commit -m "chore(data): refresh active contract monitor"
+          git add src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json
+          git commit -m "chore(data): refresh daily acquisition feed"
           git push origin HEAD:main

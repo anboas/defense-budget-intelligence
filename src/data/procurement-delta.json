@@ -1,10 +1,10 @@
 {
   "metadata": {
-    "schemaVersion": "1.0.0",
-    "generatedAt": null,
-    "status": "baseline",
-    "previousSnapshot": null,
-    "currentSnapshot": null
+    "schemaVersion": "2.0.0",
+    "generatedAt": "2026-09-19T03:51:07.013Z",
+    "status": "compared",
+    "previousSnapshot": "2026-09-19T03:50:57.375Z",
+    "currentSnapshot": "2026-09-12T19:15:12.279Z"
   },
   "summary": {
     "added": 0,

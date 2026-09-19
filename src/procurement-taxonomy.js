@@ -19,6 +19,56 @@ const CATEGORY_DEFINITIONS = [
 export const WORK_CATEGORY_OPTIONS = CATEGORY_DEFINITIONS.map(({ id, label, color }) => ({ id, label, color }));
 export const WORK_CATEGORY_BY_ID = new Map(WORK_CATEGORY_OPTIONS.map((category) => [category.id, category]));
 
+const TECHNOLOGY_AREA_DEFINITIONS = [
+  { id: "ai-decision-advantage", label: "AI / Decision Advantage", terms: [/artificial intelligence|machine learning|\bai\b|algorithm|decision advantage|jadc2|battle management/i] },
+  { id: "autonomous-systems", label: "Autonomous Systems", terms: [/autonom|unmanned|\buav\b|\buas\b|robotic|c-?suas/i] },
+  { id: "cyber-operations", label: "Cyber Operations", terms: [/cyber|zero trust|information assurance|network defense|cryptolog/i] },
+  { id: "software-digital-engineering", label: "Software / Digital Engineering", terms: [/software|digital engineering|modeling and simulation|devsecops|software factory/i] },
+  { id: "cloud-data-platforms", label: "Cloud / Data Platforms", terms: [/\bcloud\b|data fabric|data platform|data analytics|enterprise platform/i] },
+  { id: "space-systems", label: "Space Systems", terms: [/\bspace\b|satellite|orbital|launch vehicle|missile warning|\bgps\b/i] },
+  { id: "missiles-fires", label: "Missiles / Fires", terms: [/missile|hypersonic|munition|rocket|interceptor|joint fires/i] },
+  { id: "readiness-sustainment", label: "Readiness / Sustainment", terms: [/readiness|sustainment|maintenance|depot|supply chain|logistics/i] },
+  { id: "shipbuilding-maritime", label: "Shipbuilding / Maritime", terms: [/ship|submarine|destroyer|frigate|carrier|maritime|vessel/i] },
+  { id: "aircraft-aviation", label: "Aircraft / Aviation", terms: [/aircraft|aviation|fighter|bomber|helicopter|aircrew|f-?35|b-?21/i] },
+  { id: "installations-infrastructure", label: "Installations / Infrastructure", terms: [/installation|facility|military construction|infrastructure|utilities|\bmilcon\b/i] },
+];
+
+export const TECHNOLOGY_AREA_OPTIONS = TECHNOLOGY_AREA_DEFINITIONS.map(({ id, label }) => ({ id, label }));
+export const TECHNOLOGY_AREA_BY_ID = new Map(TECHNOLOGY_AREA_OPTIONS.map((area) => [area.id, area]));
+
+export function classifyTechnologyAreas(input = {}) {
+  const published = [...new Set([...(input.technologyAreas || []), ...(input.areaIds || [])].filter(Boolean))];
+  if (published.length) return published;
+  const text = compactText([input.title, input.description, input.context, input.pscDescription, input.naicsDescription]);
+  return TECHNOLOGY_AREA_DEFINITIONS.filter((area) => area.terms.some((term) => term.test(text))).map((area) => area.id);
+}
+
+function normalizedOrganizationLabel(value, fallback = "Component not published") {
+  const text = compactText([value]);
+  return text || fallback;
+}
+
+export function organizationHierarchy(input = {}) {
+  const buyer = normalizedOrganizationLabel(input.buyerSubAgency || input.fundingSubAgency || input.subTier || input.department);
+  const office = normalizedOrganizationLabel(input.fundingOffice || input.awardingOffice || input.office, "Office not published");
+  const context = compactText([buyer, office, input.organizationPath, input.title]);
+  const militaryDepartment = /department of the army|department of the navy|department of the air force/i.test(buyer);
+  let component = buyer;
+  if (/marine corps|\busmc\b/i.test(context)) component = "U.S. Marine Corps";
+  else if (/space force|\bussf\b/i.test(context)) component = "U.S. Space Force";
+  else if (/department of the army/i.test(buyer)) component = "U.S. Army";
+  else if (/department of the navy/i.test(buyer)) component = "U.S. Navy";
+  else if (/department of the air force/i.test(buyer)) component = "U.S. Air Force";
+  const branch = militaryDepartment ? "Military Departments" : "Fourth Estate";
+  return {
+    root: "Department of War",
+    branch,
+    component,
+    office,
+    path: ["Department of War", branch, component, office],
+  };
+}
+
 export const INGESTION_METHOD_OPTIONS = [
   { id: "automated", label: "Automated public feed", color: "#0086b3" },
   { id: "source-file", label: "Normalized source-file import", color: "#647a8b" },
@@ -110,6 +160,8 @@ export function automatedAwardRecord(award, asOf) {
     naicsCode: award.naicsCode,
     naicsDescription: award.naicsDescription,
   });
+  const technologyAreas = classifyTechnologyAreas({ ...award, title: award.description, description: award.description });
+  const organization = organizationHierarchy(award);
   return {
     opportunityId: `auto_usaspending_${stableIdentifier.replace(/[^A-Z0-9]/g, "_")}`,
     id: reference || "USAspending award",
@@ -157,6 +209,9 @@ export function automatedAwardRecord(award, asOf) {
     naicsDescription: award.naicsDescription || null,
     pscCode: award.pscCode || null,
     pscDescription: award.pscDescription || null,
+    technologyAreas,
+    technologyAreaLabels: technologyAreas.map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area),
+    organization,
     workCategory: classification.primary,
     workCategories: classification.categories,
     workCategoryBasis: classification.basis,
@@ -174,6 +229,8 @@ export function automatedAwardRecord(award, asOf) {
 export function automatedSamRecord(notice, asOf) {
   const noticeId = String(notice.noticeId || notice.solicitationNumber || "").trim();
   const classification = classifyWork({ title: notice.title, description: notice.description, pscCode: notice.pscCode, naicsCode: notice.naicsCode });
+  const technologyAreas = classifyTechnologyAreas({ title: notice.title, description: notice.description });
+  const organization = organizationHierarchy(notice);
   const events = [
     notice.postedDate ? { eventId: `sam_${noticeId}_posted`, kind: "notice-posted", start: notice.postedDate, end: notice.postedDate, precision: "day", label: "Notice posted", sourceUrl: notice.sourceUrl, isForecast: false, isVerified: true, isOptional: false, status: notice.postedDate <= asOf ? "past" : "future", sourcePublishedDate: notice.postedDate } : null,
     notice.responseDeadline ? { eventId: `sam_${noticeId}_deadline`, kind: "response-deadline", start: notice.responseDeadline, end: notice.responseDeadline, precision: "day", label: "Response deadline", sourceUrl: notice.sourceUrl, isForecast: false, isVerified: true, isOptional: false, status: notice.responseDeadline >= asOf ? "future" : "past", sourcePublishedDate: notice.postedDate } : null,
@@ -228,6 +285,9 @@ export function automatedSamRecord(notice, asOf) {
     naicsDescription: null,
     pscCode: notice.pscCode || null,
     pscDescription: null,
+    technologyAreas,
+    technologyAreaLabels: technologyAreas.map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area),
+    organization,
     workCategory: classification.primary,
     workCategories: classification.categories,
     workCategoryBasis: classification.basis,
@@ -239,12 +299,19 @@ export function automatedSamRecord(notice, asOf) {
     sourceRecordId: notice.noticeId || noticeId,
     automatedImport: true,
     placeOfPerformance: notice.placeOfPerformance || null,
+    firstSeenAt: notice.firstSeenAt || null,
+    lastSeenAt: notice.lastSeenAt || null,
+    lastChangedAt: notice.lastChangedAt || null,
+    sourcePublishedAt: notice.postedDate || null,
+    sourceUpdatedAt: notice.sourceUpdatedAt || null,
   };
 }
 
 export function importedManualRecord(input, asOf) {
   const method = input.ingestionMethod === "curated" ? "curated" : "manual";
   const classification = classifyWork(input);
+  const technologyAreas = classifyTechnologyAreas(input);
+  const organization = organizationHierarchy(input);
   const identifier = String(input.opportunityId || input.noticeId || input.solicitationNumber || input.reference || input.title || "manual-record").replace(/[^A-Za-z0-9]/g, "_");
   const events = (input.events || []).map((event, index) => ({
     eventId: event.eventId || `manual_${identifier}_${index}`,
@@ -310,6 +377,9 @@ export function importedManualRecord(input, asOf) {
     naicsDescription: input.naicsDescription || null,
     pscCode: input.pscCode || null,
     pscDescription: input.pscDescription || null,
+    technologyAreas,
+    technologyAreaLabels: technologyAreas.map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area),
+    organization,
     workCategory: input.workCategory || classification.primary,
     workCategories: input.workCategories?.length ? input.workCategories : classification.categories,
     workCategoryBasis: input.workCategoryBasis || classification.basis,
@@ -366,6 +436,22 @@ export function enrichSourceRecord(record, liveAward = null, subawardSummary = n
   const provenance = record.ingestionMethod
     ? { method: record.ingestionMethod, label: record.ingestionLabel, channels: record.ingestionChannels || [] }
     : provenanceForSourceRecord(record, liveAward);
+  const technologyAreas = classifyTechnologyAreas({
+    ...record,
+    areaIds: liveAward?.areaIds || [],
+    title: record.title,
+    description: record.sourceDescription,
+    context: record.context,
+    pscDescription: record.pscDescription || liveAward?.pscDescription,
+    naicsDescription: record.naicsDescription || liveAward?.naicsDescription,
+  });
+  const organization = organizationHierarchy({
+    ...record,
+    buyerSubAgency: liveAward?.buyerSubAgency || record.portfolio,
+    fundingSubAgency: liveAward?.fundingSubAgency || record.owner,
+    fundingOffice: liveAward?.fundingOffice || record.fundingOffice,
+    awardingOffice: liveAward?.awardingOffice || record.contractingOffice,
+  });
   return attachSubawards({
     ...record,
     liveAward,
@@ -373,6 +459,9 @@ export function enrichSourceRecord(record, liveAward = null, subawardSummary = n
     naicsDescription: record.naicsDescription || liveAward?.naicsDescription || null,
     pscCode: record.pscCode || liveAward?.pscCode || null,
     pscDescription: record.pscDescription || liveAward?.pscDescription || null,
+    technologyAreas,
+    technologyAreaLabels: technologyAreas.map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area),
+    organization,
     workCategory: record.workCategory || classification.primary,
     workCategories: record.workCategories?.length ? record.workCategories : classification.categories,
     workCategoryBasis: record.workCategoryBasis || classification.basis,
@@ -405,14 +494,27 @@ export function assembleProcurementRecords(sourceRecords = [], awards = [], asOf
   return [...curated, ...automatic, ...sam, ...manual];
 }
 
-export function applyProcurementChanges(records = [], changes = []) {
+export function applyProcurementChanges(records = [], changes = [], discovery = []) {
   const byReference = new Map(changes.map((change) => [String(change.sourceRecordId || "").toUpperCase(), change]));
+  const discoveryById = new Map(discovery.map((entry) => [String(entry.opportunityId || entry.sourceRecordId || "").toUpperCase(), entry]));
   return records.map((record) => {
-    const change = [record.sourceRecordId, record.liveAward?.id, record.reference]
+    const keys = [record.opportunityId, record.sourceRecordId, record.liveAward?.id, record.reference]
+      .map((value) => String(value || "").toUpperCase());
+    const change = keys
       .map((value) => String(value || "").toUpperCase())
       .map((key) => byReference.get(key))
       .find(Boolean);
-    return change ? { ...record, changeStatus: change.change, changeSourceSystem: change.sourceSystem, changeDetail: change } : { ...record, changeStatus: "unchanged", changeSourceSystem: null, changeDetail: null };
+    const seen = keys.map((key) => discoveryById.get(key)).find(Boolean);
+    const discoveryFields = seen ? {
+      firstSeenAt: seen.firstSeenAt || null,
+      lastSeenAt: seen.lastSeenAt || null,
+      lastChangedAt: seen.lastChangedAt || null,
+      sourcePublishedAt: seen.sourcePublishedAt || record.sourcePublishedAt || null,
+      sourceUpdatedAt: seen.sourceUpdatedAt || record.sourceUpdatedAt || null,
+    } : {};
+    return change
+      ? { ...record, ...discoveryFields, changeStatus: change.change, changeSourceSystem: change.sourceSystem, changeDetail: change }
+      : { ...record, ...discoveryFields, changeStatus: "unchanged", changeSourceSystem: null, changeDetail: null };
   });
 }
 

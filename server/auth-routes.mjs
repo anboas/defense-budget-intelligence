@@ -36,8 +36,8 @@ import {
   validPasswordProof,
 } from "../src/security-policy.js";
 import { registerTeamEmulationRoutes } from "./team-emulation-routes.mjs";
+import { registerRecordDispositionRoutes } from "./record-disposition-routes.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
-
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 30));
 const MAX_ATTEMPTS = Math.max(3, Number(process.env.AUTH_MAX_ATTEMPTS || 8));
@@ -579,7 +579,7 @@ export async function registerAuthRoutes(app, pool) {
   const required = enabled && process.env.AUTH_REQUIRE_LOGIN === "true";
   const allowFirstClaim = process.env.ALLOW_FIRST_CLAIM !== "false";
   registerTeamEmulationRoutes(app, pool, { assertSameOrigin, authenticated, hydratedUser, canAdministerWorkspaces });
-
+  registerRecordDispositionRoutes(app, pool, { assertSameOrigin, authenticated });
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
     const [owner, session] = await Promise.all([account(pool), authenticated(pool, request)]);

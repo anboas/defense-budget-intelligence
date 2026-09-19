@@ -128,11 +128,12 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "events", "event-categories", "activity", "api-requests", "integrations"]);
+  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "record-dispositions", "events", "event-categories", "activity", "api-requests", "integrations"]);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.openapi, "3.1.0");
+  assert.ok(result.payload.paths["/api/v1/agent/record-dispositions/{recordId}"], "Agent OpenAPI must document workspace tombstone and restore operations");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: agentToken }));
   assert.equal(result.response.status, 200);
@@ -163,6 +164,22 @@ try {
   assert.equal(result.payload.meta.measure, "obligatedAmount");
   assert.ok(result.payload.meta.totalRecords >= 875);
   assert.ok(result.payload.data.length > 0 && result.payload.data.length <= 10);
+  for (const dimension of ["technologyArea", "organizationBranch", "organizationComponent", "organizationOffice"]) {
+    result = await body(await request(instance.baseUrl, `/api/v1/agent/analytics?dimension=${dimension}&measure=records&limit=10`, { token: agentToken }));
+    assert.equal(result.response.status, 200);
+    assert.equal(result.payload.meta.dimension, dimension);
+    assert.ok(result.payload.data.length > 0, `Agent analytics should aggregate the ${dimension} explorer dimension`);
+  }
+
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/record-dispositions/${encodeURIComponent(factualRecordId)}`, {
+    method: "PUT", token: agentToken, body: { disposition: "tombstoned", reason: "Agent API disposition contract" },
+  }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.recordId, factualRecordId);
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/record-dispositions", { token: agentToken }));
+  assert.ok(result.payload.data.some((row) => row.recordId === factualRecordId && row.disposition === "tombstoned"));
+  const dispositionDelete = await request(instance.baseUrl, `/api/v1/agent/record-dispositions/${encodeURIComponent(factualRecordId)}`, { method: "DELETE", token: agentToken });
+  assert.equal(dispositionDelete.status, 204);
 
   const idempotencyKey = crypto.randomUUID();
   const manualInput = {

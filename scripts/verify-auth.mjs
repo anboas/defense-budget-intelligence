@@ -990,6 +990,22 @@ try {
     return { recordId, eventId: (await eventResponse.json()).data.id, trackingStatus: trackingResponse.status };
   }, visibleRecordId);
   assert.equal(workspaceSeed.trackingStatus, 201);
+  const dispositionContract = await page.evaluate(async (recordId) => {
+    const saved = await fetch(`/api/v1/agent/record-dispositions/${encodeURIComponent(recordId)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ disposition: "tombstoned", reason: "Authenticated D1 disposition contract" }),
+    });
+    const savedBody = await saved.json();
+    const listed = await fetch("/api/v1/agent/record-dispositions");
+    const listedBody = await listed.json();
+    return { savedStatus: saved.status, savedBody, listedStatus: listed.status, listedBody };
+  }, visibleRecordId);
+  assert.equal(dispositionContract.savedStatus, 200, "Authenticated D1 users with workspace write access should tombstone a stable explorer record");
+  assert.equal(dispositionContract.savedBody.data.recordId, visibleRecordId);
+  assert.ok(dispositionContract.listedBody.data.some((row) => row.recordId === visibleRecordId && row.disposition === "tombstoned"), "Authenticated D1 disposition listing should retain the workspace tombstone");
+  const dispositionRestoreStatus = await page.evaluate(async (recordId) => (await fetch(`/api/v1/agent/record-dispositions/${encodeURIComponent(recordId)}`, { method: "DELETE" })).status, visibleRecordId);
+  assert.equal(dispositionRestoreStatus, 204, "Authenticated D1 users should restore a workspace tombstone");
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
   await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
   assert.equal(await page.locator(".operations-boundary").count(), 0, "Working routes should not repeat the storage contract as persistent page chrome");

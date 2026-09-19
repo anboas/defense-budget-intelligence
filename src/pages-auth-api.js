@@ -60,6 +60,8 @@ import {
 import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
+import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
+import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import {
   ROLE_LABELS,
   WORKSPACE_ROLE_IDS,
@@ -518,6 +520,17 @@ const SCHEMA = Object.freeze([
     updated_at TEXT NOT NULL,
     PRIMARY KEY (workspace_id, record_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_record_dispositions (
+    workspace_id TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    disposition TEXT NOT NULL DEFAULT 'tombstoned',
+    reason TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, record_id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_record_dispositions_workspace ON dbi_workspace_record_dispositions (workspace_id, disposition, updated_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_events (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -2651,6 +2664,8 @@ function recordProjection(record) {
     sourceUrls: record.sourceUrls || [],
     workCategory: record.workCategory,
     workCategories: record.workCategories || [],
+    technologyAreas: record.technologyAreas || [],
+    organization: record.organization || null,
     ingestionMethod: record.ingestionMethod,
     lifecycleStatus: record.lifecycleStatus,
     evidenceTier: record.evidenceTier,
@@ -2662,6 +2677,11 @@ function recordProjection(record) {
     obligatedAmount: Number(record.obligatedAmount || record.fpdsObligatedAmount || 0),
     potentialAmount: Number(record.potentialAmount || record.fpdsPotentialAmount || 0),
     manual: Boolean(record.manual),
+    firstSeenAt: record.firstSeenAt || null,
+    lastSeenAt: record.lastSeenAt || null,
+    lastChangedAt: record.lastChangedAt || null,
+    sourcePublishedAt: record.sourcePublishedAt || null,
+    sourceUpdatedAt: record.sourceUpdatedAt || null,
     version: Number(record.version || 0),
     updatedAt: record.updatedAt || record.validationCheckedAt || null,
   };
@@ -2704,37 +2724,9 @@ async function idempotent(db, principal, request, handler) {
   return response;
 }
 
-function openApiDocument(origin) {
-  const security = [{ bearerAuth: [] }, { cookieAuth: [] }];
-  const paths = {
-    "/api/v1/agent/capabilities": { get: { summary: "Discover API capabilities", security } },
-    "/api/v1/agent/records": { get: { summary: "Query factual and manual records", security }, post: { summary: "Create a manual record", security } },
-    "/api/v1/agent/records/{recordId}": { get: { summary: "Read one record", security }, patch: { summary: "Update a manual record", security }, delete: { summary: "Delete a manual record", security } },
-    "/api/v1/agent/tracking": { get: { summary: "List tracked records", security } },
-    "/api/v1/agent/tracking/{recordId}": { put: { summary: "Track or update a record", security }, delete: { summary: "Stop tracking a record", security } },
-    "/api/v1/agent/events": { get: { summary: "List operator events", security }, post: { summary: "Create an operator event", security } },
-    "/api/v1/agent/events/{eventId}": { get: { summary: "Read an event", security }, patch: { summary: "Update an event", security }, delete: { summary: "Delete an event", security } },
-    "/api/v1/agent/event-categories": { get: { summary: "List workspace event categories", security }, post: { summary: "Create a workspace event category", security } },
-    "/api/v1/agent/event-categories/{categoryId}": { patch: { summary: "Update a workspace event category", security }, delete: { summary: "Delete an unused workspace event category", security } },
-    "/api/v1/agent/activity": { get: { summary: "Read append-only audit activity", security }, post: { summary: "Append an agent activity note", security } },
-    "/api/v1/agent/api-requests": { get: { summary: "Read redacted API request diagnostics and usage metadata", security } },
-    "/api/v1/agent/integrations": { get: { summary: "Read integration status", security } },
-    "/api/v1/agent/analytics": { get: { summary: "Aggregate the factual record universe by a bounded dimension and measure", security } },
-  };
-  return {
-    openapi: "3.1.0",
-    info: { title: "Defense Budget Intelligence Agent API", version: "1.0.0", description: "Authenticated factual evidence and workspace-management API." },
-    servers: [{ url: origin }],
-    paths,
-    components: { securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "DBI agent token" },
-      cookieAuth: { type: "apiKey", in: "cookie", name: SESSION_COOKIE },
-    } },
-  };
-}
-
 const ANALYTICS_DIMENSIONS = Object.freeze([
   "portfolio", "party", "owner", "fundingOffice", "contractingOffice", "workCategory",
+  "technologyArea", "organizationBranch", "organizationComponent", "organizationOffice",
   "sourceSystem", "lifecycleStatus", "evidenceTier",
 ]);
 const ANALYTICS_MEASURES = Object.freeze(["records", "obligatedAmount", "potentialAmount"]);
@@ -2763,14 +2755,23 @@ async function analyticsResponse(request, env, db, principal) {
     if (trackedOnly && !tracked.has(record.opportunityId)) return false;
     return true;
   });
+  const dimensionValues = (record) => {
+    if (dimension === "technologyArea") return record.technologyAreas?.length ? record.technologyAreas : ["Unclassified"];
+    if (dimension === "organizationBranch") return [record.organization?.branch || "Not published"];
+    if (dimension === "organizationComponent") return [record.organization?.component || "Not published"];
+    if (dimension === "organizationOffice") return [record.organization?.office || "Not published"];
+    return [record[dimension] || "Not published"];
+  };
   const groups = new Map();
   for (const record of records) {
-    const label = cleanText(record[dimension], 240) || "Not published";
-    const current = groups.get(label) || { key: label, records: 0, obligatedAmount: 0, potentialAmount: 0 };
-    current.records += 1;
-    current.obligatedAmount += Number(record.obligatedAmount || record.fpdsObligatedAmount || 0);
-    current.potentialAmount += Number(record.potentialAmount || record.fpdsPotentialAmount || 0);
-    groups.set(label, current);
+    for (const value of dimensionValues(record)) {
+      const label = cleanText(value, 240) || "Not published";
+      const current = groups.get(label) || { key: label, records: 0, obligatedAmount: 0, potentialAmount: 0 };
+      current.records += 1;
+      current.obligatedAmount += Number(record.obligatedAmount || record.fpdsObligatedAmount || 0);
+      current.potentialAmount += Number(record.potentialAmount || record.fpdsPotentialAmount || 0);
+      groups.set(label, current);
+    }
   }
   const limit = boundedInteger(params.get("limit"), 25, 1, 100);
   const rows = [...groups.values()].sort((left, right) => right[measure] - left[measure] || left.key.localeCompare(right.key)).slice(0, limit);
@@ -3206,12 +3207,20 @@ async function agentApiResponse(request, env, db) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
       principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
-      resources: ["records", "analytics", "tracking", "events", "event-categories", "activity", "api-requests", "integrations"],
+      resources: ["records", "analytics", "tracking", "record-dispositions", "events", "event-categories", "activity", "api-requests", "integrations"],
       writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
     }, 200, { requestId });
-    else if (resource === "openapi.json" && request.method === "GET") response = Response.json(openApiDocument(new URL(request.url).origin), { headers: { "cache-control": "no-store" } });
+    else if (resource === "openapi.json" && request.method === "GET") response = Response.json(agentOpenApiDocument(new URL(request.url).origin, SESSION_COOKIE), { headers: { "cache-control": "no-store" } });
     else if (resource === "records") response = await recordsResponse(request, env, db, principal, segments);
     else if (resource === "tracking") response = await trackingResponse(request, env, db, principal, segments);
+    else if (resource === "record-dispositions") response = await handleRecordDispositionsResponse(request, env, db, principal, segments, {
+      allRecords: allAgentRecords,
+      error: agentError,
+      hasScope,
+      json: agentJson,
+      recordActivity,
+      safeJson,
+    });
     else if (resource === "events") response = await eventsResponse(request, env, db, principal, segments);
     else if (resource === "event-categories") response = await eventCategoriesResponse(request, db, principal, segments);
     else if (resource === "activity") response = await activityResponse(request, db, principal);

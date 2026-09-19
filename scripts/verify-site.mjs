@@ -237,6 +237,7 @@ try {
   await page.waitForSelector("[data-transaction-analytics-page]");
   assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Transactions should load the compact runtime manifest once");
   assert.equal(await resourceCount(page, "budget-core.json"), 0, "Transactions should defer the detailed budget request dataset");
+  assert.equal(await resourceCount(page, "procurement-discovery.json"), 0, "Timeline should defer the discovery index and daily history until the Table opens");
   assert.equal(budgetRequestRouteRequests, 0, "Transactions should defer the PDB Request, Request History, and Account Flow route family");
   assert.equal(transactionRouteRequests, 1, "Transactions should load its lazy route module exactly once");
   assert.equal(profileRouteRequests, 0, "Transactions should defer personal account surfaces");
@@ -534,7 +535,10 @@ try {
   assert.equal(await page.locator("[data-capture-matrix]").count(), 0, "Transactions should omit the secondary lifecycle matrix beneath the Gantt");
   assert.equal(await page.getByText("More transaction analytics", { exact: true }).count(), 0, "Transactions should remove the bottom analytics disclosure");
   assert.equal(await page.getByText("Measurement and publication boundary", { exact: true }).count(), 0, "Transactions should remove the bottom methodology disclosure");
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 21, "Transactions should expose twenty factual data filters plus tracking scope");
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 25, "Transactions should expose technology and DoW hierarchy alongside the established factual filters and tracking scope");
+  for (const label of ["Technology area", "DoW branch", "Service / component", "Buying office"]) {
+    assert.equal(await page.getByText(label, { exact: true }).count(), 1, `Transactions should expose the ${label} drilldown control exactly once`);
+  }
   assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced filters should start collapsed to reduce vertical noise");
   const compactDesktopGeometry = await page.evaluate(() => ({
     freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
@@ -546,13 +550,29 @@ try {
   assert.ok(compactDesktopGeometry.firstRowTop <= 570, `The first desktop Gantt row should remain visible within the consolidated Spend Explorer workbench, got ${compactDesktopGeometry.firstRowTop}px`);
   assert.equal(await page.getByRole("button", { name: "Data table" }).count(), 0, "Transactions must remain a Gantt-only workspace");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Transactions must not render the shared DataTable");
+  await page.getByRole("button", { name: "Show 20 more filters" }).click();
+  await chooseControlSelect(page, "Sort", "Recently added");
+  await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("procurement-discovery.json")));
+  assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Recently added sorting should load the deferred discovery index exactly once");
   await page.evaluate(() => { window.location.hash = "#/budget-spend/transactions?capView=table"; });
   await page.waitForFunction(() => !window.location.hash.includes("capView"));
   await page.waitForSelector("[data-capture-timeline]");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Legacy table links must canonicalize back to the Gantt");
   await page.getByRole("button", { name: "Table", exact: true }).click();
   await page.waitForSelector('[data-spend-explorer="table"]');
+  await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("procurement-discovery.json")));
+  assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Spend Explorer views should share one deferred discovery request");
+  assert.equal(await page.locator("[data-daily-acquisition-feed]").count(), 1, "Spend Explorer Table should expose a compact daily acquisition ledger");
+  assert.equal(await page.locator("[data-explorer-hierarchy]").count(), 1, "Spend Explorer Table should expose one technology and DoW hierarchy rail");
   assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /of (?:8\d\d|9\d\d|[1-9],\d{3,}) records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
+  const tombstoneButton = page.locator('[data-spend-explorer="table"] button[title="Tombstone this record"]').first();
+  await tombstoneButton.click();
+  await chooseControlSelect(page, "Record state", "Tombstoned (1)");
+  const restoreButton = page.locator('[data-spend-explorer="table"] button[title="Restore to active explorer"]').first();
+  await restoreButton.waitFor();
+  assert.equal(await restoreButton.count(), 1, "Tombstoned records should remain recoverable from their own workspace view");
+  await restoreButton.click();
+  await chooseControlSelect(page, "Record state", "Active explorer");
   await page.locator('[data-spend-explorer="table"] input[type="search"]').fill("Application Arsenal");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capQuery=Application\+Arsenal|capQuery=Application%20Arsenal/i, "Spend Explorer search should remain shareable across views");
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
@@ -1027,8 +1047,8 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openSurface(page, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-capture-timeline-row]").first().locator(".capture-timeline__star").getAttribute("aria-pressed"), "true", "Tracking state should persist across application surfaces");
-  await page.getByRole("button", { name: "Show 16 more filters" }).click();
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "Advanced factual filters should remain reachable");
+  await page.getByRole("button", { name: "Show 20 more filters" }).click();
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 20, "Advanced factual filters should remain reachable");
   const workFilterTrigger = page.getByRole("button", { name: /^Type of work:/ });
   await workFilterTrigger.click();
   await page.getByLabel("Search Type of work").fill("Cloud infrastructure");
@@ -1578,8 +1598,8 @@ try {
   assert.equal(compactMobileGeometry.freshnessCount, 0, "Mobile Transactions should begin with the transaction workspace, not source-health cards");
   assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
   assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
-  await mobile.getByRole("button", { name: "Show 16 more filters" }).click();
-  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 16, "All advanced filters should remain reachable");
+  await mobile.getByRole("button", { name: "Show 20 more filters" }).click();
+  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 20, "All advanced filters should remain reachable");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 4, "Expanded mobile filters should expose every core dimension including tracking scope");
   await mobile.getByRole("button", { name: "Show core filters" }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);

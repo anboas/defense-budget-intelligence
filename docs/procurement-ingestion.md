@@ -11,6 +11,25 @@ USAspending subawards enrich matching prime awards through the exact generated p
 
 Every record retains `ingestionMethod`, `ingestionLabel`, `ingestionChannels`, `sourceSystem`, and `automatedImport`. The Gantt can filter, group, label, export, and overlay those fields. A source reference is not relabeled as an automated import merely because its URL points to an API.
 
+The daily acquisition feed also retains `firstSeenAt`, `lastSeenAt`, `lastChangedAt`, `sourcePublishedAt`, and `sourceUpdatedAt`. `firstSeenAt` means the first retained DBI observation, not the publisher's posting date. The compact `procurement-delta.json` contains only the current daily change summary; `procurement-discovery.json` retains the full record-level discovery index and at most 180 daily summaries and loads only when the Spend Explorer table opens.
+
+## Technology and organization hierarchy
+
+Technology areas are a separate deterministic, multi-label dimension derived from published identifiers, title, and scope. They do not replace work categories. The explorer can sort and filter by technology area.
+
+Every procurement record also receives a navigable acquisition hierarchy:
+
+1. Department of War
+2. Military Departments or Fourth Estate
+3. Service or defense agency
+4. Published buying or funding office
+
+The explorer exposes cascading, URL-shareable controls for each level. Published office names remain visible and unclassified or missing source values remain explicit.
+
+## Workspace tombstones
+
+Workspace writers can tombstone a record that is permanently irrelevant to their workspace. Tombstoned records are excluded from the default explorer and timeline, remain recoverable in the Tombstoned view, and do not alter the immutable public source record. D1 and PostgreSQL persist the same workspace-scoped disposition boundary.
+
 ## Work categories
 
 Work categories are a factual, multi-label display dimension independent of editorial portfolios. The deterministic classifier prioritizes published PSC and NAICS codes, then uses published title and scope text. Each record retains:
@@ -31,7 +50,7 @@ Do not place private capture notes, scores, owners, internal work packages, bid 
 
 ## SAM.gov refresh
 
-`npm run source:sam` refreshes the rolling 180-day Department of Defense notice snapshot. Without a protected key, the script preserves the prior snapshot and reports the feed as unavailable. The GitHub workflow is already wired to the optional `SAM_GOV_API_KEY` secret; credentials must never be committed or entered in chat.
+`npm run source:sam` refreshes the rolling 180-day Department of Defense notice snapshot. Without a protected key, the script preserves the prior snapshot and reports the feed as unavailable. The GitHub workflow is already wired to the optional `SAM_GOV_API_KEY` secret; credentials must never be committed or entered in chat. The daily monitor runs at 09:32 UTC and records source availability even when no records changed.
 
 ## Active and upcoming contract monitor
 

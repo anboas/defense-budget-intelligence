@@ -48,6 +48,19 @@ assert.equal(body.user.canManageWorkspaces, true);
 const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
 
+const dispositionRecordId = "postgres-disposition-contract";
+response = await request(`/api/v1/agent/record-dispositions/${dispositionRecordId}`, { method: "PUT", cookie: ownerCookie,
+  body: { disposition: "tombstoned", reason: "PostgreSQL workspace disposition contract" } });
+assert.equal(response.status, 200, "PostgreSQL workspace writers must be able to tombstone an explorer record");
+body = await response.json();
+assert.equal(body.data.recordId, dispositionRecordId);
+response = await request("/api/v1/agent/record-dispositions", { cookie: ownerCookie });
+assert.equal(response.status, 200);
+body = await response.json();
+assert.ok(body.data.some((row) => row.recordId === dispositionRecordId && row.disposition === "tombstoned"), "PostgreSQL disposition listing must retain the workspace tombstone");
+response = await request(`/api/v1/agent/record-dispositions/${dispositionRecordId}`, { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 204, "PostgreSQL workspace writers must be able to restore a tombstoned record");
+
 const pendingSetupUser = identity("Pending setup");
 response = await request("/api/v1/auth/users", { method: "POST", cookie: ownerCookie, body: { ...pendingSetupUser, role: "viewer" } });
 assert.equal(response.status, 201, "PostgreSQL Super user must create a managed account");
