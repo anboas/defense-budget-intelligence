@@ -156,7 +156,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
     return <div className="if-stack" data-workspace-detail={workspace.id}>
       {["all", "general"].includes(section) ? <section className="if-analytics-panel if-analytics-panel--flat" aria-label={`${workspace.name} contents`}>
         <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Workspace inventory</h3><p className="if-analytics-panel__summary">{workspace.contents?.wallboardEvents === null || workspace.contents?.wallboardEvents === undefined ? "Hosted counts unavailable locally" : `${workspace.contents.wallboardEvents} event${workspace.contents.wallboardEvents === 1 ? "" : "s"} on wallboard`}</p></div></header>
-        <ControlMetricStrip mobileScroll label={`${workspace.name} inventory`} items={CONTENT_METRICS.map(([key, label, tone]) => ({ id: key, label, value: displayCount(workspace.contents?.[key]), tone }))} />
+        <ControlMetricStrip label={`${workspace.name} inventory`} items={CONTENT_METRICS.map(([key, label, tone]) => ({ id: key, label, value: displayCount(workspace.contents?.[key]), tone }))} />
       </section> : null}
       {["all", "people"].includes(section) ? <div className="workspace-access-stack">
         <details className="workspace-access-model">

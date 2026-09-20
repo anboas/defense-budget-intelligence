@@ -1554,11 +1554,14 @@ try {
   await assertFlowShell(mobile);
   assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Mobile Spend Explorer should expose the four focused views");
   assert.ok(await mobile.locator("[data-spend-today] [data-if-table-row]").count() <= 5, "Mobile Today should start with a bounded acquisition inbox");
+  const mobileTodayActions = await mobile.locator('[data-spend-today] [data-ui-table-cell-role="actions"] :is(a, button)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
+  assert.ok(mobileTodayActions.length > 0 && mobileTodayActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Today actions should preserve 44px touch targets: ${JSON.stringify(mobileTodayActions)}`);
   await assertButtonIntegrity(mobile, "Mobile Today", '[data-spend-explorer="today"]');
   await assertNoPageOverflow(mobile, "Mobile Today");
   await mobile.screenshot({ path: `${OUT_DIR}/spend-today-mobile.png`, fullPage: true });
   const mobileShellHeights = await mobile.locator("[data-mobile-more-menu-button], [data-notification-center-button], [data-profile-menu-trigger]").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileShellHeights.every((height) => height >= 43.5), `Mobile shell controls should preserve 44px touch targets: ${mobileShellHeights.join(", ")}`);
+  assert.ok(await mobile.locator(".if-product-header__brand").evaluate((node) => node.getBoundingClientRect().height) >= 43.5, "Mobile product branding should preserve a 44px interaction target");
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
@@ -1573,8 +1576,8 @@ try {
     metrics: document.querySelector("[data-budget-metrics]")?.getBoundingClientRect().height || 0,
     freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
   }));
-  assert.ok(mobileRequestChrome.filters <= 140, `Mobile request filters should use one search row and one contained control rail, got ${mobileRequestChrome.filters}px`);
-  assert.ok(mobileRequestChrome.metrics <= 115, `Mobile request KPIs should use one horizontal strip, got ${mobileRequestChrome.metrics}px`);
+  assert.ok(mobileRequestChrome.filters <= 260, `Mobile request filters should use one search row and a fully visible two-column control grid, got ${mobileRequestChrome.filters}px`);
+  assert.ok(mobileRequestChrome.metrics <= 220, `Mobile request KPIs should wrap into a bounded two-column grid, got ${mobileRequestChrome.metrics}px`);
   assert.equal(mobileRequestChrome.freshnessCount, 0, "Money-flow pages should not carry the integration-health strip");
   assert.ok(await mobile.locator("[data-pdb-request-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request intro should stay compact");
   assert.ok(await mobile.locator(".rank-list article").count() > 0, "Mobile request overview should render its current color-of-money records");
@@ -1583,7 +1586,7 @@ try {
 
   await openSurface(mobile, "#/budget-spend/trends", "[data-request-history-page]");
   assert.ok(await mobile.locator("[data-request-history-page]").evaluate((node) => node.getBoundingClientRect().height) <= 80, "Mobile request-history intro should stay compact");
-  assert.ok(await mobile.locator(".trend-metrics").evaluate((node) => node.getBoundingClientRect().height) <= 115, "Mobile request-history KPIs should use one compact horizontal strip");
+  assert.ok(await mobile.locator(".trend-metrics").evaluate((node) => node.getBoundingClientRect().height) <= 220, "Mobile request-history KPIs should use a bounded two-column grid");
   assert.ok(await mobile.locator("[data-request-history-timeline]").evaluate((node) => node.getBoundingClientRect().height) <= 760, "Mobile request vintages should use compact rows instead of nested fact-card walls");
   await mobile.screenshot({ path: `${OUT_DIR}/request-history-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile request history");
@@ -1607,6 +1610,18 @@ try {
   }));
   assert.deepEqual({ primary: mobileAwardCard.primary, compact: mobileAwardCard.compact, wide: mobileAwardCard.wide }, { primary: 1, compact: 3, wide: 1 }, `Mobile award cards should use one identity row, a compact fact grid, and one action row: ${JSON.stringify(mobileAwardCard)}`);
   assert.ok(mobileAwardCard.height <= 260, `Mobile award cards should stay compact, got ${mobileAwardCard.height}px`);
+  const mobileAwardCardLayout = await mobile.locator("[data-award-record-table] [data-if-table-row]").first().evaluate((row) => {
+    const rowRect = row.getBoundingClientRect();
+    const selectRect = row.querySelector(".dbi-data-table__select")?.getBoundingClientRect();
+    const actionRect = row.querySelector('[data-ui-table-cell-role="actions"]')?.getBoundingClientRect();
+    return {
+      rowWidth: rowRect.width,
+      selectRightGap: selectRect ? rowRect.right - selectRect.right : Number.POSITIVE_INFINITY,
+      actionWidth: actionRect?.width || 0,
+    };
+  });
+  assert.ok(mobileAwardCardLayout.selectRightGap >= 0 && mobileAwardCardLayout.selectRightGap <= 8, `Mobile selection controls should stay in the card's top-right corner: ${JSON.stringify(mobileAwardCardLayout)}`);
+  assert.ok(mobileAwardCardLayout.actionWidth >= mobileAwardCardLayout.rowWidth - 24, `Mobile action rows should use the full card width: ${JSON.stringify(mobileAwardCardLayout)}`);
   const mobileAwardTableControls = await mobile.locator("[data-award-record-table] .dbi-data-table__tools .if-btn, [data-award-record-table] .dbi-data-table__columns > summary, [data-award-record-table] .dbi-data-table__footer .if-page-btn, [data-award-record-table] .dbi-data-table__footer .if-select").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileAwardTableControls.every((height) => height >= 43.5), `Mobile DataTable controls should preserve 44px touch targets: ${mobileAwardTableControls.join(", ")}`);
   assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 3000, "Mobile Awards should stay within a bounded five-card working surface");
@@ -1685,14 +1700,18 @@ try {
   assert.equal(await mobile.locator("[data-d3-analytics]").count(), 6);
   assert.equal(await mobile.locator("[data-d3-analytics]:visible").count(), 1, "Mobile Analytics should render one selected chart at a time");
   assert.equal(await mobile.locator(".analytics-mobile-chart-picker:visible").count(), 1, "Mobile Analytics should expose its chart switcher inside the workbench");
+  const mobileChartMarks = await mobile.locator('[data-d3-analytics]:visible [role="button"][data-analytics-tooltip]').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
+  assert.ok(mobileChartMarks.length > 0 && mobileChartMarks.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile chart marks should preserve 44px touch targets: ${JSON.stringify(mobileChartMarks)}`);
   const compactAnalyticsGeometry = await mobile.evaluate(() => ({
     workbench: document.querySelector("[data-transaction-d3-page] > .if-workbench-header")?.getBoundingClientRect().height || 0,
+    metricColumns: getComputedStyle(document.querySelector("[data-transaction-d3-page] > .if-workbench-header > .if-management-grid--strip")).gridTemplateColumns.split(" ").filter(Boolean).length,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
     briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
     briefColumns: getComputedStyle(document.querySelector("[data-analytics-insights] .if-metric-grid")).gridTemplateColumns.split(" ").filter(Boolean).length,
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
-  assert.ok(compactAnalyticsGeometry.workbench <= 560, `Mobile Analytics title, metrics, tabs, and controls should remain one bounded workbench, got ${compactAnalyticsGeometry.workbench}px`);
+  assert.equal(compactAnalyticsGeometry.metricColumns, 3, "Mobile Analytics should retain all six summary metrics in a compact 3×2 grid");
+  assert.ok(compactAnalyticsGeometry.workbench <= 520, `Mobile Analytics title, metrics, tabs, and controls should remain one bounded workbench, got ${compactAnalyticsGeometry.workbench}px`);
   assert.equal(await mobile.locator("[data-analytics-insight]").count(), 4, "Mobile Analytics should retain the complete factual brief");
   assert.equal(compactAnalyticsGeometry.briefColumns, 2, "Mobile factual signals should use the framework two-column compact grid");
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
@@ -1762,7 +1781,7 @@ try {
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
   assert.ok(narrowAnalyticsGeometry.header <= 64, `360px masthead should stay within one compact application row, got ${narrowAnalyticsGeometry.header}px`);
-  assert.ok(narrowAnalyticsGeometry.workbench <= 580, `360px Analytics workbench should stay bounded, got ${narrowAnalyticsGeometry.workbench}px`);
+  assert.ok(narrowAnalyticsGeometry.workbench <= 540, `360px Analytics workbench should stay bounded, got ${narrowAnalyticsGeometry.workbench}px`);
   assert.ok(narrowAnalyticsGeometry.brief <= 420, `360px factual brief should remain compact, got ${narrowAnalyticsGeometry.brief}px`);
   const narrowAnalyticsChartGap = narrowAnalyticsGeometry.firstChartTop - narrowAnalyticsGeometry.briefBottom;
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);

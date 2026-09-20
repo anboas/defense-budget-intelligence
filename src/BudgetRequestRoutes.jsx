@@ -270,7 +270,7 @@ function RequestTrends({ dataInventory, books }) {
   const signalTrendRows = (latest?.bySignal || []).filter((signal) => signal.requestValue > 0).slice(0, 8).map((signal) => ({ ...signal, series: rows.map((row) => row.bySignal?.find((item) => item.id === signal.id)?.requestValue || 0) }));
   return <div className="grid">
     <PhaseIntro eyebrow="Published request vintages" description="Year-over-year request values from official budget packages. Comparable trends use only books present across the compared vintages; keyword-derived categories remain labeled as classifications." dataAttribute={{ "data-request-history-page": true }} />
-    <ControlMetricStrip className="trend-metrics" label="Request trend summary" mobileScroll compactMobile items={[
+    <ControlMetricStrip className="trend-metrics" label="Request trend summary" compactMobile items={[
       { id: "vintages", label: "Request vintages", value: `${(dataInventory.availableBudgetRequestYears || []).length} years`, meta: `${yearList(dataInventory.availableBudgetRequestYears)} · ${trendSummary.sourceVersionCount || 0} workbook versions`, tone: "info" },
       { id: "records", label: "Historical records", value: (trendSummary.historicalRecordCount || 0).toLocaleString(), meta: "Aggregate model records across request packages", tone: "purple" },
       { id: "comparable", label: "Comparable set", value: `${trendSummary.comparableBookCount || 0} books`, meta: (trendSummary.comparableBooks || []).join(", "), tone: "success" },
@@ -313,7 +313,7 @@ export default function BudgetRequestRoutes({ view, budgetData, accountSpine }) 
 
   return <>
     <FilterShell filters={filters} setFilters={setFilters} data={budgetData} books={books} signals={signals} />
-    <ControlMetricStrip data-budget-metrics label="Filtered budget metrics" mobileScroll compactMobile items={[
+    <ControlMetricStrip data-budget-metrics label="Filtered budget metrics" compactMobile items={[
       { id: "request", label: "Filtered FY2027 request", value: money(total.fy2027), meta: `${total.records} line records · ${pct(growth(total))} since FY2025`, tone: "info" },
       { id: "ai", label: "AI / autonomy signal", value: money(ai.fy2027), meta: `${ai.records} matched source lines`, tone: "purple" },
       { id: "fourth", label: "Fourth Estate", value: money(fourth.fy2027), meta: `${fourth.records} agency / joint records`, tone: "success" },

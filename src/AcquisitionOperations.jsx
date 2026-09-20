@@ -59,7 +59,7 @@ export default function AcquisitionOperations({ auth }) {
   if (!data && !error) return <ControlPageBody compact><ControlAsyncState compact state="loading" title="Loading acquisition operations" message="Reading scheduler, source, and outbound-delivery health." /></ControlPageBody>;
   if (!data) return <ControlPageBody compact><ControlAsyncState compact state="error" title="Acquisition operations unavailable" message={error} action={<button type="button" className="if-btn if-btn--secondary" onClick={() => void refresh()}><RefreshCcw size={15} />Retry</button>} /></ControlPageBody>;
   return <ControlPageBody compact><div className="acquisition-operations" data-acquisition-operations>
-    <ControlMetricStrip mobileScroll label="Acquisition operations summary" items={[
+    <ControlMetricStrip label="Acquisition operations summary" items={[
       { id: "workspaces", label: "Workspaces", value: data.summary.workspaces },
       { id: "keyed", label: "SAM-keyed", value: data.summary.keyed, tone: data.summary.keyed ? "success" : "neutral" },
       { id: "automated", label: "Automated", value: data.summary.automated, tone: "info" },

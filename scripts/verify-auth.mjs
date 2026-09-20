@@ -563,7 +563,7 @@ try {
     return {
       documentOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
       inventoryDisplay: inventoryStyle.display,
-      inventoryOverflow: inventoryStyle.overflowX,
+      inventoryColumns: inventoryStyle.gridTemplateColumns.split(" ").filter(Boolean).length,
       inventoryScrollWidth: inventory.scrollWidth,
       inventoryClientWidth: inventory.clientWidth,
       inventoryItems: inventory.children.length,
@@ -571,9 +571,9 @@ try {
     };
   });
   assert.ok(mobileWorkspaceGeometry.documentOverflow <= 2, `Mobile workspace command should not overflow the document, got ${mobileWorkspaceGeometry.documentOverflow}px`);
-  assert.equal(mobileWorkspaceGeometry.inventoryDisplay, "flex", "Mobile workspace inventory should use the shared horizontal metric rail");
-  assert.equal(mobileWorkspaceGeometry.inventoryOverflow, "auto", "Mobile workspace inventory should keep overflow inside the metric rail");
-  assert.ok(mobileWorkspaceGeometry.inventoryScrollWidth > mobileWorkspaceGeometry.inventoryClientWidth, "Mobile workspace inventory should expose all metrics through contained horizontal scrolling");
+  assert.equal(mobileWorkspaceGeometry.inventoryDisplay, "grid", "Mobile workspace inventory should use the shared wrapped metric grid");
+  assert.equal(mobileWorkspaceGeometry.inventoryColumns, 2, "Mobile workspace inventory should expose two comparable metrics per row");
+  assert.ok(mobileWorkspaceGeometry.inventoryScrollWidth <= mobileWorkspaceGeometry.inventoryClientWidth + 1, "Mobile workspace inventory should expose every metric without horizontal scrolling");
   assert.equal(mobileWorkspaceGeometry.inventoryItems, 6, "Mobile workspace inventory should preserve all six content categories");
   assert.ok(mobileWorkspaceGeometry.controlHeights.every((height) => height >= 43.5), `Mobile workspace controls must retain 44px targets: ${mobileWorkspaceGeometry.controlHeights.join(", ")}`);
   const addMemberPresentation = await addMemberButton.evaluate((button) => ({ text: button.innerText.trim(), opacity: getComputedStyle(button).opacity }));
