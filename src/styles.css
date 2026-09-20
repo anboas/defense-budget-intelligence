@@ -9010,3 +9010,234 @@ td .dot {
   .ci-header-command-trigger > span,
   .ci-header-command-trigger kbd { display: none; }
 }
+.saas-control-plane,
+.saas-overview {
+  display: grid;
+  gap: 14px;
+}
+
+.saas-control-plane {
+  padding: 16px;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-lg);
+  background: var(--if-bg-surface);
+}
+
+.saas-control-plane__header,
+.saas-organization-card > header,
+.saas-identity__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.saas-control-plane__header {
+  justify-content: space-between;
+}
+
+.saas-control-plane__header > div {
+  min-width: 0;
+}
+
+.saas-control-plane__header span,
+.saas-organization-card small,
+.saas-entitlements small {
+  color: var(--if-fg-muted);
+}
+
+.saas-control-plane__header h3,
+.saas-control-plane__header p {
+  margin: 0;
+}
+
+.saas-control-plane__header h3 {
+  margin-top: 2px;
+}
+
+.saas-control-plane__header p {
+  margin-top: 4px;
+  max-width: 72ch;
+}
+
+.saas-control-plane__organizations {
+  display: grid;
+  gap: 12px;
+}
+
+.saas-organization-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-md);
+  background: var(--if-bg-page);
+}
+
+.saas-organization-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto auto auto;
+}
+
+.saas-organization-card > header > div {
+  display: grid;
+  min-width: 0;
+}
+
+.saas-organization-card__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: var(--if-radius-md);
+  color: var(--if-accent);
+  background: var(--if-accent-soft);
+}
+
+.saas-organization-card__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.saas-organization-card__summary > span {
+  display: grid;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-sm);
+  background: var(--if-bg-surface);
+}
+
+.saas-organization-card__summary strong,
+.saas-organization-card__summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saas-identity__status {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.saas-overview__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 12px;
+}
+
+.saas-entitlements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.saas-entitlements article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 9px 10px;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-sm);
+  background: var(--if-bg-surface);
+}
+
+.saas-entitlements article > span {
+  display: grid;
+  min-width: 0;
+}
+
+.saas-entitlements article[data-entitlement-status="near"] {
+  border-color: var(--if-color-amber-500);
+}
+
+.saas-entitlements article[data-entitlement-status="over"] {
+  border-color: var(--if-color-red-500);
+}
+
+.saas-readiness {
+  display: grid;
+  gap: 7px;
+}
+
+.saas-readiness > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+}
+
+.saas-readiness > div > span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--if-fg-muted);
+  background: var(--if-bg-muted);
+}
+
+.saas-readiness > div[data-complete="true"] > span {
+  color: var(--if-color-green-500);
+  background: color-mix(in srgb, var(--if-color-green-500) 12%, transparent);
+}
+
+.saas-workspace-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.saas-workspace-picker legend {
+  grid-column: 1 / -1;
+  padding: 0;
+}
+
+.saas-workspace-picker .if-checkbox {
+  min-height: 44px;
+  padding-block: 4px;
+}
+
+@media (max-width: 760px) {
+  .saas-control-plane__header,
+  .saas-organization-card > header,
+  .saas-overview__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saas-control-plane__header {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .saas-control-plane__header > .if-btn,
+  .saas-organization-card > header > .if-btn {
+    width: 100%;
+  }
+
+  .saas-organization-card > header {
+    display: grid;
+  }
+
+  .saas-organization-card__icon {
+    display: none;
+  }
+
+  .saas-organization-card__summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saas-identity__status {
+    justify-content: flex-start;
+  }
+
+  .saas-entitlements,
+  .saas-workspace-picker {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

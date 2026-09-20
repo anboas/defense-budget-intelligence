@@ -197,6 +197,9 @@ export default function AuthProvider({ children }) {
     updateTeamMembers: async (id, userIds) => { const result = await authApi.updateTeamMembers(id, userIds); notifyManagementStateChanged(); return result; },
     deleteTeam: async (id) => { const result = await authApi.deleteTeam(id); notifyManagementStateChanged(); return result; },
     getWorkspaceAdmin: () => authApi.getWorkspaceAdmin(),
+    getSaasControlPlane: () => authApi.getSaasControlPlane(),
+    createCommercialOrganization: (values) => authApi.createCommercialOrganization(values),
+    updateCommercialOrganization: (id, values) => authApi.updateCommercialOrganization(id, values),
     createWorkspace: async (values) => {
       const result = await authApi.createWorkspace(values);
       setStatus((current) => ({ ...current, user: current.user ? {

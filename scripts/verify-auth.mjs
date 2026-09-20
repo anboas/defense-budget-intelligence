@@ -1374,6 +1374,37 @@ try {
     }
   }
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
+  const commercialControlPlane = page.locator("[data-saas-control-plane]");
+  await commercialControlPlane.waitFor();
+  assert.match(await commercialControlPlane.innerText(), /Customer control plane[\s\S]*Internal[\s\S]*Observe only/i, "Platform Workspaces must expose the grandfathered shadow commercial model without implying live billing");
+  const controlPlaneGeometry = await commercialControlPlane.evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    actionHeights: [...node.querySelectorAll("button")].filter((button) => button.getBoundingClientRect().width > 0).map((button) => button.getBoundingClientRect().height),
+  }));
+  assert.ok(controlPlaneGeometry.overflow <= 2, `The mobile SaaS control plane must stay within the viewport: ${JSON.stringify(controlPlaneGeometry)}`);
+  assert.ok(controlPlaneGeometry.actionHeights.every((height) => height >= 43.5), `Mobile commercial controls must retain 44px touch targets: ${controlPlaneGeometry.actionHeights.join(", ")}`);
+  await commercialControlPlane.getByRole("button", { name: "Create organization" }).click();
+  const commercialDialog = page.locator("[data-commercial-organization-dialog]");
+  await commercialDialog.waitFor();
+  assert.match(await commercialDialog.innerText(), /Customer owner[\s\S]*Lifecycle[\s\S]*Manual plan[\s\S]*Workspaces[\s\S]*observe-only/i, "The manual provisioning flow must expose ownership, lifecycle, plan, workspace, and non-enforcement boundaries together");
+  const commercialDialogGeometry = await commercialDialog.evaluate((node) => ({
+    overflow: node.scrollWidth - node.clientWidth,
+    controlHeights: [...node.querySelectorAll('input:not([type="checkbox"]), button')].filter((control) => control.getBoundingClientRect().width > 0).map((control) => control.getBoundingClientRect().height),
+    checkboxLabelHeights: [...node.querySelectorAll(".saas-workspace-picker .if-checkbox")].map((label) => label.getBoundingClientRect().height),
+  }));
+  assert.ok(commercialDialogGeometry.overflow <= 2, `The commercial provisioning dialog must remain mobile-contained: ${JSON.stringify(commercialDialogGeometry)}`);
+  assert.ok(commercialDialogGeometry.controlHeights.every((height) => height >= 43.5), `Commercial provisioning controls must retain 44px targets: ${commercialDialogGeometry.controlHeights.join(", ")}`);
+  assert.ok(commercialDialogGeometry.checkboxLabelHeights.every((height) => height >= 43.5), `Commercial workspace choices must retain 44px label targets: ${commercialDialogGeometry.checkboxLabelHeights.join(", ")}`);
+  await commercialDialog.getByRole("button", { name: "Cancel" }).click();
+  await page.screenshot({ path: "test-results/saas-control-plane-mobile.png", fullPage: true });
+
+  await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
+  const workspaceSaasOverview = page.locator("[data-saas-overview]");
+  await workspaceSaasOverview.waitFor();
+  assert.match(await workspaceSaasOverview.innerText(), /Observe only[\s\S]*Plan & usage[\s\S]*Customer readiness/i, "Workspace Overview must surface plan posture and readiness without duplicating payment controls");
+
   console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, OpenAI credential vault and API request log, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
 } finally {
   await browser.close();

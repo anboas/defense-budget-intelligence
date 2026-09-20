@@ -42,6 +42,7 @@ import { registerProviderCredentialRoutes } from "./provider-credential-routes.m
 import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.mjs";
 import { registerAccountRegistrationRoute, registrationPublicStatus } from "./account-registration-routes.mjs";
 import { registerSessionManagementRoutes } from "./session-management-routes.mjs";
+import { postgresEntitlementDecision, registerSaasControlPlaneRoutes } from "./saas-control-plane-routes.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.min(14, Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 14)));
@@ -582,6 +583,7 @@ export async function registerAuthRoutes(app, pool) {
   registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey });
   registerAccountRegistrationRoute(app, pool, { account, assertSameOrigin, authenticated, canAdministerUsers, cleanText, enabled, hydratedUser, issueSession, recordUserActivity, sha256, validEmail, validProof });
   registerSessionManagementRoutes(app, pool, { assertSameOrigin, authenticated, recordUserActivity });
+  registerSaasControlPlaneRoutes(app, pool, { assertSameOrigin, authenticated, recordUserActivity });
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
     const [owner, session] = await Promise.all([account(pool), authenticated(pool, request)]);
@@ -773,7 +775,8 @@ export async function registerAuthRoutes(app, pool) {
       return reply.code(400).send({ error: "valid user details, role, and temporary password are required" });
     }
     const count = await pool.query("SELECT COUNT(*)::int AS count FROM app_workspace_memberships WHERE workspace_id = $1", [administrator.active_workspace_id]);
-    if (count.rows[0].count >= 50) return reply.code(409).send({ error: "this workspace is limited to 50 human accounts" });
+    const decision = await postgresEntitlementDecision(pool, administrator.active_workspace_id, "seats", count.rows[0].count);
+    if (!decision.allowed) return reply.code(409).send({ error: `this workspace has reached its ${decision.limit}-seat entitlement` });
     try {
       const userId = randomUUID();
       const result = await pool.query(

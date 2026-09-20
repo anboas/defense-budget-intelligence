@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { cleanText, validAvatarDataUrl } from "../src/security-policy.js";
 import { recordUserActivity } from "./user-activity-routes.mjs";
+import { postgresEntitlementDecision } from "./saas-control-plane-routes.mjs";
 
 async function teamPayload(pool, workspaceId) {
   const [teams, members] = await Promise.all([
@@ -58,6 +59,9 @@ export function registerTeamEmulationRoutes(app, pool, deps) {
     if (!canAdministerWorkspaces(user)) return reply.code(403).send({ error: "Workspace manager access is required" });
     const name = cleanText(request.body?.name, 80); const description = cleanText(request.body?.description, 240); const iconDataUrl = validAvatarDataUrl(request.body?.iconDataUrl);
     if (name.length < 2 || iconDataUrl === null) return reply.code(400).send({ error: "a valid team name and icon are required" });
+    const count = await pool.query("SELECT COUNT(*)::int AS count FROM app_workspace_teams WHERE workspace_id=$1", [user.active_workspace_id]);
+    const decision = await postgresEntitlementDecision(pool, user.active_workspace_id, "teams", count.rows[0].count);
+    if (!decision.allowed) return reply.code(409).send({ error: `this workspace has reached its ${decision.limit}-team entitlement` });
     const id = randomUUID();
     try { await pool.query("INSERT INTO app_workspace_teams (team_id,workspace_id,name,description,icon_data_url,created_by) VALUES ($1,$2,$3,$4,$5,$6)", [id, user.active_workspace_id, name, description, iconDataUrl, user.actor_user_id || user.user_id]); }
     catch (error) { if (error.code === "23505") return reply.code(409).send({ error: "a team with that name already exists" }); throw error; }

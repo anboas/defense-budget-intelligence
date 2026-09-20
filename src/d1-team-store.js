@@ -1,4 +1,5 @@
 import { cleanText, sameOriginRequest, validAvatarDataUrl } from "./security-policy.js";
+import { d1EntitlementDecision } from "./d1-saas-control-plane.js";
 
 function cleanStringArray(value, limit = 50, itemLength = 80) {
   return [...new Set((Array.isArray(value) ? value : []).map((item) => cleanText(item, itemLength)).filter(Boolean))].slice(0, limit);
@@ -41,7 +42,8 @@ export async function teamsResponse(request, db, deps) {
     const name = cleanText(body?.name, 80); const description = cleanText(body?.description, 240); const iconDataUrl = validAvatarDataUrl(body?.iconDataUrl);
     if (name.length < 2 || iconDataUrl === null) return json({ error: "A valid team name and icon are required" }, 400);
     const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_workspace_teams WHERE workspace_id = ?").bind(workspaceId).first();
-    if (Number(count?.count || 0) >= 50) return json({ error: "This workspace is limited to 50 teams" }, 409);
+    const decision = await d1EntitlementDecision(db, workspaceId, "teams", Number(count?.count || 0));
+    if (!decision.allowed) return json({ error: `This workspace has reached its ${decision.limit}-team entitlement` }, 409);
     const id = crypto.randomUUID(); const now = new Date().toISOString();
     const created = await db.prepare(`INSERT OR IGNORE INTO dbi_workspace_teams
       (team_id, workspace_id, name, description, icon_data_url, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)

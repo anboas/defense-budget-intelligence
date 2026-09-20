@@ -13,6 +13,7 @@ import {
 import UserAvatar from "./UserAvatar.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import WorkspaceTeams from "./WorkspaceTeams.jsx";
+import SaasControlPlane from "./SaasControlPlane.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
@@ -76,9 +77,9 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   const [creating, setCreating] = useState(false);
   const [addingMemberTo, setAddingMemberTo] = useState("");
   const [activeSection, setActiveSection] = useState(() => {
-    if (!activeOnly || typeof window === "undefined") return "general";
+    if (!activeOnly || typeof window === "undefined") return "overview";
     const value = new URLSearchParams(String(window.location.hash || "").split("?")[1] || "").get("workspaceSection");
-    return ["general", "people", "teams", "ai"].includes(value) ? value : "general";
+    return ["overview", "general", "people", "teams", "ai"].includes(value) ? value : "overview";
   });
   const [expandedId, setExpandedId] = useState(() => activeOnly ? auth.user?.activeWorkspace?.id || "" : "");
   const dialogRef = useRef(null);
@@ -98,8 +99,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   }, [showToast]);
 
   async function refresh() {
-    const result = await auth.getWorkspaceAdmin();
-    setData(result);
+    const result = await auth.getWorkspaceAdmin(); setData(result);
   }
 
   useEffect(() => {
@@ -179,8 +179,11 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   }
 
   return <section className="ops-panel workspace-management" data-workspace-management data-workspace-scope={activeOnly ? "active" : "platform"} aria-labelledby="workspace-management-title">
-    <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Workspaces"} summary={activeOnly ? "Workspace identity, access roles, team visibility, and AI policy. Global account lifecycle stays in Accounts." : "Isolated workspace boundaries, membership, access requests, and ownership."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
+    <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Workspaces"} summary={activeOnly ? "Plan, usage, workspace identity, access roles, team visibility, and AI policy. Global account lifecycle stays in Accounts." : "Customer organizations, ownership, plans, isolated workspace boundaries, membership, and access requests."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
     <ControlPageBody compact>
+
+    {!activeOnly ? <SaasControlPlane auth={auth} users={data.users} workspaces={data.workspaces} onNotice={showNotice} /> : null}
+    {activeOnly && activeSection === "overview" ? <SaasControlPlane auth={auth} users={visibleWorkspaces[0]?.members || []} workspaces={visibleWorkspaces} activeOnly onNotice={showNotice} /> : null}
 
     {!activeOnly || activeSection === "general" ? <ControlMetricStrip label="Workspace summary" items={[
       { id: "workspaces", label: "Workspaces", value: visibleWorkspaces.length },
@@ -190,6 +193,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
     ]} /> : null}
 
     {activeOnly ? <nav className="workspace-settings-tabs" aria-label="Workspace settings sections">{[
+      ["overview", "Overview"],
       ["general", "General"],
       ["people", "Access"],
       ["teams", "Teams"],
