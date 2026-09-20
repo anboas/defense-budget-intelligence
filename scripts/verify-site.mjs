@@ -1213,6 +1213,7 @@ try {
   assert.ok(await page.locator("[data-competition-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct competition classifications");
   assert.ok(await page.locator("[data-vehicle-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct vehicles");
   assert.ok(await page.locator("[data-structure-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct pricing structures");
+  assert.ok(await page.locator('[data-pricing-kind="pricing-cost-reimbursable"]').count() >= 1, "Application Arsenal should distinguish its known cost-reimbursable structure");
   const applicationIncumbentRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
   const fiscalAndStructureGeometry = await Promise.all([
     applicationIncumbentRow.locator(".capture-timeline__fiscal-marker").first().boundingBox(),
@@ -1238,11 +1239,9 @@ try {
   assert.match(applicationFollowOn, /SAM\.gov/i);
   await page.getByRole("button", { name: "Close follow-on details" }).click();
   await page.waitForSelector("[data-followon-modal]", { state: "detached" });
-  await page.getByPlaceholder("Program, company, reference, buyer").fill("");
-  await page.waitForFunction(() => new Set([...document.querySelectorAll("[data-pricing-kind]")].map((node) => node.dataset.pricingKind)).size >= 2);
-  const visiblePricingKinds = await page.locator("[data-pricing-kind]").evaluateAll((nodes) => [...new Set(nodes.map((node) => node.dataset.pricingKind))]);
-  assert.ok(visiblePricingKinds.includes("pricing-fixed-price"), `Pricing overlay should distinguish fixed-price rows: ${visiblePricingKinds}`);
-  assert.ok(visiblePricingKinds.includes("pricing-cost-reimbursable"), `Pricing overlay should distinguish cost-type rows: ${visiblePricingKinds}`);
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("ABMS Digital Infrastructure Consortium");
+  await page.waitForFunction(() => [...document.querySelectorAll("[data-pricing-kind]")].some((node) => node.dataset.pricingKind === "pricing-fixed-price"));
+  assert.ok(await page.locator('[data-pricing-kind="pricing-fixed-price"]').count() >= 1, "Pricing overlay should distinguish a known fixed-price row");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Kessel Run Falconer");
   await page.waitForFunction(() => [...document.querySelectorAll("[data-pricing-kind]")].some((node) => node.dataset.pricingKind === "pricing-time-materials"));
   assert.equal(await page.locator('[data-pricing-kind="pricing-time-materials"]').count(), 1, "Pricing overlay should distinguish a known T&M row");
