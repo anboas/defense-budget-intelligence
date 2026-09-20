@@ -47,6 +47,33 @@ assert.equal(body.user.canManageWorkspace, true);
 assert.equal(body.user.canManageWorkspaces, true);
 const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
+response = await request("/api/v1/auth/control-plane", { cookie: ownerCookie });
+assert.equal(response.status, 200, "PostgreSQL Super users must inspect the SaaS control plane");
+body = await response.json();
+assert.equal(body.mode, "shadow");
+assert.equal(body.billingEnabled, false);
+assert.equal(body.enforcementEnabled, false);
+assert.equal(body.activeOrganization.subscription.planId, "internal", "Existing PostgreSQL workspaces must remain grandfathered");
+assert.equal(body.activeOrganization.subscription.enforcementMode, "observe");
+response = await request("/api/v1/auth/control-plane/organizations", { method: "POST", cookie: ownerCookie, origin: "https://attacker.example", body: { name: "Pilot customer" } });
+assert.equal(response.status, 403, "PostgreSQL commercial writes must reject cross-origin requests");
+response = await request("/api/v1/auth/control-plane/organizations", { method: "POST", cookie: ownerCookie, body: {
+  name: "Pilot customer", billingEmail: "billing@pilot.example", ownerUserId: ownerId, workspaceIds: [defaultWorkspaceId], lifecycleState: "prospect",
+} });
+assert.equal(response.status, 201, "PostgreSQL must create a manual Pilot organization");
+body = await response.json();
+assert.equal(body.organization.subscription.planId, "pilot");
+assert.equal(body.organization.subscription.enforcementMode, "observe");
+assert.deepEqual(body.organization.workspaces.map((workspace) => workspace.id), [defaultWorkspaceId], "PostgreSQL organization creation must attach the selected workspace atomically");
+const pilotOrganizationId = body.organization.id;
+response = await request(`/api/v1/auth/control-plane/organizations/${pilotOrganizationId}`, { method: "PATCH", cookie: ownerCookie, body: {
+  name: "Pilot customer", billingEmail: "billing@pilot.example", ownerUserId: ownerId, workspaceIds: [defaultWorkspaceId], lifecycleState: "active", planId: "pilot",
+} });
+assert.equal(response.status, 200, "PostgreSQL must update manual customer lifecycle and plan state");
+body = await response.json();
+assert.equal(body.organization.lifecycleState, "active");
+assert.equal(body.organization.subscription.status, "active");
+assert.equal(body.organization.subscription.enforcementMode, "observe", "PostgreSQL lifecycle changes must not silently activate entitlement enforcement");
 response = await request("/api/v1/auth/login", { method: "POST", body: { email: owner.email, passwordProof: owner.passwordProof } });
 assert.equal(response.status, 200, "PostgreSQL owner must establish a second session");
 const secondOwnerCookie = cookie(response);
@@ -99,6 +126,8 @@ response = await request("/api/v1/auth/activity", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL Super user must read user activity");
 body = await response.json();
 assert.ok(body.activities.some((entry) => entry.action === "account_created" && String(entry.targetId) === String(pendingSetupUserId)), "PostgreSQL must retain server-authored account actions");
+assert.ok(body.activities.some((entry) => entry.action === "commercial_organization_created"), "PostgreSQL commercial organization changes must remain auditable");
+assert.ok(body.activities.some((entry) => entry.action === "commercial_organization_updated"), "PostgreSQL commercial organization updates must remain auditable");
 assert.ok(body.activities.some((entry) => entry.eventType === "page_visit" && entry.surface === "users"), "PostgreSQL must retain canonical page-visit metadata");
 assert.doesNotMatch(JSON.stringify(body), /never-store-postgres-secret/, "PostgreSQL activity must exclude arbitrary browser payload values");
 response = await request("/api/v1/auth/emulation", { method: "POST", cookie: ownerCookie, body: { userId: pendingSetupUserId } });
@@ -416,6 +445,15 @@ assert.equal(body.user.canManageAccounts, false, "PostgreSQL workspace managers 
 assert.equal(body.user.canManageWorkspace, true);
 assert.equal(body.user.canManageWorkspaces, true);
 assert.equal(body.user.role, "Workspace manager");
+response = await request("/api/v1/auth/control-plane", { cookie: signupCookie });
+assert.equal(response.status, 200, "PostgreSQL workspace managers must see their plan and usage posture");
+body = await response.json();
+assert.equal(body.canManage, false);
+assert.equal(body.activeOrganization.billingEmail, "");
+assert.deepEqual(body.activeOrganization.members, []);
+assert.equal(body.activeOrganization.owners[0]?.email, undefined, "PostgreSQL workspace plan visibility must not expose owner email metadata");
+response = await request("/api/v1/auth/control-plane/organizations", { method: "POST", cookie: signupCookie, body: { name: "Unauthorized customer" } });
+assert.equal(response.status, 403, "PostgreSQL workspace managers must not create commercial organizations");
 response = await request("/api/v1/auth/users", { cookie: signupCookie });
 assert.equal(response.status, 403, "PostgreSQL workspace managers must not enumerate global accounts");
 response = await request("/api/v1/auth/registration", { cookie: signupCookie });

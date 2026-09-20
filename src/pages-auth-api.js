@@ -67,6 +67,7 @@ import { providerCredentialsResponse as handleProviderCredentialsResponse } from
 import { D1_REGISTRATION_SCHEMA, d1PublicRegistrationStatus, d1RegistrationResponse } from "./d1-registration.js";
 import { d1SessionManagementResponse } from "./d1-session-management.js";
 import { D1_SENSITIVE_RATE_LIMIT_SCHEMA, enforceD1SensitiveMutationLimit } from "./d1-sensitive-rate-limit.js";
+import { D1_SAAS_CONTROL_PLANE_SCHEMA, d1EntitlementDecision, d1SaasControlPlaneResponse } from "./d1-saas-control-plane.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import {
   ROLE_LABELS,
@@ -337,6 +338,7 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (workspace_id, user_id)
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_memberships_user ON dbi_workspace_memberships (user_id, workspace_id)",
+  ...D1_SAAS_CONTROL_PLANE_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_teams (
     team_id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -1366,7 +1368,8 @@ async function usersResponse(request, db) {
       return json({ error: "Valid user details, role, and temporary password are required" }, 400);
     }
     const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_workspace_memberships WHERE workspace_id = ?").bind(workspaceId).first();
-    if (Number(count?.count || 0) >= 50) return json({ error: "This workspace is limited to 50 human accounts" }, 409);
+    const decision = await d1EntitlementDecision(db, workspaceId, "seats", Number(count?.count || 0));
+    if (!decision.allowed) return json({ error: `This workspace has reached its ${decision.limit}-seat entitlement` }, 409);
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const created = await db.prepare(`
@@ -3270,6 +3273,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/teams" || pathname.startsWith("/api/v1/auth/teams/")) return handleTeamsResponse(request, db, { sessionUser, canAdministerWorkspaces, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);
   if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);
+  if (pathname === "/api/v1/auth/control-plane" || pathname.startsWith("/api/v1/auth/control-plane/")) return d1SaasControlPlaneResponse(request, db, { json, recordActivity, safeJson, sessionUser });
   if (pathname === "/api/v1/auth/openai-keys" || pathname.startsWith("/api/v1/auth/openai-keys/")) return openAiKeysResponse(request, db, env);
   if (pathname.startsWith("/api/v1/auth/provider-credentials/")) return handleProviderCredentialsResponse(request, db, env, {
     canAdministerWorkspaces, cleanText, encryptSecret: encryptOpenAiKey, json, recordActivity, recordApiRequest, safeJson, sameOriginRequest, sessionUser,

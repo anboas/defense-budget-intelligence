@@ -200,6 +200,35 @@ async function verifyApiLifecycle(persistPath) {
     const ownerId = body.user.id;
     const defaultWorkspaceId = body.user.activeWorkspace.id;
 
+    response = await apiRequest(baseUrl, "/api/v1/auth/control-plane", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "D1 Super users must be able to inspect the SaaS control plane");
+    body = await response.json();
+    assert.equal(body.mode, "shadow");
+    assert.equal(body.billingEnabled, false);
+    assert.equal(body.enforcementEnabled, false);
+    assert.equal(body.activeOrganization.subscription.planId, "internal", "Existing D1 workspaces must begin on the grandfathered Internal plan");
+    assert.equal(body.activeOrganization.subscription.enforcementMode, "observe", "The D1 commercial foundation must not gate existing access");
+    assert.ok(body.activeOrganization.entitlementRows.some((row) => row.key === "seats"), "D1 must expose server-derived plan and usage rows");
+    response = await apiRequest(baseUrl, "/api/v1/auth/control-plane/organizations", { method: "POST", cookie: ownerCookie, origin: "https://attacker.example", body: { name: "Pilot customer" } });
+    assert.equal(response.status, 403, "D1 commercial changes must reject cross-origin writes");
+    response = await apiRequest(baseUrl, "/api/v1/auth/control-plane/organizations", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+      name: "Pilot customer", billingEmail: "billing@pilot.example", ownerUserId: ownerId, workspaceIds: [defaultWorkspaceId], lifecycleState: "prospect",
+    } });
+    assert.equal(response.status, 201, "D1 must create a sales-assisted organization without enabling billing or enforcement");
+    body = await response.json();
+    assert.equal(body.organization.subscription.planId, "pilot");
+    assert.equal(body.organization.subscription.enforcementMode, "observe");
+    assert.deepEqual(body.organization.workspaces.map((workspace) => workspace.id), [defaultWorkspaceId], "D1 organization creation must attach the selected workspace atomically");
+    const pilotOrganizationId = body.organization.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}`, { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+      name: "Pilot customer", billingEmail: "billing@pilot.example", ownerUserId: ownerId, workspaceIds: [defaultWorkspaceId], lifecycleState: "active", planId: "pilot",
+    } });
+    assert.equal(response.status, 200, "D1 must update manual customer lifecycle and plan state");
+    body = await response.json();
+    assert.equal(body.organization.lifecycleState, "active");
+    assert.equal(body.organization.subscription.status, "active");
+    assert.equal(body.organization.subscription.enforcementMode, "observe", "D1 lifecycle changes must not silently activate entitlement enforcement");
+
     response = await apiRequest(baseUrl, "/api/v1/auth/login", {
       method: "POST", body: { email: winner.email, passwordProof: winner.passwordProof }, origin: baseUrl.slice(0, -1),
     });
@@ -263,6 +292,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200, "Super user must be able to read retained user activity");
     body = await response.json();
     assert.ok(body.activities.some((entry) => entry.action === "account_created" && entry.targetId === viewerId), "Account creation must be retained as a server-authored action");
+    assert.ok(body.activities.some((entry) => entry.action === "commercial_organization_created"), "Commercial organization creation must be retained as server-authored activity");
+    assert.ok(body.activities.some((entry) => entry.action === "commercial_organization_updated"), "Commercial organization updates must be retained as server-authored activity");
     assert.ok(body.activities.some((entry) => entry.eventType === "page_visit" && entry.surface === "users"), "Page visits must retain only their canonical surface");
     assert.doesNotMatch(JSON.stringify(body), /never-store-this/, "User activity must exclude arbitrary browser payload values");
 
@@ -945,6 +976,15 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.user.canManageWorkspace, true);
     assert.equal(body.user.canManageWorkspaces, true, "Workspace manager permission must be exposed in the signed-in user contract");
     assert.equal(body.user.role, "Workspace manager");
+    response = await apiRequest(baseUrl, "/api/v1/auth/control-plane", { cookie: selfCookie });
+    assert.equal(response.status, 200, "D1 workspace managers must see their plan and usage posture");
+    body = await response.json();
+    assert.equal(body.canManage, false);
+    assert.equal(body.activeOrganization.billingEmail, "", "D1 workspace managers must not receive commercial billing contacts");
+    assert.deepEqual(body.activeOrganization.members, [], "D1 workspace managers must not receive organization membership administration");
+    assert.equal(body.activeOrganization.owners[0]?.email, undefined, "D1 workspace plan visibility must not expose owner email metadata");
+    response = await apiRequest(baseUrl, "/api/v1/auth/control-plane/organizations", { method: "POST", cookie: selfCookie, origin: baseUrl.slice(0, -1), body: { name: "Unauthorized customer" } });
+    assert.equal(response.status, 403, "D1 workspace managers must not create commercial organizations");
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: selfCookie });
     assert.equal(response.status, 403, "Workspace managers must not enumerate global platform accounts");
     response = await apiRequest(baseUrl, "/api/v1/auth/registration", { cookie: selfCookie });
