@@ -200,6 +200,21 @@ async function verifyApiLifecycle(persistPath) {
     const ownerId = body.user.id;
     const defaultWorkspaceId = body.user.activeWorkspace.id;
 
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST", body: { email: winner.email, passwordProof: winner.passwordProof }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "The owner must be able to establish a second session");
+    const secondOwnerCookie = cookieFrom(response);
+    response = await apiRequest(baseUrl, "/api/v1/auth/sessions", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.sessions.length, 2, "D1 must expose both active owner sessions");
+    assert.equal(body.sessions.filter((session) => session.current).length, 1, "D1 must identify the current session without exposing its token");
+    const secondOwnerSession = body.sessions.find((session) => !session.current);
+    response = await apiRequest(baseUrl, `/api/v1/auth/sessions/${secondOwnerSession.id}`, { method: "DELETE", body: {}, cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 200, "The owner must be able to revoke another active session");
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: secondOwnerCookie });
+    assert.equal((await response.json()).user, null, "A revoked D1 session must stop authenticating immediately");
+
     response = await apiRequest(baseUrl, "/api/v1/client-errors");
     body = await response.json();
     assert.equal(response.status, 200, "Client-error health must remain available without exposing report details");
@@ -337,6 +352,13 @@ async function verifyApiLifecycle(persistPath) {
       method: "POST", body: { userId: viewerId, role: "analyst" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
     });
     assert.equal(response.status, 200, "Workspace roles must change through the workspace membership boundary");
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: viewerCookie });
+    assert.equal((await response.json()).user, null, "D1 workspace role changes must revoke existing sessions");
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST", body: { email: viewer.email, passwordProof: viewerPasswordProof }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "The managed user must sign in again after an authority change");
+    viewerCookie = cookieFrom(response);
 
     const createTeam = async (name) => {
       const created = await apiRequest(baseUrl, "/api/v1/auth/teams", {
@@ -832,7 +854,7 @@ async function verifyApiLifecycle(persistPath) {
       origin: baseUrl.slice(0, -1),
     });
     assert.equal(response.status, 201, "A valid invite must create an account after the service is claimed");
-    const selfCookie = cookieFrom(response);
+    let selfCookie = cookieFrom(response);
     body = await response.json();
     assert.equal(body.user.hasWorkspaceAccess, false, "Self-signups must begin without implicit workspace access");
     const selfUserId = body.user.id;
@@ -911,6 +933,13 @@ async function verifyApiLifecycle(persistPath) {
     });
     assert.equal(response.status, 200, "Super user must be able to promote a workspace member to manager");
     response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
+    assert.equal((await response.clone().json()).user, null, "Workspace role promotion must revoke the prior session");
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST", body: { email: selfSignup.email, passwordProof: selfSignup.passwordProof }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "Promoted workspace members must sign in again after the authority change");
+    selfCookie = cookieFrom(response);
+    response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
     body = await response.json();
     assert.equal(body.user.canManageAccounts, false, "Workspace managers must not gain platform account authority");
     assert.equal(body.user.canManageWorkspace, true);
@@ -963,7 +992,23 @@ async function verifyApiLifecycle(persistPath) {
     });
     assert.equal(response.status, 200, "Super user must be able to remove non-owner workspace members");
     response = await apiRequest(baseUrl, "/api/v1/auth/status", { cookie: selfCookie });
-    assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removed members must immediately lose the selected workspace boundary");
+    assert.equal((await response.json()).user, null, "Removing workspace authority must revoke active sessions");
+    response = await apiRequest(baseUrl, "/api/v1/auth/login", {
+      method: "POST", body: { email: selfSignup.email, passwordProof: selfSignup.passwordProof }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200);
+    selfCookie = cookieFrom(response);
+    assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removed members must have no workspace access after signing in again");
+
+    let registrationLimitResponse;
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      registrationLimitResponse = await apiRequest(baseUrl, "/api/v1/auth/registration", {
+        method: "PATCH", body: { mode: "invite_only" }, cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      });
+      if (registrationLimitResponse.status === 429) break;
+    }
+    assert.equal(registrationLimitResponse.status, 429, "D1 must apply a bounded abuse ceiling to sensitive registration mutations");
+    assert.ok(Number(registrationLimitResponse.headers.get("retry-after")) >= 1, "D1 sensitive mutation limits must tell callers when to retry");
 
     const nextSalt = "ab".repeat(24);
     const nextProof = "cd".repeat(32);

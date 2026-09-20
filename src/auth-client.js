@@ -66,6 +66,9 @@ export const authApi = {
     return request("/login", { method: "POST", body: JSON.stringify({ email, passwordProof }) });
   },
   logout: () => request("/logout", { method: "POST", body: "{}" }),
+  listSessions: () => request("/sessions", { method: "GET", headers: {} }),
+  revokeSession: (id) => request(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
+  revokeOtherSessions: () => request("/sessions", { method: "DELETE", body: "{}" }),
   updateProfile: (profile) => request("/profile", { method: "PATCH", body: JSON.stringify(profile) }),
   listAgentKeys: () => request("/agent-keys", { method: "GET", headers: {} }),
   createAgentKey: (values) => request("/agent-keys", { method: "POST", body: JSON.stringify(values) }),

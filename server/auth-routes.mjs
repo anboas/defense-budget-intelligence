@@ -41,6 +41,7 @@ import { registerRecordDispositionRoutes } from "./record-disposition-routes.mjs
 import { registerProviderCredentialRoutes } from "./provider-credential-routes.mjs";
 import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.mjs";
 import { registerAccountRegistrationRoute, registrationPublicStatus } from "./account-registration-routes.mjs";
+import { registerSessionManagementRoutes } from "./session-management-routes.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.min(14, Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 14)));
@@ -580,6 +581,7 @@ export async function registerAuthRoutes(app, pool) {
   registerProviderCredentialRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, encryptSecret: encryptOpenAiKey, recordApiRequest });
   registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey });
   registerAccountRegistrationRoute(app, pool, { account, assertSameOrigin, authenticated, canAdministerUsers, cleanText, enabled, hydratedUser, issueSession, recordUserActivity, sha256, validEmail, validProof });
+  registerSessionManagementRoutes(app, pool, { assertSameOrigin, authenticated, recordUserActivity });
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
     const [owner, session] = await Promise.all([account(pool), authenticated(pool, request)]);
@@ -814,7 +816,7 @@ export async function registerAuthRoutes(app, pool) {
           WHERE user_id = $5 RETURNING *`,
         [email, displayName, title, status, request.params.userId],
       );
-      if (status === "suspended") await pool.query("DELETE FROM app_auth_sessions WHERE user_id = $1", [request.params.userId]);
+      if (status === "suspended" || email !== target.rows[0].email) await pool.query("DELETE FROM app_auth_sessions WHERE user_id = $1", [request.params.userId]);
       await recordUserActivity(pool, administrator, { eventType: "action", action: status === target.rows[0].status ? "account_updated" : status === "suspended" ? "account_suspended" : "account_reactivated", surface: "users", targetType: "account", targetId: request.params.userId });
       return { user: { ...publicUser({ ...result.rows[0], membership_role: target.rows[0].membership_role }), activeSessions: 0, isOwner: false } };
     } catch (error) {
@@ -1062,6 +1064,9 @@ export async function registerAuthRoutes(app, pool) {
     if (!existing.rowCount && owner.role !== "super_user") return reply.code(403).send({ error: "Super user access is required to add an existing account" });
     await pool.query(`INSERT INTO app_workspace_memberships (workspace_id, user_id, role, created_by) VALUES ($1, $2, $3, $4)
       ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = NOW()`, [request.params.workspaceId, request.body?.userId, role, owner.user_id]);
+    if (existing.rowCount && existing.rows[0].role !== role) {
+      await pool.query("DELETE FROM app_auth_sessions WHERE user_id = $1", [request.body?.userId]);
+    }
     return reply.code(existing.rowCount ? 200 : 201).send({ ok: true });
   });
 
@@ -1074,7 +1079,7 @@ export async function registerAuthRoutes(app, pool) {
     if (!membership.rowCount) return reply.code(404).send({ error: "workspace member not found" });
     if (membership.rows[0].role === "super_user") return reply.code(403).send({ error: "the Super user cannot be removed from a workspace" });
     await pool.query("DELETE FROM app_workspace_memberships WHERE workspace_id = $1 AND user_id = $2", [request.params.workspaceId, request.params.userId]);
-    await pool.query("UPDATE app_auth_sessions SET workspace_id = NULL WHERE workspace_id = $1 AND user_id = $2", [request.params.workspaceId, request.params.userId]);
+    await pool.query("DELETE FROM app_auth_sessions WHERE user_id = $1", [request.params.userId]);
     return { ok: true };
   });
 

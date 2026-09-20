@@ -47,6 +47,18 @@ assert.equal(body.user.canManageWorkspace, true);
 assert.equal(body.user.canManageWorkspaces, true);
 const ownerId = body.user.id;
 const defaultWorkspaceId = body.user.activeWorkspace.id;
+response = await request("/api/v1/auth/login", { method: "POST", body: { email: owner.email, passwordProof: owner.passwordProof } });
+assert.equal(response.status, 200, "PostgreSQL owner must establish a second session");
+const secondOwnerCookie = cookie(response);
+response = await request("/api/v1/auth/sessions", { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.sessions.length, 2, "PostgreSQL must expose both active owner sessions");
+assert.equal(body.sessions.filter((session) => session.current).length, 1, "PostgreSQL must identify the current session without exposing its token");
+const secondOwnerSession = body.sessions.find((session) => !session.current);
+response = await request(`/api/v1/auth/sessions/${secondOwnerSession.id}`, { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 200, "PostgreSQL owner must revoke another active session");
+response = await request("/api/v1/auth/status", { cookie: secondOwnerCookie });
+assert.equal((await response.json()).user, null, "A revoked PostgreSQL session must stop authenticating immediately");
 
 response = await request("/api/v1/client-errors");
 body = await response.json();
@@ -336,7 +348,7 @@ response = await request("/api/v1/auth/register", { method: "POST", body: { ...i
 assert.equal(response.status, 403, "PostgreSQL email-bound invites must reject another identity");
 response = await request("/api/v1/auth/register", { method: "POST", body: { ...signup, inviteCode: signupCode } });
 assert.equal(response.status, 201, "PostgreSQL must support invitation-only signup");
-const signupCookie = cookie(response);
+let signupCookie = cookie(response);
 body = await response.json();
 assert.equal(body.user.hasWorkspaceAccess, false, "Self-signup must grant no implicit workspace access");
 const signupId = body.user.id;
@@ -394,6 +406,11 @@ response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorks
   body: { userId: signupId, role: "administrator" } });
 assert.equal(response.status, 200);
 response = await request("/api/v1/auth/status", { cookie: signupCookie });
+assert.equal((await response.json()).user, null, "PostgreSQL workspace role changes must revoke existing sessions");
+response = await request("/api/v1/auth/login", { method: "POST", body: { email: signup.email, passwordProof: signup.passwordProof } });
+assert.equal(response.status, 200, "PostgreSQL managed users must sign in again after an authority change");
+signupCookie = cookie(response);
+response = await request("/api/v1/auth/status", { cookie: signupCookie });
 body = await response.json();
 assert.equal(body.user.canManageAccounts, false, "PostgreSQL workspace managers must not gain platform account authority");
 assert.equal(body.user.canManageWorkspace, true);
@@ -447,6 +464,11 @@ assert.equal(response.status, 201, "Super user must add an existing account to a
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${secondWorkspaceId}/members`, { method: "POST", cookie: ownerCookie,
   body: { userId: signupId, role: "analyst" } });
 assert.equal(response.status, 200, "Super user must change an existing workspace role in place");
+response = await request("/api/v1/auth/status", { cookie: signupCookie });
+assert.equal((await response.json()).user, null, "A second workspace role change must also revoke the prior session");
+response = await request("/api/v1/auth/login", { method: "POST", body: { email: signup.email, passwordProof: signup.passwordProof } });
+assert.equal(response.status, 200);
+signupCookie = cookie(response);
 response = await request("/api/v1/auth/workspace-admin", { cookie: ownerCookie });
 body = await response.json();
 const workspaceSummary = body.workspaces.find((workspace) => String(workspace.id) === String(secondWorkspaceId));
@@ -458,6 +480,9 @@ assert.equal(response.status, 200, "Members must be able to switch active worksp
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${secondWorkspaceId}/members/${signupId}`, { method: "DELETE", cookie: ownerCookie, body: {} });
 assert.equal(response.status, 200, "Super user must remove non-owner workspace members");
 response = await request("/api/v1/auth/status", { cookie: signupCookie });
-assert.equal((await response.json()).user.hasWorkspaceAccess, false, "Removing the selected membership must clear that session's workspace boundary");
+assert.equal((await response.json()).user, null, "Removing workspace authority must revoke active sessions");
+response = await request("/api/v1/auth/login", { method: "POST", body: { email: signup.email, passwordProof: signup.passwordProof } });
+assert.equal(response.status, 200);
+assert.equal((await response.json()).user.hasWorkspaceAccess, true, "The remaining workspace membership must survive removal from another workspace");
 
 console.log("Verified PostgreSQL profile pictures, OpenAI credential vaults, self-signup, workspace branding, teams, effective-user emulation, scoped workspace managers, role assignment, switching, and removal");

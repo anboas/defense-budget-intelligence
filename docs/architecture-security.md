@@ -33,7 +33,7 @@ The implementations differ only at persistence and platform adapters. Validation
 
 | Boundary | Required controls |
 | --- | --- |
-| Browser to authenticated API | HttpOnly, Secure, SameSite=Strict, Priority=High sessions with a 14-day absolute lifetime; same-origin and Fetch Metadata rejection; bounded JSON; no-store responses; role and active-workspace checks |
+| Browser to authenticated API | HttpOnly, Secure, SameSite=Strict, Priority=High sessions with a 14-day absolute lifetime; self-service active-session inventory and revocation; immediate token invalidation after password, account-status, email, or workspace-authority changes; same-origin and Fetch Metadata rejection; bounded JSON; no-store responses; role and active-workspace checks |
 | Effective-user emulation | Only the real, non-emulating Super user can start or stop emulation; authorization and team visibility use the target user; audit records retain the real actor plus the emulated user ID; profile and password mutation are blocked |
 | Team event visibility | Unassigned events remain workspace-wide; assigned events require membership in at least one selected team; multi-team users receive the union; only the real Super user and scoped agents bypass human team filters |
 | Agent API | Hashed scoped bearer tokens; expiration/revocation; per-principal rate limit; idempotency for writes; optimistic versions; workspace-scoped queries; redacted request ledger |
@@ -63,6 +63,8 @@ The contract monitor is intentionally emitted as `data/contract-monitor.json` an
 ## Maintainability budgets
 
 `npm run verify:security` enforces shared headers, request bounds, origin handling, log redaction, immutable action pins, framework pinning, prohibited dynamic-code sinks, route chunk budgets, and current monolith ceilings. `npm run verify:cyber` independently enforces production authentication posture, session limits, container/image controls, governance artifacts, ownership, dependency-security workflow gates, and tracked-secret hygiene.
+
+Cloudflare/D1 also applies fixed-window, privacy-preserving abuse ceilings to registration, emulation, credential administration, workspace/account administration, and acquisition mutations. Only hashed client fingerprints are retained, and limited callers receive explicit `Retry-After` guidance. PostgreSQL retains its global Fastify request boundary plus the identity-scoped login-attempt control.
 
 The line ceilings are migration guards, not design targets. When a ceiling is approached, split by owned route or adapter instead of raising it. Preferred seams are:
 

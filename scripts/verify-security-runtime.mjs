@@ -84,6 +84,11 @@ for (const [path, ceiling] of Object.entries(architectureCeilings)) {
   assert.ok(lines <= ceiling, `${path} grew to ${lines} lines; split the owning surface before exceeding ${ceiling}`);
 }
 
+const d1RateLimitSource = await read("src/d1-sensitive-rate-limit.js");
+assert.match(d1RateLimitSource, /retry-after/i, "D1 sensitive-operation ceilings must publish retry guidance");
+assert.match(d1RateLimitSource, /registration/, "D1 registration administration must have an explicit abuse ceiling");
+assert.match(d1RateLimitSource, /provider-credentials/, "D1 credential administration must have an explicit abuse ceiling");
+
 const operationsSource = await read("src/OperationsHub.jsx");
 assert.doesNotMatch(operationsSource, /import\s+contractMonitor\s+from/, "Contract monitor data must remain route-lazy, not bundled into OperationsHub");
 for (const path of ["src", "server", "functions"]) {

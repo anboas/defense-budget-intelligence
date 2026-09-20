@@ -65,6 +65,8 @@ import { recordDispositionsResponse as handleRecordDispositionsResponse } from "
 import { clientErrorsResponse as handleClientErrorsResponse } from "./d1-client-errors.js";
 import { providerCredentialsResponse as handleProviderCredentialsResponse } from "./d1-provider-credentials.js";
 import { D1_REGISTRATION_SCHEMA, d1PublicRegistrationStatus, d1RegistrationResponse } from "./d1-registration.js";
+import { d1SessionManagementResponse } from "./d1-session-management.js";
+import { D1_SENSITIVE_RATE_LIMIT_SCHEMA, enforceD1SensitiveMutationLimit } from "./d1-sensitive-rate-limit.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import {
   ROLE_LABELS,
@@ -162,6 +164,7 @@ const SCHEMA = Object.freeze([
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_login_attempts_client ON dbi_login_attempts (client_hash, attempted_at)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_login_attempts_time ON dbi_login_attempts (attempted_at)",
+  ...D1_SENSITIVE_RATE_LIMIT_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_agent_keys (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -739,6 +742,7 @@ async function runD1RetentionMaintenance(db, now = new Date()) {
     db.prepare("DELETE FROM dbi_api_request_log WHERE completed_at < ?").bind(completedCutoff),
     db.prepare("DELETE FROM dbi_event_ai_jobs WHERE completed_at <> '' AND completed_at < ?").bind(completedCutoff),
     db.prepare("DELETE FROM dbi_login_attempts WHERE attempted_at < ?").bind(loginCutoff),
+    db.prepare("DELETE FROM dbi_sensitive_rate_limits WHERE expires_at < ?").bind(now.toISOString()),
     db.prepare("DELETE FROM dbi_user_activity WHERE occurred_at < ?").bind(completedCutoff),
     db.prepare(`INSERT INTO dbi_maintenance_state (task, last_run_at) VALUES (?, ?)
       ON CONFLICT(task) DO UPDATE SET last_run_at = excluded.last_run_at`).bind(task, now.toISOString()),
@@ -1408,7 +1412,7 @@ async function usersResponse(request, db) {
       const duplicate = await userByEmail(db, email);
       if (duplicate && duplicate.user_id !== userId) return json({ error: "An account with that email already exists" }, 409);
     }
-    if (status === "suspended") {
+    if (status === "suspended" || email !== target.email) {
       await db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId).run();
     }
     await recordActivity(db, { type: "user", id: administrator.user_id, workspaceId }, "user_updated", "user", userId, { email, status });
@@ -1719,6 +1723,9 @@ async function workspaceAdminResponse(request, db) {
         (workspace_id, user_id, role, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(workspace_id, user_id) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at`)
         .bind(workspaceId, userId, role, owner.user_id, now, now).run();
+      if (existing && existing.role !== role) {
+        await db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId).run();
+      }
       await recordActivity(db, { type: "user", id: owner.user_id, workspaceId }, existing ? "workspace_member_role_changed" : "workspace_member_added", "user", userId, { role, previousRole: existing?.role || null });
       return json({ ok: true }, existing ? 200 : 201);
     }
@@ -1730,6 +1737,7 @@ async function workspaceAdminResponse(request, db) {
       const now = new Date().toISOString();
       await db.batch([
         db.prepare("DELETE FROM dbi_workspace_memberships WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId),
+        db.prepare("UPDATE dbi_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at = ''").bind(now, userId),
         db.prepare(`DELETE FROM dbi_session_workspaces WHERE workspace_id = ? AND session_id IN
           (SELECT id FROM dbi_sessions WHERE user_id = ?)` ).bind(workspaceId, userId),
         db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND user_id = ?").bind(workspaceId, userId),
@@ -3241,6 +3249,8 @@ export async function pagesAuthApiResponse(request, env = {}) {
   const db = databaseFromEnv(env);
   if (!db) return json({ error: "Persistent account database is unavailable" }, 503);
   await ensureSchema(db); const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+  const rateLimited = await enforceD1SensitiveMutationLimit(request, db, pathname, { hashValue, json });
+  if (rateLimited) return rateLimited;
   if (pathname === "/api/v1/system/acquisition-schedule") return acquisitionSchedulerResponse(request, db, env, { decryptSecret: decryptOpenAiKey, json });
   if (pathname === "/api/v1/auth/status") return statusResponse(request, db, env);
   if (pathname === "/api/v1/auth/claim") return claimResponse(request, db, env);
@@ -3253,6 +3263,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/logout") return logoutResponse(request, db, env);
   if (pathname === "/api/v1/auth/profile") return profileResponse(request, db);
   if (pathname === "/api/v1/auth/password") return passwordResponse(request, db, env);
+  if (pathname === "/api/v1/auth/sessions" || pathname.startsWith("/api/v1/auth/sessions/")) return d1SessionManagementResponse(request, db, { json, recordActivity, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/emulation") return handleEmulationResponse(request, db, { sessionUser, publicSessionUser, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/activity") return handleUserActivityResponse(request, db, { json, safeJson, sessionUser });
   if (pathname === "/api/v1/auth/directory") return handleDirectoryResponse(request, db, { sessionUser, json, roleLabels: ROLE_LABELS });
