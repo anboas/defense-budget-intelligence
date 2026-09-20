@@ -81,11 +81,24 @@ export function normalizeSamOpportunity(row = {}) {
   const active = row.active === "Yes" || row.active === true;
   const organization = organizationHierarchy(row);
   const technologyAreas = classifyTechnologyAreas(row);
+  const relatedNoticeIds = [...new Set([
+    ...(Array.isArray(row.relatedNoticeIds) ? row.relatedNoticeIds : []),
+    ...(Array.isArray(row.relatedNotices) ? row.relatedNotices : []),
+    row.relatedNotice,
+    row.baseNoticeId,
+  ].map((value) => text(value?.noticeId || value, 180)).filter(Boolean))];
+  const awardId = text(row.award?.awardNumber || row.awardNumber || row.awardId || row.piid, 180) || null;
+  const parentAwardId = text(row.award?.parentAwardNumber || row.parentAwardId || row.parentPiid, 180) || null;
+  const modificationNumber = text(row.award?.modificationNumber || row.modificationNumber, 80) || null;
   return {
     sourceSystem: "SAM.gov",
     sourceRecordId: noticeId,
     noticeId,
     solicitationNumber,
+    relatedNoticeIds,
+    awardId,
+    parentAwardId,
+    modificationNumber,
     title: text(row.title, 500) || "Untitled opportunity",
     description: text(row.description || row.additionalInfoLink, 8_000),
     noticeType: text(row.type || row.baseType, 160) || null,
@@ -243,16 +256,23 @@ export function exactLifecycleLinks(records = []) {
     return value.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || ACQUISITION_SOURCE;
   };
   const id = (record) => text(record.sourceRecordId || record.noticeId || record.id || record.awardId || record.piid, 240);
+  const links = [];
+  const seen = new Set();
+  const append = (link) => {
+    const key = [link.fromSource, link.fromId, link.toSource, link.toId, link.relationship, link.basis, link.identifier].join("\u0000");
+    if (link.fromId && link.toId && link.fromId !== link.toId && !seen.has(key)) { seen.add(key); links.push(link); }
+  };
+  const chronological = (rows) => [...rows].sort((left, right) => String(left.postedDate || left.actionDate || left.sourceUpdatedAt || "").localeCompare(String(right.postedDate || right.actionDate || right.sourceUpdatedAt || "")));
   const groups = new Map();
   records.forEach((record) => {
     const identifier = text(record.solicitationNumber, 180).toUpperCase();
     if (!identifier || !id(record)) return;
     groups.set(identifier, [...(groups.get(identifier) || []), record]);
   });
-  return [...groups.entries()].flatMap(([identifier, rows]) => {
-    if (rows.length < 2) return [];
-    const ordered = [...rows].sort((left, right) => String(left.postedDate || left.sourceUpdatedAt || "").localeCompare(String(right.postedDate || right.sourceUpdatedAt || "")));
-    return ordered.slice(1).map((record, index) => ({
+  for (const [identifier, rows] of groups.entries()) {
+    if (rows.length < 2) continue;
+    const ordered = chronological(rows);
+    ordered.slice(1).forEach((record, index) => append({
       fromSource: source(ordered[index]),
       fromId: id(ordered[index]),
       toSource: source(record),
@@ -261,7 +281,47 @@ export function exactLifecycleLinks(records = []) {
       basis: "solicitation_number",
       identifier,
     }));
+  }
+
+  const noticeById = new Map(records.map((record) => [text(record.noticeId, 180).toUpperCase(), record]).filter(([identifier]) => identifier));
+  records.forEach((record) => {
+    const currentId = id(record);
+    const related = Array.isArray(record.relatedNoticeIds) ? record.relatedNoticeIds : [record.relatedNotice, record.baseNoticeId];
+    [...new Set(related.map((value) => text(value?.noticeId || value, 180).toUpperCase()).filter(Boolean))].forEach((identifier) => {
+      const prior = noticeById.get(identifier);
+      if (!prior || id(prior) === currentId) return;
+      append({ fromSource: source(prior), fromId: id(prior), toSource: source(record), toId: currentId, relationship: "amends_notice", basis: "notice_id", identifier });
+    });
   });
+
+  const awardAliases = (record) => [...new Set([record.awardId, record.generatedAwardId, record.piid, record.awardNumber]
+    .map((value) => text(value, 180).toUpperCase()).filter(Boolean))];
+  const awardGroups = new Map();
+  records.forEach((record) => awardAliases(record).forEach((identifier) => awardGroups.set(identifier, [...(awardGroups.get(identifier) || []), record])));
+  for (const [identifier, rows] of awardGroups.entries()) {
+    if (rows.length < 2) continue;
+    const ordered = chronological(rows);
+    ordered.slice(1).forEach((record, index) => append({
+      fromSource: source(ordered[index]), fromId: id(ordered[index]), toSource: source(record), toId: id(record),
+      relationship: record.modificationNumber || record.modification ? "modifies_award" : "same_award",
+      basis: "award_id", identifier,
+    }));
+  }
+
+  const awardByIdentifier = new Map();
+  records.forEach((record) => awardAliases(record).forEach((identifier) => {
+    if (!awardByIdentifier.has(identifier)) awardByIdentifier.set(identifier, record);
+  }));
+  records.forEach((record) => {
+    const parentIds = [...new Set([record.parentAwardId, record.parentPiid, record.parentAwardNumber, record.referencedIdvPiid]
+      .map((value) => text(value, 180).toUpperCase()).filter(Boolean))];
+    parentIds.forEach((identifier) => {
+      const parent = awardByIdentifier.get(identifier);
+      if (!parent || id(parent) === id(record)) return;
+      append({ fromSource: source(parent), fromId: id(parent), toSource: source(record), toId: id(record), relationship: "ordered_from_vehicle", basis: "parent_award_id", identifier });
+    });
+  });
+  return links;
 }
 
 export function matchesSavedAcquisitionView(record = {}, spec = {}) {

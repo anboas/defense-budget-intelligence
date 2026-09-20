@@ -101,6 +101,16 @@ try {
   assert.deepEqual(links.map((link) => [link.fromId, link.toId, link.relationship, link.basis]), [["notice-a", "notice-b", "resulted_in_award", "solicitation_number"]], "Lifecycle links must require an exact disclosed identifier");
   const crossSourceLinks = exactLifecycleLinks([{ sourceSystem: "SAM.gov", noticeId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceSystem: "USAspending", awardId: "CONT_AWD_W15P7T26C0001", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);
   assert.deepEqual(crossSourceLinks.map((link) => [link.fromSource, link.fromId, link.toSource, link.toId, link.relationship]), [["sam_gov", "notice-a", "usaspending", "CONT_AWD_W15P7T26C0001", "resulted_in_award"]], "The lifecycle-link contract must support cross-source exact identifiers without fuzzy inference");
+  const expandedLinks = exactLifecycleLinks([
+    { sourceSystem: "SAM.gov", noticeId: "notice-base", postedDate: "2026-09-01", lifecycleStage: "opportunity" },
+    { sourceSystem: "SAM.gov", noticeId: "notice-amendment", relatedNoticeIds: ["notice-base"], postedDate: "2026-09-05", lifecycleStage: "opportunity" },
+    { sourceSystem: "USAspending", sourceRecordId: "vehicle", awardId: "W15P7T23D0001", actionDate: "2026-09-06", lifecycleStage: "idv" },
+    { sourceSystem: "USAspending", sourceRecordId: "order", awardId: "W15P7T26F0001", parentAwardId: "W15P7T23D0001", actionDate: "2026-09-07", lifecycleStage: "order" },
+    { sourceSystem: "FPDS", sourceRecordId: "modification", awardId: "W15P7T26F0001", modificationNumber: "P00001", actionDate: "2026-09-08", lifecycleStage: "modification" },
+  ]);
+  assert.ok(expandedLinks.some((link) => link.relationship === "amends_notice" && link.basis === "notice_id"), "Exact notice identifiers must link amendments");
+  assert.ok(expandedLinks.some((link) => link.relationship === "ordered_from_vehicle" && link.basis === "parent_award_id"), "Exact parent award identifiers must link orders to vehicles");
+  assert.ok(expandedLinks.some((link) => link.relationship === "modifies_award" && link.basis === "award_id"), "Exact award identifiers must link modifications");
   const saved = normalizeSavedAcquisitionView({ query: "runtime", filters: { branch: "Army", naics: "541512", untrustedField: "discard me" }, credential: "must-not-survive" });
   assert.deepEqual(saved, { query: "runtime", filters: { branch: "Army", naics: "541512" } }, "Saved acquisition views must retain only the allowlisted filter contract");
   assert.equal(matchesSavedAcquisitionView({ ...normalized, naicsCode: "541512", organization: { branch: "Army" } }, saved), true, "Durable alert matching must use the normalized saved-view contract");

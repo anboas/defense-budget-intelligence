@@ -78,7 +78,7 @@ Operational incidents cover scheduler/source failures, provider backlog, termina
 - Cloudflare D1 is the production source of workspace state. Provider recovery capabilities must be verified periodically; do not assume an untested backup is recoverable.
 - PostgreSQL operators must implement encrypted backups, off-host retention, and a tested restoration procedure before treating that runtime as production.
 - Static source snapshots are a public-data fallback, not a backup of private workspace state.
-- Run at least one annual restore exercise and one annual security incident tabletop. Record recovery point, recovery time, evidence, and corrective actions.
+- Run quarterly deterministic restore contracts, at least one annual credentialed D1 export exercise, and one annual security incident tabletop. Record recovery point, recovery time, evidence, and corrective actions in `docs/recovery-evidence/`.
 
 ## Control evidence
 

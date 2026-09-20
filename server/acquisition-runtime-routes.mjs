@@ -50,7 +50,7 @@ async function sourceConfig(pool, workspaceId) {
 }
 
 async function acquisitionStatus(pool, workspaceId) {
-  const [credential, run, counts, quality, linkCount, config, delivery] = await Promise.all([
+  const [credential, run, counts, quality, linkCount, config, delivery, archives] = await Promise.all([
     pool.query("SELECT id, label, secret_last_four, last_used_at FROM app_workspace_provider_credentials WHERE workspace_id = $1 AND provider = 'sam_gov' AND revoked_at IS NULL LIMIT 1", [workspaceId]),
     pool.query("SELECT * FROM app_acquisition_refresh_runs WHERE workspace_id = $1 AND source = $2 ORDER BY started_at DESC LIMIT 1", [workspaceId, ACQUISITION_SOURCE]),
     pool.query(`SELECT COUNT(*)::int AS records, COUNT(*) FILTER (WHERE removed_at IS NULL)::int AS active,
@@ -68,6 +68,10 @@ async function acquisitionStatus(pool, workspaceId) {
       COUNT(*) FILTER (WHERE status = 'pending_provider')::int AS pending_provider,
       COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
       FROM app_acquisition_delivery_jobs WHERE workspace_id = $1`, [workspaceId]),
+    pool.query(`SELECT
+      (SELECT COUNT(*)::int FROM app_acquisition_observations_archive WHERE workspace_id = $1) AS observations,
+      (SELECT COUNT(*)::int FROM app_acquisition_changes_archive WHERE workspace_id = $1) AS changes,
+      (SELECT COUNT(*)::int FROM app_acquisition_delivery_attempts_archive WHERE workspace_id = $1) AS delivery_attempts`, [workspaceId]),
   ]);
   const latest = run.rows[0] || null;
   const completed = Date.parse(latest?.completed_at || latest?.started_at || "");
@@ -82,7 +86,29 @@ async function acquisitionStatus(pool, workspaceId) {
     },
     quality: quality.rows[0] || { total: 0, missing_identifier: 0, missing_office: 0, missing_naics: 0, stale: 0 },
     delivery: { total: Number(delivery.rows[0]?.total || 0), pendingProvider: Number(delivery.rows[0]?.pending_provider || 0), failed: Number(delivery.rows[0]?.failed || 0) },
+    archives: { observations: Number(archives.rows[0]?.observations || 0), changes: Number(archives.rows[0]?.changes || 0), deliveryAttempts: Number(archives.rows[0]?.delivery_attempts || 0), observationRetentionDays: 365, deliveryRetentionDays: 180 },
   };
+}
+
+export async function archivePostgresAcquisitionHistory(pool) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const observations = await client.query(`WITH selected AS (SELECT * FROM app_acquisition_observations WHERE observed_at < NOW() - INTERVAL '365 days' ORDER BY observed_at LIMIT 250),
+      archived AS (INSERT INTO app_acquisition_observations_archive SELECT * FROM selected ON CONFLICT DO NOTHING RETURNING id)
+      DELETE FROM app_acquisition_observations WHERE id IN (SELECT id FROM archived) RETURNING id`);
+    const changes = await client.query(`WITH selected AS (SELECT * FROM app_acquisition_changes WHERE changed_at < NOW() - INTERVAL '365 days' ORDER BY changed_at LIMIT 250),
+      archived AS (INSERT INTO app_acquisition_changes_archive SELECT * FROM selected ON CONFLICT DO NOTHING RETURNING id)
+      DELETE FROM app_acquisition_changes WHERE id IN (SELECT id FROM archived) RETURNING id`);
+    const delivery = await client.query(`WITH selected AS (SELECT * FROM app_acquisition_delivery_attempts WHERE attempted_at < NOW() - INTERVAL '180 days' ORDER BY attempted_at LIMIT 250),
+      archived AS (INSERT INTO app_acquisition_delivery_attempts_archive SELECT * FROM selected ON CONFLICT DO NOTHING RETURNING id)
+      DELETE FROM app_acquisition_delivery_attempts WHERE id IN (SELECT id FROM archived) RETURNING id`);
+    await client.query("COMMIT");
+    return { observations: observations.rowCount, changes: changes.rowCount, deliveryAttempts: delivery.rowCount };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally { client.release(); }
 }
 
 async function persistRefresh(pool, workspaceId, runId, records, metadata) {
@@ -201,6 +227,7 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
       const config = await sourceConfig(pool, current.workspaceId);
       const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest.rows[0]?.completed_at, config });
       const counts = await persistRefresh(pool, current.workspaceId, runId, result.records, result.metadata);
+      await archivePostgresAcquisitionHistory(pool);
       await pool.query("UPDATE app_workspace_provider_credentials SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [credential.rows[0].id]);
       await processPostgresAcquisitionDeliveryQueue(pool, process.env, { limit: 100, decryptSecret });
       return reply.code(202).send({ run: { id: runId, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded } });
@@ -270,8 +297,11 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
   });
   app.get("/api/v1/auth/acquisition/records/:source/:recordId/history", async (request, reply) => {
     const current = await context(request, reply); if (!current) return;
-    const result = await pool.query(`SELECT content_hash, record_json, observed_at FROM app_acquisition_observations
-      WHERE workspace_id = $1 AND source = $2 AND source_record_id = $3 ORDER BY observed_at DESC LIMIT 100`, [current.workspaceId, cleanText(request.params.source, 60), cleanText(request.params.recordId, 180)]);
+    const result = await pool.query(`SELECT content_hash, record_json, observed_at FROM (
+      SELECT content_hash, record_json, observed_at FROM app_acquisition_observations WHERE workspace_id = $1 AND source = $2 AND source_record_id = $3
+      UNION ALL
+      SELECT content_hash, record_json, observed_at FROM app_acquisition_observations_archive WHERE workspace_id = $1 AND source = $2 AND source_record_id = $3
+      ) history ORDER BY observed_at DESC LIMIT 100`, [current.workspaceId, cleanText(request.params.source, 60), cleanText(request.params.recordId, 180)]);
     return { observations: result.rows.map((row) => ({ contentHash: row.content_hash, record: row.record_json, observedAt: row.observed_at })) };
   });
   app.get("/api/v1/auth/acquisition/links", async (request, reply) => {

@@ -44,9 +44,15 @@ export const ACQUISITION_SCHEMA = [
     refresh_run_id TEXT NOT NULL, content_hash TEXT NOT NULL, record_json TEXT NOT NULL, observed_at TEXT NOT NULL,
     UNIQUE (workspace_id, source, source_record_id, content_hash))`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_observations_record ON dbi_acquisition_observations (workspace_id, source, source_record_id, observed_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_acquisition_observations_archive (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source TEXT NOT NULL, source_record_id TEXT NOT NULL,
+    refresh_run_id TEXT NOT NULL, content_hash TEXT NOT NULL, record_json TEXT NOT NULL, observed_at TEXT NOT NULL)`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_observations_archive_record ON dbi_acquisition_observations_archive (workspace_id, source, source_record_id, observed_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_acquisition_changes (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source TEXT NOT NULL, source_record_id TEXT NOT NULL,
     refresh_run_id TEXT NOT NULL, change_type TEXT NOT NULL, changed_fields_json TEXT NOT NULL DEFAULT '[]', changed_at TEXT NOT NULL)`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_changes_workspace ON dbi_acquisition_changes (workspace_id, changed_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_acquisition_changes_archive (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source TEXT NOT NULL, source_record_id TEXT NOT NULL,
+    refresh_run_id TEXT NOT NULL, change_type TEXT NOT NULL, changed_fields_json TEXT NOT NULL DEFAULT '[]', changed_at TEXT NOT NULL)`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_changes_archive_workspace ON dbi_acquisition_changes_archive (workspace_id, changed_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_acquisition_lifecycle_links (workspace_id TEXT NOT NULL, from_source TEXT NOT NULL, from_record_id TEXT NOT NULL,
     to_source TEXT NOT NULL, to_record_id TEXT NOT NULL, relationship TEXT NOT NULL, basis TEXT NOT NULL, identifier TEXT NOT NULL, created_at TEXT NOT NULL,
     PRIMARY KEY (workspace_id, from_source, from_record_id, to_source, to_record_id, relationship))`,
@@ -68,6 +74,9 @@ export const ACQUISITION_SCHEMA = [
     updated_at TEXT NOT NULL, delivered_at TEXT NOT NULL DEFAULT '', UNIQUE(alert_id, delivery_mode))`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_jobs_queue ON dbi_acquisition_delivery_jobs (status, next_attempt_at)",
   ...ACQUISITION_DELIVERY_SCHEMA,
+  `CREATE TABLE IF NOT EXISTS dbi_acquisition_delivery_attempts_archive (id TEXT PRIMARY KEY, job_id TEXT NOT NULL, workspace_id TEXT NOT NULL,
+    provider TEXT NOT NULL, status TEXT NOT NULL, provider_message_id TEXT NOT NULL DEFAULT '', error_code TEXT NOT NULL DEFAULT '', attempted_at TEXT NOT NULL)`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_attempts_archive_workspace ON dbi_acquisition_delivery_attempts_archive (workspace_id, attempted_at DESC)",
 ];
 
 function parsed(value, fallback) { try { return JSON.parse(value || ""); } catch { return fallback; } }
@@ -80,8 +89,29 @@ async function sourceConfig(db, workspaceId) {
   return normalizeAcquisitionConfig(row ? { ...parsed(row.config_json, {}), enabled: Boolean(row.enabled), cadenceHours: row.cadence_hours } : {});
 }
 
+export async function archiveD1AcquisitionHistory(db, now = new Date()) {
+  const observationCutoff = new Date(now.getTime() - 365 * 86_400_000).toISOString();
+  const deliveryCutoff = new Date(now.getTime() - 180 * 86_400_000).toISOString();
+  const statements = [
+    db.prepare(`INSERT OR IGNORE INTO dbi_acquisition_observations_archive SELECT * FROM dbi_acquisition_observations
+      WHERE observed_at < ? ORDER BY observed_at LIMIT 250`).bind(observationCutoff),
+    db.prepare(`DELETE FROM dbi_acquisition_observations WHERE id IN
+      (SELECT id FROM dbi_acquisition_observations_archive WHERE observed_at < ? ORDER BY observed_at LIMIT 250)`).bind(observationCutoff),
+    db.prepare(`INSERT OR IGNORE INTO dbi_acquisition_changes_archive SELECT * FROM dbi_acquisition_changes
+      WHERE changed_at < ? ORDER BY changed_at LIMIT 250`).bind(observationCutoff),
+    db.prepare(`DELETE FROM dbi_acquisition_changes WHERE id IN
+      (SELECT id FROM dbi_acquisition_changes_archive WHERE changed_at < ? ORDER BY changed_at LIMIT 250)`).bind(observationCutoff),
+    db.prepare(`INSERT OR IGNORE INTO dbi_acquisition_delivery_attempts_archive SELECT * FROM dbi_acquisition_delivery_attempts
+      WHERE attempted_at < ? ORDER BY attempted_at LIMIT 250`).bind(deliveryCutoff),
+    db.prepare(`DELETE FROM dbi_acquisition_delivery_attempts WHERE id IN
+      (SELECT id FROM dbi_acquisition_delivery_attempts_archive WHERE attempted_at < ? ORDER BY attempted_at LIMIT 250)`).bind(deliveryCutoff),
+  ];
+  const results = await db.batch(statements);
+  return { observations: Number(results[1]?.meta?.changes || 0), changes: Number(results[3]?.meta?.changes || 0), deliveryAttempts: Number(results[5]?.meta?.changes || 0) };
+}
+
 async function status(db, workspaceId) {
-  const [credential, latest, counts, quality, linkCount, config, delivery] = await Promise.all([
+  const [credential, latest, counts, quality, linkCount, config, delivery, archives] = await Promise.all([
     db.prepare("SELECT label, secret_last_four, last_used_at FROM dbi_workspace_provider_credentials WHERE workspace_id = ? AND provider = 'sam_gov' AND revoked_at = '' LIMIT 1").bind(workspaceId).first(),
     db.prepare("SELECT * FROM dbi_acquisition_refresh_runs WHERE workspace_id = ? AND source = ? ORDER BY started_at DESC LIMIT 1").bind(workspaceId, ACQUISITION_SOURCE).first(),
     db.prepare(`SELECT COUNT(*) AS records, SUM(CASE WHEN removed_at = '' THEN 1 ELSE 0 END) AS active,
@@ -98,6 +128,10 @@ async function status(db, workspaceId) {
       SUM(CASE WHEN status = 'pending_provider' THEN 1 ELSE 0 END) AS pending_provider,
       SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
       FROM dbi_acquisition_delivery_jobs WHERE workspace_id = ?`).bind(workspaceId).first(),
+    db.prepare(`SELECT
+      (SELECT COUNT(*) FROM dbi_acquisition_observations_archive WHERE workspace_id = ?) AS observations,
+      (SELECT COUNT(*) FROM dbi_acquisition_changes_archive WHERE workspace_id = ?) AS changes,
+      (SELECT COUNT(*) FROM dbi_acquisition_delivery_attempts_archive WHERE workspace_id = ?) AS delivery_attempts`).bind(workspaceId, workspaceId, workspaceId).first(),
   ]);
   const completed = Date.parse(latest?.completed_at || latest?.started_at || "");
   const nextDueAt = acquisitionNextDueAt(latest?.completed_at, config);
@@ -108,6 +142,7 @@ async function status(db, workspaceId) {
     durableHistory: { records: Number(counts?.records || 0), active: Number(counts?.active || 0), changedToday: Number(counts?.changed_today || 0), lifecycleLinks: Number(linkCount?.total || 0) },
     quality: Object.fromEntries(Object.entries(quality || {}).map(([key, value]) => [key, Number(value || 0)])),
     delivery: { total: Number(delivery?.total || 0), pendingProvider: Number(delivery?.pending_provider || 0), failed: Number(delivery?.failed || 0) },
+    archives: { observations: Number(archives?.observations || 0), changes: Number(archives?.changes || 0), deliveryAttempts: Number(archives?.delivery_attempts || 0), observationRetentionDays: 365, deliveryRetentionDays: 180 },
   };
 }
 
@@ -223,7 +258,8 @@ export async function acquisitionSchedulerResponse(request, db, env, deps) {
   const acquisition = await runScheduledAcquisitionSweep(db, env, { decryptSecret: deps.decryptSecret, maxWorkspaces: 1 });
   const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100, decryptSecret: deps.decryptSecret });
   const incidents = await reconcileD1OperationalIncidents(db, env, { decryptSecret: deps.decryptSecret });
-  return deps.json({ ...acquisition, delivery, incidents });
+  const archives = await archiveD1AcquisitionHistory(db);
+  return deps.json({ ...acquisition, delivery, incidents, archives });
 }
 
 export async function acquisitionRuntimeResponse(request, db, env, deps) {
@@ -345,7 +381,11 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
     return json({ records: (result.results || []).map(record), pagination: { offset, limit, total: count, hasMore: offset + (result.results || []).length < count } });
   }
   if (request.method === "GET" && segments[0] === "records" && segments[3] === "history") {
-    const result = await db.prepare("SELECT content_hash, record_json, observed_at FROM dbi_acquisition_observations WHERE workspace_id = ? AND source = ? AND source_record_id = ? ORDER BY observed_at DESC LIMIT 100").bind(workspaceId, cleanText(segments[1], 60), cleanText(segments[2], 180)).all();
+    const result = await db.prepare(`SELECT content_hash, record_json, observed_at FROM (
+      SELECT content_hash, record_json, observed_at FROM dbi_acquisition_observations WHERE workspace_id = ? AND source = ? AND source_record_id = ?
+      UNION ALL
+      SELECT content_hash, record_json, observed_at FROM dbi_acquisition_observations_archive WHERE workspace_id = ? AND source = ? AND source_record_id = ?
+      ) ORDER BY observed_at DESC LIMIT 100`).bind(workspaceId, cleanText(segments[1], 60), cleanText(segments[2], 180), workspaceId, cleanText(segments[1], 60), cleanText(segments[2], 180)).all();
     return json({ observations: (result.results || []).map((row) => ({ contentHash: row.content_hash, record: parsed(row.record_json, {}), observedAt: row.observed_at })) });
   }
   if (request.method === "GET" && segments[0] === "links") {
