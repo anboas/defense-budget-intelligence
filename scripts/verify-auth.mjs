@@ -1403,7 +1403,16 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
   const workspaceSaasOverview = page.locator("[data-saas-overview]");
   await workspaceSaasOverview.waitFor();
-  assert.match(await workspaceSaasOverview.innerText(), /Observe only[\s\S]*Plan & usage[\s\S]*Customer readiness/i, "Workspace Overview must surface plan posture and readiness without duplicating payment controls");
+  assert.match(await workspaceSaasOverview.innerText(), /Observe only[\s\S]*Plan & usage[\s\S]*Customer readiness[\s\S]*Getting started[\s\S]*Support & data/i, "Workspace Overview must unify plan posture, onboarding, and customer operations without payment controls");
+  assert.equal(await workspaceSaasOverview.getByRole("button", { name: /checkout|payment method|credit card/i }).count(), 0, "Customer operations must not expose payment actions");
+  assert.equal(await workspaceSaasOverview.getByRole("link", { name: /checkout|payment method|credit card/i }).count(), 0, "Customer operations must not expose payment links");
+  const workspacePortalGeometry = await workspaceSaasOverview.evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    controls: [...node.querySelectorAll('input:not([type="checkbox"]), textarea, button')].filter((control) => control.getBoundingClientRect().width > 0).map((control) => control.getBoundingClientRect().height),
+  }));
+  assert.ok(workspacePortalGeometry.overflow <= 2, `The customer workspace portal must stay within the mobile viewport: ${JSON.stringify(workspacePortalGeometry)}`);
+  assert.ok(workspacePortalGeometry.controls.every((height) => height >= 43.5), `Customer portal controls must retain 44px touch targets: ${workspacePortalGeometry.controls.join(", ")}`);
+  await page.screenshot({ path: "test-results/customer-operations-mobile.png", fullPage: true });
 
   console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, OpenAI credential vault and API request log, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");
 } finally {

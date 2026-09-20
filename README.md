@@ -37,7 +37,7 @@ The primary Cloudflare deployment uses the same platform pattern as Opportunity 
 - the next successful first-party account claim atomically becomes the permanent Super user;
 - people can create their own account, manage a browser-cropped profile picture, and request access without receiving implicit workspace data;
 - the sole Super user can create isolated workspaces, approve or deny requests, assign workspace roles, add or remove members, and explicitly emulate an active managed user without inheriting Super user visibility;
-- the Super user can manually provision customer organizations, assign an organization owner, attach stable workspaces, select an Internal or Pilot plan, and inspect organization-wide usage in an observe-only SaaS control plane; billing and entitlement enforcement remain disabled;
+- the Super user can manually provision customer organizations, assign ownership, attach stable workspaces, set plans and entitlement overrides, and inspect organization-wide usage; workspace managers receive onboarding and auditable support/data request workflows while payment processing and entitlement enforcement remain disabled;
 - workspace managers can organize members into named teams with optional icons, assign events to one or more team overlays, and preserve workspace-wide events by leaving team visibility unassigned;
 - the Super user and Administrators can create human accounts inside their active workspace, assign Administrator/Analyst/Viewer roles, suspend access, revoke sessions, and reset passwords without exposing stored password material;
 - the Super user and Administrators can issue narrowly scoped, revocable Agent API credentials for the active workspace from the top-right profile menu;

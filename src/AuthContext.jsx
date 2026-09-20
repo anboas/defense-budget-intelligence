@@ -200,6 +200,10 @@ export default function AuthProvider({ children }) {
     getSaasControlPlane: () => authApi.getSaasControlPlane(),
     createCommercialOrganization: (values) => authApi.createCommercialOrganization(values),
     updateCommercialOrganization: (id, values) => authApi.updateCommercialOrganization(id, values),
+    updateCommercialEntitlements: (id, values) => authApi.updateCommercialEntitlements(id, values),
+    updateCommercialOnboarding: (id, stepKey, values) => authApi.updateCommercialOnboarding(id, stepKey, values),
+    createCommercialServiceRequest: (id, values) => authApi.createCommercialServiceRequest(id, values),
+    updateCommercialServiceRequest: (id, requestId, values) => authApi.updateCommercialServiceRequest(id, requestId, values),
     createWorkspace: async (values) => {
       const result = await authApi.createWorkspace(values);
       setStatus((current) => ({ ...current, user: current.user ? {

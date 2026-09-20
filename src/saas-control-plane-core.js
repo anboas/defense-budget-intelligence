@@ -10,6 +10,36 @@ export const COMMERCIAL_LIFECYCLE_STATES = Object.freeze([
 
 export const COMMERCIAL_ENFORCEMENT_MODES = Object.freeze(["observe", "enforce"]);
 
+export const CUSTOMER_ONBOARDING_STEPS = Object.freeze([
+  Object.freeze({ key: "confirm_owner", label: "Confirm customer owner", description: "Verify who owns the customer relationship and workspace decisions." }),
+  Object.freeze({ key: "invite_team", label: "Invite the working team", description: "Add the people who will use and administer the workspace." }),
+  Object.freeze({ key: "connect_source", label: "Connect a data source", description: "Configure at least one workspace-owned acquisition source." }),
+  Object.freeze({ key: "create_saved_view", label: "Create a saved view", description: "Capture the first repeatable monitoring workflow." }),
+  Object.freeze({ key: "review_security", label: "Review security", description: "Confirm sessions, credentials, access, and audit posture." }),
+]);
+
+export const CUSTOMER_REQUEST_TYPES = Object.freeze([
+  Object.freeze({ id: "support", label: "Support request" }),
+  Object.freeze({ id: "data_export", label: "Data export" }),
+  Object.freeze({ id: "data_deletion", label: "Data deletion" }),
+  Object.freeze({ id: "cancellation", label: "Close organization" }),
+  Object.freeze({ id: "ownership_transfer", label: "Ownership transfer" }),
+]);
+
+export const CUSTOMER_REQUEST_STATUSES = Object.freeze(["open", "in_progress", "waiting", "resolved", "cancelled"]);
+
+export function normalizeOnboardingStatus(value, fallback = "pending") {
+  return ["pending", "in_progress", "completed", "waived"].includes(value) ? value : fallback;
+}
+
+export function normalizeCustomerRequestType(value) {
+  return CUSTOMER_REQUEST_TYPES.some((item) => item.id === value) ? value : "";
+}
+
+export function normalizeCustomerRequestStatus(value, fallback = "open") {
+  return CUSTOMER_REQUEST_STATUSES.includes(value) ? value : fallback;
+}
+
 export const COMMERCIAL_PLAN_CATALOG = Object.freeze([
   Object.freeze({
     id: "internal",

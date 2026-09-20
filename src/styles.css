@@ -9203,6 +9203,106 @@ td .dot {
   padding-block: 4px;
 }
 
+.saas-onboarding-steps,
+.saas-service-requests {
+  display: grid;
+  gap: 8px;
+}
+
+.saas-onboarding-steps article,
+.saas-service-requests article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-sm);
+  background: var(--if-bg-surface);
+}
+
+.saas-onboarding-steps article > span:nth-child(2),
+.saas-service-requests article > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.saas-onboarding-steps small,
+.saas-onboarding-steps em,
+.saas-service-requests small,
+.saas-service-requests em,
+.saas-service-requests p,
+.saas-empty-copy,
+.saas-entitlement-overrides > p {
+  margin: 0;
+  color: var(--if-fg-muted);
+  font-size: var(--if-font-size-sm);
+}
+
+.saas-onboarding-steps__state {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--if-fg-muted);
+  background: var(--if-bg-muted);
+}
+
+.saas-onboarding-steps article[data-status="completed"] .saas-onboarding-steps__state,
+.saas-onboarding-steps article[data-status="waived"] .saas-onboarding-steps__state {
+  color: var(--if-color-green-500);
+  background: color-mix(in srgb, var(--if-color-green-500) 12%, transparent);
+}
+
+.saas-request-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(240px, 1.3fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.saas-request-form .if-field--full {
+  grid-column: 1 / -1;
+}
+
+.saas-request-form > .if-btn {
+  min-height: 44px;
+}
+
+.saas-service-requests article {
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px) auto;
+}
+
+.saas-entitlement-overrides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.saas-entitlement-overrides > legend,
+.saas-entitlement-overrides > p {
+  grid-column: 1 / -1;
+  padding: 0;
+}
+
+.saas-entitlement-overrides > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.6fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-sm);
+  background: var(--if-bg-surface);
+}
+
 @media (max-width: 760px) {
   .saas-control-plane__header,
   .saas-organization-card > header,
@@ -9237,7 +9337,25 @@ td .dot {
   }
 
   .saas-entitlements,
-  .saas-workspace-picker {
+  .saas-workspace-picker,
+  .saas-entitlement-overrides,
+  .saas-request-form {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saas-onboarding-steps article,
+  .saas-service-requests article,
+  .saas-entitlement-overrides > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saas-onboarding-steps__state {
+    display: none;
+  }
+
+  .saas-onboarding-steps article > .if-btn,
+  .saas-service-requests article > .if-btn {
+    width: 100%;
+    min-height: 44px;
   }
 }
