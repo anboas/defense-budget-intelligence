@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
+import fastifyRateLimit from "@fastify/rate-limit";
 import { access } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +36,13 @@ const app = Fastify({
   trustProxy: Math.max(0, Number(process.env.TRUST_PROXY_HOPS || 1)),
 });
 const pool = createPool();
+
+await app.register(fastifyRateLimit, {
+  global: true,
+  max: Math.min(1_000, Math.max(60, Number(process.env.API_RATE_LIMIT_PER_MINUTE || 300))),
+  timeWindow: "1 minute",
+  allowList: (request) => request.url.startsWith("/api/healthz") || request.url.startsWith("/api/readyz"),
+});
 
 await migrate(pool);
 await runAuthRetentionMaintenance(pool);

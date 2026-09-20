@@ -6,13 +6,14 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFile(resolve(root, path), "utf8");
 
-const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, securityWorkflow, releaseWorkflow, recoveryWorkflow, refreshWorkflow, governance, threatModel, releaseGovernance, recoveryRunbook, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration] = await Promise.all([
+const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, serverIndex, securityWorkflow, releaseWorkflow, recoveryWorkflow, refreshWorkflow, governance, threatModel, releaseGovernance, recoveryRunbook, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration] = await Promise.all([
   read("src/security-policy.js"),
   read("public/_headers"),
   read("wrangler.toml"),
   read("Dockerfile"),
   read("Dockerfile.postgres"),
   read("compose.yaml"),
+  read("server/index.mjs"),
   read(".github/workflows/security.yml"),
   read(".github/workflows/deploy-pages.yml"),
   read(".github/workflows/recovery.yml"),
@@ -67,6 +68,8 @@ assert.ok((compose.match(/cap_drop:\s*\n\s*- ALL/g) || []).length >= 2, "Every s
 assert.doesNotMatch(compose, /cap_add:/, "No stateful container may add Linux capabilities");
 assert.ok((compose.match(/no-new-privileges:true/g) || []).length >= 2, "Every stateful container must deny privilege escalation");
 assert.match(compose, /read_only:\s*true/, "The application filesystem must remain read-only");
+assert.match(serverIndex, /fastifyRateLimit/, "The PostgreSQL HTTP boundary must retain global API rate limiting");
+assert.match(serverIndex, /API_RATE_LIMIT_PER_MINUTE \|\| 300/, "The default API rate limit must remain explicit and bounded");
 
 assert.match(securityWorkflow, /npm audit --audit-level=high/, "Security CI must block high dependency vulnerabilities");
 assert.match(securityWorkflow, /npm audit signatures/, "Security CI must verify registry signatures");
