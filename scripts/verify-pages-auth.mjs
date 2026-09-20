@@ -204,6 +204,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200, "D1 Super users must be able to inspect the SaaS control plane");
     body = await response.json();
     assert.equal(body.mode, "shadow");
+    assert.equal(body.operatingMode, "manual");
+    assert.equal(body.paymentCapabilities, false);
     assert.equal(body.billingEnabled, false);
     assert.equal(body.enforcementEnabled, false);
     assert.equal(body.activeOrganization.subscription.planId, "internal", "Existing D1 workspaces must begin on the grandfathered Internal plan");
@@ -228,6 +230,25 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.organization.lifecycleState, "active");
     assert.equal(body.organization.subscription.status, "active");
     assert.equal(body.organization.subscription.enforcementMode, "observe", "D1 lifecycle changes must not silently activate entitlement enforcement");
+    assert.equal(body.organization.onboardingSteps.length, 5, "D1 customer organizations must receive the operating checklist");
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/entitlements`, { method: "PUT", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { overrides: { seats: 17 }, notes: { seats: "Design partner capacity" } } });
+    assert.equal(response.status, 200, "D1 Super users must manage manual entitlement overrides");
+    body = await response.json();
+    assert.equal(body.organization.entitlements.seats, 17);
+    assert.equal(body.organization.overrides[0]?.note, "Design partner capacity");
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/onboarding/confirm_owner`, { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { status: "completed" } });
+    assert.equal(response.status, 200, "D1 organization managers must update onboarding state");
+    body = await response.json();
+    assert.equal(body.organization.onboardingSteps.find((step) => step.key === "confirm_owner")?.status, "completed");
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/requests`, { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { type: "support", subject: "Pilot onboarding question", detail: "Need help with the source setup." } });
+    assert.equal(response.status, 201, "D1 customer operations must retain service requests without payment infrastructure");
+    body = await response.json();
+    const pilotRequestId = body.organization.serviceRequests[0]?.id;
+    assert.ok(pilotRequestId);
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/requests/${pilotRequestId}`, { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { status: "resolved", resolutionNote: "Source setup reviewed." } });
+    assert.equal(response.status, 200, "D1 customer requests must support an auditable resolution lifecycle");
+    body = await response.json();
+    assert.equal(body.organization.serviceRequests[0]?.status, "resolved");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/login", {
       method: "POST", body: { email: winner.email, passwordProof: winner.passwordProof }, origin: baseUrl.slice(0, -1),
@@ -983,6 +1004,13 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.activeOrganization.billingEmail, "", "D1 workspace managers must not receive commercial billing contacts");
     assert.deepEqual(body.activeOrganization.members, [], "D1 workspace managers must not receive organization membership administration");
     assert.equal(body.activeOrganization.owners[0]?.email, undefined, "D1 workspace plan visibility must not expose owner email metadata");
+    assert.equal(body.activeOrganization.canManageOrganization, true, "D1 workspace managers must receive bounded customer-operations authority");
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/requests`, { method: "POST", cookie: selfCookie, origin: baseUrl.slice(0, -1), body: { type: "data_export", subject: "Export workspace history", detail: "Prepare a portable customer export." } });
+    assert.equal(response.status, 201, "D1 workspace managers must be able to create customer data requests");
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/onboarding/review_security`, { method: "PATCH", cookie: selfCookie, origin: baseUrl.slice(0, -1), body: { status: "completed" } });
+    assert.equal(response.status, 200, "D1 workspace managers must be able to complete customer onboarding steps");
+    response = await apiRequest(baseUrl, `/api/v1/auth/control-plane/organizations/${pilotOrganizationId}/entitlements`, { method: "PUT", cookie: selfCookie, origin: baseUrl.slice(0, -1), body: { overrides: { seats: 99 } } });
+    assert.equal(response.status, 403, "D1 workspace managers must not change platform-owned entitlement overrides");
     response = await apiRequest(baseUrl, "/api/v1/auth/control-plane/organizations", { method: "POST", cookie: selfCookie, origin: baseUrl.slice(0, -1), body: { name: "Unauthorized customer" } });
     assert.equal(response.status, 403, "D1 workspace managers must not create commercial organizations");
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: selfCookie });
