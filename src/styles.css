@@ -8916,3 +8916,32 @@ td .dot {
   .workspace-member-profile__events time { flex-basis: 66px; }
   .workspace-member-profile button { min-height: 44px; }
 }
+.ci-header-command-trigger {
+  min-height: 2rem;
+  padding-block: 0.25rem;
+  white-space: nowrap;
+}
+
+.ci-header-command-trigger kbd {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-1);
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+}
+
+@media (max-width: 980px) {
+  .ci-header-command-trigger {
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 740px) {
+  .ci-header-command-trigger {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    padding-inline: 0;
+  }
+  .ci-header-command-trigger > span,
+  .ci-header-command-trigger kbd { display: none; }
+}

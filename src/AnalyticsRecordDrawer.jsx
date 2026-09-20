@@ -1,4 +1,4 @@
-import { ControlDisclosure, ControlDrawer, ControlFactGrid } from "control-surface-ui/react";
+import { ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import { WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 
 function money(value) {
@@ -27,8 +27,8 @@ export default function AnalyticsRecordDrawer({ record, onClose }) {
   return <ControlDrawer
     open
     onClose={onClose}
-    eyebrow={`${record.id} · ${record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"}`}
     title={record.title}
+    header={<ControlRecordHeader eyebrow={record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"} title={record.title} summary="Published analytical facts, schedule, structure, and provenance." status={<ControlStatusBadge status={record.lifecycleStatus || record.status || "active"} />} meta={[{ label: "Record", value: record.id }, { label: "Portfolio", value: record.portfolio || "Not classified" }, { label: "Recipient", value: record.party || "Not published" }]} />}
     size="wide"
     closeLabel="Close analytical detail"
     drawerProps={{ "data-analytics-record-drawer": "" }}

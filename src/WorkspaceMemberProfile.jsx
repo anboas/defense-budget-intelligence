@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, UsersRound } from "lucide-react";
-import { ControlAsyncState, ControlIdentityLink, ControlPageBody, ControlPageHeader } from "control-surface-ui/react";
+import { ControlAsyncState, ControlIdentityLink, ControlPageBody, ControlPageHeader, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import TeamAvatar from "./TeamAvatar.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import { workspaceTeamHref } from "./workspace-profile-routes.js";
@@ -49,12 +49,8 @@ export default function WorkspaceMemberProfile({ auth, memberId, seedMember, eve
   </section>;
 
   return <section className="workspace-member-profile" data-workspace-member-profile data-member-id={memberId}>
-    <ControlPageHeader eyebrow="Workspace profile" title={member.displayName} summary="Workspace-visible identity, team membership, and shared work. Private account data and hidden teams are excluded." actions={<button type="button" className="if-btn if-btn--secondary" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Back to Schedule</button>} />
+    <ControlRecordHeader eyebrow="Workspace profile" title={member.displayName} summary="Workspace-visible identity, team membership, and shared work. Private account data and hidden teams are excluded." identity={<UserAvatar user={member} size={56} nativeTitle={false} decorative />} status={<ControlStatusBadge status={member.status || "active"} />} meta={[{ label: "Role", value: member.role || "Workspace member" }, { label: "Title", value: member.title || "Not published" }, { label: "Teams", value: visibleTeams.length.toLocaleString() }]} actions={<button type="button" className="if-btn if-btn--secondary" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" />Back to Schedule</button>} />
     <ControlPageBody compact>
-      <div className="workspace-member-profile__identity">
-        <UserAvatar user={member} size={72} nativeTitle={false} decorative={false} />
-        <div><span>{member.role || "Workspace member"}</span><strong>{member.displayName}</strong><small>{member.title || "No role title published"}</small></div>
-      </div>
       <div className="workspace-member-profile__grid">
         <section data-member-teams><header><UsersRound size={18} aria-hidden="true" /><span><strong>Teams</strong><small>Visible memberships</small></span><b>{visibleTeams.length}</b></header>{visibleTeams.length ? <div className="workspace-member-profile__teams">{visibleTeams.map((team) => <ControlIdentityLink key={team.id} href={workspaceTeamHref(team.id)} name={team.name} detail={team.description || "Workspace team"} avatar={<TeamAvatar team={team} size={34} nativeTitle={false} />} ariaLabel={`Open ${team.name} workspace profile`} />)}</div> : <p>No visible team memberships.</p>}</section>
         <section data-member-events><header><CalendarDays size={18} aria-hidden="true" /><span><strong>Schedule associations</strong><small>Visible events only</small></span><b>{associations.length}</b></header>{associations.length ? <div className="workspace-member-profile__events">{associations.map(({ event, attending, eventTeams }) => <article key={event.id}><time dateTime={event.startsAt}>{day(event.startsAt)}</time><span><strong>{event.title}</strong><small>{attending ? "Attending" : eventTeams.map((team) => team.name).join(" · ")}</small></span></article>)}</div> : <p>No visible schedule associations.</p>}</section>

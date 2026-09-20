@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Clock3, Navigation, Search, Star } from "lucide-react";
+import { ControlCommandPalette } from "control-surface-ui/react";
 import ProfileMenu from "./ProfileMenu.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
@@ -9,6 +11,17 @@ const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
 const WORK_IDS = new Set(["watchlist", "tasks"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
+const RECENT_STORAGE_KEY = "dbi:navigation:recent";
+const FAVORITE_STORAGE_KEY = "dbi:navigation:favorites";
+
+function readStoredList(key) {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value.map(String) : [];
+  } catch {
+    return [];
+  }
+}
 
 const MONEY_META = {
   overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
@@ -45,6 +58,9 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   const menuRefs = useRef({});
   const triggerRefs = useRef({});
   const [pendingFocus, setPendingFocus] = useState(null);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [recentIds, setRecentIds] = useState(() => readStoredList(RECENT_STORAGE_KEY));
+  const [favoriteIds, setFavoriteIds] = useState(() => readStoredList(FAVORITE_STORAGE_KEY));
   const tabById = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab])), [tabs]);
   const primaryTabs = PRIMARY_IDS.map((id) => tabById.get(id)).filter(Boolean);
   const moneyItems = MONEY_FLOW_IDS.map((id) => {
@@ -86,6 +102,20 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     ...groups,
   ];
   const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
+  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "spend" ? "Explore transactions, records, and charts." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
+  const itemById = new Map(allNavigationItems.map((item) => [item.tabId, item]));
+  const effectiveRecentIds = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
+  const command = (item, icon) => ({ id: `route-${item.tabId}`, label: item.label, description: item.description || item.groupLabel || "Open section", href: item.href, tabId: item.tabId, icon });
+  const favoriteCommands = favoriteIds.map((id) => itemById.get(id)).filter(Boolean).map((item) => command(item, <Star size={16} />));
+  const favoriteIdSet = new Set(favoriteCommands.map((item) => item.tabId));
+  const recentCommands = effectiveRecentIds.map((id) => itemById.get(id)).filter((item) => item && !favoriteIdSet.has(item.tabId)).map((item) => command(item, <Clock3 size={16} />));
+  const featuredIds = new Set([...favoriteCommands, ...recentCommands].map((item) => item.tabId));
+  const commandGroups = [
+    ...(favoriteCommands.length ? [{ id: "favorites", label: "Favorites", commands: favoriteCommands }] : []),
+    ...(recentCommands.length ? [{ id: "recent", label: "Recent", commands: recentCommands }] : []),
+    { id: "navigate", label: "Navigate", commands: allNavigationItems.filter((item) => !featuredIds.has(item.tabId)).map((item) => command(item, <Navigation size={16} />)) },
+    { id: "page", label: "Current page", commands: [{ id: "toggle-favorite", label: favoriteIds.includes(activeTab) ? "Remove current page from favorites" : "Add current page to favorites", description: activeTitle, icon: <Star size={16} />, action: "toggle-favorite" }] },
+  ];
 
   function activeChildLabel(group) {
     return group.items.find(isItemActive)?.label || "";
@@ -108,6 +138,41 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
       window.removeEventListener("hashchange", handleRoute);
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    const next = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
+    window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
+  }, [activeTab, recentIds]);
+
+  useEffect(() => {
+    const openCommands = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    document.addEventListener("keydown", openCommands);
+    return () => document.removeEventListener("keydown", openCommands);
+  }, []);
+
+  function executeCommand(command) {
+    if (command.action === "toggle-favorite") {
+      setFavoriteIds((current) => {
+        const next = current.includes(activeTab) ? current.filter((id) => id !== activeTab) : [activeTab, ...current].slice(0, 8);
+        window.localStorage.setItem(FAVORITE_STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+      return;
+    }
+    if (command.href) {
+      setRecentIds((current) => [command.tabId, ...current.filter((id) => id !== command.tabId)].filter(Boolean).slice(0, 6));
+      window.location.hash = command.href.replace(/^#/, "");
+    }
+  }
+
+  function trackRoute(tabId) {
+    setRecentIds((current) => [tabId, ...current.filter((id) => id !== tabId)].slice(0, 6));
+  }
 
   useEffect(() => {
     const pending = pendingFocus;
@@ -139,11 +204,11 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   }
 
   const primaryLink = (tab) => (
-    <a key={tab.id} href={routes[tab.id]} className={`if-operations-topnav__link ci-header-nav__primary-link${activeTab === tab.id ? " is-active" : ""}`} aria-current={activeTab === tab.id ? "page" : undefined} data-budget-nav={routes[tab.id]} data-primary-nav={tab.id} onClick={() => setOpenMenu("")}>{tab.label}</a>
+    <a key={tab.id} href={routes[tab.id]} className={`if-operations-topnav__link ci-header-nav__primary-link${activeTab === tab.id ? " is-active" : ""}`} aria-current={activeTab === tab.id ? "page" : undefined} data-budget-nav={routes[tab.id]} data-primary-nav={tab.id} onClick={() => { trackRoute(tab.id); setOpenMenu(""); }}>{tab.label}</a>
   );
 
   const richMenuItem = (item) => (
-    <a key={item.id} href={item.href} role="menuitem" className={`if-btn if-operations-topnav__menu-item${isItemActive(item) ? " is-active" : ""}`} aria-current={isItemActive(item) ? "page" : undefined} data-budget-nav={item.href} data-control-menu-item={item.id} onClick={() => setOpenMenu("")}>
+    <a key={item.id} href={item.href} role="menuitem" className={`if-btn if-operations-topnav__menu-item${isItemActive(item) ? " is-active" : ""}`} aria-current={isItemActive(item) ? "page" : undefined} data-budget-nav={item.href} data-control-menu-item={item.id} onClick={() => { trackRoute(item.tabId); setOpenMenu(""); }}>
       <span className="ci-topnav-menu-copy"><span className="ci-topnav-menu-label">{item.label}</span><span className="ci-topnav-menu-description">{item.description}</span></span>
       <span className="if-badge if-badge--info ci-semantic-badge ci-semantic-badge--count ci-topnav-menu-badge" data-visual-badge-family="count" data-visual-badge-tone="info">{item.badge}</span>
     </a>
@@ -179,6 +244,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
           </div>
         </nav>
         <div className="if-cluster if-cluster--nowrap if-utility-cluster if-product-header__account">
+          <button type="button" className="if-btn if-btn--secondary ci-header-command-trigger" aria-label="Search and navigate" title="Search and navigate (Ctrl+K)" onClick={() => setCommandOpen(true)}><Search size={16} aria-hidden="true" /><span>Search</span><kbd>⌘K</kbd></button>
           <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`ci-header-mobile-trigger${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" aria-label="Open application navigation" title="Sections" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
             if (event.key === "ArrowDown") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "first" }); setOpenMenu("mobile"); }
             if (event.key === "ArrowUp") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "last" }); setOpenMenu("mobile"); }
@@ -188,6 +254,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         </div>
         {mobileMenu}
       </div>
+      <ControlCommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} groups={commandGroups} onSelect={executeCommand} />
     </header>
   );
 }

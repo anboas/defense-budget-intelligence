@@ -148,6 +148,16 @@ async function assertActiveGroupState(page, group, childLabel) {
 async function assertFlowShell(page) {
   assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 2, "Header should expose only Spend Explorer and Schedule as primary links");
   assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Spend Explorer", "Schedule"], "Primary navigation should contain the two consolidated working surfaces");
+  assert.equal(await page.getByRole("button", { name: "Search and navigate" }).count(), 1, "The header should expose one global command trigger");
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
+  await page.waitForSelector(".if-command-dialog");
+  const commandPaletteText = await page.locator(".if-command-dialog").innerText();
+  assert.match(commandPaletteText, /Recent[\s\S]*Navigate/i, "The command palette should separate recent and general navigation");
+  assert.match(commandPaletteText, /Spend Explorer[\s\S]*Schedule/i, "The command palette should expose role-visible primary navigation");
+  await page.locator(".if-command-dialog input[type=search]").fill("Source Lineage");
+  assert.equal(await page.locator(".if-command-palette__item:visible").count(), 1, "Command search should reduce the visible command set");
+  await page.keyboard.press("Escape");
+  await page.waitForSelector(".if-command-dialog", { state: "detached" });
   assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 2, "Header should expose money-flow and workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
@@ -469,6 +479,10 @@ try {
   assert.ok(Math.abs(awardStickyGeometry.before.actions - awardStickyGeometry.after.actions) <= 5, `The action column should remain pinned within the table border during horizontal scroll: ${JSON.stringify(awardStickyGeometry)}`);
   assert.ok(awardStickyGeometry.actionWidth <= 180, `Shared action columns must ignore stale oversized widths and remain content-sized: ${JSON.stringify(awardStickyGeometry)}`);
   assert.equal(awardStickyGeometry.actionReorderControls, 0, "Pinned action columns must not expose reorder or resize controls");
+  await page.locator("[data-award-record-table] tbody input[type=checkbox]").first().check();
+  assert.match(await page.locator("[data-award-record-table] .if-table-selection-bar").innerText(), /1 selected[\s\S]*Clear selection/i, "Shared tables should expose the framework selection bar when rows are selected");
+  await page.locator("[data-award-record-table] .if-table-selection-bar").getByRole("button", { name: "Clear selection" }).click();
+  assert.equal(await page.locator("[data-award-record-table] .if-table-selection-bar").count(), 0, "Clearing a selection should remove the shared bulk-action surface");
   const awardContentOrder = await page.evaluate(() => ({
     records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
     rollups: document.querySelector(".award-rollup-details")?.getBoundingClientRect().top || 0,
@@ -1454,6 +1468,7 @@ try {
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-drawer]');
+  assert.match(new URL(page.url()).hash, /analyticsRecord=/, "Analytical detail should own a shareable URL state");
   assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Observed obligations|Reported potential/i);
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
@@ -1466,7 +1481,12 @@ try {
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-drawer__actions .if-icon-btn').evaluate((node) => node === document.activeElement), true, "Tab must wrap back to the first analytical-detail control");
   await page.keyboard.press("Escape");
   await page.waitForSelector('[data-analytics-record-drawer]', { state: "detached" });
+  assert.doesNotMatch(new URL(page.url()).hash, /analyticsRecord=/, "Closing analytical detail should clear its URL state");
   assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
+  await analyticalDetailTrigger.click();
+  await page.waitForSelector('[data-analytics-record-drawer]');
+  await page.goBack();
+  await page.waitForSelector('[data-analytics-record-drawer]', { state: "detached" });
   assert.doesNotMatch(await page.locator("[data-transaction-d3-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
   assert.match(await page.locator(".transaction-analytics-note").textContent(), /not the complete federal contract universe/i, "Analytics should disclose its coverage boundary");
   await page.screenshot({ path: `${OUT_DIR}/transactions-d3-desktop.png`, fullPage: true });
