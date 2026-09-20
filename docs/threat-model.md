@@ -54,7 +54,7 @@ Public source content, browser input, provider output, issue text, and repositor
 | Supply-chain compromise | Lockfile install, registry signatures, immutable actions/framework/base images, Dependabot, CodeQL, Trivy, SBOM | A correctly signed malicious upstream release remains possible |
 | Source poisoning | Stable identifiers, source provenance, schema validation, fail-closed refresh, exact-link policy | Official source compromise or incorrect official data |
 | Scheduler or delivery abuse | Opaque service token, key-gated workspace selection, pacing/backoff, idempotency, queue limits | Valid service-token theft until rotation |
-| Evidence destruction | Append-only observations, audit/incident ledgers, retention rules, exact releases | Private-state restore is not yet continuously exercised |
+| Evidence destruction | Append-only observations, audit/incident ledgers, retention rules, exact releases, quarterly restore contracts | A full production cutover remains an authorized incident operation rather than an automated test |
 | Denial of service | Body/parameter/time limits, rate limits, bounded pagination/concurrency, edge protection | Distributed low-rate abuse and upstream exhaustion |
 
 ## Privileged operations

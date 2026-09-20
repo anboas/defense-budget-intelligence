@@ -34,7 +34,7 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
   }, [busy, canManage, refresh, status, workspaceId]);
   if (!available) return null;
   if (!status && !error) return <ControlAsyncState compact state="loading" title="Loading acquisition source status" message="Reading workspace history and source coverage." />;
-  const quality = status?.quality || {}; const history = status?.durableHistory || {}; const latest = status?.refresh?.latest; const config = status?.config || {};
+  const quality = status?.quality || {}; const history = status?.durableHistory || {}; const archives = status?.archives || {}; const latest = status?.refresh?.latest; const config = status?.config || {};
   const openConfig = () => { setDraft({ ...config, noticeTypes: [...(config.noticeTypes || [])] }); setConfigOpen(true); };
   const saveConfig = async (event) => {
     event.preventDefault(); setBusy(true); setError("");
@@ -54,6 +54,7 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
           {canManage ? <span className="if-action-row__actions"><button type="button" className="if-btn if-btn--secondary" onClick={openConfig}><Settings2 size={15} />Configure</button><button type="button" className="if-btn if-btn--secondary" disabled={busy || !status?.credential?.configured} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? "is-spinning" : ""} />{busy ? "Refreshing…" : "Refresh now"}</button></span> : null}
         </div>
         <div className="acquisition-runtime__quality"><strong>Data-quality queue</strong><span>{count(quality.missing_identifier)} missing identifiers</span><span>{count(quality.missing_office)} missing offices</span><span>{count(quality.missing_naics)} missing NAICS</span></div>
+        <p><strong>Archive health:</strong> {count(archives.observations)} observations, {count(archives.changes)} field-change records, and {count(archives.deliveryAttempts)} delivery attempts retained outside the hot tables. Hot observation history is kept for {count(archives.observationRetentionDays || 365)} days; delivery attempts for {count(archives.deliveryRetentionDays || 180)} days.</p>
         <p>The hourly scheduler runs only due workspaces with automation enabled and an active workspace key. Requests are paced, retried with backoff, and bounded to {count((config.pageSize || 0) * (config.maxPages || 0))} records per run. Failed, rate-limited, or truncated reads preserve the prior verified corpus.</p>
         {status?.delivery?.pendingProvider ? <p className="if-alert if-alert--info" role="status">{count(status.delivery.pendingProvider)} alert delivery job{status.delivery.pendingProvider === 1 ? " is" : "s are"} retained until an outbound provider is configured. In-app alerts remain available.</p> : null}
         {error ? <p className="if-alert if-alert--warning" role="status">{error}</p> : null}

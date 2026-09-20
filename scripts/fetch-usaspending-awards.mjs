@@ -28,6 +28,7 @@ const RETRIES = Math.max(1, Number(process.env.USASPENDING_RETRIES || 5));
 const AREA_PASSES = Math.max(1, Number(process.env.USASPENDING_AREA_PASSES || 10));
 const AREA_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.USASPENDING_AREA_CONCURRENCY || 2)));
 const TREND_LIMIT = Number(process.env.USASPENDING_TREND_LIMIT || 8);
+const AWARD_TYPE_CODES = Object.freeze(["A", "B", "C", "D", "IDV_A", "IDV_B", "IDV_B_A", "IDV_B_B", "IDV_B_C", "IDV_C", "IDV_D", "IDV_E"]);
 
 const ALL_TECHNOLOGY_QUERIES = [
   {
@@ -175,7 +176,7 @@ async function fetchArea(area) {
   const payload = {
     filters: {
       agencies: [{ type: "awarding", tier: "toptier", name: "Department of Defense" }],
-      award_type_codes: ["A", "B", "C", "D"],
+      award_type_codes: AWARD_TYPE_CODES,
       keywords: area.keywords,
     },
     fields: FIELDS,
@@ -276,6 +277,7 @@ function normalizeAward(raw = {}, area) {
     naicsCode: normalizeText(raw.naics_code || ""),
     naicsDescription: normalizeText(raw.naics_description || ""),
     awardAmount: dollarsToBillions(raw["Award Amount"]),
+    awardType: normalizeText(raw["Contract Award Type"] || ""),
   };
 }
 
@@ -300,7 +302,7 @@ async function fetchSpendingOverTime(series) {
     filters: {
       time_period: [{ start_date: START_DATE, end_date: END_DATE }],
       agencies: [{ type: "awarding", tier: "toptier", name: "Department of Defense" }],
-      award_type_codes: ["A", "B", "C", "D"],
+      award_type_codes: AWARD_TYPE_CODES,
       ...series.filters,
     },
     group: "quarter",
@@ -429,7 +431,7 @@ const out = {
     spendingOverTimeUrl: SPENDING_OVER_TIME_URL,
     startDate: START_DATE,
     endDate: END_DATE,
-    methodology: `Retained Department of Defense technology-area awards plus every paginated result in the rolling ${REFRESH_LOOKBACK_DAYS}-day refresh window. Each query is partitioned into one-day windows to stay below the USAspending per-query result ceiling, then merged by generated award identifier. The corpus grows incrementally and does not claim historical or exhaustive DoW coverage. Quarterly contract-obligation time series use USAspending spending_over_time.`,
+    methodology: `Retained Department of Defense technology-area contract awards, IDVs, orders, and calls plus every paginated result in the rolling ${REFRESH_LOOKBACK_DAYS}-day refresh window. Each query is partitioned into one-day windows to stay below the USAspending per-query result ceiling, then merged by generated award identifier. The corpus grows incrementally and does not claim historical or exhaustive DoW coverage. Quarterly obligation time series use USAspending spending_over_time.`,
     coverageStatus: "incremental-growing-query-boundary",
     pageSize: PAGE_SIZE,
     maxPages: MAX_PAGES || null,
@@ -440,6 +442,7 @@ const out = {
     retainedAwardCount: priorAwards.length,
     trendLimit: TREND_LIMIT,
     areaCount: TECHNOLOGY_QUERIES.length,
+    awardTypeCodes: AWARD_TYPE_CODES,
     cachedAreaCount: areas.length,
     failedAreaCount: failed.length,
     truncatedAreaCount: areas.filter((entry) => entry.pageMetadata?.truncated).length,

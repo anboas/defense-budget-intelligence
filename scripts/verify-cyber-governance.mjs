@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFile(resolve(root, path), "utf8");
 
-const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, securityWorkflow, governance, threatModel, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration] = await Promise.all([
+const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, securityWorkflow, releaseWorkflow, recoveryWorkflow, refreshWorkflow, governance, threatModel, releaseGovernance, recoveryRunbook, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration] = await Promise.all([
   read("src/security-policy.js"),
   read("public/_headers"),
   read("wrangler.toml"),
@@ -14,8 +14,13 @@ const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compos
   read("Dockerfile.postgres"),
   read("compose.yaml"),
   read(".github/workflows/security.yml"),
+  read(".github/workflows/deploy-pages.yml"),
+  read(".github/workflows/recovery.yml"),
+  read(".github/workflows/refresh-intelligence.yml"),
   read("docs/cybersecurity-governance.md"),
   read("docs/threat-model.md"),
+  read("docs/release-governance.md"),
+  read("docs/recovery-runbook.md"),
   read("SECURITY.md"),
   read(".github/CODEOWNERS"),
   read("src/pages-auth-api.js"),
@@ -68,6 +73,12 @@ assert.match(securityWorkflow, /npm audit signatures/, "Security CI must verify 
 assert.match(securityWorkflow, /verify:cyber/, "Security CI must enforce the cyber governance contract");
 assert.match(securityWorkflow, /aquasecurity\/trivy-action@[0-9a-f]{40}/, "Container scanning action must be immutable");
 assert.match(securityWorkflow, /severity:\s*'HIGH,CRITICAL'/, "Container scanning must block high and critical findings");
+assert.match(releaseWorkflow, /pull_request:/, "Release contracts must run before merge");
+assert.match(releaseWorkflow, /github\.event_name != 'pull_request'/, "Pull-request verification must not publish a release");
+assert.match(recoveryWorkflow, /verify:recovery:d1/, "Recovery CI must restore a D1 export contract");
+assert.match(recoveryWorkflow, /verify:recovery:postgres/, "Recovery CI must restore a PostgreSQL dump into an isolated database");
+assert.doesNotMatch(refreshWorkflow, /git push origin HEAD:main/, "Automated data refreshes must not bypass protected pull requests");
+assert.match(refreshWorkflow, /gh pr create/, "Automated data refreshes must open a pull request");
 
 for (const phrase of ["Data classification", "Access review", "Vulnerability remediation", "Incident response", "Business continuity", "Control evidence"]) {
   assert.match(governance, new RegExp(phrase, "i"), `Governance baseline must define ${phrase}`);
@@ -75,6 +86,8 @@ for (const phrase of ["Data classification", "Access review", "Vulnerability rem
 for (const phrase of ["Trust boundaries", "Threat actors", "Abuse cases", "Residual risks"]) {
   assert.match(threatModel, new RegExp(phrase, "i"), `Threat model must define ${phrase}`);
 }
+for (const phrase of ["Normal path", "Emergency path", "required checks", "Direct pushes"]) assert.match(releaseGovernance, new RegExp(phrase, "i"), `Release governance must define ${phrase}`);
+for (const phrase of ["Cloudflare D1", "PostgreSQL", "Break glass", "recovery point", "recovery time"]) assert.match(recoveryRunbook, new RegExp(phrase, "i"), `Recovery runbook must define ${phrase}`);
 assert.match(securityPolicyDocument, /Critical[^\n]+24 hours/i, "Security policy must publish a critical-response target");
 assert.match(codeowners, /\/\.github\/workflows\//, "Security-sensitive workflows must have an explicit owner");
 assert.match(codeowners, /\/src\/security-policy\.js/, "Shared security policy must have an explicit owner");

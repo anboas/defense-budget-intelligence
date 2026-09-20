@@ -18,3 +18,8 @@
 /docs/architecture-security.md @anboas
 /docs/cybersecurity-governance.md @anboas
 /docs/threat-model.md @anboas
+/docs/recovery-runbook.md @anboas
+/docs/release-governance.md @anboas
+/scripts/d1-restore-normalizer.mjs @anboas
+/scripts/verify-d1-recovery.mjs @anboas
+/scripts/verify-postgres-recovery.mjs @anboas
