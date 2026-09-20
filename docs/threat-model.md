@@ -43,7 +43,7 @@ Public source content, browser input, provider output, issue text, and repositor
 
 | Abuse case | Primary controls | Residual risk |
 | --- | --- | --- |
-| Credential stuffing or account-creation abuse | Production self-registration disabled; Super-provisioned accounts; PBKDF2 proofs, generic login errors, identity/IP attempt limits, secure cookies | No phishing-resistant MFA yet |
+| Credential stuffing or account-creation abuse | No public-open registration; real-Super-controlled closed/invite-only policy; 128-bit one-time expiring codes stored only as hashes; optional email binding; Viewer-only account creation without workspace membership; PBKDF2 proofs, generic login errors, identity/IP attempt limits, secure cookies | No phishing-resistant MFA yet |
 | CSRF or cross-origin write | SameSite Strict, same-origin/Fetch Metadata checks, no permissive CORS | Stolen same-origin session remains powerful |
 | XSS and browser injection | React escaping, no dynamic-code sinks, restrictive CSP, no inline scripts, bounded URLs | Inline style attributes remain explicitly allowed |
 | Workspace data escape | Server-side workspace predicates, role checks beside storage, parity contracts | New routes can regress if not covered |
@@ -65,7 +65,7 @@ The following require the real, non-emulating Super user: global account managem
 
 1. **MFA/passkeys:** password authentication has no second factor. Add WebAuthn/passkeys before broad external user onboarding.
 2. **Single-owner review:** CODEOWNERS identifies the owner but cannot provide separation of duties until a second trusted maintainer exists.
-3. **Controlled onboarding:** production self-registration is disabled. Any future public onboarding must add approval, edge challenge, and registration-specific rate controls before it is enabled.
+3. **Controlled onboarding:** production registration defaults closed and can be enabled only in invitation-only mode by the real Super user. Invite redemption creates no workspace access. Any future public-open onboarding must add approval, edge challenge, and registration-specific rate controls before a new policy mode can be introduced.
 4. **Recovery assurance:** D1/PostgreSQL private-state restoration needs recurring exercises and measured recovery objectives.
 5. **Legacy agent credentials:** new governance requires expiry, but existing indefinite tokens require inventory and rotation.
 6. **Client-derived password proof:** the proof is a reusable credential if intercepted outside TLS. TLS/HSTS and HttpOnly session handling are mandatory; a future passkey flow removes this class.

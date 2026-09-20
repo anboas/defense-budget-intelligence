@@ -57,7 +57,6 @@ async function startPages(persistPath) {
     "--binding",
     "DBI_ALLOW_FIRST_CLAIM=1",
     "--binding",
-    "DBI_ALLOW_SELF_REGISTRATION=1",
     "--log-level",
     "error",
   ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -153,6 +152,7 @@ async function verifyApiLifecycle(persistPath) {
       required: true,
       claimed: false,
       registrationEnabled: false,
+      registrationMode: "closed",
       user: null,
     });
 
@@ -797,17 +797,63 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.meta.retentionDays, 90);
     assert.doesNotMatch(JSON.stringify(body.data), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-verification/i, "D1 request logs must not expose secrets, prompts, headers, or bodies");
 
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration");
+    assert.equal(response.status, 401, "Anonymous users must not inspect registration administration");
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.policy.mode, "closed", "Registration must default closed even in disposable runtimes");
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", {
+      method: "POST", body: userPayload(19), origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Closed registration must reject otherwise valid account details");
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration", {
+      method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { mode: "invite_only" },
+    });
+    assert.equal(response.status, 200, "The Super user must be able to enable invitation-only registration");
     const selfSignup = userPayload(20);
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration/invites", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Pages signup", email: selfSignup.email, expiresInDays: 7 },
+    });
+    assert.equal(response.status, 201, "The Super user must be able to generate an email-bound invite");
+    body = await response.json();
+    const selfSignupCode = body.code;
+    assert.match(selfSignupCode, /^DBI-(?:[0-9A-F]{4}-){7}[0-9A-F]{4}$/, "The invite code must be a high-entropy copyable secret");
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.invites[0].codeSuffix, selfSignupCode.slice(-4));
+    assert.doesNotMatch(JSON.stringify(body), new RegExp(selfSignupCode.replaceAll("-", "[-]?"), "i"), "Invite lists must never return the full code");
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", {
+      method: "POST", body: { ...userPayload(22), inviteCode: selfSignupCode }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Email-bound invites must reject another identity without consuming the invite");
     response = await apiRequest(baseUrl, "/api/v1/auth/register", {
       method: "POST",
-      body: selfSignup,
+      body: { ...selfSignup, inviteCode: selfSignupCode },
       origin: baseUrl.slice(0, -1),
     });
-    assert.equal(response.status, 201, "Public self-signup must create an account after the service is claimed");
+    assert.equal(response.status, 201, "A valid invite must create an account after the service is claimed");
     const selfCookie = cookieFrom(response);
     body = await response.json();
     assert.equal(body.user.hasWorkspaceAccess, false, "Self-signups must begin without implicit workspace access");
     const selfUserId = body.user.id;
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", {
+      method: "POST", body: { ...userPayload(23), inviteCode: selfSignupCode }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "A registration invite must be single-use");
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration/invites", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Revocation proof", expiresInDays: 1 },
+    });
+    body = await response.json();
+    const revokedInvite = body.invite;
+    const revokedCode = body.code;
+    response = await apiRequest(baseUrl, `/api/v1/auth/registration/invites/${revokedInvite.id}`, {
+      method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 200, "The Super user must be able to revoke an unused invite");
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", {
+      method: "POST", body: { ...userPayload(24), inviteCode: revokedCode }, origin: baseUrl.slice(0, -1),
+    });
+    assert.equal(response.status, 403, "Revoked registration invites must not create accounts");
     response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}`, {
       method: "PATCH", body: { name: "Unauthorized rename", description: "" }, cookie: selfCookie, origin: baseUrl.slice(0, -1),
     });
@@ -872,6 +918,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.user.role, "Workspace manager");
     response = await apiRequest(baseUrl, "/api/v1/auth/users", { cookie: selfCookie });
     assert.equal(response.status, 403, "Workspace managers must not enumerate global platform accounts");
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration", { cookie: selfCookie });
+    assert.equal(response.status, 403, "Workspace managers must not inspect or mutate platform registration");
     response = await apiRequest(baseUrl, "/api/v1/auth/workspace-admin", { cookie: selfCookie });
     body = await response.json();
     assert.deepEqual(body.workspaces.map((workspace) => workspace.id), [defaultWorkspaceId], "Workspace managers must see only their active administrative boundary");
@@ -881,7 +929,11 @@ async function verifyApiLifecycle(persistPath) {
     });
     assert.equal(response.status, 200, "Workspace managers may change the role of an existing workspace member");
     const unassignedAccount = userPayload(21);
-    response = await apiRequest(baseUrl, "/api/v1/auth/register", { method: "POST", body: unassignedAccount, origin: baseUrl.slice(0, -1) });
+    response = await apiRequest(baseUrl, "/api/v1/auth/registration/invites", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Unassigned account", expiresInDays: 1 },
+    });
+    const unassignedInviteCode = (await response.json()).code;
+    response = await apiRequest(baseUrl, "/api/v1/auth/register", { method: "POST", body: { ...unassignedAccount, inviteCode: unassignedInviteCode }, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 201);
     const unassignedAccountId = (await response.json()).user.id;
     response = await apiRequest(baseUrl, `/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, {

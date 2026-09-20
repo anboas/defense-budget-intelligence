@@ -174,6 +174,15 @@
 .user-management__actions { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 5px; white-space: nowrap; }
 .user-management__actions .if-btn { min-height: 36px; }
 .user-management__owner { display: inline-flex; align-items: center; gap: 5px; color: var(--if-info); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); white-space: nowrap; }
+.registration-management { display: grid; gap: 1rem; }
+.registration-management__actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 0; border-block: var(--if-divider); }
+.registration-management__actions > span { display: flex; align-items: center; gap: 0.65rem; }
+.registration-management__actions > span:first-child { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
+.registration-management__actions small,
+.registration-invite__identity small { display: block; color: var(--if-text-muted); }
+.registration-invite__identity { display: grid; gap: 2px; }
+.registration-code { display: grid; gap: 1rem; }
+.registration-code code { overflow-wrap: anywhere; padding: 1rem; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-subtle); color: var(--if-text-strong); font-size: 1rem; line-height: 1.5; letter-spacing: 0.04em; user-select: all; }
 
 .workspace-management,
 .workspace-management .if-page-body,
@@ -266,6 +275,10 @@
   .user-management__tabs { padding-inline: var(--if-space-2); }
   .user-management__actions { justify-content: flex-start; }
   .user-management__actions .if-btn { min-height: 44px; }
+  .registration-management__actions,
+  .registration-management__actions > span:last-child { align-items: stretch; flex-direction: column; }
+  .registration-management__actions .if-btn,
+  .registration-code .if-btn { width: 100%; min-height: 44px; }
   .workspace-request-queue > article { grid-template-columns: 1fr; }
   .workspace-request-queue > article { align-items: stretch; }
   .workspace-card > header { grid-template-columns: 36px minmax(0, 1fr); align-items: start; }
@@ -640,6 +653,7 @@ button {
   .profile-trigger { min-width: 44px; min-height: 44px; padding: 5px; }
   .account-gate { padding: 12px; }
   .account-gate__card { padding: 24px 18px; }
+  .account-gate .if-input { min-height: 44px; }
 }
 
 .masthead__brand {

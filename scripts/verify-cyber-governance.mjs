@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFile(resolve(root, path), "utf8");
 
-const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, securityWorkflow, governance, threatModel, securityPolicyDocument, codeowners, pagesAuth, postgresAuth] = await Promise.all([
+const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, securityWorkflow, governance, threatModel, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration] = await Promise.all([
   read("src/security-policy.js"),
   read("public/_headers"),
   read("wrangler.toml"),
@@ -20,6 +20,9 @@ const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compos
   read(".github/CODEOWNERS"),
   read("src/pages-auth-api.js"),
   read("server/auth-routes.mjs"),
+  read("src/registration-core.js"),
+  read("src/d1-registration.js"),
+  read("server/account-registration-routes.mjs"),
 ]);
 
 for (const source of [securityPolicy, headers]) {
@@ -34,7 +37,11 @@ for (const source of [securityPolicy, headers]) {
 
 assert.match(wrangler, /DBI_AUTH_REQUIRED\s*=\s*"1"/, "Production must require authentication");
 assert.match(wrangler, /DBI_ALLOW_FIRST_CLAIM\s*=\s*"0"/, "Production bootstrap claiming must remain disabled after ownership is established");
-assert.match(wrangler, /DBI_ALLOW_SELF_REGISTRATION\s*=\s*"0"/, "Production self-registration must remain disabled");
+assert.match(registrationCore, /REGISTRATION_MODES\s*=\s*Object\.freeze\(\["closed", "invite_only"\]\)/, "Registration policy must expose only closed and invite-only modes");
+assert.doesNotMatch(registrationCore, /["']open["']|public_open/, "Registration policy must not expose a public-open mode");
+assert.match(d1Registration, /code_hash[\s\S]+hashValue\(inviteCode\)[\s\S]+hashValue\(normalizeInviteCode\(code\)\)/, "D1 registration invites must be stored and compared through the shared SHA-256 hash boundary");
+assert.match(postgresRegistration, /code_hash[\s\S]+sha256\(inviteCode\)[\s\S]+sha256\(normalizeInviteCode\(code\)\)/, "PostgreSQL registration invites must be stored and compared as SHA-256 hashes");
+for (const source of [d1Registration, postgresRegistration]) assert.match(source, /['"]viewer['"]/, "Invited accounts must receive only the Viewer global role");
 assert.match(wrangler, /DBI_FORCE_SECURE_COOKIES\s*=\s*"1"/, "Production cookies must remain Secure");
 assert.match(pagesAuth, /SESSION_MAX_AGE_SECONDS\s*=\s*14 \* 24 \* 60 \* 60/, "Pages sessions must expire within fourteen days");
 assert.match(postgresAuth, /SESSION_DAYS \|\| 14/, "PostgreSQL sessions must default to fourteen days");

@@ -6,6 +6,7 @@ import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStr
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
 import { workspaceMemberHref } from "./workspace-profile-routes.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
+import RegistrationManagement from "./RegistrationManagement.jsx";
 
 const EMPTY_CREATE = { displayName: "", email: "", title: "", role: "analyst", password: "", confirm: "" };
 
@@ -34,7 +35,8 @@ export default function UserManagement({ auth }) {
   const [activities, setActivities] = useState([]);
   const [surface, setSurface] = useState(() => {
     if (typeof window === "undefined") return "accounts";
-    return new URLSearchParams(String(window.location.hash || "").split("?")[1] || "").get("accountsView") === "activity" ? "activity" : "accounts";
+    const requested = new URLSearchParams(String(window.location.hash || "").split("?")[1] || "").get("accountsView");
+    return ["activity", "invitations"].includes(requested) ? requested : "accounts";
   });
   const [roles, setRoles] = useState([]);
   const [mode, setMode] = useState("");
@@ -83,7 +85,7 @@ export default function UserManagement({ auth }) {
     setSurface(nextSurface);
     const base = String(window.location.hash || "").split("?")[0] || "#/budget-spend/users";
     const params = new URLSearchParams(String(window.location.hash || "").split("?")[1] || "");
-    if (nextSurface === "activity") params.set("accountsView", "activity");
+    if (["activity", "invitations"].includes(nextSurface)) params.set("accountsView", nextSurface);
     else params.delete("accountsView");
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${base}${params.size ? `?${params.toString()}` : ""}`);
   }
@@ -189,10 +191,10 @@ export default function UserManagement({ auth }) {
   ];
 
   return <section className="ops-panel user-management" data-user-management data-platform-accounts aria-labelledby="user-management-title">
-    <ControlPageHeader compact divided eyebrow="Platform administration" title="Accounts" summary={<>Global account identity, status, password recovery, and user emulation. Workspace roles live in <WorkspaceAccessLink />.</>} headingLevel={2} titleId="user-management-title" actions={surface === "accounts" ? <button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add account</button> : <button type="button" className="if-btn if-btn--secondary" onClick={() => void refresh().catch((error) => notify("Activity unavailable", error.message, "danger"))} disabled={busy}><RefreshCcw size={15} />Refresh activity</button>} />
+    <ControlPageHeader compact divided eyebrow="Platform administration" title="Accounts" summary={<>Global identity, invitation-only registration, status, password recovery, and user emulation. Workspace roles live in <WorkspaceAccessLink />.</>} headingLevel={2} titleId="user-management-title" actions={surface === "accounts" ? <button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add account</button> : surface === "activity" ? <button type="button" className="if-btn if-btn--secondary" onClick={() => void refresh().catch((error) => notify("Activity unavailable", error.message, "danger"))} disabled={busy}><RefreshCcw size={15} />Refresh activity</button> : null} />
     <ControlPageBody compact>
 
-    <ControlMetricStrip label={surface === "accounts" ? "User access summary" : "User activity summary"} items={surface === "accounts" ? [
+    {surface !== "invitations" ? <ControlMetricStrip label={surface === "accounts" ? "User access summary" : "User activity summary"} items={surface === "accounts" ? [
       { id: "total", label: "Accounts", value: users.length },
       { id: "active", label: "Active", value: activeCount, tone: "success" },
       { id: "managers", label: "Managers", value: adminCount, tone: "info" },
@@ -202,10 +204,11 @@ export default function UserManagement({ auth }) {
       { id: "visits", label: "Page visits", value: pageVisitCount, tone: "info" },
       { id: "actions", label: "Actions", value: actionCount, tone: "purple" },
       { id: "accounts", label: "Active accounts", value: activeAccounts, tone: "success" },
-    ]} />
+    ]} /> : null}
 
     <nav className="if-tabs__list user-management__tabs" aria-label="Platform account sections">
       <button type="button" className={`if-tab${surface === "accounts" ? " is-active" : ""}`} aria-pressed={surface === "accounts"} onClick={() => selectSurface("accounts")}>Accounts <span className="if-badge">{users.length}</span></button>
+      <button type="button" className={`if-tab${surface === "invitations" ? " is-active" : ""}`} aria-pressed={surface === "invitations"} onClick={() => selectSurface("invitations")}>Invitations</button>
       <button type="button" className={`if-tab${surface === "activity" ? " is-active" : ""}`} aria-pressed={surface === "activity"} onClick={() => selectSurface("activity")}>Activity <span className="if-badge">{activities.length}</span></button>
     </nav>
 
@@ -269,6 +272,7 @@ export default function UserManagement({ auth }) {
       mobileColumns={["at", "account", "type", "action", "surface", "count"]}
       wrapperProps={{ "data-platform-activity-table": true }}
     /> : <ControlAsyncState compact state="empty" icon={<Activity size={22} />} title="No user activity retained yet" message="Page visits and meaningful account actions will appear here as people use the application." /> : null}
+    {surface === "invitations" ? <RegistrationManagement auth={auth} /> : null}
     </ControlPageBody>
   </section>;
 }

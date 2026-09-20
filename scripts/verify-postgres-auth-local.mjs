@@ -19,7 +19,6 @@ try {
     "compose", "run", "--rm", "--detach", "--name", container,
     "-e", "ENABLE_AUTH=true",
     "-e", "AUTH_REQUIRE_LOGIN=true",
-    "-e", "ALLOW_SELF_REGISTRATION=true",
     "-e", "AUTH_SECURE_COOKIE=false",
     "-e", "DBI_CREDENTIAL_ENCRYPTION_KEY",
     "-e", "DBI_EVENT_AI_MOCK_MODE=true",

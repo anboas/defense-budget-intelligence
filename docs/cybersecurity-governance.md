@@ -32,7 +32,7 @@ Restricted values must never enter chat, source, URLs, issue bodies, CI argument
 - New agent credentials require a purpose, least-privilege scopes, and an expiration. Indefinite legacy credentials are reviewed and rotated during the next quarterly review.
 - Emulation is support-only. The audit ledger must retain both the real actor and effective user.
 - Production bootstrap claiming remains disabled after the first owner is established.
-- Production self-registration remains disabled. The Super user provisions accounts and workspace access through the authenticated administration surface.
+- Public-open self-registration remains unavailable. The real Super user controls a durable platform policy of **Closed** or **Invite only** and can issue one-time, expiring registration codes. Codes are stored only as SHA-256 hashes, may be bound to one email address, create only global Viewer accounts, and never grant workspace membership; workspace access remains a separate approval.
 
 ## Authentication and secret management
 

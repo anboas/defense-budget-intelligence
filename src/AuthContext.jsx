@@ -26,6 +26,7 @@ function AccountGate({ mode, onSubmit, onRegister, registrationEnabled, busy, er
   const [title, setTitle] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const mismatch = identity && confirm && password !== confirm;
 
   return (
@@ -38,17 +39,18 @@ function AccountGate({ mode, onSubmit, onRegister, registrationEnabled, busy, er
         <form onSubmit={(event) => {
           event.preventDefault();
           if (mismatch) return;
-          (register ? onRegister : onSubmit)({ email, displayName, title, password });
+          (register ? onRegister : onSubmit)({ email, displayName, title, password, inviteCode });
         }}>
           {identity ? <label className="if-field"><span className="if-field__label">Display name</span><input className="if-input" required minLength={2} autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label> : null}
           <label className="if-field"><span className="if-field__label">Email</span><input className="if-input" required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
           {identity ? <label className="if-field"><span className="if-field__label">Title <span className="if-field__hint">(optional)</span></span><input className="if-input" autoComplete="organization-title" value={title} onChange={(event) => setTitle(event.target.value)} /></label> : null}
+          {register ? <label className="if-field"><span className="if-field__label">Invite code</span><input className="if-input" required minLength={24} autoComplete="one-time-code" spellCheck="false" value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} /></label> : null}
           <label className="if-field"><span className="if-field__label">Password</span><input className="if-input" required minLength={12} type="password" autoComplete={identity ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           {identity ? <label className="if-field"><span className="if-field__label">Confirm password</span><input className="if-input" required minLength={12} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></label> : null}
           {mismatch ? <p className="if-alert if-alert--danger account-form__error" role="alert">Passwords do not match.</p> : null}
           {error ? <p className="if-alert if-alert--danger account-form__error" role="alert">{error}</p> : null}
           <button className="if-btn if-btn--primary" type="submit" disabled={busy || mismatch}>{register ? <UserPlus size={17} /> : <LockKeyhole size={17} />}{busy ? "Working…" : setup ? "Create super-user account" : register ? "Create account" : "Sign in"}</button>
-          {!setup && registrationEnabled ? <button className="if-btn if-btn--ghost account-gate__alternate" type="button" onClick={() => { setScreen(register ? "login" : "register"); setPassword(""); setConfirm(""); }} disabled={busy}>{register ? "Already have an account? Sign in" : "New here? Create an account"}</button> : null}
+          {!setup && registrationEnabled ? <button className="if-btn if-btn--ghost account-gate__alternate" type="button" onClick={() => { setScreen(register ? "login" : "register"); setPassword(""); setConfirm(""); setInviteCode(""); }} disabled={busy}>{register ? "Already have an account? Sign in" : "Have an invite? Create an account"}</button> : null}
         </form>
       </section>
     </main>
@@ -174,6 +176,10 @@ export default function AuthProvider({ children }) {
     createAgentKey: (values) => authApi.createAgentKey(values),
     revokeAgentKey: (id) => authApi.revokeAgentKey(id),
     listUsers: () => authApi.listUsers(),
+    getRegistrationAdministration: () => authApi.getRegistrationAdministration(),
+    updateRegistrationPolicy: (mode) => authApi.updateRegistrationPolicy(mode),
+    createRegistrationInvite: (values) => authApi.createRegistrationInvite(values),
+    revokeRegistrationInvite: (id) => authApi.revokeRegistrationInvite(id),
     listUserActivity: () => authApi.listUserActivity(),
     recordPageVisit: (surface) => authApi.recordPageVisit(surface),
     listDirectory: () => authApi.listDirectory(),

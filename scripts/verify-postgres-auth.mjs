@@ -318,13 +318,39 @@ assert.match(transportGapEntry?.responseId || "", /^mock-producer-/);
 assert.equal(body.summary.retentionDays, 90);
 assert.doesNotMatch(JSON.stringify(body.requests), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-postgres/i, "PostgreSQL request logs must not expose secrets, prompts, headers, or bodies");
 
+response = await request("/api/v1/auth/registration");
+assert.equal(response.status, 401, "Anonymous users must not inspect PostgreSQL registration administration");
+response = await request("/api/v1/auth/registration", { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.policy.mode, "closed", "PostgreSQL registration must default closed");
+response = await request("/api/v1/auth/registration", { method: "PATCH", cookie: ownerCookie, body: { mode: "invite_only" } });
+assert.equal(response.status, 200, "PostgreSQL Super user must enable invitation-only registration");
 const signup = identity("Signup");
-response = await request("/api/v1/auth/register", { method: "POST", body: signup });
-assert.equal(response.status, 201, "PostgreSQL must support public self-signup");
+response = await request("/api/v1/auth/registration/invites", { method: "POST", cookie: ownerCookie,
+  body: { label: "PostgreSQL signup", email: signup.email, expiresInDays: 7 } });
+assert.equal(response.status, 201, "PostgreSQL Super user must generate an email-bound invite");
+body = await response.json();
+const signupCode = body.code;
+assert.match(signupCode, /^DBI-(?:[0-9A-F]{4}-){7}[0-9A-F]{4}$/);
+response = await request("/api/v1/auth/register", { method: "POST", body: { ...identity("Wrong invite identity"), inviteCode: signupCode } });
+assert.equal(response.status, 403, "PostgreSQL email-bound invites must reject another identity");
+response = await request("/api/v1/auth/register", { method: "POST", body: { ...signup, inviteCode: signupCode } });
+assert.equal(response.status, 201, "PostgreSQL must support invitation-only signup");
 const signupCookie = cookie(response);
 body = await response.json();
 assert.equal(body.user.hasWorkspaceAccess, false, "Self-signup must grant no implicit workspace access");
 const signupId = body.user.id;
+response = await request("/api/v1/auth/register", { method: "POST", body: { ...identity("Reused invite"), inviteCode: signupCode } });
+assert.equal(response.status, 403, "PostgreSQL invites must be single-use");
+response = await request("/api/v1/auth/registration/invites", { method: "POST", cookie: ownerCookie,
+  body: { label: "PostgreSQL revocation proof", expiresInDays: 1 } });
+body = await response.json();
+const revokedInvite = body.invite;
+const revokedCode = body.code;
+response = await request(`/api/v1/auth/registration/invites/${revokedInvite.id}`, { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 200, "PostgreSQL Super users must revoke unused registration invites");
+response = await request("/api/v1/auth/register", { method: "POST", body: { ...identity("Revoked invite"), inviteCode: revokedCode } });
+assert.equal(response.status, 403, "PostgreSQL revoked invites must not create accounts");
 
 response = await request(`/api/v1/auth/workspaces/${defaultWorkspaceId}/request`, { method: "POST", cookie: signupCookie, body: { note: "Contract access" } });
 assert.equal(response.status, 201);
@@ -375,6 +401,8 @@ assert.equal(body.user.canManageWorkspaces, true);
 assert.equal(body.user.role, "Workspace manager");
 response = await request("/api/v1/auth/users", { cookie: signupCookie });
 assert.equal(response.status, 403, "PostgreSQL workspace managers must not enumerate global accounts");
+response = await request("/api/v1/auth/registration", { cookie: signupCookie });
+assert.equal(response.status, 403, "PostgreSQL workspace managers must not inspect registration administration");
 response = await request("/api/v1/auth/workspace-admin", { cookie: signupCookie });
 body = await response.json();
 assert.deepEqual(body.workspaces.map((workspace) => String(workspace.id)), [String(defaultWorkspaceId)]);
@@ -383,7 +411,10 @@ response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorks
   body: { userId: pendingSetupUserId, role: "analyst" } });
 assert.equal(response.status, 200, "PostgreSQL workspace managers may change existing membership roles");
 const unassigned = identity("Unassigned");
-response = await request("/api/v1/auth/register", { method: "POST", body: unassigned });
+response = await request("/api/v1/auth/registration/invites", { method: "POST", cookie: ownerCookie,
+  body: { label: "PostgreSQL unassigned", expiresInDays: 1 } });
+const unassignedInviteCode = (await response.json()).code;
+response = await request("/api/v1/auth/register", { method: "POST", body: { ...unassigned, inviteCode: unassignedInviteCode } });
 assert.equal(response.status, 201);
 const unassignedId = (await response.json()).user.id;
 response = await request(`/api/v1/auth/workspace-admin/workspaces/${defaultWorkspaceId}/members`, { method: "POST", cookie: signupCookie,

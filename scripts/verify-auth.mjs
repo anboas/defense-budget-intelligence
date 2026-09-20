@@ -621,6 +621,28 @@ try {
   assert.equal(await page.locator(`${workspaceTriggerSelector} strong`).innerText(), initialWorkspaceName, "Workspace switcher should return to the original active workspace");
   await page.locator("[data-profile-menu-trigger]").click();
 
+  await page.goto(`${BASE_URL}#/budget-spend/users?accountsView=invitations`, { waitUntil: "domcontentloaded" });
+  const registrationSurface = page.locator("[data-registration-management]");
+  await registrationSurface.waitFor();
+  const registrationText = await registrationSurface.innerText();
+  assert.match(registrationText, /Policy[\s\S]*Closed/i, "Registration must default to the closed policy");
+  assert.match(registrationText, /No registration invites/i, "Registration must start without reusable secrets");
+  await registrationSurface.getByRole("button", { name: "Configure" }).click();
+  await chooseControlSelect(page.getByRole("dialog", { name: "Registration policy" }), "Registration mode", "Invite only");
+  await page.getByRole("dialog", { name: "Registration policy" }).getByRole("button", { name: "Save policy" }).click();
+  await page.getByText("Registration policy updated", { exact: true }).waitFor();
+  await registrationSurface.getByRole("button", { name: "Generate invite" }).click();
+  const inviteDialog = page.getByRole("dialog", { name: "Generate registration invite" });
+  await inviteDialog.getByLabel(/Label/).fill("Browser signup");
+  await inviteDialog.getByLabel(/Recipient email/).fill("self-signup@example.test");
+  await inviteDialog.getByRole("button", { name: "Generate invite" }).click();
+  const codeDialog = page.getByRole("dialog", { name: "Invite generated" });
+  const browserInviteCode = (await codeDialog.locator("code").innerText()).trim();
+  assert.match(browserInviteCode, /^DBI-(?:[0-9A-F]{4}-){7}[0-9A-F]{4}$/, "Browser invite generation must expose a one-time copyable code");
+  await codeDialog.getByRole("button", { name: "Done" }).click();
+  await page.goto(`${BASE_URL}#/budget-spend/workspace?workspaceSection=people`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-workspace-management]");
+
   const signupContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const signupPage = await signupContext.newPage();
   await signupPage.goto(BASE_URL, { waitUntil: "domcontentloaded" });
@@ -632,17 +654,25 @@ try {
   assert.equal(mobileLoginGeometry.length, 2, "Mobile sign-in should expose one submit action and one account-creation action");
   assert.ok(mobileLoginGeometry.every(({ height }) => height >= 43.5), `Mobile sign-in actions must retain 44px targets: ${JSON.stringify(mobileLoginGeometry)}`);
   await signupPage.screenshot({ path: "test-results/account-login-mobile.png" });
-  await signupPage.setViewportSize({ width: 1080, height: 900 });
-  await signupPage.getByRole("button", { name: "New here? Create an account" }).click();
+  await signupPage.getByRole("button", { name: "Have an invite? Create an account" }).click();
   await signupPage.waitForSelector('[data-account-gate="register"]');
+  const mobileRegistrationGeometry = await signupPage.locator(".account-gate form input, .account-gate form > .if-btn").evaluateAll((controls) => controls.map((control) => ({
+    height: control.getBoundingClientRect().height,
+    label: control.labels?.[0]?.textContent?.trim().replace(/\s+/g, " ") || control.textContent.trim().replace(/\s+/g, " "),
+  })));
+  assert.equal(mobileRegistrationGeometry.length, 8, "Invite registration should expose six fields, one submit action, and one sign-in action");
+  assert.ok(mobileRegistrationGeometry.every(({ height }) => height >= 43.5), `Mobile invite-registration controls must retain 44px targets: ${JSON.stringify(mobileRegistrationGeometry)}`);
+  await assertInteractionSurface(signupPage, '[data-account-gate="register"]', "Mobile invite registration", true);
+  await signupPage.screenshot({ path: "test-results/account-registration-mobile.png", fullPage: true });
   await signupPage.getByLabel("Display name").fill("Self Signup User");
   await signupPage.getByLabel("Email").fill("self-signup@example.test");
   await signupPage.getByLabel(/Title/).fill("Workspace requestor");
+  await signupPage.getByLabel("Invite code").fill(browserInviteCode);
   await signupPage.getByLabel("Password", { exact: true }).fill("Self-Signup-2026!");
   await signupPage.getByLabel("Confirm password").fill("Self-Signup-2026!");
   await signupPage.getByRole("button", { name: "Create account" }).click();
   await signupPage.waitForSelector('[data-account-gate="workspace-access"]');
-  await signupPage.getByRole("button", { name: "Request access" }).first().click();
+  await signupPage.locator(".workspace-access-list .if-action-row", { hasText: initialWorkspaceName }).getByRole("button", { name: "Request access" }).click();
   await signupPage.getByText(/Access request sent/).waitFor();
 
   await page.reload({ waitUntil: "domcontentloaded" });

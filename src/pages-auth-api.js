@@ -64,6 +64,7 @@ import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-dir
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
 import { clientErrorsResponse as handleClientErrorsResponse } from "./d1-client-errors.js";
 import { providerCredentialsResponse as handleProviderCredentialsResponse } from "./d1-provider-credentials.js";
+import { D1_REGISTRATION_SCHEMA, d1PublicRegistrationStatus, d1RegistrationResponse } from "./d1-registration.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import {
   ROLE_LABELS,
@@ -138,6 +139,7 @@ const SCHEMA = Object.freeze([
     last_login_at TEXT NOT NULL DEFAULT ''
   )`,
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_users_email_lower ON dbi_users (LOWER(email))",
+  ...D1_REGISTRATION_SCHEMA,
   `INSERT OR IGNORE INTO dbi_users
     (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
     SELECT user_id, email, display_name, title, 'super_user', 'active', password_salt, password_hash, 0, user_id, created_at, updated_at, ''
@@ -1114,7 +1116,7 @@ async function statusResponse(request, db, env) {
     enabled: true,
     required: env.DBI_AUTH_REQUIRED !== "0",
     claimed: Boolean(owner),
-    registrationEnabled: Boolean(owner) && env.DBI_ALLOW_SELF_REGISTRATION === "1",
+    ...await d1PublicRegistrationStatus(db, owner),
     user: await publicSessionUser(db, session),
   });
 }
@@ -1183,37 +1185,6 @@ async function claimResponse(request, db, env) {
     membership_role: "super_user",
   };
   return json({ user: await publicSessionUser(db, claimedUser) }, 201, { "set-cookie": sessionCookie(session.rawToken, request, env) });
-}
-
-async function registrationResponse(request, db, env) {
-  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (env.DBI_ALLOW_SELF_REGISTRATION !== "1") return json({ error: "Self-registration is unavailable" }, 403);
-  if (!sameOriginRequest(request)) return json({ error: "Cross-origin registration is not allowed" }, 403);
-  if (!await superUser(db)) return json({ error: "The Super user must claim the service before registration opens" }, 409);
-  const body = await safeJson(request);
-  const email = normalizeEmail(body?.email);
-  const displayName = cleanText(body?.displayName, 80);
-  const title = cleanText(body?.title, 80);
-  const passwordSalt = cleanText(body?.passwordSalt, 128).toLowerCase();
-  const passwordProof = cleanText(body?.passwordProof, 64).toLowerCase();
-  if (!email || displayName.length < 2 || !validSalt(passwordSalt) || !validPasswordProof(passwordProof)) {
-    return json({ error: "Valid account details are required" }, 400);
-  }
-  const count = await db.prepare("SELECT COUNT(*) AS count FROM dbi_users").first();
-  if (Number(count?.count || 0) >= 250) return json({ error: "Account registration is temporarily full" }, 409);
-  const userId = crypto.randomUUID();
-  const now = new Date().toISOString();
-  const created = await db.prepare(`
-    INSERT OR IGNORE INTO dbi_users
-      (user_id, email, display_name, title, role, status, password_salt, password_hash, must_change_password, created_by, created_at, updated_at, last_login_at)
-    VALUES (?, ?, ?, ?, 'viewer', 'active', ?, ?, 0, ?, ?, ?, ?)
-  `).bind(userId, email, displayName, title, passwordSalt, `v1$${await hashValue(passwordProof)}`, userId, now, now, now).run();
-  if (!Number(created?.meta?.changes || 0)) return json({ error: "An account with that email already exists" }, 409);
-  const session = await createSession(db, userId);
-  const row = await db.prepare("SELECT * FROM dbi_users WHERE user_id = ?").bind(userId).first();
-  return json({ user: await publicSessionUser(db, row), expiresAt: session.expiresAt }, 201, {
-    "set-cookie": sessionCookie(session.rawToken, request, env),
-  });
 }
 
 async function loginConfigResponse(request, db) {
@@ -3273,7 +3244,10 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/system/acquisition-schedule") return acquisitionSchedulerResponse(request, db, env, { decryptSecret: decryptOpenAiKey, json });
   if (pathname === "/api/v1/auth/status") return statusResponse(request, db, env);
   if (pathname === "/api/v1/auth/claim") return claimResponse(request, db, env);
-  if (pathname === "/api/v1/auth/register") return registrationResponse(request, db, env);
+  if (pathname === "/api/v1/auth/register" || pathname === "/api/v1/auth/registration" || pathname.startsWith("/api/v1/auth/registration/")) return d1RegistrationResponse(request, db, env, {
+    canAdministerUsers, cleanText, createSession, hashValue, json, normalizeEmail, publicSessionUser, recordActivity,
+    safeJson, sameOriginRequest, sessionCookie, sessionUser, superUser, validPasswordProof, validSalt,
+  });
   if (pathname === "/api/v1/auth/login-config") return loginConfigResponse(request, db);
   if (pathname === "/api/v1/auth/login") return loginResponse(request, db, env);
   if (pathname === "/api/v1/auth/logout") return logoutResponse(request, db, env);

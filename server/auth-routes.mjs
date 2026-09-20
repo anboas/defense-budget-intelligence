@@ -40,7 +40,7 @@ import { recordUserActivity, registerUserActivityRoutes } from "./user-activity-
 import { registerRecordDispositionRoutes } from "./record-disposition-routes.mjs";
 import { registerProviderCredentialRoutes } from "./provider-credential-routes.mjs";
 import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.mjs";
-import { registerAccountRegistrationRoute } from "./account-registration-routes.mjs";
+import { registerAccountRegistrationRoute, registrationPublicStatus } from "./account-registration-routes.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.min(14, Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 14)));
@@ -574,17 +574,16 @@ export async function registerAuthRoutes(app, pool) {
   const enabled = process.env.ENABLE_AUTH === "true";
   const required = enabled && process.env.AUTH_REQUIRE_LOGIN === "true";
   const allowFirstClaim = process.env.ALLOW_FIRST_CLAIM !== "false";
-  const allowSelfRegistration = process.env.ALLOW_SELF_REGISTRATION === "true";
   registerTeamEmulationRoutes(app, pool, { assertSameOrigin, authenticated, hydratedUser, canAdministerWorkspaces });
   registerUserActivityRoutes(app, pool, { assertSameOrigin, authenticated });
   registerRecordDispositionRoutes(app, pool, { assertSameOrigin, authenticated });
   registerProviderCredentialRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, encryptSecret: encryptOpenAiKey, recordApiRequest });
   registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey });
-  registerAccountRegistrationRoute(app, pool, { account, allowSelfRegistration, assertSameOrigin, cleanText, enabled, hydratedUser, issueSession, sha256, validEmail, validProof });
+  registerAccountRegistrationRoute(app, pool, { account, assertSameOrigin, authenticated, canAdministerUsers, cleanText, enabled, hydratedUser, issueSession, recordUserActivity, sha256, validEmail, validProof });
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };
     const [owner, session] = await Promise.all([account(pool), authenticated(pool, request)]);
-    return { enabled: true, required, claimed: Boolean(owner), registrationEnabled: Boolean(owner) && allowSelfRegistration, user: await hydratedUser(pool, session) };
+    return { enabled: true, required, claimed: Boolean(owner), ...await registrationPublicStatus(pool, owner), user: await hydratedUser(pool, session) };
   });
 
   app.post("/api/v1/auth/claim", async (request, reply) => {

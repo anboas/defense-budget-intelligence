@@ -55,10 +55,10 @@ export const authApi = {
     const passwordProof = await derivePasswordProof(password, passwordSalt);
     return request("/claim", { method: "POST", body: JSON.stringify({ email, displayName, title, passwordSalt, passwordProof }) });
   },
-  async register({ email, displayName, title, password }) {
+  async register({ email, displayName, title, password, inviteCode }) {
     const passwordSalt = createPasswordSalt();
     const passwordProof = await derivePasswordProof(password, passwordSalt);
-    return request("/register", { method: "POST", body: JSON.stringify({ email, displayName, title, passwordSalt, passwordProof }) });
+    return request("/register", { method: "POST", body: JSON.stringify({ email, displayName, title, passwordSalt, passwordProof, inviteCode }) });
   },
   async login({ email, password }) {
     const config = await request("/login-config", { method: "POST", body: JSON.stringify({ email }) });
@@ -71,6 +71,10 @@ export const authApi = {
   createAgentKey: (values) => request("/agent-keys", { method: "POST", body: JSON.stringify(values) }),
   revokeAgentKey: (id) => request(`/agent-keys/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   listUsers: () => request("/users", { method: "GET", headers: {} }),
+  getRegistrationAdministration: () => request("/registration", { method: "GET", headers: {} }),
+  updateRegistrationPolicy: (mode) => request("/registration", { method: "PATCH", body: JSON.stringify({ mode }) }),
+  createRegistrationInvite: (values) => request("/registration/invites", { method: "POST", body: JSON.stringify(values) }),
+  revokeRegistrationInvite: (id) => request(`/registration/invites/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
   listUserActivity: () => request("/activity", { method: "GET", headers: {} }),
   recordPageVisit: (surface) => request("/activity", { method: "POST", body: JSON.stringify({ eventType: "page_visit", surface }) }),
   listDirectory: () => request("/directory", { method: "GET", headers: {} }),

@@ -5,7 +5,6 @@ pages_build_output_dir = "dist"
 [vars]
 DBI_AUTH_REQUIRED = "1"
 DBI_ALLOW_FIRST_CLAIM = "0"
-DBI_ALLOW_SELF_REGISTRATION = "0"
 DBI_FORCE_SECURE_COOKIES = "1"
 
 [[d1_databases]]
