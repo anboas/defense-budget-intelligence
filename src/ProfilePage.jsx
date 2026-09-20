@@ -3,6 +3,7 @@ import { Check, Clipboard, ImagePlus, KeyRound, Plus, Save, Trash2, UserRound } 
 import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
+import SessionManagement from "./SessionManagement.jsx";
 import { ControlAsyncState, ControlDialog, ControlIdentityEditor, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 const DEFAULT_AGENT_SCOPES = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "integrations:read"];
@@ -233,7 +234,7 @@ export default function ProfilePage({ section = "profile" }) {
       <a role="tab" href="#/profile/openai" className={`if-tab${section === "personal-ai" ? " is-active" : ""}`} aria-selected={section === "personal-ai"} aria-current={section === "personal-ai" ? "page" : undefined}><KeyRound size={14} />OpenAI keys</a>
     </nav>
     <div className="profile-page__content">
-      {section === "security" ? <SecurityPanel auth={auth} user={user} /> : section === "personal-ai" ? <OpenAiKeyManagement auth={auth} scope="user" embedded /> : <AccountPanel auth={auth} user={user} />}
+      {section === "security" ? <><SecurityPanel auth={auth} user={user} /><SessionManagement auth={auth} /></> : section === "personal-ai" ? <OpenAiKeyManagement auth={auth} scope="user" embedded /> : <AccountPanel auth={auth} user={user} />}
     </div>
     </ControlPageBody>
   </div>;

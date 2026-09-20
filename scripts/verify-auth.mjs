@@ -223,6 +223,8 @@ try {
   assert.ok(securityGeometry.bottom <= 620, `Security controls should remain high in the desktop viewport, ending at ${securityGeometry.bottom}px`);
   assert.equal(securityGeometry.fields, 3, "Security should expose only current, new, and confirmation password fields");
   assert.equal(securityGeometry.disabledFields, 0, "Security should not render decorative disabled inputs");
+  await page.waitForSelector("[data-profile-sessions] .if-action-row");
+  assert.equal(await page.locator("[data-profile-sessions] .if-badge--info").getByText("Current").count(), 1, "Security must identify the current browser session");
   await page.screenshot({ path: "test-results/profile-security-desktop.png", fullPage: true });
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-openai-key-vault="user"]');
@@ -1252,6 +1254,8 @@ try {
   assert.ok(mobileSecurityGeometry.width <= 360, `Mobile Security should stay inside the shared page gutter, got ${mobileSecurityGeometry.width}px`);
   assert.ok(mobileSecurityGeometry.inputHeights.every((height) => height >= 43.5), `Mobile Security inputs must retain 44px touch geometry: ${mobileSecurityGeometry.inputHeights.join(", ")}`);
   assert.ok(mobileSecurityGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Security action must retain 44px touch geometry: ${mobileSecurityGeometry.buttonHeights.join(", ")}`);
+  const mobileSessionOverflow = await page.locator("[data-profile-sessions]").evaluate((node) => node.scrollWidth - node.clientWidth);
+  assert.ok(mobileSessionOverflow <= 2, `Mobile session management must stay inside its panel, got ${mobileSessionOverflow}px overflow`);
   await page.screenshot({ path: "test-results/profile-security-mobile.png", fullPage: true });
 
   await page.goto(`${BASE_URL}#/profile/openai`, { waitUntil: "domcontentloaded" });

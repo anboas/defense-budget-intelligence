@@ -36,9 +36,9 @@ Restricted values must never enter chat, source, URLs, issue bodies, CI argument
 
 ## Authentication and secret management
 
-- Browser sessions are HttpOnly, Secure in production, SameSite Strict, high priority, and expire after at most 14 days.
+- Browser sessions are HttpOnly, Secure in production, SameSite Strict, high priority, and expire after at most 14 days. Users can review active-session timestamps and revoke any other session without exposing token or network metadata.
 - Password proofs use PBKDF2-SHA-256 with 310,000 iterations in the browser and constant-time server verification. UI policy requires at least 12 characters. Passkeys or phishing-resistant MFA remain a planned control.
-- Repeated login attempts are rate limited. Password resets revoke active sessions.
+- Repeated login attempts are rate limited. D1 applies additional bounded ceilings to sensitive administration and provider operations. Password, email, account-status, and workspace-authority changes revoke affected active sessions.
 - Secret vault records use AES-256-GCM with a host-owned encryption key. Browser responses expose metadata only.
 - Secret rotations require redeploying Cloudflare Pages because Pages secrets bind to a deployment. The old credential is revoked only after the replacement passes a bounded live proof.
 
