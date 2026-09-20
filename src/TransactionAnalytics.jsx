@@ -1812,7 +1812,8 @@ export default function TransactionAnalytics({
   const [durationBand, setDurationBand] = useState(null);
   const [evidenceCell, setEvidenceCell] = useState(null);
   const [paretoDimension, setParetoDimension] = useState("recipient");
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedRecordId, setSelectedRecordId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("analyticsRecord") || "");
+  const selectedRecord = records.find((record) => String(record.opportunityId) === String(selectedRecordId)) || null;
   const [treemapMetric, setTreemapMetric] = useState("obligations");
   const [mobileChartByView, setMobileChartByView] = useState({});
   const [filterValues, setFilterValues] = useState({
@@ -1827,11 +1828,27 @@ export default function TransactionAnalytics({
   });
   const [visibleCharts, setVisibleCharts] = useState(DEFAULT_VISIBLE_CHARTS);
   useEffect(() => {
-    const sync = () => setActiveView(analyticsViewFromHash({ canonicalize: true }));
+    const sync = () => {
+      setActiveView(analyticsViewFromHash({ canonicalize: true }));
+      setSelectedRecordId(new URLSearchParams(window.location.hash.split("?")[1] || "").get("analyticsRecord") || "");
+    };
     sync();
     window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); };
   }, []);
+  function selectRecord(record) {
+    const nextId = record?.opportunityId ? String(record.opportunityId) : "";
+    setSelectedRecordId(nextId);
+    const [route] = window.location.hash.split("?");
+    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    if (nextId) params.set("analyticsRecord", nextId);
+    else params.delete("analyticsRecord");
+    const queryString = params.toString();
+    const url = `${window.location.pathname}${window.location.search}${route}${queryString ? `?${queryString}` : ""}`;
+    if (nextId) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  }
   const filterDefinitions = useMemo(() => [
     { id: "work", title: "Type of work", allLabel: "All work categories", value: (record) => record.workCategory || "other-unclassified", label: (value) => WORK_CATEGORY_BY_ID.get(value)?.label || "Other / unclassified" },
     { id: "buyer", title: "Funding office", allLabel: "All funding offices", value: (record) => record.fundingOffice || record.owner || "Not published" },
@@ -2013,7 +2030,7 @@ export default function TransactionAnalytics({
       {activeView === "overview" ? <div className="transaction-viz-grid">
         {chartVisible("dimension-explorer") ? <div className="transaction-viz--wide"><ChartFrame icon={SlidersHorizontal} title={`${dimensionLabel} composition`} note={`Click or focus a bar to filter every view; ranked by ${metric.label.toLowerCase()}`} testId="dimension-explorer" legend={[`Bar length = ${metric.label.toLowerCase()}`, "Labels = record count"]}><DimensionExplorer records={scopedRecords} dimensionId={dimensionId} metricId={metricId} facet={facet} onFacet={setFacet} /></ChartFrame></div> : null}
         {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly" legend={["Blue = reported term ends", "Gold = acquisition events"]}><EventTimeline records={scopedRecords} /></ChartFrame> : null}
-        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Square-root scales preserve lower-value visibility; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={selectRecord} /></ChartFrame> : null}
         {chartVisible("value-distribution") ? <ChartFrame icon={CircleDollarSign} title="Reported value distribution" note="Logarithmic bands preserve the small and large award populations; click to filter" testId="value-distribution" legend={["Bars = record count", "Bands use reported potential or observed value"]}><ValueDistribution records={scopedRecords} activeBand={valueBand} onBand={setValueBand} /></ChartFrame> : null}
         {chartVisible("treemap") ? <ChartFrame icon={Network} title="Portfolio and recipient composition" note="Area encodes the selected factual measure; click a recipient to filter every view" testId="treemap" legend={[`Area = ${treemapMetric}`, "Color = portfolio", "Nested labels = recipients"]}><div className="transaction-viz__segmented" aria-label="Treemap measure">{[["obligations", "Obligations"], ["potential", "Potential"], ["records", "Records"]].map(([id, text]) => <button type="button" className={treemapMetric === id ? "is-active" : ""} key={id} onClick={() => setTreemapMetric(id)}>{text}</button>)}</div><PortfolioTreemap records={scopedRecords} metric={treemapMetric} onRecipient={(value) => setFacet({ dimensionId: "recipient", value })} /></ChartFrame> : null}
         {chartVisible("work-categories") ? <ChartFrame icon={Network} title="Type of work composition" note="PSC/NAICS first, published descriptions second, unknowns explicit; click to filter" testId="work-categories" legend={["Area = record count", "Color = work category", "Unknowns remain explicit"]}><WorkCategoryTreemap records={scopedRecords} onCategory={(value) => setFacet({ dimensionId: "work", value })} /></ChartFrame> : null}
@@ -2024,7 +2041,7 @@ export default function TransactionAnalytics({
         {chartVisible("endpoint-seasonality") ? <ChartFrame icon={CalendarClock} title="Endpoint seasonality" note="Current, solicitation, and conditional endpoints by calendar month; click to filter" testId="endpoint-seasonality" legend={["Blue = current endpoints", "Gold = potential endpoints", "Columns = calendar month"]}><EndpointSeasonality records={scopedRecords} activeMonth={endMonth} onMonth={setEndMonth} /></ChartFrame> : null}
         {chartVisible("duration-distribution") ? <ChartFrame icon={BarChart3} title="Reported term duration" note="Published start-to-current-end duration; undated terms remain outside the distribution" testId="duration-distribution" legend={["Bars = dated records", "Duration = published start to current end"]}><DurationDistribution records={scopedRecords} activeBand={durationBand} onBand={setDurationBand} /></ChartFrame> : null}
         {chartVisible("quarterly") ? <ChartFrame icon={CalendarClock} title="Quarterly schedule activity" note="Reported term ends and published acquisition events" testId="quarterly" legend={["Blue = reported term ends", "Gold = acquisition events"]}><EventTimeline records={scopedRecords} /></ChartFrame> : null}
-        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("scatter") ? <ChartFrame icon={BarChart3} title="Obligation and value distribution" note="Position encodes published dollars; select a bubble for factual detail" testId="scatter" legend={["X = observed obligations", "Y = reported potential", "Size = FPDS actions", "Color = portfolio"]}><ValueScatter records={scopedRecords} onSelect={selectRecord} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "spend" ? <div className="transaction-viz-grid">
@@ -2034,7 +2051,7 @@ export default function TransactionAnalytics({
         {chartVisible("buyer-year") ? <ChartFrame icon={Grid3X3} title="Funding office by fiscal year" note="Color encodes annual net obligations; click a cell to filter by funding office" testId="buyer-year" legend={["Darker blue = more obligations", "Blank = none reported", "Columns = fiscal year"]}><BuyerYearHeatmap records={scopedRecords} onBuyer={(value) => setFacet({ dimensionId: "buyer", value })} /></ChartFrame> : null}
         {chartVisible("acquisition-matrix") ? <ChartFrame icon={Layers3} title="Pricing by competition structure" note="Record counts cross published pricing and competition/set-aside classifications" testId="acquisition-matrix" legend={["Darker cell = more records", "Rows = pricing type", "Columns = competition structure"]}><AcquisitionMatrix records={scopedRecords} /></ChartFrame> : null}
         {chartVisible("vehicle-pricing") ? <ChartFrame icon={Layers3} title="Vehicle and pricing mix" note="Top published contract vehicles split by fixed-price, cost-type, T&M, and unpublished pricing" testId="vehicle-pricing" legend={["Stack length = records", "Color = pricing family", "Top published vehicles shown"]}><VehiclePricingMix records={scopedRecords} onVehicle={(vehicle) => setFacet({ dimensionId: "vehicle", value: vehicle })} /></ChartFrame> : null}
-        {chartVisible("subawards") ? <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards" legend={["Bars = reported subaward count", "Dollars = retained recent sample", "Prime joins are exact"]}><SubawardConcentration records={scopedRecords} onSelect={setSelectedRecord} /></ChartFrame> : null}
+        {chartVisible("subawards") ? <ChartFrame icon={BarChart3} title="Prime-to-subaward concentration" note="Exact prime joins; retained-detail dollars remain a labeled recent sample" testId="subawards" legend={["Bars = reported subaward count", "Dollars = retained recent sample", "Prime joins are exact"]}><SubawardConcentration records={scopedRecords} onSelect={selectRecord} /></ChartFrame> : null}
       </div> : null}
 
       {activeView === "coverage" ? <div className="transaction-viz-grid">
@@ -2047,7 +2064,7 @@ export default function TransactionAnalytics({
       </div> : null}
       </MobileChartContext.Provider>
 
-      <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={setSelectedRecord} />
+      <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={selectRecord} />
       <details className="transaction-analytics-note if-detail-card if-detail-card--neutral">
         <summary>Coverage boundary</summary>
         <p>
@@ -2067,7 +2084,7 @@ export default function TransactionAnalytics({
           crosswalk connects every request line, award, and action.
         </p>
       </details>
-      {selectedRecord ? <Suspense fallback={null}><AnalyticsRecordDrawer record={selectedRecord} onClose={() => setSelectedRecord(null)} /></Suspense> : null}
+      {selectedRecord ? <Suspense fallback={null}><AnalyticsRecordDrawer record={selectedRecord} onClose={() => selectRecord(null)} /></Suspense> : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, MoreHorizontal, RotateCcw, Search, X } from "lucide-react";
-import { ControlAsyncState } from "control-surface-ui/react";
+import { ControlAsyncState, ControlTableSelectionBar } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 
 const DENSITIES = {
@@ -95,6 +95,8 @@ export default function OperationalDataTable({
   showSearch = true,
   showFacets = true,
   mobileColumns = null,
+  bulkActions = null,
+  onSelectionChange = null,
 }) {
   const tableRef = useRef(null);
   const compactTable = useCompactTable(recordListAt, tableRef);
@@ -216,9 +218,13 @@ export default function OperationalDataTable({
   const safePage = Math.min(page, pages);
   const start = (safePage - 1) * pageSize;
   const pageRows = sortedRows.slice(start, start + pageSize);
-  const selectedRows = sortedRows.filter((row) => selected.has(String(rowKey(row))));
+  const selectedRows = useMemo(() => sortedRows.filter((row) => selected.has(String(rowKey(row)))), [rowKey, selected, sortedRows]);
   const pageKeys = pageRows.map((row) => String(rowKey(row)));
   const pageSelected = pageKeys.length > 0 && pageKeys.every((key) => selected.has(key));
+
+  useEffect(() => {
+    onSelectionChange?.(selectedRows);
+  }, [onSelectionChange, selectedRows]);
 
   function toggleSort(key) {
     setSort((current) => current.key === key
@@ -357,7 +363,13 @@ export default function OperationalDataTable({
         <button type="button" className="if-btn if-btn--secondary dbi-data-table__mobile-filter-toggle" aria-expanded={mobileFiltersOpen} onClick={() => setMobileFiltersOpen((open) => !open)}><span>More filters{activeFilterCount ? ` · ${activeFilterCount} active` : ""}</span><ChevronDown size={14} aria-hidden="true" /></button>
         <div className="dbi-data-table__filters" data-table-filters data-mobile-expanded={mobileFiltersOpen ? "true" : "false"}>{secondaryFacets.map((column) => <div className="dbi-data-table__filter" key={column.key}><span>{column.label}</span><ControlSelect compact ariaLabel={`${column.label} filter`} value={filters[column.key] || ""} options={[["", "All"], ...facetOptions[column.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [column.key]: nextValue })); setPage(1); }} /></div>)}{activeFilterCount ? <button type="button" className="if-btn if-btn--secondary" onClick={() => { setFilters({}); setPage(1); }}>Clear {activeFilterCount}</button> : null}</div>
       </> : null}
-      {selected.size ? <div className="dbi-data-table__bulk" data-if-table-bulk><span><strong>{selected.size}</strong> selected across this table</span><button type="button" onClick={() => setSelected(new Set())}>Clear selection</button></div> : null}
+      <ControlTableSelectionBar
+        count={selected.size}
+        label={`${selected.size.toLocaleString()} selected across this table`}
+        actions={typeof bulkActions === "function" ? bulkActions(selectedRows, () => setSelected(new Set())) : bulkActions}
+        onClear={() => setSelected(new Set())}
+        data-if-table-bulk
+      />
       <div className="if-table-wrap dbi-data-table__wrap">
         <table className={`if-table if-table--${density}`} aria-label={label}>
           <colgroup>{selectable ? <col style={{ width: 38 }} /> : null}{visibleColumns.map((column) => <col key={column.key} style={{ width: column.role === "actions" ? "1%" : widths[column.key] || column.width || column.minWidth }} />)}</colgroup>
