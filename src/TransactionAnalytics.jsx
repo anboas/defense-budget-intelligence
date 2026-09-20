@@ -33,6 +33,18 @@ import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 const AnalyticsRecordDrawer = lazy(() => import("./AnalyticsRecordDrawer.jsx"));
+
+function useNarrowAnalyticsViewport() {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 720px)");
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
 import {
   applyProcurementChanges,
   assembleProcurementRecords,
@@ -1587,6 +1599,7 @@ function SourceCoverageMatrix({ records, onSource }) {
 }
 
 function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
+  const narrow = useNarrowAnalyticsViewport();
   const dimension = DIMENSIONS.find((item) => item.id === dimensionId) || DIMENSIONS[0];
   const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
   const rows = useMemo(() => {
@@ -1603,14 +1616,16 @@ function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
       .slice(0, 14);
   }, [dimension, metric, records]);
   const width = 1260;
-  const height = 78 + rows.length * 34;
+  const rowStep = narrow ? 82 : 34;
+  const barHeight = narrow ? 77 : 25;
+  const height = 78 + rows.length * rowStep;
   const inset = { top: 26, right: 150, bottom: 26, left: 330 };
   const plotWidth = width - inset.left - inset.right;
   const maximum = Math.max(...rows.map((row) => row.value), 1);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${dimension.label} ranked by ${metric.label}`}>
       {rows.map((row, index) => {
-        const y = inset.top + index * 34;
+        const y = inset.top + index * rowStep;
         const barWidth = Math.max((row.value / maximum) * plotWidth, row.value ? 2 : 0);
         const active = facet?.dimensionId === dimension.id && facet.value === row.label;
         return (
@@ -1625,9 +1640,9 @@ function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
             onClick={() => onFacet(active ? null : { dimensionId: dimension.id, value: row.label })}
             onKeyDown={(event) => activateWithKeyboard(event, () => onFacet(active ? null : { dimensionId: dimension.id, value: row.label }))}
           >
-            <text x={inset.left - 12} y={y + 20} textAnchor="end">{row.label.slice(0, 48)}</text>
-            <rect x={inset.left} y={y} width={barWidth} height="25" rx="3" fill={active ? "#f0b323" : "#1678a5"} />
-            <text x={inset.left + barWidth + 9} y={y + 19}>{metric.format(row.value)}</text>
+            <text x={inset.left - 12} y={y + barHeight / 2 + 4} textAnchor="end">{row.label.slice(0, 48)}</text>
+            <rect x={inset.left} y={y} width={barWidth} height={barHeight} rx="3" fill={active ? "#f0b323" : "#1678a5"} />
+            <text x={inset.left + barWidth + 9} y={y + barHeight / 2 + 4}>{metric.format(row.value)}</text>
           </g>
         );
       })}

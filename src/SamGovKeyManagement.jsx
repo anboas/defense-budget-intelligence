@@ -81,7 +81,7 @@ export default function SamGovKeyManagement({ auth, embedded = false }) {
 
   return <section data-sam-gov-key-management>
     <ControlPageHeader compact eyebrow="Workspace credential vault" title="SAM.gov API key" summary="One encrypted, write-only key shared by approved workspace integrations." headingLevel={embedded ? 3 : 2} actions={capability?.canManage ? <button type="button" className="if-btn if-btn--primary" onClick={() => setEditing(true)} disabled={busy}><RefreshCw size={15} aria-hidden="true" />{active ? "Replace key" : "Add key"}</button> : null} />
-    <ControlMetricStrip mobileScroll label="SAM.gov credential summary" items={[
+    <ControlMetricStrip label="SAM.gov credential summary" items={[
       { id: "status", label: "Credential", value: active ? "Configured" : "Not configured", meta: active ? `${active.label} · •••• ${active.lastFour}` : "No active workspace key", tone: active ? "success" : "warning" },
       { id: "vault", label: "Vault", value: capability?.encryptionReady ? "Ready" : "Unavailable", meta: "Encrypted, write-only storage", tone: capability?.encryptionReady ? "success" : "danger" },
       { id: "scope", label: "Scope", value: "Workspace", meta: "Managers can replace or revoke", tone: "info" },

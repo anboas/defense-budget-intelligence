@@ -666,7 +666,7 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onRefresh }) {
   return <section className={`ops-panel${selectedTaskId ? " task-center--detail" : ""}`} data-task-center>
     {!selectedTaskId ? <ControlPageHeader compact divided eyebrow="Workspace work" title="Task Center" summary="Augmentation, provider, and authenticated API tasks in one place." headingLevel={2} actions={<button type="button" className="if-btn if-btn--secondary" onClick={() => void Promise.all([notifications?.refresh?.(), onRefresh?.()])}>Refresh</button>} /> : null}
     <ControlPageBody compact>
-    {!selectedTaskId ? <ControlMetricStrip label="Task summary" mobileScroll compactMobile items={[
+    {!selectedTaskId ? <ControlMetricStrip label="Task summary" compactMobile items={[
       { id: "active", label: "In progress", value: activeCount, meta: "Background stages running", tone: "info" },
       { id: "attention", label: "Needs attention", value: attentionCount, meta: "Review or failure detail available", tone: "warning" },
       { id: "completed", label: "Completed", value: completedCount, meta: "Finished retained tasks", tone: "success" },

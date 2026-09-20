@@ -50,7 +50,7 @@ function ContractMonitorCoverage({ contractMonitor }) {
   ];
   return <div data-contract-monitor>
     <p className="if-detail-card__summary">{metadata.methodology} {metadata.sourceUrls?.[0] ? <a href={metadata.sourceUrls[0]} target="_blank" rel="noreferrer">Open USAspending source<ChevronRight size={15} /></a> : null}</p>
-    <ControlMetricStrip mobileScroll label="Contract monitor summary" data-contract-monitor-summary items={[
+    <ControlMetricStrip label="Contract monitor summary" data-contract-monitor-summary items={[
       { id: "targets", label: "Known targets", value: Number(metadata.targetCount || 0).toLocaleString(), meta: `${Number(metadata.byLifecycle?.active || 0).toLocaleString()} active · ${Number(metadata.byLifecycle?.upcoming || 0).toLocaleString()} upcoming`, tone: "info" },
       { id: "coverage", label: "Automated coverage", value: `${metadata.coveragePercent || 0}%`, meta: `${Number(metadata.currentCount || 0).toLocaleString()} current · ${Number(metadata.staleCount || 0).toLocaleString()} stale`, tone: "success" },
       { id: "gaps", label: "Exact-key gaps", value: Number(metadata.gapCount || 0).toLocaleString(), meta: `${Number(metadata.byLifecycle?.["unresolved-schedule"] || 0).toLocaleString()} unscheduled`, tone: "warning" },
@@ -86,7 +86,7 @@ export default function IntegrationManagement({ auth, dataset, samOpportunities,
         <button type="button" className={`if-tab${surface === "credentials" ? " is-active" : ""}`} aria-pressed={surface === "credentials"} onClick={() => setSurface("credentials")}>Credentials</button>
       </nav> : null}
       {!embedded && surface === "credentials" ? <OpenAiKeyManagement auth={auth} scope="workspace" embedded /> : <>
-        <ControlMetricStrip mobileScroll label="Source health summary" items={[
+        <ControlMetricStrip label="Source health summary" items={[
           { id: "online", label: "Sources online", value: sourceHealth.totals?.online || 0, meta: "Available at last probe", tone: "success" },
           { id: "unavailable", label: "Unavailable", value: sourceHealth.totals?.unavailable || 0, meta: "At last probe", tone: sourceHealth.totals?.unavailable ? "warning" : "neutral" },
           { id: "checked", label: "Health checked", value: dateTime(sourceHealth.metadata?.checkedAt), meta: "Point-in-time source probe", tone: "info" },
