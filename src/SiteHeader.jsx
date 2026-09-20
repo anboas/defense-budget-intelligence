@@ -5,24 +5,13 @@ import ProfileMenu from "./ProfileMenu.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
+import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
 
 const PRIMARY_IDS = ["spend", "schedule"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
 const WORK_IDS = new Set(["watchlist", "tasks"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
-const RECENT_STORAGE_KEY = "dbi:navigation:recent";
-const FAVORITE_STORAGE_KEY = "dbi:navigation:favorites";
-
-function readStoredList(key) {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
 const MONEY_META = {
   overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
   trends: { badge: "4 vintages", description: "Request changes across published budget vintages and fiscal years." },
@@ -59,8 +48,8 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   const triggerRefs = useRef({});
   const [pendingFocus, setPendingFocus] = useState(null);
   const [commandOpen, setCommandOpen] = useState(false);
-  const [recentIds, setRecentIds] = useState(() => readStoredList(RECENT_STORAGE_KEY));
-  const [favoriteIds, setFavoriteIds] = useState(() => readStoredList(FAVORITE_STORAGE_KEY));
+  const [recentIds, setRecentIds] = useState(() => readNavigationList(RECENT_NAVIGATION_KEY));
+  const [favoriteIds, setFavoriteIds] = useState(() => readNavigationList(FAVORITE_NAVIGATION_KEY));
   const tabById = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab])), [tabs]);
   const primaryTabs = PRIMARY_IDS.map((id) => tabById.get(id)).filter(Boolean);
   const moneyItems = MONEY_FLOW_IDS.map((id) => {
@@ -80,15 +69,15 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
   const groups = [
-    { id: "money", label: "Money Flow", items: moneyItems },
+    { id: "money", label: "Budget & Spend", items: moneyItems },
     { id: "work", label: "Work", items: workItems },
-    ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace Admin", items: workspaceAdminItems }] : []),
-    ...(platformAdminItems.length ? [{ id: "platform-admin", label: "Platform Admin", items: platformAdminItems }] : []),
+    ...(workspaceAdminItems.length ? [{ id: "workspace-admin", label: "Workspace", items: workspaceAdminItems }] : []),
+    ...(platformAdminItems.length ? [{ id: "platform-admin", label: "People & Access", items: platformAdminItems }] : []),
   ];
   const mobileGroups = [
     {
       id: "primary",
-      label: "Primary Surfaces",
+      label: "Primary",
       items: primaryTabs.map((tab) => ({
         ...tab,
         tabId: tab.id,
@@ -141,7 +130,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
 
   useEffect(() => {
     const next = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
-    window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
+    writeNavigationList(RECENT_NAVIGATION_KEY, next, 6);
   }, [activeTab, recentIds]);
 
   useEffect(() => {
@@ -159,7 +148,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     if (command.action === "toggle-favorite") {
       setFavoriteIds((current) => {
         const next = current.includes(activeTab) ? current.filter((id) => id !== activeTab) : [activeTab, ...current].slice(0, 8);
-        window.localStorage.setItem(FAVORITE_STORAGE_KEY, JSON.stringify(next));
+        writeNavigationList(FAVORITE_NAVIGATION_KEY, next, 8);
         return next;
       });
       return;
