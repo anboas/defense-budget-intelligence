@@ -71,6 +71,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [dailyFeed, setDailyFeed] = useState(emptyProcurementFeed);
   const [hasSavedViews, setHasSavedViews] = useState(false);
+  const [savedViewSummary, setSavedViewSummary] = useState({ count: 0, unreadCount: 0, favorites: 0 });
   const [runtimeSamRecords, setRuntimeSamRecords] = useState([]);
   const loadRuntimeRecords = useCallback(async () => {
     if (!runtimeAvailable) { setRuntimeSamRecords([]); return; }
@@ -132,7 +133,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   }, [runtimeSamRecords, samOpportunities]);
   const select = (next) => { setView(next); updateRoute(next); };
   const tabs = <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
-    <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Today</button>
+    <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
     <button type="button" className={`if-tab${view === "timeline" ? " is-active" : ""}`} aria-pressed={view === "timeline"} onClick={() => select("timeline")}><CalendarClock size={15} />Timeline</button>
     <button type="button" className={`if-tab${view === "table" ? " is-active" : ""}`} aria-pressed={view === "table"} onClick={() => select("table")}><FileSpreadsheet size={15} />Table</button>
     <button type="button" className={`if-tab${view === "charts" ? " is-active" : ""}`} aria-pressed={view === "charts"} onClick={() => select("charts")}><BarChart3 size={15} />Charts</button>
@@ -190,7 +191,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { id: "coverage", label: "Monitor coverage", value: `${Number(dailyFeed.metadata?.coverage?.contractMonitor?.coveragePct || 0).toLocaleString()}%`, meta: `${Number(dailyFeed.metadata?.coverage?.contractMonitor?.gapCount || 0).toLocaleString()} disclosed gaps` },
   ];
   const savedViewRows = rows.length ? rows : (discoveryIndex.discovery || []);
-  const savedViews = <SpendSavedViews rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onLoad={(saved) => {
+  const savedViews = <SpendSavedViews rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
     const next = { ...tableFilters, ...(saved.filters || {}), disposition: saved.filters?.disposition === "tombstoned" ? "tombstoned" : "active", changes: "all" };
     setTableFilters(next);
     setQuery(saved.query || "");
@@ -198,8 +199,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   }} />;
 
   if (view === "today") return <section className="spend-explorer spend-explorer--today" data-spend-explorer="today">
-    <ControlWorkbenchHeader eyebrow="Daily acquisition feed" title="Today" summary="New, changed, closing, and removed records within DBI's disclosed source boundary." metrics={todayMetrics} metricLabel="Daily acquisition summary" tabs={tabs} />
-    <ControlPageBody compact><AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} /><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} /></ControlPageBody>
+    <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
+    <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
   if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /></Suspense></SpendViewBoundary>;
   if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;

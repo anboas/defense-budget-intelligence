@@ -161,8 +161,8 @@ async function assertFlowShell(page) {
   assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 2, "Header should expose money-flow and workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
-    assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-label').innerText(), "Money Flow", "Desktop navigation group labels must use title case");
-    assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace Admin", "Workspace Admin must preserve title case");
+    assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-label').innerText(), "Budget & Spend", "Desktop navigation should name the budget domain plainly");
+    assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace", "Workspace controls should use one compact navigation label");
     const divider = page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider");
     assert.equal(await divider.count(), 1, "Desktop navigation should separate workspace controls from analytical and money-flow groups");
     assert.equal(await divider.innerText(), "|", "Workspace separator should use the established vertical-bar component");
@@ -193,7 +193,7 @@ async function assertFlowShell(page) {
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
     assert.ok(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 8, "Mobile navigation should retain money-flow, supporting work, and administration without duplicating primary routes");
-    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Money Flow[\s\S]*Work[\s\S]*Workspace Admin/, "Mobile navigation should keep title-cased work and administration groups visibly separated");
+    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Budget & Spend[\s\S]*Work[\s\S]*Workspace/, "Mobile navigation should keep budget, work, and workspace groups visibly separated");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -256,15 +256,24 @@ try {
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
   assert.ok(initialDecodedDataBytes <= 2_000_000, `Today should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
-  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Spend Explorer should expose Today, Timeline, Table, and Charts");
-  assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Today should expose browser-local saved acquisition views with unread state");
-  assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Today should expose explicit source coverage and data-quality facts");
-  assert.match(await page.locator("[data-spend-today]").innerText(), /Source coverage is incomplete/i, "Today should disclose unavailable sources instead of treating them as empty updates");
-  await page.locator("[data-spend-saved-views] > summary").click();
+  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Spend Explorer should expose Brief, Timeline, Table, and Charts");
+  assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Decision Brief should expose reusable saved acquisition views with unread state");
+  assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Decision Brief should expose source coverage and automation behind one disclosure");
+  assert.match(await page.locator("[data-decision-brief]").innerText(), /Needs attention[\s\S]*What changed[\s\S]*Due soon[\s\S]*Continue where you left off/i, "Decision Brief should lead with decisions, changes, deadlines, and continuity");
+  assert.match(await page.locator("[data-decision-brief]").innerText(), /source issue/i, "Decision Brief should disclose unavailable sources instead of treating them as empty updates");
+  await page.locator("[data-spend-saved-views] .spend-saved-views__create-panel > summary").click();
   await page.locator("[data-spend-saved-views] input").fill("AI and autonomy watch");
-  await page.getByRole("button", { name: "Save current view" }).click();
+  await page.locator("[data-spend-saved-views] .spend-saved-views__create button").click();
   assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI and autonomy watch[\s\S]*No unread changes/i, "Saved acquisition views should retain the current scope and explicit unread state");
-  await page.getByRole("button", { name: "Delete saved view AI and autonomy watch" }).click();
+  await page.getByRole("button", { name: "Add AI and autonomy watch to favorites" }).click();
+  assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI and autonomy watch[\s\S]*Favorite/i, "Saved views should support a visible favorite state");
+  await page.getByRole("button", { name: "Rename saved view AI and autonomy watch" }).click();
+  await page.locator(".spend-saved-views__rename input").fill("AI watch");
+  await page.getByRole("button", { name: "Save name" }).click();
+  await page.getByRole("button", { name: "Duplicate saved view AI watch" }).click();
+  assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI watch copy/i, "Saved views should duplicate without changing the original scope");
+  await page.getByRole("button", { name: "Delete saved view AI watch", exact: true }).click();
+  await page.getByRole("button", { name: "Delete saved view AI watch copy" }).click();
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
   assert.match(await page.title(), /^Spend Explorer · Defense Budget & Spend Analytics$/);
   assert.equal(await page.locator("h1").count(), 1, "Each route should expose one product H1");
@@ -1515,7 +1524,7 @@ try {
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
   await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-spend-today]");
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Spend Explorer Today inbox");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Decision Brief");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -1573,12 +1582,12 @@ try {
   await mobile.waitForSelector("[data-spend-today]");
   await assertFlowShell(mobile);
   assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Mobile Spend Explorer should expose the four focused views");
-  assert.ok(await mobile.locator("[data-spend-today] [data-if-table-row]").count() <= 5, "Mobile Today should start with a bounded acquisition inbox");
-  const mobileTodayActions = await mobile.locator('[data-spend-today] [data-ui-table-cell-role="actions"] :is(a, button)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
-  assert.ok(mobileTodayActions.length > 0 && mobileTodayActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Today actions should preserve 44px touch targets: ${JSON.stringify(mobileTodayActions)}`);
-  await assertButtonIntegrity(mobile, "Mobile Today", '[data-spend-explorer="today"]');
-  await assertNoPageOverflow(mobile, "Mobile Today");
-  await mobile.screenshot({ path: `${OUT_DIR}/spend-today-mobile.png`, fullPage: true });
+  assert.ok(await mobile.locator("[data-decision-brief] .decision-brief__record-list > a").count() <= 4, "Mobile Decision Brief should start with a tightly bounded change list");
+  const mobileBriefActions = await mobile.locator('[data-decision-brief] :is(.decision-brief__action, .decision-brief__record-list > a, .decision-brief__compact-list > a)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
+  assert.ok(mobileBriefActions.length > 0 && mobileBriefActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Decision Brief actions should preserve 44px touch targets: ${JSON.stringify(mobileBriefActions)}`);
+  await assertButtonIntegrity(mobile, "Mobile Decision Brief", '[data-spend-explorer="today"]');
+  await assertNoPageOverflow(mobile, "Mobile Decision Brief");
+  await mobile.screenshot({ path: `${OUT_DIR}/decision-brief-mobile.png`, fullPage: true });
   const mobileShellHeights = await mobile.locator("[data-mobile-more-menu-button], [data-notification-center-button], [data-profile-menu-trigger]").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileShellHeights.every((height) => height >= 43.5), `Mobile shell controls should preserve 44px touch targets: ${mobileShellHeights.join(", ")}`);
   assert.ok(await mobile.locator(".if-product-header__brand").evaluate((node) => node.getBoundingClientRect().height) >= 43.5, "Mobile product branding should preserve a 44px interaction target");
@@ -1586,7 +1595,7 @@ try {
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 10, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary Surfaces[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Money Flow[\s\S]*Work/, "Mobile navigation should keep title-cased primary, money-flow, and work groups visibly separated");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work/, "Mobile navigation should keep primary, budget, and work groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
