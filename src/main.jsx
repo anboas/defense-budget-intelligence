@@ -284,7 +284,7 @@ function App() {
   const [coreError, setCoreError] = useState("");
   const activeTitle = activeTab === "directory" ? "Workspace Directory" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const needsCore = CORE_TAB_IDS.has(activeTab);
-  const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "today";
+  const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "timeline";
   const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
   const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";

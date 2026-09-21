@@ -242,7 +242,7 @@ try {
     await route.continue();
   });
 
-  await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
   await page.waitForSelector("[data-spend-today]");
   assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Today should load the compact runtime manifest once");
@@ -538,13 +538,13 @@ try {
   assert.equal(subawardDetailRequests, 0, "Recent subaward detail should remain deferred until its overlay or a positive prime opens");
   assert.equal(transactionRequests, 0, "Exact FPDS actions should remain deferred until a record opens");
   const transactionText = await page.locator("[data-transaction-analytics-page]").innerText();
-  const publicRecordCount = Number(transactionText.match(/([\d,]+) public records/i)?.[1].replaceAll(",", "") || 0);
-  const automaticAdditionCount = Number(transactionText.match(/198 normalized source rows · ([\d,]+) automatic feed additions/i)?.[1].replaceAll(",", "") || 0);
+  const publicRecordCount = Number(await page.locator("[data-capture-calendar-page]").getAttribute("data-public-record-count") || 0);
+  const automaticAdditionCount = Number(await page.locator("[data-capture-calendar-page]").getAttribute("data-automatic-record-count") || 0);
   assert.ok(publicRecordCount >= 875, `Transactions should expose the current expanded baseline or more, got ${publicRecordCount}`);
   assert.ok(automaticAdditionCount >= 677, `Transactions should retain the automated USAspending baseline and permit new feeds, got ${automaticAdditionCount}`);
   await assertButtonIntegrity(page, "Spend Explorer", "[data-transaction-analytics-page]");
   await assertOpenStateControls(page, "Spend Explorer", "[data-transaction-analytics-page]");
-  assert.match(transactionText, /FPDS ACTIONS\s+3,085/i);
+  assert.match(transactionText, /Decision view[\s\S]*records/i, "Timeline should lead with the compact decision rail instead of a metric wall");
   const capturePayload = await page.evaluate(() => fetch(new URL("data/capture-calendar.json", document.baseURI)).then((response) => response.json()));
   const subawardPayload = await page.evaluate(() => fetch(new URL("data/usaspending-subawards.json", document.baseURI)).then((response) => response.json()));
   assert.equal(capturePayload.metadata.coverage.normalizedEvents, 502, "Source packet should retain every canonical event");
@@ -570,7 +570,7 @@ try {
   assert.equal(await page.locator("[data-capture-matrix]").count(), 0, "Transactions should omit the secondary lifecycle matrix beneath the Gantt");
   assert.equal(await page.getByText("More transaction analytics", { exact: true }).count(), 0, "Transactions should remove the bottom analytics disclosure");
   assert.equal(await page.getByText("Measurement and publication boundary", { exact: true }).count(), 0, "Transactions should remove the bottom methodology disclosure");
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 25, "Transactions should expose technology and DoW hierarchy alongside the established factual filters and tracking scope");
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter").count(), 24, "Transactions should expose technology and DoW hierarchy alongside the established factual filters and tracking scope");
   for (const label of ["Technology area", "DoW branch", "Service / component", "Buying office"]) {
     assert.equal(await page.getByText(label, { exact: true }).count(), 1, `Transactions should expose the ${label} drilldown control exactly once`);
   }
@@ -578,14 +578,14 @@ try {
   const compactDesktopGeometry = await page.evaluate(() => ({
     freshnessCount: document.querySelectorAll("[data-freshness-strip]").length,
     firstRowTop: document.querySelector("[data-capture-timeline] .capture-timeline__row")?.getBoundingClientRect().top || 0,
-    timelineToolsHeight: document.querySelector("[data-capture-gantt-tools]")?.getBoundingClientRect().height || 0,
+    commandbarHeight: document.querySelector("[data-capture-gantt-commandbar]")?.getBoundingClientRect().height || 0,
   }));
   assert.equal(compactDesktopGeometry.freshnessCount, 0, "Transactions should not render source-freshness cards above the working canvas");
-  assert.ok(compactDesktopGeometry.timelineToolsHeight <= 40, `Timeline controls should start collapsed, got ${compactDesktopGeometry.timelineToolsHeight}px`);
-  assert.ok(compactDesktopGeometry.firstRowTop <= 570, `The first desktop Gantt row should remain visible within the consolidated Spend Explorer workbench, got ${compactDesktopGeometry.firstRowTop}px`);
+  assert.ok(compactDesktopGeometry.commandbarHeight <= 48, `The persistent Gantt command rail should remain compact, got ${compactDesktopGeometry.commandbarHeight}px`);
+  assert.ok(compactDesktopGeometry.firstRowTop <= 470, `The first desktop Gantt row should remain visible high in the primary surface, got ${compactDesktopGeometry.firstRowTop}px`);
   assert.equal(await page.getByRole("button", { name: "Data table" }).count(), 0, "Transactions must remain a Gantt-only workspace");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Transactions must not render the shared DataTable");
-  await page.getByRole("button", { name: "Show 20 more filters" }).click();
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseControlSelect(page, "Sort", "Recently added");
   await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("procurement-discovery.json")));
   assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Recently added sorting should load the deferred discovery index exactly once");
@@ -626,6 +626,7 @@ try {
   const firstWatchStar = firstWatchRow.locator(".capture-timeline__star");
   await firstWatchStar.click();
   assert.equal(await firstWatchStar.getAttribute("aria-pressed"), "true", "Gantt rows should support stable-ID tracking");
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseControlSelect(page, "Tracking", "Tracked only (1)");
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
@@ -1090,8 +1091,8 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openSurface(page, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
   assert.equal(await page.locator("[data-capture-timeline-row]").first().locator(".capture-timeline__star").getAttribute("aria-pressed"), "true", "Tracking state should persist across application surfaces");
-  await page.getByRole("button", { name: "Show 20 more filters" }).click();
-  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 20, "Advanced factual filters should remain reachable");
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  assert.equal(await page.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 23, "Advanced factual filters should remain reachable");
   const workFilterTrigger = page.getByRole("button", { name: /^Type of work:/ });
   await workFilterTrigger.click();
   await page.getByLabel("Search Type of work").fill("Cloud infrastructure");
@@ -1111,7 +1112,6 @@ try {
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capSubaward=has/, "Subaward posture should be URL-backed");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 0, "Subaward posture should retain exactly joined prime awards");
   await page.getByRole("button", { name: "Reset" }).click();
-  await page.getByRole("button", { name: "Show core filters" }).click();
   const portfolioTrigger = page.getByRole("button", { name: /^Portfolio:/ });
   await portfolioTrigger.click();
   await page.getByLabel("Search Portfolio").fill("Navy Mission");
@@ -1121,26 +1121,34 @@ try {
   assert.match(await portfolioTrigger.getAttribute("aria-label"), /Portfolio \(2\)/, "Portfolio filter should support searchable multi-selection");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Reset" }).click();
-  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Transactions should render the default fifty timeline rows");
+  await page.getByRole("button", { name: "Close filters", exact: true }).click();
+  assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 50, "Transactions should render every matching timeline row instead of silently truncating at fifty");
+  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").first().evaluate((node) => getComputedStyle(node).contentVisibility), "auto", "Full-result timelines should use browser-native row virtualization");
+  assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__urgency").count() > 50, "Every rendered row should expose date urgency without a composite score");
   const barBox = await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().boundingBox();
   assert.ok(barBox && barBox.height >= 20 && barBox.height <= 24, `Timeline bars should stay precisely formatted, got ${barBox?.height}px`);
-  assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count() >= 20, "Timeline should expose quarter guides");
+  assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count() >= 12, "The default current window should expose at least three years of quarter guides");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose the source as-of marker");
-  await page.locator("[data-capture-gantt-tools] > summary").click();
+  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Grouping:/ }).click();
-  assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 14, "Gantt should expose fourteen factual grouping modes");
-  await page.keyboard.press("Escape");
+  assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 15, "Gantt should expose decision-priority grouping alongside the fourteen factual grouping modes");
+  await page.getByRole("option", { name: "Decision priority" }).click();
   await page.getByRole("button", { name: /^Bar labels:/ }).click();
   assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 6, "Gantt should expose six bar-label modes");
-  await page.keyboard.press("Escape");
-  assert.equal(await page.locator("[data-capture-gantt-tools] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
+  await page.getByRole("option", { name: "Date ranges" }).click();
+  assert.equal(await page.locator("[data-capture-gantt-dialog] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
   await page.locator("[data-capture-field-picker] summary").click();
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 15, "Gantt should expose fifteen configurable row fields");
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "FPDS action count" }).check();
+  await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "Award / notice reference" }).check();
+  await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "Potential / high value" }).check();
   assert.match(await page.locator("[data-capture-timeline] .capture-timeline__fields").first().innerText(), /FPDS actions/, "Selected row fields should render immediately");
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]:checked").count(), 4, "Gantt should cap visible row metadata at four fields");
   assert.ok(await page.locator("[data-capture-field-picker] input[type=checkbox]:not(:checked):disabled").count() >= 1, "Additional row fields should disable at the readability cap");
   await page.locator("[data-capture-field-picker] summary").click();
+  await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
+  await page.waitForSelector("[data-capture-gantt-dialog]", { state: "detached" });
   await page.locator("[data-capture-timeline] .capture-timeline__label").first().hover();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 0, "Hovering row labels must not open a timeline card");
   const emptyPlotBox = await page.locator("[data-capture-timeline] .capture-timeline__plot").first().boundingBox();
@@ -1152,27 +1160,30 @@ try {
   await page.waitForSelector("[data-capture-hovercard]");
   const hoverText = await page.locator("[data-capture-hovercard]").innerText();
   assert.match(hoverText, /Observed obligations/i);
-  assert.match(hoverText, /Funding office/i);
   assert.match(hoverText, /Latest FPDS action/i);
   await firstTimelineBar.focus();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 1, "Keyboard focus on an actual Gantt bar should expose contextual evidence");
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Funding office");
+  await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
 
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   const classificationOverlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
   await classificationOverlayTrigger.click();
   await page.getByRole("option", { name: "Type of work" }).click();
   await page.getByRole("option", { name: "Ingestion provenance" }).click();
-  await page.keyboard.press("Escape");
-  assert.equal(await page.locator("[data-work-category-overlay]").count(), 50, "Every visible row should expose a contextual work-category lane");
-  assert.equal(await page.locator("[data-ingestion-provenance-overlay]").count(), 50, "Every visible row should expose a contextual ingestion-provenance lane");
+  await classificationOverlayTrigger.click();
+  await chooseControlSelect(page, "Grouping", "Work category");
+  await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
+  assert.ok(await page.locator("[data-work-category-overlay]").count() > 50, "Every matching row should expose a contextual work-category lane");
+  assert.ok(await page.locator("[data-ingestion-provenance-overlay]").count() > 50, "Every matching row should expose a contextual ingestion-provenance lane");
   const workOverlay = page.locator("[data-work-category-overlay]").first();
   await workOverlay.hover();
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Type of work/i, "Work overlay hover should disclose category context");
   const provenanceOverlay = page.locator("[data-ingestion-provenance-overlay]").first();
   await provenanceOverlay.hover();
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Ingestion provenance/i, "Provenance overlay hover should disclose import context");
-  await chooseControlSelect(page, "Grouping", "Work category");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Work-category grouping should render factual group bands");
   await page.screenshot({ path: `${OUT_DIR}/transactions-classification-overlays-desktop.png` });
   const desktopTimelineScroll = await page.locator("[data-capture-timeline]").evaluate((node) => ({ clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }));
@@ -1188,10 +1199,7 @@ try {
   assert.ok(desktopLastRowReachable, "The final Gantt row should remain reachable inside the bounded timeline");
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Agile SSD");
-  const overlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
-  await overlayTrigger.click();
-  await page.getByRole("option", { name: "Published follow-on activity" }).click();
-  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("button", { name: "Follow-ons", exact: true }).getAttribute("aria-pressed"), "true", "Published follow-on activity should be a default visible layer");
   await page.waitForFunction(() => document.querySelectorAll("[data-followon-activity]").length > 0);
   assert.equal(transactionRequests, 0, "Follow-on relationships should not load the deferred FPDS action payload");
   await page.locator("[data-followon-activity]").first().hover();
@@ -1227,12 +1235,15 @@ try {
   assert.match(applicationDetail, /Cost Plus Fixed Fee \(CPFF\) Level of Effort/i);
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
+  await page.getByRole("button", { name: "Display", exact: true }).click();
+  const overlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
   await overlayTrigger.click();
   await page.getByRole("option", { name: "Competition / set-aside" }).click();
   await page.getByRole("option", { name: "Contract vehicle" }).click();
   await page.getByRole("option", { name: "Award / pricing type" }).click();
   await page.getByRole("option", { name: "FPDS annual obligations" }).click();
-  await page.keyboard.press("Escape");
+  await overlayTrigger.click();
+  await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   assert.ok(await page.locator("[data-competition-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct competition classifications");
   assert.ok(await page.locator("[data-vehicle-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct vehicles");
   assert.ok(await page.locator("[data-structure-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct pricing structures");
@@ -1270,9 +1281,7 @@ try {
   assert.equal(await page.locator('[data-pricing-kind="pricing-time-materials"]').count(), 1, "Pricing overlay should distinguish a known T&M row");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("N0002417C2100");
-  await overlayTrigger.click();
-  await page.getByRole("option", { name: "USAspending subaward actions" }).click();
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Subawards", exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll("[data-subaward-overlay]").length > 0);
   assert.equal(subawardDetailRequests, 1, "Enabling the subaward overlay should lazily load recent detail once");
   const subawardMarker = page.locator("[data-subaward-overlay]").first();
@@ -1288,10 +1297,8 @@ try {
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
-  await overlayTrigger.click();
   const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
-  await page.getByRole("option", { name: "FPDS action pulses" }).click();
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Funding", exact: true }).click();
   await fpdsReady;
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
@@ -1328,10 +1335,11 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
-  await page.locator("[data-capture-gantt-tools]").evaluate((node) => { node.open = true; });
+  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Overlays:/ }).waitFor();
-  assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /No grouping/, "Malformed grouping should canonicalize to the factual default");
-  assert.match(await page.getByRole("button", { name: /^Overlays:/ }).getAttribute("aria-label"), /Schedule only/, "Malformed overlay selection should canonicalize to the factual default");
+  assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /Decision priority/, "Malformed grouping should canonicalize to the decision-first default");
+  assert.match(await page.getByRole("button", { name: /^Overlays:/ }).getAttribute("aria-label"), /Overlays \(2\)/, "Malformed overlay selection should canonicalize to the two useful default layers");
   await page.locator("[data-capture-field-picker] summary").click();
   const checkedFields = page.locator("[data-capture-field-picker] input[type=checkbox]:checked");
   while (await checkedFields.count()) await checkedFields.first().uncheck();
@@ -1339,7 +1347,11 @@ try {
   assert.match(new URL(page.url()).hash, /capFields=none/, "Title-only field state should be shareable");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
+  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal((await page.locator("[data-capture-field-picker] summary").textContent())?.trim(), "Row fields (0)", "Title-only field state should survive reload");
+  await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
+  await page.waitForSelector("[data-capture-gantt-dialog]", { state: "detached" });
   await page.locator("[data-capture-timeline]").scrollIntoViewIfNeeded();
   await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
@@ -1523,8 +1535,10 @@ try {
   assert.equal(new URL(page.url()).hash, "#/budget-spend", "Legacy strategy URLs should canonicalize to the request analytics surface");
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
   await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("[data-spend-today]");
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Decision Brief");
+  await page.waitForFunction(() => window.location.hash === "#/budget-spend/explorer");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Spend Timeline");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-transaction-analytics-page]");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -1533,14 +1547,15 @@ try {
   await installVerificationDate(ultrawide);
   await ultrawide.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-defense-budget-app]");
-  await openSurface(ultrawide, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
+  await ultrawide.waitForSelector("[data-transaction-analytics-page]");
+  assert.equal(new URL(ultrawide.url()).hash, "#/budget-spend/explorer", "Spend Explorer should open on the Timeline by default");
   const ultrawideGeometry = await ultrawide.evaluate(() => {
     const contentNode = document.querySelector(".app__content");
     const content = contentNode?.getBoundingClientRect();
     const contentPadding = contentNode ? Number.parseFloat(getComputedStyle(contentNode).paddingLeft) : 0;
     const header = document.querySelector(".masthead__inner")?.getBoundingClientRect();
     const timeline = document.querySelector("[data-capture-timeline]")?.getBoundingClientRect();
-    const controls = document.querySelector("[data-capture-gantt-tools]")?.getBoundingClientRect();
+    const controls = document.querySelector("[data-capture-gantt-commandbar]")?.getBoundingClientRect();
     const label = document.querySelector("[data-capture-timeline] .capture-timeline__label")?.getBoundingClientRect();
     return {
       viewportWidth: window.innerWidth,
@@ -1578,7 +1593,7 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await installVerificationDate(mobile);
-  await mobile.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-spend-today]");
   await assertFlowShell(mobile);
   assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Mobile Spend Explorer should expose the four focused views");
@@ -1668,13 +1683,12 @@ try {
   assert.equal(compactMobileGeometry.freshnessCount, 0, "Mobile Transactions should begin with the transaction workspace, not source-health cards");
   assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
   assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
-  await mobile.getByRole("button", { name: "Show 20 more filters" }).click();
-  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 20, "All advanced filters should remain reachable");
-  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--core-secondary:visible").count(), 4, "Expanded mobile filters should expose every core dimension including tracking scope");
-  await mobile.getByRole("button", { name: "Show core filters" }).click();
+  await mobile.getByRole("button", { name: "Filters", exact: true }).click();
+  assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 23, "All advanced filters should remain reachable");
+  await mobile.getByRole("button", { name: "Close filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
-  await mobile.locator("[data-capture-gantt-mobile-trigger]").click();
+  await mobile.getByRole("button", { name: "Display", exact: true }).click();
   await mobile.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal(await mobile.locator("[data-capture-gantt-dialog]").evaluate((surface) => surface.closest("dialog")?.open), true, "Mobile Timeline controls should open in a focused dialog instead of pushing the Gantt below the viewport");
   const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-dialog] .if-picker__trigger, [data-capture-gantt-dialog] [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
@@ -1691,10 +1705,14 @@ try {
     };
   });
   assert.ok(mobileTimelineGeometry.scrollHeight > mobileTimelineGeometry.clientHeight, "Mobile Gantt should bound long results inside its own vertical scroller");
-  assert.ok(mobileTimelineGeometry.labelWidth <= 212, `Mobile sticky labels should preserve the time plane, got ${mobileTimelineGeometry.labelWidth}px`);
+  assert.ok(mobileTimelineGeometry.labelWidth <= 152, `Mobile sticky labels should preserve the time plane, got ${mobileTimelineGeometry.labelWidth}px`);
   assert.ok(mobileTimelineGeometry.visibleTimePlane >= 140, `Mobile should expose a useful time-plane viewport, got ${mobileTimelineGeometry.visibleTimePlane}px`);
   await mobile.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).evaluate((button) => button.click());
   await mobile.waitForSelector("[data-capture-gantt-dialog]", { state: "detached" });
+  await mobile.getByRole("button", { name: "Expand", exact: true }).click();
+  const fullscreenBounds = await mobile.locator("[data-capture-gantt-section]").evaluate((node) => { const bounds = node.getBoundingClientRect(); return { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height, viewportWidth: innerWidth, viewportHeight: innerHeight }; });
+  assert.ok(fullscreenBounds.top <= 1 && fullscreenBounds.left <= 1 && fullscreenBounds.width >= fullscreenBounds.viewportWidth - 1 && fullscreenBounds.height >= fullscreenBounds.viewportHeight - 1, `Mobile Timeline expand should use the full viewport: ${JSON.stringify(fullscreenBounds)}`);
+  await mobile.getByRole("button", { name: "Exit", exact: true }).click();
   await mobile.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   const mobileTimelineRecordButton = mobile.locator("[data-capture-timeline] .capture-timeline__record-button").first();
   assert.ok(await mobileTimelineRecordButton.evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Timeline row titles should provide a 44px touch target");
