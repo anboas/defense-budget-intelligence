@@ -123,6 +123,18 @@ function PasswordChangeGate({ user, onSubmit, busy, error }) {
   );
 }
 
+function WorkspaceLoadError({ message, onRetry }) {
+  return <main className="account-gate" data-account-gate="bootstrap-error">
+    <section className="account-gate__card" aria-labelledby="workspace-load-error-title">
+      <span className="account-gate__mark" aria-hidden="true"><ProductMark eager /></span>
+      <p className="account-gate__eyebrow">Defense Budget &amp; Spend Analytics</p>
+      <h1 id="workspace-load-error-title">Workspace unavailable</h1>
+      <p>{message || "The account service could not load your workspace."}</p>
+      <button className="if-btn if-btn--primary" type="button" onClick={onRetry}>Retry</button>
+    </section>
+  </main>;
+}
+
 export default function AuthProvider({ children }) {
   const [status, setStatus] = useState(() => (
     isKnownStaticHost()
@@ -131,6 +143,7 @@ export default function AuthProvider({ children }) {
   ));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
 
   useEffect(() => {
     if (isKnownStaticHost()) return undefined;
@@ -141,11 +154,11 @@ export default function AuthProvider({ children }) {
         if (requestError.staticHost) setStatus({ loading: false, staticHost: true, enabled: false, required: false, claimed: false, user: null });
         else {
           setError(requestError.message);
-          setStatus({ loading: false, staticHost: false, enabled: true, required: true, claimed: true, user: null });
+          setStatus({ loading: false, staticHost: false, enabled: true, required: true, claimed: true, user: null, bootstrapError: requestError.message });
         }
       });
     return () => { active = false; };
-  }, []);
+  }, [bootstrapAttempt]);
 
   const run = async (operation) => {
     setBusy(true);
@@ -280,6 +293,11 @@ export default function AuthProvider({ children }) {
     <h1>Loading workspace</h1>
     <span className="account-gate__loading-dots" aria-hidden="true"><i /><i /><i /></span>
   </main>;
+  if (status.bootstrapError) return <WorkspaceLoadError message={status.bootstrapError} onRetry={() => {
+    setError("");
+    setStatus((current) => ({ ...current, loading: true, bootstrapError: "" }));
+    setBootstrapAttempt((current) => current + 1);
+  }} />;
   if (status.enabled && status.required && !status.claimed) return <AccountGate mode="setup" busy={busy} error={error} onSubmit={(values) => void value.claim(values).catch(() => {})} />;
   if (status.enabled && status.required && !status.user) return <AccountGate mode="login" registrationEnabled={status.registrationEnabled} busy={busy} error={error} onSubmit={(values) => void value.login(values).catch(() => {})} onRegister={(values) => void value.register(values).catch(() => {})} />;
   if (status.enabled && status.user?.mustChangePassword) return <PasswordChangeGate user={status.user} busy={busy} error={error} onSubmit={(values) => void run(() => authApi.changePassword(values)).catch(() => {})} />;

@@ -7,11 +7,23 @@ export function isKnownStaticHost() {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${AUTH_ROOT}${path}`, {
-    credentials: "same-origin",
-    headers: { "content-type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
+  const { timeoutMs = 0, ...requestOptions } = options;
+  const controller = timeoutMs > 0 ? new AbortController() : null;
+  const timeout = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+  let response;
+  try {
+    response = await fetch(`${AUTH_ROOT}${path}`, {
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", ...(requestOptions.headers || {}) },
+      ...requestOptions,
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("The account service did not respond. Try again.", { cause: error });
+    throw error;
+  } finally {
+    if (timeout !== null) window.clearTimeout(timeout);
+  }
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
     const error = new Error("Account service is not available on this host.");
@@ -49,7 +61,7 @@ export async function derivePasswordProof(password, salt) {
 }
 
 export const authApi = {
-  status: () => request("/status", { method: "GET", headers: {} }),
+  status: () => request("/status", { method: "GET", headers: {}, timeoutMs: 15_000 }),
   async claim({ email, displayName, title, password }) {
     const passwordSalt = createPasswordSalt();
     const passwordProof = await derivePasswordProof(password, passwordSalt);
