@@ -81,15 +81,23 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
-  let delayedInitialStatus = false;
+  let statusRequestCount = 0;
   await page.route("**/api/v1/auth/status", async (route) => {
-    if (!delayedInitialStatus) {
-      delayedInitialStatus = true;
+    statusRequestCount += 1;
+    if (statusRequestCount === 1) {
+      await route.abort("failed");
+      return;
+    }
+    if (statusRequestCount === 2) {
       await new Promise((resolve) => setTimeout(resolve, 450));
     }
     await route.continue();
   });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  const bootstrapErrorGate = page.locator('[data-account-gate="bootstrap-error"]');
+  await bootstrapErrorGate.waitFor({ timeout: 5000 });
+  assert.equal(await bootstrapErrorGate.getByRole("heading", { name: "Workspace unavailable" }).count(), 1, "A failed bootstrap should replace the spinner with a clear error state");
+  await bootstrapErrorGate.getByRole("button", { name: "Retry" }).click();
   const loadingGate = page.locator(".account-gate--loading");
   const setupGate = page.locator('[data-account-gate="setup"]');
   await loadingGate.or(setupGate).first().waitFor({ timeout: 5000 });

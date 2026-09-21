@@ -722,9 +722,7 @@ function databaseFromEnv(env = {}) {
 async function ensureSchema(db) {
   let initialization = schemaInitialization.get(db);
   if (!initialization) {
-    initialization = (async () => {
-      for (const statement of SCHEMA) await db.prepare(statement).run();
-    })().catch((error) => {
+    initialization = db.batch(SCHEMA.map((statement) => db.prepare(statement))).catch((error) => {
       schemaInitialization.delete(db);
       throw error;
     });
