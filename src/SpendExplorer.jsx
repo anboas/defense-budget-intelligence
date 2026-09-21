@@ -22,7 +22,7 @@ const VIEWS = new Set(["today", "timeline", "table", "charts"]);
 function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
   const value = params.get("spendView");
-  return VIEWS.has(value) ? value : "today";
+  return VIEWS.has(value) ? value : "timeline";
 }
 
 function updateRoute(view, patch = {}) {
