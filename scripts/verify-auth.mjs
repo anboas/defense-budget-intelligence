@@ -500,6 +500,7 @@ try {
   await assertPageBodyGutter(page, "[data-workspace-management]", "Workspaces");
   assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Workspace governance should not repeat platform navigation inside the page");
   const workspaceAdmin = page.locator("[data-workspace-management]");
+  await workspaceAdmin.locator('[aria-label="Platform customer sections"]').getByRole("button", { name: "Workspaces", exact: true }).click();
   await workspaceAdmin.getByRole("button", { name: "Create workspace" }).click();
   const createWorkspaceDialog = page.locator("[data-workspace-create]");
   await createWorkspaceDialog.getByLabel("Name").fill("Browser verification");
@@ -1378,7 +1379,7 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   const commercialControlPlane = page.locator("[data-saas-control-plane]");
   await commercialControlPlane.waitFor();
-  assert.match(await commercialControlPlane.innerText(), /Customer control plane[\s\S]*Internal[\s\S]*Observe only/i, "Platform Workspaces must expose the grandfathered shadow commercial model without implying live billing");
+  assert.match(await commercialControlPlane.innerText(), /Organizations[\s\S]*Internal plan/i, "Platform Workspaces must expose the grandfathered customer organization without implying live billing");
   const controlPlaneGeometry = await commercialControlPlane.evaluate((node) => ({
     overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
     actionHeights: [...node.querySelectorAll("button")].filter((button) => button.getBoundingClientRect().width > 0).map((button) => button.getBoundingClientRect().height),
@@ -1399,11 +1400,16 @@ try {
   assert.ok(commercialDialogGeometry.checkboxLabelHeights.every((height) => height >= 43.5), `Commercial workspace choices must retain 44px label targets: ${commercialDialogGeometry.checkboxLabelHeights.join(", ")}`);
   await commercialDialog.getByRole("button", { name: "Cancel" }).click();
   await page.screenshot({ path: "test-results/saas-control-plane-mobile.png", fullPage: true });
+  const platformSections = page.locator('[aria-label="Platform customer sections"]');
+  await platformSections.getByRole("button", { name: "Workspaces", exact: true }).click();
+  assert.ok(await page.locator("[data-workspace]").count() >= 1, "Platform workspace inventory must remain directly available without stacking beneath customer organizations");
+  assert.equal(await commercialControlPlane.count(), 0, "Customer organizations and workspace inventory must render as distinct platform surfaces");
 
   await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
   const workspaceSaasOverview = page.locator("[data-saas-overview]");
   await workspaceSaasOverview.waitFor();
-  assert.match(await workspaceSaasOverview.innerText(), /Observe only[\s\S]*Plan & usage[\s\S]*Customer readiness[\s\S]*Getting started[\s\S]*Support & data/i, "Workspace Overview must unify plan posture, onboarding, and customer operations without payment controls");
+  assert.equal(await page.locator('[aria-label="Workspace settings sections"] button').first().innerText(), "Customer", "Workspace section navigation must lead with the customer surface before its content");
+  assert.match(await workspaceSaasOverview.innerText(), /Customer workspace[\s\S]*Plan & usage[\s\S]*Onboarding[\s\S]*Requests/i, "Workspace Customer view must unify plan posture, onboarding, and customer operations without duplicate readiness panels");
   assert.equal(await workspaceSaasOverview.getByRole("button", { name: /checkout|payment method|credit card/i }).count(), 0, "Customer operations must not expose payment actions");
   assert.equal(await workspaceSaasOverview.getByRole("link", { name: /checkout|payment method|credit card/i }).count(), 0, "Customer operations must not expose payment links");
   const workspacePortalGeometry = await workspaceSaasOverview.evaluate((node) => ({
@@ -1412,6 +1418,17 @@ try {
   }));
   assert.ok(workspacePortalGeometry.overflow <= 2, `The customer workspace portal must stay within the mobile viewport: ${JSON.stringify(workspacePortalGeometry)}`);
   assert.ok(workspacePortalGeometry.controls.every((height) => height >= 43.5), `Customer portal controls must retain 44px touch targets: ${workspacePortalGeometry.controls.join(", ")}`);
+  await workspaceSaasOverview.getByRole("button", { name: "New request" }).click();
+  const customerRequestDialog = page.locator("[data-customer-request-dialog]");
+  await customerRequestDialog.waitFor();
+  assert.match(await customerRequestDialog.innerText(), /Request type[\s\S]*Subject[\s\S]*Details/i, "Customer request composition must live in a focused dialog");
+  const requestDialogGeometry = await customerRequestDialog.evaluate((node) => ({
+    overflow: node.scrollWidth - node.clientWidth,
+    controls: [...node.querySelectorAll('input:not([type="checkbox"]), textarea, button')].filter((control) => control.getBoundingClientRect().width > 0).map((control) => control.getBoundingClientRect().height),
+  }));
+  assert.ok(requestDialogGeometry.overflow <= 2, `The customer request dialog must remain mobile-contained: ${JSON.stringify(requestDialogGeometry)}`);
+  assert.ok(requestDialogGeometry.controls.every((height) => height >= 43.5), `Customer request controls must retain 44px targets: ${requestDialogGeometry.controls.join(", ")}`);
+  await customerRequestDialog.getByRole("button", { name: "Cancel" }).click();
   await page.screenshot({ path: "test-results/customer-operations-mobile.png", fullPage: true });
 
   console.log("Verified first-account Super user, routed Profile/Security/Users/Workspaces/Agent Access, profile picture controls, OpenAI credential vault and API request log, human account lifecycle, mandatory temporary-password replacement, role-gated navigation, agent credentials, shared D1 state, password rotation, logout/login, and mobile UI");

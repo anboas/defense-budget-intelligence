@@ -81,6 +81,11 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
     const value = new URLSearchParams(String(window.location.hash || "").split("?")[1] || "").get("workspaceSection");
     return ["overview", "general", "people", "teams", "ai"].includes(value) ? value : "overview";
   });
+  const [platformSection, setPlatformSection] = useState(() => {
+    if (activeOnly || typeof window === "undefined") return "customers";
+    const value = new URLSearchParams(String(window.location.hash || "").split("?")[1] || "").get("platformSection");
+    return value === "workspaces" ? "workspaces" : "customers";
+  });
   const [expandedId, setExpandedId] = useState(() => activeOnly ? auth.user?.activeWorkspace?.id || "" : "");
   const dialogRef = useRef(null);
   const manageDialogRef = useRef(null);
@@ -179,21 +184,11 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
   }
 
   return <section className="ops-panel workspace-management" data-workspace-management data-workspace-scope={activeOnly ? "active" : "platform"} aria-labelledby="workspace-management-title">
-    <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Workspaces"} summary={activeOnly ? "Plan, usage, workspace identity, access roles, team visibility, and AI policy. Global account lifecycle stays in Accounts." : "Customer organizations, ownership, plans, isolated workspace boundaries, membership, and access requests."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
+    <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Customer administration"} summary={activeOnly ? "Plan, usage, workspace identity, access roles, team visibility, and AI policy. Global account lifecycle stays in Accounts." : "Manage customer organizations separately from their isolated workspace boundaries."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly && platformSection === "workspaces" ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
     <ControlPageBody compact>
 
-    {!activeOnly ? <SaasControlPlane auth={auth} users={data.users} workspaces={data.workspaces} onNotice={showNotice} /> : null}
-    {activeOnly && activeSection === "overview" ? <SaasControlPlane auth={auth} users={visibleWorkspaces[0]?.members || []} workspaces={visibleWorkspaces} activeOnly onNotice={showNotice} /> : null}
-
-    {!activeOnly || activeSection === "general" ? <ControlMetricStrip label="Workspace summary" items={[
-      { id: "workspaces", label: "Workspaces", value: visibleWorkspaces.length },
-      { id: "pending", label: "Pending", value: pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id).length, tone: "warning" },
-      { id: "users", label: activeOnly ? "Members" : "Accounts", value: activeOnly ? visibleWorkspaces[0]?.members.length || 0 : data.users.length, tone: "info" },
-      { id: "tracked", label: "Tracked", value: inventoryAvailable ? totals.tracked : "—", meta: inventoryAvailable ? `${totals.events} events` : "Inventory unavailable", tone: "purple" },
-    ]} /> : null}
-
     {activeOnly ? <nav className="workspace-settings-tabs" aria-label="Workspace settings sections">{[
-      ["overview", "Overview"],
+      ["overview", "Customer"],
       ["general", "General"],
       ["people", "Access"],
       ["teams", "Teams"],
@@ -207,12 +202,34 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       window.history.replaceState(null, "", `${next.pathname}${next.search}${hashPath}?${params.toString()}`);
     }}>{label}</button>)}</nav> : null}
 
+    {!activeOnly ? <nav className="workspace-settings-tabs" aria-label="Platform customer sections">{[
+      ["customers", "Customer organizations"],
+      ["workspaces", "Workspaces"],
+    ].map(([id, label]) => <button key={id} type="button" className={platformSection === id ? "is-active" : ""} aria-pressed={platformSection === id} onClick={() => {
+      setPlatformSection(id);
+      const next = new URL(window.location.href);
+      const hashPath = String(next.hash || "").split("?")[0];
+      const params = new URLSearchParams(String(next.hash || "").split("?")[1] || "");
+      params.set("platformSection", id);
+      window.history.replaceState(null, "", `${next.pathname}${next.search}${hashPath}?${params.toString()}`);
+    }}>{label}</button>)}</nav> : null}
+
+    {!activeOnly && platformSection === "customers" ? <SaasControlPlane auth={auth} users={data.users} workspaces={data.workspaces} onNotice={showNotice} /> : null}
+    {activeOnly && activeSection === "overview" ? <SaasControlPlane auth={auth} users={visibleWorkspaces[0]?.members || []} workspaces={visibleWorkspaces} activeOnly onNotice={showNotice} /> : null}
+
+    {(!activeOnly && platformSection === "workspaces") || (activeOnly && activeSection === "general") ? <ControlMetricStrip label="Workspace summary" items={[
+      { id: "workspaces", label: "Workspaces", value: visibleWorkspaces.length },
+      { id: "pending", label: "Pending", value: pending.filter((request) => !activeOnly || request.workspaceId === auth.user?.activeWorkspace?.id).length, tone: "warning" },
+      { id: "users", label: activeOnly ? "Members" : "Accounts", value: activeOnly ? visibleWorkspaces[0]?.members.length || 0 : data.users.length, tone: "info" },
+      { id: "tracked", label: "Tracked", value: inventoryAvailable ? totals.tracked : "—", meta: inventoryAvailable ? `${totals.events} events` : "Inventory unavailable", tone: "purple" },
+    ]} /> : null}
+
     {creating ? <ControlDialog open onClose={() => setCreating(false)} title="Create workspace" eyebrow="Platform administration" summary="Create a new isolated data and access boundary." dialogRef={dialogRef} surfaceProps={{ "data-workspace-create": true }} footer={<><button type="button" className="if-btn" onClick={() => setCreating(false)}>Cancel</button><button className="if-btn if-btn--primary" type="submit" form="workspace-create-form" disabled={busy}><Plus size={15} />Create workspace</button></>}><form id="workspace-create-form" className="if-form-grid" onSubmit={createWorkspace}>
       <label className="if-field"><span className="if-field__label">Name</span><input className="if-input" required minLength={2} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Program intelligence" /></label>
       <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="What this workspace covers" /></label>
     </form></ControlDialog> : null}
 
-    {visiblePending.length && (!activeOnly || activeSection === "people") ? <section className="workspace-request-queue" aria-labelledby="workspace-requests-title"><header><div><span>Approval queue</span><h3 id="workspace-requests-title">Access requests</h3></div><b>{visiblePending.length}</b></header>{visiblePending.map((request) => <article key={request.id} data-workspace-request={request.id}>
+    {visiblePending.length && ((!activeOnly && platformSection === "workspaces") || (activeOnly && activeSection === "people")) ? <section className="workspace-request-queue" aria-labelledby="workspace-requests-title"><header><div><span>Approval queue</span><h3 id="workspace-requests-title">Access requests</h3></div><b>{visiblePending.length}</b></header>{visiblePending.map((request) => <article key={request.id} data-workspace-request={request.id}>
       <UserAvatar user={request} size={38} />
       <div><strong>{request.displayName}</strong><span>{request.email}</span><small>{request.workspaceName}{request.note ? ` · ${request.note}` : ""}</small></div>
       <ControlSelect compact ariaLabel={`Role for ${request.displayName}`} value={requestRoles[request.id] || "viewer"} options={roleOptions} onChange={(role) => setRequestRoles((current) => ({ ...current, [request.id]: role }))} />
@@ -220,7 +237,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       <button className="if-btn if-btn--danger if-btn--sm is-deny" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "denied", role: "viewer" }), `${request.displayName} denied.`).catch(() => {})}><X size={14} />Deny</button>
     </article>)}</section> : null}
 
-    <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <ControlAsyncState compact state="loading" title="Loading workspaces" message="Reading workspace boundaries, membership, and inventory." /> : visibleWorkspaces.map((workspace) => {
+    {((!activeOnly && platformSection === "workspaces") || (activeOnly && activeSection !== "overview")) ? <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <ControlAsyncState compact state="loading" title="Loading workspaces" message="Reading workspace boundaries, membership, and inventory." /> : visibleWorkspaces.map((workspace) => {
       const isCurrent = auth.user?.activeWorkspace?.id === workspace.id;
       const workspacePending = Number(workspace.pendingRequestCount || 0);
       return <article className={`workspace-card${isCurrent ? " is-current" : ""}${activeOnly && activeSection !== "general" ? " is-section-only" : ""}`} key={workspace.id} data-workspace={workspace.id} data-workspace-current={isCurrent ? "true" : "false"}>
@@ -231,7 +248,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
         </header> : null}
         {activeOnly ? workspaceDetails(workspace, null, activeSection) : null}
       </article>;
-    })}</div>
+    })}</div> : null}
     {managedWorkspace ? <ControlDialog open onClose={() => setExpandedId("")} title={`Manage ${managedWorkspace.name}`} eyebrow="Platform administration" summary="Review inventory and manage workspace membership without expanding the workspace list." size="wide" dialogRef={manageDialogRef} surfaceProps={{ "data-workspace-manage-dialog": managedWorkspace.id }} footer={<><button type="button" className="if-btn" onClick={() => setExpandedId("")}>Close</button><button type="button" className="if-btn if-btn--secondary" onClick={() => { setExpandedId(""); beginEdit(managedWorkspace); }}><Pencil size={14} />Configure workspace</button></>}>{workspaceDetails(managedWorkspace, manageDialogRef)}</ControlDialog> : null}
     {addingWorkspace ? <ControlDialog open onClose={() => setAddingMemberTo("")} title={`Add member to ${addingWorkspace.name}`} eyebrow="Workspace administration" summary="Choose one account and grant only the role it needs." dialogRef={dialogRef} surfaceProps={{ "data-workspace-member-dialog": addingWorkspace.id }} footer={<><button type="button" className="if-btn" onClick={() => setAddingMemberTo("")}>Cancel</button><button type="submit" form="workspace-add-member-form" className="if-btn if-btn--primary" disabled={busy || !addingMemberDraft.userId}><UserPlus size={14} />Add member</button></>}>
       <form id="workspace-add-member-form" className="if-form-grid" onSubmit={(event) => { event.preventDefault(); void mutate(() => auth.addWorkspaceMember(addingWorkspace.id, addingMemberDraft), "Workspace member added.").then(() => setAddingMemberTo("")).catch(() => {}); }}>
