@@ -104,6 +104,8 @@ for (const asset of assets.filter((name) => name.endsWith(".js"))) {
   const bytes = (await stat(resolve(root, "dist/assets", asset))).size;
   assert.ok(bytes <= 550_000, `${asset} exceeds the 550KB route-chunk ceiling (${bytes} bytes)`);
 }
+const cssBytes = (await Promise.all(assets.filter((name) => name.endsWith(".css")).map((asset) => stat(resolve(root, "dist/assets", asset))))).reduce((total, entry) => total + entry.size, 0);
+assert.ok(cssBytes <= 350_000, `Production CSS exceeds the 350KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
 const procurementFeedBytes = (await stat(resolve(root, "dist/data/procurement-feed.json"))).size;
 const procurementDiscoveryBytes = (await stat(resolve(root, "dist/data/procurement-discovery.json"))).size;
@@ -115,4 +117,5 @@ console.log("Security and architecture contracts passed", {
   workflows: workflows.length,
   bodyLimit: MAX_JSON_BODY_BYTES,
   routeChunks: assets.filter((name) => name.endsWith(".js")).length,
+  cssBytes,
 });
