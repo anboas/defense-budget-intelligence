@@ -16,7 +16,7 @@ try {
   run("docker", ["compose", "build", "app"]);
   run("docker", ["compose", "exec", "-T", "db", "createdb", "-U", "postgres", database]);
   run("docker", [
-    "compose", "run", "--rm", "--detach", "--name", container,
+    "compose", "run", "--detach", "--name", container,
     "-e", "ENABLE_AUTH=true",
     "-e", "AUTH_REQUIRE_LOGIN=true",
     "-e", "AUTH_SECURE_COOKIE=false",
@@ -30,6 +30,9 @@ try {
   run(process.execPath, ["scripts/verify-postgres-auth.mjs"], {
     env: { ...process.env, BUDGET_POSTGRES_AUTH_VERIFY_URL: "http://127.0.0.1:18081/" },
   });
+} catch (error) {
+  spawnSync("docker", ["logs", container], { cwd: new URL("..", import.meta.url), stdio: "inherit" });
+  throw error;
 } finally {
   spawnSync("docker", ["rm", "--force", container], { cwd: new URL("..", import.meta.url), stdio: "ignore" });
   spawnSync("docker", ["compose", "exec", "-T", "db", "dropdb", "--if-exists", "-U", "postgres", database], { cwd: new URL("..", import.meta.url), stdio: "ignore" });

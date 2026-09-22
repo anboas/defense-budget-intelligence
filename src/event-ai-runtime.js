@@ -1,3 +1,5 @@
+import { normalizeEventIntelligence } from "./d1-event-store.js";
+
 export const EVENT_AI_PRODUCER_MODEL = "gpt-5.4";
 export const EVENT_AI_VERIFIER_MODEL = "gpt-5.4";
 export const EVENT_AI_STATUSES = Object.freeze([
@@ -24,24 +26,62 @@ const MILESTONE_TYPES = [
   "other",
 ];
 
-const EVENT_AI_EVIDENCE_FIELDS = ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categories"];
+const EVENT_AI_EVIDENCE_FIELDS = ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categories", "intelligence"];
 
 const evidenceSchema = {
   type: "object",
   additionalProperties: false,
   required: ["field", "value", "confidence", "sourceUrls"],
   properties: {
-    field: { type: "string", enum: ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categories"] },
+    field: { type: "string", enum: EVENT_AI_EVIDENCE_FIELDS },
     value: { type: "string", maxLength: 2000 },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     sourceUrls: { type: "array", maxItems: 8, items: { type: "string", maxLength: 2000 } },
   },
 };
 
+const intelligenceMatchSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "title", "kind", "sourceUrl", "reason", "confidence"],
+  properties: {
+    id: { type: "string", maxLength: 180 }, title: { type: "string", maxLength: 240 }, kind: { type: "string", maxLength: 80 },
+    sourceUrl: { type: "string", maxLength: 2000 }, reason: { type: "string", maxLength: 500 },
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+  },
+};
+
+const eventIntelligenceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["seriesId", "timezone", "venue", "city", "region", "country", "format", "eventType", "branch", "sponsor", "topics", "capabilityAreas", "missionThreads", "stakeholders", "relatedPrograms", "engagementKinds", "contacts", "opportunityMatches", "contractMatches", "spendingMatches", "confidence", "lastVerifiedAt"],
+  properties: {
+    seriesId: { type: "string", maxLength: 120 }, timezone: { type: "string", maxLength: 80 }, venue: { type: "string", maxLength: 240 },
+    city: { type: "string", maxLength: 120 }, region: { type: "string", maxLength: 80 }, country: { type: "string", maxLength: 120 },
+    format: { type: "string", maxLength: 40 }, eventType: { type: "string", maxLength: 80 }, branch: { type: "string", maxLength: 120 }, sponsor: { type: "string", maxLength: 180 },
+    topics: { type: "array", maxItems: 20, items: { type: "string", maxLength: 120 } },
+    capabilityAreas: { type: "array", maxItems: 20, items: { type: "string", maxLength: 120 } },
+    missionThreads: { type: "array", maxItems: 20, items: { type: "string", maxLength: 120 } },
+    stakeholders: { type: "array", maxItems: 30, items: { type: "string", maxLength: 160 } },
+    relatedPrograms: { type: "array", maxItems: 20, items: { type: "string", maxLength: 160 } },
+    engagementKinds: { type: "array", maxItems: 12, items: { type: "string", maxLength: 120 } },
+    contacts: {
+      type: "array", maxItems: 20, items: { type: "object", additionalProperties: false,
+        required: ["name", "role", "organization", "email", "phone", "url", "sourceUrls"],
+        properties: { name: { type: "string", maxLength: 160 }, role: { type: "string", maxLength: 160 }, organization: { type: "string", maxLength: 180 }, email: { type: "string", maxLength: 240 }, phone: { type: "string", maxLength: 80 }, url: { type: "string", maxLength: 2000 }, sourceUrls: { type: "array", maxItems: 8, items: { type: "string", maxLength: 2000 } } },
+      },
+    },
+    opportunityMatches: { type: "array", maxItems: 30, items: intelligenceMatchSchema },
+    contractMatches: { type: "array", maxItems: 30, items: intelligenceMatchSchema },
+    spendingMatches: { type: "array", maxItems: 30, items: intelligenceMatchSchema },
+    confidence: { type: "string", enum: ["high", "medium", "low"] }, lastVerifiedAt: { type: "string", maxLength: 32 },
+  },
+};
+
 const eventDetailsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categoryNames", "evidence", "sources", "caveats"],
+  required: ["title", "startsAt", "endsAt", "location", "notes", "links", "milestones", "categoryNames", "intelligence", "evidence", "sources", "caveats"],
   properties: {
     title: { type: "string", maxLength: 180 },
     startsAt: { type: "string", maxLength: 32 },
@@ -77,6 +117,7 @@ const eventDetailsSchema = {
       },
     },
     categoryNames: { type: "array", maxItems: 8, items: { type: "string", maxLength: 80 } },
+    intelligence: eventIntelligenceSchema,
     evidence: { type: "array", maxItems: 40, items: evidenceSchema },
     sources: {
       type: "array",
@@ -113,7 +154,7 @@ export const EVENT_AI_VERIFICATION_SCHEMA = Object.freeze({
         additionalProperties: false,
         required: ["name", "passed", "detail"],
         properties: {
-          name: { type: "string", enum: ["identity", "dates", "location", "links", "milestones", "categories", "evidence", "merge_safety"] },
+          name: { type: "string", enum: ["identity", "dates", "location", "links", "milestones", "categories", "intelligence", "evidence", "merge_safety"] },
           passed: { type: "boolean" },
           detail: { type: "string", maxLength: 500 },
         },
@@ -204,6 +245,7 @@ export function normalizeEventAiDraft(value = {}) {
       notes: cleanText(milestone?.notes, 500),
     })).filter((milestone) => milestone.occursAt && (milestone.type !== "other" || milestone.label)), (milestone) => `${milestone.type}|${milestone.occursAt}|${milestone.label.toLowerCase()}`).slice(0, 24),
     categoryIds: unique((Array.isArray(value.categoryIds) ? value.categoryIds : []).map((item) => cleanText(item, 80)), (item) => item).slice(0, 8),
+    intelligence: normalizeEventIntelligence(value.intelligence || {}),
     wallboard: value.wallboard !== false,
     version: Number.isFinite(Number(value.version)) ? Number(value.version) : 0,
   };
@@ -268,6 +310,7 @@ export function normalizeEventAiDetails(value = {}) {
       notes: cleanText(milestone?.notes, 500),
     })).filter((milestone) => milestone.occursAt && (milestone.type !== "other" || milestone.label)), (milestone) => `${milestone.type}|${milestone.occursAt}|${milestone.label.toLowerCase()}`).slice(0, 24),
     categoryNames: unique((Array.isArray(value.categoryNames) ? value.categoryNames : []).map((item) => cleanText(item, 80)), (item) => item.toLowerCase()).slice(0, 8),
+    intelligence: normalizeEventIntelligence(value.intelligence || {}),
     evidence,
     sources,
     caveats: unique((Array.isArray(value.caveats) ? value.caveats : []).map((item) => cleanText(item, 500)), (item) => item).slice(0, 20),
@@ -286,6 +329,7 @@ function publicResearchSeed(draft) {
     notes: current.notes,
     links: current.links.map(({ label, url }) => ({ label, url })),
     milestones: current.milestones.map(({ type, label, occursAt, notes }) => ({ type, label, occursAt, notes })),
+    intelligence: current.intelligence,
   };
 }
 
@@ -306,7 +350,9 @@ export function buildEventAiProducerRequest({ draft, direction, categories, mode
       "Return only facts supported by public HTTP(S) sources. Do not infer dates, venues, links, deadlines, attendees, or categories.",
       "Prefer an official organizer, government, venue, or registration source over aggregators.",
       "Use no more than four focused web searches. Stop once the event identity and the requested missing details are supported.",
-      "Focus on empty fields and additive links, milestones, categories, and notes. Never propose replacing a populated operator field.",
+      "Focus on empty fields and additive links, milestones, categories, notes, and structured event intelligence. Never propose replacing a populated operator field.",
+      "Event intelligence may include branch, sponsor, format, venue, topics, capability areas, mission threads, stakeholders, public professional contacts, and cited public opportunity, contract, or spending matches.",
+      "Every contact must be explicitly public and professional and must include at least one supporting source URL. Never infer private contact information.",
       "Only return exact event-wide start or end timestamps when an official source publishes them; never derive them from the earliest or latest agenda item.",
       "Use empty strings and empty arrays when a field cannot be verified.",
       "Never add people, workspace records, internal status, or wallboard settings.",
@@ -537,6 +583,29 @@ export function citedEventAiDetails(response, details, original = {}, options = 
       });
     }
   }
+  const proposedIntelligence = normalized.intelligence || normalizeEventIntelligence({});
+  const groundedContacts = (proposedIntelligence.contacts || []).map((contact) => ({
+    ...contact,
+    sourceUrls: (contact.sourceUrls || []).filter((url) => trustedSourceUrls.has(citationKey(url))),
+  })).filter((contact) => contact.sourceUrls.length);
+  const groundedMatches = (field) => (proposedIntelligence[field] || []).filter((match) => trustedSourceUrls.has(citationKey(match.sourceUrl)));
+  const intelligenceValues = normalizeEventIntelligence({
+    ...proposedIntelligence,
+    contacts: groundedContacts,
+    opportunityMatches: groundedMatches("opportunityMatches"),
+    contractMatches: groundedMatches("contractMatches"),
+    spendingMatches: groundedMatches("spendingMatches"),
+  });
+  const droppedIntelligenceClaims = (proposedIntelligence.contacts?.length || 0) - groundedContacts.length
+    + ["opportunityMatches", "contractMatches", "spendingMatches"].reduce((total, field) => total + (proposedIntelligence[field]?.length || 0) - groundedMatches(field).length, 0);
+  if (droppedIntelligenceClaims > 0) reviewClaims.push({
+    field: "intelligence", value: `${droppedIntelligenceClaims} contact or acquisition match claim${droppedIntelligenceClaims === 1 ? "" : "s"}`,
+    confidence: "low", sourceUrls: [], reason: "The cited URL was not present in the provider evidence transport or pinned producer evidence.",
+  });
+  const hasIntelligence = ["seriesId", "timezone", "venue", "city", "region", "country", "format", "eventType", "branch", "sponsor", "lastVerifiedAt"]
+    .some((field) => Boolean(intelligenceValues[field]))
+    || ["topics", "capabilityAreas", "missionThreads", "stakeholders", "relatedPrograms", "engagementKinds", "contacts", "opportunityMatches", "contractMatches", "spendingMatches"]
+      .some((field) => Boolean(intelligenceValues[field]?.length));
   const candidateValues = {
     title: normalized.title,
     startsAt: normalized.startsAt,
@@ -546,6 +615,7 @@ export function citedEventAiDetails(response, details, original = {}, options = 
     links: normalized.links.map((link) => `${link.label || "Link"}: ${link.url}`).join("\n"),
     milestones: normalized.milestones.map((milestone) => `${milestone.label || milestone.type}: ${milestone.occursAt}`).join("\n"),
     categories: normalized.categoryNames.join(", "),
+    intelligence: hasIntelligence ? JSON.stringify(intelligenceValues) : "",
   };
   for (const field of EVENT_AI_EVIDENCE_FIELDS) {
     if (!candidateValues[field] || acceptedFields.has(field) || reviewClaims.some((claim) => claim.field === field)) continue;
@@ -576,6 +646,7 @@ export function citedEventAiDetails(response, details, original = {}, options = 
     : [];
   return {
     ...normalized,
+    intelligence: intelligenceValues,
     evidence,
     sources,
     reviewSources,
@@ -621,6 +692,31 @@ export function mergeVerifiedEventDraft(original, approved, categories = []) {
     ...current.categoryIds,
     ...(accepts("categories") ? verified.categoryNames.filter((name) => !acceptedCategoryNames || acceptedCategoryNames.has(name.toLowerCase())) : []).map((name) => categoryByName.get(name.toLowerCase())).filter(Boolean),
   ], (item) => item).slice(0, 8);
+  const mergeIntelligence = () => {
+    const currentIntelligence = current.intelligence || normalizeEventIntelligence({});
+    if (!accepts("intelligence")) return currentIntelligence;
+    const proposed = verified.intelligence || normalizeEventIntelligence({});
+    const scalarFields = ["seriesId", "timezone", "venue", "city", "region", "country", "format", "eventType", "branch", "sponsor"];
+    const next = { ...currentIntelligence };
+    for (const field of scalarFields) {
+      if (currentIntelligence[field] && proposed[field] && currentIntelligence[field] !== proposed[field]) {
+        conflicts.push({ field: `intelligence.${field}`, current: currentIntelligence[field], proposed: proposed[field] });
+      } else if (!currentIntelligence[field] && proposed[field]) next[field] = proposed[field];
+    }
+    for (const field of ["topics", "capabilityAreas", "missionThreads", "stakeholders", "relatedPrograms", "engagementKinds"]) {
+      next[field] = unique([...(currentIntelligence[field] || []), ...(proposed[field] || [])], (item) => item.toLowerCase());
+    }
+    next.contacts = unique([...(currentIntelligence.contacts || []), ...(proposed.contacts || [])], (item) => `${item.name.toLowerCase()}|${item.organization.toLowerCase()}|${item.email.toLowerCase()}`);
+    for (const field of ["opportunityMatches", "contractMatches", "spendingMatches"]) {
+      next[field] = unique([...(currentIntelligence[field] || []), ...(proposed[field] || [])], (item) => `${item.kind}|${item.id}`);
+    }
+    next.sources = unique([...(currentIntelligence.sources || []), ...verified.sources.map((source) => ({ ...source, kind: "official", confidence: "medium", lastVerifiedAt: proposed.lastVerifiedAt || "" }))], (source) => source.url);
+    next.caveats = unique([...(currentIntelligence.caveats || []), ...(verified.caveats || [])], (item) => item);
+    if (!currentIntelligence.lastVerifiedAt && proposed.lastVerifiedAt) next.lastVerifiedAt = proposed.lastVerifiedAt;
+    if ((!currentIntelligence.confidence || currentIntelligence.confidence === "low") && proposed.confidence) next.confidence = proposed.confidence;
+    return normalizeEventIntelligence(next);
+  };
+  const intelligence = mergeIntelligence();
   const mergedDraft = normalizeEventAiDraft({
     ...current,
     title: fill("title"),
@@ -631,11 +727,13 @@ export function mergeVerifiedEventDraft(original, approved, categories = []) {
     links,
     milestones,
     categoryIds,
+    intelligence,
   });
   const changes = ["title", "startsAt", "endsAt", "location", "notes"].filter((field) => !current[field] && Boolean(mergedDraft[field]));
   if (links.length > current.links.length) changes.push("links");
   if (milestones.length > current.milestones.length) changes.push("milestones");
   if (categoryIds.length > current.categoryIds.length) changes.push("categories");
+  if (JSON.stringify(intelligence) !== JSON.stringify(current.intelligence)) changes.push("intelligence");
   return { mergedDraft, changes, conflicts, reviewRequired: conflicts.length > 0 };
 }
 

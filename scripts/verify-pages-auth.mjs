@@ -725,6 +725,18 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.views[0].unreadCount, 0);
     response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/saved-views/${acquisitionViewId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 204);
+    response = await apiRequest(baseUrl, "/api/v1/agent/event-catalog?q=simulation&includePast=1", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Signed-in workspace users must be able to search the curated event catalog");
+    body = await response.json();
+    assert.ok(body.data.some((event) => event.id === "catalog-iitsec-2026"), "Catalog search must include the source-backed I/ITSEC edition");
+    assert.ok(body.meta.catalogTotal >= 12, "Catalog metadata must report a useful curated baseline");
+    response = await apiRequest(baseUrl, "/api/v1/auth/event-discovery?status=pending", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "The Super user must be able to inspect the discovery review queue");
+    body = await response.json();
+    assert.deepEqual(body.candidates, []);
+    assert.ok(body.sources.length >= 12, "The discovery review surface must expose the official source registry");
+    response = await apiRequest(baseUrl, "/api/v1/system/event-discovery-schedule", { method: "POST", body: {} });
+    assert.equal(response.status, 401, "The event discovery scheduler must reject unauthenticated triggers");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
     assert.equal(response.status, 200);
     body = await response.json();

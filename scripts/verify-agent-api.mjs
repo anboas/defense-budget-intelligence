@@ -128,12 +128,18 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "record-dispositions", "events", "event-categories", "activity", "api-requests", "integrations"]);
+  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations"]);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.openapi, "3.1.0");
   assert.ok(result.payload.paths["/api/v1/agent/record-dispositions/{recordId}"], "Agent OpenAPI must document workspace tombstone and restore operations");
+  assert.ok(result.payload.paths["/api/v1/agent/event-catalog"], "Agent OpenAPI must document curated event catalog search");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/event-catalog?q=simulation&includePast=1", { token: agentToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((event) => event.id === "catalog-iitsec-2026"), "Agent catalog search must return the source-backed I/ITSEC edition");
+  assert.ok(result.payload.meta.catalogTotal >= 12, "Agent catalog metadata must report a useful curated baseline");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: agentToken }));
   assert.equal(result.response.status, 200);
