@@ -5062,7 +5062,7 @@ td .dot {
 }
 
 .capture-timeline__years {
-  position: relative;
+  position: sticky;
   grid-column: 2;
   display: grid;
   grid-template-columns: repeat(var(--capture-years), minmax(0, 1fr));
