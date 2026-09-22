@@ -419,10 +419,33 @@ try {
   await eventDialog.getByText("No pending candidates", { exact: true }).waitFor();
   assert.match(await eventDialog.locator("[data-event-discovery-review]").innerText(), /Official-source discovery queue[\s\S]*Nothing enters the catalog until you publish it here/i, "The discovery queue must explain its curator approval boundary");
   await eventDialog.getByRole("button", { name: "Search catalog" }).click();
+  const catalogDialogGeometry = await eventDialog.evaluate((node) => {
+    const bounds = node.getBoundingClientRect();
+    const cards = [...node.querySelectorAll("[data-catalog-event]")];
+    return {
+      width: bounds.width,
+      cardWidths: cards.slice(0, 2).map((card) => card.getBoundingClientRect().width),
+      cardContracts: cards.map((card) => ({
+        identity: Boolean(card.querySelector(".event-catalog-card__identity strong")),
+        sponsor: Boolean(card.querySelector(".event-catalog-card__identity small")),
+        status: Boolean(card.querySelector(".if-status-pill")),
+        summary: Boolean(card.querySelector(".event-catalog-card__summary")),
+        metaRows: card.querySelectorAll(".event-catalog-card__meta > span").length,
+        footer: Boolean(card.querySelector(":scope > footer")),
+      })),
+    };
+  });
+  assert.ok(catalogDialogGeometry.width >= 1000, `Desktop event dialogs should use the wider decision-workspace canvas, got ${catalogDialogGeometry.width}px`);
+  assert.ok(catalogDialogGeometry.cardWidths.every((width) => width >= 480), `Catalog cards should have enough width for title, status, and metadata: ${catalogDialogGeometry.cardWidths.join(", ")}`);
+  assert.ok(catalogDialogGeometry.cardContracts.every((card) => card.identity && card.sponsor && card.status && card.summary && card.metaRows === 3 && card.footer), `Every catalog card must retain the same identity, confidence, summary, three-row metadata, and action contract: ${JSON.stringify(catalogDialogGeometry.cardContracts)}`);
+  await page.screenshot({ path: "test-results/event-catalog-desktop.png", fullPage: true });
   await eventDialog.getByLabel("Search curated events").fill("SpaceCom");
   const spaceComCard = eventDialog.locator('[data-catalog-event="catalog-spacecom-2027"]');
   await spaceComCard.waitFor();
   assert.match(await spaceComCard.innerText(), /SpaceCom \/ Space Congress 2027[\s\S]*low confidence[\s\S]*Add to calendar/i, "Catalog results must expose identity, confidence, and a direct calendar action");
+  const catalogLocationLink = spaceComCard.getByRole("link", { name: /Open .* in Google Maps/ });
+  assert.match(await catalogLocationLink.getAttribute("href"), /^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/, "Published physical event locations must open a safe map search");
+  assert.equal(await catalogLocationLink.getAttribute("target"), "_blank", "Map links must preserve the event workspace");
   await spaceComCard.getByRole("button", { name: "Add to calendar" }).click();
   await eventDialog.waitFor({ state: "hidden" });
   await page.waitForFunction(async () => {
@@ -433,6 +456,7 @@ try {
   await page.locator('[data-ops-event-table] input[type="search"]').fill("SpaceCom");
   await page.locator('[data-ops-event-table]').getByText("SpaceCom / Space Congress 2027", { exact: true }).waitFor();
   assert.match(await page.locator("[data-ops-event-table]").innerText(), /SpaceCom \/ Space Congress 2027[\s\S]*Catalog/i, "Catalog imports must remain visibly distinguishable from manual events");
+  assert.match(await page.locator("[data-ops-event-table]").getByRole("link", { name: /Open .* in Google Maps/ }).first().getAttribute("href"), /^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/, "Saved event locations must remain clickable from the event table");
   await page.locator('[data-ops-event-table] input[type="search"]').fill("");
   await page.getByRole("button", { name: "Add event" }).click();
   eventDialog = page.getByRole("dialog", { name: "Add event" });

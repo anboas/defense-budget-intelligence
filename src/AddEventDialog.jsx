@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Bot, CalendarDays, CircleAlert, MapPin, RotateCw, Search, Sparkles, Tags, X } from "lucide-react";
 import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
+import EventLocationLink from "./EventLocationLink.jsx";
 import EventTeamSelector from "./EventTeamSelector.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { MANAGEMENT_STATE_EVENT } from "./management-state.js";
@@ -44,6 +45,28 @@ function EventPlacementSettings({ teams, teamIds, setTeamIds, wallboard, setWall
       <label className="if-checkbox event-dialog__checkbox"><input type="checkbox" checked={wallboard} onChange={(event) => setWallboard(event.target.checked)} /><span><strong>Show on wallboard</strong><small>Visibility and display settings stay operator-owned during AI research.</small></span></label>
     </div>
   </ControlDisclosure>;
+}
+
+function EventCatalogCard({ event, badgeStatus, badgeLabel, secondaryIcon: SecondaryIcon = Tags, secondaryText, caveat, sourceUrl, sourceLabel = "Official source", unavailableSourceLabel = "No official link retained", actions, dataProps = {} }) {
+  const topics = event.topics || [];
+  const visibleTopics = topics.slice(0, 3);
+  const hiddenTopicCount = Math.max(0, topics.length - visibleTopics.length);
+  const identity = [event.sponsor, event.branch].filter(Boolean).join(" · ") || "Sponsor not published";
+  return <article className="event-catalog-card" role="listitem" {...dataProps}>
+    <header>
+      <span className="event-catalog-card__identity"><strong>{event.title}</strong><small>{identity}</small></span>
+      <ControlStatusBadge status={badgeStatus} label={badgeLabel} />
+    </header>
+    <p className="event-catalog-card__summary">{event.summary || "No summary was published in the official structured source."}</p>
+    <div className="event-catalog-card__meta">
+      <span><CalendarDays size={14} aria-hidden="true" /><span>{event.startsAt ? `${compactDate(event.startsAt)}${event.endsAt ? ` – ${compactDate(event.endsAt)}` : ""}` : "Date needs verification"}</span></span>
+      <span><MapPin size={14} aria-hidden="true" /><EventLocationLink location={event.location} fallback="Location pending" /></span>
+      <span><SecondaryIcon size={14} aria-hidden="true" /><span>{secondaryText}</span></span>
+    </div>
+    {visibleTopics.length ? <div className="event-catalog-card__topics" aria-label="Event topics">{visibleTopics.map((topic) => <span key={topic} className="if-badge if-badge--neutral">{topic}</span>)}{hiddenTopicCount ? <span className="if-badge if-badge--neutral">+{hiddenTopicCount}</span> : null}</div> : null}
+    {caveat ? <small className="event-catalog-card__caveat">{caveat}</small> : null}
+    <footer>{sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer">{sourceLabel}</a> : <span>{unavailableSourceLabel}</span>}{actions}</footer>
+  </article>;
 }
 
 export default function AddEventDialog({ catalog, existingEvents, categories, teams, onCreate, onAugment, onClose }) {
@@ -137,7 +160,7 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
       ? <><button type="button" className="if-btn if-btn--secondary" disabled={Boolean(busyId)} onClick={() => void runDiscovery()}>{busyId === "discovery-run" ? workingSpinner() : <RotateCw size={15} aria-hidden="true" />}Scan next sources</button><button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={onClose}>Close</button></>
       : <button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={onClose}>Close</button>;
 
-  return <ControlDialog open onClose={() => { if (!busyId) onClose(); }} title="Add event" eyebrow="Workspace schedule" summary="Find a curated event or create one from whatever details you have." size="wide" dialogRef={dialogRef} closeLabel="Close add event" bodyProps={{ className: "event-dialog__body" }} surfaceProps={{ className: "event-dialog event-dialog--add", "data-add-event-dialog": mode }} footer={footer}>
+  return <ControlDialog open onClose={() => { if (!busyId) onClose(); }} title="Add event" eyebrow="Workspace schedule" summary="Find a curated event or create one from whatever details you have." size="wide" className="event-dialog-shell" dialogRef={dialogRef} closeLabel="Close add event" bodyProps={{ className: "event-dialog__body" }} surfaceProps={{ className: "event-dialog event-dialog--add", "data-add-event-dialog": mode }} footer={footer}>
     <nav className="if-tabs__list event-dialog__tabs" aria-label="Add event method">
       <button type="button" className={`if-tab${mode === "catalog" ? " is-active" : ""}`} aria-pressed={mode === "catalog"} onClick={() => selectMode("catalog")}>Search catalog</button>
       <button type="button" className={`if-tab${mode === "manual" ? " is-active" : ""}`} aria-pressed={mode === "manual"} onClick={() => selectMode("manual")}>Add manually</button>
@@ -154,11 +177,33 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
       <EventPlacementSettings teams={teams} teamIds={teamIds} setTeamIds={setTeamIds} wallboard={wallboard} setWallboard={setWallboard} />
       {results.length ? <div className="event-catalog-results" role="list" aria-label="Curated event catalog">{results.map((event) => {
         const existing = added.get(event.id);
-        return <article key={event.id} className="event-catalog-card" role="listitem" data-catalog-event={event.id}><header><span><strong>{event.title}</strong><small>{event.sponsor} · {event.branch}</small></span><ControlStatusBadge status={event.confidence === "high" ? "verified" : event.confidence === "medium" ? "review" : "warning"} label={`${event.confidence} confidence`} /></header><p>{event.summary}</p><div className="event-catalog-card__meta"><span><CalendarDays size={14} aria-hidden="true" />{event.startsAt ? `${compactDate(event.startsAt)}${event.endsAt ? ` – ${compactDate(event.endsAt)}` : ""}` : "Date needs verification"}</span><span><MapPin size={14} aria-hidden="true" />{event.location || "Location pending"}</span><span><Tags size={14} aria-hidden="true" />{event.eventType.replaceAll("_", " ")} · {event.format.replaceAll("_", " ")}</span></div>{event.topics?.length ? <div className="event-catalog-card__topics">{event.topics.slice(0, 4).map((topic) => <span key={topic} className="if-badge if-badge--neutral">{topic}</span>)}</div> : null}{event.caveats?.length ? <small className="event-catalog-card__caveat">{event.caveats[0]}</small> : null}<footer>{event.links?.[0] ? <a href={event.links[0].url} target="_blank" rel="noreferrer">Official source</a> : <span>No official link retained</span>}<button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={Boolean(existing) || Boolean(busyId)} onClick={() => void addCatalogEvent(event)}>{existing ? "Added" : busyId === event.id ? "Adding…" : event.startsAt ? "Add to calendar" : "Review before adding"}</button></footer></article>;
+        return <EventCatalogCard
+          key={event.id}
+          event={event}
+          badgeStatus={event.confidence === "high" ? "verified" : event.confidence === "medium" ? "review" : "warning"}
+          badgeLabel={`${event.confidence} confidence`}
+          secondaryText={`${event.eventType.replaceAll("_", " ")} · ${event.format.replaceAll("_", " ")}`}
+          caveat={event.caveats?.[0]}
+          sourceUrl={event.links?.[0]?.url}
+          dataProps={{ "data-catalog-event": event.id }}
+          actions={<button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={Boolean(existing) || Boolean(busyId)} onClick={() => void addCatalogEvent(event)}>{existing ? "Added" : busyId === event.id ? "Adding…" : event.startsAt ? "Add to calendar" : "Review before adding"}</button>}
+        />;
       })}</div> : <ControlAsyncState compact state="empty" icon={<Search size={22} />} title="No curated events match" message="Try a broader term or clear the branch and type filters." action={filtered ? <button type="button" className="if-btn if-btn--secondary" onClick={clearCatalogFilters}>Clear filters</button> : null} />}
     </div> : mode === "discovery" ? <div className="event-catalog-browser" data-event-discovery-review>
       <div className="if-alert if-alert--info"><Bot size={17} aria-hidden="true" /><div><strong>Official-source discovery queue</strong><p>The hourly agent scans source registry pages for structured event editions. Nothing enters the catalog until you publish it here.</p></div></div>
-      {busyId === "discovery-load" ? <ControlAsyncState compact state="loading" title="Loading discovery queue" message="Reading source-backed candidates." /> : discovery?.candidates?.length ? <div className="event-catalog-results" role="list" aria-label="Event discovery candidates">{discovery.candidates.map((entry) => <article key={entry.id} className="event-catalog-card" role="listitem" data-event-discovery-candidate={entry.id}><header><span><strong>{entry.candidate.title}</strong><small>{entry.candidate.sponsor || entry.sourceId} · {entry.candidate.branch || "Joint"}</small></span><ControlStatusBadge status="review" label="Needs review" /></header><p>{entry.candidate.summary || "No summary was published in the official structured source."}</p><div className="event-catalog-card__meta"><span><CalendarDays size={14} aria-hidden="true" />{compactDate(entry.candidate.startsAt)}{entry.candidate.endsAt ? ` – ${compactDate(entry.candidate.endsAt)}` : ""}</span><span><MapPin size={14} aria-hidden="true" />{entry.candidate.location || "Location not published"}</span><span><Bot size={14} aria-hidden="true" />Discovered {compactDate(entry.discoveredAt)}</span></div><footer><a href={entry.sourceUrl} target="_blank" rel="noreferrer">Inspect official source</a><span className="event-catalog-card__actions"><button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={Boolean(busyId)} onClick={() => void reviewDiscovery(entry.id, "reject")}>Reject</button><button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={Boolean(busyId)} onClick={() => void reviewDiscovery(entry.id, "publish")}>{busyId === entry.id ? "Reviewing…" : "Publish to catalog"}</button></span></footer></article>)}</div> : <ControlAsyncState compact state="empty" icon={<Search size={22} />} title="No pending candidates" message="The queue is clear. Scan the next source pair now or wait for the hourly schedule." />}
+      {busyId === "discovery-load" ? <ControlAsyncState compact state="loading" title="Loading discovery queue" message="Reading source-backed candidates." /> : discovery?.candidates?.length ? <div className="event-catalog-results" role="list" aria-label="Event discovery candidates">{discovery.candidates.map((entry) => <EventCatalogCard
+        key={entry.id}
+        event={{ ...entry.candidate, sponsor: entry.candidate.sponsor || entry.sourceId, branch: entry.candidate.branch || "Joint" }}
+        badgeStatus="review"
+        badgeLabel="Needs review"
+        secondaryIcon={Bot}
+        secondaryText={`Discovered ${compactDate(entry.discoveredAt)}`}
+        sourceUrl={entry.sourceUrl}
+        sourceLabel="Inspect official source"
+        unavailableSourceLabel="Source unavailable"
+        dataProps={{ "data-event-discovery-candidate": entry.id }}
+        actions={<span className="event-catalog-card__actions"><button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={Boolean(busyId)} onClick={() => void reviewDiscovery(entry.id, "reject")}>Reject</button><button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={Boolean(busyId)} onClick={() => void reviewDiscovery(entry.id, "publish")}>{busyId === entry.id ? "Reviewing…" : "Publish to catalog"}</button></span>}
+      />)}</div> : <ControlAsyncState compact state="empty" icon={<Search size={22} />} title="No pending candidates" message="The queue is clear. Scan the next source pair now or wait for the hourly schedule." />}
       {discovery?.latestRun ? <p className="if-field__hint">Latest scan: {discovery.latestRun.sourceId} · {discovery.latestRun.status} · {discovery.latestRun.candidatesAdded} new candidate{discovery.latestRun.candidatesAdded === 1 ? "" : "s"}</p> : null}
     </div> : <form className="if-form-grid event-dialog__form" onSubmit={(event) => { event.preventDefault(); void saveManual(false); }}>
       <label className="if-field if-field--full"><span className="if-field__label">Event name</span><input className="if-input" autoFocus value={manual.title} placeholder="SOF Week 2027" onChange={(event) => setManual((value) => ({ ...value, title: event.target.value }))} /></label>
