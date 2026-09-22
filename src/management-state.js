@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext.jsx";
 import { eventCatalog as readCuratedEventCatalog } from "./event-catalog.js";
+import { normalizeEventDate } from "./event-date-input.js";
 
 export const WATCHLIST_STORAGE_KEY = "dbi:watchlist:v1";
 export const MANAGEMENT_EVENTS_STORAGE_KEY = "dbi:management-events:v1";
@@ -39,8 +40,7 @@ function cleanText(value, limit = 500) {
 }
 
 function cleanDate(value) {
-  const text = cleanText(value, 32);
-  return /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?Z?)?$/.test(text) ? text : "";
+  return normalizeEventDate(cleanText(value, 32));
 }
 
 function cleanHttpUrl(value) {
@@ -396,17 +396,25 @@ export function useManagementState(records = []) {
     setActivity((items) => appendActivity({ type: "watch_updated", recordId, detail: cleanText(patch.note ? "Updated note" : patch.reviewAt !== undefined ? "Updated review date" : "Updated wallboard visibility") }, items));
   }, [remote, syncRemote, validIds, watchlist]);
 
-  const saveEvent = useCallback((candidate) => {
+  const saveEvent = useCallback(async (candidate) => {
     const normalized = normalizeEvent(candidate);
-    if (!normalized) return false;
+    if (!normalized) throw new Error("Event title is required.");
     if (remote) {
       const existing = events.find((entry) => entry.id === normalized.id);
       const path = existing ? `/events/${encodeURIComponent(existing.id)}` : "/events";
       const options = existing
         ? { method: "PATCH", headers: existing.version ? { "if-match": String(existing.version) } : {}, body: JSON.stringify(normalized) }
         : { method: "POST", headers: { "idempotency-key": crypto.randomUUID() }, body: JSON.stringify(normalized) };
-      void workspaceRequest(path, options).then(() => syncRemote()).catch((requestError) => { setError(requestError.message); void syncRemote(); });
-      return true;
+      try {
+        const payload = await workspaceRequest(path, options);
+        await syncRemote();
+        setError("");
+        return normalizeEvent(payload?.data || payload) || normalized;
+      } catch (requestError) {
+        setError(requestError.message);
+        await syncRemote();
+        throw requestError;
+      }
     }
     const current = readManagementEvents(validIds);
     const exists = current.some((entry) => entry.id === normalized.id);
@@ -414,7 +422,7 @@ export function useManagementState(records = []) {
     write(MANAGEMENT_EVENTS_STORAGE_KEY, next);
     setEvents(next);
     setActivity((items) => appendActivity({ type: exists ? "event_updated" : "event_added", eventId: normalized.id, detail: normalized.title }, items));
-    return true;
+    return normalized;
   }, [events, remote, syncRemote, validIds]);
 
   const createEvent = useCallback(async (candidate) => {

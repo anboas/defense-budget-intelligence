@@ -1,4 +1,5 @@
 import { normalizeEventIntelligence } from "./d1-event-store.js";
+import { normalizeEventDate } from "./event-date-input.js";
 
 export const EVENT_AI_PRODUCER_MODEL = "gpt-5.4";
 export const EVENT_AI_VERIFIER_MODEL = "gpt-5.4";
@@ -186,9 +187,7 @@ function cleanText(value, limit) {
 }
 
 function cleanDate(value) {
-  const text = cleanText(value, 32);
-  if (!text) return "";
-  return /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?Z?)?$/.test(text) ? text : "";
+  return normalizeEventDate(cleanText(value, 32));
 }
 
 function cleanHttpUrl(value) {
@@ -232,6 +231,7 @@ export function normalizeEventAiDraft(value = {}) {
     recordIds: unique((Array.isArray(value.recordIds) ? value.recordIds : []).map((item) => cleanText(item, 180)), (item) => item).slice(0, 50),
     attendeeIds: unique((Array.isArray(value.attendeeIds) ? value.attendeeIds : []).map((item) => cleanText(item, 80)), (item) => item).slice(0, 30),
     attendees: [],
+    teamIds: unique((Array.isArray(value.teamIds) ? value.teamIds : []).map((item) => cleanText(item, 80)), (item) => item).slice(0, 12),
     links: unique((Array.isArray(value.links) ? value.links : []).map((link, index) => ({
       id: cleanText(link?.id, 100) || `link-${index + 1}`,
       label: cleanText(link?.label, 120),

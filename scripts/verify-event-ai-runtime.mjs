@@ -14,6 +14,7 @@ import {
   parseOpenAiStructuredResponse,
   retrieveOpenAiResponse,
 } from "../src/event-ai-runtime.js";
+import { eventDateTimeInputValue, normalizeEventDate } from "../src/event-date-input.js";
 import {
   MOCK_EVENT_AI_MODELS,
   assertEventAiModels,
@@ -32,6 +33,9 @@ assert.equal(chooseEventAiModel(normalizedModels, "gpt-5.4-mini"), "gpt-5.4-mini
 assert.equal(chooseEventAiModel(MOCK_EVENT_AI_MODELS), "gpt-5.4");
 assert.doesNotThrow(() => assertEventAiModels(normalizedModels, "gpt-5.4", "gpt-5.4-mini"));
 assert.throws(() => assertEventAiModels(normalizedModels, "gpt-5.6-terra", "gpt-5.4"), /not available to the selected OpenAI credential/i);
+assert.equal(eventDateTimeInputValue("2027-01-11"), "2027-01-11T00:00", "Date-only review drafts must hydrate the native datetime input");
+assert.equal(eventDateTimeInputValue("2027-01-11T08:30"), "2027-01-11T08:30", "Local event times must retain their published wall time");
+assert.equal(normalizeEventDate("2027-01-11T08:30:00-05:00"), "2027-01-11T13:30:00.000Z", "Offset event times must normalize before persistence");
 
 function assertStrictObjects(schema, path = "schema") {
   if (!schema || typeof schema !== "object") return;
@@ -151,12 +155,13 @@ assert.equal(consultedSourceDiagnostic.matchedSourceCount, 1);
 assert.equal(citedEventAiDetails(consultedSourceResponse, details, {}).sources.length, 1, "Consulted web-search sources must satisfy provenance even when strict JSON output has no inline annotation slots");
 
 const merged = mergeVerifiedEventDraft({
-  title: "Industry day", startsAt: "", location: "", notes: "Operator note", attendeeIds: ["user-1"], recordIds: ["record-1"], status: "scheduled", wallboard: true,
+  title: "Industry day", startsAt: "", location: "", notes: "Operator note", attendeeIds: ["user-1"], teamIds: ["team-1"], recordIds: ["record-1"], status: "scheduled", wallboard: true,
 }, cited, [{ id: "industry-day", name: "Industry day" }]);
 assert.equal(merged.mergedDraft.startsAt, "2027-06-01T09:00");
 assert.equal(merged.mergedDraft.location, "Mission center");
 assert.equal(merged.mergedDraft.notes, "Operator note", "Operator-entered notes must not be overwritten");
 assert.deepEqual(merged.mergedDraft.attendeeIds, ["user-1"]);
+assert.deepEqual(merged.mergedDraft.teamIds, ["team-1"], "Review drafts must preserve team visibility through direct save");
 assert.deepEqual(merged.mergedDraft.recordIds, ["record-1"]);
 assert.deepEqual(merged.mergedDraft.categoryIds, ["industry-day"]);
 assert.equal(merged.conflicts.some((conflict) => conflict.field === "notes"), true, "Conflicting researched notes must be disclosed, not overwritten");
