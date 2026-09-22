@@ -23,6 +23,7 @@ COPY --chown=node:node server ./server
 COPY --chown=node:node src/data ./src/data
 COPY --chown=node:node src/procurement-taxonomy.js ./src/procurement-taxonomy.js
 COPY --chown=node:node src/event-ai-runtime.js ./src/event-ai-runtime.js
+COPY --chown=node:node src/event-date-input.js ./src/event-date-input.js
 COPY --chown=node:node src/d1-event-store.js ./src/d1-event-store.js
 COPY --chown=node:node src/openai-models.js ./src/openai-models.js
 COPY --chown=node:node src/security-policy.js ./src/security-policy.js

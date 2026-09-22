@@ -97,6 +97,7 @@ export default function OperationalDataTable({
   mobileColumns = null,
   bulkActions = null,
   onSelectionChange = null,
+  highlightedRowId = null,
 }) {
   const tableRef = useRef(null);
   const compactTable = useCompactTable(recordListAt, tableRef);
@@ -124,6 +125,7 @@ export default function OperationalDataTable({
   const setQuery = onQueryChange ?? setInternalQuery;
   const filters = filterValues ?? internalFilters;
   const setFilters = onFilterChange ?? setInternalFilters;
+  const highlightedKey = highlightedRowId == null ? "" : String(highlightedRowId);
   const fixedActionKeys = useMemo(() => columns.filter((column) => column.role === "actions").map((column) => column.key), [columns]);
 
   const orderedKeys = useMemo(() => {
@@ -206,13 +208,13 @@ export default function OperationalDataTable({
 
   const sortedRows = useMemo(() => {
     const column = columns.find((candidate) => candidate.key === sort.key);
-    if (!column) return filteredRows;
-    const direction = sort.direction === "desc" ? -1 : 1;
-    return [...filteredRows].sort((left, right) => compareValues(
+    const ordered = column ? [...filteredRows].sort((left, right) => compareValues(
       column.sortValue?.(left) ?? column.value?.(left) ?? left[column.key],
       column.sortValue?.(right) ?? column.value?.(right) ?? right[column.key],
-    ) * direction);
-  }, [columns, filteredRows, sort]);
+    ) * (sort.direction === "desc" ? -1 : 1)) : [...filteredRows];
+    if (!highlightedKey) return ordered;
+    return ordered.sort((left, right) => Number(String(rowKey(right)) === highlightedKey) - Number(String(rowKey(left)) === highlightedKey));
+  }, [columns, filteredRows, highlightedKey, rowKey, sort]);
 
   const pages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
   const safePage = Math.min(page, pages);
@@ -221,6 +223,16 @@ export default function OperationalDataTable({
   const selectedRows = useMemo(() => sortedRows.filter((row) => selected.has(String(rowKey(row)))), [rowKey, selected, sortedRows]);
   const pageKeys = pageRows.map((row) => String(rowKey(row)));
   const pageSelected = pageKeys.length > 0 && pageKeys.every((key) => selected.has(key));
+
+  useEffect(() => {
+    if (!highlightedKey) return undefined;
+    const frame = requestAnimationFrame(() => {
+      const row = [...(tableRef.current?.querySelectorAll("[data-row-key]") || [])].find((node) => node.getAttribute("data-row-key") === highlightedKey);
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      row?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [highlightedKey, safePage]);
 
   useEffect(() => {
     onSelectionChange?.(selectedRows);
@@ -394,8 +406,10 @@ export default function OperationalDataTable({
               data-row-key={key}
               data-row-index={start + index}
               data-row-expandable={renderDetail ? "true" : undefined}
-              className={`${selected.has(key) ? "is-selected " : ""}${expanded ? "is-expanded" : ""}`.trim()}
+              data-row-highlighted={highlightedKey === key ? "true" : undefined}
+              className={`${selected.has(key) || highlightedKey === key ? "is-selected " : ""}${expanded ? "is-expanded" : ""}`.trim()}
               tabIndex={renderDetail ? 0 : undefined}
+              aria-current={highlightedKey === key ? "true" : undefined}
               aria-expanded={renderDetail ? expanded : undefined}
               onClick={(event) => { if (renderDetail && !event.target.closest("a,button,input,select,textarea,label")) activateRow(row); }}
               onKeyDown={(event) => { if (renderDetail && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); activateRow(row); } }}

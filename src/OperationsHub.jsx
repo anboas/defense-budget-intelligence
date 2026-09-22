@@ -31,10 +31,11 @@ import SearchMultiSelect from "./SearchMultiSelect.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import EventLocationLink from "./EventLocationLink.jsx";
-import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlChangeList, ControlCollectionEditor, ControlDialog, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlProgressRail, ControlSparkline, ControlStatusBadge, useToast } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
 import { directorySelection, openWorkspaceProfile, workspaceTeamHref } from "./workspace-profile-routes.js";
+import { eventDateTimeInputValue } from "./event-date-input.js";
 
 const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
 const OpenAiKeyManagement = lazy(() => import("./OpenAiKeyManagement.jsx"));
@@ -315,7 +316,7 @@ function EventIntelligencePanel({ intelligence }) {
   </ControlDisclosure>;
 }
 
-function EventEditor({ event, review = false, records, categories, teams, onSave, onClose }) {
+function EventEditor({ event, review = false, records, categories, teams, onSave, onSaved, onClose }) {
   const auth = useAuth();
   const dialogRef = useRef(null);
   const [draft, setDraft] = useState(() => event || newEventDraft());
@@ -355,8 +356,9 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
     }
     setSaving(true);
     try {
-      await onSave({ ...draft, updatedAt: new Date().toISOString() });
-      onClose();
+      const saved = await onSave({ ...draft, updatedAt: new Date().toISOString() });
+      if (onSaved) onSaved(saved || draft);
+      else onClose();
     } catch (requestError) {
       setError(requestError.message || "The event could not be saved.");
     } finally {
@@ -380,8 +382,8 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
       <form id="ops-event-editor-form" className="if-form-grid event-dialog__form" aria-busy={saving} onSubmit={submit}>
           {error ? <div role="alert" className="if-alert if-alert--danger event-dialog__alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Could not save event</strong><p>{error}</p></div></div> : null}
           <label className="if-field if-field--full"><span className="if-field__label">Event name</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
-          <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
-          <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" data-event-starts type="datetime-local" value={eventDateTimeInputValue(draft.startsAt)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" data-event-ends type="datetime-local" value={eventDateTimeInputValue(draft.endsAt)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
           <ControlDisclosure className="if-field--full" title="More details" summary="Location, people, links, milestones, display, and linked records" data-event-more-details>
           <div className="if-form-grid">
@@ -536,12 +538,14 @@ function eventCategoryLabels(event, categories) {
   return (event.categoryIds || []).map((id) => byId.get(id)).filter(Boolean);
 }
 
-function EventAiReview({ jobId, onOpenDraft, activityEntries = [] }) {
+function EventAiReview({ jobId, onOpenDraft, onApplyDraft, onFocusEvent, activityEntries = [] }) {
   const auth = useAuth();
   const notifications = useNotifications();
   const [fetchedJob, setFetchedJob] = useState(null);
   const [error, setError] = useState("");
   const [panel, setPanel] = useState("review");
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState("");
   useEffect(() => {
     let active = true;
     void auth.getEventAiJob(jobId).then((result) => { if (active) setFetchedJob(result.job); }).catch((requestError) => { if (active) setError(requestError.message); });
@@ -565,6 +569,17 @@ function EventAiReview({ jobId, onOpenDraft, activityEntries = [] }) {
   const researchStepClass = job?.status === "failed" && failedStage === "research" ? "is-blocked" : job?.status === "researching" ? "is-active" : job ? "is-complete" : "is-active";
   const verificationStepClass = job?.status === "failed" && failedStage === "verification" ? "is-blocked" : job?.status === "verifying" ? "is-active" : ["completed", "needs_review"].includes(job?.status) ? "is-complete" : "";
   const reviewStepClass = ["completed", "needs_review"].includes(job?.status) ? "is-active" : "";
+  async function applyDraft() {
+    if (!job?.mergeResult?.mergedDraft || applying) return;
+    setApplying(true);
+    setApplyError("");
+    try {
+      await onApplyDraft({ ...job.mergeResult.mergedDraft, aiReviewJobId: job.id });
+    } catch (requestError) {
+      setApplyError(requestError.message || "The verified changes could not be saved.");
+      setApplying(false);
+    }
+  }
   return <section className="if-operations-workspace" data-event-ai-review={job?.status || "loading"}>
     <ControlWorkbenchHeader className="task-detail-header" eyebrow={statusLabel} title={job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"} summary={`Research: ${job?.producerModel || "Loading"} · Verification: ${job?.verifierModel || "Loading"}${job?.traceId ? ` · Trace ${job.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a>} tabs={job ? <nav className="if-tabs__list task-review-tabs" aria-label="Task detail sections"><button type="button" className={`if-tab${panel === "review" ? " is-active" : ""}`} aria-pressed={panel === "review"} onClick={() => setPanel("review")}>Review</button><button type="button" className={`if-tab${panel === "activity" ? " is-active" : ""}`} aria-pressed={panel === "activity"} onClick={() => setPanel("activity")}>Activity <span className="if-badge">{activityEntries.length + 2}</span></button></nav> : null} controls={<ControlProgressRail label="Event AI workflow status" items={[
         { id: "research", label: "Research", state: researchStepClass === "is-blocked" ? "blocked" : researchStepClass === "is-active" ? "active" : "complete", meta: failedStage === "research" ? "Stopped by evidence gate" : "Claim-level public evidence" },
@@ -601,7 +616,7 @@ function EventAiReview({ jobId, onOpenDraft, activityEntries = [] }) {
       ]} />
       <section className="if-analytics-panel" data-event-ai-diff-preview><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Verified changes</h3><p className="if-analytics-panel__summary">Each changed field is shown once. The draft remains unsaved.</p></div><span className="if-badge if-badge--info">{diffRows.length} change{diffRows.length === 1 ? "" : "s"}</span></header><ControlChangeList label="Event draft difference preview" items={diffRows} empty={<ControlAsyncState compact state="empty" icon={<CircleCheck size={20} />} title="No field differences" message="The verifier did not produce a safe change to the original draft." />} />{job.mergeResult?.conflicts?.length ? <ControlDisclosure title={`Preserved operator values (${job.mergeResult.conflicts.length})`} summary="Conflicting operator-entered fields remain unchanged" tone="warning"><ul>{job.mergeResult.conflicts.map((conflict, index) => <li key={`${conflict.field || "field"}-${index}`}>{conflict.field || String(conflict)}</li>)}</ul></ControlDisclosure> : null}</section>
       <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Evidence &amp; exclusions</h3><p className="if-analytics-panel__summary">Open grounded sources or inspect claims retained for review without automatic merge.</p></div></header><div className="if-action-row-list">{(job.proposal?.sources || []).map((source, index) => <a key={source.url} className="if-action-row" href={source.url} target="_blank" rel="noreferrer"><span className="if-icon-slot"><Link2 size={15} /></span><span><strong>{source.publisher || source.title || `Source ${index + 1}`}</strong><em>{source.url}</em></span><span className="if-badge if-badge--info">Grounded</span></a>)}{reviewSources.map((source, index) => <a key={`review-${source.url}`} className="if-action-row" href={source.url} target="_blank" rel="noreferrer"><span className="if-icon-slot"><Link2 size={15} /></span><span><strong>{source.publisher || source.title || `Candidate source ${index + 1}`}</strong><em>{source.url}</em></span><span className="if-badge if-badge--warning">Review</span></a>)}</div>{reviewClaims.length ? <ControlDisclosure title={`Claims retained for review (${reviewClaims.length})`} summary="Citation transport was incomplete, so these claims were preserved but not auto-merged" tone="warning"><ul>{reviewClaims.map((claim, index) => <li key={`${claim.field || "claim"}-${index}`}><strong>{claim.field || "Claim"}:</strong> {claim.value || "Proposed value"} · {claim.reason || "Requires operator review"}</li>)}</ul></ControlDisclosure> : null}{job.verification?.rejectedClaims?.length ? <ControlDisclosure title={`Rejected claims (${job.verification.rejectedClaims.length})`} summary="Claims excluded because verification contradicted or could not support them"><ul>{job.verification.rejectedClaims.map((claim, index) => <li key={index}>{typeof claim === "string" ? claim : claim.reason || claim.claim || "Unsupported claim"}</li>)}</ul></ControlDisclosure> : null}</section>
-      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Operator decision</h3><p className="if-analytics-panel__summary">{job.mergeResult?.application?.status === "applied" ? "Verified additive changes were applied by workspace policy. Review the event or inspect the retained evidence." : "Opening the draft does not save it. Review every field, then use the normal Save event action."}</p></div>{job.mergeResult?.mergedDraft ? <button type="button" className="if-btn if-btn--ai" onClick={() => onOpenDraft({ ...job.mergeResult.mergedDraft, aiReviewJobId: job.id })}><Sparkles size={16} aria-hidden="true" />{job.mergeResult?.application?.status === "applied" ? "Review applied event" : "Open verified draft"}</button> : null}</header></section>
+      <section className="if-analytics-panel"><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Operator decision</h3><p className="if-analytics-panel__summary">{job.mergeResult?.application?.status === "applied" ? "Verified additive changes were applied by workspace policy. Open the saved event or retain this evidence for audit." : "Save the verified draft now, or edit individual fields before saving. Either path returns to Events and focuses the saved record."}</p></div>{job.mergeResult?.mergedDraft ? <div className="if-button-group">{job.mergeResult?.application?.status === "applied" ? <button type="button" className="if-btn if-btn--primary" onClick={() => onFocusEvent(job.mergeResult.mergedDraft)}><CalendarDays size={16} aria-hidden="true" />Open saved event</button> : <><button type="button" className="if-btn if-btn--secondary" disabled={applying} onClick={() => onOpenDraft({ ...job.mergeResult.mergedDraft, aiReviewJobId: job.id })}>Edit before saving</button><button type="button" className="if-btn if-btn--ai" disabled={applying} onClick={() => void applyDraft()}>{applying ? workingSpinner() : <Sparkles size={16} aria-hidden="true" />}{applying ? "Saving…" : "Save verified changes"}</button></>}</div> : null}</header>{applyError ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Changes not saved</strong><p>{applyError}</p></div></div> : null}</section>
     </> : null}
   </section>;
 }
@@ -699,7 +714,7 @@ function ApiTaskDetail({ task }) {
   </section>;
 }
 
-function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onRefresh }) {
+function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onApplyDraft, onFocusEvent, onRefresh }) {
   const notifications = useNotifications();
   const notificationJobs = notifications?.jobs;
   useEffect(() => {
@@ -733,13 +748,13 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onRefresh }) {
       { id: "completed", label: "Completed", value: completedCount, meta: "Finished retained tasks", tone: "success" },
       { id: "stopped", label: "Stopped", value: failedCount, meta: "No silent writes or partial merges", tone: "danger" },
     ]} /> : null}
-    {selected?.job ? <EventAiReview jobId={selected.sourceId} onOpenDraft={onOpenDraft} activityEntries={selected.entries} /> : selected?.entries ? <ApiTaskDetail task={selected} /> : selectedTaskId ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Task not found</strong><p>The task is outside the retained workspace window or is no longer available.</p></div></div> : null}
+    {selected?.job ? <EventAiReview jobId={selected.sourceId} onOpenDraft={onOpenDraft} onApplyDraft={onApplyDraft} onFocusEvent={onFocusEvent} activityEntries={selected.entries} /> : selected?.entries ? <ApiTaskDetail task={selected} /> : selectedTaskId ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Task not found</strong><p>The task is outside the retained workspace window or is no longer available.</p></div></div> : null}
     {!selectedTaskId && tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} mobileColumns={["task", "status", "updated", "actions"]} wrapperProps={{ "data-task-table": true }} /> : !selectedTaskId ? <ControlAsyncState compact state="empty" icon={<ListChecks size={22} />} title="No retained tasks" message="Augmentation and API work will appear here after it starts." /> : null}
     </ControlPageBody>
   </section>;
 }
 
-function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories, embedded = false }) {
+function EventsView({ events, records, categories, canManageCategories, onAdd, onEdit, onDelete, onManageCategories, focusedEventId = "", embedded = false }) {
   const [researchEvent, setResearchEvent] = useState(null);
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
@@ -757,7 +772,7 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" aria-label={`Edit ${event.title}`} title="Edit event" onClick={() => onEdit(event)}><Pencil size={14} /></button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} title="Delete event" onClick={() => onDelete(event.id)}><Trash2 size={14} /></button></div> },
   ];
   const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks" aria-label="Task Center" title="Task Center"><ListChecks size={15} aria-hidden="true" /><span>Task Center</span></a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" aria-label="Manage categories" title="Manage categories" onClick={onManageCategories}><Tags size={15} aria-hidden="true" /><span>Manage categories</span></button> : null}<button type="button" className="if-btn if-btn--primary" aria-label="Add event" title="Add event" onClick={onAdd}><Plus size={15} aria-hidden="true" /><span>Add event</span></button></>;
-  const content = events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Location</span><strong><EventLocationLink location={event.location} fallback="Location not set" /></strong></article><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Catalog</span><strong>{event.catalogEventId ? `${event.catalogSyncState || "current"} · revision ${event.catalogRevision || 1}` : "Manual event"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Intelligence</span><strong>{[event.intelligence?.sponsor, event.intelligence?.branch, ...(event.intelligence?.topics || []).slice(0, 3)].filter(Boolean).join(" · ") || "No retained intelligence"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the display calendar." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />;
+  const content = events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} highlightedRowId={focusedEventId} initialExpandedId={focusedEventId || null} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Location</span><strong><EventLocationLink location={event.location} fallback="Location not set" /></strong></article><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Catalog</span><strong>{event.catalogEventId ? `${event.catalogSyncState || "current"} · revision ${event.catalogRevision || 1}` : "Manual event"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Intelligence</span><strong>{[event.intelligence?.sponsor, event.intelligence?.branch, ...(event.intelligence?.topics || []).slice(0, 3)].filter(Boolean).join(" · ") || "No retained intelligence"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the display calendar." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />;
   return <section className={`ops-panel${embedded ? " ops-panel--embedded" : ""}`} data-ops-events>{!embedded ? <ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /> : null}{embedded ? content : <ControlPageBody compact>{content}</ControlPageBody>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
@@ -958,6 +973,7 @@ function useRouteSurface(parameter, allowed, fallback, onChange) {
 
 function ScheduleView({ state, records, watchedRecords, categories, teams, auth, dataset, onAdd, onEdit, onDelete, onManageCategories }) {
   const [surface, setSurface] = useRouteSurface("scheduleView", ["list", "calendar", "display"], "list");
+  const focusedEventId = new URLSearchParams(window.location.hash.split("?")[1] || "").get("event") || "";
   const [calendarMonth, setCalendarMonth] = useState(() => String(state.events.find((event) => event.status === "scheduled" && event.startsAt)?.startsAt || new Date().toISOString()).slice(0, 7));
   const scheduled = state.events.filter((event) => event.status === "scheduled").length;
   const needsValidation = state.events.filter((event) => event.requiresValidation).length;
@@ -971,7 +987,7 @@ function ScheduleView({ state, records, watchedRecords, categories, teams, auth,
       { id: "teams", label: "Overlays", value: teams.length + 1, meta: "Workspace-wide plus teams" },
     ]} metricLabel="Schedule summary" tabs={tabs} />
     <ControlPageBody compact>
-      {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} /> : null}
+      {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} focusedEventId={focusedEventId} /> : null}
       {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled" && event.startsAt)} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /></Suspense> : null}
       {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /> : null}
     </ControlPageBody>
@@ -1013,6 +1029,7 @@ function ConnectionsView({ auth, state, records, dataset, samOpportunities, manu
 
 export default function OperationsHub({ view: requestedView = "watchlist", dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: {}, primes: [] }, budgetGeneratedAt = "", awardGeneratedAt = "" }) {
   const auth = useAuth();
+  const { showToast } = useToast();
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
   const view = VIEWS.has(requestedView) ? requestedView : "watchlist";
@@ -1057,18 +1074,29 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const calendarTeams = auth?.user?.roleId === "super_user" && !auth?.user?.isEmulating
     ? state.teams
     : state.teams.filter((team) => state.memberTeamIds.includes(team.id));
+  const focusSavedEvent = (event) => {
+    const saved = event || {};
+    setEditor(null);
+    showToast({ tone: "success", title: "Event changes saved", message: `${saved.title || "The event"} is updated and focused in Events.`, duration: 7000 });
+    window.location.hash = `#/budget-spend/schedule?scheduleView=list&event=${encodeURIComponent(saved.id || "")}`;
+  };
+  const applyReviewedEvent = async (event) => {
+    const saved = await state.saveEvent(event);
+    focusSavedEvent(saved || event);
+    return saved;
+  };
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
     {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add-launcher" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "directory" ? <DirectoryView auth={auth} state={state} records={records} teams={calendarTeams} /> : null}
-    {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
+    {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} onApplyDraft={applyReviewedEvent} onFocusEvent={focusSavedEvent} /> : null}
     {view === "connections" ? <ConnectionsView auth={auth} state={state} records={records} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} contractMonitorState={contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} onSurfaceChange={setConnectionsSurface} /> : null}
     {view === "users" ? auth?.user?.canManageAccounts ? <Suspense fallback={<RouteFallback title="Accounts" />}><UserManagement auth={auth} /></Suspense> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Super user access required" message="Global account lifecycle and emulation belong to the immutable Super user." /></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <Suspense fallback={<RouteFallback title="Workspaces" />}><WorkspaceManagement auth={auth} /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspace ? <Suspense fallback={<RouteFallback title="Workspace settings" />}><WorkspaceManagement auth={auth} activeOnly /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
     {editor?.mode === "add-launcher" ? <AddEventDialog catalog={state.eventCatalog} existingEvents={state.events} categories={state.eventCategories} teams={state.teams} onCreate={state.createEvent} onAugment={setAugmentEvent} onClose={() => setEditor(null)} /> : null}
-    {editor && editor.mode !== "add-launcher" ? <EventEditor event={editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {editor && editor.mode !== "add-launcher" ? <EventEditor event={editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onSaved={editor.mode === "review" ? focusSavedEvent : null} onClose={() => setEditor(null)} /> : null}
     {augmentEvent ? <EventAiLauncher key={augmentEvent.id} event={augmentEvent} onClose={() => setAugmentEvent(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
   </div>;
