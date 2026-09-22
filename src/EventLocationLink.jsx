@@ -1,5 +1,3 @@
-import { ExternalLink } from "lucide-react";
-
 const NON_MAPPABLE_LOCATION = /^(?:virtual|online|remote|location pending|location not published|location not set|venue to be provided(?:\b.*)?|tbd|to be determined)$/i;
 
 export function eventLocationMapHref(location) {
@@ -17,7 +15,5 @@ export default function EventLocationLink({ location, fallback = "Location pendi
   const label = String(location || "").trim();
   const href = eventLocationMapHref(label);
   if (!href) return <span className={className}>{label || fallback}</span>;
-  return <a className={`event-location-link ${className}`.trim()} href={href} target="_blank" rel="noreferrer" aria-label={`Open ${label} in Google Maps`}>
-    <span>{label}</span><ExternalLink size={12} aria-hidden="true" />
-  </a>;
+  return <a className={className} href={href} target="_blank" rel="noreferrer" aria-label={`Open ${label} in Google Maps`}>{label}</a>;
 }
