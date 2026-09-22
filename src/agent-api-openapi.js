@@ -10,6 +10,8 @@ export function agentOpenApiDocument(origin, sessionCookie) {
     "/api/v1/agent/record-dispositions/{recordId}": { put: { summary: "Tombstone a record for this workspace", security }, delete: { summary: "Restore a tombstoned record", security } },
     "/api/v1/agent/events": { get: { summary: "List operator events", security }, post: { summary: "Create an operator event", security } },
     "/api/v1/agent/events/{eventId}": { get: { summary: "Read an event", security }, patch: { summary: "Update an event", security }, delete: { summary: "Delete an event", security } },
+    "/api/v1/agent/event-catalog": { get: { summary: "Search the curated event catalog", security } },
+    "/api/v1/agent/event-catalog/{catalogEventId}": { get: { summary: "Read a curated catalog event", security } },
     "/api/v1/agent/event-categories": { get: { summary: "List workspace event categories", security }, post: { summary: "Create a workspace event category", security } },
     "/api/v1/agent/event-categories/{categoryId}": { patch: { summary: "Update a workspace event category", security }, delete: { summary: "Delete an unused workspace event category", security } },
     "/api/v1/agent/activity": { get: { summary: "Read append-only audit activity", security }, post: { summary: "Append an agent activity note", security } },

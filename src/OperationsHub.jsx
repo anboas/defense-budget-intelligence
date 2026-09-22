@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import WorkspaceMark from "./WorkspaceMark.jsx";
+import AddEventDialog from "./AddEventDialog.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
 import EventTeamSelector from "./EventTeamSelector.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -157,12 +158,14 @@ const EVENT_DIFF_FIELDS = [
   ["links", "Links"],
   ["milestones", "Milestones"],
   ["categoryIds", "Categories"],
+  ["intelligence", "Event intelligence"],
 ];
 
 function eventDiffValue(field, value) {
   if (field === "links") return value?.length ? value.map((item) => item.label || item.url).join(" · ") : "None";
   if (field === "milestones") return value?.length ? value.map((item) => `${milestoneLabel(item)} · ${compactDate(item.occursAt)}`).join(" · ") : "None";
   if (field === "categoryIds") return value?.length ? value.join(" · ") : "Uncategorized";
+  if (field === "intelligence") return value ? [value.sponsor, value.branch, value.eventType, ...(value.topics || []).slice(0, 4)].filter(Boolean).join(" · ") || "No retained intelligence" : "No retained intelligence";
   if (["startsAt", "endsAt"].includes(field)) return value ? dateTime(value) : "Not set";
   return String(value || "Not set");
 }
@@ -281,6 +284,34 @@ function EventAiLauncher({ event, onClose }) {
   </ControlDialog>;
 }
 
+
+function EventIntelligencePanel({ intelligence }) {
+  if (!intelligence) return null;
+  const sources = intelligence.sources || [];
+  const matches = [
+    ...(intelligence.opportunityMatches || []).map((match) => ({ ...match, group: "Opportunity" })),
+    ...(intelligence.contractMatches || []).map((match) => ({ ...match, group: "Contract" })),
+    ...(intelligence.spendingMatches || []).map((match) => ({ ...match, group: "Spending" })),
+  ];
+  const matchCount = matches.length;
+  const hasContent = intelligence.sponsor || intelligence.branch || intelligence.venue || intelligence.topics?.length || intelligence.stakeholders?.length || sources.length || matchCount;
+  if (!hasContent) return null;
+  return <ControlDisclosure className="if-field--full" title="Event intelligence" summary={`${intelligence.sponsor || intelligence.branch || "Verified public context"}${sources.length ? ` · ${sources.length} source${sources.length === 1 ? "" : "s"}` : ""}`} data-event-intelligence>
+    <div className="dbi-table-detail-grid">
+      <article><span>Sponsor &amp; branch</span><strong>{[intelligence.sponsor, intelligence.branch].filter(Boolean).join(" · ") || "Not verified"}</strong></article>
+      <article><span>Format &amp; venue</span><strong>{[intelligence.format?.replaceAll("_", " "), intelligence.venue].filter(Boolean).join(" · ") || "Not verified"}</strong></article>
+      <article><span>Topics</span><strong>{intelligence.topics?.join(" · ") || "None retained"}</strong></article>
+      <article><span>Stakeholders</span><strong>{intelligence.stakeholders?.join(" · ") || "None retained"}</strong></article>
+      <article><span>Public contacts</span><strong>{intelligence.contacts?.map((contact) => `${contact.name}${contact.organization ? ` · ${contact.organization}` : ""}`).join(" · ") || "None retained"}</strong></article>
+      <article><span>Acquisition &amp; spending matches</span><strong>{matchCount || "None retained"}</strong></article>
+      <article><span>Confidence</span><strong>{intelligence.confidence || "Not rated"}{intelligence.lastVerifiedAt ? ` · checked ${compactDate(intelligence.lastVerifiedAt)}` : ""}</strong></article>
+      <article><span>Sources</span><strong>{sources.map((source) => source.publisher || source.title || source.url).join(" · ") || "No sources retained"}</strong></article>
+    </div>
+    {matches.length ? <div className="event-intelligence-matches" role="list" aria-label="Cited acquisition and spending matches">{matches.map((match) => <article key={`${match.group}-${match.id}-${match.sourceUrl}`} role="listitem"><header><span className="if-badge if-badge--neutral">{match.group}</span><ControlStatusBadge status={match.confidence === "high" ? "verified" : match.confidence === "medium" ? "review" : "warning"} label={`${match.confidence} confidence`} /></header><strong>{match.title}</strong><p>{match.reason}</p><a href={match.sourceUrl} target="_blank" rel="noreferrer">Inspect supporting source</a></article>)}</div> : null}
+    {intelligence.caveats?.length ? <ul className="if-field__hint">{intelligence.caveats.map((caveat) => <li key={caveat}>{caveat}</li>)}</ul> : null}
+  </ControlDisclosure>;
+}
+
 function EventEditor({ event, review = false, records, categories, teams, onSave, onClose }) {
   const auth = useAuth();
   const dialogRef = useRef(null);
@@ -351,6 +382,7 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
             {directoryError ? <small role="alert">User directory unavailable: {directoryError}</small> : !directory.length ? <small>No active workspace users available.</small> : null}
           </div>
           <label className="if-field if-field--full"><span className="if-field__label">Notes</span><textarea className="if-textarea" value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
+          <EventIntelligencePanel intelligence={draft.intelligence} />
           <section className="ops-event-collection if-field--full" data-event-links>
             <header><span><strong>Event links</strong><small>Official page, registration, agenda, lodging, or other useful destinations.</small></span><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setDraft((value) => ({ ...value, links: [...(value.links || []), { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label: "", url: "" }] }))}><Plus size={15} aria-hidden="true" />Add link</button></header>
             <ControlCollectionEditor
@@ -682,7 +714,7 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
   const [researchEvent, setResearchEvent] = useState(null);
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
-    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, ...(event.links || []).flatMap((link) => [link.label, link.url]), ...eventCategoryLabels(event, categories), ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}</small></> },
+    { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, event.intelligence?.sponsor, event.intelligence?.branch, ...(event.intelligence?.topics || []), ...(event.links || []).flatMap((link) => [link.label, link.url]), ...eventCategoryLabels(event, categories), ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}{event.catalogEventId ? " · Catalog" : ""}</small></> },
     { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt, render: (event) => dateTime(event.startsAt) },
     { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt, render: (event) => dateTime(event.endsAt || event.startsAt) },
     { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <ControlStatusBadge status={event.status || "scheduled"} /> },
@@ -696,7 +728,7 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" aria-label={`Edit ${event.title}`} title="Edit event" onClick={() => onEdit(event)}><Pencil size={14} /></button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} title="Delete event" onClick={() => onDelete(event.id)}><Trash2 size={14} /></button></div> },
   ];
   const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks" aria-label="Task Center" title="Task Center"><ListChecks size={15} aria-hidden="true" /><span>Task Center</span></a>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" aria-label="Manage categories" title="Manage categories" onClick={onManageCategories}><Tags size={15} aria-hidden="true" /><span>Manage categories</span></button> : null}<button type="button" className="if-btn if-btn--primary" aria-label="Add event" title="Add event" onClick={onAdd}><Plus size={15} aria-hidden="true" /><span>Add event</span></button></>;
-  const content = events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the display calendar." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />;
+  const content = events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Catalog</span><strong>{event.catalogEventId ? `${event.catalogSyncState || "current"} · revision ${event.catalogRevision || 1}` : "Manual event"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Intelligence</span><strong>{[event.intelligence?.sponsor, event.intelligence?.branch, ...(event.intelligence?.topics || []).slice(0, 3)].filter(Boolean).join(" · ") || "No retained intelligence"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the display calendar." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />;
   return <section className={`ops-panel${embedded ? " ops-panel--embedded" : ""}`} data-ops-events>{!embedded ? <ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /> : null}{embedded ? content : <ControlPageBody compact>{content}</ControlPageBody>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
 
@@ -957,6 +989,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const view = VIEWS.has(requestedView) ? requestedView : "watchlist";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
+  const [augmentEvent, setAugmentEvent] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return params.get("task") || (params.get("aiJob") ? `event-ai:${params.get("aiJob")}` : "");
@@ -998,14 +1031,16 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
     {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
-    {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
+    {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add-launcher" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "directory" ? <DirectoryView auth={auth} state={state} records={records} teams={calendarTeams} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} /> : null}
     {view === "connections" ? <ConnectionsView auth={auth} state={state} records={records} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor} contractMonitorState={contractMonitorState} onRetryContractMonitor={() => setContractMonitorState("idle")} onSurfaceChange={setConnectionsSurface} /> : null}
     {view === "users" ? auth?.user?.canManageAccounts ? <Suspense fallback={<RouteFallback title="Accounts" />}><UserManagement auth={auth} /></Suspense> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Super user access required" message="Global account lifecycle and emulation belong to the immutable Super user." /></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <Suspense fallback={<RouteFallback title="Workspaces" />}><WorkspaceManagement auth={auth} /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspace ? <Suspense fallback={<RouteFallback title="Workspace settings" />}><WorkspaceManagement auth={auth} activeOnly /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
-    {editor ? <EventEditor event={editor.mode === "add" ? null : editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {editor?.mode === "add-launcher" ? <AddEventDialog catalog={state.eventCatalog} existingEvents={state.events} categories={state.eventCategories} teams={state.teams} onCreate={state.createEvent} onAugment={setAugmentEvent} onClose={() => setEditor(null)} /> : null}
+    {editor && editor.mode !== "add-launcher" ? <EventEditor event={editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onClose={() => setEditor(null)} /> : null}
+    {augmentEvent ? <EventAiLauncher key={augmentEvent.id} event={augmentEvent} onClose={() => setAugmentEvent(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
   </div>;
 }

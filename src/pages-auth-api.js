@@ -50,11 +50,13 @@ import {
   eventsFromRows,
   replaceEventAttendees,
   replaceEventCategories,
+  replaceEventCatalogLink,
   replaceEventLinks,
   replaceEventMilestones,
   replaceEventTeams,
   visibleEventRow,
   visibleEventRows,
+  writeEventIntelligence,
   writeEventAiState,
 } from "./d1-event-store.js";
 import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
@@ -69,6 +71,15 @@ import { d1SessionManagementResponse } from "./d1-session-management.js";
 import { D1_SENSITIVE_RATE_LIMIT_SCHEMA, enforceD1SensitiveMutationLimit } from "./d1-sensitive-rate-limit.js";
 import { D1_SAAS_CONTROL_PLANE_SCHEMA, d1EntitlementDecision, d1SaasControlPlaneResponse } from "./d1-saas-control-plane.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
+import { catalogEventByIdFromRows } from "./event-catalog.js";
+import {
+  completeEventCatalog,
+  eventCatalogResponse,
+  eventCategoriesResponse,
+  eventDiscoveryResponse,
+  eventDiscoverySchedulerResponse,
+} from "./d1-event-catalog-api.js";
+import { EVENT_DISCOVERY_SCHEMA } from "./event-discovery-runtime.js";
 import {
   ROLE_LABELS,
   WORKSPACE_ROLE_IDS,
@@ -107,6 +118,8 @@ const DEFAULT_EVENT_CATEGORIES = Object.freeze([
   ["other", "Other", "Workspace events outside the managed categories"],
 ]);
 const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read"]);
+const EVENT_AGENT_API_DEPS = Object.freeze({ cleanText, safeJson, recordActivity, hasScope, error: agentError, json: agentJson });
+const EVENT_DISCOVERY_API_DEPS = Object.freeze({ cleanText, safeJson, recordActivity, sameOriginRequest, sessionUser, canAdministerUsers, hashValue, json, defaultWorkspaceId: DEFAULT_WORKSPACE_ID });
 function defaultEventCategoryStatements(db, workspaceId, now) {
   return DEFAULT_EVENT_CATEGORIES.map(([categoryId, name, description]) => db.prepare(`
     INSERT OR IGNORE INTO dbi_workspace_event_categories
@@ -516,6 +529,7 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (workspace_id, event_id)
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_ai_state_workspace ON dbi_event_ai_state (workspace_id, last_augmented_at DESC)",
+  ...EVENT_DISCOVERY_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_maintenance_state (
     task TEXT PRIMARY KEY,
     last_run_at TEXT NOT NULL
@@ -571,6 +585,18 @@ const SCHEMA = Object.freeze([
     updated_at TEXT NOT NULL
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_workspace_events_workspace ON dbi_workspace_events (workspace_id, starts_at)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_event_intelligence (
+    workspace_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    catalog_event_id TEXT NOT NULL DEFAULT '',
+    catalog_revision INTEGER NOT NULL DEFAULT 1,
+    sync_state TEXT NOT NULL DEFAULT 'current',
+    intelligence_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, event_id)
+  )`,
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_dbi_event_intelligence_catalog ON dbi_workspace_event_intelligence (workspace_id, catalog_event_id) WHERE catalog_event_id <> ''",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_event_teams (
     workspace_id TEXT NOT NULL,
     event_id TEXT NOT NULL,
@@ -2909,77 +2935,6 @@ async function trackingResponse(request, env, db, principal, segments) {
   return agentError("method_not_allowed", "Method not allowed", 405);
 }
 
-function eventCategoryFromRow(row) {
-  return {
-    id: row.category_id,
-    name: row.name,
-    description: row.description || "",
-    assignedEventCount: Number(row.assigned_event_count || 0),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-async function eventCategoriesResponse(request, db, principal, segments) {
-  if (!hasScope(principal, "events:read")) return agentError("insufficient_scope", "Scope events:read is required", 403);
-  const categoryId = cleanText(decodeURIComponent(segments[0] || ""), 80);
-  if (request.method === "GET") {
-    const result = await db.prepare(`
-      SELECT category.*,
-        (SELECT COUNT(*) FROM dbi_workspace_event_category_assignments assignment
-          WHERE assignment.workspace_id = category.workspace_id AND assignment.category_id = category.category_id) AS assigned_event_count
-      FROM dbi_workspace_event_categories category
-      WHERE category.workspace_id = ?
-      ORDER BY category.name COLLATE NOCASE
-    `).bind(principal.workspaceId).all();
-    return agentJson((result.results || []).map(eventCategoryFromRow), 200, { total: result.results?.length || 0 });
-  }
-  if (principal.type !== "user" || !principal.canManageWorkspace) {
-    return agentError("workspace_manager_required", "Workspace manager access is required to manage event categories", 403);
-  }
-  if (request.method === "POST" && !categoryId) {
-    const body = await safeJson(request);
-    const name = cleanText(body?.name, 80);
-    const description = cleanText(body?.description, 240);
-    if (name.length < 2) return agentError("invalid_event_category", "Category name must be at least two characters", 400);
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const created = await db.prepare(`INSERT OR IGNORE INTO dbi_workspace_event_categories
-      (workspace_id, category_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .bind(principal.workspaceId, id, name, description, now, now).run();
-    if (!Number(created?.meta?.changes || 0)) return agentError("event_category_exists", "An event category with that name already exists", 409);
-    const row = await db.prepare("SELECT * FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, id).first();
-    await recordActivity(db, principal, "event_category_created", "event_category", id, { name });
-    return agentJson(eventCategoryFromRow(row), 201);
-  }
-  const existing = categoryId
-    ? await db.prepare("SELECT * FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, categoryId).first()
-    : null;
-  if (!existing) return agentError("event_category_not_found", "Event category not found", 404);
-  if (request.method === "PATCH") {
-    const body = await safeJson(request);
-    const name = cleanText(body?.name ?? existing.name, 80);
-    const description = cleanText(body?.description ?? existing.description, 240);
-    if (name.length < 2) return agentError("invalid_event_category", "Category name must be at least two characters", 400);
-    const now = new Date().toISOString();
-    const updated = await db.prepare(`UPDATE OR IGNORE dbi_workspace_event_categories
-      SET name = ?, description = ?, updated_at = ? WHERE workspace_id = ? AND category_id = ?`)
-      .bind(name, description, now, principal.workspaceId, categoryId).run();
-    if (!Number(updated?.meta?.changes || 0)) return agentError("event_category_exists", "An event category with that name already exists", 409);
-    const row = await db.prepare("SELECT * FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, categoryId).first();
-    await recordActivity(db, principal, "event_category_updated", "event_category", categoryId, { name });
-    return agentJson(eventCategoryFromRow(row));
-  }
-  if (request.method === "DELETE") {
-    const assignment = await db.prepare(`SELECT COUNT(*) AS count FROM dbi_workspace_event_category_assignments
-      WHERE workspace_id = ? AND category_id = ?`).bind(principal.workspaceId, categoryId).first();
-    if (Number(assignment?.count || 0)) return agentError("event_category_in_use", "Remove this category from its events before deleting it", 409);
-    await db.prepare("DELETE FROM dbi_workspace_event_categories WHERE workspace_id = ? AND category_id = ?").bind(principal.workspaceId, categoryId).run();
-    await recordActivity(db, principal, "event_category_deleted", "event_category", categoryId, { name: existing.name });
-    return new Response(null, { status: 204 });
-  }
-  return agentError("method_not_allowed", "Method not allowed", 405);
-}
 
 async function eventsResponse(request, env, db, principal, segments) {
   const scope = request.method === "GET" ? "events:read" : "events:write";
@@ -2998,6 +2953,14 @@ async function eventsResponse(request, env, db, principal, segments) {
     const title = cleanText(body?.title, 180);
     const startsAt = cleanDate(body?.startsAt);
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
+    const catalogEventId = cleanText(body?.catalogEventId, 120);
+    const catalogEvent = catalogEventId ? catalogEventByIdFromRows(await completeEventCatalog(db), catalogEventId) : null;
+    if (catalogEventId && !catalogEvent) return agentError("catalog_event_not_found", "Catalog event not found", 404);
+    if (catalogEventId) {
+      const duplicate = await db.prepare("SELECT event_id FROM dbi_workspace_event_intelligence WHERE workspace_id = ? AND catalog_event_id = ?")
+        .bind(principal.workspaceId, catalogEventId).first();
+      if (duplicate) return agentError("catalog_event_already_added", "This catalog event is already on the workspace calendar", 409, undefined, { eventId: duplicate.event_id });
+    }
     const recordIds = cleanStringArray(body?.recordIds);
     const attendeeSelection = await activeEventAttendeeIds(db, principal.workspaceId, body?.attendeeIds);
     const milestoneSelection = cleanEventMilestones(body?.milestones || []);
@@ -3014,7 +2977,12 @@ async function eventsResponse(request, env, db, principal, segments) {
       const known = new Set(universe.records.map((record) => record.opportunityId));
       if (recordIds.some((recordId) => !known.has(recordId))) return agentError("record_not_found", "Every linked record must use an existing stable record ID", 404);
     }
-    const id = crypto.randomUUID();
+    const requestedId = cleanText(body?.id, 180);
+    const id = requestedId || crypto.randomUUID();
+    if (requestedId) {
+      const duplicateId = await db.prepare("SELECT id FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, id).first();
+      if (duplicateId) return agentError("event_already_exists", "An event with this ID already exists", 409);
+    }
     const now = new Date().toISOString();
     await db.prepare(`
       INSERT INTO dbi_workspace_events
@@ -3028,6 +2996,22 @@ async function eventsResponse(request, env, db, principal, segments) {
     await replaceEventLinks(db, principal.workspaceId, id, linkSelection.links);
     await replaceEventCategories(db, principal.workspaceId, id, categorySelection.ids);
     await replaceEventTeams(db, principal.workspaceId, id, teamSelection.ids);
+    await replaceEventCatalogLink(db, principal.workspaceId, id, catalogEvent);
+    const aiReviewJobId = cleanText(body?.aiReviewJobId, 100);
+    if (aiReviewJobId) {
+      const job = await db.prepare(`SELECT id, status, input_snapshot_json, merge_result_json, completed_at FROM dbi_event_ai_jobs
+        WHERE id = ? AND workspace_id = ? AND status IN ('completed', 'needs_review')`)
+        .bind(aiReviewJobId, principal.workspaceId).first();
+      let jobEventId = "";
+      try { jobEventId = cleanText(JSON.parse(job?.input_snapshot_json || "{}").id, 180); } catch { /* invalid retained snapshot */ }
+      if (job && jobEventId === id) {
+        if (body?.intelligence && typeof body.intelligence === "object") {
+          await writeEventIntelligence(db, principal.workspaceId, id, body.intelligence, { syncState: "ai_verified" });
+        }
+        await writeEventAiState(db, { workspaceId: principal.workspaceId, eventId: id, jobId: job.id, status: job.status,
+          augmentedAt: job.completed_at || now, appliedAt: now, validationRequired: false });
+      }
+    }
     const row = await db.prepare("SELECT * FROM dbi_workspace_events WHERE workspace_id = ? AND id = ?").bind(principal.workspaceId, id).first();
     await recordActivity(db, principal, "event_created", "event", id, { title });
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0], 201);
@@ -3041,6 +3025,9 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (version !== null && version !== Number(existing.version)) return agentError("version_conflict", "Event changed since the supplied version", 409, undefined, { currentVersion: existing.version });
     const current = eventFromRow(existing);
     const next = { ...current, ...body };
+    const catalogEventId = cleanText(body?.catalogEventId, 120);
+    const catalogEvent = catalogEventId ? catalogEventByIdFromRows(await completeEventCatalog(db), catalogEventId) : null;
+    if (catalogEventId && !catalogEvent) return agentError("catalog_event_not_found", "Catalog event not found", 404);
     const title = cleanText(next.title, 180);
     const startsAt = cleanDate(next.startsAt);
     if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
@@ -3072,6 +3059,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (linkSelection) await replaceEventLinks(db, principal.workspaceId, eventId, linkSelection.links);
     if (categorySelection) await replaceEventCategories(db, principal.workspaceId, eventId, categorySelection.ids);
     if (teamSelection) await replaceEventTeams(db, principal.workspaceId, eventId, teamSelection.ids);
+    if (catalogEventId) await replaceEventCatalogLink(db, principal.workspaceId, eventId, catalogEvent);
     const aiReviewJobId = cleanText(body?.aiReviewJobId, 100);
     if (aiReviewJobId) {
       const job = await db.prepare(`SELECT id, status, input_snapshot_json, merge_result_json, completed_at FROM dbi_event_ai_jobs
@@ -3080,6 +3068,9 @@ async function eventsResponse(request, env, db, principal, segments) {
       let jobEventId = "";
       try { jobEventId = cleanText(JSON.parse(job?.input_snapshot_json || "{}").id, 180); } catch { /* invalid retained snapshot */ }
       if (job && jobEventId === eventId) {
+        if (body?.intelligence && typeof body.intelligence === "object") {
+          await writeEventIntelligence(db, principal.workspaceId, eventId, body.intelligence, { syncState: "ai_verified" });
+        }
         await writeEventAiState(db, {
           workspaceId: principal.workspaceId,
           eventId,
@@ -3103,6 +3094,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     return agentJson((await eventsFromRows(db, principal.workspaceId, [row]))[0]);
   }
   if (request.method === "DELETE") {
+    await db.prepare("DELETE FROM dbi_workspace_event_intelligence WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_attendees WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_milestones WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
     await db.prepare("DELETE FROM dbi_workspace_event_links WHERE workspace_id = ? AND event_id = ?").bind(principal.workspaceId, eventId).run();
@@ -3187,6 +3179,7 @@ async function integrationsResponse(request, env, principal) {
     { id: "subawards", name: "USAspending subawards", status: payloads[3].metadata?.status || "unknown", reportedCount: payloads[3].metadata?.reportedSubawardCount || 0 },
   ]);
 }
+
 async function agentApiResponse(request, env, db) {
   const requestId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
@@ -3206,7 +3199,7 @@ async function agentApiResponse(request, env, db) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
       principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
-      resources: ["records", "analytics", "tracking", "record-dispositions", "events", "event-categories", "activity", "api-requests", "integrations"],
+      resources: ["records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations"],
       writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
     }, 200, { requestId });
     else if (resource === "openapi.json" && request.method === "GET") response = Response.json(agentOpenApiDocument(new URL(request.url).origin, SESSION_COOKIE), { headers: { "cache-control": "no-store" } });
@@ -3221,7 +3214,8 @@ async function agentApiResponse(request, env, db) {
       safeJson,
     });
     else if (resource === "events") response = await eventsResponse(request, env, db, principal, segments);
-    else if (resource === "event-categories") response = await eventCategoriesResponse(request, db, principal, segments);
+    else if (resource === "event-catalog") response = await eventCatalogResponse(request, db, principal, segments, EVENT_AGENT_API_DEPS);
+    else if (resource === "event-categories") response = await eventCategoriesResponse(request, db, principal, segments, EVENT_AGENT_API_DEPS);
     else if (resource === "activity") response = await activityResponse(request, db, principal);
     else if (resource === "api-requests") response = await apiRequestsResponse(request, db, principal);
     else if (resource === "integrations") response = await integrationsResponse(request, env, principal);
@@ -3253,6 +3247,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   const rateLimited = await enforceD1SensitiveMutationLimit(request, db, pathname, { hashValue, json });
   if (rateLimited) return rateLimited;
   if (pathname === "/api/v1/system/acquisition-schedule") return acquisitionSchedulerResponse(request, db, env, { decryptSecret: decryptOpenAiKey, json });
+  if (pathname === "/api/v1/system/event-discovery-schedule") return eventDiscoverySchedulerResponse(request, db, env, EVENT_DISCOVERY_API_DEPS);
   if (pathname === "/api/v1/auth/status") return statusResponse(request, db, env);
   if (pathname === "/api/v1/auth/claim") return claimResponse(request, db, env);
   if (pathname === "/api/v1/auth/register" || pathname === "/api/v1/auth/registration" || pathname.startsWith("/api/v1/auth/registration/")) return d1RegistrationResponse(request, db, env, {
@@ -3278,6 +3273,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   });
   if (pathname === "/api/v1/auth/acquisition" || pathname.startsWith("/api/v1/auth/acquisition/")) return acquisitionRuntimeResponse(request, db, env, { canAdministerWorkspaces, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey, json, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/event-ai" || pathname.startsWith("/api/v1/auth/event-ai/")) return eventAiResponse(request, db, env);
+  if (pathname === "/api/v1/auth/event-discovery" || pathname.startsWith("/api/v1/auth/event-discovery/")) return eventDiscoveryResponse(request, db, EVENT_DISCOVERY_API_DEPS);
   if (pathname === "/api/v1/client-errors") return handleClientErrorsResponse(request, db, { json, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
   if (pathname === "/api/v1/auth/agent-keys" || pathname.startsWith("/api/v1/auth/agent-keys/")) return agentKeysResponse(request, db);

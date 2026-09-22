@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext.jsx";
+import { eventCatalog as readCuratedEventCatalog } from "./event-catalog.js";
 
 export const WATCHLIST_STORAGE_KEY = "dbi:watchlist:v1";
 export const MANAGEMENT_EVENTS_STORAGE_KEY = "dbi:management-events:v1";
@@ -139,6 +140,10 @@ function normalizeEvent(entry = {}) {
     aiValidationRequired: Boolean(entry.aiValidationRequired),
     lastAugmentationJobId: cleanText(entry.lastAugmentationJobId, 100) || null,
     lastAugmentationStatus: cleanText(entry.lastAugmentationStatus, 32) || null,
+    catalogEventId: cleanText(entry.catalogEventId, 120),
+    catalogRevision: Math.max(0, Number(entry.catalogRevision || 0)),
+    catalogSyncState: cleanText(entry.catalogSyncState, 40),
+    intelligence: entry.intelligence && typeof entry.intelligence === "object" ? entry.intelligence : null,
     aiReviewJobId: cleanText(entry.aiReviewJobId, 100),
     createdAt: cleanDate(entry.createdAt) || new Date().toISOString(),
     updatedAt: cleanDate(entry.updatedAt) || new Date().toISOString(),
@@ -279,6 +284,8 @@ export function useManagementState(records = []) {
   const [watchlist, setWatchlist] = useState(() => readWatchlist(validIds));
   const [events, setEvents] = useState(() => readManagementEvents(validIds));
   const [eventCategories, setEventCategories] = useState(() => readEventCategories());
+  const [eventCatalog, setEventCatalog] = useState(() => readCuratedEventCatalog());
+  const [eventCatalogMeta, setEventCatalogMeta] = useState({ catalogTotal: readCuratedEventCatalog().length });
   const [teams, setTeams] = useState([]);
   const [memberTeamIds, setMemberTeamIds] = useState([]);
   const [activity, setActivity] = useState(() => readOperatorActivity(validIds));
@@ -296,10 +303,11 @@ export function useManagementState(records = []) {
   }, [validIds]);
 
   const syncRemote = useCallback(async () => {
-    const [trackingPayload, eventPayload, categoryPayload, activityPayload, apiRequestPayload, teamPayload] = await Promise.all([
+    const [trackingPayload, eventPayload, categoryPayload, catalogPayload, activityPayload, apiRequestPayload, teamPayload] = await Promise.all([
       workspaceRequest("/tracking"),
       workspaceRequest("/events"),
       workspaceRequest("/event-categories"),
+      workspaceRequest("/event-catalog?includePast=1"),
       workspaceRequest("/activity?limit=200"),
       workspaceRequest("/api-requests?limit=500"),
       auth.listTeams(),
@@ -308,6 +316,8 @@ export function useManagementState(records = []) {
     setWatchlist((trackingPayload.data || []).map(normalizeWatch).filter((entry) => entry && allowed.has(entry.recordId)));
     setEvents((eventPayload.data || []).map(normalizeEvent).filter(Boolean));
     setEventCategories((categoryPayload.data || []).map(normalizeEventCategory).filter(Boolean));
+    setEventCatalog(Array.isArray(catalogPayload.data) ? catalogPayload.data : []);
+    setEventCatalogMeta(catalogPayload.meta || {});
     setActivity((activityPayload.data || []).map(remoteActivity).filter(Boolean));
     setApiRequests((apiRequestPayload.data || []).map(normalizeApiRequest).filter(Boolean));
     setApiRequestSummary(apiRequestPayload.meta?.summary || null);
@@ -407,6 +417,29 @@ export function useManagementState(records = []) {
     return true;
   }, [events, remote, syncRemote, validIds]);
 
+  const createEvent = useCallback(async (candidate) => {
+    const normalized = normalizeEvent(candidate);
+    if (!normalized) throw new Error("Event title and start time are required.");
+    if (remote) {
+      const payload = await workspaceRequest("/events", {
+        method: "POST",
+        headers: { "idempotency-key": crypto.randomUUID() },
+        body: JSON.stringify(normalized),
+      });
+      await syncRemote();
+      return normalizeEvent(payload.data || payload);
+    }
+    const current = readManagementEvents(validIds);
+    if (normalized.catalogEventId && current.some((entry) => entry.catalogEventId === normalized.catalogEventId)) {
+      throw new Error("This catalog event is already on the workspace calendar.");
+    }
+    const next = [normalized, ...current].slice(0, EVENT_LIMIT);
+    write(MANAGEMENT_EVENTS_STORAGE_KEY, next);
+    setEvents(next);
+    setActivity((items) => appendActivity({ type: "event_added", eventId: normalized.id, detail: normalized.title }, items));
+    return normalized;
+  }, [remote, syncRemote, validIds]);
+
   const deleteEvent = useCallback((eventId) => {
     if (remote) {
       setEvents((current) => current.filter((entry) => entry.id !== eventId));
@@ -472,6 +505,8 @@ export function useManagementState(records = []) {
     watchedIds: useMemo(() => new Set(watchlist.map((entry) => entry.recordId)), [watchlist]),
     events,
     eventCategories: eventCategoriesWithCounts,
+    eventCatalog,
+    eventCatalogMeta,
     teams,
     memberTeamIds,
     activity,
@@ -480,6 +515,7 @@ export function useManagementState(records = []) {
     toggleWatch,
     updateWatch,
     saveEvent,
+    createEvent,
     deleteEvent,
     saveEventCategory,
     deleteEventCategory,

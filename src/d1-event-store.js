@@ -15,6 +15,37 @@ function cleanStringArray(value, limit = 50, itemLength = 180) {
   return [...new Set((Array.isArray(value) ? value : []).map((item) => cleanText(item, itemLength)).filter(Boolean))].slice(0, limit);
 }
 
+export function normalizeEventIntelligence(value = {}) {
+  const sources = (Array.isArray(value.sources) ? value.sources : []).slice(0, 20).map((source) => ({
+    title: cleanText(source?.title, 240), publisher: cleanText(source?.publisher, 160), url: cleanHttpUrl(source?.url),
+    kind: ["official", "aggregator", "community", "manual"].includes(source?.kind) ? source.kind : "manual",
+    confidence: ["high", "medium", "low"].includes(source?.confidence) ? source.confidence : "low",
+    lastVerifiedAt: cleanDate(source?.lastVerifiedAt),
+  })).filter((source) => source.url);
+  const contacts = (Array.isArray(value.contacts) ? value.contacts : []).slice(0, 20).map((contact) => ({
+    name: cleanText(contact?.name, 160), role: cleanText(contact?.role, 160), organization: cleanText(contact?.organization, 180),
+    email: cleanText(contact?.email, 240), phone: cleanText(contact?.phone, 80), url: cleanHttpUrl(contact?.url),
+    sourceUrls: cleanStringArray(contact?.sourceUrls, 8, 2_000).map(cleanHttpUrl).filter(Boolean),
+  })).filter((contact) => contact.name && contact.sourceUrls.length);
+  const normalizeMatches = (matches) => (Array.isArray(matches) ? matches : []).slice(0, 30).map((match) => ({
+    id: cleanText(match?.id, 180), title: cleanText(match?.title, 240), kind: cleanText(match?.kind, 80),
+    sourceUrl: cleanHttpUrl(match?.sourceUrl), reason: cleanText(match?.reason, 500),
+    confidence: ["high", "medium", "low"].includes(match?.confidence) ? match.confidence : "low",
+  })).filter((match) => match.id && match.title && match.sourceUrl && match.reason);
+  return {
+    seriesId: cleanText(value.seriesId, 120), timezone: cleanText(value.timezone, 80), venue: cleanText(value.venue, 240),
+    city: cleanText(value.city, 120), region: cleanText(value.region, 80), country: cleanText(value.country, 120),
+    format: cleanText(value.format, 40), eventType: cleanText(value.eventType, 80), branch: cleanText(value.branch, 120), sponsor: cleanText(value.sponsor, 180),
+    topics: cleanStringArray(value.topics, 20, 120), capabilityAreas: cleanStringArray(value.capabilityAreas, 20, 120),
+    missionThreads: cleanStringArray(value.missionThreads, 20, 120), stakeholders: cleanStringArray(value.stakeholders, 30, 160),
+    relatedPrograms: cleanStringArray(value.relatedPrograms, 20, 160), engagementKinds: cleanStringArray(value.engagementKinds, 12, 120),
+    sources, contacts, opportunityMatches: normalizeMatches(value.opportunityMatches), contractMatches: normalizeMatches(value.contractMatches),
+    spendingMatches: normalizeMatches(value.spendingMatches),
+    confidence: ["high", "medium", "low"].includes(value.confidence) ? value.confidence : "low",
+    lastVerifiedAt: cleanDate(value.lastVerifiedAt), caveats: cleanStringArray(value.caveats, 20, 500),
+  };
+}
+
 export function eventAiReviewRisks(verification, outcome) {
   return Boolean(
     outcome.status !== "completed"
@@ -161,7 +192,32 @@ export async function replaceEventCategories(db, workspaceId, eventId, categoryI
   }
 }
 
-export function eventFromRow(row, attendees = [], milestones = [], links = [], categoryIds = [], teams = [], aiState = null) {
+export async function replaceEventCatalogLink(db, workspaceId, eventId, catalogEvent = null) {
+  await db.prepare("DELETE FROM dbi_workspace_event_intelligence WHERE workspace_id = ? AND event_id = ?")
+    .bind(workspaceId, eventId).run();
+  if (!catalogEvent) return;
+  await writeEventIntelligence(db, workspaceId, eventId, catalogEvent, {
+    catalogEventId: catalogEvent.id,
+    catalogRevision: catalogEvent.revision,
+    syncState: "current",
+  });
+}
+
+export async function writeEventIntelligence(db, workspaceId, eventId, value, metadata = {}) {
+  const now = new Date().toISOString();
+  const intelligence = normalizeEventIntelligence(value);
+  await db.prepare(`INSERT INTO dbi_workspace_event_intelligence
+    (workspace_id, event_id, catalog_event_id, catalog_revision, sync_state, intelligence_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(workspace_id, event_id) DO UPDATE SET
+      catalog_event_id = CASE WHEN excluded.catalog_event_id <> '' THEN excluded.catalog_event_id ELSE dbi_workspace_event_intelligence.catalog_event_id END,
+      catalog_revision = CASE WHEN excluded.catalog_event_id <> '' THEN excluded.catalog_revision ELSE dbi_workspace_event_intelligence.catalog_revision END,
+      sync_state = excluded.sync_state, intelligence_json = excluded.intelligence_json, updated_at = excluded.updated_at`)
+    .bind(workspaceId, eventId, cleanText(metadata.catalogEventId, 120), Math.max(0, Number(metadata.catalogRevision || 0)),
+      cleanText(metadata.syncState, 40) || "manual", JSON.stringify(intelligence), now, now).run();
+}
+
+export function eventFromRow(row, attendees = [], milestones = [], links = [], categoryIds = [], teams = [], aiState = null, catalogLink = null) {
   let recordIds = [];
   try { recordIds = JSON.parse(row.record_ids_json || "[]"); } catch { /* empty */ }
   return {
@@ -172,6 +228,8 @@ export function eventFromRow(row, attendees = [], milestones = [], links = [], c
     aiAmended: Boolean(aiState?.last_applied_at), lastAugmentedAt: aiState?.last_augmented_at || null,
     lastAiAppliedAt: aiState?.last_applied_at || null, aiValidationRequired: Boolean(aiState?.validation_required),
     lastAugmentationJobId: aiState?.last_job_id || null, lastAugmentationStatus: aiState?.last_status || null,
+    catalogEventId: catalogLink?.catalog_event_id || "", catalogRevision: Number(catalogLink?.catalog_revision || 0),
+    catalogSyncState: catalogLink?.sync_state || "", intelligence: catalogLink?.intelligence || null,
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -180,7 +238,7 @@ export async function eventsFromRows(db, workspaceId, rows = []) {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const [attendeeResult, milestoneResult, linkResult, categoryResult, teamResult, aiStateResult] = await Promise.all([
+  const [attendeeResult, milestoneResult, linkResult, categoryResult, teamResult, aiStateResult, catalogLinkResult] = await Promise.all([
     db.prepare(`SELECT attendee.event_id, user.user_id, user.display_name, user.title, user.status, profile.avatar_data_url
       FROM dbi_workspace_event_attendees attendee JOIN dbi_users user ON user.user_id = attendee.user_id
       LEFT JOIN dbi_user_profiles profile ON profile.user_id = user.user_id
@@ -197,6 +255,8 @@ export async function eventsFromRows(db, workspaceId, rows = []) {
       WHERE assignment.workspace_id = ? AND assignment.event_id IN (${placeholders}) ORDER BY team.name COLLATE NOCASE`).bind(workspaceId, ...ids).all(),
     db.prepare(`SELECT event_id, last_job_id, last_status, last_augmented_at, last_applied_at, validation_required
       FROM dbi_event_ai_state WHERE workspace_id = ? AND event_id IN (${placeholders})`).bind(workspaceId, ...ids).all(),
+    db.prepare(`SELECT event_id, catalog_event_id, catalog_revision, sync_state, intelligence_json
+      FROM dbi_workspace_event_intelligence WHERE workspace_id = ? AND event_id IN (${placeholders})`).bind(workspaceId, ...ids).all(),
   ]);
   const group = (rows, key, map) => {
     const result = new Map();
@@ -209,7 +269,12 @@ export async function eventsFromRows(db, workspaceId, rows = []) {
   const categories = group(categoryResult.results, "event_id", (row) => row.category_id);
   const teams = group(teamResult.results, "event_id", (row) => ({ id: row.team_id, name: row.name, description: row.description || "", iconDataUrl: row.icon_data_url || "" }));
   const aiStates = new Map((aiStateResult.results || []).map((row) => [row.event_id, row]));
-  return rows.map((row) => eventFromRow(row, attendees.get(row.id) || [], milestones.get(row.id) || [], links.get(row.id) || [], categories.get(row.id) || [], teams.get(row.id) || [], aiStates.get(row.id) || null));
+  const catalogLinks = new Map((catalogLinkResult.results || []).map((row) => {
+    let intelligence = null;
+    try { intelligence = JSON.parse(row.intelligence_json || "null"); } catch { /* invalid retained metadata remains unavailable */ }
+    return [row.event_id, { ...row, intelligence }];
+  }));
+  return rows.map((row) => eventFromRow(row, attendees.get(row.id) || [], milestones.get(row.id) || [], links.get(row.id) || [], categories.get(row.id) || [], teams.get(row.id) || [], aiStates.get(row.id) || null, catalogLinks.get(row.id) || null));
 }
 
 export function principalSeesAllWorkspaceEvents(principal) {
@@ -269,5 +334,8 @@ export async function applyVerifiedEventDraft(db, row, mergedDraft, now) {
   await replaceEventMilestones(db, row.workspace_id, eventId, milestones.milestones);
   await replaceEventLinks(db, row.workspace_id, eventId, links.links);
   await replaceEventCategories(db, row.workspace_id, eventId, categories.ids);
+  if (mergedDraft.intelligence && typeof mergedDraft.intelligence === "object") {
+    await writeEventIntelligence(db, row.workspace_id, eventId, mergedDraft.intelligence, { syncState: "ai_verified" });
+  }
   return { applied: true, eventId };
 }

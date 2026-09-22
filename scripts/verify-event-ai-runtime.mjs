@@ -118,6 +118,23 @@ const cited = citedEventAiDetails(providerResponse, parsed, { title: "Industry d
 assert.equal(cited.location, "Mission center");
 assert.equal(cited.sources.length, 1);
 
+const unsupportedMatchUrl = "https://unsupported.example/contracts/guess";
+const intelligenceDetails = normalizeEventAiDetails({
+  ...details,
+  intelligence: {
+    sponsor: "Example acquisition office", branch: "Joint", confidence: "medium", lastVerifiedAt: "2026-09-22",
+    contacts: [{ name: "Public event office", role: "Coordinator", organization: "Example.gov", email: "", phone: "", url: sourceUrl, sourceUrls: [sourceUrl] }],
+    opportunityMatches: [{ id: "opp-1", title: "Official opportunity", kind: "solicitation", sourceUrl, reason: "The notice names the same office and mission topic.", confidence: "high" }],
+    contractMatches: [{ id: "contract-guess", title: "Unsupported contract", kind: "contract", sourceUrl: unsupportedMatchUrl, reason: "Plausible but uncited.", confidence: "low" }],
+  },
+  evidence: [...details.evidence, { field: "intelligence", value: "Sponsor, contact, and acquisition matches", confidence: "medium", sourceUrls: [sourceUrl] }],
+});
+const citedIntelligence = citedEventAiDetails(providerResponse, intelligenceDetails, {});
+assert.equal(citedIntelligence.intelligence.opportunityMatches.length, 1, "A match whose source is in provider evidence may proceed to independent verification");
+assert.equal(citedIntelligence.intelligence.contacts.length, 1, "Public contacts must retain a provider-grounded source");
+assert.equal(citedIntelligence.intelligence.contractMatches.length, 0, "A plausible match with an unsupported URL must not enter the verified draft");
+assert.ok(citedIntelligence.reviewClaims.some((claim) => claim.field === "intelligence"), "Unsupported intelligence subclaims must remain visible for review");
+
 const consultedSourceResponse = {
   status: "completed",
   output: [
