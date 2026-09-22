@@ -440,12 +440,25 @@ try {
   await eventDialog.getByLabel("Event name").fill("Browser HR private planning");
   await eventDialog.getByLabel("Starts").fill("2026-01-05T09:00");
   await eventDialog.getByLabel("Ends").fill("2026-01-05T10:00");
+  await eventDialog.locator("[data-event-placement-settings] > summary").click();
   const hrTeamOption = eventDialog.locator(`[data-event-team-option="${browserTeamId}"]`);
   await hrTeamOption.click();
   assert.equal(await hrTeamOption.getAttribute("aria-pressed"), "true", "Event editors must visibly select a team before save");
   assert.match(await eventDialog.locator("[data-event-team-picker]").innerText(), /1 team selected[\s\S]*Only members of those teams/i, "Event editors must explain the resulting visibility scope");
   await page.screenshot({ path: "test-results/event-team-assignment-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
+  const mobileEventDialogGeometry = await eventDialog.evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    tabs: [...node.querySelectorAll(".event-dialog__tabs .if-tab")].map((tab) => tab.getBoundingClientRect().height),
+    footerHeight: node.querySelector(".if-dialog__footer")?.getBoundingClientRect().height || 0,
+    footerActions: node.querySelectorAll(".if-dialog__footer .if-btn").length,
+    bodyScrolls: (node.querySelector(".if-dialog__body")?.scrollHeight || 0) > (node.querySelector(".if-dialog__body")?.clientHeight || 0),
+  }));
+  assert.ok(mobileEventDialogGeometry.overflow <= 1, `Add-event dialog must not overflow the mobile viewport: ${JSON.stringify(mobileEventDialogGeometry)}`);
+  assert.ok(mobileEventDialogGeometry.tabs.every((height) => height >= 43.5), `Mobile event-dialog tabs must retain 44px targets: ${mobileEventDialogGeometry.tabs.join(", ")}`);
+  assert.ok(mobileEventDialogGeometry.footerHeight <= 72, `Manual event actions should remain in one compact footer row, got ${mobileEventDialogGeometry.footerHeight}px`);
+  assert.equal(mobileEventDialogGeometry.footerActions, 3, "Manual add should expose Cancel, Save, and Save & augment without a redundant research action");
+  assert.equal(mobileEventDialogGeometry.bodyScrolls, true, "Long mobile event forms should scroll in the dialog body while the footer stays available");
   const mobileEventTeamGeometry = await eventDialog.locator("[data-event-team-picker]").evaluate((node) => ({
     overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
     buttons: [...node.querySelectorAll("button")]
