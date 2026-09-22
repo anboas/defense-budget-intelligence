@@ -82,7 +82,7 @@ function normalizeEvent(entry = {}) {
   const id = cleanText(entry.id, 180) || `event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const title = cleanText(entry.title, 180);
   const startsAt = cleanDate(entry.startsAt);
-  if (!title || !startsAt) return null;
+  if (!title) return null;
   const attendees = (Array.isArray(entry.attendees) ? entry.attendees : []).map((attendee) => {
     if (typeof attendee === "string") return { id: "", displayName: cleanText(attendee, 120), title: "", status: "legacy" };
     return { id: cleanText(attendee?.id, 80), displayName: cleanText(attendee?.displayName, 120), title: cleanText(attendee?.title, 120), status: cleanText(attendee?.status, 32) || "active", avatarDataUrl: cleanText(attendee?.avatarDataUrl, 14_000) };
@@ -419,7 +419,7 @@ export function useManagementState(records = []) {
 
   const createEvent = useCallback(async (candidate) => {
     const normalized = normalizeEvent(candidate);
-    if (!normalized) throw new Error("Event title and start time are required.");
+    if (!normalized) throw new Error("Event title is required.");
     if (remote) {
       const payload = await workspaceRequest("/events", {
         method: "POST",

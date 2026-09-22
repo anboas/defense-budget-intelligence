@@ -871,7 +871,7 @@ try {
   await eventEditor.locator("[data-event-more-details] > summary").click();
   assert.equal(await eventEditor.getByLabel("Location", { exact: true }).inputValue(), "National Harbor, Maryland, USA", "Verified AI review must preserve an existing operator location");
   assert.equal(await eventEditor.locator("label", { hasText: "Notes" }).locator("textarea").inputValue(), "Verified public event summary.", "Verified AI additions must fill genuinely missing event fields");
-  await eventEditor.getByRole("textbox", { name: "Starts", exact: true }).fill("2027-05-10T09:00");
+  await eventEditor.getByRole("textbox", { name: /^Starts/ }).fill("2027-05-10T09:00");
   const categoryPicker = page.getByRole("button", { name: /^Event categories:/ });
   await categoryPicker.click();
   await page.getByLabel("Search Event categories").fill("Customer forum");

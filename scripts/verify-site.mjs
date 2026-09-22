@@ -645,15 +645,15 @@ try {
   const addEventDialog = page.getByRole("dialog", { name: "Add event" });
   await addEventDialog.getByRole("button", { name: "Add manually" }).click();
   await addEventDialog.getByLabel("Event name").fill("Portfolio evidence review");
-  await addEventDialog.getByLabel("Starts").fill("2027-01-15T14:00");
   await addEventDialog.getByLabel("Location hint").fill("Mission center, Room 204");
   await addEventDialog.getByRole("button", { name: "Save event" }).click();
   await addEventDialog.waitFor({ state: "detached" });
   assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review/, "Manual events should enter the workspace calendar before optional deep editing");
+  assert.match(await page.locator("[data-ops-events]").innerText(), /Portfolio evidence review[\s\S]*Date pending/, "Manual events must save without a start date and expose their pending schedule state");
   await page.getByRole("button", { name: "Edit Portfolio evidence review" }).click();
   await page.waitForSelector("[data-ops-event-editor]");
   const eventEditor = page.locator("[data-ops-event-editor]");
-  await eventEditor.getByLabel("Starts", { exact: true }).fill("2027-01-15T14:00");
+  await eventEditor.getByLabel(/^Starts/).fill("2027-01-15T14:00");
   await eventEditor.locator("[data-event-more-details] > summary").click();
   await eventEditor.getByRole("button", { name: "Add link" }).click();
   await eventEditor.getByLabel("Event link 1 label").fill("Official event page");

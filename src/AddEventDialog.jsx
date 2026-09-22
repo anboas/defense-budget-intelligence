@@ -87,10 +87,9 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     setBusyId(event.id);
     try { await onCreate(draftFromCatalog(event)); onClose(); } catch (requestError) { setError(requestError.message); } finally { setBusyId(""); }
   }
-  function validateManual(requireDate = true) {
+  function validateManual() {
     if (!manual.title.trim()) return "Enter an event name.";
-    if (requireDate && !manual.startsAt) return "Enter a start date or research the event first.";
-    if (manual.endsAt && new Date(manual.endsAt) < new Date(manual.startsAt)) return "End time must be after the start time.";
+    if (manual.startsAt && manual.endsAt && new Date(manual.endsAt) < new Date(manual.startsAt)) return "End time must be after the start time.";
     if (manual.officialUrl?.trim() && !validEventLinkUrl(manual.officialUrl.trim())) return "The official URL must use HTTP or HTTPS.";
     return "";
   }
@@ -101,13 +100,13 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     return { ...manual, links, teamIds, wallboard, updatedAt: new Date().toISOString() };
   }
   async function saveManual(augment) {
-    const validation = validateManual(true);
+    const validation = validateManual();
     if (validation) { setError(validation); return; }
     setError(""); setBusyId(augment ? "manual-augment" : "manual-save");
     try { const created = await onCreate(manualDraft()); onClose(); if (augment) onAugment(created); } catch (requestError) { setError(requestError.message); } finally { setBusyId(""); }
   }
   function researchManual() {
-    const validation = validateManual(false);
+    const validation = validateManual();
     if (validation) { setError(validation); return; }
     onClose(); onAugment(manualDraft());
   }
@@ -145,12 +144,12 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     </div> : <form className="if-form-grid" onSubmit={(event) => { event.preventDefault(); void saveManual(false); }}>
       <label className="if-field if-field--full"><span className="if-field__label">Event name</span><input className="if-input" autoFocus value={manual.title} placeholder="SOF Week 2027" onChange={(event) => setManual((value) => ({ ...value, title: event.target.value }))} /></label>
       <label className="if-field if-field--full"><span className="if-field__label">Official URL <small>(recommended)</small></span><input className="if-input" type="url" value={manual.officialUrl || ""} placeholder="https://…" onChange={(event) => setManual((value) => ({ ...value, officialUrl: event.target.value }))} /><small className="if-field__hint">A canonical event page gives augmentation a stronger identity and evidence boundary.</small></label>
-      <label className="if-field"><span className="if-field__label">Starts <small>(optional for research)</small></span><input className="if-input" type="datetime-local" value={String(manual.startsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, startsAt: event.target.value }))} /></label>
-      <label className="if-field"><span className="if-field__label">Ends</span><input className="if-input" type="datetime-local" value={String(manual.endsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, endsAt: event.target.value }))} /></label>
+      <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(manual.startsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, startsAt: event.target.value }))} /></label>
+      <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(manual.endsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, endsAt: event.target.value }))} /></label>
       <label className="if-field if-field--full"><span className="if-field__label">Location hint</span><input className="if-input" value={manual.location || ""} placeholder="City, venue, virtual, or leave blank" onChange={(event) => setManual((value) => ({ ...value, location: event.target.value }))} /></label>
       <EventTeamSelector teams={teams} value={teamIds} onChange={setTeamIds} />
       <label className="if-checkbox if-field--full"><input type="checkbox" checked={wallboard} onChange={(event) => setWallboard(event.target.checked)} /><span><strong>Show on wallboard</strong><small>The research workflow never changes this setting.</small></span></label>
-      <p className="if-field__hint if-field--full">Research details works with only a title. Saving requires a start date. AI proposals remain cited, additive, and review-first.</p>
+      <p className="if-field__hint if-field--full">A title is enough to save. Leave the dates blank when they are not known yet, then research or edit them later. AI proposals remain cited, additive, and review-first.</p>
     </form>}
   </ControlDialog>;
 }

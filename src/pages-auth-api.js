@@ -2952,7 +2952,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     const body = await safeJson(request);
     const title = cleanText(body?.title, 180);
     const startsAt = cleanDate(body?.startsAt);
-    if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
+    if (!title) return agentError("invalid_event", "Event title is required", 400);
     const catalogEventId = cleanText(body?.catalogEventId, 120);
     const catalogEvent = catalogEventId ? catalogEventByIdFromRows(await completeEventCatalog(db), catalogEventId) : null;
     if (catalogEventId && !catalogEvent) return agentError("catalog_event_not_found", "Catalog event not found", 404);
@@ -3030,7 +3030,7 @@ async function eventsResponse(request, env, db, principal, segments) {
     if (catalogEventId && !catalogEvent) return agentError("catalog_event_not_found", "Catalog event not found", 404);
     const title = cleanText(next.title, 180);
     const startsAt = cleanDate(next.startsAt);
-    if (!title || !startsAt) return agentError("invalid_event", "Event title and start time are required", 400);
+    if (!title) return agentError("invalid_event", "Event title is required", 400);
     const recordIds = cleanStringArray(next.recordIds);
     const attendeeSelection = Array.isArray(body?.attendeeIds) ? await activeEventAttendeeIds(db, principal.workspaceId, body.attendeeIds) : null;
     const milestoneSelection = Array.isArray(body?.milestones) ? cleanEventMilestones(body.milestones) : null;
