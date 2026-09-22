@@ -1188,6 +1188,27 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/transactions-classification-overlays-desktop.png` });
   const desktopTimelineScroll = await page.locator("[data-capture-timeline]").evaluate((node) => ({ clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }));
   assert.ok(desktopTimelineScroll.scrollHeight > desktopTimelineScroll.clientHeight, "Long Gantts should use a bounded internal vertical scroller");
+  const desktopStickyTimelineHeader = await page.locator("[data-capture-timeline]").evaluate((node) => {
+    node.scrollTop = Math.min(800, node.scrollHeight - node.clientHeight);
+    const timeline = node.getBoundingClientRect();
+    const label = node.querySelector(".capture-timeline__head.capture-timeline__label");
+    const years = node.querySelector(".capture-timeline__head.capture-timeline__years");
+    const labelRect = label?.getBoundingClientRect();
+    const yearsRect = years?.getBoundingClientRect();
+    return {
+      scrollTop: node.scrollTop,
+      timelineTop: timeline.top,
+      labelTop: labelRect?.top,
+      yearsTop: yearsRect?.top,
+      labelPosition: label ? getComputedStyle(label).position : "",
+      yearsPosition: years ? getComputedStyle(years).position : "",
+    };
+  });
+  assert.ok(desktopStickyTimelineHeader.scrollTop > 0, "Sticky-header proof must measure the Gantt after a real vertical scroll");
+  assert.equal(desktopStickyTimelineHeader.labelPosition, "sticky", "The Gantt identity header should remain sticky during a deep scroll");
+  assert.equal(desktopStickyTimelineHeader.yearsPosition, "sticky", "The Gantt year and quarter scale should remain sticky during a deep scroll");
+  assert.ok(Math.abs(desktopStickyTimelineHeader.labelTop - desktopStickyTimelineHeader.timelineTop) <= 1, `The Gantt identity header should stay pinned to the scroller top: ${JSON.stringify(desktopStickyTimelineHeader)}`);
+  assert.ok(Math.abs(desktopStickyTimelineHeader.yearsTop - desktopStickyTimelineHeader.timelineTop) <= 1, `The Gantt year and quarter scale should stay pinned to the scroller top: ${JSON.stringify(desktopStickyTimelineHeader)}`);
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = node.scrollHeight; });
   const desktopLastRowReachable = await page.locator("[data-capture-timeline]").evaluate((node) => {
     const row = node.querySelector(".capture-timeline__row:last-of-type");
@@ -1707,6 +1728,16 @@ try {
   assert.ok(mobileTimelineGeometry.scrollHeight > mobileTimelineGeometry.clientHeight, "Mobile Gantt should bound long results inside its own vertical scroller");
   assert.ok(mobileTimelineGeometry.labelWidth <= 152, `Mobile sticky labels should preserve the time plane, got ${mobileTimelineGeometry.labelWidth}px`);
   assert.ok(mobileTimelineGeometry.visibleTimePlane >= 140, `Mobile should expose a useful time-plane viewport, got ${mobileTimelineGeometry.visibleTimePlane}px`);
+  const mobileStickyTimelineHeader = await mobile.locator("[data-capture-timeline]").evaluate((node) => {
+    node.scrollTop = Math.min(800, node.scrollHeight - node.clientHeight);
+    const timeline = node.getBoundingClientRect();
+    const years = node.querySelector(".capture-timeline__head.capture-timeline__years");
+    const yearsRect = years?.getBoundingClientRect();
+    return { scrollTop: node.scrollTop, timelineTop: timeline.top, yearsTop: yearsRect?.top, yearsPosition: years ? getComputedStyle(years).position : "" };
+  });
+  assert.ok(mobileStickyTimelineHeader.scrollTop > 0, "Mobile sticky-header proof must measure the Gantt after a real vertical scroll");
+  assert.equal(mobileStickyTimelineHeader.yearsPosition, "sticky", "The mobile Gantt year and quarter scale should remain sticky during a deep scroll");
+  assert.ok(Math.abs(mobileStickyTimelineHeader.yearsTop - mobileStickyTimelineHeader.timelineTop) <= 1, `The mobile Gantt year and quarter scale should stay pinned to the scroller top: ${JSON.stringify(mobileStickyTimelineHeader)}`);
   await mobile.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).evaluate((button) => button.click());
   await mobile.waitForSelector("[data-capture-gantt-dialog]", { state: "detached" });
   await mobile.getByRole("button", { name: "Expand", exact: true }).click();
