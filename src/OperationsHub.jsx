@@ -256,17 +256,18 @@ function EventAiLauncher({ event, onClose }) {
     onClose={() => { if (!busy) onClose(); }}
     title="Research and augment event"
     eyebrow="Background task"
-    summary={`Research missing public details for ${event?.title || "this event"}. Starting the task closes this launcher; progress remains in Task Center and Notifications.`}
+    summary={`Research missing public details for ${event?.title || "this event"}. The task runs in the background without overwriting operator-entered fields.`}
     size="wide"
     dialogRef={dialogRef}
     closeLabel="Close event augmentation"
-    surfaceProps={{ "data-event-ai-launcher-dialog": true }}
+    bodyProps={{ className: "event-dialog__body" }}
+    surfaceProps={{ className: "event-dialog event-dialog--augment", "data-event-ai-launcher-dialog": true }}
     footer={<><button type="button" className="if-btn" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" form="event-ai-launcher-form" className={`if-btn if-btn--ai if-touch-target${busy ? " is-loading" : ""}`} disabled={busy || modelsBusy || !capability?.available || !credential || !producerModel || !verifierModel}>{busy ? <span className="if-btn__spinner" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}{busy ? "Starting background task…" : "Start augmentation"}</button></>}
   >
     <form id="event-ai-launcher-form" className="if-form-grid" data-event-ai-launcher aria-busy={busy} onSubmit={launch}>
       <label className="if-field if-field--full"><span className="if-field__label">Event name or research target</span><input className="if-input" value={draft.title} placeholder="Air, Space & Cyber Conference" onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
       <label className="if-field if-field--full"><span className="if-field__label">Specific direction <small>(optional)</small></span><textarea className="if-input if-touch-target" value={direction} maxLength={2000} placeholder="Default: fill missing verified public details, links, categories, and published deadlines." onChange={(e) => setDirection(e.target.value)} /></label>
-      <div className="if-field"><span className="if-field__label">Credential</span>{credentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={credential} searchable options={credentialOptions} portalTarget={dialogRef} onChange={(value) => { setCredential(value); setInventory(null); setProducerModel(""); setVerifierModel(""); setModelsBusy(Boolean(value)); }} /> : <p className="if-field__hint">Add a personal key or ask a workspace manager to configure a workspace default.</p>}</div>
+      <div className="if-field if-field--full"><span className="if-field__label">Credential</span>{credentialOptions.length ? <ControlSelect ariaLabel="AI credential" value={credential} searchable options={credentialOptions} portalTarget={dialogRef} onChange={(value) => { setCredential(value); setInventory(null); setProducerModel(""); setVerifierModel(""); setModelsBusy(Boolean(value)); }} /> : <div className="if-alert if-alert--warning event-dialog__inline-alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>No AI credential is available</strong><p>Add a personal key or ask a workspace manager to configure a workspace default.</p></div></div>}</div>
       <div className="if-field"><span className="if-field__label">Research model</span><ControlSelect ariaLabel="Research model" value={producerModel} searchable options={modelOptions} portalTarget={dialogRef} onChange={setProducerModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
       <div className="if-field"><span className="if-field__label">Verification model</span><ControlSelect ariaLabel="Verification model" value={verifierModel} searchable options={modelOptions} portalTarget={dialogRef} onChange={setVerifierModel} disabled={modelsBusy || !modelOptions.length} placeholder={modelsBusy ? "Loading available models…" : "Choose a model"} /></div>
       <div className="if-field if-field--full">
@@ -319,6 +320,7 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   const [directory, setDirectory] = useState([]);
   const [directoryError, setDirectoryError] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
     let active = true;
@@ -330,8 +332,9 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
     return () => { active = false; };
   }, [auth]);
   const linked = new Set(draft.recordIds || []);
-  function submit(formEvent) {
+  async function submit(formEvent) {
     formEvent.preventDefault();
+    setError("");
     if (!draft.title.trim()) {
       setError("Title is required.");
       return;
@@ -348,28 +351,36 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
       setError("Every event link needs a valid HTTP or HTTPS URL.");
       return;
     }
-    onSave({ ...draft, updatedAt: new Date().toISOString() });
-    onClose();
+    setSaving(true);
+    try {
+      await onSave({ ...draft, updatedAt: new Date().toISOString() });
+      onClose();
+    } catch (requestError) {
+      setError(requestError.message || "The event could not be saved.");
+    } finally {
+      setSaving(false);
+    }
   }
   return <ControlDialog
     open
-    onClose={onClose}
+    onClose={() => { if (!saving) onClose(); }}
     title={review ? "Review AI-assisted event" : event ? "Edit event" : "Add event"}
     eyebrow={review ? "Verified draft · unsaved" : "Workspace schedule"}
-    summary={review ? "Compare the verified proposal above, inspect every field here, then save only if it is correct." : undefined}
+    summary={review ? "Inspect the verified proposal and save only what is correct." : "Set the schedule and visibility now. Unknown dates and optional details can stay blank."}
     size="detail"
     dialogRef={dialogRef}
     closeLabel="Close event editor"
-    surfaceProps={{ "data-ops-event-editor": true }}
-    footer={<><button type="button" className="if-btn" onClick={onClose}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="ops-event-editor-form">Save event</button></>}
+    bodyProps={{ className: "event-dialog__body" }}
+    surfaceProps={{ className: "event-dialog event-dialog--editor", "data-ops-event-editor": true }}
+    footer={<><button type="button" className="if-btn" disabled={saving} onClick={onClose}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="ops-event-editor-form" disabled={saving}>{saving ? workingSpinner() : null}{saving ? "Saving…" : "Save event"}</button></>}
   >
-      <form id="ops-event-editor-form" className="if-form-grid" onSubmit={submit}>
-          {error ? <p role="alert" className="ops-alert">{error}</p> : null}
-          <label className="if-field if-field--full"><span className="if-field__label">Title</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
+      <form id="ops-event-editor-form" className="if-form-grid event-dialog__form" aria-busy={saving} onSubmit={submit}>
+          {error ? <div role="alert" className="if-alert if-alert--danger event-dialog__alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Could not save event</strong><p>{error}</p></div></div> : null}
+          <label className="if-field if-field--full"><span className="if-field__label">Event name</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
           <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
           <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
-          <ControlDisclosure className="if-field--full" title="More details" summary="Location, status, categories, attendees, links, milestones, display settings, and linked records" data-event-more-details>
+          <ControlDisclosure className="if-field--full" title="More details" summary="Location, people, links, milestones, display, and linked records" data-event-more-details>
           <div className="if-form-grid">
           <label className="if-field"><span className="if-field__label">Location</span><input className="if-input" value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
           <div className="if-field"><span className="if-field__label">Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
@@ -452,19 +463,28 @@ function EventCategoryCard({ category, onSave, onDelete }) {
   const [name, setName] = useState(category.name);
   const [description, setDescription] = useState(category.description || "");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+  const changed = name.trim() !== category.name || description.trim() !== (category.description || "");
   async function save(formEvent) {
     formEvent.preventDefault();
+    if (!name.trim()) { setError("Enter a category name."); return; }
+    setBusy("save");
     try {
-      await onSave({ ...category, name, description });
+      await onSave({ ...category, name: name.trim(), description: description.trim() });
       setError("");
     } catch (requestError) { setError(requestError.message); }
+    finally { setBusy(""); }
   }
-  return <form className="if-card if-form-grid" onSubmit={save} data-event-category={category.id}>
+  async function remove() {
+    setBusy("delete");
+    try { await onDelete(category.id); } catch (requestError) { setError(requestError.message); setBusy(""); }
+  }
+  return <form className="if-card if-form-grid event-category-card" aria-busy={Boolean(busy)} onSubmit={save} data-event-category={category.id}>
     <label className="if-field"><span className="if-field__label">Category name</span><input className="if-input" value={name} onChange={(event) => setName(event.target.value)} /></label>
     <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
     <span className="if-field__hint">{category.assignedEventCount || 0} assigned event{category.assignedEventCount === 1 ? "" : "s"}</span>
-    <div><button type="submit" className="if-btn if-btn--secondary">Save category</button> <button type="button" className="if-btn" disabled={Boolean(category.assignedEventCount)} onClick={() => void onDelete(category.id).catch((requestError) => setError(requestError.message))}><Trash2 size={15} aria-hidden="true" />Delete</button></div>
-    {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
+    <div className="event-category-card__actions"><button type="submit" className="if-btn if-btn--secondary" disabled={Boolean(busy) || !changed}>{busy === "save" ? workingSpinner() : null}{busy === "save" ? "Saving…" : "Save category"}</button><button type="button" className="if-btn" disabled={Boolean(busy) || Boolean(category.assignedEventCount)} onClick={() => void remove()}>{busy === "delete" ? workingSpinner() : <Trash2 size={15} aria-hidden="true" />}{busy === "delete" ? "Deleting…" : "Delete"}</button></div>
+    {error ? <div className="if-alert if-alert--danger if-field--full" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Could not update category</strong><p>{error}</p></div></div> : null}
   </form>;
 }
 
@@ -472,12 +492,16 @@ function EventCategoryManager({ categories, onSave, onDelete, onClose }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
   async function create(formEvent) {
     formEvent.preventDefault();
+    if (!name.trim()) { setError("Enter a category name."); return; }
+    setCreating(true);
     try {
-      const saved = await onSave({ name, description });
+      const saved = await onSave({ name: name.trim(), description: description.trim() });
       if (saved) { setName(""); setDescription(""); setError(""); }
     } catch (requestError) { setError(requestError.message); }
+    finally { setCreating(false); }
   }
   return <ControlDialog
     open
@@ -487,15 +511,16 @@ function EventCategoryManager({ categories, onSave, onDelete, onClose }) {
     summary="Manage the event types available to this workspace and its calendar filters."
     size="wide"
     closeLabel="Close event categories"
-    surfaceProps={{ "data-event-category-manager": true }}
+    bodyProps={{ className: "event-dialog__body" }}
+    surfaceProps={{ className: "event-dialog event-dialog--categories", "data-event-category-manager": true }}
     footer={<button type="button" className="if-btn" onClick={onClose}>Close</button>}
   >
-    <div className="if-form-grid">
-      <form className="if-card if-form-grid if-field--full" onSubmit={create}>
+    <div className="if-form-grid event-category-grid">
+      <form className="if-card if-form-grid if-field--full event-category-create" aria-busy={creating} onSubmit={create}>
         <label className="if-field"><span className="if-field__label">New category</span><input className="if-input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Customer immersion" /></label>
         <label className="if-field"><span className="if-field__label">Description</span><input className="if-input" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="How this event type is used" /></label>
-        <button type="submit" className="if-btn if-btn--primary">Add category</button>
-        {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
+        <button type="submit" className="if-btn if-btn--primary" disabled={creating || !name.trim()}>{creating ? workingSpinner() : <Plus size={15} aria-hidden="true" />}{creating ? "Adding…" : "Add category"}</button>
+        {error ? <div className="if-alert if-alert--danger if-field--full" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Could not add category</strong><p>{error}</p></div></div> : null}
       </form>
       {categories.map((category) => <EventCategoryCard key={`${category.id}-${category.updatedAt}`} category={category} onSave={onSave} onDelete={onDelete} />)}
     </div>

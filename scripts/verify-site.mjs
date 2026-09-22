@@ -643,7 +643,10 @@ try {
   await openSurface(page, "#/budget-spend/schedule?scheduleView=list", "[data-ops-events]");
   await page.getByRole("button", { name: "Add event" }).click();
   const addEventDialog = page.getByRole("dialog", { name: "Add event" });
+  assert.equal(await addEventDialog.locator(".event-catalog-results").evaluate((node) => getComputedStyle(node).overflowY), "visible", "Catalog cards should use the dialog body as their single scroll owner");
+  assert.equal(await addEventDialog.locator("[data-event-placement-settings]").getAttribute("open"), null, "Catalog visibility settings should stay summarized until requested");
   await addEventDialog.getByRole("button", { name: "Add manually" }).click();
+  assert.equal(await addEventDialog.getByRole("button").filter({ hasText: "Research details" }).count(), 0, "Manual add should not expose a redundant unsaved research action");
   await addEventDialog.getByLabel("Event name").fill("Portfolio evidence review");
   await addEventDialog.getByLabel("Location hint").fill("Mission center, Room 204");
   await addEventDialog.getByRole("button", { name: "Save event" }).click();
