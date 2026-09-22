@@ -44,6 +44,11 @@ assert.equal(discovered.length, 1, "Official JSON-LD events should enter the rev
 assert.equal(discovered[0].startsAt, "2026-11-30T08:00");
 assert.equal(discovered[0].sources[0].kind, "official");
 assert.ok(findCatalogDuplicate(discovered[0], eventCatalog()), "Discovery must flag an edition already represented in the catalog");
+const alternateCommentWrapper = extractOfficialEventCandidates(`<script type="application/ld+json"><!--${JSON.stringify({
+  "@context": "https://schema.org", "@type": "Event", name: "Official test event", startDate: "2027-02-03",
+  url: "https://example.test/events/official-test-event",
+})}--!></script>`, { id: "test-official", name: "Test official source", url: "https://example.test/events/" });
+assert.equal(alternateCommentWrapper.length, 1, "JSON-LD extraction must handle the alternate HTML comment terminator safely");
 assert.deepEqual(extractOfficialEventCandidates("<html><h1>Unstructured event rumor</h1></html>", EVENT_CATALOG_SOURCE_REGISTRY[0]), [], "Unstructured pages must not create unsupported event candidates");
 
 console.log(`Verified ${eventCatalog().length} curated event editions, ${EVENT_CATALOG_SOURCE_REGISTRY.length} discovery sources, search filters, and safe calendar projection`);

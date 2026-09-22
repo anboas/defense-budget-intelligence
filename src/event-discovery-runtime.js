@@ -86,11 +86,19 @@ function jsonLdNodes(value) {
   return [value];
 }
 
+function unwrapJsonLd(value) {
+  let text = String(value || "").trim();
+  if (text.startsWith("<!--")) text = text.slice(4).trimStart();
+  if (text.endsWith("--!>")) return text.slice(0, -4).trimEnd();
+  if (text.endsWith("-->")) return text.slice(0, -3).trimEnd();
+  return text;
+}
+
 export function extractOfficialEventCandidates(html, source) {
   const scripts = [...String(html || "").matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   const candidates = [];
   for (const match of scripts) {
-    const root = parsed(match[1].replace(/^\s*<!--|-->\s*$/g, ""), null);
+    const root = parsed(unwrapJsonLd(match[1]), null);
     for (const node of jsonLdNodes(root)) {
       const types = safeArray(node?.["@type"]).map((item) => clean(item, 80).toLowerCase());
       if (!types.some((type) => type === "event" || type.endsWith("event"))) continue;
