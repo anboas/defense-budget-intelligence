@@ -254,6 +254,11 @@ try {
   assert.deepEqual(event.categoryIds, ["workshop"], "Event categories must persist as stable workspace taxonomy IDs");
   assert.deepEqual(event.links.map((link) => link.label), ["Official event page", "Agenda"], "Multiple event links must persist separately from the physical location");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { title: "Date pending industry event", wallboard: true },
+  }));
+  assert.equal(result.response.status, 201, "Events with a known title but unknown date must save for later research");
+  assert.equal(result.payload.data.startsAt, "", "Undated events must retain an explicit empty start date instead of inventing one");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/events", {
     method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { title: "Invalid milestone", startsAt: "2026-11-20", milestones: [{ id: "custom", type: "other", occursAt: "" }] },
   }));
   assert.equal(result.response.status, 400, "Undated event milestones must be rejected rather than inferred");

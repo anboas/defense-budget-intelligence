@@ -332,11 +332,11 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   const linked = new Set(draft.recordIds || []);
   function submit(formEvent) {
     formEvent.preventDefault();
-    if (!draft.title.trim() || !draft.startsAt) {
-      setError("Title and start time are required.");
+    if (!draft.title.trim()) {
+      setError("Title is required.");
       return;
     }
-    if (draft.endsAt && new Date(draft.endsAt) < new Date(draft.startsAt)) {
+    if (draft.startsAt && draft.endsAt && new Date(draft.endsAt) < new Date(draft.startsAt)) {
       setError("End time must be after the start time.");
       return;
     }
@@ -366,8 +366,8 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
       <form id="ops-event-editor-form" className="if-form-grid" onSubmit={submit}>
           {error ? <p role="alert" className="ops-alert">{error}</p> : null}
           <label className="if-field if-field--full"><span className="if-field__label">Title</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
-          <label className="if-field"><span className="if-field__label">Starts</span><input className="if-input" type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
-          <label className="if-field"><span className="if-field__label">Ends</span><input className="if-input" type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(draft.startsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
+          <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(draft.endsAt || "").slice(0, 16)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
           <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
           <ControlDisclosure className="if-field--full" title="More details" summary="Location, status, categories, attendees, links, milestones, display settings, and linked records" data-event-more-details>
           <div className="if-form-grid">
@@ -715,8 +715,8 @@ function EventsView({ events, records, categories, canManageCategories, onAdd, o
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
   const columns = [
     { key: "title", label: "Event", required: true, sticky: true, minWidth: 260, value: (event) => event.title, searchValue: (event) => [event.title, event.notes, event.location, event.intelligence?.sponsor, event.intelligence?.branch, ...(event.intelligence?.topics || []), ...(event.links || []).flatMap((link) => [link.label, link.url]), ...eventCategoryLabels(event, categories), ...(event.milestones || []).flatMap((milestone) => [milestoneLabel(milestone), milestone.notes])], render: (event) => <><strong>{event.title}</strong><small>{event.location || "Location not set"}{event.catalogEventId ? " · Catalog" : ""}</small></> },
-    { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt, render: (event) => dateTime(event.startsAt) },
-    { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt, render: (event) => dateTime(event.endsAt || event.startsAt) },
+    { key: "starts", label: "Starts", minWidth: 160, value: (event) => event.startsAt || "Date pending", sortValue: (event) => event.startsAt || "9999-12-31", render: (event) => event.startsAt ? dateTime(event.startsAt) : "Date pending" },
+    { key: "ends", label: "Ends", minWidth: 160, value: (event) => event.endsAt || event.startsAt || "Date pending", sortValue: (event) => event.endsAt || event.startsAt || "9999-12-31", render: (event) => event.endsAt || event.startsAt ? dateTime(event.endsAt || event.startsAt) : "Date pending" },
     { key: "status", label: "Status", facet: true, value: (event) => event.status || "scheduled", render: (event) => <ControlStatusBadge status={event.status || "scheduled"} /> },
     { key: "augmentation", label: "AI augmentation", facet: true, minWidth: 190, value: eventAugmentationValue, sortValue: (event) => event.lastAugmentedAt || "", render: (event) => <EventAugmentationState event={event} /> },
     { key: "display", label: "Wallboard", facet: true, value: (event) => event.wallboard ? "Shown" : "Hidden" },
@@ -847,11 +847,11 @@ function WallboardView({ records, watchlist, events, categories, teams, asOf, wo
   const [rotate, setRotate] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [clock, setClock] = useState(() => new Date().toISOString());
-  const [calendarMonth, setCalendarMonth] = useState(() => String(events.find((event) => event.wallboard && event.status === "scheduled")?.startsAt || new Date().toISOString()).slice(0, 7));
+  const [calendarMonth, setCalendarMonth] = useState(() => String(events.find((event) => event.wallboard && event.status === "scheduled" && event.startsAt)?.startsAt || new Date().toISOString()).slice(0, 7));
   const ref = useRef(null);
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
   const visibleRecords = records.filter((record) => watchById.get(record.opportunityId)?.wallboard).sort((a, b) => (nextPublishedDate(a, asOf) || "9999").localeCompare(nextPublishedDate(b, asOf) || "9999"));
-  const wallboardEvents = events.filter((event) => event.wallboard && event.status === "scheduled").sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const wallboardEvents = events.filter((event) => event.wallboard && event.status === "scheduled" && event.startsAt).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   useEffect(() => {
     if (!rotate) return undefined;
     const modes = ["calendar", "records"];
@@ -929,7 +929,7 @@ function useRouteSurface(parameter, allowed, fallback, onChange) {
 
 function ScheduleView({ state, records, watchedRecords, categories, teams, auth, dataset, onAdd, onEdit, onDelete, onManageCategories }) {
   const [surface, setSurface] = useRouteSurface("scheduleView", ["list", "calendar", "display"], "list");
-  const [calendarMonth, setCalendarMonth] = useState(() => String(state.events.find((event) => event.status === "scheduled")?.startsAt || new Date().toISOString()).slice(0, 7));
+  const [calendarMonth, setCalendarMonth] = useState(() => String(state.events.find((event) => event.status === "scheduled" && event.startsAt)?.startsAt || new Date().toISOString()).slice(0, 7));
   const scheduled = state.events.filter((event) => event.status === "scheduled").length;
   const needsValidation = state.events.filter((event) => event.requiresValidation).length;
   const tabs = <nav className="if-tabs__list" aria-label="Schedule view">
@@ -943,7 +943,7 @@ function ScheduleView({ state, records, watchedRecords, categories, teams, auth,
     ]} metricLabel="Schedule summary" tabs={tabs} />
     <ControlPageBody compact>
       {surface === "list" ? <EventsView embedded events={state.events} records={watchedRecords} categories={categories} canManageCategories={Boolean(auth?.user?.canManageWorkspace)} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onManageCategories={onManageCategories} /> : null}
-      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled")} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /></Suspense> : null}
+      {surface === "calendar" ? <Suspense fallback={<RouteFallback title="calendar" />}><WallboardCalendar standalone events={state.events.filter((event) => event.status === "scheduled" && event.startsAt)} categories={categories} teams={teams} month={calendarMonth} onMonthChange={setCalendarMonth} now={new Date()} workspace={auth?.user?.activeWorkspace || null} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /></Suspense> : null}
       {surface === "display" ? <WallboardView records={records} watchlist={state.watchlist} events={state.events} categories={categories} teams={teams} asOf={dataset.metadata.asOf} workspace={auth?.user?.activeWorkspace || null} lastRefreshedAt={state.lastRefreshedAt} onOpenMember={(member) => openWorkspaceProfile("member", member.id)} /> : null}
     </ControlPageBody>
   </section>;

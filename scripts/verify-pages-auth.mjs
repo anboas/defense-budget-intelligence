@@ -437,6 +437,13 @@ async function verifyApiLifecycle(persistPath) {
     const workspaceEvent = await createScopedEvent("team-wide-event", "Workspace-wide verification");
     const hrEvent = await createScopedEvent("team-hr-event", "HR-only verification", [hrTeam.id]);
     const bdEvent = await createScopedEvent("team-bd-event", "BD-only verification", [bdTeam.id]);
+    response = await apiRequest(baseUrl, "/api/v1/agent/events", {
+      method: "POST", body: { title: "Date pending workspace event" }, cookie: ownerCookie,
+      origin: baseUrl.slice(0, -1), headers: { "idempotency-key": "team-undated-event" },
+    });
+    assert.equal(response.status, 201, "Pages/D1 must persist a titled event before its date is known");
+    const undatedEvent = (await response.json()).data;
+    assert.equal(undatedEvent.startsAt, "", "Pages/D1 must not invent a start date for an undated event");
 
     response = await apiRequest(baseUrl, "/api/v1/agent/events", { cookie: viewerCookie });
     body = await response.json();
@@ -480,7 +487,7 @@ async function verifyApiLifecycle(persistPath) {
 
     response = await apiRequest(baseUrl, `/api/v1/auth/teams/${hrTeam.id}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 409, "A team assigned to events must not be deleted because that would broaden visibility");
-    for (const event of [workspaceEvent, hrEvent, bdEvent]) {
+    for (const event of [workspaceEvent, hrEvent, bdEvent, undatedEvent]) {
       response = await apiRequest(baseUrl, `/api/v1/agent/events/${event.id}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
       assert.equal(response.status, 204);
     }
