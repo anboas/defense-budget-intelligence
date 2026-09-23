@@ -87,10 +87,10 @@ function canonicalUrl(value, baseUrl = "") {
   return url.toString();
 }
 function decodeEntities(value) {
+  const entities = { amp: "&", quot: '"', "#39": "'", apos: "'", lt: "<", gt: ">" };
   return clean(String(value || "")
     .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">"), 1600);
+    .replace(/&(amp|quot|#39|apos|lt|gt);/gi, (_match, entity) => entities[entity.toLowerCase()]), 1600);
 }
 function locationValue(value) {
   if (typeof value === "string") return clean(value, 500);
