@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { Bot, CalendarDays, CircleAlert, MapPin, RotateCw, Search, Sparkles, Tags, X } from "lucide-react";
-import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import EventLocationLink from "./EventLocationLink.jsx";
-import EventTeamSelector from "./EventTeamSelector.jsx";
+import EventPlacementSettings from "./EventPlacementSettings.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { MANAGEMENT_STATE_EVENT } from "./management-state.js";
 import { catalogEventToDraft } from "./event-catalog.js";
@@ -32,21 +32,6 @@ function catalogCategoryIds(event, categories) {
   return match ? [match.id] : [];
 }
 
-function EventPlacementSettings({ teams, teamIds, setTeamIds, wallboard, setWallboard }) {
-  const visibility = teamIds.length ? `${teamIds.length} team${teamIds.length === 1 ? "" : "s"}` : "Workspace-wide";
-  return <ControlDisclosure
-    className="event-placement-settings if-field--full"
-    title="Visibility & display"
-    summary={`${visibility} · Wallboard ${wallboard ? "on" : "off"}`}
-    data-event-placement-settings
-  >
-    <div className="event-placement-settings__body">
-      <EventTeamSelector teams={teams} value={teamIds} onChange={setTeamIds} />
-      <label className="if-checkbox event-dialog__checkbox"><input type="checkbox" checked={wallboard} onChange={(event) => setWallboard(event.target.checked)} /><span><strong>Show on wallboard</strong><small>Visibility and display settings stay operator-owned during AI research.</small></span></label>
-    </div>
-  </ControlDisclosure>;
-}
-
 function EventCatalogCard({ event, badgeStatus, badgeLabel, secondaryIcon: SecondaryIcon = Tags, secondaryText, caveat, sourceUrl, sourceLabel = "Official source", unavailableSourceLabel = "No official link retained", actions, dataProps = {} }) {
   const topics = event.topics || [];
   const visibleTopics = topics.slice(0, 3);
@@ -69,7 +54,7 @@ function EventCatalogCard({ event, badgeStatus, badgeLabel, secondaryIcon: Secon
   </article>;
 }
 
-export default function AddEventDialog({ catalog, existingEvents, categories, teams, onCreate, onAugment, onClose }) {
+export default function AddEventDialog({ catalog, existingEvents, categories, teams, onCreate, onAugment, onSaved, onClose }) {
   const auth = useAuth();
   const dialogRef = useRef(null);
   const [mode, setMode] = useState("catalog");
@@ -82,6 +67,8 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
   const [error, setError] = useState("");
   const [manual, setManual] = useState(() => newEventDraft());
   const [discovery, setDiscovery] = useState(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
   const canCurate = auth?.user?.roleId === "super_user" && auth?.authVersion === "dbi-pages-auth-v1";
   const added = useMemo(() => new Map(existingEvents.filter((event) => event.catalogEventId).map((event) => [event.catalogEventId, event])), [existingEvents]);
   const branches = useMemo(() => [...new Set(catalog.map((event) => event.branch))].sort(), [catalog]);
@@ -95,10 +82,18 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     });
   }, [branch, catalog, eventType, query]);
   const filtered = Boolean(query || branch || eventType);
+  const manualDirty = Boolean(manual.title || manual.startsAt || manual.endsAt || manual.location || manual.officialUrl || teamIds.length || wallboard === false);
+  const manualErrors = {
+    title: manual.title.trim() ? "" : "Enter an event name.",
+    endsAt: manual.startsAt && manual.endsAt && new Date(manual.endsAt) < new Date(manual.startsAt) ? "End time must be after the start time." : "",
+    officialUrl: manual.officialUrl?.trim() && !validEventLinkUrl(manual.officialUrl.trim()) ? "Use a complete HTTP or HTTPS URL." : "",
+  };
+  const manualValid = !Object.values(manualErrors).some(Boolean);
 
   function selectMode(nextMode) {
     setMode(nextMode);
     setError("");
+    setDiscardPrompt(false);
   }
   function clearCatalogFilters() {
     setQuery("");
@@ -134,13 +129,7 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     setError("");
     if (!event.startsAt) { setMode("manual"); setManual(draftFromCatalog(event)); return; }
     setBusyId(event.id);
-    try { await onCreate(draftFromCatalog(event)); onClose(); } catch (requestError) { setError(requestError.message); } finally { setBusyId(""); }
-  }
-  function validateManual() {
-    if (!manual.title.trim()) return "Enter an event name.";
-    if (manual.startsAt && manual.endsAt && new Date(manual.endsAt) < new Date(manual.startsAt)) return "End time must be after the start time.";
-    if (manual.officialUrl?.trim() && !validEventLinkUrl(manual.officialUrl.trim())) return "The official URL must use HTTP or HTTPS.";
-    return "";
+    try { const saved = await onCreate(draftFromCatalog(event)); onClose(); onSaved?.(saved); } catch (requestError) { setError(requestError.message); } finally { setBusyId(""); }
   }
   function manualDraft() {
     const officialUrl = manual.officialUrl?.trim();
@@ -149,18 +138,30 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     return { ...manual, links, teamIds, wallboard, updatedAt: new Date().toISOString() };
   }
   async function saveManual(augment) {
-    const validation = validateManual();
-    if (validation) { setError(validation); return; }
+    setSubmitAttempted(true);
+    if (!manualValid) return;
     setError(""); setBusyId(augment ? "manual-augment" : "manual-save");
-    try { const created = await onCreate(manualDraft()); onClose(); if (augment) onAugment(created); } catch (requestError) { setError(requestError.message); } finally { setBusyId(""); }
+    try {
+      const created = await onCreate(manualDraft());
+      onClose();
+      if (augment) onAugment(created);
+      else onSaved?.(created);
+    } catch (requestError) { setError(requestError.message); } finally { setBusyId(""); }
+  }
+  function requestClose() {
+    if (busyId) return;
+    if (mode === "manual" && manualDirty) { setDiscardPrompt(true); return; }
+    onClose();
   }
   const footer = mode === "manual"
-    ? <><button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={onClose}>Cancel</button><button type="button" aria-label="Save event" className="if-btn if-btn--secondary" disabled={Boolean(busyId)} onClick={() => void saveManual(false)}>{busyId === "manual-save" ? workingSpinner() : null}<span>Save</span></button><button type="button" className="if-btn if-btn--ai" disabled={Boolean(busyId)} onClick={() => void saveManual(true)}>{busyId === "manual-augment" ? workingSpinner() : <Sparkles size={15} aria-hidden="true" />}Save &amp; augment</button></>
+    ? discardPrompt
+      ? <><span className="event-dialog__footer-note">Discard this unsaved event?</span><button type="button" className="if-btn" onClick={() => setDiscardPrompt(false)}>Keep editing</button><button type="button" className="if-btn if-btn--danger" onClick={onClose}>Discard</button></>
+      : <><button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={requestClose}>Cancel</button><button type="button" aria-label="Save event" className="if-btn if-btn--secondary" disabled={Boolean(busyId) || !manual.title.trim()} onClick={() => void saveManual(false)}>{busyId === "manual-save" ? workingSpinner() : null}<span>Save</span></button><button type="button" className="if-btn if-btn--ai" disabled={Boolean(busyId) || !manual.title.trim()} onClick={() => void saveManual(true)}>{busyId === "manual-augment" ? workingSpinner() : <Sparkles size={15} aria-hidden="true" />}Save &amp; augment</button></>
     : mode === "discovery"
       ? <><button type="button" className="if-btn if-btn--secondary" disabled={Boolean(busyId)} onClick={() => void runDiscovery()}>{busyId === "discovery-run" ? workingSpinner() : <RotateCw size={15} aria-hidden="true" />}Scan next sources</button><button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={onClose}>Close</button></>
       : <button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={onClose}>Close</button>;
 
-  return <ControlDialog open onClose={() => { if (!busyId) onClose(); }} title="Add event" eyebrow="Workspace schedule" summary="Find a curated event or create one from whatever details you have." size="wide" className="event-dialog-shell" dialogRef={dialogRef} closeLabel="Close add event" bodyProps={{ className: "event-dialog__body" }} surfaceProps={{ className: "event-dialog event-dialog--add", "data-add-event-dialog": mode }} footer={footer}>
+  return <ControlDialog open onClose={requestClose} title="Add event" eyebrow="Workspace schedule" summary="Find a curated event or create one from whatever details you have." size="wide" className="event-dialog-shell" dialogRef={dialogRef} closeLabel="Close add event" bodyProps={{ className: "event-dialog__body" }} surfaceProps={{ className: "event-dialog event-dialog--add", "data-add-event-dialog": mode }} footer={footer}>
     <nav className="if-tabs__list event-dialog__tabs" aria-label="Add event method">
       <button type="button" className={`if-tab${mode === "catalog" ? " is-active" : ""}`} aria-pressed={mode === "catalog"} onClick={() => selectMode("catalog")}>Search catalog</button>
       <button type="button" className={`if-tab${mode === "manual" ? " is-active" : ""}`} aria-pressed={mode === "manual"} onClick={() => selectMode("manual")}>Add manually</button>
@@ -206,10 +207,11 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
       />)}</div> : <ControlAsyncState compact state="empty" icon={<Search size={22} />} title="No pending candidates" message="The queue is clear. Scan the next source pair now or wait for the hourly schedule." />}
       {discovery?.latestRun ? <p className="if-field__hint">Latest scan: {discovery.latestRun.sourceId} · {discovery.latestRun.status} · {discovery.latestRun.candidatesAdded} new candidate{discovery.latestRun.candidatesAdded === 1 ? "" : "s"}</p> : null}
     </div> : <form className="if-form-grid event-dialog__form" onSubmit={(event) => { event.preventDefault(); void saveManual(false); }}>
-      <label className="if-field if-field--full"><span className="if-field__label">Event name</span><input className="if-input" autoFocus value={manual.title} placeholder="SOF Week 2027" onChange={(event) => setManual((value) => ({ ...value, title: event.target.value }))} /></label>
-      <label className="if-field if-field--full"><span className="if-field__label">Official URL <small>(recommended)</small></span><input className="if-input" type="url" value={manual.officialUrl || ""} placeholder="https://…" onChange={(event) => setManual((value) => ({ ...value, officialUrl: event.target.value }))} /><small className="if-field__hint">A canonical event page gives augmentation a stronger identity and evidence boundary.</small></label>
+      {discardPrompt ? <div className="if-alert if-alert--warning if-field--full" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Unsaved event</strong><p>Keep editing, or discard the details you entered.</p></div></div> : null}
+      <label className="if-field if-field--full"><span className="if-field__label">Event name <small>(required)</small></span><input className="if-input" autoFocus required aria-invalid={submitAttempted && Boolean(manualErrors.title)} value={manual.title} placeholder="SOF Week 2027" onChange={(event) => { setManual((value) => ({ ...value, title: event.target.value })); setDiscardPrompt(false); }} />{submitAttempted && manualErrors.title ? <small className="if-field__error">{manualErrors.title}</small> : null}</label>
+      <label className="if-field if-field--full"><span className="if-field__label">Official URL <small>(recommended)</small></span><input className="if-input" type="url" aria-invalid={submitAttempted && Boolean(manualErrors.officialUrl)} value={manual.officialUrl || ""} placeholder="https://…" onChange={(event) => { setManual((value) => ({ ...value, officialUrl: event.target.value })); setDiscardPrompt(false); }} />{submitAttempted && manualErrors.officialUrl ? <small className="if-field__error">{manualErrors.officialUrl}</small> : <small className="if-field__hint">A canonical event page gives augmentation a stronger identity and evidence boundary.</small>}</label>
       <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(manual.startsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, startsAt: event.target.value }))} /></label>
-      <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" type="datetime-local" value={String(manual.endsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, endsAt: event.target.value }))} /></label>
+      <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" type="datetime-local" aria-invalid={submitAttempted && Boolean(manualErrors.endsAt)} value={String(manual.endsAt || "").slice(0, 16)} onChange={(event) => setManual((value) => ({ ...value, endsAt: event.target.value }))} />{submitAttempted && manualErrors.endsAt ? <small className="if-field__error">{manualErrors.endsAt}</small> : null}</label>
       <label className="if-field if-field--full"><span className="if-field__label">Location hint</span><input className="if-input" value={manual.location || ""} placeholder="City, venue, virtual, or leave blank" onChange={(event) => setManual((value) => ({ ...value, location: event.target.value }))} /></label>
       <EventPlacementSettings teams={teams} teamIds={teamIds} setTeamIds={setTeamIds} wallboard={wallboard} setWallboard={setWallboard} />
       <div className="if-alert if-alert--info if-field--full event-dialog__note"><CalendarDays size={17} aria-hidden="true" /><div><strong>A title is enough to save</strong><p>Unknown dates stay pending. AI suggestions remain cited and review-first.</p></div></div>

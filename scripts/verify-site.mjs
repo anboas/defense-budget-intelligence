@@ -656,8 +656,15 @@ try {
   await page.getByRole("button", { name: "Edit Portfolio evidence review" }).click();
   await page.waitForSelector("[data-ops-event-editor]");
   const eventEditor = page.locator("[data-ops-event-editor]");
+  assert.equal(await eventEditor.getByRole("button", { name: "Save event" }).isDisabled(), true, "Existing events must not submit an unchanged form");
   await eventEditor.getByLabel(/^Starts/).fill("2027-01-15T14:00");
+  assert.equal(await eventEditor.getByRole("button", { name: "Save event" }).isEnabled(), true, "Changing a field must enable event persistence");
+  await eventEditor.getByRole("button", { name: "Cancel" }).click();
+  await eventEditor.getByText("Unsaved changes", { exact: true }).first().waitFor();
+  assert.equal(await eventEditor.getByRole("button", { name: "Discard" }).count(), 1, "Closing a dirty event must require an explicit discard decision");
+  await eventEditor.getByRole("button", { name: "Keep editing" }).click();
   await eventEditor.locator("[data-event-more-details] > summary").click();
+  await eventEditor.locator("[data-event-logistics] > summary").click();
   await eventEditor.getByRole("button", { name: "Add link" }).click();
   await eventEditor.getByLabel("Event link 1 label").fill("Official event page");
   await eventEditor.getByLabel("Event link 1 URL").fill("https://example.test/portfolio-review");
