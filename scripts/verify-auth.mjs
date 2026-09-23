@@ -461,7 +461,9 @@ try {
   await page.getByRole("button", { name: "Add event" }).click();
   eventDialog = page.getByRole("dialog", { name: "Add event" });
   await eventDialog.getByRole("button", { name: "Add manually" }).click();
+  assert.equal(await eventDialog.getByRole("button", { name: "Save event" }).isDisabled(), true, "Manual event save must stay disabled until the required title is present");
   await eventDialog.getByLabel("Event name").fill("Browser HR private planning");
+  assert.equal(await eventDialog.getByRole("button", { name: "Save event" }).isEnabled(), true, "A title alone must enable the manual save path");
   await eventDialog.getByLabel("Starts").fill("2026-01-05T09:00");
   await eventDialog.getByLabel("Ends").fill("2026-01-05T10:00");
   await eventDialog.locator("[data-event-placement-settings] > summary").click();
@@ -495,6 +497,8 @@ try {
   await page.screenshot({ path: "test-results/event-team-assignment-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await eventDialog.getByRole("button", { name: "Save event" }).click();
+  await page.getByText("Event changes saved", { exact: true }).waitFor();
+  assert.match(page.url(), /schedule\?scheduleView=list&event=/, "Manual save must return to Events with the saved record focused");
   await page.locator('[data-ops-event-table] input[type="search"]').fill("Browser HR private planning");
   await page.getByText("Browser HR private planning", { exact: true }).waitFor();
   assert.match(await page.locator("[data-ops-event-table]").innerText(), /Browser HR private planning[\s\S]*Browser HR/i, "The Events grid must expose team visibility without opening event details");
@@ -917,6 +921,7 @@ try {
   assert.equal(await eventEditor.locator("[data-event-starts]").inputValue(), "2027-01-11T08:00", "Opening a reviewed record must hydrate its existing start date in the datetime picker");
   assert.equal(await eventEditor.locator("[data-event-ends]").inputValue(), "2027-01-14T17:00", "Opening a reviewed record must hydrate its existing end date in the datetime picker");
   await eventEditor.locator("[data-event-more-details] > summary").click();
+  assert.equal(await eventEditor.locator("[data-event-logistics][open]").count(), 0, "Links and milestones must stay summarized until the operator opens that section");
   assert.equal(await eventEditor.getByLabel("Location", { exact: true }).inputValue(), augmentedEventBeforeReview.location, "Verified AI review must preserve the selected event's existing operator location");
   assert.equal(await eventEditor.locator("label", { hasText: "Notes" }).locator("textarea").inputValue(), augmentedEventBeforeReview.notes, "Verified AI review must preserve an existing operator summary");
   const categoryPicker = page.getByRole("button", { name: /^Event categories:/ });
@@ -929,6 +934,7 @@ try {
   await page.getByLabel("Search Attendees").fill("Browser teammate");
   await page.getByRole("option", { name: /Browser teammate/ }).click();
   assert.match(await attendeePicker.getAttribute("aria-label"), /Attendees \(1\)/, "Event attendees should use the searchable workspace-user multiselect");
+  await eventEditor.locator("[data-event-logistics] > summary").click();
   const initialLinkCount = await eventEditor.locator("[data-event-links] .if-collection-editor__item").count();
   await page.getByRole("button", { name: "Add link" }).click();
   assert.equal(await eventEditor.locator("[data-event-links] .if-collection-editor__item").count(), initialLinkCount + 1, "Adding an event link must append one shared collection-editor item");

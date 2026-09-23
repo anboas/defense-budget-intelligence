@@ -22,7 +22,7 @@ import {
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import AddEventDialog from "./AddEventDialog.jsx";
 import TeamAvatar from "./TeamAvatar.jsx";
-import EventTeamSelector from "./EventTeamSelector.jsx";
+import EventPlacementSettings from "./EventPlacementSettings.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
@@ -135,6 +135,24 @@ function newEventDraft() {
     milestones: [],
     wallboard: true,
   };
+}
+
+function eventFormSnapshot(event = {}) {
+  return JSON.stringify({
+    title: event.title || "",
+    startsAt: event.startsAt || "",
+    endsAt: event.endsAt || "",
+    location: event.location || "",
+    status: event.status || "scheduled",
+    notes: event.notes || "",
+    categoryIds: event.categoryIds || [],
+    attendeeIds: event.attendeeIds || [],
+    teamIds: event.teamIds || [],
+    recordIds: event.recordIds || [],
+    wallboard: event.wallboard !== false,
+    links: (event.links || []).map(({ id, label, url }) => ({ id, label: label || "", url: url || "" })),
+    milestones: (event.milestones || []).map(({ id, type, label, occursAt, notes }) => ({ id, type, label: label || "", occursAt: occursAt || "", notes: notes || "" })),
+  });
 }
 
 function workingSpinner(size = "sm") {
@@ -324,6 +342,8 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   const [directoryError, setDirectoryError] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
   useEffect(() => {
     if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
     let active = true;
@@ -335,25 +355,23 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
     return () => { active = false; };
   }, [auth]);
   const linked = new Set(draft.recordIds || []);
+  const dirty = review || eventFormSnapshot(draft) !== eventFormSnapshot(event || newEventDraft());
+  const titleError = draft.title.trim() ? "" : "Enter an event name.";
+  const dateError = draft.startsAt && draft.endsAt && new Date(draft.endsAt) < new Date(draft.startsAt) ? "End time must be after the start time." : "";
+  const linksError = (draft.links || []).some((link) => !validEventLinkUrl(link.url)) ? "Every retained link needs a complete HTTP or HTTPS URL." : "";
+  const milestonesError = (draft.milestones || []).some((milestone) => !milestone.occursAt || (milestone.type === "other" && !String(milestone.label || "").trim())) ? "Every milestone needs a date, and custom milestones also need a label." : "";
+  function requestClose() {
+    if (saving) return;
+    if (dirty) { setDiscardPrompt(true); return; }
+    onClose();
+  }
   async function submit(formEvent) {
     formEvent.preventDefault();
+    setSubmitAttempted(true);
     setError("");
-    if (!draft.title.trim()) {
-      setError("Title is required.");
-      return;
-    }
-    if (draft.startsAt && draft.endsAt && new Date(draft.endsAt) < new Date(draft.startsAt)) {
-      setError("End time must be after the start time.");
-      return;
-    }
-    if ((draft.milestones || []).some((milestone) => !milestone.occursAt || (milestone.type === "other" && !String(milestone.label || "").trim()))) {
-      setError("Every milestone needs a date, and custom milestones also need a label.");
-      return;
-    }
-    if ((draft.links || []).some((link) => !validEventLinkUrl(link.url))) {
-      setError("Every event link needs a valid HTTP or HTTPS URL.");
-      return;
-    }
+    if (titleError || dateError) return;
+    if (linksError) { dialogRef.current?.querySelector("[data-event-logistics]")?.setAttribute("open", ""); setError(linksError); return; }
+    if (milestonesError) { dialogRef.current?.querySelector("[data-event-logistics]")?.setAttribute("open", ""); setError(milestonesError); return; }
     setSaving(true);
     try {
       const saved = await onSave({ ...draft, updatedAt: new Date().toISOString() });
@@ -367,7 +385,7 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   }
   return <ControlDialog
     open
-    onClose={() => { if (!saving) onClose(); }}
+    onClose={requestClose}
     title={review ? "Review AI-assisted event" : event ? "Edit event" : "Add event"}
     eyebrow={review ? "Verified draft · unsaved" : "Workspace schedule"}
     summary={review ? "Inspect the verified proposal and save only what is correct." : "Set the schedule and visibility now. Unknown dates and optional details can stay blank."}
@@ -377,17 +395,19 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
     closeLabel="Close event editor"
     bodyProps={{ className: "event-dialog__body" }}
     surfaceProps={{ className: "event-dialog event-dialog--editor", "data-ops-event-editor": true }}
-    footer={<><button type="button" className="if-btn" disabled={saving} onClick={onClose}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="ops-event-editor-form" disabled={saving}>{saving ? workingSpinner() : null}{saving ? "Saving…" : "Save event"}</button></>}
+    footer={discardPrompt
+      ? <><span className="event-dialog__footer-note">Discard unsaved changes?</span><button type="button" className="if-btn" onClick={() => setDiscardPrompt(false)}>Keep editing</button><button type="button" className="if-btn if-btn--danger" onClick={onClose}>Discard</button></>
+      : <><span className="event-dialog__footer-note">{dirty ? "Unsaved changes" : "No changes to save"}</span><button type="button" className="if-btn" disabled={saving} onClick={requestClose}>Cancel</button><button type="submit" className="if-btn if-btn--primary" form="ops-event-editor-form" disabled={saving || !dirty}>{saving ? workingSpinner() : null}{saving ? "Saving…" : "Save event"}</button></>}
   >
       <form id="ops-event-editor-form" className="if-form-grid event-dialog__form" aria-busy={saving} onSubmit={submit}>
+          {discardPrompt ? <div className="if-alert if-alert--warning event-dialog__alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Unsaved changes</strong><p>Keep editing, or discard the changes to this event.</p></div></div> : null}
           {error ? <div role="alert" className="if-alert if-alert--danger event-dialog__alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Could not save event</strong><p>{error}</p></div></div> : null}
-          <label className="if-field if-field--full"><span className="if-field__label">Event name</span><input className="if-input" autoFocus value={draft.title} onChange={(e) => setDraft((value) => ({ ...value, title: e.target.value }))} /></label>
+          <label className="if-field if-field--full"><span className="if-field__label">Event name <small>(required)</small></span><input className="if-input" autoFocus required aria-invalid={submitAttempted && Boolean(titleError)} value={draft.title} onChange={(e) => { setDraft((value) => ({ ...value, title: e.target.value })); setDiscardPrompt(false); }} />{submitAttempted && titleError ? <small className="if-field__error">{titleError}</small> : null}</label>
           <label className="if-field"><span className="if-field__label">Starts <small>(optional)</small></span><input className="if-input" data-event-starts type="datetime-local" value={eventDateTimeInputValue(draft.startsAt)} onChange={(e) => setDraft((value) => ({ ...value, startsAt: e.target.value }))} /></label>
-          <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" data-event-ends type="datetime-local" value={eventDateTimeInputValue(draft.endsAt)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} /></label>
-          <EventTeamSelector teams={teams} value={draft.teamIds || []} onChange={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} />
-          <ControlDisclosure className="if-field--full" title="More details" summary="Location, people, links, milestones, display, and linked records" data-event-more-details>
+          <label className="if-field"><span className="if-field__label">Ends <small>(optional)</small></span><input className="if-input" data-event-ends type="datetime-local" aria-invalid={submitAttempted && Boolean(dateError)} value={eventDateTimeInputValue(draft.endsAt)} onChange={(e) => setDraft((value) => ({ ...value, endsAt: e.target.value }))} />{submitAttempted && dateError ? <small className="if-field__error">{dateError}</small> : null}</label>
+          <label className="if-field if-field--full"><span className="if-field__label">Location</span><input className="if-input" value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
+          <ControlDisclosure className="if-field--full" title="People & classification" summary={`${draft.status || "scheduled"} · ${(draft.categoryIds || []).length} categories · ${(draft.attendeeIds || []).length} attendees`} data-event-more-details>
           <div className="if-form-grid">
-          <label className="if-field"><span className="if-field__label">Location</span><input className="if-input" value={draft.location} placeholder="Venue, room, city, or virtual" onChange={(e) => setDraft((value) => ({ ...value, location: e.target.value }))} /></label>
           <div className="if-field"><span className="if-field__label">Status</span><ControlSelect ariaLabel="Event status" value={draft.status} options={[["scheduled", "Scheduled"], ["completed", "Completed"], ["cancelled", "Cancelled"]]} onChange={(status) => setDraft((value) => ({ ...value, status }))} portalTarget={dialogRef} /></div>
           <div className="ops-attendee-picker if-field--full">
             <SearchMultiSelect title="Event categories" allLabel="Select event types" value={JSON.stringify(draft.categoryIds || [])} options={categories.map((category) => ({ value: category.id, label: category.name, description: category.description }))} onChange={(categoryIds) => setDraft((value) => ({ ...value, categoryIds }))} portalTarget={dialogRef} />
@@ -399,6 +419,10 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
           </div>
           <label className="if-field if-field--full"><span className="if-field__label">Notes</span><textarea className="if-textarea" value={draft.notes} onChange={(e) => setDraft((value) => ({ ...value, notes: e.target.value }))} /></label>
           <EventIntelligencePanel intelligence={draft.intelligence} />
+          </div>
+          </ControlDisclosure>
+          <ControlDisclosure className="if-field--full" title="Links & milestones" summary={`${(draft.links || []).length} links · ${(draft.milestones || []).length} milestones`} data-event-logistics>
+          <div className="if-form-grid">
           <section className="ops-event-collection if-field--full" data-event-links>
             <header><span><strong>Event links</strong><small>Official page, registration, agenda, lodging, or other useful destinations.</small></span><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => setDraft((value) => ({ ...value, links: [...(value.links || []), { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label: "", url: "" }] }))}><Plus size={15} aria-hidden="true" />Add link</button></header>
             <ControlCollectionEditor
@@ -433,11 +457,11 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
               removeLabel="Remove milestone"
             />
           </section>
-          <label className="if-checkbox ops-event-wallboard if-field--full"><input type="checkbox" checked={draft.wallboard !== false} onChange={(e) => setDraft((value) => ({ ...value, wallboard: e.target.checked }))} /><span><strong>Show on wallboard</strong><small>Include this event in the read-only display projection.</small></span></label>
+          </div>
+          </ControlDisclosure>
+          <EventPlacementSettings teams={teams} teamIds={draft.teamIds || []} setTeamIds={(teamIds) => setDraft((value) => ({ ...value, teamIds }))} wallboard={draft.wallboard !== false} setWallboard={(wallboard) => setDraft((value) => ({ ...value, wallboard }))} />
           <ControlDisclosure className="if-field--full" title={`Linked watched records${linked.size ? ` (${linked.size})` : ""}`} summary="Optional opportunity context for this event" data-event-record-links>
             {records.length ? <div className="ops-event-record-links">{records.map((record) => <label className="if-checkbox" key={record.opportunityId}><input type="checkbox" checked={linked.has(record.opportunityId)} onChange={() => setDraft((value) => ({ ...value, recordIds: linked.has(record.opportunityId) ? value.recordIds.filter((id) => id !== record.opportunityId) : [...value.recordIds, record.opportunityId] }))} /><span><strong>{record.id}</strong><small>{record.title}</small></span></label>)}</div> : <p className="if-field__hint">Star records in Transactions to link them here.</p>}
-          </ControlDisclosure>
-          </div>
           </ControlDisclosure>
       </form>
   </ControlDialog>;
@@ -1077,7 +1101,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const focusSavedEvent = (event) => {
     const saved = event || {};
     setEditor(null);
-    showToast({ tone: "success", title: "Event changes saved", message: `${saved.title || "The event"} is updated and focused in Events.`, duration: 7000 });
+    showToast({ tone: "success", title: "Event changes saved", message: `${saved.title || "The event"} is focused in Events.`, duration: 7000 });
     window.location.hash = `#/budget-spend/schedule?scheduleView=list&event=${encodeURIComponent(saved.id || "")}`;
   };
   const applyReviewedEvent = async (event) => {
@@ -1095,8 +1119,8 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
     {view === "users" ? auth?.user?.canManageAccounts ? <Suspense fallback={<RouteFallback title="Accounts" />}><UserManagement auth={auth} /></Suspense> : <section className="ops-panel" data-users-unavailable><ControlAsyncState compact state="empty" icon={<UsersRound size={22} />} title="Super user access required" message="Global account lifecycle and emulation belong to the immutable Super user." /></section> : null}
     {view === "workspaces" ? auth?.user?.roleId === "super_user" ? <Suspense fallback={<RouteFallback title="Workspaces" />}><WorkspaceManagement auth={auth} /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Super user access required" message="Cross-workspace administration is limited to the immutable Super user." /></section> : null}
     {view === "workspace-settings" ? auth?.user?.canManageWorkspace ? <Suspense fallback={<RouteFallback title="Workspace settings" />}><WorkspaceManagement auth={auth} activeOnly /></Suspense> : <section className="ops-panel" data-workspaces-unavailable><ControlAsyncState compact state="empty" icon={<Building2 size={22} />} title="Workspace manager access required" message="Your role cannot configure this workspace." /></section> : null}
-    {editor?.mode === "add-launcher" ? <AddEventDialog catalog={state.eventCatalog} existingEvents={state.events} categories={state.eventCategories} teams={state.teams} onCreate={state.createEvent} onAugment={setAugmentEvent} onClose={() => setEditor(null)} /> : null}
-    {editor && editor.mode !== "add-launcher" ? <EventEditor event={editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onSaved={editor.mode === "review" ? focusSavedEvent : null} onClose={() => setEditor(null)} /> : null}
+    {editor?.mode === "add-launcher" ? <AddEventDialog catalog={state.eventCatalog} existingEvents={state.events} categories={state.eventCategories} teams={state.teams} onCreate={state.createEvent} onAugment={setAugmentEvent} onSaved={focusSavedEvent} onClose={() => setEditor(null)} /> : null}
+    {editor && editor.mode !== "add-launcher" ? <EventEditor event={editor.event} review={editor.mode === "review"} records={watchedRecords} categories={state.eventCategories} teams={state.teams} onSave={state.saveEvent} onSaved={focusSavedEvent} onClose={() => setEditor(null)} /> : null}
     {augmentEvent ? <EventAiLauncher key={augmentEvent.id} event={augmentEvent} onClose={() => setAugmentEvent(null)} /> : null}
     {categoryManagerOpen ? <EventCategoryManager categories={state.eventCategories} onSave={state.saveEventCategory} onDelete={state.deleteEventCategory} onClose={() => setCategoryManagerOpen(false)} /> : null}
   </div>;
