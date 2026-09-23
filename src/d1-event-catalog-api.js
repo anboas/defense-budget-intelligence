@@ -58,7 +58,7 @@ export async function eventCategoriesResponse(request, db, principal, segments, 
   return deps.error("method_not_allowed", "Method not allowed", 405);
 }
 
-export async function eventDiscoveryResponse(request, db, deps) {
+export async function eventDiscoveryResponse(request, db, deps, env = {}) {
   if (!deps.sameOriginRequest(request)) return deps.json({ error: "Cross-origin discovery management is not allowed" }, 403);
   const session = await deps.sessionUser(db, request);
   if (!session) return deps.json({ error: "Sign in required" }, 401);
@@ -67,14 +67,14 @@ export async function eventDiscoveryResponse(request, db, deps) {
   const candidateId = deps.cleanText(decodeURIComponent(pathname.slice("/api/v1/auth/event-discovery".length).replace(/^\//, "")), 100);
   if (request.method === "GET" && !candidateId) {
     const params = new URL(request.url).searchParams;
-    return deps.json(await eventDiscoverySnapshot(db, { status: params.get("status"), limit: params.get("limit") }));
+    return deps.json(await eventDiscoverySnapshot(db, { status: params.get("status"), view: params.get("view"), limit: params.get("limit") }));
   }
   if (request.method === "POST" && !candidateId) {
     const body = await deps.safeJson(request);
     if (body?.action !== "run") return deps.json({ error: "Use action run to start official-source discovery" }, 400);
-    const result = await runEventDiscoverySweep(db, { catalog: eventCatalog(), maxSources: Math.max(1, Math.min(5, Number(body?.maxSources) || 2)) });
+    const result = await runEventDiscoverySweep(db, { catalog: eventCatalog(), maxSources: Math.max(1, Math.min(8, Number(body?.maxSources) || 4)), appOrigin: env.DBI_APP_ORIGIN || new URL(request.url).origin });
     await deps.recordActivity(db, { type: "user", id: session.user_id, workspaceId: session.active_workspace_id || deps.defaultWorkspaceId }, "event_discovery_run", "event_discovery", "", result);
-    return deps.json({ result, ...(await eventDiscoverySnapshot(db)) }, 202);
+    return deps.json({ result, ...(await eventDiscoverySnapshot(db, { view: body?.view || "ready" })) }, 202);
   }
   if (request.method === "PATCH" && candidateId) {
     const body = await deps.safeJson(request);
@@ -96,7 +96,7 @@ export async function eventDiscoverySchedulerResponse(request, db, env, deps) {
   const expected = String(env.DBI_SCHEDULER_TOKEN || "");
   const supplied = String(request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (expected.length < 32 || supplied.length !== expected.length || await deps.hashValue(expected) !== await deps.hashValue(supplied)) return deps.json({ error: "Unauthorized" }, 401);
-  return deps.json(await runEventDiscoverySweep(db, { catalog: eventCatalog(), maxSources: 2 }));
+  return deps.json(await runEventDiscoverySweep(db, { catalog: eventCatalog(), maxSources: 4, appOrigin: env.DBI_APP_ORIGIN || new URL(request.url).origin }));
 }
 
 export async function eventCatalogResponse(request, db, principal, segments, deps) {

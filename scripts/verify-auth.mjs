@@ -418,6 +418,10 @@ try {
   await eventDialog.locator("[data-event-discovery-review]").waitFor();
   await eventDialog.getByText("No pending candidates", { exact: true }).waitFor();
   assert.match(await eventDialog.locator("[data-event-discovery-review]").innerText(), /Official-source discovery queue[\s\S]*Nothing enters the catalog until you publish it here/i, "The discovery queue must explain its curator approval boundary");
+  for (const view of ["Leads", "Ready", "Updates", "Duplicates", "Failures"]) assert.equal(await eventDialog.getByRole("button", { name: new RegExp(`^${view}`) }).count(), 1, `Discovery review must expose the ${view} queue`);
+  await eventDialog.getByRole("button", { name: /^Failures/ }).click();
+  await eventDialog.getByText("No pending candidates", { exact: true }).waitFor();
+  await eventDialog.getByRole("button", { name: /^Ready/ }).click();
   await eventDialog.getByRole("button", { name: "Search catalog" }).click();
   const catalogDialogGeometry = await eventDialog.evaluate((node) => {
     const bounds = node.getBoundingClientRect();

@@ -30,6 +30,18 @@ export const EVENT_DISCOVERY_SCHEMA = Object.freeze([
     reviewed_at TEXT NOT NULL DEFAULT ''
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_event_discovery_candidates_status ON dbi_event_discovery_candidates (status, discovered_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_event_discovery_source_state (
+    source_id TEXT PRIMARY KEY,
+    etag TEXT NOT NULL DEFAULT '',
+    last_modified TEXT NOT NULL DEFAULT '',
+    content_hash TEXT NOT NULL DEFAULT '',
+    last_success_at TEXT NOT NULL DEFAULT '',
+    last_failure_at TEXT NOT NULL DEFAULT '',
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    candidates_seen INTEGER NOT NULL DEFAULT 0,
+    candidates_added INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS dbi_event_catalog_entries (
     id TEXT PRIMARY KEY,
     series_id TEXT NOT NULL,
@@ -64,6 +76,22 @@ function httpUrl(value, baseUrl = "") {
     return ["http:", "https:"].includes(result.protocol) ? result.toString() : "";
   } catch { return ""; }
 }
+function canonicalUrl(value, baseUrl = "") {
+  const result = httpUrl(value, baseUrl);
+  if (!result) return "";
+  const url = new URL(result);
+  url.hash = "";
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(utm_|fbclid|gclid)/i.test(key)) url.searchParams.delete(key);
+  }
+  return url.toString();
+}
+function decodeEntities(value) {
+  return clean(String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">"), 1600);
+}
 function locationValue(value) {
   if (typeof value === "string") return clean(value, 500);
   const address = value?.address || value || {};
@@ -94,6 +122,42 @@ function unwrapJsonLd(value) {
   return text;
 }
 
+function candidateFromFields(fields, source, evidenceUrl = source.url, discoveryKind = "structured") {
+  const title = clean(fields.title, 180);
+  if (title.length < 3) return null;
+  const startsAt = dateValue(fields.startsAt);
+  const endsAt = dateValue(fields.endsAt);
+  const officialUrl = canonicalUrl(fields.officialUrl, evidenceUrl) || canonicalUrl(evidenceUrl) || source.url;
+  return {
+    title,
+    seriesId: slug(title.replace(/\b20\d{2}\b/g, "")),
+    summary: clean(fields.summary, 1600),
+    startsAt,
+    endsAt,
+    timezone: clean(fields.timezone, 80),
+    location: clean(fields.location, 500),
+    venue: clean(fields.venue, 240),
+    city: clean(fields.city, 120),
+    region: clean(fields.region, 80),
+    country: clean(fields.country, 120),
+    format: clean(fields.format, 40) || "in_person",
+    eventType: clean(fields.eventType, 80) || "event",
+    branch: source.branch || "Joint",
+    sponsor: clean(fields.sponsor || source.name, 180),
+    status: clean(fields.status, 40) || (startsAt ? "discovered" : "lead"),
+    confidence: startsAt ? "medium" : "low",
+    lastVerifiedAt: new Date().toISOString().slice(0, 10),
+    topics: safeArray(fields.topics).map((item) => clean(item, 120)).filter(Boolean).slice(0, 20),
+    capabilityAreas: [], missionThreads: [], stakeholders: [], keywords: [], milestones: [],
+    links: [{ label: "Official event", url: officialUrl }],
+    sources: [{ title, publisher: source.name, url: officialUrl, kind: "official", confidence: startsAt ? "medium" : "low", lastVerifiedAt: new Date().toISOString().slice(0, 10) }],
+    caveats: [startsAt
+      ? `Discovered from official ${discoveryKind} data. A curator must verify and publish this edition.`
+      : `Discovery lead from an official ${discoveryKind} source. Date and details still require verification.`],
+    discovery: { adapter: source.adapter || "jsonld", kind: discoveryKind, sourceId: source.id },
+  };
+}
+
 export function extractOfficialEventCandidates(html, source) {
   const scripts = [...String(html || "").matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   const candidates = [];
@@ -103,38 +167,22 @@ export function extractOfficialEventCandidates(html, source) {
       const types = safeArray(node?.["@type"]).map((item) => clean(item, 80).toLowerCase());
       if (!types.some((type) => type === "event" || type.endsWith("event"))) continue;
       const title = clean(node.name || node.headline, 180);
+      if (title.length < 3) continue;
       const startsAt = dateValue(node.startDate);
-      if (title.length < 3 || !startsAt) continue;
       const endsAt = dateValue(node.endDate);
-      const officialUrl = httpUrl(node.url, source.url) || source.url;
       const location = locationValue(node.location);
       const eventStatus = clean(node.eventStatus, 180).toLowerCase();
       const attendanceMode = clean(node.eventAttendanceMode, 180).toLowerCase();
-      candidates.push({
-        title,
-        seriesId: slug(title.replace(/\b20\d{2}\b/g, "")),
-        summary: clean(node.description, 1600),
-        startsAt,
-        endsAt,
-        timezone: "",
-        location,
-        venue: typeof node.location === "object" ? clean(node.location?.name, 240) : "",
-        city: typeof node.location === "object" ? clean(node.location?.address?.addressLocality, 120) : "",
-        region: typeof node.location === "object" ? clean(node.location?.address?.addressRegion, 80) : "",
-        country: typeof node.location === "object" ? clean(node.location?.address?.addressCountry, 120) : "",
-        format: attendanceMode.includes("online") && attendanceMode.includes("mixed") ? "hybrid" : attendanceMode.includes("online") ? "virtual" : "in_person",
-        eventType: "event",
-        branch: source.branch || "Joint",
-        sponsor: clean(node.organizer?.name || source.name, 180),
-        status: eventStatus.includes("cancel") ? "cancelled" : "discovered",
-        confidence: "medium",
-        lastVerifiedAt: new Date().toISOString().slice(0, 10),
-        topics: safeArray(node.keywords).flatMap((item) => String(item || "").split(",")).map((item) => clean(item, 120)).filter(Boolean).slice(0, 20),
-        capabilityAreas: [], missionThreads: [], stakeholders: [], keywords: [], milestones: [],
-        links: [{ label: "Official event", url: officialUrl }],
-        sources: [{ title, publisher: source.name, url: officialUrl, kind: "official", confidence: "medium", lastVerifiedAt: new Date().toISOString().slice(0, 10) }],
-        caveats: ["Discovered from official structured data. A curator must verify and publish this edition."],
-      });
+      candidates.push(candidateFromFields({
+        title, summary: node.description, startsAt, endsAt, officialUrl: node.url,
+        location, venue: typeof node.location === "object" ? node.location?.name : "",
+        city: typeof node.location === "object" ? node.location?.address?.addressLocality : "",
+        region: typeof node.location === "object" ? node.location?.address?.addressRegion : "",
+        country: typeof node.location === "object" ? node.location?.address?.addressCountry : "",
+        format: attendanceMode.includes("mixed") ? "hybrid" : attendanceMode.includes("online") ? "virtual" : "in_person",
+        sponsor: node.organizer?.name, status: eventStatus.includes("cancel") ? "cancelled" : startsAt ? "discovered" : "",
+        topics: safeArray(node.keywords).flatMap((item) => String(item || "").split(",")),
+      }, source, source.url, "JSON-LD"));
     }
   }
   const seen = new Set();
@@ -144,23 +192,219 @@ export function extractOfficialEventCandidates(html, source) {
   });
 }
 
+const EVENT_LINK_HINT = /\b(event|events|conference|symposium|summit|forum|industry[- ]day|vendor[- ]outreach|small[- ]business|workshop|expo|meeting|briefing|webinar|matchmaking|apbi)\b/i;
+const TRUSTED_REGISTRATION_HOSTS = new Set(["events.cvent.com", "www.eventbrite.com", "eventbrite.com"]);
+
+function detailUrlAllowed(value, source) {
+  const result = canonicalUrl(value, source.url);
+  if (!result) return false;
+  const host = new URL(result).hostname.toLowerCase();
+  const sourceHost = new URL(source.url).hostname.toLowerCase();
+  return host === sourceHost || host.endsWith(`.${sourceHost}`) || safeArray(source.allowedHosts).includes(host) || TRUSTED_REGISTRATION_HOSTS.has(host);
+}
+
+export function extractOfficialDetailLinks(html, source) {
+  const links = [];
+  for (const match of String(html || "").matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const title = decodeEntities(match[2]);
+    const url = canonicalUrl(match[1], source.url);
+    if (!url || !detailUrlAllowed(url, source) || (!EVENT_LINK_HINT.test(title) && !EVENT_LINK_HINT.test(new URL(url).pathname.replace(/[-_/]+/g, " ")))) continue;
+    links.push({ title: title || decodeEntities(new URL(url).pathname.replace(/[-_/]+/g, " ")), url });
+  }
+  return [...new Map(links.map((link) => [link.url, link])).values()].slice(0, Math.max(1, Number(source.maxDetailPages) || 6));
+}
+
+export function extractFeedEventLinks(xml, source) {
+  const entries = [...String(xml || "").matchAll(/<(?:item|entry)\b[^>]*>([\s\S]*?)<\/(?:item|entry)>/gi)];
+  return entries.map((entry) => {
+    const body = entry[1];
+    const title = decodeEntities(body.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]);
+    const href = body.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1]
+      || decodeEntities(body.match(/<link\b[^>]*>([\s\S]*?)<\/link>/i)?.[1]);
+    const url = canonicalUrl(href, source.url);
+    const summary = decodeEntities(body.match(/<(?:description|summary|content)\b[^>]*>([\s\S]*?)<\/(?:description|summary|content)>/i)?.[1]);
+    return title.length >= 3 && url && detailUrlAllowed(url, source) ? { title, url, summary } : null;
+  }).filter(Boolean).slice(0, Math.max(1, Number(source.maxDetailPages) || 8));
+}
+
+export function extractSitemapEventLinks(xml, source) {
+  return [...String(xml || "").matchAll(/<loc\b[^>]*>([\s\S]*?)<\/loc>/gi)]
+    .map((match) => canonicalUrl(decodeEntities(match[1]), source.url))
+    .filter((url) => url && detailUrlAllowed(url, source) && EVENT_LINK_HINT.test(new URL(url).pathname.replace(/[-_/]+/g, " ")))
+    .filter((url, index, rows) => rows.indexOf(url) === index)
+    .slice(0, Math.max(1, Number(source.maxDetailPages) || 8))
+    .map((url) => ({ title: decodeEntities(new URL(url).pathname.replace(/[-_/]+/g, " ")), url }));
+}
+
+function icsDate(value) {
+  const text = clean(value, 40).replace(/Z$/, "");
+  const match = text.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?)?$/);
+  if (!match) return dateValue(text);
+  return `${match[1]}-${match[2]}-${match[3]}T${match[4] || "08"}:${match[5] || "00"}`;
+}
+
+export function extractIcsEventCandidates(ics, source) {
+  const unfolded = String(ics || "").replace(/\r?\n[ \t]/g, "");
+  return [...unfolded.matchAll(/BEGIN:VEVENT\r?\n([\s\S]*?)END:VEVENT/gi)].map((match) => {
+    const lines = match[1].split(/\r?\n/);
+    const value = (name) => lines.find((line) => line.toUpperCase().startsWith(`${name}:`) || line.toUpperCase().startsWith(`${name};`))?.replace(/^[^:]*:/, "") || "";
+    return candidateFromFields({
+      title: value("SUMMARY").replace(/\\([,;])/g, "$1"),
+      summary: value("DESCRIPTION").replace(/\\n/gi, " "),
+      startsAt: icsDate(value("DTSTART")), endsAt: icsDate(value("DTEND")),
+      location: value("LOCATION").replace(/\\([,;])/g, "$1"), officialUrl: value("URL"),
+    }, source, source.url, "ICS calendar");
+  }).filter(Boolean);
+}
+
+export function extractSamEventCandidates(payload, source) {
+  const EVENT_NOTICE = /\b(industry day|vendor outreach|pre[- ]solicitation conference|pre[- ]proposal conference|business opportunity (?:event|session)|apbi|matchmaking|site visit|small business (?:event|conference|outreach)|industry engagement|draft rfp briefing)\b/i;
+  return safeArray(payload?.records || payload?.opportunitiesData).filter((record) => EVENT_NOTICE.test(`${record?.title || ""} ${record?.description || ""}`)).map((record) => candidateFromFields({
+    title: record.title,
+    summary: record.description,
+    officialUrl: record.sourceUrl || record.uiLink,
+    sponsor: record.office || record.subTier || record.department || source.name,
+    eventType: "industry_engagement",
+    topics: [record.noticeType, record.naicsCode ? `NAICS ${record.naicsCode}` : ""].filter(Boolean),
+  }, source, source.url, "SAM.gov notice")).filter(Boolean);
+}
+
+function minimalLead(link, source, kind) {
+  return candidateFromFields({ title: link.title, summary: link.summary, officialUrl: link.url }, source, link.url, kind);
+}
+
+async function fetchSource(fetchImpl, url, { etag = "", lastModified = "", accept = "text/html,application/xhtml+xml,application/xml,text/calendar,application/json" } = {}) {
+  const headers = { accept, "user-agent": "DefenseBudgetIntelligence-EventDiscovery/2.0" };
+  if (etag) headers["if-none-match"] = etag;
+  if (lastModified) headers["if-modified-since"] = lastModified;
+  const response = await fetchImpl(url, { headers });
+  if (response.status === 304) return { unchanged: true, response, text: "" };
+  if (!response.ok) throw Object.assign(new Error(`Official source returned ${response.status}`), { code: "source_http_error" });
+  return { unchanged: false, response, text: (await response.text()).slice(0, 2_000_000) };
+}
+
+function uniqueCandidates(candidates) {
+  const seen = new Set();
+  return candidates.filter(Boolean).filter((candidate) => {
+    const url = candidate.sources?.[0]?.url || "";
+    const key = `${clean(candidate.title, 180).toLowerCase()}|${clean(candidate.startsAt, 10)}|${url}`;
+    return !seen.has(key) && seen.add(key);
+  });
+}
+
+export async function discoverSourceCandidates(source, { fetchImpl = fetch, state = {}, appOrigin = "https://defense-budget-intelligence.pages.dev" } = {}) {
+  if (source.adapter === "sam_feed") {
+    const feedUrl = new URL("/data/sam-opportunities.json", appOrigin).toString();
+    const document = await fetchSource(fetchImpl, feedUrl, { etag: state.etag, lastModified: state.lastModified, accept: "application/json" });
+    if (document.unchanged) return { candidates: [], unchanged: true, response: document.response, contentHash: state.contentHash || "" };
+    const contentHash = await sha256(document.text);
+    if (state.contentHash && state.contentHash === contentHash) return { candidates: [], unchanged: true, response: document.response, contentHash };
+    const payload = parsed(document.text, null);
+    if (!payload) throw Object.assign(new Error("SAM.gov discovery feed was invalid JSON"), { code: "source_parse_error" });
+    return { candidates: extractSamEventCandidates(payload, source), unchanged: false, response: document.response, contentHash };
+  }
+
+  const document = await fetchSource(fetchImpl, source.url, { etag: state.etag, lastModified: state.lastModified });
+  if (document.unchanged) return { candidates: [], unchanged: true, response: document.response, contentHash: state.contentHash || "" };
+  const contentHash = await sha256(document.text);
+  if (state.contentHash && state.contentHash === contentHash) return { candidates: [], unchanged: true, response: document.response, contentHash };
+  const contentType = String(document.response.headers.get("content-type") || "").toLowerCase();
+  const adapter = source.adapter || "jsonld";
+  if (adapter === "ics" || contentType.includes("text/calendar") || /^BEGIN:VCALENDAR/i.test(document.text.trim())) {
+    return { candidates: extractIcsEventCandidates(document.text, source), unchanged: false, response: document.response, contentHash };
+  }
+  if (adapter === "rss" || contentType.includes("rss") || contentType.includes("atom")) {
+    const links = extractFeedEventLinks(document.text, source);
+    const candidates = [];
+    for (const link of links) {
+      const detail = await fetchSource(fetchImpl, link.url);
+      const extracted = extractOfficialEventCandidates(detail.text, { ...source, url: link.url });
+      candidates.push(...(extracted.length ? extracted : [minimalLead(link, source, "RSS/Atom feed")]));
+    }
+    return { candidates: uniqueCandidates(candidates), unchanged: false, response: document.response, contentHash };
+  }
+  if (adapter === "sitemap" || contentType.includes("sitemap") || /<urlset\b/i.test(document.text)) {
+    const links = extractSitemapEventLinks(document.text, source);
+    const candidates = [];
+    for (const link of links) {
+      const detail = await fetchSource(fetchImpl, link.url);
+      const extracted = extractOfficialEventCandidates(detail.text, { ...source, url: link.url });
+      candidates.push(...(extracted.length ? extracted : [minimalLead(link, source, "sitemap")]));
+    }
+    return { candidates: uniqueCandidates(candidates), unchanged: false, response: document.response, contentHash };
+  }
+
+  const candidates = extractOfficialEventCandidates(document.text, source);
+  if (adapter === "list_detail") {
+    for (const link of extractOfficialDetailLinks(document.text, source)) {
+      const detail = await fetchSource(fetchImpl, link.url);
+      const extracted = extractOfficialEventCandidates(detail.text, { ...source, url: link.url });
+      candidates.push(...(extracted.length ? extracted : [minimalLead(link, source, "official event listing")]));
+    }
+  }
+  return { candidates: uniqueCandidates(candidates), unchanged: false, response: document.response, contentHash };
+}
+
 export function eventCandidateFingerprint(candidate, sourceId = "") {
-  return [sourceId, clean(candidate?.title, 180).toLowerCase(), clean(candidate?.startsAt, 10)].join("|");
+  const url = safeArray(candidate?.sources).map((source) => canonicalUrl(source?.url)).find(Boolean) || "";
+  return [sourceId, clean(candidate?.title, 180).toLowerCase(), clean(candidate?.startsAt, 10), url].join("|");
 }
 
 function catalogIdentity(event) {
   return `${slug(event?.seriesId || String(event?.title || "").replace(/\b20\d{2}\b/g, ""))}|${clean(event?.startsAt, 10)}`;
 }
 
-export function findCatalogDuplicate(candidate, catalog = []) {
+function titleTokens(value) {
+  return new Set(slug(String(value || "").replace(/\b20\d{2}\b/g, "")).split("-").filter((token) => token.length > 2));
+}
+
+function tokenSimilarity(left, right) {
+  const a = titleTokens(left); const b = titleTokens(right);
+  const union = new Set([...a, ...b]);
+  return union.size ? [...a].filter((token) => b.has(token)).length / union.size : 0;
+}
+
+function dateDistanceDays(left, right) {
+  if (!left || !right) return null;
+  const distance = Math.abs(Date.parse(left) - Date.parse(right));
+  return Number.isFinite(distance) ? Math.round(distance / 86_400_000) : null;
+}
+
+export function catalogCandidateChanges(candidate, event) {
+  const changes = [];
+  for (const field of ["startsAt", "endsAt", "location", "venue", "city", "region", "country", "sponsor"]) {
+    const proposed = clean(candidate?.[field], 500);
+    const existing = clean(event?.[field], 500);
+    if (proposed && proposed.toLowerCase() !== existing.toLowerCase()) changes.push({ field, from: existing, to: proposed });
+  }
+  if (candidate?.status === "cancelled" && event?.status !== "cancelled") changes.push({ field: "status", from: clean(event?.status, 40), to: "cancelled" });
+  return changes;
+}
+
+export function findCatalogDuplicateMatch(candidate, catalog = []) {
   const identity = catalogIdentity(candidate);
   const candidateDate = clean(candidate?.startsAt, 10);
-  const candidateUrls = new Set(safeArray(candidate?.sources).map((source) => httpUrl(source?.url)).filter(Boolean));
-  return catalog.find((event) => {
-    if (catalogIdentity(event) === identity) return true;
-    if (candidateDate && clean(event?.startsAt, 10) !== candidateDate) return false;
-    return safeArray(event?.sources).some((source) => candidateUrls.has(httpUrl(source?.url)));
-  }) || null;
+  const candidateUrls = new Set(safeArray(candidate?.sources).map((source) => canonicalUrl(source?.url)).filter(Boolean));
+  let best = null;
+  for (const event of catalog) {
+    const reasons = [];
+    let score = 0;
+    if (catalogIdentity(event) === identity) { score += 100; reasons.push("same recurring series and date"); }
+    const sharedUrl = safeArray(event?.sources).some((source) => candidateUrls.has(canonicalUrl(source?.url)));
+    if (sharedUrl) { score += 90; reasons.push("same canonical official URL"); }
+    const similarity = tokenSimilarity(candidate?.title, event?.title);
+    const distance = dateDistanceDays(candidateDate, clean(event?.startsAt, 10));
+    if (similarity >= 0.72) { score += Math.round(similarity * 60); reasons.push(`${Math.round(similarity * 100)}% title-token match`); }
+    if (distance !== null && distance <= 7) { score += 25 - Math.min(21, distance * 3); reasons.push(distance ? `dates are ${distance} days apart` : "same date"); }
+    if (candidate?.city && clean(candidate.city, 120).toLowerCase() === clean(event?.city, 120).toLowerCase()) { score += 10; reasons.push("same city"); }
+    if (candidate?.sponsor && clean(candidate.sponsor, 180).toLowerCase() === clean(event?.sponsor, 180).toLowerCase()) { score += 10; reasons.push("same organizer"); }
+    if ((score >= 90 || (score >= 70 && (distance === null || distance <= 7))) && (!best || score > best.score)) best = { event, score, reasons, changes: catalogCandidateChanges(candidate, event) };
+  }
+  return best;
+}
+
+export function findCatalogDuplicate(candidate, catalog = []) {
+  return findCatalogDuplicateMatch(candidate, catalog)?.event || null;
 }
 
 export async function dynamicEventCatalog(db) {
@@ -168,48 +412,88 @@ export async function dynamicEventCatalog(db) {
   return (result.results || []).map((row) => parsed(row.event_json, null)).filter(Boolean);
 }
 
-export async function runEventDiscoverySweep(db, { fetchImpl = fetch, catalog = [], maxSources = 2, now = new Date() } = {}) {
-  const latest = await db.prepare("SELECT source_id, MAX(started_at) AS last_started_at FROM dbi_event_discovery_runs GROUP BY source_id").all();
-  const lastBySource = new Map((latest.results || []).map((row) => [row.source_id, row.last_started_at]));
+function stateFromRow(row = {}) {
+  return {
+    sourceId: row.source_id || "", etag: row.etag || "", lastModified: row.last_modified || "", contentHash: row.content_hash || "",
+    lastSuccessAt: row.last_success_at || "", lastFailureAt: row.last_failure_at || "", consecutiveFailures: Number(row.consecutive_failures || 0),
+    candidatesSeen: Number(row.candidates_seen || 0), candidatesAdded: Number(row.candidates_added || 0), updatedAt: row.updated_at || "",
+  };
+}
+
+function sourcePriority(source, state, now) {
+  const lastAttempt = Date.parse(state?.updatedAt || "");
+  const elapsedHours = Number.isFinite(lastAttempt) ? (now.getTime() - lastAttempt) / 3_600_000 : Number.POSITIVE_INFINITY;
+  const cadence = Math.max(1, Number(source.cadenceHours) || 24);
+  const backoff = state?.consecutiveFailures ? Math.min(48, 2 ** Math.min(5, state.consecutiveFailures)) : 0;
+  const due = !Number.isFinite(elapsedHours) || elapsedHours >= Math.max(cadence, backoff);
+  const score = (!Number.isFinite(elapsedHours) ? 10_000 : Math.min(1000, elapsedHours * 10)) + Number(source.priority || 0) + (state?.consecutiveFailures ? Math.max(0, 40 - state.consecutiveFailures * 10) : 50);
+  return { due, score };
+}
+
+export async function runEventDiscoverySweep(db, { fetchImpl = fetch, catalog = [], maxSources = 2, now = new Date(), appOrigin = "https://defense-budget-intelligence.pages.dev" } = {}) {
+  const stateRows = await db.prepare("SELECT * FROM dbi_event_discovery_source_state").all();
+  const stateBySource = new Map((stateRows.results || []).map((row) => [row.source_id, stateFromRow(row)]));
   const sources = [...EVENT_CATALOG_SOURCE_REGISTRY]
-    .filter((source) => source.id !== "sam")
-    .sort((left, right) => String(lastBySource.get(left.id) || "").localeCompare(String(lastBySource.get(right.id) || "")) || right.priority - left.priority)
-    .slice(0, Math.max(1, Math.min(5, Number(maxSources) || 2)));
+    .map((source) => ({ source, state: stateBySource.get(source.id) || null, scheduling: sourcePriority(source, stateBySource.get(source.id), now) }))
+    .filter((entry) => entry.scheduling.due)
+    .sort((left, right) => right.scheduling.score - left.scheduling.score || right.source.priority - left.source.priority)
+    .slice(0, Math.max(1, Math.min(8, Number(maxSources) || 2)));
   const dynamic = await dynamicEventCatalog(db);
   const knownCatalog = [...catalog, ...dynamic];
   const results = [];
-  for (const source of sources) {
+  for (const { source, state } of sources) {
     const runId = crypto.randomUUID();
     const startedAt = now.toISOString();
     await db.prepare("INSERT INTO dbi_event_discovery_runs (id, source_id, source_url, status, started_at) VALUES (?, ?, ?, 'running', ?)")
       .bind(runId, source.id, source.url, startedAt).run();
     try {
-      const response = await fetchImpl(source.url, { headers: { accept: "text/html,application/xhtml+xml", "user-agent": "DefenseBudgetIntelligence-EventDiscovery/1.0" } });
-      if (!response.ok) throw Object.assign(new Error(`Official source returned ${response.status}`), { code: "source_http_error" });
-      const html = (await response.text()).slice(0, 2_000_000);
-      const candidates = extractOfficialEventCandidates(html, source);
+      const discovery = await discoverSourceCandidates(source, { fetchImpl, state: state || {}, appOrigin });
+      const candidates = discovery.candidates;
       let added = 0;
       for (const candidate of candidates) {
-        const duplicate = findCatalogDuplicate(candidate, knownCatalog);
+        const duplicate = findCatalogDuplicateMatch(candidate, knownCatalog);
+        const enriched = duplicate ? { ...candidate, duplicateMatch: { catalogEventId: duplicate.event.id, reasons: duplicate.reasons, changes: duplicate.changes, baseEvent: duplicate.event } } : candidate;
         const fingerprint = await sha256(eventCandidateFingerprint(candidate, source.id));
         const id = `candidate-${fingerprint.slice(0, 24)}`;
         const evidence = candidate.sources || [];
         const result = await db.prepare(`INSERT OR IGNORE INTO dbi_event_discovery_candidates
           (id, run_id, source_id, source_url, fingerprint, status, candidate_json, evidence_json, duplicate_catalog_id, discovered_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-          .bind(id, runId, source.id, source.url, fingerprint, duplicate ? "duplicate" : "pending", JSON.stringify(candidate), JSON.stringify(evidence), duplicate?.id || "", startedAt).run();
+          .bind(id, runId, source.id, source.url, fingerprint, duplicate ? (duplicate.changes.length ? "update" : "duplicate") : "pending", JSON.stringify(enriched), JSON.stringify(evidence), duplicate?.event?.id || "", startedAt).run();
         if (Number(result?.meta?.changes || 0)) added += 1;
+        else await db.prepare(`UPDATE dbi_event_discovery_candidates SET run_id = ?, status = ?, candidate_json = ?, evidence_json = ?, duplicate_catalog_id = ?, discovered_at = ?
+          WHERE fingerprint = ? AND status IN ('pending', 'duplicate', 'update')`)
+          .bind(runId, duplicate ? (duplicate.changes.length ? "update" : "duplicate") : "pending", JSON.stringify(enriched), JSON.stringify(evidence), duplicate?.event?.id || "", startedAt, fingerprint).run();
       }
-      await db.prepare("UPDATE dbi_event_discovery_runs SET status = 'succeeded', candidates_seen = ?, candidates_added = ?, completed_at = ? WHERE id = ?")
-        .bind(candidates.length, added, new Date().toISOString(), runId).run();
-      results.push({ sourceId: source.id, status: "succeeded", seen: candidates.length, added });
+      const completedAt = new Date().toISOString();
+      const runStatus = discovery.unchanged ? "unchanged" : "succeeded";
+      await db.batch([
+        db.prepare("UPDATE dbi_event_discovery_runs SET status = ?, candidates_seen = ?, candidates_added = ?, completed_at = ? WHERE id = ?")
+          .bind(runStatus, candidates.length, added, completedAt, runId),
+        db.prepare(`INSERT INTO dbi_event_discovery_source_state
+          (source_id, etag, last_modified, content_hash, last_success_at, last_failure_at, consecutive_failures, candidates_seen, candidates_added, updated_at)
+          VALUES (?, ?, ?, ?, ?, '', 0, ?, ?, ?)
+          ON CONFLICT(source_id) DO UPDATE SET etag = excluded.etag, last_modified = excluded.last_modified, content_hash = excluded.content_hash,
+            last_success_at = excluded.last_success_at, consecutive_failures = 0, candidates_seen = excluded.candidates_seen,
+            candidates_added = excluded.candidates_added, updated_at = excluded.updated_at`)
+          .bind(source.id, clean(discovery.response?.headers?.get("etag"), 300), clean(discovery.response?.headers?.get("last-modified"), 100), discovery.contentHash || state?.contentHash || "", completedAt, candidates.length, added, completedAt),
+      ]);
+      results.push({ sourceId: source.id, adapter: source.adapter, status: runStatus, seen: candidates.length, added });
     } catch (error) {
-      await db.prepare("UPDATE dbi_event_discovery_runs SET status = 'failed', error_code = ?, error_message = ?, completed_at = ? WHERE id = ?")
-        .bind(clean(error?.code || "source_unavailable", 80), clean(error?.message, 500), new Date().toISOString(), runId).run();
-      results.push({ sourceId: source.id, status: "failed", code: clean(error?.code || "source_unavailable", 80) });
+      const completedAt = new Date().toISOString();
+      await db.batch([
+        db.prepare("UPDATE dbi_event_discovery_runs SET status = 'failed', error_code = ?, error_message = ?, completed_at = ? WHERE id = ?")
+          .bind(clean(error?.code || "source_unavailable", 80), clean(error?.message, 500), completedAt, runId),
+        db.prepare(`INSERT INTO dbi_event_discovery_source_state
+          (source_id, last_failure_at, consecutive_failures, updated_at) VALUES (?, ?, 1, ?)
+          ON CONFLICT(source_id) DO UPDATE SET last_failure_at = excluded.last_failure_at,
+            consecutive_failures = dbi_event_discovery_source_state.consecutive_failures + 1, updated_at = excluded.updated_at`)
+          .bind(source.id, completedAt, completedAt),
+      ]);
+      results.push({ sourceId: source.id, adapter: source.adapter, status: "failed", code: clean(error?.code || "source_unavailable", 80) });
     }
   }
-  return { sourcesAttempted: results.length, succeeded: results.filter((result) => result.status === "succeeded").length, results };
+  return { sourcesAttempted: results.length, succeeded: results.filter((result) => ["succeeded", "unchanged"].includes(result.status)).length, results };
 }
 
 function candidateFromRow(row) {
@@ -220,25 +504,51 @@ function candidateFromRow(row) {
   } : null;
 }
 
-export async function eventDiscoverySnapshot(db, { status = "pending", limit = 100 } = {}) {
-  const safeStatus = ["pending", "published", "rejected", "duplicate"].includes(status) ? status : "pending";
-  const [rows, counts, latest] = await Promise.all([
-    db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = ? ORDER BY discovered_at DESC LIMIT ?").bind(safeStatus, Math.max(1, Math.min(200, Number(limit) || 100))).all(),
+export async function eventDiscoverySnapshot(db, { status = "", view = "", limit = 100 } = {}) {
+  const selectedView = ["leads", "ready", "updates", "duplicates", "failures", "published", "rejected"].includes(view || status) ? (view || status) : "ready";
+  const resultLimit = Math.max(1, Math.min(200, Number(limit) || 100));
+  const [pendingRows, selectedRows, counts, latest, failures, stateRows] = await Promise.all([
+    db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'pending' ORDER BY discovered_at DESC LIMIT 500").all(),
+    selectedView === "updates" ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'update' ORDER BY discovered_at DESC LIMIT ?").bind(resultLimit).all()
+      : selectedView === "duplicates" ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'duplicate' ORDER BY discovered_at DESC LIMIT ?").bind(resultLimit).all()
+        : ["published", "rejected"].includes(selectedView) ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = ? ORDER BY discovered_at DESC LIMIT ?").bind(selectedView, resultLimit).all()
+          : Promise.resolve({ results: [] }),
     db.prepare("SELECT status, COUNT(*) AS count FROM dbi_event_discovery_candidates GROUP BY status").all(),
     db.prepare("SELECT * FROM dbi_event_discovery_runs ORDER BY started_at DESC LIMIT 1").first(),
+    db.prepare("SELECT * FROM dbi_event_discovery_runs WHERE status = 'failed' ORDER BY started_at DESC LIMIT ?").bind(resultLimit).all(),
+    db.prepare("SELECT * FROM dbi_event_discovery_source_state").all(),
   ]);
+  const pending = (pendingRows.results || []).map(candidateFromRow);
+  const candidateRows = selectedView === "leads" ? pending.filter((entry) => !entry.candidate.startsAt).slice(0, resultLimit)
+    : selectedView === "ready" ? pending.filter((entry) => entry.candidate.startsAt).slice(0, resultLimit)
+      : (selectedRows.results || []).map(candidateFromRow);
+  const countMap = Object.fromEntries((counts.results || []).map((row) => [row.status, Number(row.count || 0)]));
+  countMap.leads = pending.filter((entry) => !entry.candidate.startsAt).length;
+  countMap.ready = pending.filter((entry) => entry.candidate.startsAt).length;
+  countMap.updates = Number(countMap.update || 0);
+  countMap.duplicates = Number(countMap.duplicate || 0);
+  countMap.failures = (failures.results || []).length;
+  const sourceState = new Map((stateRows.results || []).map((row) => [row.source_id, stateFromRow(row)]));
   return {
-    candidates: (rows.results || []).map(candidateFromRow),
-    counts: Object.fromEntries((counts.results || []).map((row) => [row.status, Number(row.count || 0)])),
+    view: selectedView,
+    candidates: selectedView === "failures" ? [] : candidateRows,
+    failures: selectedView === "failures" ? (failures.results || []).map((row) => ({ id: row.id, sourceId: row.source_id, sourceUrl: row.source_url, errorCode: row.error_code || "source_unavailable", errorMessage: row.error_message || "Source scan failed", startedAt: row.started_at, completedAt: row.completed_at || null })) : [],
+    counts: countMap,
     latestRun: latest ? { id: latest.id, sourceId: latest.source_id, status: latest.status, candidatesSeen: Number(latest.candidates_seen || 0), candidatesAdded: Number(latest.candidates_added || 0), errorCode: latest.error_code || null, startedAt: latest.started_at, completedAt: latest.completed_at || null } : null,
-    sources: EVENT_CATALOG_SOURCE_REGISTRY.map(({ id, name, url, branch, priority }) => ({ id, name, url, branch, priority })),
+    sources: EVENT_CATALOG_SOURCE_REGISTRY.map(({ id, name, url, adapter, branch, priority, cadenceHours, maxDetailPages }) => ({ id, name, url, adapter, branch, priority, cadenceHours, maxDetailPages, health: sourceState.get(id) || null })),
   };
+}
+
+function mergeCandidateWithBase(candidate) {
+  const base = candidate?.duplicateMatch?.baseEvent || {};
+  const proposed = Object.fromEntries(Object.entries(candidate || {}).filter(([key, value]) => key !== "duplicateMatch" && value !== "" && value !== null && value !== undefined && (!Array.isArray(value) || value.length)));
+  return { ...base, ...proposed };
 }
 
 export async function reviewEventCandidate(db, candidateId, { decision, reviewerId, reason = "" } = {}) {
   const row = await db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE id = ?").bind(clean(candidateId, 100)).first();
   if (!row) return { error: "not_found" };
-  if (row.status !== "pending") return { error: "already_reviewed", candidate: candidateFromRow(row) };
+  if (!["pending", "update"].includes(row.status)) return { error: "already_reviewed", candidate: candidateFromRow(row) };
   const now = new Date().toISOString();
   if (decision === "reject") {
     await db.prepare("UPDATE dbi_event_discovery_candidates SET status = 'rejected', rejection_reason = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?")
@@ -246,12 +556,14 @@ export async function reviewEventCandidate(db, candidateId, { decision, reviewer
     return { candidate: candidateFromRow({ ...row, status: "rejected", rejection_reason: clean(reason, 500), reviewed_by: reviewerId, reviewed_at: now }) };
   }
   if (decision !== "publish") return { error: "invalid_decision" };
-  const candidate = parsed(row.candidate_json, {});
-  if (!candidate.title || !candidate.startsAt || !safeArray(candidate.sources).some((source) => httpUrl(source?.url))) return { error: "insufficient_evidence" };
+  const rawCandidate = parsed(row.candidate_json, {});
+  const candidate = mergeCandidateWithBase(rawCandidate);
+  if (!candidate.title || !candidate.startsAt || !safeArray(rawCandidate.sources).some((source) => httpUrl(source?.url))) return { error: "insufficient_evidence" };
   const year = candidate.startsAt.slice(0, 4);
-  const id = `catalog-${slug(candidate.seriesId || candidate.title)}-${year}`;
+  const id = row.status === "update" && row.duplicate_catalog_id ? row.duplicate_catalog_id : `catalog-${slug(candidate.seriesId || candidate.title)}-${year}`;
   const existing = await db.prepare("SELECT revision FROM dbi_event_catalog_entries WHERE id = ?").bind(id).first();
-  const event = { ...candidate, id, revision: Number(existing?.revision || 0) + 1, status: candidate.status === "cancelled" ? "cancelled" : "upcoming", caveats: safeArray(candidate.caveats).filter((item) => !String(item).includes("curator must")) };
+  const baseRevision = Number(rawCandidate?.duplicateMatch?.baseEvent?.revision || 0);
+  const event = { ...candidate, id, revision: Math.max(Number(existing?.revision || 0), baseRevision) + 1, status: candidate.status === "cancelled" ? "cancelled" : "upcoming", caveats: safeArray(candidate.caveats).filter((item) => !String(item).includes("curator must") && !String(item).includes("still require verification")) };
   await db.batch([
     db.prepare(`INSERT INTO dbi_event_catalog_entries (id, series_id, revision, status, event_json, source_candidate_id, published_by, published_at, updated_at)
       VALUES (?, ?, ?, 'published', ?, ?, ?, ?, ?)

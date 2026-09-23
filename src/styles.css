@@ -7496,6 +7496,10 @@ td .dot {
 .event-catalog-browser__status { display: flex; min-height: 2rem; align-items: center; justify-content: space-between; gap: var(--if-space-3); color: var(--if-text-muted); font-size: var(--if-font-size-xs); }
 .event-catalog-browser__status p { margin: 0; }
 .event-catalog-browser__status strong { color: var(--if-text-strong); }
+.event-discovery-views { display: flex; flex-wrap: wrap; gap: var(--if-space-2); }
+.event-discovery-views__count { font-size: 10px; }
+.event-discovery-failures { display: grid; gap: var(--if-space-2); }
+.event-discovery-failures p { margin: 0; }
 .event-catalog-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--if-space-3); min-width: 0; }
 .event-catalog-card { display: grid; align-content: start; gap: var(--if-space-3); min-width: 0; padding: var(--if-space-4); overflow: hidden; border: 1px solid var(--if-border); border-radius: var(--if-radius-2); background: var(--if-surface-raised); }
 .event-catalog-card > header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--if-space-3); }
