@@ -7,7 +7,7 @@ Defense Budget Intelligence keeps two different records on purpose:
 - The shared Event Catalog contains public, source-backed event intelligence.
 - A workspace calendar event is an operator-owned copy. Teams, attendees, internal notes, wallboard visibility, linked records, and local status never flow back into the catalog.
 
-Users can search the catalog and add a dated edition to the calendar, or enter a title manually and start AI augmentation. An undated catalog edition opens as a manual draft so the operator can research it without inventing a date.
+Users can search the catalog and add a dated edition to the calendar, or enter a title manually and start AI augmentation. Undated catalog editions and discovery leads remain reviewable without inventing a date.
 
 ## Catalog record
 
@@ -24,22 +24,28 @@ The seeded catalog is code-reviewed. Additional editions can enter the D1 catalo
 
 ## Official-source discovery
 
-The hourly scheduler scans two source-registry entries per run, rotating through official event providers. The fetcher:
+The hourly scheduler selects four due sources from a registry of more than 30 official acquisition, innovation, service, small-business, and industry-event families. Selection favors never-scanned, overdue, high-priority, and previously productive sources while applying exponential backoff to repeated failures.
 
-1. requests the official HTTPS page with a named DBI discovery user agent;
-2. reads only structured `Event` JSON-LD;
-3. normalizes a dated candidate and retains the official source as evidence;
-4. fingerprints the source, title, and date;
-5. marks known catalog editions as duplicates;
-6. places new candidates in a Super user review queue.
+Each registry entry declares its adapter, crawl cadence, and maximum detail-page budget. The runtime supports:
 
-Unstructured page text never creates a candidate. A candidate cannot be published without a title, date, and official source. Reject and publish decisions are retained with reviewer and timestamp. Publishing creates or revisions a dynamic catalog edition, but never adds it to a workspace calendar automatically.
+- structured `Event` JSON-LD;
+- bounded official event-list to detail-page traversal;
+- RSS and Atom feeds;
+- ICS calendars;
+- event-like sitemap URLs; and
+- the locally refreshed, official SAM.gov opportunity feed for explicit industry-day, vendor-outreach, APBI, matchmaking, and related engagement notices.
 
-The authenticated review surface is the **Discovery review** tab inside **Add event**. The system route is `/api/v1/system/event-discovery-schedule`; it uses the same protected scheduler token as acquisition automation and is not a public trigger.
+The fetcher uses conditional requests and content hashes so unchanged sources stay cheap. Detail traversal is restricted to the official source host, declared allowed hosts, and registration pages linked by the official organizer. SAM.gov response deadlines never become event dates.
+
+An official page, feed, calendar item, sitemap result, or SAM.gov notice may create an undated **Discovery Lead**. A candidate can be published only after it has a title, a verified date, and an official source. Unstructured prose on an arbitrary page still cannot create a factual event claim.
+
+Duplicate matching considers recurring-series identity, canonical URL, title-token similarity, date proximity, city, and organizer. The review record explains its match reasons. A changed known edition enters **Updates** with field-level proposed changes; an unchanged match enters **Duplicates**.
+
+The authenticated review surface is the **Discovery review** tab inside **Add event**, split into **Leads**, **Ready**, **Updates**, **Duplicates**, and **Failures**. The system route is `/api/v1/system/event-discovery-schedule`; it uses the same protected scheduler token as acquisition automation and is not a public trigger.
 
 ## Manual add and AI augmentation
 
-Manual creation requires a title for research and a start date for saving. An official URL is optional but strongly improves identity and evidence quality.
+Manual creation requires only a title. An official URL is optional but strongly improves identity and evidence quality. Unknown dates stay pending and keep the event out of calendar and kiosk projections until scheduled.
 
 - **Research details** starts the background producer and independent verifier without first saving.
 - **Save event** writes only operator-entered fields.
@@ -61,10 +67,11 @@ The event editor presents these proposals with their reasons and source links. T
 
 ## Failure and trust behavior
 
-- Source failures produce a failed discovery run and do not change the catalog.
+- Source failures produce a failed discovery run, appear in the Failures queue, and do not change the catalog.
+- Repeated source failures back off automatically; successful scans reset the failure counter.
+- Unchanged sources retain their content identity without re-enqueuing candidates.
 - Missing or invalid structured data produces no candidate.
-- Duplicate fingerprints are ignored.
-- Existing catalog editions are marked as duplicates, not replaced.
+- Duplicate fingerprints are ignored; possible cross-source duplicates retain explainable match evidence.
+- Existing catalog editions are never silently replaced. Changed editions require explicit update approval.
 - AI provider failures retain safe metadata and do not partially merge data.
 - Catalog updates never alter teams, attendees, internal notes, wallboard settings, or linked records.
-

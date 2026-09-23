@@ -741,7 +741,10 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 200, "The Super user must be able to inspect the discovery review queue");
     body = await response.json();
     assert.deepEqual(body.candidates, []);
-    assert.ok(body.sources.length >= 12, "The discovery review surface must expose the official source registry");
+    assert.ok(body.sources.length >= 30, "The discovery review surface must expose the expanded official source registry");
+    assert.ok(body.sources.every((source) => source.adapter && source.cadenceHours > 0 && source.maxDetailPages >= 0), "Discovery sources must expose their adapter and bounded crawl policy");
+    assert.equal(body.view, "ready", "Legacy pending requests must resolve to the ready-to-publish queue");
+    for (const count of ["leads", "ready", "updates", "duplicates", "failures"]) assert.equal(typeof body.counts[count], "number", `Discovery snapshot must report the ${count} queue count`);
     response = await apiRequest(baseUrl, "/api/v1/system/event-discovery-schedule", { method: "POST", body: {} });
     assert.equal(response.status, 401, "The event discovery scheduler must reject unauthenticated triggers");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/capability", { cookie: ownerCookie });
