@@ -80,10 +80,11 @@ export async function eventDiscoveryResponse(request, db, deps, env = {}) {
     const body = await deps.safeJson(request);
     const decision = body?.decision === "publish" ? "publish" : body?.decision === "reject" ? "reject" : "";
     if (!decision) return deps.json({ error: "Decision must be publish or reject" }, 400);
-    const result = await reviewEventCandidate(db, candidateId, { decision, reviewerId: session.user_id, reason: deps.cleanText(body?.reason, 500) });
+    const result = await reviewEventCandidate(db, candidateId, { decision, reviewerId: session.user_id, reason: deps.cleanText(body?.reason, 500), candidate: body?.candidate });
     if (result.error === "not_found") return deps.json({ error: "Discovery candidate not found" }, 404);
     if (result.error === "already_reviewed") return deps.json({ error: "Discovery candidate was already reviewed", candidate: result.candidate }, 409);
     if (result.error === "insufficient_evidence") return deps.json({ error: "A title, dated edition, and official source are required before publication" }, 422);
+    if (result.error === "invalid_dates") return deps.json({ error: "The event end must be on or after its start" }, 422);
     if (result.error) return deps.json({ error: "Invalid discovery review request" }, 400);
     await deps.recordActivity(db, { type: "user", id: session.user_id, workspaceId: session.active_workspace_id || deps.defaultWorkspaceId }, `event_discovery_${decision}ed`, "event_discovery_candidate", candidateId, { catalogEventId: result.event?.id || "" });
     return deps.json(result);

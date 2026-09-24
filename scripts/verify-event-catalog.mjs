@@ -7,7 +7,9 @@ import {
   searchEventCatalog,
 } from "../src/event-catalog.js";
 import {
+  applyCuratorCandidate,
   discoverSourceCandidates,
+  eventCandidateQuality,
   extractFeedEventLinks,
   extractIcsEventCandidates,
   extractOfficialDetailLinks,
@@ -74,6 +76,14 @@ assert.deepEqual(extractOfficialEventCandidates("<html><h1>Unstructured event ru
 
 const adapterSource = { id: "test", name: "Test official source", url: "https://example.test/events/", adapter: "list_detail", branch: "Joint", maxDetailPages: 3 };
 assert.deepEqual(extractOfficialDetailLinks('<a href="/events/industry-day-2027">2027 Industry Day</a><a href="/about">About us</a>', adapterSource).map((link) => link.url), ["https://example.test/events/industry-day-2027"], "List discovery must retain bounded event detail links and reject navigation noise");
+for (const title of ["Events", "Chapter Events", "Skip to main content"]) {
+  assert.equal(eventCandidateQuality({ title, sources: [{ url: `https://example.test/events/${title.toLowerCase().replaceAll(" ", "-")}` }] }).isLikelyEvent, false, `${title} must be classified as navigation noise instead of an event`);
+}
+assert.equal(eventCandidateQuality({ title: "2027 Federal Acquisition Summit", sources: [{ url: "https://example.test/events/federal-acquisition-summit-2027" }] }).isLikelyEvent, true, "Specific event titles must remain eligible as undated discovery leads");
+const curatorVerified = applyCuratorCandidate({ title: "Federal Acquisition Summit", startsAt: "", sources: [{ title: "Listing", publisher: "Official", url: "https://example.test/events", kind: "official" }], links: [] }, { title: "2027 Federal Acquisition Summit", startsAt: "2027-06-03T09:00", officialUrl: "https://example.test/events/federal-acquisition-summit-2027", location: "Arlington, VA" });
+assert.equal(curatorVerified.startsAt, "2027-06-03T09:00", "Curators must be able to add a verified date before publication");
+assert.equal(curatorVerified.sources[0].url, "https://example.test/events/federal-acquisition-summit-2027", "Curator verification must retain a corrected canonical official URL");
+assert.equal(curatorVerified.location, "Arlington, VA");
 assert.equal(extractOfficialDetailLinks('<a href="/events/industry-day">&amp;lt;script&amp;gt; Industry Day</a>', adapterSource)[0].title, "&lt;script&gt; Industry Day", "Entity decoding must be single-pass so double-encoded markup stays inert");
 assert.deepEqual(extractFeedEventLinks('<rss><channel><item><title>Vendor Outreach Session</title><link>https://example.test/events/vendor-outreach</link><description>Official outreach</description></item></channel></rss>', adapterSource).map((link) => link.url), ["https://example.test/events/vendor-outreach"], "RSS discovery must retain official event detail links");
 assert.deepEqual(extractSitemapEventLinks('<urlset><url><loc>https://example.test/events/industry-day</loc></url><url><loc>https://example.test/about</loc></url></urlset>', adapterSource).map((link) => link.url), ["https://example.test/events/industry-day"], "Sitemap discovery must retain event-like official URLs only");
@@ -95,6 +105,10 @@ const detailDiscovery = await discoverSourceCandidates(adapterSource, { fetchImp
 } });
 assert.deepEqual(fetchedUrls, ["https://example.test/events/", "https://example.test/events/industry-day-2027"], "List/detail discovery must stay within its bounded official-source traversal");
 assert.equal(detailDiscovery.candidates[0].startsAt, "2027-03-04T08:00");
+const genericListingDiscovery = await discoverSourceCandidates(adapterSource, { fetchImpl: async (url) => new Response(String(url).endsWith("/events/")
+  ? '<a href="/events/chapter-events">Chapter Events</a><a href="/events/skip-to-main-content">Skip to main content</a>'
+  : "<html><h1>Events</h1></html>", { headers: { "content-type": "text/html" } }) });
+assert.deepEqual(genericListingDiscovery.candidates, [], "Generic event-listing navigation must not create review candidates when the detail page has no structured Event evidence");
 const unchangedDiscovery = await discoverSourceCandidates(adapterSource, { state: { contentHash: detailDiscovery.contentHash }, fetchImpl: async () => new Response('<a href="/events/industry-day-2027">2027 Industry Day</a>', { headers: { "content-type": "text/html" } }) });
 assert.equal(unchangedDiscovery.unchanged, true, "Content hashes must suppress detail traversal when a source does not support conditional HTTP requests");
 assert.deepEqual(unchangedDiscovery.candidates, []);

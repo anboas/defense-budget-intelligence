@@ -9,7 +9,7 @@ import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, wri
 
 const PRIMARY_IDS = ["spend", "schedule"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
-const WORK_IDS = new Set(["watchlist", "tasks"]);
+const WORK_IDS = new Set(["watchlist", "tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 const MONEY_META = {
@@ -23,6 +23,7 @@ const MONEY_META = {
 const ADMIN_META = {
   watchlist: { badge: "Track", description: "Starred records, notes, review dates, and wallboard visibility." },
   tasks: { badge: "Progress", description: "Background augmentation and API tasks, stages, outcomes, and review." },
+  "event-discovery": { badge: "Curate", description: "Review official-source candidates, source health, and ingestion history." },
   connections: { badge: "Admin", description: "Integration health, credentials, request diagnostics, and workspace audit." },
   users: { badge: "Owner", description: "Create global accounts, recover passwords, suspend access, and emulate users." },
   workspaces: { badge: "Access", description: "Create workspaces, review access requests, and control membership." },
@@ -56,7 +57,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const workItems = ["watchlist", "tasks"].map((id) => {
+  const workItems = ["watchlist", "tasks", ...(auth?.user?.roleId === "super_user" ? ["event-discovery"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
