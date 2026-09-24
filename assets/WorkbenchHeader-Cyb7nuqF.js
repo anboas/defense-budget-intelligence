@@ -1,0 +1,1 @@
+import{O as e,j as t}from"./react-D38AK7lV.js";var n=t();function r(t){return(0,n.jsx)(e,{headingLevel:2,...t})}export{r as t};
