@@ -31,22 +31,31 @@ async function waitForStatus(baseUrl, timeoutMs = 30_000) {
   throw lastError || new Error(`Timed out waiting for ${baseUrl}`);
 }
 
-async function startPages(persistPath) {
-  const port = await freePort();
-  const baseUrl = `http://127.0.0.1:${port}/`;
-  const output = [];
-  const child = spawn("npx", [
-    "wrangler", "pages", "dev", "dist", "--ip", "127.0.0.1", "--port", String(port),
-    "--persist-to", persistPath, "--binding", "DBI_ALLOW_FIRST_CLAIM=1", "--log-level", "error",
-  ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
-  try { await waitForStatus(baseUrl); }
-  catch (error) {
-    try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
-    throw new Error(`${error.message}\n${output.join("").slice(-12_000)}`, { cause: error });
+async function startPages(persistPath, attempts = 3) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}/`;
+    const output = [];
+    const child = spawn("npx", [
+      "wrangler", "pages", "dev", "dist", "--ip", "127.0.0.1", "--port", String(port),
+      "--persist-to", persistPath, "--binding", "DBI_ALLOW_FIRST_CLAIM=1", "--log-level", "error",
+    ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+    child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+    try {
+      await Promise.race([
+        waitForStatus(baseUrl),
+        new Promise((_, reject) => child.once("exit", (code) => reject(new Error(`Wrangler exited before readiness with code ${code}`)))),
+      ]);
+      return { child, baseUrl };
+    } catch (error) {
+      try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+      const diagnostic = `${error.message}\n${output.join("").slice(-12_000)}`;
+      if (/address already in use/i.test(diagnostic) && attempt < attempts) continue;
+      throw new Error(diagnostic, { cause: error });
+    }
   }
-  return { child, baseUrl };
+  throw new Error("Wrangler Pages could not acquire a local verification port");
 }
 
 async function stopPages(instance) {
