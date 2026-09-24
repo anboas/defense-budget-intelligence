@@ -14,6 +14,7 @@ import {
   ListChecks,
   Network,
   RefreshCcw,
+  SearchCheck,
   Star,
   TrendingUp,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const AnalyticsSources = lazyWithRefresh(() => import("./AnalyticsSources.jsx"),
 const AwardsRoute = lazyWithRefresh(() => import("./AwardsRoute.jsx"), "awards-route");
 const BudgetRequestRoutes = lazyWithRefresh(() => import("./BudgetRequestRoutes.jsx"), "budget-request-routes");
 const ProfilePage = lazyWithRefresh(() => import("./ProfilePage.jsx"), "profile-page");
+const EventDiscoveryPage = lazyWithRefresh(() => import("./EventDiscoveryPage.jsx"), "event-discovery-page");
 
 const TABS = [
   { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
@@ -37,6 +39,7 @@ const TABS = [
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "spend", label: "Spend Explorer", icon: BarChart3 },
   { id: "schedule", label: "Schedule", icon: CalendarClock },
+  { id: "event-discovery", label: "Event Discovery", icon: SearchCheck },
   { id: "watchlist", label: "Watchlist", icon: Star },
   { id: "tasks", label: "Task Center", icon: ListChecks },
   { id: "connections", label: "Connections", icon: Database },
@@ -56,6 +59,7 @@ const HASH_ROUTES = {
   awards: "#/budget-spend/awards",
   spend: "#/budget-spend/explorer",
   schedule: "#/budget-spend/schedule",
+  "event-discovery": "#/budget-spend/event-discovery",
   directory: "#/workspace/directory",
   watchlist: "#/budget-spend/watchlist",
   tasks: "#/budget-spend/tasks",
@@ -370,6 +374,7 @@ function App() {
         {coreReady && BUDGET_REQUEST_TAB_IDS.has(activeTab) && (activeTab !== "lifecycle" || accountSpineReady) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Budget request analysis and money-flow evidence are loading." />}><BudgetRequestRoutes view={activeTab} budgetData={data} accountSpine={ACCOUNT_SPINE} /></Suspense> : null}
         {executionReady && activeTab === "awards" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading awards" loadingMessage="Award filters, evidence, and market rollups are loading." />}><AwardsRoute awardDrilldown={AWARD_DRILLDOWN} books={data.metadata.sources || []} sourcePackageUrl={data.metadata.dataInventory?.sourcePackageUrl || ""} snapshotGeneratedAt={data.metadata.generatedAt} methodology={data.metadata.methodology} executionCoverage={EXECUTION_COVERAGE} /></Suspense> : null}
         {activeTab === "spend" && (spendView === "today" || (executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady))) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Spend Explorer" loadingMessage="Today, timeline, table, and chart views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
+        {activeTab === "event-discovery" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading event discovery" loadingMessage="Candidates, source health, and scan history are loading." />}><EventDiscoveryPage /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
         {coreReady && executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading source lineage" loadingMessage="Source coverage and health evidence are loading." />}><AnalyticsSources budgetData={data} accountSpine={ACCOUNT_SPINE} captureCalendar={CAPTURE_CALENDAR} awardSummary={AWARD_DRILLDOWN.summary} executionCoverage={EXECUTION_COVERAGE} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
         {PROFILE_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Personal settings and account controls are loading." />}><ProfilePage section={activeTab} /></Suspense> : null}

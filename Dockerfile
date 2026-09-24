@@ -14,7 +14,10 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts \
+RUN apt-get update \
+    && apt-get install --only-upgrade --yes --no-install-recommends tzdata=2026c-0+deb12u1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm ci --omit=dev --ignore-scripts \
     && npm cache clean --force \
     && rm -rf /root/.npm /opt/yarn-v* /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/pnpm /usr/local/bin/pnpx

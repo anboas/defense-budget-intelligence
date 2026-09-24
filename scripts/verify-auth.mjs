@@ -131,9 +131,9 @@ try {
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator('[data-nav-group-trigger="work"]').click();
-  assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Workspace work should contain only Watchlist and Task Center");
-  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center/i);
-  assert.doesNotMatch(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Events/i, "Events must not be nested under Workspace work");
+  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/watchlist", "#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must contain Watchlist, Task Center, and the dedicated Event Discovery manager");
+  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center[\s\S]*Event Discovery/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="work"] a[href="#/budget-spend/schedule"]').count(), 0, "Schedule must remain a primary surface rather than a nested work item");
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace", "Workspace navigation must use one compact label");
@@ -414,15 +414,69 @@ try {
   await page.getByRole("button", { name: "Add event" }).click();
   let eventDialog = page.getByRole("dialog", { name: "Add event" });
   assert.equal(await eventDialog.getByRole("button", { name: "Search catalog" }).getAttribute("aria-pressed"), "true", "Add event must open on curated catalog search");
-  await eventDialog.getByRole("button", { name: /Discovery review/ }).click();
-  await eventDialog.locator("[data-event-discovery-review]").waitFor();
-  await eventDialog.getByText("No pending candidates", { exact: true }).waitFor();
-  assert.match(await eventDialog.locator("[data-event-discovery-review]").innerText(), /Official-source discovery queue[\s\S]*Nothing enters the catalog until you publish it here/i, "The discovery queue must explain its curator approval boundary");
-  for (const view of ["Leads", "Ready", "Updates", "Duplicates", "Failures"]) assert.equal(await eventDialog.getByRole("button", { name: new RegExp(`^${view}`) }).count(), 1, `Discovery review must expose the ${view} queue`);
-  await eventDialog.getByRole("button", { name: /^Failures/ }).click();
-  await eventDialog.getByText("No pending candidates", { exact: true }).waitFor();
-  await eventDialog.getByRole("button", { name: /^Ready/ }).click();
-  await eventDialog.getByRole("button", { name: "Search catalog" }).click();
+  assert.equal(await eventDialog.getByRole("button", { name: /Discovery review/ }).count(), 0, "Operational discovery management must not be embedded in Add event");
+  assert.equal(await eventDialog.locator(".event-dialog__tabs .if-tab").count(), 2, "Add event must stay focused on catalog search and manual creation");
+  await eventDialog.getByRole("button", { name: "Close add event" }).click();
+  await page.getByRole("link", { name: "Manage event discovery" }).click();
+  const discoveryPage = page.locator("[data-event-discovery-page]");
+  await discoveryPage.waitFor();
+  await discoveryPage.locator('[aria-label="Discovery queue"]').waitFor();
+  assert.match(await discoveryPage.innerText(), /Event Discovery[\s\S]*Needs review[\s\S]*Ready to publish[\s\S]*Undated leads[\s\S]*Likely noise[\s\S]*Healthy sources/i, "Discovery management must expose review and ingestion status at a glance");
+  for (const view of ["Needs review", "Ready", "Undated leads", "Updates", "Likely noise", "Duplicates", "Published", "Rejected"]) assert.equal(await discoveryPage.getByRole("button", { name: new RegExp(`^${view}`) }).count(), 1, `Discovery management must expose the ${view} queue`);
+  await discoveryPage.getByLabel("Search candidate titles, summaries, sources, branches, and dates…").waitFor();
+  assert.equal(await discoveryPage.getByRole("button", { name: /Candidate/ }).count() > 0, true, "Discovery candidates must be sortable in a data table");
+  await page.screenshot({ path: "test-results/event-discovery-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileDiscoveryGeometry = await discoveryPage.evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
+    actions: [...node.querySelectorAll("button, a.if-btn")].filter((control) => control.offsetParent !== null).map((control) => control.getBoundingClientRect().height),
+  }));
+  assert.ok(mobileDiscoveryGeometry.overflow <= 1, `Event Discovery must not overflow the mobile viewport: ${JSON.stringify(mobileDiscoveryGeometry)}`);
+  assert.ok(mobileDiscoveryGeometry.actions.every((height) => height >= 43.5), `Visible mobile discovery actions must retain 44px targets: ${mobileDiscoveryGeometry.actions.join(", ")}`);
+  await page.screenshot({ path: "test-results/event-discovery-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await discoveryPage.getByRole("button", { name: "Source health" }).click();
+  await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').waitFor();
+  assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /35 records/i, "Source health must make the complete official registry visible");
+  await discoveryPage.getByLabel("Search official sources, branches, and adapters…").fill("SAM.gov");
+  assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /1\s*of 35 records/i, "Source health must support live filtering");
+  await discoveryPage.getByRole("button", { name: "Scan history" }).click();
+  await discoveryPage.locator('[data-dbi-data-table="event-discovery-runs"]').waitFor();
+  await discoveryPage.getByLabel("Search scan history by source, status, or diagnostic…").waitFor();
+  let verifiedDiscoveryDraft = null;
+  await page.route("**/api/v1/auth/event-discovery?view=leads&limit=200", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+      view: "leads",
+      counts: { review: verifiedDiscoveryDraft ? 0 : 1, ready: 0, leads: verifiedDiscoveryDraft ? 0 : 1, updates: 0, lowQuality: 0, duplicates: 0, published: verifiedDiscoveryDraft ? 1 : 0, rejected: 0, reviewed: verifiedDiscoveryDraft ? 1 : 0, failures: 0 },
+      candidates: verifiedDiscoveryDraft ? [] : [{ id: "candidate-browser-lead", sourceId: "browser-source", sourceUrl: "https://example.test/events/federal-acquisition-summit", status: "pending", discoveredAt: "2026-09-24T12:00:00Z", evidence: [{ url: "https://example.test/events/federal-acquisition-summit" }], quality: { isLikelyEvent: true, score: 50, label: "Plausible lead", issues: [] }, candidate: { title: "2027 Federal Acquisition Summit", summary: "Official acquisition community event.", startsAt: "", endsAt: "", location: "Arlington, VA", sponsor: "Federal Acquisition Council", branch: "Joint", eventType: "summit", sources: [{ title: "Federal Acquisition Summit", publisher: "Federal Acquisition Council", url: "https://example.test/events/federal-acquisition-summit", kind: "official" }] } }],
+      sources: [{ id: "browser-source", name: "Federal Acquisition Council", url: "https://example.test/events", adapter: "list_detail", branch: "Joint", cadenceHours: 24, maxDetailPages: 4, health: null }],
+      runs: [], latestRun: null, failures: [],
+    }) });
+  });
+  await page.route("**/api/v1/auth/event-discovery/candidate-browser-lead", async (route) => {
+    const body = JSON.parse(route.request().postData() || "{}");
+    verifiedDiscoveryDraft = body.candidate;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ event: { id: "catalog-federal-acquisition-summit-2027", ...body.candidate }, candidate: { id: "candidate-browser-lead", status: "published" } }) });
+  });
+  await discoveryPage.getByRole("button", { name: "Review queue" }).click();
+  await discoveryPage.getByRole("button", { name: /^Undated leads/ }).click();
+  const leadRow = discoveryPage.locator('[data-row-key="candidate-browser-lead"]');
+  await leadRow.waitFor();
+  await leadRow.getByRole("button", { name: "Review details" }).click();
+  const verifyDialog = page.getByRole("dialog", { name: "Verify discovery candidate" });
+  await verifyDialog.waitFor();
+  assert.equal(await verifyDialog.getByRole("button", { name: "Publish verified event" }).isDisabled(), true, "An undated lead must wait for curator verification, not expose a dead disabled card action");
+  await verifyDialog.getByLabel("Starts (required)").fill("2027-06-03T09:00");
+  assert.equal(await verifyDialog.getByRole("button", { name: "Publish verified event" }).isEnabled(), true, "Adding a verified date must make the publication action usable");
+  await verifyDialog.getByRole("button", { name: "Publish verified event" }).click();
+  await verifyDialog.waitFor({ state: "detached" });
+  assert.equal(verifiedDiscoveryDraft?.startsAt, "2027-06-03T09:00", "Verified discovery publication must send the curator-entered date to the authenticated API");
+  await page.unroute("**/api/v1/auth/event-discovery?view=leads&limit=200");
+  await page.unroute("**/api/v1/auth/event-discovery/candidate-browser-lead");
+  await discoveryPage.getByRole("link", { name: "Open Schedule" }).click();
+  await page.waitForSelector("[data-ops-event-table]");
+  await page.getByRole("button", { name: "Add event" }).click();
+  eventDialog = page.getByRole("dialog", { name: "Add event" });
   const catalogDialogGeometry = await eventDialog.evaluate((node) => {
     const bounds = node.getBoundingClientRect();
     const cards = [...node.querySelectorAll("[data-catalog-event]")];
@@ -1283,8 +1337,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Task Center[\s\S]*Workspace[\s\S]*Connections[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();

@@ -33,46 +33,50 @@ async function waitForStatus(baseUrl, timeoutMs = 30_000) {
   throw lastError || new Error(`Timed out waiting for ${baseUrl}`);
 }
 
-async function startPages(persistPath) {
-  const port = await freePort();
-  const baseUrl = `http://127.0.0.1:${port}/`;
-  const output = [];
-  const child = spawn("npx", [
-    "wrangler",
-    "pages",
-    "dev",
-    "dist",
-    "--ip",
-    "127.0.0.1",
-    "--port",
-    String(port),
-    "--persist-to",
-    persistPath,
-    "--binding",
-    "DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001",
-    "--binding",
-    "DBI_SCHEDULER_TOKEN=verification-only-scheduler-token-0000001",
-    "--binding",
-    "DBI_EVENT_AI_MOCK_MODE=true",
-    "--binding",
-    "DBI_ALLOW_FIRST_CLAIM=1",
-    "--binding",
-    "--log-level",
-    "error",
-  ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
-  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
-  try {
-    await waitForStatus(baseUrl);
-  } catch (error) {
+async function startPages(persistPath, attempts = 3) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}/`;
+    const output = [];
+    const child = spawn("npx", [
+      "wrangler",
+      "pages",
+      "dev",
+      "dist",
+      "--ip",
+      "127.0.0.1",
+      "--port",
+      String(port),
+      "--persist-to",
+      persistPath,
+      "--binding",
+      "DBI_CREDENTIAL_ENCRYPTION_KEY=verification-only-encryption-material-0001",
+      "--binding",
+      "DBI_SCHEDULER_TOKEN=verification-only-scheduler-token-0000001",
+      "--binding",
+      "DBI_EVENT_AI_MOCK_MODE=true",
+      "--binding",
+      "DBI_ALLOW_FIRST_CLAIM=1",
+      "--binding",
+      "--log-level",
+      "error",
+    ], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+    child.stderr.on("data", (chunk) => output.push(chunk.toString()));
     try {
-      process.kill(-child.pid, "SIGTERM");
-    } catch {
-      child.kill("SIGTERM");
+      await Promise.race([
+        waitForStatus(baseUrl),
+        new Promise((_, reject) => child.once("exit", (code) => reject(new Error(`Wrangler exited before readiness with code ${code}`)))),
+      ]);
+      return { child, baseUrl, output };
+    } catch (error) {
+      try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+      const diagnostic = `${error.message}\n${output.join("").slice(-12_000)}`;
+      if (/address already in use/i.test(diagnostic) && attempt < attempts) continue;
+      throw new Error(diagnostic, { cause: error });
     }
-    throw new Error(`${error.message}\n${output.join("").slice(-12_000)}`, { cause: error });
   }
-  return { child, baseUrl, output };
+  throw new Error("Wrangler Pages could not acquire a local verification port");
 }
 
 async function stopPages(instance) {
@@ -744,7 +748,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.ok(body.sources.length >= 30, "The discovery review surface must expose the expanded official source registry");
     assert.ok(body.sources.every((source) => source.adapter && source.cadenceHours > 0 && source.maxDetailPages >= 0), "Discovery sources must expose their adapter and bounded crawl policy");
     assert.equal(body.view, "ready", "Legacy pending requests must resolve to the ready-to-publish queue");
-    for (const count of ["leads", "ready", "updates", "duplicates", "failures"]) assert.equal(typeof body.counts[count], "number", `Discovery snapshot must report the ${count} queue count`);
+    for (const count of ["review", "leads", "ready", "updates", "lowQuality", "duplicates", "reviewed", "failures"]) assert.equal(typeof body.counts[count], "number", `Discovery snapshot must report the ${count} queue count`);
+    assert.ok(Array.isArray(body.runs), "Discovery management must expose recent scan history");
     response = await apiRequest(baseUrl, "/api/v1/system/event-discovery-schedule", { method: "POST", body: {} });
     assert.equal(response.status, 401, "The event discovery scheduler must reject unauthenticated triggers");
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/capability", { cookie: ownerCookie });

@@ -194,6 +194,33 @@ export function extractOfficialEventCandidates(html, source) {
 
 const EVENT_LINK_HINT = /\b(event|events|conference|symposium|summit|forum|industry[- ]day|vendor[- ]outreach|small[- ]business|workshop|expo|meeting|briefing|webinar|matchmaking|apbi)\b/i;
 const TRUSTED_REGISTRATION_HOSTS = new Set(["events.cvent.com", "www.eventbrite.com", "eventbrite.com"]);
+const GENERIC_EVENT_TITLES = new Set([
+  "event", "events", "all events", "upcoming events", "featured events", "chapter events", "calendar", "event calendar",
+  "meetings and events", "conferences and events", "news and events", "home", "about", "learn more", "read more", "view all",
+]);
+
+export function eventCandidateQuality(candidate = {}) {
+  const title = clean(candidate.title, 180);
+  const normalized = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const sourceUrl = safeArray(candidate.sources).map((source) => canonicalUrl(source?.url)).find(Boolean) || "";
+  const pathname = sourceUrl ? new URL(sourceUrl).pathname.replace(/[-_/]+/g, " ").trim().toLowerCase() : "";
+  const issues = [];
+  if (title.length < 4) issues.push("Title is too short to identify an event");
+  if (GENERIC_EVENT_TITLES.has(normalized) || /^(skip to|back to|go to|click here|register|menu|navigation)\b/i.test(title)) issues.push("Title is generic navigation or listing text");
+  const hasEventLanguage = EVENT_LINK_HINT.test(title);
+  const hasYear = /\b20\d{2}\b/.test(title);
+  const hasSpecificPath = pathname && !/^(events?|calendar|chapter events?|news events?)\/?$/.test(pathname);
+  const tokenCount = normalized.split(/\s+/).filter((token) => token.length > 1).length;
+  let score = 0;
+  if (candidate.startsAt) score += 45;
+  if (hasEventLanguage) score += 30;
+  if (hasYear) score += 15;
+  if (hasSpecificPath) score += 10;
+  if (tokenCount >= 3) score += 10;
+  if (!candidate.startsAt && !hasEventLanguage && !hasYear && !(hasSpecificPath && tokenCount >= 3)) issues.push("No event-specific date, title, or detail-page identity was found");
+  const isLikelyEvent = issues.length === 0 && score >= 20;
+  return { isLikelyEvent, score, label: isLikelyEvent ? (candidate.startsAt ? "Likely event" : "Plausible lead") : "Likely navigation noise", issues };
+}
 
 function detailUrlAllowed(value, source) {
   const result = canonicalUrl(value, source.url);
@@ -270,7 +297,8 @@ export function extractSamEventCandidates(payload, source) {
 }
 
 function minimalLead(link, source, kind) {
-  return candidateFromFields({ title: link.title, summary: link.summary, officialUrl: link.url }, source, link.url, kind);
+  const candidate = candidateFromFields({ title: link.title, summary: link.summary, officialUrl: link.url }, source, link.url, kind);
+  return candidate && eventCandidateQuality(candidate).isLikelyEvent ? candidate : null;
 }
 
 async function fetchSource(fetchImpl, url, { etag = "", lastModified = "", accept = "text/html,application/xhtml+xml,application/xml,text/calendar,application/json" } = {}) {
@@ -451,19 +479,21 @@ export async function runEventDiscoverySweep(db, { fetchImpl = fetch, catalog = 
       const candidates = discovery.candidates;
       let added = 0;
       for (const candidate of candidates) {
+        const quality = eventCandidateQuality(candidate);
         const duplicate = findCatalogDuplicateMatch(candidate, knownCatalog);
         const enriched = duplicate ? { ...candidate, duplicateMatch: { catalogEventId: duplicate.event.id, reasons: duplicate.reasons, changes: duplicate.changes, baseEvent: duplicate.event } } : candidate;
         const fingerprint = await sha256(eventCandidateFingerprint(candidate, source.id));
         const id = `candidate-${fingerprint.slice(0, 24)}`;
         const evidence = candidate.sources || [];
+        const candidateStatus = !quality.isLikelyEvent ? "invalid" : duplicate ? (duplicate.changes.length ? "update" : "duplicate") : "pending";
         const result = await db.prepare(`INSERT OR IGNORE INTO dbi_event_discovery_candidates
           (id, run_id, source_id, source_url, fingerprint, status, candidate_json, evidence_json, duplicate_catalog_id, discovered_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-          .bind(id, runId, source.id, source.url, fingerprint, duplicate ? (duplicate.changes.length ? "update" : "duplicate") : "pending", JSON.stringify(enriched), JSON.stringify(evidence), duplicate?.event?.id || "", startedAt).run();
+          .bind(id, runId, source.id, source.url, fingerprint, candidateStatus, JSON.stringify(enriched), JSON.stringify(evidence), duplicate?.event?.id || "", startedAt).run();
         if (Number(result?.meta?.changes || 0)) added += 1;
         else await db.prepare(`UPDATE dbi_event_discovery_candidates SET run_id = ?, status = ?, candidate_json = ?, evidence_json = ?, duplicate_catalog_id = ?, discovered_at = ?
-          WHERE fingerprint = ? AND status IN ('pending', 'duplicate', 'update')`)
-          .bind(runId, duplicate ? (duplicate.changes.length ? "update" : "duplicate") : "pending", JSON.stringify(enriched), JSON.stringify(evidence), duplicate?.event?.id || "", startedAt, fingerprint).run();
+          WHERE fingerprint = ? AND status IN ('pending', 'duplicate', 'update', 'invalid')`)
+          .bind(runId, candidateStatus, JSON.stringify(enriched), JSON.stringify(evidence), duplicate?.event?.id || "", startedAt, fingerprint).run();
       }
       const completedAt = new Date().toISOString();
       const runStatus = discovery.unchanged ? "unchanged" : "succeeded";
@@ -505,28 +535,43 @@ function candidateFromRow(row) {
 }
 
 export async function eventDiscoverySnapshot(db, { status = "", view = "", limit = 100 } = {}) {
-  const selectedView = ["leads", "ready", "updates", "duplicates", "failures", "published", "rejected"].includes(view || status) ? (view || status) : "ready";
+  const requestedView = view || (status === "pending" ? "ready" : status);
+  const selectedView = ["review", "leads", "ready", "updates", "low-quality", "duplicates", "failures", "published", "rejected"].includes(requestedView) ? requestedView : "review";
   const resultLimit = Math.max(1, Math.min(200, Number(limit) || 100));
-  const [pendingRows, selectedRows, counts, latest, failures, stateRows] = await Promise.all([
+  const [pendingRows, invalidRows, updateRows, duplicateRows, reviewedRows, counts, latest, failures, stateRows, recentRuns] = await Promise.all([
     db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'pending' ORDER BY discovered_at DESC LIMIT 500").all(),
-    selectedView === "updates" ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'update' ORDER BY discovered_at DESC LIMIT ?").bind(resultLimit).all()
-      : selectedView === "duplicates" ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'duplicate' ORDER BY discovered_at DESC LIMIT ?").bind(resultLimit).all()
-        : ["published", "rejected"].includes(selectedView) ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = ? ORDER BY discovered_at DESC LIMIT ?").bind(selectedView, resultLimit).all()
-          : Promise.resolve({ results: [] }),
+    db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'invalid' ORDER BY discovered_at DESC LIMIT 500").all(),
+    db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'update' ORDER BY discovered_at DESC LIMIT 500").all(),
+    db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = 'duplicate' ORDER BY discovered_at DESC LIMIT 500").all(),
+    ["published", "rejected"].includes(selectedView) ? db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE status = ? ORDER BY discovered_at DESC LIMIT ?").bind(selectedView, resultLimit).all() : Promise.resolve({ results: [] }),
     db.prepare("SELECT status, COUNT(*) AS count FROM dbi_event_discovery_candidates GROUP BY status").all(),
     db.prepare("SELECT * FROM dbi_event_discovery_runs ORDER BY started_at DESC LIMIT 1").first(),
     db.prepare("SELECT * FROM dbi_event_discovery_runs WHERE status = 'failed' ORDER BY started_at DESC LIMIT ?").bind(resultLimit).all(),
     db.prepare("SELECT * FROM dbi_event_discovery_source_state").all(),
+    db.prepare("SELECT * FROM dbi_event_discovery_runs ORDER BY started_at DESC LIMIT 50").all(),
   ]);
-  const pending = (pendingRows.results || []).map(candidateFromRow);
-  const candidateRows = selectedView === "leads" ? pending.filter((entry) => !entry.candidate.startsAt).slice(0, resultLimit)
-    : selectedView === "ready" ? pending.filter((entry) => entry.candidate.startsAt).slice(0, resultLimit)
-      : (selectedRows.results || []).map(candidateFromRow);
+  const annotate = (row) => { const entry = candidateFromRow(row); return { ...entry, quality: eventCandidateQuality(entry.candidate) }; };
+  const pending = (pendingRows.results || []).map(annotate);
+  const invalid = (invalidRows.results || []).map(annotate);
+  const updates = (updateRows.results || []).map(annotate);
+  const duplicates = (duplicateRows.results || []).map(annotate);
+  const likelyPending = pending.filter((entry) => entry.quality.isLikelyEvent);
+  const lowQuality = [...invalid, ...pending.filter((entry) => !entry.quality.isLikelyEvent)].sort((left, right) => String(right.discoveredAt).localeCompare(String(left.discoveredAt)));
+  const candidateRows = selectedView === "review" ? [...likelyPending, ...updates].sort((left, right) => String(right.discoveredAt).localeCompare(String(left.discoveredAt))).slice(0, resultLimit)
+    : selectedView === "leads" ? likelyPending.filter((entry) => !entry.candidate.startsAt).slice(0, resultLimit)
+      : selectedView === "ready" ? likelyPending.filter((entry) => entry.candidate.startsAt).slice(0, resultLimit)
+        : selectedView === "updates" ? updates.slice(0, resultLimit)
+          : selectedView === "low-quality" ? lowQuality.slice(0, resultLimit)
+            : selectedView === "duplicates" ? duplicates.slice(0, resultLimit)
+              : (reviewedRows.results || []).map(annotate);
   const countMap = Object.fromEntries((counts.results || []).map((row) => [row.status, Number(row.count || 0)]));
-  countMap.leads = pending.filter((entry) => !entry.candidate.startsAt).length;
-  countMap.ready = pending.filter((entry) => entry.candidate.startsAt).length;
+  countMap.leads = likelyPending.filter((entry) => !entry.candidate.startsAt).length;
+  countMap.ready = likelyPending.filter((entry) => entry.candidate.startsAt).length;
   countMap.updates = Number(countMap.update || 0);
   countMap.duplicates = Number(countMap.duplicate || 0);
+  countMap.lowQuality = lowQuality.length;
+  countMap.review = countMap.leads + countMap.ready + countMap.updates;
+  countMap.reviewed = Number(countMap.published || 0) + Number(countMap.rejected || 0);
   countMap.failures = (failures.results || []).length;
   const sourceState = new Map((stateRows.results || []).map((row) => [row.source_id, stateFromRow(row)]));
   return {
@@ -535,6 +580,7 @@ export async function eventDiscoverySnapshot(db, { status = "", view = "", limit
     failures: selectedView === "failures" ? (failures.results || []).map((row) => ({ id: row.id, sourceId: row.source_id, sourceUrl: row.source_url, errorCode: row.error_code || "source_unavailable", errorMessage: row.error_message || "Source scan failed", startedAt: row.started_at, completedAt: row.completed_at || null })) : [],
     counts: countMap,
     latestRun: latest ? { id: latest.id, sourceId: latest.source_id, status: latest.status, candidatesSeen: Number(latest.candidates_seen || 0), candidatesAdded: Number(latest.candidates_added || 0), errorCode: latest.error_code || null, startedAt: latest.started_at, completedAt: latest.completed_at || null } : null,
+    runs: (recentRuns.results || []).map((row) => ({ id: row.id, sourceId: row.source_id, sourceUrl: row.source_url, status: row.status, candidatesSeen: Number(row.candidates_seen || 0), candidatesAdded: Number(row.candidates_added || 0), errorCode: row.error_code || null, errorMessage: row.error_message || "", startedAt: row.started_at, completedAt: row.completed_at || null })),
     sources: EVENT_CATALOG_SOURCE_REGISTRY.map(({ id, name, url, adapter, branch, priority, cadenceHours, maxDetailPages }) => ({ id, name, url, adapter, branch, priority, cadenceHours, maxDetailPages, health: sourceState.get(id) || null })),
   };
 }
@@ -545,10 +591,31 @@ function mergeCandidateWithBase(candidate) {
   return { ...base, ...proposed };
 }
 
-export async function reviewEventCandidate(db, candidateId, { decision, reviewerId, reason = "" } = {}) {
+export function applyCuratorCandidate(candidate, override = {}) {
+  const result = { ...candidate };
+  const textFields = { title: 180, summary: 1600, timezone: 80, location: 500, venue: 240, city: 120, region: 80, country: 120, format: 40, eventType: 80, branch: 120, sponsor: 180 };
+  for (const [field, limit] of Object.entries(textFields)) {
+    if (Object.hasOwn(override, field)) result[field] = clean(override[field], limit);
+  }
+  for (const field of ["startsAt", "endsAt"]) {
+    if (Object.hasOwn(override, field)) result[field] = dateValue(override[field]);
+  }
+  if (Array.isArray(override.topics)) result.topics = override.topics.map((item) => clean(item, 120)).filter(Boolean).slice(0, 20);
+  if (Object.hasOwn(override, "officialUrl")) {
+    const officialUrl = canonicalUrl(override.officialUrl);
+    if (officialUrl) {
+      const source = safeArray(candidate.sources)[0] || {};
+      result.links = [{ label: "Official event", url: officialUrl }, ...safeArray(candidate.links).filter((link) => canonicalUrl(link?.url) !== officialUrl)].slice(0, 12);
+      result.sources = [{ ...source, title: result.title || source.title, url: officialUrl, kind: "official", lastVerifiedAt: new Date().toISOString().slice(0, 10) }, ...safeArray(candidate.sources).slice(1)].slice(0, 12);
+    }
+  }
+  return result;
+}
+
+export async function reviewEventCandidate(db, candidateId, { decision, reviewerId, reason = "", candidate: candidateOverride = {} } = {}) {
   const row = await db.prepare("SELECT * FROM dbi_event_discovery_candidates WHERE id = ?").bind(clean(candidateId, 100)).first();
   if (!row) return { error: "not_found" };
-  if (!["pending", "update"].includes(row.status)) return { error: "already_reviewed", candidate: candidateFromRow(row) };
+  if (!["pending", "update", "invalid"].includes(row.status)) return { error: "already_reviewed", candidate: candidateFromRow(row) };
   const now = new Date().toISOString();
   if (decision === "reject") {
     await db.prepare("UPDATE dbi_event_discovery_candidates SET status = 'rejected', rejection_reason = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?")
@@ -557,19 +624,21 @@ export async function reviewEventCandidate(db, candidateId, { decision, reviewer
   }
   if (decision !== "publish") return { error: "invalid_decision" };
   const rawCandidate = parsed(row.candidate_json, {});
-  const candidate = mergeCandidateWithBase(rawCandidate);
-  if (!candidate.title || !candidate.startsAt || !safeArray(rawCandidate.sources).some((source) => httpUrl(source?.url))) return { error: "insufficient_evidence" };
+  const reviewedCandidate = applyCuratorCandidate(rawCandidate, candidateOverride);
+  const candidate = mergeCandidateWithBase(reviewedCandidate);
+  if (!candidate.title || !candidate.startsAt || !safeArray(reviewedCandidate.sources).some((source) => httpUrl(source?.url))) return { error: "insufficient_evidence" };
+  if (candidate.endsAt && Date.parse(candidate.endsAt) < Date.parse(candidate.startsAt)) return { error: "invalid_dates" };
   const year = candidate.startsAt.slice(0, 4);
   const id = row.status === "update" && row.duplicate_catalog_id ? row.duplicate_catalog_id : `catalog-${slug(candidate.seriesId || candidate.title)}-${year}`;
   const existing = await db.prepare("SELECT revision FROM dbi_event_catalog_entries WHERE id = ?").bind(id).first();
-  const baseRevision = Number(rawCandidate?.duplicateMatch?.baseEvent?.revision || 0);
+  const baseRevision = Number(reviewedCandidate?.duplicateMatch?.baseEvent?.revision || 0);
   const event = { ...candidate, id, revision: Math.max(Number(existing?.revision || 0), baseRevision) + 1, status: candidate.status === "cancelled" ? "cancelled" : "upcoming", caveats: safeArray(candidate.caveats).filter((item) => !String(item).includes("curator must") && !String(item).includes("still require verification")) };
   await db.batch([
     db.prepare(`INSERT INTO dbi_event_catalog_entries (id, series_id, revision, status, event_json, source_candidate_id, published_by, published_at, updated_at)
       VALUES (?, ?, ?, 'published', ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, status = 'published', event_json = excluded.event_json, source_candidate_id = excluded.source_candidate_id, published_by = excluded.published_by, updated_at = excluded.updated_at`)
       .bind(id, clean(event.seriesId, 120), event.revision, JSON.stringify(event), row.id, clean(reviewerId, 100), now, now),
-    db.prepare("UPDATE dbi_event_discovery_candidates SET status = 'published', reviewed_by = ?, reviewed_at = ? WHERE id = ?").bind(clean(reviewerId, 100), now, row.id),
+    db.prepare("UPDATE dbi_event_discovery_candidates SET status = 'published', candidate_json = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?").bind(JSON.stringify(reviewedCandidate), clean(reviewerId, 100), now, row.id),
   ]);
-  return { event, candidate: candidateFromRow({ ...row, status: "published", reviewed_by: reviewerId, reviewed_at: now }) };
+  return { event, candidate: candidateFromRow({ ...row, status: "published", candidate_json: JSON.stringify(reviewedCandidate), reviewed_by: reviewerId, reviewed_at: now }) };
 }
