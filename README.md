@@ -84,6 +84,8 @@ Cloudflare deployment and first-claim operations are documented in [Cloudflare P
 
 The maintained trust boundaries, performance budgets, maintenance seams, release controls, and incident-logging rules are documented in [Architecture, Performance, and Security Baseline](docs/architecture-security.md). Private vulnerability reports follow [SECURITY.md](SECURITY.md).
 
+The proposed convergence of Sabre Research Intelligence, Defense Budget Intelligence, and Opportunity Intelligence is documented in the [Defense Intelligence SaaS product design](docs/defense-intelligence-saas-product-design.md), with standalone [product architecture and wireframes](docs/defense-intelligence-saas-wireframes.html).
+
 ## Data Sources
 
 The request stage currently uses six official FY2027 Office of the Under Secretary of Defense (Comptroller) display workbooks:

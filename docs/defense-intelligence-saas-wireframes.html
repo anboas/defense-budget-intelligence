@@ -1,0 +1,536 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Defense Intelligence SaaS wireframes</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eef3f8;
+    --paper: #ffffff;
+    --ink: #10233f;
+    --muted: #60718a;
+    --line: #aebdd0;
+    --navy: #082e5c;
+    --blue: #0874c9;
+    --cyan: #dff5fb;
+    --teal: #0b7d82;
+    --green: #227a4b;
+    --green-bg: #e4f5eb;
+    --amber: #9b6200;
+    --amber-bg: #fff2d5;
+    --red: #a82932;
+    --red-bg: #fde7e9;
+    --violet: #6e39a6;
+    --violet-bg: #f2e9fb;
+    --slate: #f5f8fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1240px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.page { margin-bottom: 24px; }
+  header.page p { max-width: 820px; color: var(--muted); font-size: 16px; }
+  h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.03em; }
+  h2 { margin: 0 0 6px; font-size: 21px; }
+  section {
+    margin: 22px 0;
+    padding: 18px;
+    background: var(--paper);
+    border: 1px solid #d6e0eb;
+    border-radius: 12px;
+    box-shadow: 0 5px 18px rgba(16, 35, 63, 0.06);
+  }
+  section > p { margin: 0 0 14px; color: var(--muted); }
+  svg { width: 100%; height: auto; display: block; background: #f9fbfd; border: 1px solid #d9e3ee; border-radius: 8px; }
+  .title { font-size: 22px; font-weight: 800; fill: var(--ink); }
+  .subtitle { font-size: 13px; fill: var(--muted); }
+  .label { font-size: 14px; font-weight: 750; fill: var(--ink); }
+  .small { font-size: 12px; fill: var(--muted); }
+  .tiny { font-size: 10px; fill: var(--muted); }
+  .white { fill: white; }
+  .nav-label { font-size: 13px; font-weight: 700; fill: white; }
+  .node { stroke: var(--line); stroke-width: 1; }
+  .panel { fill: white; stroke: #c7d3e2; stroke-width: 1; }
+  .soft { fill: var(--slate); stroke: #d4dfeb; stroke-width: 1; }
+  .input { fill: #e5f2fd; }
+  .process { fill: var(--cyan); }
+  .storage { fill: var(--green-bg); }
+  .external { fill: var(--amber-bg); }
+  .risk { fill: var(--red-bg); }
+  .ai { fill: var(--violet-bg); }
+  .navy { fill: var(--navy); }
+  .blue { fill: var(--blue); }
+  .teal { fill: var(--teal); }
+  .green { fill: var(--green); }
+  .amber { fill: var(--amber); }
+  .red { fill: var(--red); }
+  .violet { fill: var(--violet); }
+  .edge { stroke: #71839b; stroke-width: 2; fill: none; }
+  .edge-label { font-size: 11px; fill: #53677f; font-weight: 700; }
+  .dash { stroke-dasharray: 7 5; }
+  .divider { stroke: #d1dce8; stroke-width: 1; }
+  .chip { fill: #eef4fa; stroke: #c7d5e3; stroke-width: 1; }
+  .chip-blue { fill: #e2f2fd; stroke: #82bde5; stroke-width: 1; }
+  .chip-amber { fill: var(--amber-bg); stroke: #e6bf72; stroke-width: 1; }
+  .chip-red { fill: var(--red-bg); stroke: #de9ba0; stroke-width: 1; }
+  .chip-green { fill: var(--green-bg); stroke: #9ac9ae; stroke-width: 1; }
+  .button { fill: white; stroke: #8ea6be; stroke-width: 1; }
+  .button-primary { fill: var(--blue); stroke: var(--blue); stroke-width: 1; }
+  .selected { fill: #eaf5fc; stroke: var(--blue); stroke-width: 2; }
+  .row-alt { fill: #f5f8fb; }
+  .annotation { fill: #fff8df; stroke: #d9b44a; stroke-width: 1; }
+  .annotation-text { font-size: 11px; fill: #6f5300; font-weight: 700; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+<main>
+  <header class="page">
+    <h1>Defense Intelligence SaaS</h1>
+    <p>Proposed convergence architecture and low-fidelity product wireframes. The layouts combine the Defense Intelligence SaaS foundation, Sabre's scan-first research model, and Opportunity Intelligence's guided capture lifecycle.</p>
+  </header>
+
+  <section>
+    <h2>1. Product convergence architecture</h2>
+    <p>One platform consumes the strongest capability from each current product while maintaining separate evidence, management, response, and automation planes.</p>
+    <svg viewBox="0 0 1200 690" role="img" aria-labelledby="arch-title arch-desc">
+      <title id="arch-title">Defense Intelligence SaaS convergence architecture</title>
+      <desc id="arch-desc">Three source applications converge into a unified experience and shared domain services over separate evidence, management, response, and automation data planes.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L8,4 L0,8 z" fill="#71839b"></path>
+        </marker>
+      </defs>
+
+      <path class="edge" marker-end="url(#arrow)" d="M220 174 C220 218 340 226 456 264" />
+      <path class="edge" marker-end="url(#arrow)" d="M600 174 L600 250" />
+      <path class="edge" marker-end="url(#arrow)" d="M980 174 C980 218 860 226 744 264" />
+      <path class="edge" marker-end="url(#arrow)" d="M600 366 L600 415" />
+      <path class="edge" marker-end="url(#arrow)" d="M600 535 L600 566" />
+      <text class="edge-label" x="260" y="220">pursuit + research model</text>
+      <text class="edge-label" x="617" y="218">SaaS + evidence foundation</text>
+      <text class="edge-label" x="785" y="220">capture + response model</text>
+
+      <rect class="node process" x="45" y="48" width="350" height="126" rx="12" />
+      <text class="label" x="73" y="80">Sabre Research Intelligence</text>
+      <text class="small" x="73" y="108">Opportunity queue · entity inspector · graph research</text>
+      <text class="small" x="73" y="130">Studies · reports · events · wallboard · Ask Sabre</text>
+      <text class="small" x="73" y="152">Review-first discovery and source-backed adjacency</text>
+
+      <rect class="node storage" x="425" y="48" width="350" height="126" rx="12" />
+      <text class="label" x="453" y="80">Defense Budget Intelligence</text>
+      <text class="small" x="453" y="108">Organizations · workspaces · teams · access · agents</text>
+      <text class="small" x="453" y="130">Budget · awards · transactions · source lineage</text>
+      <text class="small" x="453" y="152">Security · tasks · audit · D1/PostgreSQL parity</text>
+
+      <rect class="node external" x="805" y="48" width="350" height="126" rx="12" />
+      <text class="label" x="833" y="80">Opportunity Intelligence</text>
+      <text class="small" x="833" y="108">Guided lifecycle · ownership · next actions</text>
+      <text class="small" x="833" y="130">Capture playbooks · requirements · drafting · review</text>
+      <text class="small" x="833" y="152">Agent proposals · response readiness · export</text>
+
+      <rect class="node input" x="270" y="250" width="660" height="116" rx="14" />
+      <text class="title" x="306" y="287">Unified Defense Intelligence experience</text>
+      <text class="small" x="306" y="315">Command · Opportunities · Accounts · Research · Operations · Money &amp; Sources · Admin</text>
+      <rect class="chip-blue" x="306" y="331" width="136" height="24" rx="12" />
+      <text class="tiny" x="323" y="347">one opportunity ID</text>
+      <rect class="chip-blue" x="453" y="331" width="144" height="24" rx="12" />
+      <text class="tiny" x="469" y="347">one tenant model</text>
+      <rect class="chip-blue" x="608" y="331" width="133" height="24" rx="12" />
+      <text class="tiny" x="625" y="347">one task system</text>
+      <rect class="chip-blue" x="752" y="331" width="142" height="24" rx="12" />
+      <text class="tiny" x="768" y="347">one audit ledger</text>
+
+      <rect class="node soft" x="70" y="415" width="1060" height="120" rx="14" />
+      <text class="label" x="96" y="444">Shared domain services</text>
+      <rect class="panel" x="96" y="463" width="175" height="48" rx="8" />
+      <text class="small" x="117" y="492">Identity &amp; tenancy</text>
+      <rect class="panel" x="284" y="463" width="175" height="48" rx="8" />
+      <text class="small" x="311" y="492">Entity graph</text>
+      <rect class="panel" x="472" y="463" width="175" height="48" rx="8" />
+      <text class="small" x="497" y="492">Tasks &amp; events</text>
+      <rect class="panel" x="660" y="463" width="175" height="48" rx="8" />
+      <text class="small" x="689" y="492">Source operations</text>
+      <rect class="panel" x="848" y="463" width="256" height="48" rx="8" />
+      <text class="small" x="873" y="492">Agent proposal / review / commit</text>
+
+      <rect class="node process" x="70" y="566" width="250" height="76" rx="10" />
+      <text class="label" x="94" y="596">Evidence plane</text>
+      <text class="small" x="94" y="620">Immutable source snapshots</text>
+      <rect class="node storage" x="340" y="566" width="250" height="76" rx="10" />
+      <text class="label" x="364" y="596">Management plane</text>
+      <text class="small" x="364" y="620">Pursuits, owners, tasks, events</text>
+      <rect class="node external" x="610" y="566" width="250" height="76" rx="10" />
+      <text class="label" x="634" y="596">Response plane</text>
+      <text class="small" x="634" y="620">Requirements, drafts, reviews</text>
+      <rect class="node ai" x="880" y="566" width="250" height="76" rx="10" />
+      <text class="label" x="904" y="596">Automation plane</text>
+      <text class="small" x="904" y="620">Jobs, patches, approvals, usage</text>
+    </svg>
+  </section>
+
+  <section>
+    <h2>2. Command Center wireframe</h2>
+    <p>The landing page is a daily decision and work surface. It avoids a generic dashboard of charts.</p>
+    <svg viewBox="0 0 1200 760" role="img" aria-labelledby="command-title command-desc">
+      <title id="command-title">Command Center desktop wireframe</title>
+      <desc id="command-desc">Desktop application shell with a compact global navigation, working-set context, decision queue, changes, assignments, deadline horizon, and system health.</desc>
+
+      <rect class="navy" x="0" y="0" width="1200" height="72" />
+      <rect class="blue" x="0" y="69" width="1200" height="3" />
+      <text class="white" x="28" y="31" font-size="12" font-weight="700">DEFENSE INTELLIGENCE PLATFORM</text>
+      <text class="white" x="28" y="54" font-size="21" font-weight="800">Command</text>
+      <text class="nav-label" x="320" y="43">Command</text>
+      <text class="nav-label" x="405" y="43">Opportunities</text>
+      <text class="nav-label" x="512" y="43">Accounts</text>
+      <text class="nav-label" x="591" y="43">Research</text>
+      <text class="nav-label" x="673" y="43">Operations</text>
+      <text class="nav-label" x="775" y="43">Money &amp; Sources</text>
+      <rect class="button" x="1014" y="18" width="68" height="36" rx="6" />
+      <text class="small" x="1030" y="41">Search</text>
+      <rect class="button" x="1090" y="18" width="84" height="36" rx="6" />
+      <text class="small" x="1104" y="41">AB · Profile</text>
+
+      <text class="title" x="28" y="118">Good afternoon, Adam</text>
+      <text class="subtitle" x="28" y="142">7 decisions · 4 source changes · 5 assignments · next deadline in 2 days</text>
+      <rect class="chip" x="916" y="100" width="112" height="32" rx="16" />
+      <text class="small" x="936" y="121">Workspace: Sabre</text>
+      <rect class="button-primary" x="1040" y="98" width="134" height="36" rx="6" />
+      <text class="white" x="1061" y="121" font-size="12" font-weight="700">Create opportunity</text>
+
+      <rect class="panel" x="28" y="166" width="706" height="260" rx="8" />
+      <text class="small" x="50" y="193" font-weight="800">DECISION QUEUE</text>
+      <text class="label" x="50" y="218">Needs your judgment</text>
+      <text class="small" x="650" y="216">7 open</text>
+      <line class="divider" x1="50" y1="234" x2="712" y2="234" />
+
+      <rect class="row-alt" x="42" y="244" width="678" height="70" rx="6" />
+      <rect class="chip-red" x="55" y="259" width="72" height="22" rx="11" />
+      <text class="tiny" x="72" y="274">DUE TODAY</text>
+      <text class="label" x="141" y="273">Approve qualification gate</text>
+      <text class="small" x="141" y="296">Joint Targeting Toolbox · evidence gaps resolved</text>
+      <rect class="button-primary" x="596" y="257" width="106" height="36" rx="6" />
+      <text class="white" x="619" y="280" font-size="11" font-weight="700">Open decision</text>
+
+      <rect class="row-alt" x="42" y="322" width="678" height="70" rx="6" />
+      <rect class="chip-amber" x="55" y="337" width="72" height="22" rx="11" />
+      <text class="tiny" x="70" y="352">2 DAYS</text>
+      <text class="label" x="141" y="351">Review sourced deadline change</text>
+      <text class="small" x="141" y="374">PMX-281 · SAM.gov amendment moved response date</text>
+      <rect class="button" x="596" y="335" width="106" height="36" rx="6" />
+      <text class="small" x="618" y="358">Review diff</text>
+
+      <rect class="panel" x="752" y="166" width="422" height="260" rx="8" />
+      <text class="small" x="774" y="193" font-weight="800">MY WORK</text>
+      <text class="label" x="774" y="218">Assignments and blockers</text>
+      <line class="divider" x1="774" y1="234" x2="1152" y2="234" />
+      <rect class="chip-blue" x="774" y="254" width="76" height="24" rx="12" />
+      <text class="tiny" x="795" y="270">CAPTURE</text>
+      <text class="small" x="862" y="271">3 tasks due this week</text>
+      <rect class="chip-amber" x="774" y="294" width="76" height="24" rx="12" />
+      <text class="tiny" x="796" y="310">EVIDENCE</text>
+      <text class="small" x="862" y="311">2 records need validation</text>
+      <rect class="chip-red" x="774" y="334" width="76" height="24" rx="12" />
+      <text class="tiny" x="798" y="350">BLOCKED</text>
+      <text class="small" x="862" y="351">1 response waiting on partner</text>
+      <rect class="button" x="774" y="375" width="378" height="34" rx="6" />
+      <text class="small" x="914" y="397">Open my work queue</text>
+
+      <rect class="panel" x="28" y="444" width="512" height="276" rx="8" />
+      <text class="small" x="50" y="471" font-weight="800">WHAT CHANGED</text>
+      <text class="label" x="50" y="496">Sourced changes since last visit</text>
+      <line class="divider" x1="50" y1="512" x2="518" y2="512" />
+      <text class="small" x="58" y="546">SAM.gov</text>
+      <text class="label" x="142" y="546">2 opportunity amendments</text>
+      <text class="small" x="142" y="567">Deadline and place-of-performance changes</text>
+      <line class="divider" x1="50" y1="582" x2="518" y2="582" />
+      <text class="small" x="58" y="614">USAspending</text>
+      <text class="label" x="142" y="614">1 incumbent modification</text>
+      <text class="small" x="142" y="635">$4.2M obligation linked to tracked account</text>
+      <line class="divider" x1="50" y1="650" x2="518" y2="650" />
+      <text class="small" x="58" y="682">Research</text>
+      <text class="label" x="142" y="682">1 cited relationship proposal</text>
+
+      <rect class="panel" x="558" y="444" width="376" height="276" rx="8" />
+      <text class="small" x="580" y="471" font-weight="800">30-DAY HORIZON</text>
+      <text class="label" x="580" y="496">Deadlines and events</text>
+      <line class="divider" x1="580" y1="512" x2="912" y2="512" />
+      <rect class="navy" x="580" y="530" width="54" height="52" rx="6" />
+      <text class="white" x="591" y="550" font-size="10">SEP</text>
+      <text class="white" x="592" y="572" font-size="18" font-weight="800">30</text>
+      <text class="label" x="650" y="550">Application Arsenal response</text>
+      <text class="small" x="650" y="572">2 days · owner Morgan Lee</text>
+      <rect class="navy" x="580" y="600" width="54" height="52" rx="6" />
+      <text class="white" x="593" y="620" font-size="10">OCT</text>
+      <text class="white" x="592" y="642" font-size="18" font-weight="800">08</text>
+      <text class="label" x="650" y="620">AFRL Industry Day</text>
+      <text class="small" x="650" y="642">4 linked pursuits · 3 attendees</text>
+      <rect class="button" x="580" y="670" width="332" height="34" rx="6" />
+      <text class="small" x="700" y="692">Open calendar</text>
+
+      <rect class="panel" x="952" y="444" width="222" height="276" rx="8" />
+      <text class="small" x="974" y="471" font-weight="800">SYSTEM HEALTH</text>
+      <text class="label" x="974" y="496">Sources and agents</text>
+      <line class="divider" x1="974" y1="512" x2="1152" y2="512" />
+      <circle class="green" cx="987" cy="542" r="6" />
+      <text class="small" x="1001" y="546">11 / 12 sources online</text>
+      <circle class="amber" cx="987" cy="579" r="6" />
+      <text class="small" x="1001" y="583">2 reviews pending</text>
+      <circle class="green" cx="987" cy="616" r="6" />
+      <text class="small" x="1001" y="620">Agents healthy</text>
+      <circle class="red" cx="987" cy="653" r="6" />
+      <text class="small" x="1001" y="657">1 connector retrying</text>
+      <rect class="button" x="974" y="676" width="178" height="28" rx="6" />
+      <text class="tiny" x="1021" y="694">Open Task Center</text>
+    </svg>
+  </section>
+
+  <section>
+    <h2>3. Opportunity Queue wireframe</h2>
+    <p>Sabre's compact table becomes the canonical pipeline, with owner, phase, due urgency, next action, evidence, and readiness added to the default scan path.</p>
+    <svg viewBox="0 0 1200 700" role="img" aria-labelledby="queue-title queue-desc">
+      <title id="queue-title">Opportunity Queue desktop wireframe</title>
+      <desc id="queue-desc">A scan-first opportunity queue with scope, search, filters, bulk actions, configurable columns, and expandable evidence-aware rows.</desc>
+
+      <rect class="navy" x="0" y="0" width="1200" height="70" />
+      <text class="white" x="28" y="30" font-size="12" font-weight="700">DEFENSE INTELLIGENCE PLATFORM</text>
+      <text class="white" x="28" y="53" font-size="21" font-weight="800">Opportunities</text>
+      <text class="nav-label" x="362" y="42">Command</text>
+      <text class="nav-label" x="448" y="42">Opportunities</text>
+      <text class="nav-label" x="559" y="42">Accounts</text>
+      <text class="nav-label" x="639" y="42">Research</text>
+      <text class="nav-label" x="721" y="42">Operations</text>
+      <rect class="button-primary" x="1008" y="18" width="166" height="36" rx="6" />
+      <text class="white" x="1030" y="41" font-size="12" font-weight="700">Discover / update</text>
+
+      <text class="title" x="28" y="116">Opportunity Queue</text>
+      <text class="subtitle" x="28" y="141">54 active · 7 need attention · refreshed 12 minutes ago</text>
+      <rect class="button" x="953" y="101" width="92" height="34" rx="6" />
+      <text class="small" x="976" y="123">Saved views</text>
+      <rect class="button-primary" x="1055" y="99" width="119" height="38" rx="6" />
+      <text class="white" x="1077" y="123" font-size="12" font-weight="700">Add opportunity</text>
+
+      <rect class="soft" x="28" y="164" width="1146" height="128" rx="8" />
+      <rect class="panel" x="48" y="184" width="354" height="40" rx="6" />
+      <text class="small" x="68" y="209">Search title, notice, customer, contact, next action...</text>
+      <rect class="panel" x="414" y="184" width="128" height="40" rx="6" />
+      <text class="small" x="435" y="209">Owner: Anyone</text>
+      <rect class="panel" x="552" y="184" width="128" height="40" rx="6" />
+      <text class="small" x="571" y="209">Phase: Active</text>
+      <rect class="panel" x="690" y="184" width="132" height="40" rx="6" />
+      <text class="small" x="708" y="209">Attention: All</text>
+      <rect class="panel" x="832" y="184" width="132" height="40" rx="6" />
+      <text class="small" x="850" y="209">Customer: All</text>
+      <rect class="button" x="974" y="184" width="80" height="40" rx="6" />
+      <text class="small" x="994" y="209">More</text>
+      <rect class="button" x="1064" y="184" width="90" height="40" rx="6" />
+      <text class="small" x="1087" y="209">Reset</text>
+      <rect class="chip-blue" x="48" y="242" width="118" height="28" rx="14" />
+      <text class="tiny" x="68" y="260">My active pursuits</text>
+      <rect class="chip" x="176" y="242" width="126" height="28" rx="14" />
+      <text class="tiny" x="198" y="260">Due in 30 days</text>
+      <rect class="chip" x="312" y="242" width="126" height="28" rx="14" />
+      <text class="tiny" x="334" y="260">Missing owner</text>
+      <rect class="chip" x="448" y="242" width="144" height="28" rx="14" />
+      <text class="tiny" x="467" y="260">Evidence changed</text>
+
+      <rect class="panel" x="28" y="310" width="1146" height="354" rx="8" />
+      <text class="small" x="48" y="338">0 selected</text>
+      <rect class="button" x="124" y="320" width="88" height="30" rx="5" />
+      <text class="tiny" x="146" y="339">Select page</text>
+      <rect class="button" x="904" y="320" width="82" height="30" rx="5" />
+      <text class="tiny" x="926" y="339">Columns</text>
+      <rect class="button" x="996" y="320" width="78" height="30" rx="5" />
+      <text class="tiny" x="1014" y="339">Density</text>
+      <rect class="button" x="1084" y="320" width="70" height="30" rx="5" />
+      <text class="tiny" x="1102" y="339">Export</text>
+
+      <rect class="navy" x="42" y="363" width="1118" height="42" />
+      <text class="white" x="55" y="389" font-size="10" font-weight="700">PRIORITY</text>
+      <text class="white" x="126" y="389" font-size="10" font-weight="700">OPPORTUNITY</text>
+      <text class="white" x="312" y="389" font-size="10" font-weight="700">CUSTOMER</text>
+      <text class="white" x="435" y="389" font-size="10" font-weight="700">PHASE</text>
+      <text class="white" x="524" y="389" font-size="10" font-weight="700">DUE IN</text>
+      <text class="white" x="596" y="389" font-size="10" font-weight="700">OWNER</text>
+      <text class="white" x="696" y="389" font-size="10" font-weight="700">NEXT ACTION</text>
+      <text class="white" x="846" y="389" font-size="10" font-weight="700">EVIDENCE</text>
+      <text class="white" x="944" y="389" font-size="10" font-weight="700">RESPONSE</text>
+      <text class="white" x="1050" y="389" font-size="10" font-weight="700">ACTIONS</text>
+
+      <rect class="row-alt" x="42" y="405" width="1118" height="70" />
+      <rect class="red" x="55" y="426" width="38" height="24" rx="5" />
+      <text class="white" x="66" y="443" font-size="10" font-weight="700">P1</text>
+      <text class="label" x="126" y="431">Application Arsenal support</text>
+      <text class="tiny" x="126" y="452">N00164-26-R-3011 · Sources sought</text>
+      <text class="small" x="312" y="439">NIWC Pacific</text>
+      <rect class="chip-blue" x="435" y="422" width="74" height="26" rx="13" />
+      <text class="tiny" x="451" y="439">QUALIFY</text>
+      <rect class="chip-red" x="524" y="422" width="58" height="26" rx="13" />
+      <text class="tiny" x="537" y="439">2 DAYS</text>
+      <text class="small" x="596" y="439">Morgan Lee</text>
+      <text class="small" x="696" y="431">Approve pursuit gate</text>
+      <text class="tiny" x="696" y="452">due today</text>
+      <rect class="chip-amber" x="846" y="422" width="76" height="26" rx="13" />
+      <text class="tiny" x="862" y="439">2 GAPS</text>
+      <text class="small" x="944" y="439">Not started</text>
+      <rect class="button" x="1050" y="422" width="92" height="28" rx="5" />
+      <text class="tiny" x="1071" y="440">Open ···</text>
+
+      <rect class="selected" x="42" y="475" width="1118" height="70" />
+      <rect class="red" x="55" y="496" width="38" height="24" rx="5" />
+      <text class="white" x="66" y="513" font-size="10" font-weight="700">P1</text>
+      <text class="label" x="126" y="501">PMX-281 program support</text>
+      <text class="tiny" x="126" y="522">N00421-22-RFPREQ-APM281-0002 · RFI</text>
+      <text class="small" x="312" y="509">NAVAIR NAWCAD</text>
+      <rect class="chip-blue" x="435" y="492" width="74" height="26" rx="13" />
+      <text class="tiny" x="451" y="509">SHAPE</text>
+      <rect class="chip-amber" x="524" y="492" width="58" height="26" rx="13" />
+      <text class="tiny" x="535" y="509">12 DAYS</text>
+      <text class="small" x="596" y="509">Alex Rivera</text>
+      <text class="small" x="696" y="501">Validate incumbent</text>
+      <text class="tiny" x="696" y="522">tomorrow</text>
+      <rect class="chip-green" x="846" y="492" width="76" height="26" rx="13" />
+      <text class="tiny" x="860" y="509">CURRENT</text>
+      <text class="small" x="944" y="509">42%</text>
+      <rect class="button-primary" x="1050" y="492" width="92" height="28" rx="5" />
+      <text class="white" x="1071" y="510" font-size="10" font-weight="700">Open ···</text>
+
+      <rect class="soft" x="42" y="545" width="1118" height="80" />
+      <text class="tiny" x="126" y="568" font-weight="800">EXPANDED CONTEXT</text>
+      <text class="small" x="126" y="593"><tspan font-weight="700">Posture:</tspan> prime / immediate response</text>
+      <text class="small" x="420" y="593"><tspan font-weight="700">Latest change:</tspan> response date moved to Oct 10</text>
+      <text class="small" x="755" y="593"><tspan font-weight="700">Source:</tspan> SAM.gov amendment 3</text>
+      <rect class="button" x="1018" y="563" width="124" height="34" rx="5" />
+      <text class="tiny" x="1042" y="584">Review source diff</text>
+
+      <text class="annotation-text" x="62" y="681">Design rule: primary fields stay visible; secondary actions move into a labeled overflow menu.</text>
+    </svg>
+  </section>
+
+  <section>
+    <h2>4. Guided Opportunity Detail wireframe</h2>
+    <p>The detail route combines Opportunity Intelligence's lifecycle shell, Sabre's source-backed research, and Defense Intelligence's budget, award, and transaction lineage.</p>
+    <svg viewBox="0 0 1200 860" role="img" aria-labelledby="detail-title detail-desc">
+      <title id="detail-title">Guided Opportunity Detail desktop wireframe</title>
+      <desc id="detail-desc">Opportunity detail with a persistent command header, lifecycle rail, tabbed workspaces, decision brief, blockers, key evidence, account relationships, and a context drawer.</desc>
+
+      <rect class="navy" x="0" y="0" width="1200" height="70" />
+      <text class="white" x="28" y="31" font-size="12" font-weight="700">DEFENSE INTELLIGENCE PLATFORM</text>
+      <text class="white" x="28" y="54" font-size="21" font-weight="800">PMX-281 Program Support</text>
+      <rect class="button" x="879" y="18" width="84" height="36" rx="6" />
+      <text class="small" x="901" y="41">Ask DI</text>
+      <rect class="button" x="973" y="18" width="92" height="36" rx="6" />
+      <text class="small" x="991" y="41">Refresh</text>
+      <rect class="button-primary" x="1075" y="18" width="99" height="36" rx="6" />
+      <text class="white" x="1101" y="41" font-size="12" font-weight="700">Edit</text>
+
+      <rect class="panel" x="28" y="91" width="1146" height="112" rx="8" />
+      <text class="tiny" x="50" y="117" font-weight="800">N00421-22-RFPREQ-APM281-0002 · NAVAIR NAWCAD</text>
+      <text class="title" x="50" y="148">PMX-281 Program / Project Management Services</text>
+      <rect class="chip-blue" x="50" y="163" width="78" height="25" rx="12" />
+      <text class="tiny" x="68" y="179">SHAPE</text>
+      <rect class="chip-red" x="138" y="163" width="86" height="25" rx="12" />
+      <text class="tiny" x="158" y="179">12 DAYS</text>
+      <rect class="chip-green" x="234" y="163" width="104" height="25" rx="12" />
+      <text class="tiny" x="251" y="179">EVIDENCE CURRENT</text>
+      <text class="small" x="786" y="124">Owner</text>
+      <text class="label" x="786" y="148">Alex Rivera</text>
+      <text class="small" x="942" y="124">Next action</text>
+      <text class="label" x="942" y="148">Validate incumbent</text>
+      <text class="tiny" x="942" y="171">Due tomorrow</text>
+
+      <rect class="soft" x="28" y="220" width="1146" height="112" rx="8" />
+      <text class="tiny" x="50" y="246" font-weight="800">PURSUIT LIFECYCLE</text>
+      <line x1="94" y1="284" x2="1104" y2="284" stroke="#9fb0c4" stroke-width="3" />
+      <circle class="green" cx="94" cy="284" r="18" />
+      <circle class="green" cx="250" cy="284" r="18" />
+      <circle class="blue" cx="406" cy="284" r="22" />
+      <circle fill="#d7e0ea" cx="562" cy="284" r="18" />
+      <circle fill="#d7e0ea" cx="718" cy="284" r="18" />
+      <circle fill="#d7e0ea" cx="874" cy="284" r="18" />
+      <circle fill="#d7e0ea" cx="1030" cy="284" r="18" />
+      <text class="white" x="89" y="289" font-size="12" font-weight="800">✓</text>
+      <text class="white" x="245" y="289" font-size="12" font-weight="800">✓</text>
+      <text class="white" x="401" y="289" font-size="12" font-weight="800">3</text>
+      <text class="tiny" x="76" y="319">TRIAGE</text>
+      <text class="tiny" x="226" y="319">QUALIFY</text>
+      <text class="tiny" x="387" y="319">SHAPE</text>
+      <text class="tiny" x="522" y="319">PREPARE RESPONSE</text>
+      <text class="tiny" x="699" y="319">SUBMIT</text>
+      <text class="tiny" x="848" y="319">NEGOTIATE</text>
+      <text class="tiny" x="1009" y="319">OUTCOME</text>
+
+      <rect class="panel" x="28" y="349" width="1146" height="50" rx="7" />
+      <rect class="selected" x="40" y="358" width="86" height="32" rx="5" />
+      <text class="small" x="65" y="379">Brief</text>
+      <text class="small" x="151" y="379">Evidence</text>
+      <text class="small" x="232" y="379">Account</text>
+      <text class="small" x="309" y="379">Capture</text>
+      <text class="small" x="385" y="379">Response</text>
+      <text class="small" x="478" y="379">History</text>
+      <rect class="button" x="1011" y="358" width="143" height="32" rx="5" />
+      <text class="tiny" x="1036" y="378">Open context drawer</text>
+
+      <rect class="panel" x="28" y="416" width="738" height="186" rx="8" />
+      <text class="tiny" x="50" y="443" font-weight="800">DECISION BRIEF</text>
+      <text class="label" x="50" y="468">Prime if incumbent validation confirms transition opening</text>
+      <text class="small" x="50" y="495">Customer signals and adjacent award history support immediate shaping. The team</text>
+      <text class="small" x="50" y="516">still needs a sourced incumbent position and a named technical relationship owner.</text>
+      <rect class="chip-green" x="50" y="540" width="124" height="27" rx="13" />
+      <text class="tiny" x="70" y="557">CAPABILITY FIT: HIGH</text>
+      <rect class="chip-blue" x="184" y="540" width="148" height="27" rx="13" />
+      <text class="tiny" x="203" y="557">RELATIONSHIP: MEDIUM</text>
+      <rect class="chip-amber" x="342" y="540" width="142" height="27" rx="13" />
+      <text class="tiny" x="360" y="557">EVIDENCE: 2 GAPS</text>
+      <rect class="button-primary" x="594" y="536" width="150" height="36" rx="6" />
+      <text class="white" x="621" y="559" font-size="11" font-weight="700">Complete next action</text>
+
+      <rect class="panel" x="784" y="416" width="390" height="186" rx="8" />
+      <text class="tiny" x="806" y="443" font-weight="800">BLOCKERS &amp; GATES</text>
+      <rect class="chip-red" x="806" y="460" width="68" height="24" rx="12" />
+      <text class="tiny" x="822" y="476">BLOCKER</text>
+      <text class="small" x="886" y="476">Incumbent is not verified</text>
+      <rect class="chip-amber" x="806" y="496" width="68" height="24" rx="12" />
+      <text class="tiny" x="824" y="512">GATE</text>
+      <text class="small" x="886" y="512">Relationship owner missing</text>
+      <rect class="chip-blue" x="806" y="532" width="68" height="24" rx="12" />
+      <text class="tiny" x="822" y="548">REVIEW</text>
+      <text class="small" x="886" y="548">Deadline change pending</text>
+      <rect class="button" x="806" y="566" width="346" height="26" rx="5" />
+      <text class="tiny" x="928" y="583">Open gate checklist</text>
+
+      <rect class="panel" x="28" y="620" width="554" height="206" rx="8" />
+      <text class="tiny" x="50" y="647" font-weight="800">KEY EVIDENCE</text>
+      <text class="label" x="50" y="673">Money and source lineage</text>
+      <line class="divider" x1="50" y1="689" x2="560" y2="689" />
+      <text class="small" x="58" y="718">SAM.gov amendment 3</text>
+      <text class="tiny" x="389" y="718">verified 12 min ago</text>
+      <text class="small" x="58" y="749">Incumbent award family</text>
+      <text class="tiny" x="389" y="749">$38.4M · 12 actions</text>
+      <text class="small" x="58" y="780">RDT&amp;E account lineage</text>
+      <text class="tiny" x="389" y="780">FY26 request + execution</text>
+      <rect class="button" x="50" y="792" width="510" height="25" rx="5" />
+      <text class="tiny" x="249" y="809">Open Evidence workspace</text>
+
+      <rect class="panel" x="600" y="620" width="574" height="206" rx="8" />
+      <text class="tiny" x="622" y="647" font-weight="800">ACCOUNT &amp; RELATIONSHIPS</text>
+      <text class="label" x="622" y="673">Customer ecosystem</text>
+      <line class="divider" x1="622" y1="689" x2="1152" y2="689" />
+      <rect class="process node" x="626" y="710" width="132" height="50" rx="8" />
+      <text class="small" x="655" y="740">NAVAIR</text>
+      <rect class="storage node" x="828" y="700" width="154" height="50" rx="8" />
+      <text class="small" x="852" y="730">PMX-281 Office</text>
+      <rect class="external node" x="828" y="770" width="154" height="42" rx="8" />
+      <text class="tiny" x="850" y="796">Incumbent: unverified</text>
+      <rect class="ai node" x="1020" y="735" width="128" height="50" rx="8" />
+      <text class="small" x="1046" y="765">3 contacts</text>
+      <path class="edge" d="M758 735 L828 725" />
+      <path class="edge dash" d="M905 750 L905 770" />
+      <path class="edge" d="M982 725 L1020 752" />
+    </svg>
+  </section>
+
+  <footer>Low-fidelity concept only. The design document defines the normative product, data, security, and migration requirements.</footer>
+</main>
