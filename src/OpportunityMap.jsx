@@ -630,13 +630,21 @@ function activeFilterCount(filters) {
     .filter((value, index) => value !== [DEFAULT_FILTERS.by, DEFAULT_FILTERS.evidence, DEFAULT_FILTERS.scope, DEFAULT_FILTERS.branch, DEFAULT_FILTERS.spend, DEFAULT_FILTERS.floor][index]).length;
 }
 
+function recordTableHref(record) {
+  const params = new URLSearchParams({ spendView: "table" });
+  const query = record.reference || record.title || record.id || "";
+  const recordId = record.opportunityId || record.id || record.reference || "";
+  if (query) params.set("capQuery", query);
+  if (recordId) params.set("capRecord", recordId);
+  return `#/budget-spend/explorer?${params}`;
+}
+
 function OpportunityRow({ record, asOf, watched, onToggleWatch, spendMetric }) {
   const nextDate = nextRecordDate(record, asOf);
-  const query = record.reference || record.title;
   return <article className="opportunity-map__record">
     <div className="opportunity-map__record-main">
       <span><ControlStatusBadge status={lifecycleBucket(record, asOf) === "active" ? "active" : lifecycleBucket(record, asOf) === "upcoming" ? "pending" : "neutral"} label={lifecycleLabel(record, asOf)} />{record.mode === "acquisition-window" ? <small>Acquisition</small> : <small>Contract</small>}</span>
-      <a href={`#/budget-spend/explorer?spendView=table&capQuery=${encodeURIComponent(query || "")}`}>{record.title || record.reference || "Untitled record"}</a>
+      <a href={recordTableHref(record)}>{record.title || record.reference || "Untitled record"}</a>
       <p>{record.reference || "No reference"} · {record.portfolio || "No portfolio"}</p>
     </div>
     <div className="opportunity-map__record-facts"><strong>{money(recordAmount(record, spendMetric))}</strong><span>{nextDate ? compactDate(nextDate) : "No future date"}</span></div>
