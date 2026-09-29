@@ -1,5 +1,6 @@
 import { ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import { WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
+import ConnectedEvidence from "./ConnectedEvidence.jsx";
 
 function money(value) {
   const amount = Number(value || 0);
@@ -39,5 +40,6 @@ export default function AnalyticsRecordDrawer({ record, onClose }) {
     <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>
       <ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} />
     </ControlDisclosure>
+    <ConnectedEvidence opportunityId={record.opportunityId} />
   </ControlDrawer>;
 }

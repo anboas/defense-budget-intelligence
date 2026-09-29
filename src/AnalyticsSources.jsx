@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ControlDisclosure } from "control-surface-ui/react";
 import { Database, ExternalLink, Network, RefreshCcw } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
 import AnalysisSection from "./AnalysisSection.jsx";
+import { loadIntelligenceGraphSummary } from "./intelligence-graph.js";
 
 function dateTime(value) {
   return new Date(value).toLocaleString(undefined, {
@@ -21,6 +22,12 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
   const transactionCoverage = captureCalendar?.metadata?.coverage || {};
   const healthTotals = sourceHealth.totals || {};
   const [showAllSourceHealth, setShowAllSourceHealth] = useState(false);
+  const [graphSummary, setGraphSummary] = useState(null);
+  useEffect(() => {
+    let active = true;
+    loadIntelligenceGraphSummary().then((payload) => { if (active) setGraphSummary(payload); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const orderedHealthSources = [...(sourceHealth.sources || [])].sort((left, right) => {
     const severity = { unavailable: 0, redirected: 1, online: 2 };
     return (severity[left.health?.toLowerCase()] ?? 3) - (severity[right.health?.toLowerCase()] ?? 3);
@@ -103,6 +110,17 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
           <article><strong>{healthTotals.unavailable || 0}</strong><span>unavailable at last probe</span></article>
         </div>
       </section>
+      {graphSummary ? <AnalysisSection title="Cross-surface evidence graph" meta={`${graphSummary.totals.entities.toLocaleString()} typed entities · ${graphSummary.totals.relations.toLocaleString()} evidence-bearing relations`} icon={Network}>
+        <div className="if-relationship-bundle-grid if-relationship-bundle-grid--mobile-scroll" data-intelligence-graph-summary>
+          <article className="if-relationship-bundle"><h3>Activity spine</h3><p>{graphSummary.metadata.entityCounts.activity.toLocaleString()} activities · {graphSummary.metadata.coverage.activities.awardLinked.toLocaleString()} award-linked · {graphSummary.metadata.coverage.activities.calendar.toLocaleString()} with canonical calendar records.</p></article>
+          <article className="if-relationship-bundle"><h3>Awards and actions</h3><p>{graphSummary.metadata.entityCounts.award.toLocaleString()} awards · {graphSummary.metadata.entityCounts.transaction.toLocaleString()} exact FPDS actions · {graphSummary.metadata.entityCounts["subaward-summary"].toLocaleString()} prime subaward summaries.</p></article>
+          <article className="if-relationship-bundle"><h3>Organizations and geography</h3><p>{graphSummary.metadata.entityCounts.organization.toLocaleString()} conservative identities · {graphSummary.metadata.entityCounts.location.toLocaleString()} reviewed locations · {graphSummary.metadata.coverage.geography.activityLocationRelations.toLocaleString()} activity-location edges.</p></article>
+          <article className="if-relationship-bundle"><h3>Money lineage</h3><p>{graphSummary.metadata.entityCounts["federal-account"].toLocaleString()} federal accounts · {graphSummary.metadata.relationCounts["award-funded-by-account"].toLocaleString()} exact award-account edges.</p></article>
+          <article className="if-relationship-bundle"><h3>Budget crosswalk</h3><p>{graphSummary.metadata.coverage.budget.exactAccountTitleLinks.toLocaleString()} exact normalized title links; {graphSummary.metadata.coverage.budget.unresolvedAccountTitleLinks.toLocaleString()} budget lines remain explicitly unresolved.</p></article>
+          <article className="if-relationship-bundle"><h3>Evidence policy</h3><p>Exact, reviewed, source-declared, deterministic, and derived joins remain distinct. Fuzzy identity and unsupported budget-line-to-award links are prohibited.</p></article>
+        </div>
+        <p className="lifecycle-caveat">The graph is a projection of retained evidence, not a scoring system. <a href={`${import.meta.env.BASE_URL}data/intelligence-graph.json`} download>Download the complete integrity graph</a>.</p>
+      </AnalysisSection> : null}
       <AnalysisSection title="Money-flow lineage" meta="left to right from request to public subaward actions" icon={Database}>
         <div className="if-ingest-flow if-ingest-flow--mobile-scroll" data-source-flow>
           {layers.map((layer) => <article className="if-ingest-stage" key={layer.id}>

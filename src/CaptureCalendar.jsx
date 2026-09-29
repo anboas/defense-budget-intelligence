@@ -39,6 +39,7 @@ import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
+import ConnectedEvidence from "./ConnectedEvidence.jsx";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -603,6 +604,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
       </ControlDisclosure>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
+      <ConnectedEvidence opportunityId={record.opportunityId} />
       {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
       {record.milestones.length ? (
         <div className="capture-detail__milestones">

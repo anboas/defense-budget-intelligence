@@ -15,15 +15,18 @@ const styleAssets = builtAssets.filter((name) => name.endsWith(".css")).map((nam
 const compiledStyleBytes = styleAssets.reduce((total, asset) => total + asset.bytes, 0);
 const shellStyleBytes = styleAssets.find((asset) => /^index-.*\.css$/.test(asset.name))?.bytes || 0;
 const mapStyleBytes = styleAssets.find((asset) => /^OpportunityMap-.*\.css$/.test(asset.name))?.bytes || 0;
+const connectedEvidenceStyleBytes = styleAssets.find((asset) => /^ConnectedEvidence-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 369_000, `Total scoped CSS must stay below 369 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(connectedEvidenceStyleBytes > 0 && connectedEvidenceStyleBytes <= 4_000, `Deferred connected-evidence CSS must stay within its 4 KB component budget, got ${connectedEvidenceStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 373_000, `Total scoped CSS must stay below 373 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).length, 1, "Timeline, table, and charts should share one lazy Spend Explorer boundary");
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
+assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(name)).length, 1, "Integrations should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
@@ -127,9 +130,9 @@ async function assertOpenStateControls(page, label, root = "body") {
 
 async function assertActiveGroupState(page, group, childLabel) {
   const trigger = page.locator(`[data-nav-group-trigger="${group}"]`);
-  await page.waitForFunction((groupId) => document.querySelector(`[data-nav-group-trigger="${groupId}"]`)?.getAttribute("aria-expanded") === "false", group);
   await page.mouse.move(0, 0);
   await page.waitForTimeout(160);
+  await page.waitForFunction((groupId) => document.querySelector(`[data-nav-group-trigger="${groupId}"]`)?.getAttribute("aria-expanded") === "false", group);
   assert.equal(await trigger.getAttribute("data-nav-group-active-child"), childLabel, `${group} should name its active child in the trigger contract`);
   assert.match(await trigger.getAttribute("class"), /has-active-child/, `${group} should use the established active-child state`);
   const context = trigger.locator(".ci-header-nav__menu-trigger-context");
@@ -1578,8 +1581,23 @@ try {
   const solicitationHover = await page.locator("[data-capture-hovercard]").innerText();
   assert.match(solicitationHover, /Active solicitation window/i);
   assert.match(solicitationHover, /Aug 31, 2026 to Sep 30, 2026/i);
+  assert.equal(await resourceCount(page, "intelligence-graph-index.json"), 0, "The evidence graph must remain deferred until a record detail opens");
+  assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "The full integrity graph must never be a browser dependency");
+  const evidenceGraphReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/intelligence-graph-index.json") && response.ok());
   await applicationSolicitation.click();
+  await evidenceGraphReady;
   await page.waitForSelector("[data-capture-detail-modal]");
+  await page.waitForSelector('[data-connected-evidence-state="ready"]');
+  const connectedEvidence = page.locator("[data-connected-evidence]");
+  const connectedEvidenceText = await connectedEvidence.innerText();
+  assert.match(connectedEvidenceText, /Connected intelligence/i, "Record detail should expose its cross-surface evidence graph");
+  assert.match(connectedEvidenceText, /organization|event|FPDS action/i, "Connected evidence should summarize typed neighboring entities");
+  assert.ok((await connectedEvidence.getAttribute("data-connected-evidence-id"))?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
+  assert.ok(await connectedEvidence.locator(".connected-evidence__routes a").count() >= 2, "Connected evidence should link back into analytical working surfaces");
+  await connectedEvidence.locator(".connected-evidence__evidence > summary").click();
+  assert.match(await connectedEvidence.locator(".connected-evidence__evidence").innerText(), /exact|source declared|deterministic/i, "Connected evidence should disclose join basis and confidence");
+  assert.equal(await resourceCount(page, "intelligence-graph-index.json"), 1, "Record drawers should load the deferred evidence index exactly once");
+  assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Record drawers should use the bounded index rather than the full integrity graph");
   assert.equal(await page.locator(".capture-detail__secondary").getAttribute("open"), null, "Procurement diagnostics should stay collapsed when a record opens");
   await page.locator(".capture-detail__secondary > summary").click();
   const applicationDetail = await page.locator("[data-capture-secondary-facts]").innerText();
@@ -1842,11 +1860,14 @@ try {
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-drawer]');
+  await page.waitForSelector('[data-analytics-record-drawer] [data-connected-evidence-state="ready"]');
   assert.match(new URL(page.url()).hash, /analyticsRecord=/, "Analytical detail should own a shareable URL state");
   assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Observed obligations|Reported potential/i);
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
-  assert.match(await page.locator('[data-analytics-record-drawer] footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  assert.match(await page.locator('[data-analytics-record-drawer] > .if-drawer__footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
+  assert.equal(await page.locator('[data-analytics-record-drawer] [data-connected-evidence]').count(), 1, "Analytical detail should reuse the canonical cross-surface evidence component");
+  assert.equal(await resourceCount(page, "intelligence-graph-index.json"), 1, "Analytical detail should reuse the session-cached evidence index");
   await page.screenshot({ path: `${OUT_DIR}/analytics-record-detail-desktop.png`, fullPage: true });
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-drawer__actions .if-icon-btn').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
   await page.keyboard.press("Shift+Tab");
@@ -1873,9 +1894,15 @@ try {
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
+  await page.waitForSelector("[data-intelligence-graph-summary]");
+  const graphSummaryText = await page.locator("[data-intelligence-graph-summary]").innerText();
+  assert.match(graphSummaryText, /888 activities[\s\S]*702 awards[\s\S]*3,085 exact FPDS actions/i, "Source Lineage should expose the canonical activity, award, and transaction spine");
+  assert.match(graphSummaryText, /319 budget lines remain explicitly unresolved/i, "Source Lineage should keep unresolved crosswalks visible");
+  assert.equal(await resourceCount(page, "intelligence-graph-summary.json"), 1, "Source Lineage should load one lightweight graph summary");
+  assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/intelligence-graph.json"]').count(), 1, "Source Lineage should offer an explicit full integrity-graph download");
   assert.equal(await page.locator("[data-source-flow] .if-ingest-stage").count(), 6, "Sources should trace six published data layers with the shared ingest-flow pattern");
-  assert.equal(await page.locator(".if-relationship-bundle-grid .if-relationship-bundle").count(), 6, "Sources should disclose six join rules with the shared relationship pattern");
   const sourceJoinPolicy = page.locator(".source-join-policy");
+  assert.equal(await sourceJoinPolicy.locator(".if-relationship-bundle").count(), 6, "Sources should disclose six join rules with the shared relationship pattern");
   assert.equal(await sourceJoinPolicy.getAttribute("open"), null, "Secondary join methodology should start collapsed");
   await sourceJoinPolicy.locator("summary").click();
   assert.notEqual(await sourceJoinPolicy.getAttribute("open"), null, "Join methodology should remain available on demand");

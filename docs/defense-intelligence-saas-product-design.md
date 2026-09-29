@@ -98,6 +98,8 @@ Mobile navigation should expose Command, Opportunities, Operations, Search, and 
 
 ## Core domain model
 
+The implemented cross-surface entity and evidence contract is defined in [`intelligence-domain-graph.md`](./intelligence-domain-graph.md). All new factual surfaces must extend that graph vocabulary or document why a separate bounded model is required.
+
 ```text
 Organization (tenant)
 └── Workspace
