@@ -20,6 +20,18 @@ Location existence never implies spend, a procurement, or relevance. Spend never
 
 The UI may cluster locations for display, but a cluster is not a domain entity and must never become an identifier or aggregation source.
 
+## Callout projection policy
+
+Callouts are a viewport projection, not evidence or domain rank. Only visible nodes are eligible.
+
+- At national scale, the selected sizing measure controls magnitude priority: obligated spend, potential value, or grouped record/hub count for uniform markers.
+- From 100% through 400% zoom, priority shifts continuously from magnitude toward distance from the viewport center.
+- An explicitly selected node always ranks first.
+- Cards are attempted in priority order; collision or routing failures backfill from the next eligible node.
+- A callout is discarded when no local card position is available. Leader lines have a hard zoom-sensitive length limit and may not cross another callout card or leader.
+
+This policy must not be persisted as an entity score or interpreted as opportunity relevance.
+
 ## Lifecycle and evidence filters
 
 Lifecycle applies only to **Activity**:
