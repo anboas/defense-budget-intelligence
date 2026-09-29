@@ -17,8 +17,8 @@ const shellStyleBytes = styleAssets.find((asset) => /^index-.*\.css$/.test(asset
 const mapStyleBytes = styleAssets.find((asset) => /^OpportunityMap-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
-assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 17_000, `Lazy Opportunity Map CSS must stay within its 17 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 367_000, `Total scoped CSS must stay below 367 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 369_000, `Total scoped CSS must stay below 369 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
@@ -400,15 +400,21 @@ try {
   assert.equal(await resourceCount(page, "opportunity-map-data.json"), 1, "Opportunity Map should load one map-specific factual payload");
   const mapEvidenceCounts = await page.locator("[data-opportunity-map]").evaluate((node) => ({
     sourceRecords: Number(node.dataset.mapSourceRecords || 0),
+    sourceLocations: Number(node.dataset.mapSourceLocations || 0),
+    visibleLocations: Number(node.dataset.mapVisibleLocations || 0),
     mappedRecords: Number(node.dataset.mapMappedRecords || 0),
     exactOfficeRecords: Number(node.dataset.mapExactOfficeRecords || 0),
     visibleSpend: Number(node.dataset.mapVisibleSpend || 0),
   }));
   assert.ok(mapEvidenceCounts.sourceRecords >= 875, `Map-specific evidence should retain the complete indexed corpus: ${JSON.stringify(mapEvidenceCounts)}`);
+  assert.equal(mapEvidenceCounts.sourceLocations, 885, `The authoritative location layer should retain all 885 supplied geographic entities: ${JSON.stringify(mapEvidenceCounts)}`);
+  assert.ok(mapEvidenceCounts.visibleLocations >= 800, `The default atlas should expose the nationwide location layer, less locations replaced by spend hubs: ${JSON.stringify(mapEvidenceCounts)}`);
   assert.ok(mapEvidenceCounts.mappedRecords >= 240, `Exact award-detail enrichment should map at least 240 live records: ${JSON.stringify(mapEvidenceCounts)}`);
   assert.ok(mapEvidenceCounts.exactOfficeRecords >= 220, `The live map should be primarily backed by exact award-detail offices: ${JSON.stringify(mapEvidenceCounts)}`);
   assert.ok(mapEvidenceCounts.visibleSpend >= 200_000_000_000, `The live map should expose more than $200B of directly observed obligations: ${JSON.stringify(mapEvidenceCounts)}`);
   assert.ok(await page.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Default live scope should expose a nationwide set of mapped organization clusters");
+  const defaultLocationDotCount = await page.locator(".opportunity-map__location").count();
+  assert.ok(defaultLocationDotCount >= 800, `Default live scope should render the authoritative nationwide location layer, got ${defaultLocationDotCount}`);
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster[role="button"]').count() >= 1, "Nearby offices should consolidate into numbered national-scale groups");
   assert.ok(await page.locator('.opportunity-map__callout[role="button"]').count() >= 3, "National view should expose a small, bounded set of spend-ranked callouts");
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster .opportunity-map__marker-segments path').count() >= 2, "Grouped map nodes should expose service-composition ring segments instead of undifferentiated bubbles");
@@ -431,10 +437,12 @@ try {
     workbenchHeight: document.querySelector("[data-opportunity-map] > .if-workbench-header")?.getBoundingClientRect().height || 0,
     filterHeight: document.querySelector(".opportunity-map__controls")?.getBoundingClientRect().height || 0,
     canvasTop: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().top || 0,
+    canvasHeight: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().height || 0,
   }));
   assert.ok(defaultMapGeometry.workbenchHeight <= 105, `Opportunity Map introduction should stay compact, got ${defaultMapGeometry.workbenchHeight}px`);
   assert.ok(defaultMapGeometry.filterHeight <= 70, `Default map controls should stay in one compact row, got ${defaultMapGeometry.filterHeight}px`);
   assert.ok(defaultMapGeometry.canvasTop <= 330, `Desktop geography should begin within the first 330px, got ${defaultMapGeometry.canvasTop}px`);
+  assert.ok(defaultMapGeometry.canvasHeight >= 719, `Desktop geography should provide the requested tall analytical canvas, got ${defaultMapGeometry.canvasHeight}px`);
   const mapCanvasBounds = await page.locator("[data-opportunity-map-canvas]").boundingBox();
   await page.evaluate(() => {
     window.__mapLongTasks = [];
@@ -445,7 +453,7 @@ try {
   await page.waitForTimeout(300);
   const mapLongTasks = await page.evaluate(() => window.__mapLongTasks || []);
   assert.ok(mapLongTasks.length <= 2 && mapLongTasks.reduce((total, duration) => total + duration, 0) < 200, `Map wheel interactions should stay out of repeated React long tasks: ${JSON.stringify(mapLongTasks)}`);
-  assert.match(await page.locator(".opportunity-map__coverage").innerText(), /mapped records[\s\S]*location unresolved/i, "The map should disclose both mapped and unresolved location coverage");
+  assert.match(await page.locator(".opportunity-map__coverage").innerText(), /source locations[\s\S]*mapped activities[\s\S]*activity locations unresolved/i, "The map should disclose geographic, mapped-activity, and unresolved-activity coverage");
   await page.locator('.opportunity-map__marker[role="button"]').last().hover();
   assert.match(await page.locator(".opportunity-map__tooltip").innerText(), /records[\s\S]*(active|upcoming)/i, "Map markers should expose immediate spend and lifecycle context on hover");
   assert.equal(await page.locator('.opportunity-map__tooltip[role="tooltip"]').count(), 1, "A map node should own exactly one hover surface");
@@ -455,10 +463,26 @@ try {
   assert.equal(await page.locator('.opportunity-map__marker.is-cluster[role="button"]').count(), 0, "Nearby grouping toggle should reveal reviewed locations individually");
   await nearbyGroups.click();
   await page.waitForFunction(() => !window.location.hash.includes("mapClusters="));
+  await page.locator('.opportunity-map__status-tabs button', { hasText: "Active" }).click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapStatus") === "active");
+  assert.equal(await page.locator(".opportunity-map__location").count(), defaultLocationDotCount, "Lifecycle filters should change activity without redefining authoritative geographic coverage");
+  await page.locator('.opportunity-map__status-tabs button', { hasText: "Live" }).click();
+  await page.waitForFunction(() => !window.location.hash.includes("mapStatus="));
+  await page.getByRole("button", { name: "Spend-backed", exact: true }).click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapEvidence") === "spend");
+  assert.equal(await page.locator(".opportunity-map__location").count(), 0, "Spend-backed evidence mode should isolate activity hubs from the base location layer");
+  assert.ok(await page.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Spend-backed evidence mode should retain mapped activity hubs");
+  await page.getByRole("button", { name: "No linked spend", exact: true }).click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapEvidence") === "unbacked");
+  assert.equal(await page.locator('.opportunity-map__marker[role="button"]').count(), 0, "No-linked-spend mode should remove spend activity overlays");
+  assert.equal(await page.locator(".opportunity-map__location").count(), defaultLocationDotCount, "No-linked-spend mode should retain locations without an established spend relationship");
+  await page.getByRole("button", { name: "All locations", exact: true }).click();
+  await page.waitForFunction(() => !window.location.hash.includes("mapEvidence="));
   await page.getByRole("button", { name: "Find" }).click();
   await page.locator("[data-opportunity-map-directory] input").fill("Missile Defense");
-  assert.equal(await page.locator(".opportunity-map__directory-results button").count(), 1, "The location directory should search reviewed office hubs without changing map filters");
-  await page.locator(".opportunity-map__directory-results button").click();
+  const missileDefenseHub = page.locator(".opportunity-map__directory-results button", { hasText: "Spend-backed hub" }).filter({ hasText: "Missile Defense Agency" });
+  assert.equal(await missileDefenseHub.count(), 1, "The location directory should distinguish the reviewed spend hub from geographic source results");
+  await missileDefenseHub.click();
   await page.waitForSelector("[data-opportunity-map-detail]");
   assert.match(await page.locator("[data-opportunity-map-detail]").innerText(), /Missile Defense Agency[\s\S]*(exact award-detail offices|reviewed published-office registry match)/i, "Directory selection should open an evidence-labeled organization inspector");
   assert.ok(await page.locator(".opportunity-map__detail-metrics dd").count() >= 4, "Organization detail should expose spend, organization, active, and upcoming metrics");
@@ -1752,16 +1776,16 @@ try {
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
   await openSurface(mobile, "#/budget-spend/map", "[data-opportunity-map]");
   assert.ok(await mobile.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Mobile Opportunity Map should retain the nationwide marker set");
-  assert.ok(await mobile.locator("[data-opportunity-map-canvas]").evaluate((node) => node.getBoundingClientRect().height >= 299), "Mobile Opportunity Map should retain a usable 300px geography canvas");
+  assert.ok(await mobile.locator("[data-opportunity-map-canvas]").evaluate((node) => node.getBoundingClientRect().height >= 459), "Mobile Opportunity Map should retain a tall, usable 460px geography canvas");
   const mobileMapGeometry = await mobile.evaluate(() => ({
     documentHeight: document.documentElement.scrollHeight,
     mapHeaderHeight: document.querySelector(".opportunity-map__map-header")?.getBoundingClientRect().height || 0,
     canvasTop: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().top || 0,
     advancedFilterCount: document.querySelectorAll(".opportunity-map__control-row--secondary").length,
   }));
-  assert.ok(mobileMapGeometry.canvasTop <= 500, `Mobile geography should be visible in the first viewport, got ${mobileMapGeometry.canvasTop}px`);
+  assert.ok(mobileMapGeometry.canvasTop <= 620, `Mobile geography should begin within a bounded introductory region, got ${mobileMapGeometry.canvasTop}px`);
   assert.ok(mobileMapGeometry.mapHeaderHeight <= 112, `Mobile map header should stay compact, got ${mobileMapGeometry.mapHeaderHeight}px`);
-  assert.ok(mobileMapGeometry.documentHeight <= 900, `Default mobile map should stay near one viewport, got ${mobileMapGeometry.documentHeight}px`);
+  assert.ok(mobileMapGeometry.documentHeight <= 1_400, `Default mobile map should keep the taller atlas within a bounded scroll surface, got ${mobileMapGeometry.documentHeight}px`);
   assert.equal(mobileMapGeometry.advancedFilterCount, 0, "Mobile advanced filters should stay collapsed by default");
   await mobile.getByRole("button", { name: "Find" }).click();
   assert.equal(await mobile.locator("[data-opportunity-map-directory]").evaluate((node) => getComputedStyle(node).position), "fixed", "Mobile location details should use a contained bottom sheet instead of extending the page");

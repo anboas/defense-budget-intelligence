@@ -2,6 +2,8 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyProcurementChanges, assembleProcurementRecords, attachContractMonitor } from "../src/procurement-taxonomy.js";
+import { MAP_RELATION_TYPES, opportunityMapDomainDescriptor, OPPORTUNITY_MAP_SCHEMA_VERSION, validateOpportunityMapLocations } from "../src/opportunity-map-domain.js";
+import { resolveOrganizationLocation } from "../src/organization-locations.js";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SOURCE_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
@@ -15,6 +17,7 @@ const PROCUREMENT_DISCOVERY_FILE = resolve(ROOT, "src/data/procurement-discovery
 const PROCUREMENT_FEED_FILE = resolve(ROOT, "src/data/procurement-feed.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
+const MAP_LOCATIONS_FILE = resolve(ROOT, "src/data/opportunity-map-locations.json");
 const OUT_DIR = resolve(ROOT, "public/data");
 
 const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
@@ -22,6 +25,8 @@ const captureCalendar = JSON.parse(readFileSync(CAPTURE_CALENDAR_FILE, "utf8"));
 const captureTransactions = JSON.parse(readFileSync(CAPTURE_TRANSACTIONS_FILE, "utf8"));
 const subawards = JSON.parse(readFileSync(SUBAWARDS_FILE, "utf8"));
 const contractMonitor = JSON.parse(readFileSync(CONTRACT_MONITOR_FILE, "utf8"));
+const mapLocationSnapshot = JSON.parse(readFileSync(MAP_LOCATIONS_FILE, "utf8"));
+const mapLocations = validateOpportunityMapLocations(mapLocationSnapshot);
 const captureIds = new Set(captureCalendar.records.map((record) => record.opportunityId));
 if (captureCalendar.records.length < 190 || captureIds.size !== captureCalendar.records.length) {
   throw new Error("Capture calendar must contain at least 190 unique public records");
@@ -108,9 +113,63 @@ function mapOffice(record, dimension) {
   return published ? { name: published, basis: "published-source-office" } : { name: "", basis: "unresolved" };
 }
 
+const opportunityMapRecords = agentRecords.map((record) => {
+  const observation = record.automationCoverage?.observation;
+  const contracting = mapOffice(record, "contracting");
+  const funding = mapOffice(record, "funding");
+  const contractingLocationId = resolveOrganizationLocation(contracting.name)?.locationId || null;
+  const fundingLocationId = resolveOrganizationLocation(funding.name)?.locationId || null;
+  const nextDate = [
+    record.solicitationStart,
+    record.solicitationEnd,
+    observation?.currentEndDate,
+    observation?.potentialEndDate,
+    record.currentEnd,
+    record.potentialEnd,
+    ...(record.events || []).flatMap((event) => [event.start, event.end]),
+  ].filter((value) => value && value >= captureCalendar.metadata.asOf).sort()[0] || "";
+  const relations = [
+    contractingLocationId ? { type: MAP_RELATION_TYPES.contractingActivityAt, activityId: record.opportunityId, locationId: contractingLocationId, evidenceBasis: contracting.basis } : null,
+    fundingLocationId ? { type: MAP_RELATION_TYPES.fundingActivityAt, activityId: record.opportunityId, locationId: fundingLocationId, evidenceBasis: funding.basis } : null,
+  ].filter(Boolean);
+  return {
+    opportunityId: record.opportunityId,
+    id: record.id,
+    sourceSystem: record.sourceSystem,
+    mode: record.mode,
+    title: record.title,
+    portfolio: record.portfolio,
+    party: record.party,
+    reference: record.reference,
+    workCategory: record.workCategory,
+    lifecycle: mapLifecycle(record, captureCalendar.metadata.asOf),
+    nextDate,
+    contractingOffice: contracting.name,
+    contractingOfficeBasis: contracting.basis,
+    contractingLocationId,
+    fundingOffice: funding.name,
+    fundingOfficeBasis: funding.basis,
+    fundingLocationId,
+    relations,
+    obligatedAmount: Number(observation?.obligatedAmount ?? record.liveAward?.awardAmountDollars ?? record.obligatedAmount ?? record.fpdsObligatedAmount ?? 0),
+    potentialAmount: Number(observation?.potentialAmount ?? record.potentialAmount ?? record.valueHigh ?? record.liveAward?.potentialAmountDollars ?? 0),
+    monitorStatus: record.automationCoverage?.status || "not-targeted",
+    monitorCheckedAt: record.automationCoverage?.checkedAt || null,
+  };
+});
+
+const mapLocationIds = new Set(mapLocations.map((location) => location.id));
+const mapRelations = opportunityMapRecords.flatMap((record) => record.relations);
+if (mapRelations.some((relation) => !mapLocationIds.has(relation.locationId))) {
+  throw new Error("Opportunity Map activity relationship references an unknown location entity");
+}
+if (mapRelations.some((relation) => !Object.values(MAP_RELATION_TYPES).includes(relation.type))) {
+  throw new Error("Opportunity Map activity relationship uses an unknown domain type");
+}
+
 const opportunityMapData = {
   metadata: {
-    schemaVersion: "1.0.0",
+    schemaVersion: OPPORTUNITY_MAP_SCHEMA_VERSION,
     generatedAt: contractMonitor.metadata?.generatedAt || source.metadata?.generatedAt,
     asOf: captureCalendar.metadata?.asOf,
     recordCount: agentRecords.length,
@@ -118,42 +177,13 @@ const opportunityMapData = {
     monitorCoveredCount: contractMonitor.metadata?.coveredCount || 0,
     monitorCoveragePercent: contractMonitor.metadata?.coveragePercent || 0,
     sourceScope: execution.coverage?.methodology || "Published USAspending award records and reviewed acquisition sources.",
+    locationCount: mapLocations.length,
+    locationAuditedAt: mapLocationSnapshot.metadata?.auditedAt,
+    locationSourceScope: mapLocationSnapshot.metadata?.sourceScope,
   },
-  records: agentRecords.map((record) => {
-    const observation = record.automationCoverage?.observation;
-    const contracting = mapOffice(record, "contracting");
-    const funding = mapOffice(record, "funding");
-    const nextDate = [
-      record.solicitationStart,
-      record.solicitationEnd,
-      observation?.currentEndDate,
-      observation?.potentialEndDate,
-      record.currentEnd,
-      record.potentialEnd,
-      ...(record.events || []).flatMap((event) => [event.start, event.end]),
-    ].filter((value) => value && value >= captureCalendar.metadata.asOf).sort()[0] || "";
-    return {
-      opportunityId: record.opportunityId,
-      id: record.id,
-      sourceSystem: record.sourceSystem,
-      mode: record.mode,
-      title: record.title,
-      portfolio: record.portfolio,
-      party: record.party,
-      reference: record.reference,
-      workCategory: record.workCategory,
-      lifecycle: mapLifecycle(record, captureCalendar.metadata.asOf),
-      nextDate,
-      contractingOffice: contracting.name,
-      contractingOfficeBasis: contracting.basis,
-      fundingOffice: funding.name,
-      fundingOfficeBasis: funding.basis,
-      obligatedAmount: Number(observation?.obligatedAmount ?? record.liveAward?.awardAmountDollars ?? record.obligatedAmount ?? record.fpdsObligatedAmount ?? 0),
-      potentialAmount: Number(observation?.potentialAmount ?? record.potentialAmount ?? record.valueHigh ?? record.liveAward?.potentialAmountDollars ?? 0),
-      monitorStatus: record.automationCoverage?.status || "not-targeted",
-      monitorCheckedAt: record.automationCoverage?.checkedAt || null,
-    };
-  }),
+  domain: opportunityMapDomainDescriptor(),
+  locations: mapLocations,
+  records: opportunityMapRecords,
 };
 const core = {
   metadata: {

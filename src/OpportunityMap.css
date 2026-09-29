@@ -8,10 +8,10 @@
 .opportunity-map__search { display: flex; min-width: 220px; min-height: 38px; flex: 1 1 420px; align-items: center; gap: 8px; padding: 0 10px; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-surface); color: var(--if-text-muted); }
 .opportunity-map__search:focus-within, .opportunity-map__drawer-search:focus-within { border-color: var(--if-border-selected); box-shadow: var(--if-shadow-focus); }
 .opportunity-map__search input, .opportunity-map__drawer-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--if-text); font: inherit; font-size: var(--if-font-size-sm); }
-.opportunity-map__status-tabs { display: inline-flex; flex: 0 0 auto; gap: 2px; padding: 3px; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-subtle); }
-.opportunity-map__status-tabs button, .opportunity-map__reset, .opportunity-map__filter-toggle { min-height: 32px; padding: 5px 10px; border: 1px solid transparent; border-radius: calc(var(--if-control-radius) - 2px); background: transparent; color: var(--if-text-muted); font: inherit; font-size: var(--if-font-size-xs); cursor: pointer; white-space: nowrap; }
-.opportunity-map__status-tabs button:hover, .opportunity-map__status-tabs button:focus-visible, .opportunity-map__reset:hover, .opportunity-map__reset:focus-visible, .opportunity-map__filter-toggle:hover, .opportunity-map__filter-toggle:focus-visible { color: var(--if-text-strong); outline: 0; }
-.opportunity-map__status-tabs button.is-active { border-color: var(--if-border-selected); background: var(--if-bg-surface); color: var(--if-accent); box-shadow: var(--if-shadow-xs); }
+.opportunity-map__status-tabs, .opportunity-map__evidence-tabs { display: inline-flex; flex: 0 0 auto; gap: 2px; padding: 3px; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-subtle); }
+.opportunity-map__status-tabs button, .opportunity-map__evidence-tabs button, .opportunity-map__reset, .opportunity-map__filter-toggle { min-height: 32px; padding: 5px 10px; border: 1px solid transparent; border-radius: calc(var(--if-control-radius) - 2px); background: transparent; color: var(--if-text-muted); font: inherit; font-size: var(--if-font-size-xs); cursor: pointer; white-space: nowrap; }
+.opportunity-map__status-tabs button:hover, .opportunity-map__status-tabs button:focus-visible, .opportunity-map__evidence-tabs button:hover, .opportunity-map__evidence-tabs button:focus-visible, .opportunity-map__reset:hover, .opportunity-map__reset:focus-visible, .opportunity-map__filter-toggle:hover, .opportunity-map__filter-toggle:focus-visible { color: var(--if-text-strong); outline: 0; }
+.opportunity-map__status-tabs button.is-active, .opportunity-map__evidence-tabs button.is-active { border-color: var(--if-border-selected); background: var(--if-bg-surface); color: var(--if-accent); box-shadow: var(--if-shadow-xs); }
 .opportunity-map__reset { flex: 0 0 auto; color: var(--if-link); }
 .opportunity-map__filter-toggle { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; border-color: var(--if-border-subtle); background: var(--if-bg-subtle); }
 .opportunity-map__filter-toggle.is-active { border-color: var(--if-border-selected); background: var(--if-info-soft); color: var(--if-accent); }
@@ -27,12 +27,16 @@
 .opportunity-map__map-actions button { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid #41627a; border-radius: var(--if-control-radius); background: #173e5b; color: #cfe5f4; font: inherit; font-size: 10px; cursor: pointer; }
 .opportunity-map__map-actions button:hover, .opportunity-map__map-actions button:focus-visible, .opportunity-map__map-actions button[aria-pressed="true"], .opportunity-map__map-actions button[aria-expanded="true"] { border-color: #8bd3ff; outline: 0; background: #245b7d; color: #fff; }
 
-.opportunity-map__canvas { position: relative; min-height: 610px; overflow: hidden; background: #eef4f8; }
-.opportunity-map__canvas > svg { display: block; width: 100%; height: 610px; outline: 0; touch-action: none; cursor: grab; }
+.opportunity-map__canvas { position: relative; height: clamp(720px, 62vw, 980px); min-height: 720px; overflow: hidden; background: #eef4f8; }
+.opportunity-map__canvas > svg { display: block; width: 100%; height: 100%; outline: 0; touch-action: none; cursor: grab; }
 .opportunity-map__water { fill: #eef4f8; }
 .opportunity-map__states path { fill: #dbe7ee; stroke: #9ab8c9; stroke-width: .65; }
 .opportunity-map__states .opportunity-map__state-borders { fill: none; stroke: #7c9eb2; stroke-width: .7; opacity: .78; }
 .opportunity-map__state-label { fill: #668397; font-size: 8.5px; font-weight: 700; letter-spacing: .06em; text-anchor: middle; pointer-events: none; }
+.opportunity-map__location { cursor: pointer; outline: 0; }
+.opportunity-map__location-ring { fill: rgb(255 255 255 / 92%); stroke: #9db6c6; stroke-width: .7; vector-effect: non-scaling-stroke; }
+.opportunity-map__location-dot { stroke: #fff; stroke-width: .7; vector-effect: non-scaling-stroke; }
+.opportunity-map__location:hover .opportunity-map__location-ring, .opportunity-map__location.is-selected .opportunity-map__location-ring { fill: #d7efed; stroke: #087f8c; stroke-width: 1.5; }
 .opportunity-map__marker { outline: 0; }
 .opportunity-map__marker-focus-ring { fill: none; stroke: #087f8c; stroke-width: 2; opacity: 0; vector-effect: non-scaling-stroke; }
 .opportunity-map__marker-shell { fill: rgb(255 255 255 / 94%); stroke: #b4c9d5; stroke-width: 1; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 3px rgb(19 53 76 / 18%)); }
@@ -60,7 +64,7 @@
 .opportunity-map__map-controls button:hover, .opportunity-map__map-controls button:focus-visible { outline: 0; background: #dfeaf0; color: #0d5f91; }
 .opportunity-map__map-controls output { display: grid; min-width: 48px; place-items: center; color: #526f84; font-size: 9px; }
 .opportunity-map__interaction-hint { position: absolute; right: 14px; bottom: 14px; color: #526f84; font-size: 9px; pointer-events: none; }
-.opportunity-map__coverage { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: center; gap: 8px 14px; min-height: 48px; padding: 7px 12px; border-top: 1px solid #294a68; background: #102a43; color: #d7e9f5; font-size: var(--if-font-size-2xs); }
+.opportunity-map__coverage { display: grid; grid-template-columns: auto auto auto auto minmax(0, 1fr); align-items: center; gap: 8px 14px; min-height: 48px; padding: 7px 12px; border-top: 1px solid #294a68; background: #102a43; color: #d7e9f5; font-size: var(--if-font-size-2xs); }
 .opportunity-map__coverage p { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 0; color: #9dbdd2; text-align: right; }
 
 .opportunity-map__drawer { position: absolute; z-index: 6; top: 70px; right: 12px; bottom: 60px; display: flex; width: min(390px, calc(100% - 24px)); min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid #aebfca; border-radius: var(--if-radius-2); background: var(--if-bg-surface); box-shadow: 0 14px 34px rgb(23 53 76 / 18%); }
@@ -75,6 +79,11 @@
 .opportunity-map__detail-metrics > div { min-width: 0; padding: 9px 8px; border-right: var(--if-divider); }
 .opportunity-map__detail-metrics dt { color: var(--if-text-muted); font-size: 9px; }
 .opportunity-map__detail-metrics dd { margin: 2px 0 0; color: var(--if-text-strong); font-size: var(--if-font-size-sm); font-weight: var(--if-font-weight-black); }
+.opportunity-map__detail-metrics--location dd { font-size: 11px; text-transform: capitalize; }
+.opportunity-map__location-copy { padding: 12px; border-bottom: var(--if-divider); }
+.opportunity-map__location-copy h4 { margin: 0 0 5px; color: var(--if-text-strong); font-size: var(--if-font-size-xs); }
+.opportunity-map__location-copy p { margin: 0; color: var(--if-text-muted); font-size: 11px; line-height: 1.5; }
+.opportunity-map__location-copy a { display: inline-flex; margin-top: 8px; color: var(--if-link); font-size: 11px; font-weight: var(--if-font-weight-semibold); }
 .opportunity-map__organization-list { display: grid; gap: 3px; padding: 10px 12px; border-bottom: var(--if-divider); }
 .opportunity-map__organization-list p { margin: 0; color: var(--if-text-muted); font-size: var(--if-font-size-xs); line-height: 1.4; }
 .opportunity-map__record-list { min-height: 0; overflow: auto; scrollbar-width: thin; }
@@ -125,21 +134,22 @@
   .opportunity-map__controls { padding: 8px; }
   .opportunity-map__control-row { align-items: stretch; }
   .opportunity-map__search { min-width: 0; min-height: 44px; }
-  .opportunity-map__status-tabs { width: 100%; overflow-x: auto; }
-  .opportunity-map__status-tabs button { min-height: 44px; flex: 1 0 auto; }
+  .opportunity-map__status-tabs, .opportunity-map__evidence-tabs { width: 100%; overflow-x: auto; }
+  .opportunity-map__status-tabs button, .opportunity-map__evidence-tabs button { min-height: 44px; flex: 1 0 auto; }
   .opportunity-map__reset, .opportunity-map__filter-toggle { min-height: 44px; }
   .opportunity-map__control-row--secondary > * { min-width: calc(50% - 4px); flex-basis: calc(50% - 4px); }
   .opportunity-map__map-header { min-height: 0; }
+  .opportunity-map__map-title small { display: none; }
   .opportunity-map__map-actions { overflow-x: auto; flex-wrap: nowrap; }
   .opportunity-map__map-actions button:first-child { display: none; }
   .opportunity-map__map-actions button { min-height: 44px; flex: 0 0 auto; }
-  .opportunity-map__canvas, .opportunity-map__canvas > svg { min-height: 300px; height: 300px; }
+  .opportunity-map__canvas, .opportunity-map__canvas > svg { height: clamp(460px, 68dvh, 640px); min-height: 460px; }
   .opportunity-map__callouts { display: none; }
   .opportunity-map__state-label { display: none; }
   .opportunity-map__map-controls { grid-template-columns: repeat(3, 44px) auto; }
   .opportunity-map__map-controls button { width: 44px; height: 44px; }
   .opportunity-map__interaction-hint { display: none; }
-  .opportunity-map__coverage { grid-template-columns: repeat(3, 1fr); }
+  .opportunity-map__coverage { grid-template-columns: repeat(2, 1fr); }
   .opportunity-map__coverage p { grid-column: 1 / -1; justify-content: flex-start; text-align: left; }
   .opportunity-map__drawer { position: fixed; z-index: 40; inset: auto 8px 8px; width: auto; max-height: min(72dvh, 620px); margin: 0; border-radius: 10px; box-shadow: 0 18px 60px rgb(16 42 67 / 38%); }
   .opportunity-map__drawer-header button { width: 44px; height: 44px; }
