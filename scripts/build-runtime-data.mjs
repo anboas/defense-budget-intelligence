@@ -2,7 +2,13 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyProcurementChanges, assembleProcurementRecords, attachContractMonitor } from "../src/procurement-taxonomy.js";
-import { MAP_RELATION_TYPES, opportunityMapDomainDescriptor, OPPORTUNITY_MAP_SCHEMA_VERSION, validateOpportunityMapLocations } from "../src/opportunity-map-domain.js";
+import {
+  MAP_RELATION_TYPES,
+  opportunityMapDomainDescriptor,
+  OPPORTUNITY_MAP_SCHEMA_VERSION,
+  validateOpportunityMapLocationMetadata,
+  validateOpportunityMapLocations,
+} from "../src/opportunity-map-domain.js";
 import { resolveOrganizationLocation } from "../src/organization-locations.js";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -18,6 +24,7 @@ const PROCUREMENT_FEED_FILE = resolve(ROOT, "src/data/procurement-feed.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
 const MAP_LOCATIONS_FILE = resolve(ROOT, "src/data/opportunity-map-locations.json");
+const MAP_LOCATION_METADATA_FILE = resolve(ROOT, "src/data/opportunity-map-location-metadata.json");
 const OUT_DIR = resolve(ROOT, "public/data");
 
 const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
@@ -27,6 +34,9 @@ const subawards = JSON.parse(readFileSync(SUBAWARDS_FILE, "utf8"));
 const contractMonitor = JSON.parse(readFileSync(CONTRACT_MONITOR_FILE, "utf8"));
 const mapLocationSnapshot = JSON.parse(readFileSync(MAP_LOCATIONS_FILE, "utf8"));
 const mapLocations = validateOpportunityMapLocations(mapLocationSnapshot);
+const mapLocationIds = new Set(mapLocations.map((location) => location.id));
+const mapLocationMetadata = JSON.parse(readFileSync(MAP_LOCATION_METADATA_FILE, "utf8"));
+validateOpportunityMapLocationMetadata(mapLocationMetadata, mapLocationIds);
 const captureIds = new Set(captureCalendar.records.map((record) => record.opportunityId));
 if (captureCalendar.records.length < 190 || captureIds.size !== captureCalendar.records.length) {
   throw new Error("Capture calendar must contain at least 190 unique public records");
@@ -158,7 +168,6 @@ const opportunityMapRecords = agentRecords.map((record) => {
   };
 });
 
-const mapLocationIds = new Set(mapLocations.map((location) => location.id));
 const mapRelations = opportunityMapRecords.flatMap((record) => record.relations);
 if (mapRelations.some((relation) => !mapLocationIds.has(relation.locationId))) {
   throw new Error("Opportunity Map activity relationship references an unknown location entity");
@@ -180,6 +189,7 @@ const opportunityMapData = {
     locationCount: mapLocations.length,
     locationAuditedAt: mapLocationSnapshot.metadata?.auditedAt,
     locationSourceScope: mapLocationSnapshot.metadata?.sourceScope,
+    locationMetadata: mapLocationMetadata.metadata,
   },
   domain: opportunityMapDomainDescriptor(),
   locations: mapLocations,
@@ -206,6 +216,7 @@ writeFileSync(resolve(OUT_DIR, "runtime-manifest.json"), JSON.stringify({
 rmSync(resolve(OUT_DIR, "budget-strategy.json"), { force: true });
 writeFileSync(resolve(OUT_DIR, "budget-execution.json"), JSON.stringify(execution));
 writeFileSync(resolve(OUT_DIR, "opportunity-map-data.json"), JSON.stringify(opportunityMapData));
+writeFileSync(resolve(OUT_DIR, "opportunity-map-location-metadata.json"), JSON.stringify(mapLocationMetadata));
 writeFileSync(
   resolve(OUT_DIR, "account-spine.json"),
   readFileSync(ACCOUNT_SPINE_FILE, "utf8"),

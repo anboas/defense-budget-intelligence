@@ -123,6 +123,17 @@ assert.ok(opportunityMapRelations.length >= 200, `Opportunity Map payload must p
 assert.ok(opportunityMapRelations.every((relation) => opportunityMapPayload.domain.relationTypes.includes(relation.type)), "Opportunity Map relationships must use the published domain vocabulary");
 assert.ok(opportunityMapRelations.every((relation) => opportunityMapLocationIds.has(relation.locationId)), "Opportunity Map relationships must never reference an unknown location entity");
 assert.ok(opportunityMapRelations.every((relation) => relation.activityId && relation.evidenceBasis), "Opportunity Map relationships must retain activity identity and evidence basis");
+const locationMetadataBytes = (await stat(resolve(root, "dist/data/opportunity-map-location-metadata.json"))).size;
+assert.ok(locationMetadataBytes >= 2_400_000 && locationMetadataBytes <= 2_700_000, `Deferred location metadata must retain the reviewed structured profiles without exceeding its route budget, got ${locationMetadataBytes} bytes`);
+const locationMetadataPayload = JSON.parse(await read("dist/data/opportunity-map-location-metadata.json"));
+assert.equal(locationMetadataPayload.metadata?.schemaVersion, "1.0.0", "Location metadata must publish its independent schema version");
+assert.equal(Object.keys(locationMetadataPayload.locations || {}).length, 885, "Location metadata must cover all authoritative location entities");
+assert.deepEqual(locationMetadataPayload.metadata?.passes, ["identity", "status", "geospatial", "mission", "acquisition", "financial"], "Location metadata must publish the complete enrichment-pass vocabulary");
+for (const [id, profile] of Object.entries(locationMetadataPayload.locations || {})) {
+  assert.ok(opportunityMapLocationIds.has(id), `Location metadata must not introduce an unknown entity: ${id}`);
+  assert.ok(profile.summary && profile.geospatial?.precision && /^https?:\/\//.test(profile.evidence?.primarySource?.url || ""), `Location metadata must retain a summary, precision, and safe primary source: ${id}`);
+  assert.equal(Object.keys(profile.passes || {}).length, 6, `Location metadata must retain six review passes: ${id}`);
+}
 const procurementFeedBytes = (await stat(resolve(root, "dist/data/procurement-feed.json"))).size;
 const procurementDiscoveryBytes = (await stat(resolve(root, "dist/data/procurement-discovery.json"))).size;
 assert.ok(procurementFeedBytes <= 250_000, `The default Today feed must stay compact, got ${procurementFeedBytes} bytes`);
@@ -137,4 +148,5 @@ console.log("Security and architecture contracts passed", {
   shellCssBytes,
   mapCssBytes,
   opportunityMapBytes,
+  locationMetadataBytes,
 });
