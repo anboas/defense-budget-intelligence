@@ -74,6 +74,7 @@
 .opportunity-map__coverage p { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 0; color: #9dbdd2; text-align: right; }
 
 .opportunity-map__drawer { position: absolute; z-index: 6; top: 70px; right: 12px; bottom: 60px; display: flex; width: min(390px, calc(100% - 24px)); min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid #aebfca; border-radius: var(--if-radius-2); background: var(--if-bg-surface); box-shadow: 0 14px 34px rgb(23 53 76 / 18%); }
+.opportunity-map__detail { overflow: auto; scrollbar-width: thin; }
 .opportunity-map__drawer-header, .opportunity-map__detail > .opportunity-map__drawer-header { display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: start; gap: 10px; padding: 13px 12px; border-bottom: var(--if-divider); background: var(--if-bg-subtle); }
 .opportunity-map__drawer-header small, .opportunity-map__organization-list > span, .opportunity-map__record-list > header span { color: var(--if-accent); font-size: var(--if-font-size-2xs); font-weight: var(--if-font-weight-black); letter-spacing: .035em; text-transform: uppercase; }
 .opportunity-map__drawer-header h3 { margin: 2px 0; color: var(--if-text-strong); font-size: var(--if-font-size-md); line-height: 1.25; }

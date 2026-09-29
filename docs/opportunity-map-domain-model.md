@@ -80,3 +80,16 @@ node scripts/import-opportunity-map-locations.mjs /absolute/path/to/map-records.
 ```
 
 The importer fails closed below 885 records, on duplicate IDs, or on missing names or coordinates. It preserves source identity, reference period, evidence status, buyer role, coordinate precision, and authoritative source URL while excluding presentation-only fields and narrative research artifacts.
+
+The same import writes `src/data/opportunity-map-location-metadata.json`, a separately versioned, deferred profile layer. It contains six deterministic metadata passes for every location:
+
+- `identity`: stable source identifiers, aliases, component, organizations, and joint-base flag
+- `status`: source-reported operating status, source date, and reference period
+- `geospatial`: country, precision, method, confidence, and any public address supplied by the source
+- `mission`: only source-supported mission claims; geography alone never creates a mission claim
+- `acquisition`: buyer applicability, reviewed acquisition role, and any documented contracting route
+- `financial`: documented financial evidence, bounded parent-scope context, explicit non-applicability, or `not_assessed`
+
+Each pass has a controlled review state: `reviewed`, `source_snapshot`, `screened`, `not_assessed`, `needs_review`, or `not_applicable`. The detailed profile is loaded only when a location drawer opens, preserving the map-first route budget.
+
+Future model-assisted passes must write proposals, not authoritative values. Every proposed fact requires an HTTP(S) public source, confidence, claim-level review state, and explicit approval. Existing curated values are conflicts, unknowns remain empty, and rejected or wrong-entity claims never enter the location projection.

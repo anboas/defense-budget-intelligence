@@ -23,6 +23,7 @@ import ControlSelect from "./ControlSelect.jsx";
 import { useManagementState } from "./management-state.js";
 import { BRANCHES, organizationLocationRules, resolveOrganizationLocation } from "./organization-locations.js";
 import { MAP_EVIDENCE_FILTER_VALUES } from "./opportunity-map-domain.js";
+import { useRuntimeJson } from "./use-runtime-json.js";
 import "./OpportunityMap.css";
 
 const MAP_WIDTH = 975;
@@ -67,6 +68,8 @@ const FILTER_VALUES = Object.freeze({
 const STATE_ABBREVIATIONS = Object.freeze({
   "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN", "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME", "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS", "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND", "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI", "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI", "56": "WY",
 });
+const METADATA_PASS_LABELS = Object.freeze({ identity: "Identity", status: "Operating status", geospatial: "Geospatial", mission: "Mission", acquisition: "Acquisition", financial: "Financial" });
+const METADATA_STATE_LABELS = Object.freeze({ reviewed: "Reviewed", source_snapshot: "Source snapshot", screened: "Scope screened", not_assessed: "Not assessed", needs_review: "Needs review", not_applicable: "Not applicable" });
 
 const stateFeatures = feature(statesTopology, statesTopology.objects.states).features;
 const stateMesh = mesh(statesTopology, statesTopology.objects.states, (left, right) => left !== right);
@@ -130,6 +133,10 @@ function compactDate(value) {
   if (!value) return "No date published";
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
   return Number.isNaN(date.getTime()) ? "No date published" : date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+function metadataLabel(value, labels = {}) {
+  return labels[value] || String(value || "Unknown").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function recordAmount(record, metric) {
@@ -663,10 +670,11 @@ function DetailPanel({ point, asOf, watchedIds, onToggleWatch, spendMetric, onCl
   </aside>;
 }
 
-function LocationPanel({ location, onClose }) {
+function LocationPanel({ location, profile, metadataError, onRetryMetadata, onClose }) {
   if (!location) return null;
   const branch = BRANCHES[location.branch] || BRANCHES.joint;
   const place = [location.city, location.state].filter(Boolean).join(", ") || "Published source coordinates";
+  const source = profile?.evidence?.primarySource;
   return <aside className="opportunity-map__drawer opportunity-map__detail" data-opportunity-map-location-detail aria-label="Location details">
     <DrawerHeader eyebrow="Authoritative location" onClose={onClose}><h3>{location.name}</h3><p><MapPin size={13} />{place}</p></DrawerHeader>
     <div className="opportunity-map__evidence-badge"><ShieldCheck size={14} />{location.inventoryStatus === "active_inventory" ? "Active in the source inventory" : "Reviewed geographic entity"}</div>
@@ -676,8 +684,21 @@ function LocationPanel({ location, onClose }) {
       <div><dt>Evidence</dt><dd>{location.evidenceStatus.replaceAll("_", " ")}</dd></div>
       <div><dt>Buyer role</dt><dd>{location.buyerRole.replaceAll("_", " ")}</dd></div>
     </dl>
+    {!profile && !metadataError ? <section className="opportunity-map__location-copy" data-location-metadata-loading><h4>Structured metadata</h4><p>Loading identity, status, mission, acquisition, financial, and provenance passes…</p></section> : null}
+    {metadataError ? <section className="opportunity-map__location-copy" data-location-metadata-error><h4>Structured metadata unavailable</h4><p>The location remains usable. Retry the deferred metadata profile when the connection is ready.</p><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={onRetryMetadata}>Retry metadata</button></section> : null}
+    {profile ? <>
+      <section className="opportunity-map__location-copy" data-location-metadata-profile><h4>Profile</h4><p>{profile.summary}</p>{profile.aliases?.length ? <p><strong>Aliases:</strong> {profile.aliases.join(" · ")}</p> : null}</section>
+      <section className="opportunity-map__location-copy" data-location-metadata-passes><h4>Metadata passes</h4><ul>
+        {Object.entries(profile.passes || {}).map(([pass, result]) => <li key={pass} data-location-metadata-pass><strong>{METADATA_PASS_LABELS[pass] || metadataLabel(pass)} · {metadataLabel(result.state, METADATA_STATE_LABELS)}</strong><br />{result.basis}</li>)}
+      </ul></section>
+      <section className="opportunity-map__location-copy"><h4>Identity and status</h4><p><strong>Component:</strong> {profile.identity.componentName || branch.label}<br /><strong>Inventory status:</strong> {profile.inventory.status || "No current status inferred"}<br /><strong>Reference period:</strong> {profile.inventory.referencePeriod || location.sourceReferencePeriod}<br /><strong>Coordinates:</strong> {metadataLabel(profile.geospatial.precision)} · {profile.geospatial.confidence}{profile.identity.sourceSiteId ? <><br /><strong>Source site ID:</strong> {profile.identity.sourceSiteId.length > 24 ? `${profile.identity.sourceSiteId.slice(0, 12)}…${profile.identity.sourceSiteId.slice(-8)}` : profile.identity.sourceSiteId}</> : null}</p></section>
+      <section className="opportunity-map__location-copy"><h4>Acquisition and financial context</h4><p>{profile.acquisition.summary || "No purchasing function is inferred from location alone."}<br /><strong>Applicability:</strong> {metadataLabel(profile.acquisition.status)}<br /><strong>Research state:</strong> {metadataLabel(profile.acquisition.researchStatus)}<br /><strong>Financial evidence:</strong> {metadataLabel(profile.acquisition.financialStatus)}<br /><strong>Buyer directory:</strong> {profile.acquisition.includedInBuyerList ? "Included" : "Not promoted"}</p>{profile.acquisition.contractingOffice?.name ? <p><strong>Documented contracting route:</strong> {profile.acquisition.contractingOffice.name}{profile.acquisition.contractingOffice.code ? ` (${profile.acquisition.contractingOffice.code})` : ""}</p> : null}{profile.acquisition.financialNote ? <p>{profile.acquisition.financialNote}</p> : null}</section>
+      {profile.evidence.verifiedClaims?.length ? <section className="opportunity-map__location-copy"><h4>Verified claims</h4><ul>{profile.evidence.verifiedClaims.map((claim) => <li key={claim}>{claim}</li>)}</ul></section> : null}
+      {profile.dataGaps?.length ? <section className="opportunity-map__location-copy"><h4>Open metadata gaps</h4><ul>{profile.dataGaps.map((gap) => <li key={gap}>{gap}</li>)}</ul></section> : null}
+      <section className="opportunity-map__location-copy" data-location-metadata-provenance><h4>Evidence and provenance</h4><p>{source.publisher} · {profile.evidence.authority} · {profile.evidence.sourceCount} source{profile.evidence.sourceCount === 1 ? "" : "s"}{source.reviewedAt ? ` · reviewed ${source.reviewedAt}` : ""}</p><p>{source.supports}</p><a href={source.url} target="_blank" rel="noreferrer">Open primary evidence</a></section>
+    </> : null}
     <section className="opportunity-map__location-copy"><h4>No spend relationship inferred</h4><p>This location is part of the authoritative geographic layer. If no spend hub overlays it, the current dataset has not established a reviewed spend relationship. That is not a claim of zero spend.</p></section>
-    <section className="opportunity-map__location-copy"><h4>Source</h4><p>{location.sourceDataset} · {location.sourceReferencePeriod}</p>{location.sourceUrl ? <a href={location.sourceUrl} target="_blank" rel="noreferrer">Open authoritative source</a> : null}</section>
+    {!profile ? <section className="opportunity-map__location-copy"><h4>Source</h4><p>{location.sourceDataset} · {location.sourceReferencePeriod}</p>{location.sourceUrl ? <a href={location.sourceUrl} target="_blank" rel="noreferrer">Open authoritative source</a> : null}</section> : null}
   </aside>;
 }
 
@@ -728,6 +749,7 @@ export default function OpportunityMap({ dataset }) {
   const [mapResetKey, setMapResetKey] = useState(0);
   const asOf = dataset.metadata.asOf || new Date().toISOString().slice(0, 10);
   const deferredQuery = useDeferredValue(filters.query);
+  const locationMetadata = useRuntimeJson(filters.organization.startsWith("location:"), "opportunity-map-location-metadata.json");
 
   const linkedLocationIds = useMemo(() => {
     const linked = new Set();
@@ -827,6 +849,7 @@ export default function OpportunityMap({ dataset }) {
   const selected = model.points.find((point) => point.id === filters.organization) || null;
   const selectedLocationId = filters.organization.startsWith("location:") ? filters.organization.slice(9) : "";
   const selectedLocation = locations.find((location) => location.id === selectedLocationId) || null;
+  const selectedLocationProfile = selectedLocation ? locationMetadata.data?.locations?.[selectedLocation.id] || null : null;
   useEffect(() => {
     if (!selected && !selectedLocation && !openPanel) return undefined;
     const closeOnEscape = (event) => {
@@ -889,7 +912,7 @@ export default function OpportunityMap({ dataset }) {
           <footer className="opportunity-map__coverage"><span><b>{model.totalLocations}</b> source locations</span><span><b>{model.mappedRecords}</b> mapped activities</span><span><b>{model.mappedExact}</b> exact-office matches</span><span><b>{model.unresolved}</b> activity locations unresolved</span><p><Info size={13} />Lifecycle filters apply to activity. The location layer remains independent; “no linked spend” means no relationship is established in this snapshot, not zero spend.</p></footer>
         </section>
         {selected ? <DetailPanel point={selected} asOf={asOf} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} spendMetric={filters.spend === "potential" ? "potential" : "obligated"} onClose={() => commit({ organization: "" })} /> : null}
-        {selectedLocation ? <LocationPanel location={selectedLocation} onClose={() => commit({ organization: "" })} /> : null}
+        {selectedLocation ? <LocationPanel location={selectedLocation} profile={selectedLocationProfile} metadataError={locationMetadata.error} onRetryMetadata={locationMetadata.retry} onClose={() => commit({ organization: "" })} /> : null}
         {openPanel === "directory" ? <DirectoryPanel points={model.points} locations={model.locations} spendMetric={filters.spend === "potential" ? "potential" : "obligated"} onSelect={selectPoint} onSelectLocation={selectLocation} onClose={() => setOpenPanel("")} /> : null}
         {openPanel === "evidence" ? <EvidencePanel model={model} asOf={asOf} onClose={() => setOpenPanel("")} /> : null}
       </div>

@@ -398,6 +398,7 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunity Map", "Opportunity Map should own a first-class route title");
   assert.equal(await page.locator('[data-primary-nav="map"][aria-current="page"]').count(), 1, "Opportunity Map should own a primary-navigation state");
   assert.equal(await resourceCount(page, "opportunity-map-data.json"), 1, "Opportunity Map should load one map-specific factual payload");
+  assert.equal(await resourceCount(page, "opportunity-map-location-metadata.json"), 0, "Detailed location metadata should stay deferred until a user opens a location");
   const mapEvidenceCounts = await page.locator("[data-opportunity-map]").evaluate((node) => ({
     sourceRecords: Number(node.dataset.mapSourceRecords || 0),
     sourceLocations: Number(node.dataset.mapSourceLocations || 0),
@@ -550,6 +551,12 @@ try {
   assert.equal(locationCalloutGeometry.allTargetsVisible, true, `Location callouts must target source locations in the current viewport: ${JSON.stringify(locationCalloutGeometry)}`);
   await page.locator('[data-map-callout-kind="location"] .opportunity-map__callout-face').first().click();
   await page.waitForSelector("[data-opportunity-map-location-detail]");
+  await page.waitForSelector("[data-location-metadata-profile]");
+  assert.equal(await resourceCount(page, "opportunity-map-location-metadata.json"), 1, "Opening a source location should load the metadata sidecar exactly once");
+  assert.equal(await page.locator("[data-location-metadata-pass]").count(), 6, "Location details should expose all six structured metadata passes");
+  assert.match(await page.locator("[data-opportunity-map-location-detail]").innerText(), /Metadata passes[\s\S]*Identity[\s\S]*Operating status[\s\S]*Acquisition[\s\S]*Financial[\s\S]*Evidence and provenance/i, "Location details should expose structured identity, status, acquisition, financial, and provenance context");
+  assert.equal(await page.locator("[data-location-metadata-provenance] a").getAttribute("href").then((href) => /^https?:\/\//.test(href)), true, "Location metadata provenance should retain a safe primary-source link");
+  await page.screenshot({ path: `${OUT_DIR}/opportunity-map-location-metadata.png`, fullPage: false });
   await page.getByRole("button", { name: "Close authoritative location" }).click();
   await page.getByRole("button", { name: "Fit United States" }).click();
   await page.waitForFunction(() => document.querySelector('.opportunity-map__map-controls output')?.textContent === "100%");
