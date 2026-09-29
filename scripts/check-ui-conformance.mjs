@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseline = JSON.parse(fs.readFileSync(path.join(root, "scripts/ui-conformance-baseline.json"), "utf8"));
-const styles = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
+const styles = ["styles.css", "OpportunityMap.css"]
+  .map((name) => fs.readFileSync(path.join(root, "src", name), "utf8"))
+  .join("\n");
 const sourceFiles = fs.readdirSync(path.join(root, "src"))
   .filter((name) => /\.(?:js|jsx)$/.test(name))
   .map((name) => fs.readFileSync(path.join(root, "src", name), "utf8"));

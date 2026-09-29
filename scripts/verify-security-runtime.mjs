@@ -104,8 +104,13 @@ for (const asset of assets.filter((name) => name.endsWith(".js"))) {
   const bytes = (await stat(resolve(root, "dist/assets", asset))).size;
   assert.ok(bytes <= 550_000, `${asset} exceeds the 550KB route-chunk ceiling (${bytes} bytes)`);
 }
-const cssBytes = (await Promise.all(assets.filter((name) => name.endsWith(".css")).map((asset) => stat(resolve(root, "dist/assets", asset))))).reduce((total, entry) => total + entry.size, 0);
-assert.ok(cssBytes <= 360_000, `Production CSS exceeds the 360KB ceiling (${cssBytes} bytes)`);
+const cssAssets = await Promise.all(assets.filter((name) => name.endsWith(".css")).map(async (asset) => ({ asset, bytes: (await stat(resolve(root, "dist/assets", asset))).size })));
+const cssBytes = cssAssets.reduce((total, entry) => total + entry.bytes, 0);
+const shellCssBytes = cssAssets.find(({ asset }) => /^index-.*\.css$/.test(asset))?.bytes || 0;
+const mapCssBytes = cssAssets.find(({ asset }) => /^OpportunityMap-.*\.css$/.test(asset))?.bytes || 0;
+assert.ok(shellCssBytes <= 350_000, `Initial production CSS exceeds the 350KB ceiling (${shellCssBytes} bytes)`);
+assert.ok(mapCssBytes > 0 && mapCssBytes <= 17_000, `Lazy Opportunity Map CSS exceeds its 17KB route ceiling (${mapCssBytes} bytes)`);
+assert.ok(cssBytes <= 367_000, `Total production CSS exceeds the 367KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
 const procurementFeedBytes = (await stat(resolve(root, "dist/data/procurement-feed.json"))).size;
 const procurementDiscoveryBytes = (await stat(resolve(root, "dist/data/procurement-discovery.json"))).size;
@@ -118,4 +123,6 @@ console.log("Security and architecture contracts passed", {
   bodyLimit: MAX_JSON_BODY_BYTES,
   routeChunks: assets.filter((name) => name.endsWith(".js")).length,
   cssBytes,
+  shellCssBytes,
+  mapCssBytes,
 });
