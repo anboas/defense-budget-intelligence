@@ -343,8 +343,7 @@ const MapCanvas = memo(function MapCanvas({ points, selectedId, onSelect, cluste
   };
 
   return <div className="opportunity-map__canvas" data-opportunity-map-canvas>
-    <svg ref={svgRef} viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-labelledby="opportunity-map-svg-title opportunity-map-svg-description">
-      <title id="opportunity-map-svg-title">United States contracting activity map</title>
+    <svg ref={svgRef} viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label="United States contracting activity map" aria-describedby="opportunity-map-svg-description">
       <desc id="opportunity-map-svg-description">Interactive map of mapped acquisition organizations. Nearby offices group at national scale. Marker size represents the selected spend measure. Select a numbered group to zoom or an office to inspect its activity.</desc>
       <rect className="opportunity-map__water" width={MAP_WIDTH} height={MAP_HEIGHT} />
       <g ref={viewportRef} transform={transform.toString()}>

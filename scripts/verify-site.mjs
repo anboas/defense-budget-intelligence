@@ -421,6 +421,10 @@ try {
   assert.equal(atlasPrimitiveStyles.clusterFace, "rgb(23, 53, 76)", "Grouped nodes should use the reference atlas navy face beneath service segments");
   assert.match(atlasPrimitiveStyles.markerShell, /rgba?\(255, 255, 255/, "Map nodes should use a crisp white shell rather than a diffuse color glow");
   assert.match(atlasPrimitiveStyles.calloutFace, /rgba?\(255, 255, 255/, "Callouts should use a restrained white atlas card surface");
+  const mapSvg = page.locator('[data-opportunity-map-canvas] > svg');
+  assert.equal(await mapSvg.getAttribute("aria-label"), "United States contracting activity map", "The map canvas should retain an accessible name without a native tooltip owner");
+  assert.equal(await mapSvg.locator("title").count(), 0, "The map SVG must not expose an ancestor title tooltip that competes with node hover cards");
+  assert.equal(await page.locator('[data-opportunity-map-canvas] [title]').count(), 0, "Map targets with rich hover cards must not also expose native title tooltips");
   assert.equal(await page.locator("[data-opportunity-map-detail]").count(), 0, "The organization inspector should stay closed until a user selects a reviewed location");
   assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 0, "Advanced map filters should stay collapsed until requested");
   const defaultMapGeometry = await page.evaluate(() => ({
@@ -444,6 +448,7 @@ try {
   assert.match(await page.locator(".opportunity-map__coverage").innerText(), /mapped records[\s\S]*location unresolved/i, "The map should disclose both mapped and unresolved location coverage");
   await page.locator('.opportunity-map__marker[role="button"]').last().hover();
   assert.match(await page.locator(".opportunity-map__tooltip").innerText(), /records[\s\S]*(active|upcoming)/i, "Map markers should expose immediate spend and lifecycle context on hover");
+  assert.equal(await page.locator('.opportunity-map__tooltip[role="tooltip"]').count(), 1, "A map node should own exactly one hover surface");
   const nearbyGroups = page.getByRole("button", { name: "Nearby groups" });
   await nearbyGroups.click();
   await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapClusters") === "off");
@@ -1633,6 +1638,7 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForSelector('[data-analytics-record-drawer]', { state: "detached" });
   assert.doesNotMatch(new URL(page.url()).hash, /analyticsRecord=/, "Closing analytical detail should clear its URL state");
+  await page.waitForFunction(() => document.querySelector('[data-analytics-records] tbody button') === document.activeElement);
   assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-drawer]');
