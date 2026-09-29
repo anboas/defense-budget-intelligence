@@ -411,6 +411,16 @@ try {
   assert.ok(await page.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Default live scope should expose a nationwide set of mapped organization clusters");
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster[role="button"]').count() >= 1, "Nearby offices should consolidate into numbered national-scale groups");
   assert.ok(await page.locator('.opportunity-map__callout[role="button"]').count() >= 3, "National view should expose a small, bounded set of spend-ranked callouts");
+  assert.ok(await page.locator('.opportunity-map__marker.is-cluster .opportunity-map__marker-segments path').count() >= 2, "Grouped map nodes should expose service-composition ring segments instead of undifferentiated bubbles");
+  assert.equal(await page.locator('.opportunity-map__callout-accent').count(), 3, "Every bounded national callout should carry a service-aware accent stripe");
+  const atlasPrimitiveStyles = await page.evaluate(() => ({
+    clusterFace: getComputedStyle(document.querySelector('.opportunity-map__marker.is-cluster .opportunity-map__marker-core')).fill,
+    markerShell: getComputedStyle(document.querySelector('.opportunity-map__marker-shell')).fill,
+    calloutFace: getComputedStyle(document.querySelector('.opportunity-map__callout-face')).fill,
+  }));
+  assert.equal(atlasPrimitiveStyles.clusterFace, "rgb(23, 53, 76)", "Grouped nodes should use the reference atlas navy face beneath service segments");
+  assert.match(atlasPrimitiveStyles.markerShell, /rgba?\(255, 255, 255/, "Map nodes should use a crisp white shell rather than a diffuse color glow");
+  assert.match(atlasPrimitiveStyles.calloutFace, /rgba?\(255, 255, 255/, "Callouts should use a restrained white atlas card surface");
   assert.equal(await page.locator("[data-opportunity-map-detail]").count(), 0, "The organization inspector should stay closed until a user selects a reviewed location");
   assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 0, "Advanced map filters should stay collapsed until requested");
   const defaultMapGeometry = await page.evaluate(() => ({

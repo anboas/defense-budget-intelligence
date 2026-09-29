@@ -1,5 +1,5 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { geoAlbersUsa, geoPath, select, zoom, zoomIdentity, zoomTransform } from "d3";
+import { arc as d3Arc, geoAlbersUsa, geoPath, pie as d3Pie, select, zoom, zoomIdentity, zoomTransform } from "d3";
 import { feature, mesh } from "topojson-client";
 import statesTopology from "us-atlas/states-10m.json";
 import {
@@ -181,10 +181,16 @@ function groupNearbyPoints(points, scale, enabled) {
   return groups.map((group) => {
     if (group.members.length === 1) return { ...group.members[0], members: group.members };
     const branches = [...new Set(group.members.map((member) => member.branch))];
+    const places = [...group.members.reduce((counts, member) => {
+      const place = String(member.city || "").trim();
+      if (place) counts.set(place, (counts.get(place) || 0) + 1);
+      return counts;
+    }, new Map()).entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+    const primaryPlace = places[0]?.[0] || "Regional";
     return {
       ...group,
       id: `nearby:${group.members.map((member) => member.id).sort().join("|")}`,
-      label: `${group.members.length} nearby acquisition hubs`,
+      label: `${primaryPlace} acquisition cluster`,
       city: group.members.map((member) => member.city).slice(0, 2).join(" · "),
       branch: branches.length === 1 ? branches[0] : "mixed",
       spend: group.members.reduce((total, member) => total + member.spend, 0),
@@ -200,7 +206,7 @@ function groupNearbyPoints(points, scale, enabled) {
 }
 
 function distributeCallouts(nodes) {
-  const selected = nodes.filter((node) => node.members.length === 1).sort((left, right) => right.spend - left.spend).slice(0, 3);
+  const selected = [...nodes].sort((left, right) => right.spend - left.spend).slice(0, 3);
   const sides = {
     left: selected.filter((node) => node.x < MAP_WIDTH / 2).sort((left, right) => left.y - right.y),
     right: selected.filter((node) => node.x >= MAP_WIDTH / 2).sort((left, right) => left.y - right.y),
@@ -209,7 +215,7 @@ function distributeCallouts(nodes) {
   Object.entries(sides).forEach(([side, entries]) => {
     const minY = 48;
     const maxY = MAP_HEIGHT - 66;
-    const spacing = 58;
+    const spacing = 60;
     const ys = [];
     entries.forEach((node) => {
       const desired = Math.max(minY, Math.min(maxY, node.y - 22));
@@ -220,12 +226,35 @@ function distributeCallouts(nodes) {
       ys.forEach((_, index) => { ys[index] -= shift; });
     }
     entries.forEach((node, index) => {
-      const width = 200;
-      const x = side === "left" ? Math.min(MAP_WIDTH - width - 18, node.x + 28) : Math.max(18, node.x - width - 28);
-      results.push({ node, side, x, y: ys[index], width, height: 44 });
+      const width = 190;
+      const x = side === "left" ? Math.min(MAP_WIDTH - width - 18, node.x + 36) : Math.max(18, node.x - width - 36);
+      results.push({ node, side, x, y: ys[index], width, height: 46 });
     });
   });
   return results;
+}
+
+function markerSegments(node, radius, scale) {
+  if (node.members.length === 1) return [];
+  const counts = [...node.members.reduce((summary, member) => {
+    const branch = member.branch || "joint";
+    summary.set(branch, (summary.get(branch) || 0) + 1);
+    return summary;
+  }, new Map()).entries()].sort((left, right) => left[0].localeCompare(right[0]));
+  const ring = d3Arc().innerRadius(radius + 1.2 / scale).outerRadius(radius + 4.4 / scale);
+  return d3Pie().value((entry) => entry[1]).sort(null)(counts).map((segment) => ({
+    branch: segment.data[0],
+    color: BRANCHES[segment.data[0]]?.color || "#315b78",
+    path: ring(segment),
+  }));
+}
+
+function calloutLabel(node) {
+  if (node.members.length > 1) {
+    const place = String(node.label || "").replace(/ acquisition cluster$/i, "").split(",")[0].trim();
+    return place ? `${place} area` : `${node.members.length} nearby hubs`;
+  }
+  return node.label.length > 28 ? `${node.label.slice(0, 27)}…` : node.label;
 }
 
 const GeographyLayer = memo(function GeographyLayer() {
@@ -323,12 +352,15 @@ const MapCanvas = memo(function MapCanvas({ points, selectedId, onSelect, cluste
         {callouts.length ? <g className="opportunity-map__callouts">
           {callouts.map(({ node, side, x, y, width, height }) => {
             const edgeX = side === "left" ? x : x + width;
+            const elbowX = node.x + (edgeX - node.x) * .42;
             const selected = node.members.some((member) => member.id === selectedId);
+            const accent = node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
             return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
-              <path d={`M${node.x},${node.y} L${edgeX},${y + height / 2}`} />
-              <rect x={x} y={y} width={width} height={height} />
-              <text x={x + 10} y={y + 17}>{node.members.length > 1 ? `${node.members.length} nearby hubs` : node.label.length > 31 ? `${node.label.slice(0, 30)}…` : node.label}</text>
-              <text className="opportunity-map__callout-meta" x={x + 10} y={y + 33}>{money(node.spend)} · {node.records.length} records</text>
+              <path className="opportunity-map__callout-line" d={`M${node.x},${node.y} L${elbowX},${node.y} L${edgeX},${y + height / 2}`} style={{ stroke: accent }} />
+              <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} />
+              <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
+              <text className="opportunity-map__callout-title" x={x + 12} y={y + 18}>{calloutLabel(node)}</text>
+              <text className="opportunity-map__callout-meta" x={x + 12} y={y + 34}>{money(node.spend)} · {node.records.length} records{node.members.length > 1 ? ` · ${node.members.length} hubs` : ""}</text>
             </g>;
           })}
         </g> : null}
@@ -338,10 +370,15 @@ const MapCanvas = memo(function MapCanvas({ points, selectedId, onSelect, cluste
             const selected = node.members.some((member) => member.id === selectedId);
             const color = BRANCHES[node.branch]?.color || "#315b78";
             const showLabel = node.members.length === 1 && (selected || (rankedLabels.has(node.id) && transform.k >= 1.55));
+            const segments = markerSegments(node, radius, transform.k);
             return <g key={node.id} className={`opportunity-map__marker${node.members.length > 1 ? " is-cluster" : ""}${selected ? " is-selected" : ""}`} transform={`translate(${node.x} ${node.y})`} role="button" tabIndex="0" aria-label={node.members.length > 1 ? `${node.members.length} nearby acquisition hubs, ${money(node.spend)}, ${node.records.length} indexed records. Select to zoom.` : `${node.label}, ${node.organizations.length} organizations, ${money(node.spend)} ${node.metricLabel}, ${node.records.length} indexed records`} aria-pressed={selected} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }} onPointerEnter={(event) => showTooltip(event, node)} onPointerLeave={() => setTooltip(null)} onFocus={(event) => showTooltip(event, node)} onBlur={() => setTooltip(null)}>
-              <circle className="opportunity-map__marker-halo" r={radius + 5 / transform.k} style={{ fill: color }} />
-              <circle className="opportunity-map__marker-core" r={radius} style={{ fill: color }} />
-              {node.members.length > 1 ? <text className="opportunity-map__cluster-count" style={{ fontSize: `${11 / transform.k}px` }}>{node.members.length}</text> : <circle className="opportunity-map__marker-center" r={Math.max(2.6, radius * 0.22)} />}
+              <circle className="opportunity-map__marker-focus-ring" r={radius + (node.members.length > 1 ? 7 : 5) / transform.k} />
+              <circle className="opportunity-map__marker-shell" r={radius + (node.members.length > 1 ? 5 : 2.5) / transform.k} />
+              <circle className="opportunity-map__marker-core" r={radius} style={{ fill: node.members.length > 1 ? "#17354c" : color }} />
+              <g className="opportunity-map__marker-segments" aria-hidden="true">
+                {segments.map((segment) => <path key={segment.branch} d={segment.path || ""} fill={segment.color} />)}
+              </g>
+              {node.members.length > 1 ? <text className="opportunity-map__cluster-count" style={{ fontSize: `${11 / transform.k}px` }}>{node.members.length}</text> : null}
               {node.trackedCount ? <circle className="opportunity-map__marker-tracked" cx={radius * .72} cy={-radius * .72} r={5 / transform.k} /> : null}
               {showLabel ? <text className="opportunity-map__marker-label" y={-radius - 8 / transform.k} style={{ fontSize: `${12 / transform.k}px`, strokeWidth: `${4 / transform.k}px` }}>{node.label}</text> : null}
             </g>;
