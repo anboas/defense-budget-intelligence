@@ -436,7 +436,9 @@ try {
     return {
       count: callouts.length,
       allTargetsVisible: callouts.every((callout) => {
-        const marker = markers.find((candidate) => candidate.dataset.mapNode === callout.dataset.mapCallout);
+        const marker = callout.dataset.mapCalloutKind === "location"
+          ? document.querySelector(`[data-map-location="${CSS.escape(callout.dataset.mapCallout.replace(/^location:/, ""))}"]`)
+          : markers.find((candidate) => candidate.dataset.mapNode === callout.dataset.mapCallout);
         const bounds = marker?.getBoundingClientRect();
         if (!bounds) return false;
         const centerX = bounds.left + bounds.width / 2;
@@ -458,12 +460,42 @@ try {
   await page.getByRole("button", { name: "Fit United States" }).click();
   await page.waitForFunction(() => document.querySelector('.opportunity-map__map-controls output')?.textContent === "100%");
   await page.waitForTimeout(250);
+  const westCoastTarget = await page.locator('[data-map-location="ntad-690"]').boundingBox();
+  await page.mouse.move(westCoastTarget.x + westCoastTarget.width / 2, westCoastTarget.y + westCoastTarget.height / 2);
+  for (let index = 0; index < 4; index += 1) await page.mouse.wheel(0, -420);
+  await page.waitForFunction(() => Number.parseInt(document.querySelector('.opportunity-map__map-controls output')?.textContent || "100", 10) >= 350);
+  await page.waitForTimeout(350);
+  const locationCalloutGeometry = await page.evaluate(() => {
+    const canvas = document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect();
+    const callouts = [...document.querySelectorAll('[data-map-callout-kind="location"]')];
+    return {
+      count: callouts.length,
+      allTargetsVisible: callouts.every((callout) => {
+        const id = callout.dataset.mapCallout.replace(/^location:/, "");
+        const target = document.querySelector(`[data-map-location="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+        if (!target) return false;
+        const centerX = target.left + target.width / 2;
+        const centerY = target.top + target.height / 2;
+        return centerX >= canvas.left && centerX <= canvas.right && centerY >= canvas.top && centerY <= canvas.bottom;
+      }),
+    };
+  });
+  assert.ok(locationCalloutGeometry.count >= 4, `Focused views without nearby spend hubs should call out visible authoritative locations: ${JSON.stringify(locationCalloutGeometry)}`);
+  assert.equal(locationCalloutGeometry.allTargetsVisible, true, `Location callouts must target source locations in the current viewport: ${JSON.stringify(locationCalloutGeometry)}`);
+  await page.locator('[data-map-callout-kind="location"] .opportunity-map__callout-face').first().click();
+  await page.waitForSelector("[data-opportunity-map-location-detail]");
+  await page.getByRole("button", { name: "Close authoritative location" }).click();
+  await page.getByRole("button", { name: "Fit United States" }).click();
+  await page.waitForFunction(() => document.querySelector('.opportunity-map__map-controls output')?.textContent === "100%");
+  await page.waitForTimeout(250);
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster .opportunity-map__marker-segments path').count() >= 2, "Grouped map nodes should expose service-composition ring segments instead of undifferentiated bubbles");
   assert.equal(await page.locator('.opportunity-map__callout-accent').count(), nationalCalloutCount, "Every bounded national callout should carry a service-aware accent stripe");
   const serviceLegendButtons = page.locator('[data-opportunity-map-legend] button');
   assert.equal(await serviceLegendButtons.count(), 10, "The map legend should expose All plus every authoritative service category");
-  assert.match(await serviceLegendButtons.first().innerText(), /^All services \(\d+\)$/i, "The All-services legend pill should disclose its current marker count");
-  assert.match(await page.locator('[data-opportunity-map-legend] button', { hasText: /^Navy \(/ }).innerText(), /^Navy \(\d+\)$/i, "Every service legend pill should disclose its current marker count");
+  const allServiceLegendText = (await serviceLegendButtons.first().innerText()).replace(/\s+/g, " ").trim();
+  const navyServiceLegendText = (await page.locator('[data-opportunity-map-legend] button', { hasText: /^Navy/ }).innerText()).replace(/\s+/g, " ").trim();
+  assert.match(allServiceLegendText, /^All \(\d+\)$/i, "The All-services legend pill should disclose its current marker count compactly");
+  assert.match(navyServiceLegendText, /^Navy \(\d+\)$/i, "Every service legend pill should disclose its current marker count");
   const atlasPrimitiveStyles = await page.evaluate(() => ({
     clusterFace: getComputedStyle(document.querySelector('.opportunity-map__marker.is-cluster .opportunity-map__marker-core')).fill,
     markerShell: getComputedStyle(document.querySelector('.opportunity-map__marker-shell')).fill,
@@ -479,14 +511,14 @@ try {
   assert.equal(await page.locator("[data-opportunity-map-detail]").count(), 0, "The organization inspector should stay closed until a user selects a reviewed location");
   assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 0, "Advanced map filters should stay collapsed until requested");
   const defaultMapGeometry = await page.evaluate(() => ({
-    workbenchHeight: document.querySelector("[data-opportunity-map] > .if-workbench-header")?.getBoundingClientRect().height || 0,
-    filterHeight: document.querySelector(".opportunity-map__controls")?.getBoundingClientRect().height || 0,
+    commandHeight: document.querySelector(".opportunity-map__command-band")?.getBoundingClientRect().height || 0,
     canvasTop: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().top || 0,
     canvasHeight: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().height || 0,
+    legendOverflow: (() => { const legend = document.querySelector("[data-opportunity-map-legend]"); return legend ? legend.scrollWidth - legend.clientWidth : 0; })(),
   }));
-  assert.ok(defaultMapGeometry.workbenchHeight <= 105, `Opportunity Map introduction should stay compact, got ${defaultMapGeometry.workbenchHeight}px`);
-  assert.ok(defaultMapGeometry.filterHeight <= 70, `Default map controls should stay in one compact row, got ${defaultMapGeometry.filterHeight}px`);
-  assert.ok(defaultMapGeometry.canvasTop <= 330, `Desktop geography should begin within the first 330px, got ${defaultMapGeometry.canvasTop}px`);
+  assert.ok(defaultMapGeometry.commandHeight <= 100, `Opportunity Map title, filters, tools, and legend should share one compact command band, got ${defaultMapGeometry.commandHeight}px`);
+  assert.equal(defaultMapGeometry.legendOverflow, 0, `Service pills should wrap without a horizontal scrollbar: ${JSON.stringify(defaultMapGeometry)}`);
+  assert.ok(defaultMapGeometry.canvasTop <= 255, `Desktop geography should begin within the first 255px, got ${defaultMapGeometry.canvasTop}px`);
   assert.ok(defaultMapGeometry.canvasHeight >= 719, `Desktop geography should provide the requested tall analytical canvas, got ${defaultMapGeometry.canvasHeight}px`);
   const mapCanvasBounds = await page.locator("[data-opportunity-map-canvas]").boundingBox();
   await page.evaluate(() => {
