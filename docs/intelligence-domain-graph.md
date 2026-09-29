@@ -94,9 +94,11 @@ The UI must show the class and basis when the distinction affects interpretation
 
 ## Runtime design
 
-`intelligence-graph.json` is the complete generated graph and release-integrity artifact. It is not part of initial page load.
+`intelligence-graph.json` is the complete generated graph and release-integrity artifact. It is not part of initial page load. Schema 1.1 adds UEI-canonical recipient identities, reviewed contracting-office identifiers, transaction-recipient edges, source-declared hierarchy, office/location edges, and an explicit organization review queue.
 
 `intelligence-graph-index.json` is a bounded deferred projection keyed by canonical activity ID. Record detail surfaces load it once on demand and reuse it for the browser session. It contains connected entity summaries, surface coverage, counts, and relationship evidence summaries without duplicating transaction and event bodies.
+
+`organization-identity-review.json` is a small audit artifact containing exact UEI-resolved aliases and normalized labels that map to multiple UEIs. Ambiguous labels remain `needs_review`; they never auto-merge.
 
 Build validation rejects:
 
@@ -128,7 +130,7 @@ Deep links carry canonical IDs. Human-readable identifiers remain aliases for se
 
 ## Known gaps and next passes
 
-1. **Organization master data.** Promote UEI, agency/subagency codes, office codes, and reviewed parent-child hierarchy. Keep label-only entities separate until official identity evidence exists.
+1. **Organization master data expansion.** UEI, reviewed office codes, exact recipient aliases, source-declared acquisition hierarchy, and explicit conflicts are now integrated. Next, add cited CAGE, agency/subagency identifiers, legal parent-child relationships, and effective dates. Keep label-only entities separate until official identity evidence exists.
 2. **Budget-to-account crosswalk.** Replace exact-title derived joins with Treasury/Federal Account Symbol evidence wherever a source mapping exists. Preserve unmatched lines.
 3. **Award-to-opportunity lineage.** Add solicitation and predecessor/successor relationships using exact source-declared notice or parent PIIDs. Do not infer recompetes from timing alone.
 4. **Location tenancy.** Expand reviewed organization-to-installation relationships and effective dates. Never infer tenancy from proximity.

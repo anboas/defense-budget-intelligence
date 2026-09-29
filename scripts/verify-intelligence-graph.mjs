@@ -8,6 +8,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const graph = JSON.parse(readFileSync(resolve(ROOT, "public/data/intelligence-graph.json"), "utf8"));
 const graphIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/intelligence-graph-index.json"), "utf8"));
 const graphSummary = JSON.parse(readFileSync(resolve(ROOT, "public/data/intelligence-graph-summary.json"), "utf8"));
+const organizationReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/organization-identity-review.json"), "utf8"));
 const entities = new Set(Object.values(graph.entities || {}).flatMap((rows) => rows.map((row) => row.id)));
 const relations = graph.relations || [];
 
@@ -34,6 +35,34 @@ assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 485, "Kno
 assert.equal(graph.metadata.coverage.awards.subawardLinked, 379, "All checked subaward primes must join exact award IDs");
 assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3569, "Known exact budget-line to federal-account title links changed");
 assert.equal(graph.metadata.coverage.geography.activityLocationRelations, 400, "Reviewed map placement relationship coverage changed");
+assert.equal(graph.metadata.coverage.organizations.canonicalUeiIdentities, 264, "Published UEI identity coverage changed");
+assert.equal(graph.metadata.coverage.organizations.reviewedOfficeCodeIdentities, 50, "Reviewed contracting-office code coverage changed");
+assert.equal(graph.metadata.coverage.organizations.cageIdentities, 0, "CAGE coverage must remain explicit until published evidence enters the retained corpus");
+assert.equal(graph.metadata.coverage.organizations.resolvedAliasGroups, 23, "Known UEI-resolved alias coverage changed");
+assert.equal(graph.metadata.coverage.organizations.ambiguousNormalizedLabels, 11, "Known ambiguous normalized-label queue changed");
+assert.equal(graph.metadata.coverage.organizations.hierarchyRelations, 93, "Source-declared organization hierarchy coverage changed");
+assert.equal(graph.metadata.coverage.organizations.officeLocationRelations, 52, "Reviewed office-code/location coverage changed");
+assert.equal(graph.metadata.coverage.organizations.transactionRecipientRelations, 3085, "Every exact FPDS transaction must retain its recipient identity edge");
+
+const organizationIdentifiers = graph.entities?.["organization-identifier"] || [];
+const ueiIdentifiers = organizationIdentifiers.filter((item) => item.namespace === "uei");
+const officeIdentifiers = organizationIdentifiers.filter((item) => item.namespace === "officeCode");
+assert.equal(ueiIdentifiers.length, 264, "Every published UEI must exist once as a typed organization identifier");
+assert.equal(new Set(ueiIdentifiers.map((item) => item.value)).size, ueiIdentifiers.length, "UEI identifier entities must be unique");
+assert.equal(officeIdentifiers.length, 50, "Every reviewed office code must exist once as a typed organization identifier");
+assert.equal(new Set(officeIdentifiers.map((item) => item.value)).size, officeIdentifiers.length, "Office-code identifier entities must be unique");
+const ueiOrganizations = graph.entities.organization.filter((item) => item.identity?.identifiers?.uei);
+assert.equal(new Set(ueiOrganizations.map((item) => item.identity.identifiers.uei)).size, ueiOrganizations.length, "Distinct UEIs must never collapse into one label-based organization");
+const vectrus = ueiOrganizations.find((item) => item.identity.identifiers.uei === "RRFJZGASZJ41");
+const vectrusNames = new Set([vectrus?.label, ...(vectrus?.aliases || [])]);
+assert.ok(vectrusNames.has("VECTRUS SYSTEMS CORPORATION") && vectrusNames.has("V2X SYSTEMS LLC"), "Exact UEI identity must retain published recipient aliases and renames");
+
+assert.equal(organizationReview.metadata?.schemaVersion, "1.0.0", "Organization identity review schema changed");
+assert.equal(organizationReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Organization review must track the graph schema");
+assert.equal(organizationReview.resolvedAliases.length, 23, "Organization review must publish every UEI-resolved alias group");
+assert.equal(organizationReview.conflicts.length, 11, "Organization review must retain every ambiguous normalized label");
+assert.ok(organizationReview.conflicts.every((item) => item.status === "needs_review" && item.candidateUeis.length > 1), "Ambiguous organization labels must remain review-only multi-UEI candidates");
+assert.ok(readFileSync(resolve(ROOT, "public/data/organization-identity-review.json")).byteLength < 100_000, "Organization identity review exceeds its 100 KB audit budget");
 
 for (const [opportunityId, index] of Object.entries(graph.indices.byActivity)) {
   assert.equal(index.activityId, opportunityId);
