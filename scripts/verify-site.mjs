@@ -416,9 +416,22 @@ try {
   const defaultLocationDotCount = await page.locator(".opportunity-map__location").count();
   assert.ok(defaultLocationDotCount >= 800, `Default live scope should render the authoritative nationwide location layer, got ${defaultLocationDotCount}`);
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster[role="button"]').count() >= 1, "Nearby offices should consolidate into numbered national-scale groups");
-  assert.ok(await page.locator('.opportunity-map__callout[role="button"]').count() >= 3, "National view should expose a small, bounded set of spend-ranked callouts");
+  const nationalCalloutCount = await page.locator('.opportunity-map__callout[role="button"]').count();
+  assert.ok(nationalCalloutCount >= 6 && nationalCalloutCount <= 8, `National view should expose a useful but bounded set of ranked callouts, got ${nationalCalloutCount}`);
+  const calloutGeometry = await page.evaluate(() => {
+    const canvas = document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect();
+    const cards = [...document.querySelectorAll(".opportunity-map__callout-face")].map((node) => node.getBoundingClientRect());
+    const overlaps = cards.flatMap((left, index) => cards.slice(index + 1).filter((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top));
+    return { withinCanvas: cards.every((card) => card.left >= canvas.left && card.right <= canvas.right && card.top >= canvas.top && card.bottom <= canvas.bottom), overlaps: overlaps.length };
+  });
+  assert.equal(calloutGeometry.withinCanvas, true, "National callout cards should stay within the map canvas");
+  assert.equal(calloutGeometry.overlaps, 0, "National callout cards should use collision-safe columns without overlap");
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster .opportunity-map__marker-segments path').count() >= 2, "Grouped map nodes should expose service-composition ring segments instead of undifferentiated bubbles");
-  assert.equal(await page.locator('.opportunity-map__callout-accent').count(), 3, "Every bounded national callout should carry a service-aware accent stripe");
+  assert.equal(await page.locator('.opportunity-map__callout-accent').count(), nationalCalloutCount, "Every bounded national callout should carry a service-aware accent stripe");
+  const serviceLegendButtons = page.locator('[data-opportunity-map-legend] button');
+  assert.equal(await serviceLegendButtons.count(), 10, "The map legend should expose All plus every authoritative service category");
+  assert.match(await serviceLegendButtons.first().innerText(), /^All services \(\d+\)$/i, "The All-services legend pill should disclose its current marker count");
+  assert.match(await page.locator('[data-opportunity-map-legend] button', { hasText: /^Navy \(/ }).innerText(), /^Navy \(\d+\)$/i, "Every service legend pill should disclose its current marker count");
   const atlasPrimitiveStyles = await page.evaluate(() => ({
     clusterFace: getComputedStyle(document.querySelector('.opportunity-map__marker.is-cluster .opportunity-map__marker-core')).fill,
     markerShell: getComputedStyle(document.querySelector('.opportunity-map__marker-shell')).fill,
@@ -478,6 +491,19 @@ try {
   assert.equal(await page.locator(".opportunity-map__location").count(), defaultLocationDotCount, "No-linked-spend mode should retain locations without an established spend relationship");
   await page.getByRole("button", { name: "All locations", exact: true }).click();
   await page.waitForFunction(() => !window.location.hash.includes("mapEvidence="));
+  const navyLegend = page.locator('[data-opportunity-map-legend] button', { hasText: /^Navy \(/ });
+  const armyLegend = page.locator('[data-opportunity-map-legend] button', { hasText: /^Army \(/ });
+  await navyLegend.click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapBranch") === "navy");
+  await armyLegend.click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapBranch") === "army,navy");
+  assert.equal(await navyLegend.getAttribute("aria-pressed"), "true", "Legend pills should retain Navy in a multi-service selection");
+  assert.equal(await armyLegend.getAttribute("aria-pressed"), "true", "Legend pills should add Army without clearing Navy");
+  assert.equal(await page.locator('[data-opportunity-map-legend] button').first().getAttribute("aria-pressed"), "false", "All services should clear while specific services are selected");
+  await navyLegend.click();
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapBranch") === "army");
+  await page.locator('[data-opportunity-map-legend] button').first().click();
+  await page.waitForFunction(() => !window.location.hash.includes("mapBranch="));
   await page.getByRole("button", { name: "Find" }).click();
   await page.locator("[data-opportunity-map-directory] input").fill("Missile Defense");
   const missileDefenseHub = page.locator(".opportunity-map__directory-results button", { hasText: "Spend-backed hub" }).filter({ hasText: "Missile Defense Agency" });
@@ -493,6 +519,19 @@ try {
   await page.getByRole("button", { name: "Close map evidence" }).click();
   await page.getByRole("button", { name: /^Filters/ }).click();
   assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 1, "Filters control should reveal the advanced map dimensions on demand");
+  await page.getByRole("button", { name: /^Service:/ }).click();
+  const serviceMenu = page.locator('[data-if-picker-menu]');
+  assert.match(await serviceMenu.getByRole("option", { name: /^All services \(\d+\)$/ }).innerText(), /^All services \(\d+\)$/i, "Service dropdown should show the All-services population in parentheses");
+  assert.match(await serviceMenu.getByRole("option", { name: /^Marine Corps \(\d+\)$/ }).innerText(), /^Marine Corps \(\d+\)$/i, "Service dropdown should show each category population in parentheses");
+  await page.keyboard.press("Escape");
+  await chooseControlSelect(page, "Size by", "Nothing (uniform markers)");
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapSpend") === "none");
+  assert.equal(await page.getByRole("button", { name: /^Minimum:/ }).isDisabled(), true, "Minimum spend should disable when marker sizing is not spend-based");
+  const uniformRadii = await page.locator('.opportunity-map__marker:not(.is-cluster) .opportunity-map__marker-core').evaluateAll((nodes) => [...new Set(nodes.map((node) => Number(node.getAttribute("r") || 0).toFixed(3)))]);
+  assert.equal(uniformRadii.length, 1, `None size mode should render uniform individual marker radii: ${JSON.stringify(uniformRadii)}`);
+  await page.getByRole("button", { name: "Fit United States" }).click();
+  await page.waitForSelector('.opportunity-map__callout-meta');
+  assert.doesNotMatch(await page.locator('.opportunity-map__callout-meta').first().textContent(), /\$/i, "Uniform-size callouts should lead with record evidence rather than a sizing value");
   await chooseControlSelect(page, "Size by", "Potential value");
   await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapSpend") === "potential");
   await page.locator('.opportunity-map__search input').fill("MISSILE DEFENSE AGENCY (MDA)");
