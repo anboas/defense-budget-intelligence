@@ -1669,9 +1669,13 @@ try {
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
-  await page.getByRole("button", { name: "Funding", exact: true }).click();
+  const fundingLayer = page.getByRole("button", { name: "Funding", exact: true });
+  await fundingLayer.click();
+  await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') !== 'disabled');
+  assert.equal(await fundingLayer.getAttribute("aria-pressed"), "true", "Funding layer should remain selected while its exact action feed loads");
   await fpdsReady;
-  await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0);
+  await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') === 'ready', null, { timeout: 60_000 });
+  await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0, null, { timeout: 60_000 });
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
   assert.ok(await page.locator(".capture-timeline__action-marker").count() > 0, "FPDS feed should render timeline action pulses");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
