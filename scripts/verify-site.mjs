@@ -397,6 +397,17 @@ try {
   await openSurface(page, "#/budget-spend/map", "[data-opportunity-map]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunity Map", "Opportunity Map should own a first-class route title");
   assert.equal(await page.locator('[data-primary-nav="map"][aria-current="page"]').count(), 1, "Opportunity Map should own a primary-navigation state");
+  assert.equal(await resourceCount(page, "opportunity-map-data.json"), 1, "Opportunity Map should load one map-specific factual payload");
+  const mapEvidenceCounts = await page.locator("[data-opportunity-map]").evaluate((node) => ({
+    sourceRecords: Number(node.dataset.mapSourceRecords || 0),
+    mappedRecords: Number(node.dataset.mapMappedRecords || 0),
+    exactOfficeRecords: Number(node.dataset.mapExactOfficeRecords || 0),
+    visibleSpend: Number(node.dataset.mapVisibleSpend || 0),
+  }));
+  assert.ok(mapEvidenceCounts.sourceRecords >= 875, `Map-specific evidence should retain the complete indexed corpus: ${JSON.stringify(mapEvidenceCounts)}`);
+  assert.ok(mapEvidenceCounts.mappedRecords >= 240, `Exact award-detail enrichment should map at least 240 live records: ${JSON.stringify(mapEvidenceCounts)}`);
+  assert.ok(mapEvidenceCounts.exactOfficeRecords >= 220, `The live map should be primarily backed by exact award-detail offices: ${JSON.stringify(mapEvidenceCounts)}`);
+  assert.ok(mapEvidenceCounts.visibleSpend >= 200_000_000_000, `The live map should expose more than $200B of directly observed obligations: ${JSON.stringify(mapEvidenceCounts)}`);
   assert.ok(await page.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Default live scope should expose a nationwide set of mapped organization clusters");
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster[role="button"]').count() >= 1, "Nearby offices should consolidate into numbered national-scale groups");
   assert.ok(await page.locator('.opportunity-map__callout[role="button"]').count() >= 3, "National view should expose a small, bounded set of spend-ranked callouts");
@@ -434,12 +445,12 @@ try {
   assert.equal(await page.locator(".opportunity-map__directory-results button").count(), 1, "The location directory should search reviewed office hubs without changing map filters");
   await page.locator(".opportunity-map__directory-results button").click();
   await page.waitForSelector("[data-opportunity-map-detail]");
-  assert.match(await page.locator("[data-opportunity-map-detail]").innerText(), /Missile Defense Agency[\s\S]*Reviewed office registry match/i, "Directory selection should open an evidence-labeled organization inspector");
+  assert.match(await page.locator("[data-opportunity-map-detail]").innerText(), /Missile Defense Agency[\s\S]*(exact award-detail offices|reviewed published-office registry match)/i, "Directory selection should open an evidence-labeled organization inspector");
   assert.ok(await page.locator(".opportunity-map__detail-metrics dd").count() >= 4, "Organization detail should expose spend, organization, active, and upcoming metrics");
   assert.equal(new URLSearchParams((await page.evaluate(() => window.location.hash)).split("?")[1] || "").get("mapOrg"), "huntsville", "Directory selection should persist the reviewed location in the canonical map URL");
   await page.getByRole("button", { name: "Close joint / fourth estate" }).click();
   await page.getByRole("button", { name: "Evidence" }).click();
-  assert.match(await page.locator("[data-opportunity-map-evidence]").innerText(), /Coverage and placement[\s\S]*reviewed location rules[\s\S]*records remain unresolved/i, "Evidence drawer should disclose registry coverage and unresolved records");
+  assert.match(await page.locator("[data-opportunity-map-evidence]").innerText(), /Coverage and placement[\s\S]*exact award-detail observations[\s\S]*records remain unresolved/i, "Evidence drawer should disclose exact-office coverage and unresolved records");
   await page.getByRole("button", { name: "Close map evidence" }).click();
   await page.getByRole("button", { name: /^Filters/ }).click();
   assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 1, "Filters control should reveal the advanced map dimensions on demand");

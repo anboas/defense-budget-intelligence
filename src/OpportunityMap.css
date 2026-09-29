@@ -57,7 +57,7 @@
 .opportunity-map__map-controls button:hover, .opportunity-map__map-controls button:focus-visible { outline: 0; background: #dfeaf0; color: #0d5f91; }
 .opportunity-map__map-controls output { display: grid; min-width: 48px; place-items: center; color: #526f84; font-size: 9px; }
 .opportunity-map__interaction-hint { position: absolute; right: 14px; bottom: 14px; color: #526f84; font-size: 9px; pointer-events: none; }
-.opportunity-map__coverage { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 8px 14px; min-height: 48px; padding: 7px 12px; border-top: 1px solid #294a68; background: #102a43; color: #d7e9f5; font-size: var(--if-font-size-2xs); }
+.opportunity-map__coverage { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: center; gap: 8px 14px; min-height: 48px; padding: 7px 12px; border-top: 1px solid #294a68; background: #102a43; color: #d7e9f5; font-size: var(--if-font-size-2xs); }
 .opportunity-map__coverage p { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin: 0; color: #9dbdd2; text-align: right; }
 
 .opportunity-map__drawer { position: absolute; z-index: 6; top: 70px; right: 12px; bottom: 60px; display: flex; width: min(390px, calc(100% - 24px)); min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid #aebfca; border-radius: var(--if-radius-2); background: var(--if-bg-surface); box-shadow: 0 14px 34px rgb(23 53 76 / 18%); }
@@ -136,7 +136,7 @@
   .opportunity-map__map-controls { grid-template-columns: repeat(3, 44px) auto; }
   .opportunity-map__map-controls button { width: 44px; height: 44px; }
   .opportunity-map__interaction-hint { display: none; }
-  .opportunity-map__coverage { grid-template-columns: 1fr 1fr; }
+  .opportunity-map__coverage { grid-template-columns: repeat(3, 1fr); }
   .opportunity-map__coverage p { grid-column: 1 / -1; justify-content: flex-start; text-align: left; }
   .opportunity-map__drawer { position: fixed; z-index: 40; inset: auto 8px 8px; width: auto; max-height: min(72dvh, 620px); margin: 0; border-radius: 10px; box-shadow: 0 18px 60px rgb(16 42 67 / 38%); }
   .opportunity-map__drawer-header button { width: 44px; height: 44px; }

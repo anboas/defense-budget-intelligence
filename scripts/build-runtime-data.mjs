@@ -83,6 +83,78 @@ const agentRecords = applyProcurementChanges(
 if (agentRecords.length < 875 || new Set(agentRecords.map((record) => record.opportunityId)).size !== agentRecords.length) {
   throw new Error("Agent record index must contain at least 875 unique stable records");
 }
+
+function mapLifecycle(record, asOf) {
+  const monitored = record.automationCoverage?.lifecycle;
+  if (monitored === "active") return "active";
+  if (["upcoming", "option-horizon"].includes(monitored)) return "upcoming";
+  const lifecycle = String(record.lifecycleStatus || "");
+  if (lifecycle === "active-reported-term") return "active";
+  if (lifecycle === "option-horizon-unconfirmed") return "upcoming";
+  const nextDate = [record.solicitationStart, record.solicitationEnd, ...(record.events || []).flatMap((event) => [event.start, event.end])]
+    .filter((value) => value && value >= asOf).sort()[0];
+  if (record.mode === "acquisition-window" && nextDate) return "upcoming";
+  if (["historical-term", "past-published-milestone"].includes(lifecycle)) return "historical";
+  return "unresolved";
+}
+
+function mapOffice(record, dimension) {
+  const observation = record.automationCoverage?.observation;
+  const exact = dimension === "funding" ? observation?.fundingOffice : observation?.awardingOffice;
+  if (exact) return { name: exact, basis: "exact-award-detail" };
+  const published = dimension === "funding"
+    ? (record.automatedImport ? record.liveAward?.fundingOffice : record.fundingOffice || record.owner)
+    : (record.automatedImport ? record.liveAward?.awardingOffice : record.contractingOffice || record.owner);
+  return published ? { name: published, basis: "published-source-office" } : { name: "", basis: "unresolved" };
+}
+
+const opportunityMapData = {
+  metadata: {
+    schemaVersion: "1.0.0",
+    generatedAt: contractMonitor.metadata?.generatedAt || source.metadata?.generatedAt,
+    asOf: captureCalendar.metadata?.asOf,
+    recordCount: agentRecords.length,
+    monitorTargetCount: contractMonitor.metadata?.targetCount || 0,
+    monitorCoveredCount: contractMonitor.metadata?.coveredCount || 0,
+    monitorCoveragePercent: contractMonitor.metadata?.coveragePercent || 0,
+    sourceScope: execution.coverage?.methodology || "Published USAspending award records and reviewed acquisition sources.",
+  },
+  records: agentRecords.map((record) => {
+    const observation = record.automationCoverage?.observation;
+    const contracting = mapOffice(record, "contracting");
+    const funding = mapOffice(record, "funding");
+    const nextDate = [
+      record.solicitationStart,
+      record.solicitationEnd,
+      observation?.currentEndDate,
+      observation?.potentialEndDate,
+      record.currentEnd,
+      record.potentialEnd,
+      ...(record.events || []).flatMap((event) => [event.start, event.end]),
+    ].filter((value) => value && value >= captureCalendar.metadata.asOf).sort()[0] || "";
+    return {
+      opportunityId: record.opportunityId,
+      id: record.id,
+      sourceSystem: record.sourceSystem,
+      mode: record.mode,
+      title: record.title,
+      portfolio: record.portfolio,
+      party: record.party,
+      reference: record.reference,
+      workCategory: record.workCategory,
+      lifecycle: mapLifecycle(record, captureCalendar.metadata.asOf),
+      nextDate,
+      contractingOffice: contracting.name,
+      contractingOfficeBasis: contracting.basis,
+      fundingOffice: funding.name,
+      fundingOfficeBasis: funding.basis,
+      obligatedAmount: Number(observation?.obligatedAmount ?? record.liveAward?.awardAmountDollars ?? record.obligatedAmount ?? record.fpdsObligatedAmount ?? 0),
+      potentialAmount: Number(observation?.potentialAmount ?? record.potentialAmount ?? record.valueHigh ?? record.liveAward?.potentialAmountDollars ?? 0),
+      monitorStatus: record.automationCoverage?.status || "not-targeted",
+      monitorCheckedAt: record.automationCoverage?.checkedAt || null,
+    };
+  }),
+};
 const core = {
   metadata: {
     ...source.metadata,
@@ -103,6 +175,7 @@ writeFileSync(resolve(OUT_DIR, "runtime-manifest.json"), JSON.stringify({
 }));
 rmSync(resolve(OUT_DIR, "budget-strategy.json"), { force: true });
 writeFileSync(resolve(OUT_DIR, "budget-execution.json"), JSON.stringify(execution));
+writeFileSync(resolve(OUT_DIR, "opportunity-map-data.json"), JSON.stringify(opportunityMapData));
 writeFileSync(
   resolve(OUT_DIR, "account-spine.json"),
   readFileSync(ACCOUNT_SPINE_FILE, "utf8"),
@@ -176,5 +249,5 @@ writeFileSync(
 );
 
 console.log(
-  `Built runtime data: core=${Buffer.byteLength(JSON.stringify(core))} bytes execution=${Buffer.byteLength(JSON.stringify(execution))} bytes capture=${captureCalendar.records.length} records/${captureTransactions.metadata.actionCount} actions`,
+  `Built runtime data: core=${Buffer.byteLength(JSON.stringify(core))} bytes execution=${Buffer.byteLength(JSON.stringify(execution))} bytes map=${Buffer.byteLength(JSON.stringify(opportunityMapData))} bytes/${opportunityMapData.records.length} records capture=${captureCalendar.records.length} records/${captureTransactions.metadata.actionCount} actions`,
 );

@@ -112,6 +112,8 @@ assert.ok(shellCssBytes <= 350_000, `Initial production CSS exceeds the 350KB ce
 assert.ok(mapCssBytes > 0 && mapCssBytes <= 17_000, `Lazy Opportunity Map CSS exceeds its 17KB route ceiling (${mapCssBytes} bytes)`);
 assert.ok(cssBytes <= 367_000, `Total production CSS exceeds the 367KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
+const opportunityMapBytes = (await stat(resolve(root, "dist/data/opportunity-map-data.json"))).size;
+assert.ok(opportunityMapBytes >= 500_000 && opportunityMapBytes <= 700_000, `Opportunity Map evidence payload must stay compact and complete, got ${opportunityMapBytes} bytes`);
 const procurementFeedBytes = (await stat(resolve(root, "dist/data/procurement-feed.json"))).size;
 const procurementDiscoveryBytes = (await stat(resolve(root, "dist/data/procurement-discovery.json"))).size;
 assert.ok(procurementFeedBytes <= 250_000, `The default Today feed must stay compact, got ${procurementFeedBytes} bytes`);
@@ -125,4 +127,5 @@ console.log("Security and architecture contracts passed", {
   cssBytes,
   shellCssBytes,
   mapCssBytes,
+  opportunityMapBytes,
 });
