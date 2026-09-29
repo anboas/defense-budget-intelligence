@@ -228,34 +228,61 @@ function groupNearbyPoints(points, scale, enabled, sizeMetric) {
   }).sort((left, right) => right.spend - left.spend);
 }
 
-function distributeCallouts(nodes, sizeMetric) {
-  const score = (node) => sizeMetric === "none" ? node.records.length : node.spend;
-  const selected = [...nodes].sort((left, right) => score(right) - score(left)).slice(0, 8);
+function rankVisibleCalloutNodes(nodes, sizeMetric, transform, selectedId) {
+  const candidates = nodes.map((node) => ({
+    node,
+    anchorX: transform.applyX(node.x),
+    anchorY: transform.applyY(node.y),
+  })).filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
+  const rawScore = ({ node }) => Math.log1p(sizeMetric === "none" ? node.records.length : node.spend);
+  const maximum = Math.max(...candidates.map(rawScore), 1);
+  const focusWeight = transform.k > 1.15 ? .68 : .28;
+  const relevance = (candidate) => {
+    const distance = Math.hypot((candidate.anchorX - MAP_WIDTH / 2) / (MAP_WIDTH / 2), (candidate.anchorY - MAP_HEIGHT / 2) / (MAP_HEIGHT / 2));
+    const proximity = 1 - Math.min(distance, 1);
+    const magnitude = rawScore(candidate) / maximum;
+    return magnitude * (1 - focusWeight) + proximity * focusWeight;
+  };
+  return candidates.sort((left, right) => {
+    const leftSelected = left.node.members.some((member) => member.id === selectedId);
+    const rightSelected = right.node.members.some((member) => member.id === selectedId);
+    return Number(rightSelected) - Number(leftSelected)
+      || relevance(right) - relevance(left)
+      || right.node.records.length - left.node.records.length
+      || left.node.id.localeCompare(right.node.id);
+  });
+}
+
+function distributeCallouts(nodes, sizeMetric, transform, selectedId) {
+  const ranked = rankVisibleCalloutNodes(nodes, sizeMetric, transform, selectedId);
   const width = 196;
   const height = 46;
   const gutter = 18;
   const padding = 8;
   const results = [];
   const collides = (candidate) => results.some((placed) => candidate.x < placed.x + width + padding && candidate.x + width + padding > placed.x && candidate.y < placed.y + height + padding && candidate.y + height + padding > placed.y);
-  selected.forEach((node) => {
-    const preferLeft = node.x >= MAP_WIDTH / 2;
-    const leftX = node.x - width - 28;
-    const rightX = node.x + 28;
+  const coversAnchor = (candidate, anchorX, anchorY) => anchorX >= candidate.x - 8 && anchorX <= candidate.x + width + 8 && anchorY >= candidate.y - 8 && anchorY <= candidate.y + height + 8;
+  for (const { node, anchorX, anchorY } of ranked) {
+    if (results.length >= 8) break;
+    const preferLeft = anchorX >= MAP_WIDTH / 2;
+    const leftX = anchorX - width - 28;
+    const rightX = anchorX + 28;
     const horizontal = preferLeft ? [leftX, rightX] : [rightX, leftX];
     const vertical = [-height / 2, -height - 16, 16, -height - 74, 74];
     const candidates = horizontal.flatMap((x) => vertical.map((offset) => ({
       x: Math.max(gutter, Math.min(MAP_WIDTH - width - gutter, x)),
-      y: Math.max(48, Math.min(MAP_HEIGHT - height - 20, node.y + offset)),
+      y: Math.max(56, Math.min(MAP_HEIGHT - height - 58, anchorY + offset)),
     })));
-    let position = candidates.find((candidate) => !collides(candidate));
+    let position = candidates.find((candidate) => !collides(candidate) && !coversAnchor(candidate, anchorX, anchorY));
     if (!position) {
       const fallbackColumns = preferLeft ? [gutter, MAP_WIDTH - width - gutter] : [MAP_WIDTH - width - gutter, gutter];
-      position = fallbackColumns.flatMap((x) => [48, 108, 168, 228, 288, 348, 408, 468, 528].map((y) => ({ x, y }))).find((candidate) => !collides(candidate));
+      const fallbackRows = [56, 110, 164, 218, 272, 326, 380, 434, 488].sort((left, right) => Math.abs(left + height / 2 - anchorY) - Math.abs(right + height / 2 - anchorY));
+      position = fallbackColumns.flatMap((x) => fallbackRows.map((y) => ({ x, y }))).find((candidate) => !collides(candidate) && !coversAnchor(candidate, anchorX, anchorY));
     }
-    if (!position) return;
-    const side = position.x + width / 2 < node.x ? "left" : "right";
-    results.push({ node, side, ...position, width, height });
-  });
+    if (!position) continue;
+    const side = position.x + width / 2 < anchorX ? "left" : "right";
+    results.push({ node, anchorX, anchorY, side, ...position, width, height });
+  }
   return results;
 }
 
@@ -334,6 +361,7 @@ function ServiceLegend({ counts, value, onToggle }) {
 const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSelect, onSelectLocation, clustersEnabled, calloutsEnabled, sizeMetric, branchCounts, branchValue, onToggleBranch }) {
   const svgRef = useRef(null);
   const viewportRef = useRef(null);
+  const calloutsRef = useRef(null);
   const zoomOutputRef = useRef(null);
   const zoomRef = useRef(null);
   const [transform, setTransform] = useState(zoomIdentity);
@@ -342,7 +370,7 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
   const locationNodes = useMemo(() => projectedPoints(locations), [locations]);
   const maxSpend = Math.max(...nodes.map((point) => point.spend), 1);
   const rankedLabels = useMemo(() => new Set(points.slice(0, 9).map((point) => point.id)), [points]);
-  const callouts = useMemo(() => calloutsEnabled && transform.k < 1.6 ? distributeCallouts(nodes, sizeMetric) : [], [calloutsEnabled, nodes, sizeMetric, transform.k]);
+  const callouts = useMemo(() => calloutsEnabled ? distributeCallouts(nodes, sizeMetric, transform, selectedId) : [], [calloutsEnabled, nodes, selectedId, sizeMetric, transform]);
 
   useEffect(() => {
     const svg = select(svgRef.current);
@@ -350,12 +378,18 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
       .scaleExtent([1, 8])
       .extent([[0, 0], [MAP_WIDTH, MAP_HEIGHT]])
       .translateExtent([[-80, -80], [MAP_WIDTH + 80, MAP_HEIGHT + 80]])
-      .on("start", () => setTooltip(null))
+      .on("start", () => {
+        setTooltip(null);
+        calloutsRef.current?.setAttribute("visibility", "hidden");
+      })
       .on("zoom", (event) => {
         viewportRef.current?.setAttribute("transform", event.transform.toString());
         if (zoomOutputRef.current) zoomOutputRef.current.textContent = `${Math.round(event.transform.k * 100)}%`;
       })
-      .on("end", (event) => setTransform(event.transform));
+      .on("end", (event) => {
+        setTransform(event.transform);
+        requestAnimationFrame(() => calloutsRef.current?.setAttribute("visibility", "visible"));
+      });
     svg.call(behavior).on("dblclick.zoom", null);
     zoomRef.current = behavior;
     return () => { svg.on(".zoom", null); };
@@ -416,30 +450,15 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
             </g>;
           })}
         </g> : null}
-        {callouts.length ? <g className="opportunity-map__callouts">
-          {callouts.map(({ node, side, x, y, width, height }) => {
-            const edgeX = side === "left" ? x + width : x;
-            const elbowX = node.x + (edgeX - node.x) * .58;
-            const selected = node.members.some((member) => member.id === selectedId);
-            const accent = node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
-            return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
-              <path className="opportunity-map__callout-line" d={`M${node.x},${node.y} L${elbowX},${node.y} L${edgeX},${y + height / 2}`} style={{ stroke: accent }} />
-              <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} />
-              <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
-              <text className="opportunity-map__callout-title" x={x + 12} y={y + 18}>{calloutLabel(node)}</text>
-              <text className="opportunity-map__callout-meta" x={x + 12} y={y + 34}>{calloutMeta(node, sizeMetric)}</text>
-            </g>;
-          })}
-        </g> : null}
         <g className="opportunity-map__markers">
           {nodes.map((node) => {
             const radius = (sizeMetric === "none" ? (node.members.length > 1 ? 14 : 8) : node.members.length > 1 ? 12 + 10 * Math.sqrt(node.spend / maxSpend) : 7 + 22 * Math.sqrt(node.spend / maxSpend)) / transform.k;
             const selected = node.members.some((member) => member.id === selectedId);
             const color = BRANCHES[node.branch]?.color || "#315b78";
-            const showLabel = node.members.length === 1 && (selected || (rankedLabels.has(node.id) && transform.k >= 1.55));
+            const showLabel = !calloutsEnabled && node.members.length === 1 && (selected || (rankedLabels.has(node.id) && transform.k >= 1.55));
             const segments = markerSegments(node, radius, transform.k);
             const valueLabel = sizeMetric === "none" ? "uniform marker size" : `${money(node.spend)} ${node.metricLabel}`;
-            return <g key={node.id} className={`opportunity-map__marker${node.members.length > 1 ? " is-cluster" : ""}${selected ? " is-selected" : ""}`} transform={`translate(${node.x} ${node.y})`} role="button" tabIndex="0" aria-label={node.members.length > 1 ? `${node.members.length} nearby acquisition hubs, ${valueLabel}, ${node.records.length} indexed records. Select to zoom.` : `${node.label}, ${node.organizations.length} organizations, ${valueLabel}, ${node.records.length} indexed records`} aria-pressed={selected} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }} onPointerEnter={(event) => showTooltip(event, node)} onPointerLeave={() => setTooltip(null)} onFocus={(event) => showTooltip(event, node)} onBlur={() => setTooltip(null)}>
+            return <g key={node.id} className={`opportunity-map__marker${node.members.length > 1 ? " is-cluster" : ""}${selected ? " is-selected" : ""}`} transform={`translate(${node.x} ${node.y})`} data-map-node={node.id} role="button" tabIndex="0" aria-label={node.members.length > 1 ? `${node.members.length} nearby acquisition hubs, ${valueLabel}, ${node.records.length} indexed records. Select to zoom.` : `${node.label}, ${node.organizations.length} organizations, ${valueLabel}, ${node.records.length} indexed records`} aria-pressed={selected} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }} onPointerEnter={(event) => showTooltip(event, node)} onPointerLeave={() => setTooltip(null)} onFocus={(event) => showTooltip(event, node)} onBlur={() => setTooltip(null)}>
               <circle className="opportunity-map__marker-focus-ring" r={radius + (node.members.length > 1 ? 7 : 5) / transform.k} />
               <circle className="opportunity-map__marker-shell" r={radius + (node.members.length > 1 ? 5 : 2.5) / transform.k} />
               <circle className="opportunity-map__marker-core" r={radius} style={{ fill: node.members.length > 1 ? "#17354c" : color }} />
@@ -453,6 +472,21 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
           })}
         </g>
       </g>
+      {callouts.length ? <g ref={calloutsRef} className="opportunity-map__callouts">
+        {callouts.map(({ node, anchorX, anchorY, side, x, y, width, height }) => {
+          const edgeX = side === "left" ? x + width : x;
+          const elbowX = anchorX + (edgeX - anchorX) * .58;
+          const selected = node.members.some((member) => member.id === selectedId);
+          const accent = node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
+          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
+            <path className="opportunity-map__callout-line" d={`M${anchorX},${anchorY} L${elbowX},${anchorY} L${edgeX},${y + height / 2}`} style={{ stroke: accent }} />
+            <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} />
+            <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
+            <text className="opportunity-map__callout-title" x={x + 12} y={y + 18}>{calloutLabel(node)}</text>
+            <text className="opportunity-map__callout-meta" x={x + 12} y={y + 34}>{calloutMeta(node, sizeMetric)}</text>
+          </g>;
+        })}
+      </g> : null}
     </svg>
     <ServiceLegend counts={branchCounts} value={branchValue} onToggle={onToggleBranch} />
     {tooltip ? <div className="opportunity-map__tooltip" role="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
