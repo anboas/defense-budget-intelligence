@@ -39,6 +39,7 @@ import ControlSelect from "./ControlSelect.jsx";
 import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
+import ConnectedEvidence from "./ConnectedEvidence.jsx";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -603,6 +604,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
       </ControlDisclosure>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
+      <ConnectedEvidence opportunityId={record.opportunityId} />
       {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
       {record.milestones.length ? (
         <div className="capture-detail__milestones">
@@ -1621,7 +1623,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         </ControlDrawer>
       ) : null}
 
-      <section className={`capture-section capture-gantt-section${timelineExpanded ? " is-fullscreen" : ""}`} data-capture-gantt-section>
+      <section className={`capture-section capture-gantt-section${timelineExpanded ? " is-fullscreen" : ""}`} data-capture-gantt-section data-fpds-overlay-state={selectedFeeds.has("fpds") ? (actionDataset ? "ready" : actionState) : "disabled"}>
         <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
         <div className="capture-gantt-commandbar" data-capture-gantt-commandbar>
           <div className="capture-gantt-commandbar__group" aria-label="Timeline window"><span>Window</span><button type="button" aria-pressed={timelineStartYear === Number(asOf.slice(0, 4)) && timelineEndYear === Number(asOf.slice(0, 4))} onClick={() => setTimelineWindow(0, 0)}>Current</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 1) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 2)} onClick={() => setTimelineWindow(1, 2)}>3 year</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 3) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 3)} onClick={() => setTimelineWindow(3, 3)}>7 year</button><button type="button" aria-pressed={timelineStartYear === TIMELINE_FIRST_YEAR && timelineEndYear === TIMELINE_LAST_YEAR} onClick={() => setFilters({ capFrom: String(TIMELINE_FIRST_YEAR), capTo: String(TIMELINE_LAST_YEAR) })}>All</button></div>
