@@ -34,20 +34,23 @@
 .opportunity-map__states .opportunity-map__state-borders { fill: none; stroke: #7c9eb2; stroke-width: .7; opacity: .78; }
 .opportunity-map__state-label { fill: #668397; font-size: 8.5px; font-weight: 700; letter-spacing: .06em; text-anchor: middle; pointer-events: none; }
 .opportunity-map__marker { outline: 0; }
-.opportunity-map__marker-halo { opacity: .18; }
-.opportunity-map__marker-core { stroke: #fff; stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 3px rgb(19 53 76 / 26%)); }
-.opportunity-map__marker-center { fill: #15354c; }
-.opportunity-map__marker.is-cluster .opportunity-map__marker-core { fill: #173e5b !important; }
+.opportunity-map__marker-focus-ring { fill: none; stroke: #087f8c; stroke-width: 2; opacity: 0; vector-effect: non-scaling-stroke; }
+.opportunity-map__marker-shell { fill: rgb(255 255 255 / 94%); stroke: #b4c9d5; stroke-width: 1; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 3px rgb(19 53 76 / 18%)); }
+.opportunity-map__marker-core { stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.opportunity-map__marker-segments { pointer-events: none; }
 .opportunity-map__cluster-count { fill: #fff; font-weight: 850; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.opportunity-map__marker-tracked { fill: #ffe070; stroke: #102a43; stroke-width: 2; vector-effect: non-scaling-stroke; }
-.opportunity-map__marker:hover .opportunity-map__marker-halo, .opportunity-map__marker:focus-visible .opportunity-map__marker-halo, .opportunity-map__marker.is-selected .opportunity-map__marker-halo { opacity: .42; }
-.opportunity-map__marker:focus-visible .opportunity-map__marker-core, .opportunity-map__marker.is-selected .opportunity-map__marker-core { stroke: #fff; stroke-width: 4; }
+.opportunity-map__marker-tracked { fill: #ffe070; stroke: #102a43; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.opportunity-map__marker:hover .opportunity-map__marker-focus-ring, .opportunity-map__marker:focus-visible .opportunity-map__marker-focus-ring, .opportunity-map__marker.is-selected .opportunity-map__marker-focus-ring { opacity: 1; }
+.opportunity-map__marker.is-selected .opportunity-map__marker-focus-ring { stroke-width: 3; }
 .opportunity-map__marker-label { paint-order: stroke; fill: #17354c; stroke: #eef4f8; stroke-linecap: round; stroke-linejoin: round; font-weight: 780; text-anchor: middle; pointer-events: none; }
 .opportunity-map__callout { cursor: pointer; outline: 0; }
-.opportunity-map__callout path { fill: none; stroke: #7f9fb2; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.opportunity-map__callout rect { fill: rgb(255 255 255 / 96%); stroke: #9eb9c9; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.opportunity-map__callout:hover rect, .opportunity-map__callout:focus-visible rect, .opportunity-map__callout.is-selected rect { stroke: #0d6fa8; stroke-width: 2; }
-.opportunity-map__callout text { fill: #17354c; font-size: 11px; font-weight: 750; pointer-events: none; }
+.opportunity-map__callout-line { fill: none; stroke: #8baab9; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.opportunity-map__callout-face { fill: rgb(255 255 255 / 97%); stroke: #b8cedb; stroke-width: 1; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 4px rgb(23 53 76 / 10%)); }
+.opportunity-map__callout-accent { stroke: none; }
+.opportunity-map__callout:hover .opportunity-map__callout-face, .opportunity-map__callout:focus-visible .opportunity-map__callout-face, .opportunity-map__callout.is-selected .opportunity-map__callout-face { stroke: #087f8c; stroke-width: 1.5; }
+.opportunity-map__callout.is-selected .opportunity-map__callout-accent { fill: #087f8c !important; }
+.opportunity-map__callout text { pointer-events: none; }
+.opportunity-map__callout-title { fill: #17354c; font-size: 11px; font-weight: 700; }
 .opportunity-map__callout .opportunity-map__callout-meta { fill: #526f84; font-size: 9px; font-weight: 600; }
 .opportunity-map__tooltip { position: absolute; z-index: 4; display: grid; max-width: 290px; gap: 2px; padding: 9px 11px; transform: translate(12px, -108%); border: 1px solid #17354c; background: #17354c; box-shadow: 0 6px 20px rgb(23 53 76 / 20%); color: #fff; font-size: 11px; line-height: 1.35; pointer-events: none; }
 .opportunity-map__tooltip span { color: #8bd3ff; font-weight: 700; }
