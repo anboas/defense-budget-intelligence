@@ -399,8 +399,27 @@ try {
   assert.equal(await page.locator('[data-primary-nav="map"][aria-current="page"]').count(), 1, "Opportunity Map should own a primary-navigation state");
   assert.ok(await page.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Default live scope should expose a nationwide set of mapped organization clusters");
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster[role="button"]').count() >= 1, "Nearby offices should consolidate into numbered national-scale groups");
-  assert.ok(await page.locator('.opportunity-map__callout[role="button"]').count() >= 4, "National view should expose a bounded set of spend-ranked callouts");
+  assert.ok(await page.locator('.opportunity-map__callout[role="button"]').count() >= 3, "National view should expose a small, bounded set of spend-ranked callouts");
   assert.equal(await page.locator("[data-opportunity-map-detail]").count(), 0, "The organization inspector should stay closed until a user selects a reviewed location");
+  assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 0, "Advanced map filters should stay collapsed until requested");
+  const defaultMapGeometry = await page.evaluate(() => ({
+    workbenchHeight: document.querySelector("[data-opportunity-map] > .if-workbench-header")?.getBoundingClientRect().height || 0,
+    filterHeight: document.querySelector(".opportunity-map__controls")?.getBoundingClientRect().height || 0,
+    canvasTop: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().top || 0,
+  }));
+  assert.ok(defaultMapGeometry.workbenchHeight <= 105, `Opportunity Map introduction should stay compact, got ${defaultMapGeometry.workbenchHeight}px`);
+  assert.ok(defaultMapGeometry.filterHeight <= 70, `Default map controls should stay in one compact row, got ${defaultMapGeometry.filterHeight}px`);
+  assert.ok(defaultMapGeometry.canvasTop <= 330, `Desktop geography should begin within the first 330px, got ${defaultMapGeometry.canvasTop}px`);
+  const mapCanvasBounds = await page.locator("[data-opportunity-map-canvas]").boundingBox();
+  await page.evaluate(() => {
+    window.__mapLongTasks = [];
+    new PerformanceObserver((list) => window.__mapLongTasks.push(...list.getEntries().map((entry) => entry.duration))).observe({ entryTypes: ["longtask"] });
+  });
+  await page.mouse.move(mapCanvasBounds.x + mapCanvasBounds.width / 2, mapCanvasBounds.y + mapCanvasBounds.height / 2);
+  for (let index = 0; index < 12; index += 1) await page.mouse.wheel(0, index % 2 ? 180 : -180);
+  await page.waitForTimeout(300);
+  const mapLongTasks = await page.evaluate(() => window.__mapLongTasks || []);
+  assert.ok(mapLongTasks.length <= 2 && mapLongTasks.reduce((total, duration) => total + duration, 0) < 200, `Map wheel interactions should stay out of repeated React long tasks: ${JSON.stringify(mapLongTasks)}`);
   assert.match(await page.locator(".opportunity-map__coverage").innerText(), /mapped records[\s\S]*location unresolved/i, "The map should disclose both mapped and unresolved location coverage");
   await page.locator('.opportunity-map__marker[role="button"]').last().hover();
   assert.match(await page.locator(".opportunity-map__tooltip").innerText(), /records[\s\S]*(active|upcoming)/i, "Map markers should expose immediate spend and lifecycle context on hover");
@@ -422,6 +441,8 @@ try {
   await page.getByRole("button", { name: "Evidence" }).click();
   assert.match(await page.locator("[data-opportunity-map-evidence]").innerText(), /Coverage and placement[\s\S]*reviewed location rules[\s\S]*records remain unresolved/i, "Evidence drawer should disclose registry coverage and unresolved records");
   await page.getByRole("button", { name: "Close map evidence" }).click();
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  assert.equal(await page.locator(".opportunity-map__control-row--secondary").count(), 1, "Filters control should reveal the advanced map dimensions on demand");
   await chooseControlSelect(page, "Size by", "Potential value");
   await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapSpend") === "potential");
   await page.locator('.opportunity-map__search input').fill("MISSILE DEFENSE AGENCY (MDA)");
@@ -1705,6 +1726,20 @@ try {
   await openSurface(mobile, "#/budget-spend/map", "[data-opportunity-map]");
   assert.ok(await mobile.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Mobile Opportunity Map should retain the nationwide marker set");
   assert.ok(await mobile.locator("[data-opportunity-map-canvas]").evaluate((node) => node.getBoundingClientRect().height >= 299), "Mobile Opportunity Map should retain a usable 300px geography canvas");
+  const mobileMapGeometry = await mobile.evaluate(() => ({
+    documentHeight: document.documentElement.scrollHeight,
+    mapHeaderHeight: document.querySelector(".opportunity-map__map-header")?.getBoundingClientRect().height || 0,
+    canvasTop: document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect().top || 0,
+    advancedFilterCount: document.querySelectorAll(".opportunity-map__control-row--secondary").length,
+  }));
+  assert.ok(mobileMapGeometry.canvasTop <= 500, `Mobile geography should be visible in the first viewport, got ${mobileMapGeometry.canvasTop}px`);
+  assert.ok(mobileMapGeometry.mapHeaderHeight <= 112, `Mobile map header should stay compact, got ${mobileMapGeometry.mapHeaderHeight}px`);
+  assert.ok(mobileMapGeometry.documentHeight <= 900, `Default mobile map should stay near one viewport, got ${mobileMapGeometry.documentHeight}px`);
+  assert.equal(mobileMapGeometry.advancedFilterCount, 0, "Mobile advanced filters should stay collapsed by default");
+  await mobile.getByRole("button", { name: "Find" }).click();
+  assert.equal(await mobile.locator("[data-opportunity-map-directory]").evaluate((node) => getComputedStyle(node).position), "fixed", "Mobile location details should use a contained bottom sheet instead of extending the page");
+  await mobile.keyboard.press("Escape");
+  assert.equal(await mobile.locator("[data-opportunity-map-directory]").count(), 0, "Escape should close the mobile map drawer");
   const mobileMapControls = await mobile.locator('[data-opportunity-map] :is(button, .if-picker__trigger):visible').evaluateAll((nodes) => nodes.map((node) => ({ label: node.getAttribute("aria-label") || node.textContent.trim(), height: node.getBoundingClientRect().height })).filter(({ label }) => label));
   assert.ok(mobileMapControls.every(({ height }) => height >= 43.5), `Mobile map controls should preserve 44px touch targets: ${JSON.stringify(mobileMapControls)}`);
   await assertNoPageOverflow(mobile, "Mobile Opportunity Map");
