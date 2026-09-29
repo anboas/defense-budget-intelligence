@@ -21,7 +21,6 @@ import {
 import { ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
-import { applyProcurementChanges, assembleProcurementRecords } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 import { BRANCHES, organizationLocationRules, resolveOrganizationLocation } from "./organization-locations.js";
 import "./OpportunityMap.css";
@@ -113,11 +112,12 @@ function compactDate(value) {
 }
 
 function recordAmount(record, metric) {
-  if (metric === "potential") return Number(record.potentialAmount || record.valueHigh || record.liveAward?.potentialAmountDollars || 0);
-  return Number(record.liveAward?.awardAmountDollars || record.obligatedAmount || record.fpdsObligatedAmount || 0);
+  if (metric === "potential") return Number(record.potentialAmount || 0);
+  return Number(record.obligatedAmount || 0);
 }
 
 function lifecycleBucket(record, asOf) {
+  if (["active", "upcoming", "historical", "unresolved"].includes(record.lifecycle)) return record.lifecycle;
   const lifecycle = String(record.lifecycleStatus || "");
   if (lifecycle === "active-reported-term") return "active";
   if (lifecycle === "option-horizon-unconfirmed") return "upcoming";
@@ -137,13 +137,18 @@ function lifecycleLabel(record, asOf) {
 }
 
 function nextRecordDate(record, asOf) {
+  if (record.nextDate) return record.nextDate;
   return [record.solicitationStart, record.solicitationEnd, record.currentEnd, record.potentialEnd, ...(record.events || []).flatMap((event) => [event.start, event.end])]
     .filter((value) => value && value >= asOf).sort()[0] || "";
 }
 
 function activityName(record, dimension) {
-  if (dimension === "funding") return record.fundingOffice || record.owner || "";
-  return record.contractingOffice || record.owner || "";
+  if (dimension === "funding") return record.fundingOffice || "";
+  return record.contractingOffice || "";
+}
+
+function officeBasis(record, dimension) {
+  return dimension === "funding" ? record.fundingOfficeBasis : record.contractingOfficeBasis;
 }
 
 function branchOptions() {
@@ -186,6 +191,7 @@ function groupNearbyPoints(points, scale, enabled) {
       activeCount: group.members.reduce((total, member) => total + member.activeCount, 0),
       upcomingCount: group.members.reduce((total, member) => total + member.upcomingCount, 0),
       trackedCount: group.members.reduce((total, member) => total + member.trackedCount, 0),
+      exactOfficeCount: group.members.reduce((total, member) => total + member.exactOfficeCount, 0),
       records: group.members.flatMap((member) => member.records),
       organizations: [...new Set(group.members.flatMap((member) => member.organizations))],
       metricLabel: group.members[0].metricLabel,
@@ -387,7 +393,7 @@ function DetailPanel({ point, asOf, watchedIds, onToggleWatch, spendMetric, onCl
   const records = [...point.records].sort((left, right) => recordAmount(right, spendMetric) - recordAmount(left, spendMetric));
   return <aside className="opportunity-map__drawer opportunity-map__detail" data-opportunity-map-detail aria-label="Organization details">
     <DrawerHeader eyebrow={branch.label} onClose={onClose}><h3>{point.label}</h3><p><MapPin size={13} />{point.city}</p></DrawerHeader>
-    <div className="opportunity-map__evidence-badge"><ShieldCheck size={14} />Reviewed office registry match</div>
+    <div className="opportunity-map__evidence-badge"><ShieldCheck size={14} />{point.exactOfficeCount ? `${point.exactOfficeCount} of ${point.records.length} records use exact award-detail offices` : "Reviewed published-office registry match"}</div>
     <dl className="opportunity-map__detail-metrics">
       <div><dt>{spendMetric === "potential" ? "Potential" : "Obligated"}</dt><dd>{money(point.spend)}</dd></div>
       <div><dt>Organizations</dt><dd>{point.organizations.length}</dd></div>
@@ -425,18 +431,18 @@ function EvidencePanel({ model, asOf, onClose }) {
     <DrawerHeader eyebrow="Map evidence" onClose={onClose}><h3>Coverage and placement</h3><p>Current filtered evidence as of {compactDate(asOf)}</p></DrawerHeader>
     <div className="opportunity-map__audit-stats">
       <div><strong>{coverage}%</strong><span>of filtered records resolve to reviewed offices</span></div>
-      <div><strong>{registry.length}</strong><span>reviewed location rules</span></div>
-      <div><strong>{aliasCount}</strong><span>recognized source aliases</span></div>
+      <div><strong>{model.exactObserved}</strong><span>records have exact award-detail observations</span></div>
+      <div><strong>{model.mappedExact}</strong><span>mapped records use exact office evidence</span></div>
       <div><strong>{model.unresolved}</strong><span>records remain unresolved</span></div>
     </div>
-    <section><h4>Placement standard</h4><p>Markers use explicit contracting or funding-office matches from the reviewed registry. The map never infers a location from a program name, service, awardee, or nearby installation.</p></section>
+    <section><h4>Placement standard</h4><p>Markers use exact USAspending award-detail offices first, then explicit offices from reviewed source records. Both must match the {registry.length}-location, {aliasCount}-alias registry. The map never substitutes a department headquarters for a missing office.</p></section>
     <section><h4>What a marker means</h4><p>Each marker is a buying-activity hub with one or more indexed records. Nearby groups are display-only clusters and separate as you zoom. Marker size follows the selected published spend measure.</p></section>
     <section><h4>Known boundary</h4><p>Redacted, unpublished, or unfamiliar office names stay in the unresolved count. Geographic coverage does not imply a qualified opportunity, active bid, or customer relationship.</p></section>
   </aside>;
 }
 
-export default function OpportunityMap({ dataset, awards = [], samOpportunities = { records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [] }, subawardSnapshot = { primes: [] } }) {
-  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
+export default function OpportunityMap({ dataset }) {
+  const records = useMemo(() => dataset.records || [], [dataset.records]);
   const management = useManagementState(records);
   const [filters, setFilters] = useState(readFilters);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -466,6 +472,7 @@ export default function OpportunityMap({ dataset, awards = [], samOpportunities 
     const unresolved = [];
     const byLocation = new Map();
     let considered = 0;
+    let exactObserved = 0;
     records.forEach((record) => {
       const bucket = lifecycleBucket(record, asOf);
       if (filters.status === "live" && !["active", "upcoming"].includes(bucket)) return;
@@ -476,13 +483,15 @@ export default function OpportunityMap({ dataset, awards = [], samOpportunities 
       const searchable = [name, record.title, record.reference, record.portfolio, record.party, record.workCategory].filter(Boolean).join(" ").toLowerCase();
       if (query && !searchable.includes(query)) return;
       considered += 1;
+      if (record.monitorStatus === "current" || record.monitorStatus === "stale") exactObserved += 1;
       const location = resolveOrganizationLocation(name);
       if (!location) { unresolved.push(record); return; }
       if (filters.branch !== "all" && location.branch !== filters.branch) return;
-      const current = byLocation.get(location.id) || { ...location, organizations: new Set(), records: [], spend: 0, activeCount: 0, upcomingCount: 0, trackedCount: 0 };
+      const current = byLocation.get(location.id) || { ...location, organizations: new Set(), records: [], spend: 0, activeCount: 0, upcomingCount: 0, trackedCount: 0, exactOfficeCount: 0 };
       current.organizations.add(name);
       current.records.push(record);
       current.spend += recordAmount(record, filters.spend);
+      if (officeBasis(record, filters.by) === "exact-award-detail") current.exactOfficeCount += 1;
       if (bucket === "active") current.activeCount += 1;
       if (bucket === "upcoming") current.upcomingCount += 1;
       if (management.watchedIds.has(record.opportunityId)) current.trackedCount += 1;
@@ -494,10 +503,13 @@ export default function OpportunityMap({ dataset, awards = [], samOpportunities 
     const resolvedRecords = resolvedPoints.reduce((total, point) => total + point.records.length, 0);
     const points = resolvedPoints.filter((point) => point.spend >= floor);
     const mappedRecords = points.reduce((total, point) => total + point.records.length, 0);
+    const mappedExact = points.reduce((total, point) => total + point.exactOfficeCount, 0);
     return {
       points,
       considered,
       mappedRecords,
+      mappedExact,
+      exactObserved,
       resolvedRecords,
       unresolved: unresolved.length,
       spend: points.reduce((total, point) => total + point.spend, 0),
@@ -527,7 +539,7 @@ export default function OpportunityMap({ dataset, awards = [], samOpportunities 
     commit({ ...DEFAULT_FILTERS });
   }, [commit]);
 
-  return <section className="opportunity-map" data-opportunity-map>
+  return <section className="opportunity-map" data-opportunity-map data-map-source-records={records.length} data-map-mapped-records={model.mappedRecords} data-map-exact-office-records={model.mappedExact} data-map-visible-spend={Math.round(model.spend)}>
     <ControlWorkbenchHeader eyebrow="Market geography" title="Opportunity Map" summary="Explore reviewed buying offices and move from geography to active opportunity detail." />
     <ControlPageBody compact>
       <section className="opportunity-map__controls" aria-label="Map filters">
@@ -558,7 +570,7 @@ export default function OpportunityMap({ dataset, awards = [], samOpportunities 
             </div>
           </header>
           {model.points.length ? <MapCanvas key={mapResetKey} points={model.points} selectedId={selected?.id || ""} onSelect={selectPoint} clustersEnabled={filters.clusters === "on"} calloutsEnabled={filters.callouts === "on"} /> : <div className="opportunity-map__empty"><CircleDollarSign size={28} /><strong>No mapped organizations match these filters</strong><p>Reduce the spend floor, widen the lifecycle, or clear the search to restore activity.</p><button type="button" className="if-btn if-btn--secondary" onClick={resetAll}>Reset map</button></div>}
-          <footer className="opportunity-map__coverage"><span><b>{model.mappedRecords}</b> mapped records</span><span><b>{model.unresolved}</b> location unresolved</span><p><Info size={13} />Reviewed office registry only. Unrecognized and redacted buying offices remain unresolved and are never placed heuristically.</p></footer>
+          <footer className="opportunity-map__coverage"><span><b>{model.mappedRecords}</b> mapped records</span><span><b>{model.mappedExact}</b> exact-office matches</span><span><b>{model.unresolved}</b> location unresolved</span><p><Info size={13} />Published spend only. Exact award-detail offices are preferred; unrecognized or redacted offices remain unresolved and are never placed heuristically.</p></footer>
         </section>
         {selected ? <DetailPanel point={selected} asOf={asOf} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} spendMetric={filters.spend} onClose={() => commit({ organization: "" })} /> : null}
         {openPanel === "directory" ? <DirectoryPanel points={model.points} spendMetric={filters.spend} onSelect={selectPoint} onClose={() => setOpenPanel("")} /> : null}

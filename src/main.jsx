@@ -23,6 +23,7 @@ import AuthProvider, { useAuth } from "./AuthContext.jsx";
 import NotificationProvider from "./NotificationContext.jsx";
 import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
+import { useRuntimeJson } from "./use-runtime-json.js";
 import "./styles.generated.css";
 
 const SpendExplorer = lazyWithRefresh(() => import("./SpendExplorer.jsx"), "spend-explorer");
@@ -262,6 +263,7 @@ function ensureCaptureCalendarData() {
   }
   return captureCalendarPromise;
 }
+
 function RuntimeDataState({ error = "", loadingTitle, loadingMessage, errorTitle, onRetry, ...props }) {
   return <ControlAsyncState
     {...props}
@@ -294,9 +296,11 @@ function App() {
   const needsCore = CORE_TAB_IDS.has(activeTab);
   const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "timeline";
   const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
-  const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
+  const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && activeTab !== "map" && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";
-  const needsCaptureCalendar = spendNeedsFullData || activeTab === "map" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
+  const needsCaptureCalendar = spendNeedsFullData || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
+  const needsOpportunityMap = activeTab === "map";
+  const opportunityMap = useRuntimeJson(needsOpportunityMap, "opportunity-map-data.json");
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
@@ -375,10 +379,14 @@ function App() {
           <RuntimeDataState data-capture-calendar-loading error={captureCalendarError} errorTitle="Transaction timeline unavailable" loadingTitle="Loading transaction timeline" loadingMessage="Public award actions and reported contract periods are loading on demand." onRetry={() => { setCaptureCalendarError(""); setCaptureCalendarLoadAttempt((value) => value + 1); }} />
         ) : null}
 
+        {needsOpportunityMap && !opportunityMap.data ? (
+          <RuntimeDataState data-opportunity-map-loading error={opportunityMap.error} errorTitle="Map evidence unavailable" loadingTitle="Loading Opportunity Map" loadingMessage="Exact award offices, published spend, and opportunity states are loading." onRetry={opportunityMap.retry} />
+        ) : null}
+
         {coreReady && BUDGET_REQUEST_TAB_IDS.has(activeTab) && (activeTab !== "lifecycle" || accountSpineReady) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Budget request analysis and money-flow evidence are loading." />}><BudgetRequestRoutes view={activeTab} budgetData={data} accountSpine={ACCOUNT_SPINE} /></Suspense> : null}
         {executionReady && activeTab === "awards" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading awards" loadingMessage="Award filters, evidence, and market rollups are loading." />}><AwardsRoute awardDrilldown={AWARD_DRILLDOWN} books={data.metadata.sources || []} sourcePackageUrl={data.metadata.dataInventory?.sourcePackageUrl || ""} snapshotGeneratedAt={data.metadata.generatedAt} methodology={data.metadata.methodology} executionCoverage={EXECUTION_COVERAGE} /></Suspense> : null}
         {activeTab === "spend" && (spendView === "today" || (executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady))) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Spend Explorer" loadingMessage="Today, timeline, table, and chart views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
-        {activeTab === "map" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunity Map" loadingMessage="Organization locations, opportunity status, and published spend are loading." />}><OpportunityMap dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
+        {activeTab === "map" && opportunityMap.data ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunity Map" loadingMessage="Organization locations, opportunity status, and published spend are loading." />}><OpportunityMap dataset={opportunityMap.data} /></Suspense> : null}
         {activeTab === "event-discovery" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading event discovery" loadingMessage="Candidates, source health, and scan history are loading." />}><EventDiscoveryPage /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
         {coreReady && executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading source lineage" loadingMessage="Source coverage and health evidence are loading." />}><AnalyticsSources budgetData={data} accountSpine={ACCOUNT_SPINE} captureCalendar={CAPTURE_CALENDAR} awardSummary={AWARD_DRILLDOWN.summary} executionCoverage={EXECUTION_COVERAGE} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
