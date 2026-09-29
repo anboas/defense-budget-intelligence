@@ -7,7 +7,7 @@ import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
 
-const PRIMARY_IDS = ["spend", "schedule"];
+const PRIMARY_IDS = ["spend", "map", "schedule"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
 const WORK_IDS = new Set(["watchlist", "tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "workspace-settings"]);
@@ -83,16 +83,18 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         ...tab,
         tabId: tab.id,
         href: routes[tab.id],
-        badge: tab.id === "spend" ? "Analyze" : "Schedule",
+        badge: tab.id === "spend" ? "Analyze" : tab.id === "map" ? "Geography" : "Schedule",
         description: tab.id === "spend"
           ? "Explore transactions as a timeline, table, or chart workspace."
-          : "Create events and switch between list, calendar, and room display.",
+          : tab.id === "map"
+            ? "Map organizations by contracting activity, opportunity state, and published spend."
+            : "Create events and switch between list, calendar, and room display.",
       })),
     },
     ...groups,
   ];
   const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
-  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "spend" ? "Explore transactions, records, and charts." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
+  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "spend" ? "Explore transactions, records, and charts." : tab.id === "map" ? "Map organizations, activity, opportunity state, and spend." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
   const itemById = new Map(allNavigationItems.map((item) => [item.tabId, item]));
   const effectiveRecentIds = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
   const command = (item, icon) => ({ id: `route-${item.tabId}`, label: item.label, description: item.description || item.groupLabel || "Open section", href: item.href, tabId: item.tabId, icon });

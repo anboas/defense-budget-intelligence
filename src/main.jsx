@@ -12,6 +12,7 @@ import {
   Database,
   FileSpreadsheet,
   ListChecks,
+  MapPinned,
   Network,
   RefreshCcw,
   SearchCheck,
@@ -25,6 +26,7 @@ import SiteHeader from "./SiteHeader.jsx";
 import "./styles.generated.css";
 
 const SpendExplorer = lazyWithRefresh(() => import("./SpendExplorer.jsx"), "spend-explorer");
+const OpportunityMap = lazyWithRefresh(() => import("./OpportunityMap.jsx"), "opportunity-map");
 const OperationsHub = lazyWithRefresh(() => import("./OperationsHub.jsx"), "operations-hub");
 const AnalyticsSources = lazyWithRefresh(() => import("./AnalyticsSources.jsx"), "analytics-sources");
 const AwardsRoute = lazyWithRefresh(() => import("./AwardsRoute.jsx"), "awards-route");
@@ -38,6 +40,7 @@ const TABS = [
   { id: "lifecycle", label: "Account Flow", icon: Network, stage: "Accounts" },
   { id: "awards", label: "Awards", icon: FileSpreadsheet },
   { id: "spend", label: "Spend Explorer", icon: BarChart3 },
+  { id: "map", label: "Opportunity Map", icon: MapPinned },
   { id: "schedule", label: "Schedule", icon: CalendarClock },
   { id: "event-discovery", label: "Event Discovery", icon: SearchCheck },
   { id: "watchlist", label: "Watchlist", icon: Star },
@@ -58,6 +61,7 @@ const HASH_ROUTES = {
   trends: "#/budget-spend/trends",
   awards: "#/budget-spend/awards",
   spend: "#/budget-spend/explorer",
+  map: "#/budget-spend/map",
   schedule: "#/budget-spend/schedule",
   "event-discovery": "#/budget-spend/event-discovery",
   directory: "#/workspace/directory",
@@ -172,7 +176,7 @@ const OPERATIONS_TAB_IDS = new Set(["schedule", "directory", ...ADMINISTRATION_T
 const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const BUDGET_REQUEST_TAB_IDS = new Set(["overview", "trends", "lifecycle"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
-const EXECUTION_TAB_IDS = new Set(["awards", "spend", ...OPERATIONS_TAB_IDS]);
+const EXECUTION_TAB_IDS = new Set(["awards", "spend", "map", ...OPERATIONS_TAB_IDS]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -292,7 +296,7 @@ function App() {
   const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
   const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";
-  const needsCaptureCalendar = spendNeedsFullData || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
+  const needsCaptureCalendar = spendNeedsFullData || activeTab === "map" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
 
   useEffect(() => {
     document.title = `${activeTitle} · Defense Budget & Spend Analytics`;
@@ -374,6 +378,7 @@ function App() {
         {coreReady && BUDGET_REQUEST_TAB_IDS.has(activeTab) && (activeTab !== "lifecycle" || accountSpineReady) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Budget request analysis and money-flow evidence are loading." />}><BudgetRequestRoutes view={activeTab} budgetData={data} accountSpine={ACCOUNT_SPINE} /></Suspense> : null}
         {executionReady && activeTab === "awards" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading awards" loadingMessage="Award filters, evidence, and market rollups are loading." />}><AwardsRoute awardDrilldown={AWARD_DRILLDOWN} books={data.metadata.sources || []} sourcePackageUrl={data.metadata.dataInventory?.sourcePackageUrl || ""} snapshotGeneratedAt={data.metadata.generatedAt} methodology={data.metadata.methodology} executionCoverage={EXECUTION_COVERAGE} /></Suspense> : null}
         {activeTab === "spend" && (spendView === "today" || (executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady))) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Spend Explorer" loadingMessage="Today, timeline, table, and chart views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
+        {activeTab === "map" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunity Map" loadingMessage="Organization locations, opportunity status, and published spend are loading." />}><OpportunityMap dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
         {activeTab === "event-discovery" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading event discovery" loadingMessage="Candidates, source health, and scan history are loading." />}><EventDiscoveryPage /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
         {coreReady && executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading source lineage" loadingMessage="Source coverage and health evidence are loading." />}><AnalyticsSources budgetData={data} accountSpine={ACCOUNT_SPINE} captureCalendar={CAPTURE_CALENDAR} awardSummary={AWARD_DRILLDOWN.summary} executionCoverage={EXECUTION_COVERAGE} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
