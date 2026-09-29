@@ -426,6 +426,38 @@ try {
   });
   assert.equal(calloutGeometry.withinCanvas, true, "National callout cards should stay within the map canvas");
   assert.equal(calloutGeometry.overlaps, 0, "National callout cards should use collision-safe columns without overlap");
+  await page.locator('.opportunity-map__marker.is-cluster[role="button"]').first().click();
+  await page.waitForFunction(() => Number.parseInt(document.querySelector('.opportunity-map__map-controls output')?.textContent || "100", 10) > 200);
+  await page.waitForTimeout(350);
+  const focusedCalloutGeometry = await page.evaluate(() => {
+    const canvas = document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect();
+    const markers = [...document.querySelectorAll("[data-map-node]")];
+    const callouts = [...document.querySelectorAll("[data-map-callout]")];
+    return {
+      count: callouts.length,
+      allTargetsVisible: callouts.every((callout) => {
+        const marker = markers.find((candidate) => candidate.dataset.mapNode === callout.dataset.mapCallout);
+        const bounds = marker?.getBoundingClientRect();
+        if (!bounds) return false;
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        return centerX >= canvas.left && centerX <= canvas.right && centerY >= canvas.top && centerY <= canvas.bottom;
+      }),
+      cardsWithinCanvas: callouts.every((callout) => {
+        const bounds = callout.querySelector(".opportunity-map__callout-face")?.getBoundingClientRect();
+        return bounds && bounds.left >= canvas.left && bounds.right <= canvas.right && bounds.top >= canvas.top && bounds.bottom <= canvas.bottom;
+      }),
+      duplicateTargetLabels: callouts.filter((callout) => markers.find((candidate) => candidate.dataset.mapNode === callout.dataset.mapCallout)?.querySelector(".opportunity-map__marker-label")).length,
+    };
+  });
+  assert.ok(focusedCalloutGeometry.count >= 1, `Focused map views should repopulate callouts from visible activity nodes: ${JSON.stringify(focusedCalloutGeometry)}`);
+  assert.equal(focusedCalloutGeometry.allTargetsVisible, true, `Focused callouts must target nodes inside the current viewport: ${JSON.stringify(focusedCalloutGeometry)}`);
+  assert.equal(focusedCalloutGeometry.cardsWithinCanvas, true, `Focused callout cards must remain inside the current canvas: ${JSON.stringify(focusedCalloutGeometry)}`);
+  assert.equal(focusedCalloutGeometry.duplicateTargetLabels, 0, `Callouts should be the sole label owner for their focused nodes: ${JSON.stringify(focusedCalloutGeometry)}`);
+  await page.screenshot({ path: `${OUT_DIR}/opportunity-map-focused-desktop.png`, fullPage: false });
+  await page.getByRole("button", { name: "Fit United States" }).click();
+  await page.waitForFunction(() => document.querySelector('.opportunity-map__map-controls output')?.textContent === "100%");
+  await page.waitForTimeout(250);
   assert.ok(await page.locator('.opportunity-map__marker.is-cluster .opportunity-map__marker-segments path').count() >= 2, "Grouped map nodes should expose service-composition ring segments instead of undifferentiated bubbles");
   assert.equal(await page.locator('.opportunity-map__callout-accent').count(), nationalCalloutCount, "Every bounded national callout should carry a service-aware accent stripe");
   const serviceLegendButtons = page.locator('[data-opportunity-map-legend] button');

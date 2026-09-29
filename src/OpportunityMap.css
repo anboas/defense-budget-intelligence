@@ -54,7 +54,7 @@
 .opportunity-map__marker.is-selected .opportunity-map__marker-focus-ring { stroke-width: 3; }
 .opportunity-map__marker-label { paint-order: stroke; fill: #17354c; stroke: #eef4f8; stroke-linecap: round; stroke-linejoin: round; font-weight: 780; text-anchor: middle; pointer-events: none; }
 .opportunity-map__callout { cursor: pointer; outline: 0; }
-.opportunity-map__callout-line { fill: none; stroke: #8baab9; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.opportunity-map__callout-line { fill: none; stroke: #8baab9; stroke-width: 1; pointer-events: none; }
 .opportunity-map__callout-face { fill: rgb(255 255 255 / 97%); stroke: #b8cedb; stroke-width: 1; vector-effect: non-scaling-stroke; filter: drop-shadow(0 2px 4px rgb(23 53 76 / 10%)); }
 .opportunity-map__callout-accent { stroke: none; }
 .opportunity-map__callout:hover .opportunity-map__callout-face, .opportunity-map__callout:focus-visible .opportunity-map__callout-face, .opportunity-map__callout.is-selected .opportunity-map__callout-face { stroke: #087f8c; stroke-width: 1.5; }
