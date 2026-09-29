@@ -1638,6 +1638,7 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForSelector('[data-analytics-record-drawer]', { state: "detached" });
   assert.doesNotMatch(new URL(page.url()).hash, /analyticsRecord=/, "Closing analytical detail should clear its URL state");
+  await page.waitForFunction(() => document.querySelector('[data-analytics-records] tbody button') === document.activeElement);
   assert.equal(await analyticalDetailTrigger.evaluate((node) => node === document.activeElement), true, "Closing analytical detail should restore focus to its trigger");
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-drawer]');
