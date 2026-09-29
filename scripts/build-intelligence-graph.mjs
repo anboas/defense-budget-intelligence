@@ -3,12 +3,14 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
+import { buildOrganizationIdentityRegistry, splitOfficeCodes } from "./organization-identity-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA_DIR = resolve(ROOT, "public/data");
 const OUT_FILE = resolve(DATA_DIR, "intelligence-graph.json");
 const INDEX_FILE = resolve(DATA_DIR, "intelligence-graph-index.json");
 const SUMMARY_FILE = resolve(DATA_DIR, "intelligence-graph-summary.json");
+const ORGANIZATION_REVIEW_FILE = resolve(DATA_DIR, "organization-identity-review.json");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
 const normalized = (value) => String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "");
@@ -27,6 +29,11 @@ const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
 const discovery = read("procurement-discovery.json");
+const organizationRegistry = buildOrganizationIdentityRegistry({ agents, transactions });
+const transactionRecipientByActivity = new Map(Object.entries(transactions.byOpportunity || {}).map(([opportunityId, actions]) => {
+  const identities = [...new Map((actions || []).filter((action) => action.uei && action.vendor).map((action) => [String(action.uei).trim().toUpperCase(), { uei: action.uei, label: action.vendor }])).values()];
+  return [opportunityId, identities.length === 1 ? identities[0] : null];
+}));
 
 const entities = Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, []]));
 const entityKeys = Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, new Set()]));
@@ -34,6 +41,7 @@ const relations = [];
 const relationKeys = new Set();
 const byActivity = {};
 const organizationByKey = new Map();
+const organizationIdentifierByKey = new Map();
 const sourceByUrl = new Map();
 const classificationByKey = new Map();
 
@@ -53,21 +61,42 @@ function addRelation(type, from, to, evidence, attributes = undefined) {
   return id;
 }
 
-function organization(label, sourceArtifact, identifiers = {}) {
-  const key = normalized(label);
-  if (!key) return null;
-  if (!organizationByKey.has(key)) {
-    const id = entityId("org", key);
-    organizationByKey.set(key, id);
-    addEntity("organization", { id, label: String(label).trim(), aliases: [], identity: { method: "exact-normalized-public-label", ...identifiers }, sourceArtifacts: [sourceArtifact] });
+function organizationIdentifier(namespace, value, sourceArtifact) {
+  const normalizedValue = String(value || "").trim().toUpperCase();
+  if (!normalizedValue) return null;
+  const key = `${namespace}:${normalizedValue}`;
+  if (!organizationIdentifierByKey.has(key)) {
+    const id = `org-identifier:${namespace}:${normalizedValue}`;
+    organizationIdentifierByKey.set(key, id);
+    addEntity("organization-identifier", { id, namespace, value: normalizedValue, label: `${namespace.toUpperCase()} ${normalizedValue}`, sourceArtifacts: [sourceArtifact] });
   } else {
-    const id = organizationByKey.get(key);
+    const entity = entities["organization-identifier"].find((item) => item.id === organizationIdentifierByKey.get(key));
+    if (entity && !entity.sourceArtifacts.includes(sourceArtifact)) entity.sourceArtifacts.push(sourceArtifact);
+  }
+  return organizationIdentifierByKey.get(key);
+}
+
+function organization(label, sourceArtifact, identifiers = {}, options = {}) {
+  const resolved = organizationRegistry.resolve({ label, uei: identifiers.uei, officeCode: identifiers.officeCode, identityClass: options.identityClass || "other" });
+  if (!resolved.key || !resolved.canonicalLabel) return null;
+  if (!organizationByKey.has(resolved.key)) {
+    const id = entityId("org", resolved.key);
+    organizationByKey.set(resolved.key, id);
+    addEntity("organization", { id, label: resolved.canonicalLabel, aliases: [...resolved.aliases], identity: resolved.identity, sourceArtifacts: [sourceArtifact] });
+  } else {
+    const id = organizationByKey.get(resolved.key);
     const entity = entities.organization.find((item) => item.id === id);
     if (entity && !entity.sourceArtifacts.includes(sourceArtifact)) entity.sourceArtifacts.push(sourceArtifact);
-    if (entity && entity.label !== String(label).trim() && !entity.aliases.includes(String(label).trim())) entity.aliases.push(String(label).trim());
-    Object.assign(entity.identity, Object.fromEntries(Object.entries(identifiers).filter(([, value]) => value)));
+    for (const alias of [String(label || "").trim(), ...resolved.aliases]) if (entity && alias && alias !== entity.label && !entity.aliases.includes(alias)) entity.aliases.push(alias);
+    const stateRank = { label_only: 0, needs_review: 1, derived: 2, resolved: 3 };
+    if (entity && (stateRank[resolved.identity.resolutionState] || 0) > (stateRank[entity.identity.resolutionState] || 0)) entity.identity = resolved.identity;
   }
-  return organizationByKey.get(key);
+  const id = organizationByKey.get(resolved.key);
+  for (const [namespace, value] of Object.entries(resolved.identity.identifiers || {})) {
+    const identifierId = organizationIdentifier(namespace, value, sourceArtifact);
+    addRelation("organization-has-identifier", id, identifierId, evidence("organization-identity-registry", resolved.identity.method, identifiers[namespace] ? "exact" : "derived", "", identifiers[namespace] ? "verified" : "deterministic"), { namespace });
+  }
+  return id;
 }
 
 function source(url, sourceArtifact, label = "Public source") {
@@ -112,12 +141,17 @@ for (const location of map.locations || []) {
   const reviewedOrganizations = profile?.identity?.organizations || [];
   for (const item of reviewedOrganizations) {
     if (!item?.name || /installation record/i.test(item.name)) continue;
-    const organizationId = organization(item.name, "opportunity-map-location-metadata");
+    const organizationId = organization(item.name, "opportunity-map-location-metadata", {}, { identityClass: "government" });
     addRelation("organization-located-at", organizationId, id, evidence("opportunity-map-location-metadata", "source-declared-location", "reviewed", item.url || profile?.evidence?.primarySource?.url, profile?.passes?.identity?.state || "reviewed"));
   }
   if (profile?.acquisition?.buyerName) {
-    const organizationId = organization(profile.acquisition.buyerName, "opportunity-map-location-metadata");
+    const organizationId = organization(profile.acquisition.buyerName, "opportunity-map-location-metadata", {}, { identityClass: "government" });
     addRelation("organization-located-at", organizationId, id, evidence("opportunity-map-location-metadata", "reviewed-buyer-location", "reviewed", profile?.evidence?.primarySource?.url, profile?.passes?.acquisition?.state || "reviewed"), { role: profile.acquisition.status || "buyer" });
+  }
+  const officeLabel = profile?.acquisition?.contractingOffice?.name || profile?.acquisition?.buyerName || `${location.name} contracting office`;
+  for (const officeCode of splitOfficeCodes([...(location.officeCodes || []), profile?.acquisition?.contractingOffice?.code])) {
+    const organizationId = organization(officeLabel, "opportunity-map-location-metadata", { officeCode }, { identityClass: "government-office" });
+    addRelation("organization-operates-at-location", organizationId, id, evidence("opportunity-map-location-metadata", "reviewed-office-code-location", "reviewed", profile?.evidence?.primarySource?.url || location.sourceUrl, profile?.passes?.acquisition?.state || "reviewed"), { role: profile?.acquisition?.status || location.buyerRole || "contracting-office" });
   }
 }
 
@@ -128,10 +162,10 @@ for (const award of execution.awardDrilldown?.awards || []) {
   awardByGeneratedId.set(award.id, id);
   awardByPiid.set(normalized(award.awardId), id);
   addEntity("award", { id, generatedAwardId: award.id, piid: award.awardId, label: award.description || award.awardId, recipient: award.recipient, obligatedAmount: Number(award.awardAmountDollars || 0), startDate: award.startDate, endDate: award.endDate, sourceArtifact: "budget-execution" });
-  const recipientId = organization(award.recipient, "budget-execution");
+  const recipientId = organization(award.recipient, "budget-execution", {}, { identityClass: "recipient" });
   addRelation("award-recipient", id, recipientId, evidence("budget-execution", "published-recipient", "exact"));
   for (const [type, labelValue, role] of [["award-awarding-organization", award.awardingOffice || award.awardingSubAgency, "awarding"], ["award-funding-organization", award.fundingOffice || award.fundingSubAgency || award.buyerSubAgency, "funding"]]) {
-    const organizationId = organization(labelValue, "budget-execution");
+    const organizationId = organization(labelValue, "budget-execution", {}, { identityClass: "government" });
     addRelation(type, id, organizationId, evidence("budget-execution", "published-organization-label", "source_declared"), { role });
   }
   for (const area of award.areaIds || (award.areaId ? [award.areaId] : [])) addRelation("entity-classified-as", id, classification("technology-area", area, (award.areas || []).find((label) => normalized(label) === normalized(award.area)) || award.area, "budget-execution"), evidence("budget-execution", "published-technology-area", "deterministic"));
@@ -160,12 +194,18 @@ for (const record of agents.records || []) {
     const relation = addRelation("activity-awarded-as", id, awardEntityId, evidence("agent-records", observedAwardId ? "exact-generated-award-id" : "exact-piid", "exact", record.automationCoverage?.observation?.sourceUrl || record.sourceUrls?.[0]));
     if (relation) connection.relationIds.push(relation);
   }
-  for (const [type, labelValue, role, identifiers] of [
-    ["activity-recipient", record.party || record.recipient, "recipient", { uei: record.automationCoverage?.observation?.recipientUei }],
-    ["activity-contracting-organization", record.automationCoverage?.observation?.awardingOffice || record.contractingOffice || record.owner, "contracting", {}],
-    ["activity-funding-organization", record.automationCoverage?.observation?.fundingOffice || record.fundingOffice || record.owner, "funding", {}],
+  const organizationPath = (record.organization?.path || []).filter((labelValue) => labelValue && !/not published/i.test(labelValue));
+  const organizationPathIds = organizationPath.map((labelValue) => organization(labelValue, "agent-records", {}, { identityClass: "government" })).filter(Boolean);
+  for (let index = 1; index < organizationPathIds.length; index += 1) {
+    addRelation("organization-part-of", organizationPathIds[index], organizationPathIds[index - 1], evidence("agent-records", "source-declared-organization-path", "source_declared", record.sourceUrls?.[0]), { depth: index });
+  }
+  const transactionRecipient = transactionRecipientByActivity.get(record.opportunityId);
+  for (const [type, labelValue, role, identifiers, identityClass] of [
+    ["activity-recipient", record.party || record.recipient || transactionRecipient?.label, "recipient", { uei: record.automationCoverage?.observation?.recipientUei || transactionRecipient?.uei }, "recipient"],
+    ["activity-contracting-organization", record.automationCoverage?.observation?.awardingOffice || record.contractingOffice || record.owner, "contracting", {}, "government"],
+    ["activity-funding-organization", record.automationCoverage?.observation?.fundingOffice || record.fundingOffice || record.owner, "funding", {}, "government"],
   ]) {
-    const organizationId = organization(labelValue, "agent-records", identifiers);
+    const organizationId = organization(labelValue, "agent-records", identifiers, { identityClass });
     if (!organizationId) continue;
     connection.organizationIds.push(organizationId);
     const relation = addRelation(type, id, organizationId, evidence("agent-records", "published-role-label", identifiers.uei ? "exact-identifier" : "source_declared", record.automationCoverage?.observation?.sourceUrl || record.sourceUrls?.[0]), { role });
@@ -215,6 +255,10 @@ for (const [opportunityId, actions] of Object.entries(transactions.byOpportunity
     connection?.transactionIds.push(id);
     const relation = addRelation("activity-has-transaction", activityId, id, evidence("capture-transactions", "stable-opportunity-group", "exact"));
     if (relation) connection?.relationIds.push(relation);
+    const recipientId = organization(action.vendor, "capture-transactions", { uei: action.uei }, { identityClass: "recipient" });
+    if (recipientId) {
+      addRelation("transaction-recipient", id, recipientId, evidence("capture-transactions", action.uei ? "published-uei" : "published-vendor-label", action.uei ? "exact" : "source_declared"), { role: "recipient" });
+    }
   }
 }
 
@@ -252,7 +296,7 @@ for (const line of core.records || []) {
   addEntity("budget-line", { id, sourceId: line.id, label: line.lineTitle || line.accountTitle, bookId: line.bookId, accountTitle: line.accountTitle, organization: line.orgName, fiscalValues: { fy2025: line.fy2025, fy2026: line.fy2026, fy2027: line.fy2027 }, sourceArtifact: "budget-core" });
   const accountId = accountByTitle.get(normalized(line.accountTitle || line.account));
   if (accountId) addRelation("budget-line-matches-account-title", id, accountId, evidence("budget-core", "exact-normalized-account-title", "derived", "", "deterministic"));
-  const organizationId = organization(line.orgName, "budget-core");
+  const organizationId = organization(line.orgName, "budget-core", {}, { identityClass: "government" });
   addRelation("budget-line-owned-by-organization", id, organizationId, evidence("budget-core", "published-budget-organization", "source_declared"));
   for (const term of line.technologyAreas || []) addRelation("entity-classified-as", id, classification("technology-area", term, term, "budget-core"), evidence("budget-core", "deterministic-technology-area", "deterministic"));
   for (const signal of line.signals || []) addRelation("entity-classified-as", id, classification("budget-signal", signal, signal, "budget-core"), evidence("budget-core", "deterministic-budget-signal", "deterministic"));
@@ -282,6 +326,23 @@ for (const connection of Object.values(byActivity)) {
   };
 }
 
+for (const item of entities.organization) item.aliases.sort((left, right) => left.localeCompare(right));
+const organizationCoverage = {
+  total: entities.organization.length,
+  canonicalUeiIdentities: entities.organization.filter((item) => item.identity?.identifiers?.uei).length,
+  publishedUeiIdentities: entities.organization.filter((item) => item.identity?.method === "published-uei").length,
+  reviewedOfficeCodeIdentities: entities.organization.filter((item) => item.identity?.identifiers?.officeCode).length,
+  cageIdentities: entities.organization.filter((item) => item.identity?.identifiers?.cage).length,
+  labelOnlyIdentities: entities.organization.filter((item) => item.identity?.resolutionState === "label_only").length,
+  needsReviewIdentities: entities.organization.filter((item) => item.identity?.resolutionState === "needs_review").length,
+  aliases: entities.organization.reduce((total, item) => total + item.aliases.length, 0),
+  resolvedAliasGroups: organizationRegistry.aliasResolutions.length,
+  ambiguousNormalizedLabels: organizationRegistry.conflicts.length,
+  hierarchyRelations: relations.filter((item) => item.type === "organization-part-of").length,
+  officeLocationRelations: relations.filter((item) => item.type === "organization-operates-at-location").length,
+  transactionRecipientRelations: relations.filter((item) => item.type === "transaction-recipient").length,
+};
+
 const graph = {
   metadata: {
     schemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
@@ -296,6 +357,7 @@ const graph = {
       awards: { total: entities.award.length, accountLinked: new Set(relations.filter((item) => item.type === "award-funded-by-account").map((item) => item.from)).size, subawardLinked: new Set(relations.filter((item) => item.type === "award-has-subaward-summary").map((item) => item.from)).size },
       budget: { lines: entities["budget-line"].length, exactAccountTitleLinks: relations.filter((item) => item.type === "budget-line-matches-account-title").length, unresolvedAccountTitleLinks: entities["budget-line"].length - relations.filter((item) => item.type === "budget-line-matches-account-title").length },
       geography: { locations: entities.location.length, activityLocationRelations: relations.filter((item) => ["contracting-activity-at", "funding-activity-at"].includes(item.type)).length },
+      organizations: organizationCoverage,
     },
   },
   domain: {
@@ -304,7 +366,8 @@ const graph = {
     identityRules: {
       activity: "Stable opportunityId across procurement discovery, map, timeline, analytics, tracking, and agent records.",
       award: "USAspending generated award ID; PIID is retained as an alias.",
-      organization: "Exact normalized public label, upgraded with UEI when published. No fuzzy entity merge.",
+      organization: "Published UEI for recipients and reviewed office code for contracting offices take precedence. Unique normalized-label joins to a published UEI remain derived; ambiguous labels remain separate and queued for review. No fuzzy entity merge.",
+      organizationIdentifier: "Typed public identifier entity. UEI and reviewed office-code claims retain their source artifact and join basis; CAGE remains empty until published evidence enters the corpus.",
       location: "Stable reviewed location ID from the authoritative map snapshot.",
       federalAccount: "Federal account code from USAspending account spine.",
       source: "Canonical HTTP(S) URL.",
@@ -316,6 +379,12 @@ const graph = {
       deterministic: "Repeatable classification or projection from retained source fields.",
       derived: "Useful deterministic join that remains labeled non-authoritative, such as an exact normalized account-title match.",
     },
+    organizationIdentityPolicy: {
+      precedence: ["published UEI", "reviewed contracting-office code", "unique normalized label to a single published UEI", "role-scoped normalized label"],
+      conflictRule: "A normalized label published with multiple UEIs never merges those legal entities; it remains a review queue item.",
+      aliasRule: "Multiple public labels sharing one exact UEI are retained as aliases of the UEI-canonical entity.",
+      hierarchyRule: "Parent-child edges come only from retained source-declared acquisition paths and remain source-declared rather than legal-corporate claims.",
+    },
   },
   entities,
   relations,
@@ -324,12 +393,25 @@ const graph = {
 
 mkdirSync(DATA_DIR, { recursive: true });
 writeFileSync(OUT_FILE, JSON.stringify(graph));
+const organizationReview = {
+  metadata: {
+    schemaVersion: "1.0.0",
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    title: "Organization identity resolution and conflict review",
+    trustBoundary: "Exact published UEIs and reviewed office codes resolve identity. Unique normalized-label matches remain derived. Ambiguous labels are never auto-merged.",
+  },
+  summary: organizationCoverage,
+  resolvedAliases: organizationRegistry.aliasResolutions,
+  conflicts: organizationRegistry.conflicts,
+};
+writeFileSync(ORGANIZATION_REVIEW_FILE, JSON.stringify(organizationReview));
 const lookup = Object.fromEntries(Object.entries(entities).map(([type, rows]) => [type, new Map(rows.map((row) => [row.id, row]))]));
 const compact = (type, id) => {
   const entity = lookup[type]?.get(id);
   if (!entity) return null;
   if (type === "award") return { id, piid: entity.piid, label: entity.label, obligatedAmount: entity.obligatedAmount };
-  if (type === "organization") return { id, label: entity.label, identity: entity.identity };
+  if (type === "organization") return { id, label: entity.label, aliases: entity.aliases, identity: entity.identity };
   if (type === "location") return { id, sourceId: entity.sourceId, label: entity.label, city: entity.city, state: entity.state };
   if (type === "federal-account") return { id, federalAccountCode: entity.federalAccountCode, label: entity.label };
   if (type === "subaward-summary") return { id, label: entity.label, reportedCount: entity.reportedCount, detailStatus: entity.detailStatus };
@@ -376,4 +458,4 @@ const graphSummary = {
   },
 };
 writeFileSync(SUMMARY_FILE, JSON.stringify(graphSummary));
-console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, metadata: graph.metadata }, null, 2));
+console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

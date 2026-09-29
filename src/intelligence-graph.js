@@ -1,4 +1,4 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.0.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.1.0";
 
 export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "activity",
@@ -6,6 +6,7 @@ export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "event",
   "transaction",
   "organization",
+  "organization-identifier",
   "location",
   "federal-account",
   "budget-line",
@@ -31,6 +32,10 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "budget-line-matches-account-title",
   "budget-line-owned-by-organization",
   "organization-located-at",
+  "organization-operates-at-location",
+  "organization-part-of",
+  "organization-has-identifier",
+  "transaction-recipient",
   "entity-classified-as",
   "supported-by-source",
 ]);

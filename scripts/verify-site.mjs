@@ -1592,6 +1592,7 @@ try {
   const connectedEvidenceText = await connectedEvidence.innerText();
   assert.match(connectedEvidenceText, /Connected intelligence/i, "Record detail should expose its cross-surface evidence graph");
   assert.match(connectedEvidenceText, /organization|event|FPDS action/i, "Connected evidence should summarize typed neighboring entities");
+  assert.match(connectedEvidenceText, /UEI|Office [A-Z0-9]+|Label-only identity|review required/i, "Connected organization evidence should disclose identifier or resolution state");
   assert.ok((await connectedEvidence.getAttribute("data-connected-evidence-id"))?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
   assert.ok(await connectedEvidence.locator(".connected-evidence__routes a").count() >= 2, "Connected evidence should link back into analytical working surfaces");
   await connectedEvidence.locator(".connected-evidence__evidence > summary").click();
@@ -1901,9 +1902,11 @@ try {
   await page.waitForSelector("[data-intelligence-graph-summary]");
   const graphSummaryText = await page.locator("[data-intelligence-graph-summary]").innerText();
   assert.match(graphSummaryText, /888 activities[\s\S]*702 awards[\s\S]*3,085 exact FPDS actions/i, "Source Lineage should expose the canonical activity, award, and transaction spine");
+  assert.match(graphSummaryText, /264 UEI-backed[\s\S]*50 reviewed office-code identities[\s\S]*11 ambiguous labels remain queued/i, "Source Lineage should expose organization identity coverage and unresolved conflicts");
   assert.match(graphSummaryText, /319 budget lines remain explicitly unresolved/i, "Source Lineage should keep unresolved crosswalks visible");
   assert.equal(await resourceCount(page, "intelligence-graph-summary.json"), 1, "Source Lineage should load one lightweight graph summary");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/intelligence-graph.json"]').count(), 1, "Source Lineage should offer an explicit full integrity-graph download");
+  assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/organization-identity-review.json"]').count(), 1, "Source Lineage should offer an explicit organization identity review download");
   assert.equal(await page.locator("[data-source-flow] .if-ingest-stage").count(), 6, "Sources should trace six published data layers with the shared ingest-flow pattern");
   const sourceJoinPolicy = page.locator(".source-join-policy");
   assert.equal(await sourceJoinPolicy.locator(".if-relationship-bundle").count(), 6, "Sources should disclose six join rules with the shared relationship pattern");

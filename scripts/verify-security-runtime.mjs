@@ -117,9 +117,15 @@ assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 
 const intelligenceGraphBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json"))).size;
 const intelligenceGraphIndexBytes = (await stat(resolve(root, "dist/data/intelligence-graph-index.json"))).size;
 const intelligenceGraphSummaryBytes = (await stat(resolve(root, "dist/data/intelligence-graph-summary.json"))).size;
-assert.ok(intelligenceGraphBytes >= 15_000_000 && intelligenceGraphBytes <= 16_000_000, `Full evidence graph must retain the integrity artifact within its 16MB ceiling, got ${intelligenceGraphBytes} bytes`);
+const organizationIdentityReviewBytes = (await stat(resolve(root, "dist/data/organization-identity-review.json"))).size;
+assert.ok(intelligenceGraphBytes >= 16_000_000 && intelligenceGraphBytes <= 17_250_000, `Full evidence graph must retain organization identity evidence within its 17.25MB ceiling, got ${intelligenceGraphBytes} bytes`);
 assert.ok(intelligenceGraphIndexBytes > 0 && intelligenceGraphIndexBytes <= 3_000_000, `Deferred browser evidence index exceeds its 3MB ceiling, got ${intelligenceGraphIndexBytes} bytes`);
 assert.ok(intelligenceGraphSummaryBytes > 0 && intelligenceGraphSummaryBytes <= 10_000, `Source Lineage graph summary exceeds its 10KB ceiling, got ${intelligenceGraphSummaryBytes} bytes`);
+assert.ok(organizationIdentityReviewBytes > 0 && organizationIdentityReviewBytes <= 100_000, `Organization identity review exceeds its 100KB audit budget, got ${organizationIdentityReviewBytes} bytes`);
+const organizationIdentityReview = JSON.parse(await read("dist/data/organization-identity-review.json"));
+assert.equal(organizationIdentityReview.metadata?.schemaVersion, "1.0.0", "Organization identity review must publish its independent schema version");
+assert.equal(organizationIdentityReview.metadata?.graphSchemaVersion, "1.1.0", "Organization identity review must track the canonical graph schema");
+assert.ok(organizationIdentityReview.conflicts?.every((item) => item.status === "needs_review" && item.candidateUeis?.length > 1), "Ambiguous organization labels must remain explicit review items");
 const opportunityMapBytes = (await stat(resolve(root, "dist/data/opportunity-map-data.json"))).size;
 assert.ok(opportunityMapBytes >= 1_100_000 && opportunityMapBytes <= 1_200_000, `Opportunity Map evidence payload must retain the complete authoritative location and relationship layers without exceeding its route budget, got ${opportunityMapBytes} bytes`);
 const opportunityMapPayload = JSON.parse(await read("dist/data/opportunity-map-data.json"));

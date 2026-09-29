@@ -13,6 +13,9 @@ const RELATION_LABELS = {
   "funding-activity-at": "Funding location",
   "award-funded-by-account": "Federal account",
   "award-has-subaward-summary": "Subaward summary",
+  "organization-part-of": "Organization hierarchy",
+  "organization-has-identifier": "Organization identifier",
+  "transaction-recipient": "Transaction recipient",
   "entity-classified-as": "Classification",
   "supported-by-source": "Primary source",
 };
@@ -96,7 +99,11 @@ export default function ConnectedEvidence({ opportunityId }) {
       </nav>
       <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
-        <ConnectionGroup title="Organizations" items={connected.organizations} renderItem={(organization) => <article key={organization.id}><strong>{organization.label}</strong><span>{organization.identity?.uei ? `UEI ${organization.identity.uei}` : "Exact public label"}</span><em>{organization.identity?.method?.replaceAll("-", " ")}</em></article>} />
+        <ConnectionGroup title="Organizations" items={connected.organizations} renderItem={(organization) => {
+          const identifier = organization.identity?.identifiers?.uei ? `UEI ${organization.identity.identifiers.uei}` : organization.identity?.identifiers?.officeCode ? `Office ${organization.identity.identifiers.officeCode}` : organization.identity?.resolutionState === "needs_review" ? `${organization.identity.candidateUeis?.length || 0} UEI candidates · review required` : "Label-only identity";
+          const aliases = organization.aliases?.length ? ` · ${organization.aliases.length} ${organization.aliases.length === 1 ? "alias" : "aliases"}` : "";
+          return <article key={organization.id}><strong>{organization.label}</strong><span>{identifier}</span><em>{organization.identity?.method?.replaceAll("-", " ")}{aliases}</em></article>;
+        }} />
         <ConnectionGroup title="Reviewed locations" items={connected.locations} renderItem={(location) => <article key={location.id}><strong>{location.label}</strong><span>{[location.city, location.state].filter(Boolean).join(", ")}</span><em>Reviewed map registry</em></article>} />
         <ConnectionGroup title="Federal accounts" items={connected.federalAccounts} renderItem={(account) => <article key={account.id}><strong>{account.federalAccountCode}</strong><span>{account.label}</span><em>Exact award transaction funding</em></article>} />
         <ConnectionGroup title="Classifications" items={connected.classifications} renderItem={(classification) => <article key={classification.id}><strong>{classification.label}</strong><span>{classification.namespace.replaceAll("-", " ")}</span><em>Deterministic taxonomy</em></article>} />
