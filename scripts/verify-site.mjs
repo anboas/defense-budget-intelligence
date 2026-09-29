@@ -422,10 +422,13 @@ try {
     const canvas = document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect();
     const callouts = [...document.querySelectorAll("[data-map-callout]")];
     const cards = callouts.map((node) => node.querySelector(".opportunity-map__callout-face").getBoundingClientRect());
-    const activityCenters = [...document.querySelectorAll("[data-map-node]")].map((node) => {
-      const bounds = node.getBoundingClientRect();
-      return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
-    });
+    const visibleActivityBounds = [...document.querySelectorAll("[data-map-node]")]
+      .map((node) => node.getBoundingClientRect())
+      .filter((bounds) => {
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        return centerX >= canvas.left && centerX <= canvas.right && centerY >= canvas.top && centerY <= canvas.bottom;
+      });
     const overlaps = cards.flatMap((left, index) => cards.slice(index + 1).filter((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top));
     const priorities = callouts.map((node) => Number(node.dataset.mapCalloutPriority));
     const leaderLengths = callouts.map((node) => Number(node.dataset.mapCalloutLeaderLength));
@@ -434,14 +437,16 @@ try {
       overlaps: overlaps.length,
       prioritiesDescending: priorities.every((value, index) => index === 0 || priorities[index - 1] >= value),
       maximumLeaderLength: Math.max(...leaderLengths),
-      cardsAvoidActivityMarkers: cards.every((card) => activityCenters.every((center) => center.x < card.left || center.x > card.right || center.y < card.top || center.y > card.bottom)),
+      strictClearanceCount: callouts.filter((node) => node.dataset.mapCalloutClearance === "all").length,
+      cardsAvoidActivityMarkers: cards.every((card) => visibleActivityBounds.every((node) => card.right <= node.left || card.left >= node.right || card.bottom <= node.top || card.top >= node.bottom)),
     };
   });
   assert.equal(calloutGeometry.withinCanvas, true, "National callout cards should stay within the map canvas");
   assert.equal(calloutGeometry.overlaps, 0, "National callout cards should use collision-safe columns without overlap");
   assert.equal(calloutGeometry.prioritiesDescending, true, `National callouts should preserve magnitude-led priority order after collision backfill: ${JSON.stringify(calloutGeometry)}`);
   assert.ok(calloutGeometry.maximumLeaderLength <= 190, `National callout leaders must remain local instead of spanning the map: ${JSON.stringify(calloutGeometry)}`);
-  assert.equal(calloutGeometry.cardsAvoidActivityMarkers, true, `National callout cards must not cover other activity-marker targets: ${JSON.stringify(calloutGeometry)}`);
+  assert.ok(calloutGeometry.strictClearanceCount >= 1, `National placement should use full source-node clearance wherever geometry permits: ${JSON.stringify(calloutGeometry)}`);
+  assert.equal(calloutGeometry.cardsAvoidActivityMarkers, true, `National callout cards must never cover visible activity markers: ${JSON.stringify(calloutGeometry)}`);
   await page.locator('.opportunity-map__marker.is-cluster[role="button"]').first().click();
   await page.waitForFunction(() => Number.parseInt(document.querySelector('.opportunity-map__map-controls output')?.textContent || "100", 10) > 200);
   await page.waitForTimeout(350);
@@ -449,10 +454,13 @@ try {
     const canvas = document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect();
     const markers = [...document.querySelectorAll("[data-map-node]")];
     const callouts = [...document.querySelectorAll("[data-map-callout]")];
-    const markerCenters = markers.map((node) => {
-      const bounds = node.getBoundingClientRect();
-      return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
-    });
+    const visibleNodeBounds = [...document.querySelectorAll("[data-map-node], [data-map-location]")]
+      .map((node) => node.getBoundingClientRect())
+      .filter((bounds) => {
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        return centerX >= canvas.left && centerX <= canvas.right && centerY >= canvas.top && centerY <= canvas.bottom;
+      });
     return {
       count: callouts.length,
       allTargetsVisible: callouts.every((callout) => {
@@ -472,10 +480,11 @@ try {
       duplicateTargetLabels: callouts.filter((callout) => markers.find((candidate) => candidate.dataset.mapNode === callout.dataset.mapCallout)?.querySelector(".opportunity-map__marker-label")).length,
       maximumLeaderLength: Math.max(...callouts.map((callout) => Number(callout.dataset.mapCalloutLeaderLength))),
       closestCalloutDistance: Math.min(...callouts.map((callout) => Number(callout.dataset.mapCalloutCenterDistance))),
-      cardsAvoidActivityMarkers: callouts.every((callout) => {
+      cardsAvoidAllNodes: callouts.every((callout) => {
         const card = callout.querySelector(".opportunity-map__callout-face")?.getBoundingClientRect();
-        return card && markerCenters.every((center) => center.x < card.left || center.x > card.right || center.y < card.top || center.y > card.bottom);
+        return card && visibleNodeBounds.every((node) => card.right <= node.left || card.left >= node.right || card.bottom <= node.top || card.top >= node.bottom);
       }),
+      strictClearance: callouts.every((callout) => callout.dataset.mapCalloutClearance === "all"),
     };
   });
   assert.ok(focusedCalloutGeometry.count >= 1, `Focused map views should repopulate callouts from visible activity nodes: ${JSON.stringify(focusedCalloutGeometry)}`);
@@ -484,8 +493,36 @@ try {
   assert.equal(focusedCalloutGeometry.duplicateTargetLabels, 0, `Callouts should be the sole label owner for their focused nodes: ${JSON.stringify(focusedCalloutGeometry)}`);
   assert.ok(focusedCalloutGeometry.maximumLeaderLength <= 165, `Focused callout leaders must stay local to their targets: ${JSON.stringify(focusedCalloutGeometry)}`);
   assert.ok(focusedCalloutGeometry.closestCalloutDistance <= .35, `Focused callouts should prioritize at least one target near the viewport center: ${JSON.stringify(focusedCalloutGeometry)}`);
-  assert.equal(focusedCalloutGeometry.cardsAvoidActivityMarkers, true, `Focused callout cards must not block visible activity markers: ${JSON.stringify(focusedCalloutGeometry)}`);
+  assert.equal(focusedCalloutGeometry.cardsAvoidAllNodes, true, `Focused callout cards must not block visible activity or source-location nodes: ${JSON.stringify(focusedCalloutGeometry)}`);
+  assert.equal(focusedCalloutGeometry.strictClearance, true, `Focused callouts must use strict clearance from every visible node: ${JSON.stringify(focusedCalloutGeometry)}`);
   await page.screenshot({ path: `${OUT_DIR}/opportunity-map-focused-desktop.png`, fullPage: false });
+  for (let index = 0; index < 5; index += 1) {
+    await page.getByRole("button", { name: "Zoom in" }).click();
+    await page.waitForTimeout(190);
+  }
+  const maximumZoomGeometry = await page.evaluate(() => {
+    const canvas = document.querySelector("[data-opportunity-map-canvas]")?.getBoundingClientRect();
+    const callouts = [...document.querySelectorAll("[data-map-callout]")];
+    const visibleNodeBounds = [...document.querySelectorAll("[data-map-node], [data-map-location]")]
+      .map((node) => node.getBoundingClientRect())
+      .filter((bounds) => {
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        return centerX >= canvas.left && centerX <= canvas.right && centerY >= canvas.top && centerY <= canvas.bottom;
+      });
+    const cards = callouts.map((node) => node.querySelector(".opportunity-map__callout-face")?.getBoundingClientRect()).filter(Boolean);
+    return {
+      zoom: Number.parseInt(document.querySelector(".opportunity-map__map-controls output")?.textContent || "0", 10),
+      callouts: callouts.length,
+      cardsAvoidAllNodes: cards.every((card) => visibleNodeBounds.every((node) => card.right <= node.left || card.left >= node.right || card.bottom <= node.top || card.top >= node.bottom)),
+      strictClearance: callouts.every((callout) => callout.dataset.mapCalloutClearance === "all"),
+    };
+  });
+  assert.ok(maximumZoomGeometry.zoom >= 1_000 && maximumZoomGeometry.zoom <= 1_200, `The map should support a deeper but bounded maximum zoom: ${JSON.stringify(maximumZoomGeometry)}`);
+  assert.ok(maximumZoomGeometry.callouts >= 1, `Maximum zoom should retain locally relevant callouts when visible nodes permit placement: ${JSON.stringify(maximumZoomGeometry)}`);
+  assert.equal(maximumZoomGeometry.cardsAvoidAllNodes, true, `Maximum-zoom callout cards must avoid every visible map node: ${JSON.stringify(maximumZoomGeometry)}`);
+  assert.equal(maximumZoomGeometry.strictClearance, true, `Maximum-zoom callouts must use strict all-node clearance: ${JSON.stringify(maximumZoomGeometry)}`);
+  await page.screenshot({ path: `${OUT_DIR}/opportunity-map-maximum-zoom-desktop.png`, fullPage: false });
   await page.getByRole("button", { name: "Fit United States" }).click();
   await page.waitForFunction(() => document.querySelector('.opportunity-map__map-controls output')?.textContent === "100%");
   await page.waitForTimeout(250);
