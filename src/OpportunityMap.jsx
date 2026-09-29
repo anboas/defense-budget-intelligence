@@ -243,6 +243,17 @@ function isCalloutSelected(node, selectedId) {
     : node.members.some((member) => member.id === selectedId);
 }
 
+function calloutMagnitude(node, sizeMetric) {
+  if (node.calloutKind === "location") return node.evidenceStatus === "reviewed" ? 2 : 1;
+  if (sizeMetric !== "none") return Math.log1p(Math.max(0, node.spend || 0));
+  return Math.log1p(Math.max(node.members.length, node.records.length, 1));
+}
+
+function calloutCenterWeight(scale) {
+  const focusProgress = Math.max(0, Math.min(1, (scale - 1) / 3));
+  return .14 + focusProgress * .72;
+}
+
 function rankVisibleCalloutNodes(nodes, locationNodes, sizeMetric, transform, selectedId) {
   const representedLocations = new Set(nodes.flatMap((node) => node.members.map((member) => member.locationId).filter(Boolean)));
   const locationCandidates = transform.k >= 1.35 ? locationNodes
@@ -262,26 +273,67 @@ function rankVisibleCalloutNodes(nodes, locationNodes, sizeMetric, transform, se
     anchorX: transform.applyX(node.x),
     anchorY: transform.applyY(node.y),
   })).filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
-  const rawScore = ({ node }) => node.calloutKind === "location"
-    ? (node.evidenceStatus === "reviewed" ? 2 : 1)
-    : Math.log1p(sizeMetric === "none" ? node.records.length : node.spend);
-  const maximum = Math.max(...candidates.map(rawScore), 1);
-  const focusWeight = transform.k > 1.15 ? .68 : .28;
-  const relevance = (candidate) => {
+  const maximum = Math.max(...candidates.map(({ node }) => calloutMagnitude(node, sizeMetric)), 1);
+  const centerWeight = calloutCenterWeight(transform.k);
+  const priority = (candidate) => {
     const distance = Math.hypot((candidate.anchorX - MAP_WIDTH / 2) / (MAP_WIDTH / 2), (candidate.anchorY - MAP_HEIGHT / 2) / (MAP_HEIGHT / 2));
     const proximity = 1 - Math.min(distance, 1);
-    const magnitude = rawScore(candidate) / maximum;
-    return magnitude * (1 - focusWeight) + proximity * focusWeight;
+    const magnitude = calloutMagnitude(candidate.node, sizeMetric) / maximum;
+    return {
+      distance,
+      magnitude,
+      score: magnitude * (1 - centerWeight) + proximity * centerWeight,
+    };
   };
-  return candidates.sort((left, right) => {
+  return candidates.map((candidate) => ({ ...candidate, priority: priority(candidate) })).sort((left, right) => {
     const leftSelected = isCalloutSelected(left.node, selectedId);
     const rightSelected = isCalloutSelected(right.node, selectedId);
     return Number(rightSelected) - Number(leftSelected)
-      || relevance(right) - relevance(left)
+      || right.priority.score - left.priority.score
+      || right.priority.magnitude - left.priority.magnitude
+      || left.priority.distance - right.priority.distance
       || Number(right.node.calloutKind === "activity") - Number(left.node.calloutKind === "activity")
       || right.node.records.length - left.node.records.length
       || left.node.id.localeCompare(right.node.id);
   });
+}
+
+function calloutLeaderGeometry(anchorX, anchorY, x, y, width, height) {
+  const edgeX = x + width / 2 < anchorX ? x + width : x;
+  const edgeY = y + height / 2;
+  const elbowX = anchorX + (edgeX - anchorX) * .58;
+  return {
+    edgeX,
+    edgeY,
+    elbowX,
+    length: Math.abs(elbowX - anchorX) + Math.hypot(edgeX - elbowX, edgeY - anchorY),
+    segments: [[anchorX, anchorY, elbowX, anchorY], [elbowX, anchorY, edgeX, edgeY]],
+  };
+}
+
+function pointInsideRect(x, y, rect) {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function lineSegmentsIntersect(first, second) {
+  const [x1, y1, x2, y2] = first;
+  const [x3, y3, x4, y4] = second;
+  const denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(denominator) < 1e-6) return false;
+  const firstT = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denominator;
+  const secondT = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denominator;
+  return firstT > 0 && firstT < 1 && secondT > 0 && secondT < 1;
+}
+
+function segmentIntersectsRect(segment, rect) {
+  const [x1, y1, x2, y2] = segment;
+  if (pointInsideRect(x1, y1, rect) || pointInsideRect(x2, y2, rect)) return true;
+  return [
+    [rect.left, rect.top, rect.right, rect.top],
+    [rect.right, rect.top, rect.right, rect.bottom],
+    [rect.right, rect.bottom, rect.left, rect.bottom],
+    [rect.left, rect.bottom, rect.left, rect.top],
+  ].some((edge) => lineSegmentsIntersect(segment, edge));
 }
 
 function distributeCallouts(nodes, locationNodes, sizeMetric, transform, selectedId) {
@@ -293,26 +345,34 @@ function distributeCallouts(nodes, locationNodes, sizeMetric, transform, selecte
   const results = [];
   const collides = (candidate) => results.some((placed) => candidate.x < placed.x + width + padding && candidate.x + width + padding > placed.x && candidate.y < placed.y + height + padding && candidate.y + height + padding > placed.y);
   const coversAnchor = (candidate, anchorX, anchorY) => anchorX >= candidate.x - 8 && anchorX <= candidate.x + width + 8 && anchorY >= candidate.y - 8 && anchorY <= candidate.y + height + 8;
-  for (const { node, anchorX, anchorY } of ranked) {
+  const coversVisibleActivity = (candidate) => ranked.some(({ node, anchorX, anchorY }) => node.calloutKind === "activity" && coversAnchor(candidate, anchorX, anchorY));
+  const leaderConflicts = (candidate) => {
+    const candidateRect = { left: candidate.x - 4, top: candidate.y - 4, right: candidate.x + width + 4, bottom: candidate.y + height + 4 };
+    return results.some((placed) => {
+      const placedRect = { left: placed.x - 4, top: placed.y - 4, right: placed.x + width + 4, bottom: placed.y + height + 4 };
+      return candidate.leader.segments.some((segment) => segmentIntersectsRect(segment, placedRect))
+        || placed.leader.segments.some((segment) => segmentIntersectsRect(segment, candidateRect))
+        || candidate.leader.segments.some((segment) => placed.leader.segments.some((placedSegment) => lineSegmentsIntersect(segment, placedSegment)));
+    });
+  };
+  const maximumLeaderLength = 190 - Math.min(60, Math.max(0, transform.k - 1) * 24);
+  for (const { node, anchorX, anchorY, priority } of ranked) {
     if (results.length >= 8) break;
     const preferLeft = anchorX >= MAP_WIDTH / 2;
     const leftX = anchorX - width - 28;
     const rightX = anchorX + 28;
     const horizontal = preferLeft ? [leftX, rightX] : [rightX, leftX];
-    const vertical = [-height / 2, -height - 16, 16, -height - 74, 74];
+    const vertical = [-height / 2, -height - 14, 14, -height - 62, 62, -height - 108, 108];
     const candidates = horizontal.flatMap((x) => vertical.map((offset) => ({
       x: Math.max(gutter, Math.min(MAP_WIDTH - width - gutter, x)),
       y: Math.max(56, Math.min(MAP_HEIGHT - height - 58, anchorY + offset)),
-    })));
-    let position = candidates.find((candidate) => !collides(candidate) && !coversAnchor(candidate, anchorX, anchorY));
-    if (!position) {
-      const fallbackColumns = preferLeft ? [gutter, MAP_WIDTH - width - gutter] : [MAP_WIDTH - width - gutter, gutter];
-      const fallbackRows = [56, 110, 164, 218, 272, 326, 380, 434, 488].sort((left, right) => Math.abs(left + height / 2 - anchorY) - Math.abs(right + height / 2 - anchorY));
-      position = fallbackColumns.flatMap((x) => fallbackRows.map((y) => ({ x, y }))).find((candidate) => !collides(candidate) && !coversAnchor(candidate, anchorX, anchorY));
-    }
+    }))).filter((candidate, index, list) => list.findIndex((other) => other.x === candidate.x && other.y === candidate.y) === index)
+      .map((candidate) => ({ ...candidate, leader: calloutLeaderGeometry(anchorX, anchorY, candidate.x, candidate.y, width, height) }))
+      .filter((candidate) => candidate.leader.length <= maximumLeaderLength);
+    const position = candidates.find((candidate) => !collides(candidate) && !coversVisibleActivity(candidate) && !leaderConflicts(candidate));
     if (!position) continue;
     const side = position.x + width / 2 < anchorX ? "left" : "right";
-    results.push({ node, anchorX, anchorY, side, ...position, width, height });
+    results.push({ node, anchorX, anchorY, side, priority, leaderLength: position.leader.length, leader: position.leader, ...position, width, height });
   }
   return results;
 }
@@ -514,12 +574,12 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
         </g>
       </g>
       {callouts.length ? <g ref={calloutsRef} className="opportunity-map__callouts">
-        {callouts.map(({ node, anchorX, anchorY, side, x, y, width, height }) => {
+        {callouts.map(({ node, anchorX, anchorY, side, x, y, width, height, leaderLength, priority }) => {
           const edgeX = side === "left" ? x + width : x;
           const elbowX = anchorX + (edgeX - anchorX) * .58;
           const selected = isCalloutSelected(node, selectedId);
           const accent = node.calloutKind === "activity" && node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
-          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} data-map-callout-kind={node.calloutKind} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
+          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} data-map-callout-kind={node.calloutKind} data-map-callout-priority={priority.score.toFixed(4)} data-map-callout-magnitude={priority.magnitude.toFixed(4)} data-map-callout-center-distance={priority.distance.toFixed(4)} data-map-callout-leader-length={leaderLength.toFixed(1)} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
             <path className="opportunity-map__callout-line" d={`M${anchorX},${anchorY} L${elbowX},${anchorY} L${edgeX},${y + height / 2}`} style={{ stroke: accent }} />
             <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} onPointerDownCapture={(event) => { event.stopPropagation(); activateNode(node); }} />
             <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
