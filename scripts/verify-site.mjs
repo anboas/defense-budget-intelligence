@@ -18,6 +18,7 @@ assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, 
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).length, 1, "Timeline, table, and charts should share one lazy Spend Explorer boundary");
+assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(name)).length, 1, "Integrations should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
@@ -146,14 +147,14 @@ async function assertActiveGroupState(page, group, childLabel) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 2, "Header should expose only Spend Explorer and Schedule as primary links");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Spend Explorer", "Schedule"], "Primary navigation should contain the two consolidated working surfaces");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose Spend Explorer, Opportunity Map, and Schedule as primary links");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Spend Explorer", "Opportunity Map", "Schedule"], "Primary navigation should contain the three consolidated working surfaces");
   assert.equal(await page.getByRole("button", { name: "Search and navigate" }).count(), 1, "The header should expose one global command trigger");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   await page.waitForSelector(".if-command-dialog");
   const commandPaletteText = await page.locator(".if-command-dialog").innerText();
   assert.match(commandPaletteText, /Recent[\s\S]*Navigate/i, "The command palette should separate recent and general navigation");
-  assert.match(commandPaletteText, /Spend Explorer[\s\S]*Schedule/i, "The command palette should expose role-visible primary navigation");
+  assert.match(commandPaletteText, /Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule/i, "The command palette should expose role-visible primary navigation");
   await page.locator(".if-command-dialog input[type=search]").fill("Source Lineage");
   assert.equal(await page.locator(".if-command-palette__item:visible").count(), 1, "Command search should reduce the visible command set");
   await page.keyboard.press("Escape");
@@ -387,6 +388,28 @@ try {
   await assertOpenStateControls(page, "Connections", "[data-connections-surface]");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
+
+  await openSurface(page, "#/budget-spend/map", "[data-opportunity-map]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunity Map", "Opportunity Map should own a first-class route title");
+  assert.equal(await page.locator('[data-primary-nav="map"][aria-current="page"]').count(), 1, "Opportunity Map should own a primary-navigation state");
+  assert.ok(await page.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Default live scope should expose a nationwide set of mapped organization clusters");
+  assert.equal(await page.locator("[data-opportunity-map-detail]").count(), 1, "The leading organization cluster should open in the bounded inspector");
+  assert.match(await page.locator(".opportunity-map__coverage").innerText(), /mapped records[\s\S]*location unresolved/i, "The map should disclose both mapped and unresolved location coverage");
+  assert.ok(await page.locator(".opportunity-map__detail-metrics dd").count() >= 4, "Organization detail should expose spend, organization, active, and upcoming metrics");
+  await chooseControlSelect(page, "Size by", "Potential value");
+  await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapSpend") === "potential");
+  await page.locator('.opportunity-map__search input').fill("MISSILE DEFENSE AGENCY (MDA)");
+  await page.waitForFunction(() => document.querySelectorAll('.opportunity-map__marker[role="button"]').length === 1);
+  assert.match(await page.locator("[data-opportunity-map-detail]").innerText(), /Missile Defense Agency/i, "Search should cross-filter the map and inspector together");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-opportunity-map]");
+  assert.equal(await page.locator('.opportunity-map__search input').inputValue(), "MISSILE DEFENSE AGENCY (MDA)", "Map filters should survive reload through canonical URL state");
+  assert.equal(await page.locator('.opportunity-map__marker[role="button"]').count(), 1, "Reloaded map state should retain the filtered marker set");
+  await page.locator(".opportunity-map__reset").click();
+  await page.waitForFunction(() => !window.location.hash.includes("mapQuery="));
+  await assertButtonIntegrity(page, "Opportunity Map", "[data-opportunity-map]");
+  await assertNoPageOverflow(page, "Desktop Opportunity Map");
+  await page.screenshot({ path: `${OUT_DIR}/opportunity-map-desktop.png`, fullPage: true });
 
   const pdbVerificationUrl = new URL(BASE_URL);
   pdbVerificationUrl.searchParams.set("verify", "pdb");
@@ -1648,11 +1671,18 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 10, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work/, "Mobile navigation should keep primary, budget, and work groups visibly separated");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 11, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work/, "Mobile navigation should keep primary, budget, and work groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
+  await openSurface(mobile, "#/budget-spend/map", "[data-opportunity-map]");
+  assert.ok(await mobile.locator('.opportunity-map__marker[role="button"]').count() >= 8, "Mobile Opportunity Map should retain the nationwide marker set");
+  assert.ok(await mobile.locator("[data-opportunity-map-canvas]").evaluate((node) => node.getBoundingClientRect().height >= 299), "Mobile Opportunity Map should retain a usable 300px geography canvas");
+  const mobileMapControls = await mobile.locator('[data-opportunity-map] :is(button, .if-picker__trigger):visible').evaluateAll((nodes) => nodes.map((node) => ({ label: node.getAttribute("aria-label") || node.textContent.trim(), height: node.getBoundingClientRect().height })).filter(({ label }) => label));
+  assert.ok(mobileMapControls.every(({ height }) => height >= 43.5), `Mobile map controls should preserve 44px touch targets: ${JSON.stringify(mobileMapControls)}`);
+  await assertNoPageOverflow(mobile, "Mobile Opportunity Map");
+  await mobile.screenshot({ path: `${OUT_DIR}/opportunity-map-mobile.png`, fullPage: true });
   await openSurface(mobile, "#/budget-spend", "[data-pdb-request-page]");
   const mobileRequestChrome = await mobile.evaluate(() => ({
     filters: document.querySelector("[data-budget-filter-bar]")?.getBoundingClientRect().height || 0,
@@ -1883,7 +1913,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=2 schedule_views=3 spend_views=4 grouped_routes=8 money_flow_routes=5 work_routes=2 workspace_admin_routes=2 inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 map=nationwide-spend-scaled schedule_views=3 spend_views=4 grouped_routes=8 money_flow_routes=5 work_routes=2 workspace_admin_routes=2 inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

@@ -1337,8 +1337,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 14, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();
