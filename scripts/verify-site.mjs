@@ -684,6 +684,24 @@ try {
   await assertNoPageOverflow(page, "Desktop Opportunity Map");
   await page.screenshot({ path: `${OUT_DIR}/opportunity-map-desktop.png`, fullPage: true });
 
+  await page.getByRole("button", { name: "Find" }).click();
+  await page.locator("[data-opportunity-map-directory] input").fill("Wright-Patterson");
+  const wrightPattersonHub = page.locator(".opportunity-map__directory-results button", { hasText: "Wright-Patterson acquisition cluster" }).filter({ hasText: "Spend-backed hub" });
+  assert.equal(await wrightPattersonHub.count(), 1, "The directory should expose the spend-backed Wright-Patterson acquisition cluster");
+  await wrightPattersonHub.click();
+  await page.waitForSelector("[data-opportunity-map-detail]");
+  const mauasRecordLink = page.getByRole("link", { name: "AFLCMC ISR/SOF / MAUAS EPASS", exact: true });
+  const mauasHref = await mauasRecordLink.getAttribute("href");
+  assert.match(decodeURIComponent(mauasHref), /capRecord=opp_26b736189b1e1357bc2f/, "Map record links should retain the stable platform record identity");
+  assert.match(decodeURIComponent(mauasHref), /capQuery=FA862222F8449/, "Map record links should retain the readable award PIID search alias");
+  await mauasRecordLink.click();
+  await page.waitForSelector('[data-spend-explorer="table"]');
+  assert.equal(await page.locator('[data-spend-explorer="table"] input[type="search"]').inputValue(), "FA862222F8449", "Map-to-table navigation should preserve the readable award PIID");
+  assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /^1\s+of\s+/i, "The award PIID should resolve to its exact Spend Explorer table record");
+  const mauasTableRow = page.locator('[data-spend-explorer="table"] [data-row-key="opp_26b736189b1e1357bc2f"]');
+  assert.equal(await mauasTableRow.count(), 1, "The map record should resolve through its stable internal identity");
+  assert.equal(await mauasTableRow.getAttribute("data-row-highlighted"), "true", "The table should highlight the record selected from the map");
+
   const pdbVerificationUrl = new URL(BASE_URL);
   pdbVerificationUrl.searchParams.set("verify", "pdb");
   pdbVerificationUrl.hash = "#/budget-spend";

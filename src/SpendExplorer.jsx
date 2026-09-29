@@ -63,6 +63,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const runtimeAvailable = Boolean(auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
   const [view, setView] = useState(readRoute);
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capQuery") || "");
+  const [focusedRecordId, setFocusedRecordId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
   const [tableFilters, setTableFilters] = useState(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return { technology: params.get("technology") || "all", branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" };
@@ -90,8 +91,9 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   useEffect(() => {
     const sync = () => {
       setView(readRoute());
-      setQuery(new URLSearchParams(window.location.hash.split("?")[1] || "").get("capQuery") || "");
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+      setQuery(params.get("capQuery") || "");
+      setFocusedRecordId(params.get("capRecord") || "");
       setTableFilters({ technology: params.get("technology") || "all", branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" });
     };
     window.addEventListener("hashchange", sync);
@@ -165,7 +167,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     updateRoute(view === "today" ? "today" : "table", { technology: next.technology === "all" ? "" : next.technology, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
   };
   const tableColumns = [
-    { key: "record", label: "Record", required: true, sticky: true, minWidth: 300, value: (record) => `${record.id || record.reference || "Unidentified"} ${record.title || "Untitled"}`, render: (record) => <><strong>{record.id || record.reference || "Unidentified"}</strong><small>{record.title || "Untitled public record"}</small></> },
+    { key: "record", label: "Record", required: true, sticky: true, minWidth: 300, value: (record) => `${record.id || record.reference || "Unidentified"} ${record.title || "Untitled"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title].filter(Boolean).join(" "), render: (record) => <><strong>{record.id || record.reference || "Unidentified"}</strong><small>{record.title || "Untitled public record"}</small></> },
     { key: "recipient", label: "Recipient / sponsor", facet: true, minWidth: 190, value: (record) => record.party || record.recipient || "Not published" },
     { key: "portfolio", label: "Portfolio", facet: true, minWidth: 150, value: (record) => record.portfolio || "Unclassified" },
     { key: "technology", label: "Technology area", minWidth: 190, value: (record) => (record.technologyAreas || []).map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area).join(" · ") || "Not classified" },
@@ -222,7 +224,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
         <ControlSelect label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active explorer" }, { value: "tombstoned", label: `Tombstoned (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
       </section>
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
-      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); updateRoute("table", { capQuery: value }); }} searchPlaceholder="Search records, recipients, technology areas, organizations, and references…" exportFilename="spend-explorer.csv" mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : ["record", "technology", "dateAdded", "actions"]} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
+      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, technology areas, organizations, and references…" exportFilename="spend-explorer.csv" mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
     </ControlPageBody>
   </section>;
 }
