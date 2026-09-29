@@ -25,10 +25,11 @@ The UI may cluster locations for display, but a cluster is not a domain entity a
 Callouts are a viewport projection, not evidence or domain rank. Only visible nodes are eligible.
 
 - At national scale, the selected sizing measure controls magnitude priority: obligated spend, potential value, or grouped record/hub count for uniform markers.
-- From 100% through 400% zoom, priority shifts continuously from magnitude toward distance from the viewport center.
+- From 100% through 400% zoom, priority shifts continuously from magnitude toward distance from the viewport center; the same center-led policy continues through the bounded 1,200% maximum zoom.
 - An explicitly selected node always ranks first.
 - Cards are attempted in priority order; collision or routing failures backfill from the next eligible node.
 - A callout is discarded when no local card position is available. Leader lines have a hard zoom-sensitive length limit and may not cross another callout card or leader.
+- Focused views reject every card position that covers any visible activity or authoritative source-location node, using clearance derived from the rendered marker size. National placement attempts the same strict clearance first; because 885 source dots make six to eight fully clear cards geometrically impossible at fit view, its bounded fallback may overlap low-salience source dots but never activity hubs.
 
 This policy must not be persisted as an entity score or interpreted as opportunity relevance.
 

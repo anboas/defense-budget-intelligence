@@ -27,6 +27,7 @@ import "./OpportunityMap.css";
 
 const MAP_WIDTH = 975;
 const MAP_HEIGHT = 610;
+const MAP_MAX_SCALE = 12;
 const DEFAULT_FILTERS = Object.freeze({
   by: "contracting",
   status: "live",
@@ -344,8 +345,19 @@ function distributeCallouts(nodes, locationNodes, sizeMetric, transform, selecte
   const padding = 8;
   const results = [];
   const collides = (candidate) => results.some((placed) => candidate.x < placed.x + width + padding && candidate.x + width + padding > placed.x && candidate.y < placed.y + height + padding && candidate.y + height + padding > placed.y);
-  const coversAnchor = (candidate, anchorX, anchorY) => anchorX >= candidate.x - 8 && anchorX <= candidate.x + width + 8 && anchorY >= candidate.y - 8 && anchorY <= candidate.y + height + 8;
-  const coversVisibleActivity = (candidate) => ranked.some(({ node, anchorX, anchorY }) => node.calloutKind === "activity" && coversAnchor(candidate, anchorX, anchorY));
+  const maxSpend = Math.max(...nodes.map((node) => node.spend), 1);
+  const visibleActivityAnchors = nodes.map((node) => {
+    const radius = sizeMetric === "none"
+      ? (node.members.length > 1 ? 14 : 8)
+      : node.members.length > 1
+        ? 12 + 10 * Math.sqrt(node.spend / maxSpend)
+        : 7 + 22 * Math.sqrt(node.spend / maxSpend);
+    return { anchorX: transform.applyX(node.x), anchorY: transform.applyY(node.y), clearance: radius + (node.members.length > 1 ? 9 : 6.5) };
+  }).filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
+  const visibleLocationAnchors = locationNodes
+    .map((node) => ({ anchorX: transform.applyX(node.x), anchorY: transform.applyY(node.y), clearance: 9.6 }))
+    .filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
+  const coversNode = (candidate, anchors) => anchors.some(({ anchorX, anchorY, clearance }) => anchorX >= candidate.x - clearance && anchorX <= candidate.x + width + clearance && anchorY >= candidate.y - clearance && anchorY <= candidate.y + height + clearance);
   const leaderConflicts = (candidate) => {
     const candidateRect = { left: candidate.x - 4, top: candidate.y - 4, right: candidate.x + width + 4, bottom: candidate.y + height + 4 };
     return results.some((placed) => {
@@ -369,10 +381,13 @@ function distributeCallouts(nodes, locationNodes, sizeMetric, transform, selecte
     }))).filter((candidate, index, list) => list.findIndex((other) => other.x === candidate.x && other.y === candidate.y) === index)
       .map((candidate) => ({ ...candidate, leader: calloutLeaderGeometry(anchorX, anchorY, candidate.x, candidate.y, width, height) }))
       .filter((candidate) => candidate.leader.length <= maximumLeaderLength);
-    const position = candidates.find((candidate) => !collides(candidate) && !coversVisibleActivity(candidate) && !leaderConflicts(candidate));
+    const strictPosition = candidates.find((candidate) => !collides(candidate) && !coversNode(candidate, visibleActivityAnchors) && !coversNode(candidate, visibleLocationAnchors) && !leaderConflicts(candidate));
+    const position = strictPosition || (transform.k <= 1.05
+      ? candidates.find((candidate) => !collides(candidate) && !coversNode(candidate, visibleActivityAnchors) && !leaderConflicts(candidate))
+      : null);
     if (!position) continue;
     const side = position.x + width / 2 < anchorX ? "left" : "right";
-    results.push({ node, anchorX, anchorY, side, priority, leaderLength: position.leader.length, leader: position.leader, ...position, width, height });
+    results.push({ node, anchorX, anchorY, side, priority, clearance: strictPosition ? "all" : "activity", leaderLength: position.leader.length, leader: position.leader, ...position, width, height });
   }
   return results;
 }
@@ -472,7 +487,7 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
   useEffect(() => {
     const svg = select(svgRef.current);
     const behavior = zoom()
-      .scaleExtent([1, 8])
+      .scaleExtent([1, MAP_MAX_SCALE])
       .extent([[0, 0], [MAP_WIDTH, MAP_HEIGHT]])
       .translateExtent([[-80, -80], [MAP_WIDTH + 80, MAP_HEIGHT + 80]])
       .on("start", () => {
@@ -521,7 +536,7 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
       onSelect(node.members[0].id);
       return;
     }
-    const nextScale = Math.min(8, Math.max(2.25, transform.k * 1.85));
+    const nextScale = Math.min(MAP_MAX_SCALE, Math.max(2.25, transform.k * 1.85));
     const next = zoomIdentity.translate(MAP_WIDTH / 2, MAP_HEIGHT / 2).scale(nextScale).translate(-node.x, -node.y);
     select(svgRef.current).transition().duration(260).call(zoomRef.current.transform, next);
   };
@@ -574,12 +589,12 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
         </g>
       </g>
       {callouts.length ? <g ref={calloutsRef} className="opportunity-map__callouts">
-        {callouts.map(({ node, anchorX, anchorY, side, x, y, width, height, leaderLength, priority }) => {
+        {callouts.map(({ node, anchorX, anchorY, side, x, y, width, height, leaderLength, priority, clearance }) => {
           const edgeX = side === "left" ? x + width : x;
           const elbowX = anchorX + (edgeX - anchorX) * .58;
           const selected = isCalloutSelected(node, selectedId);
           const accent = node.calloutKind === "activity" && node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
-          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} data-map-callout-kind={node.calloutKind} data-map-callout-priority={priority.score.toFixed(4)} data-map-callout-magnitude={priority.magnitude.toFixed(4)} data-map-callout-center-distance={priority.distance.toFixed(4)} data-map-callout-leader-length={leaderLength.toFixed(1)} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
+          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} data-map-callout-kind={node.calloutKind} data-map-callout-priority={priority.score.toFixed(4)} data-map-callout-magnitude={priority.magnitude.toFixed(4)} data-map-callout-center-distance={priority.distance.toFixed(4)} data-map-callout-leader-length={leaderLength.toFixed(1)} data-map-callout-clearance={clearance} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
             <path className="opportunity-map__callout-line" d={`M${anchorX},${anchorY} L${elbowX},${anchorY} L${edgeX},${y + height / 2}`} style={{ stroke: accent }} />
             <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} onPointerDownCapture={(event) => { event.stopPropagation(); activateNode(node); }} />
             <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
