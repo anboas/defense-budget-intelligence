@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
-import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { useManagementState } from "./management-state.js";
 import { BRANCHES, organizationLocationRules, resolveOrganizationLocation } from "./organization-locations.js";
 import { MAP_EVIDENCE_FILTER_VALUES } from "./opportunity-map-domain.js";
@@ -177,6 +176,16 @@ function branchOptions(counts = {}) {
   return [{ value: "all", label: `All services (${total})` }, ...Object.entries(BRANCHES).map(([value, branch]) => ({ value, label: `${branch.label} (${Number(counts[value] || 0)})` }))];
 }
 
+const LEGEND_LABELS = Object.freeze({
+  "air-space": ["Air/Space", "Air/Space"],
+  joint: ["Joint", "Joint"],
+  "coast-guard": ["Coast", "Coast"],
+  civilian: ["Civilian", "Civilian"],
+  marines: ["Marines", "Marines"],
+  industry: ["Industry", "Industry"],
+  sabre: ["Sabre", "Sabre"],
+});
+
 function projectedPoints(points) {
   return points.map((point) => {
     const coordinate = projection([point.longitude, point.latitude]);
@@ -228,13 +237,34 @@ function groupNearbyPoints(points, scale, enabled, sizeMetric) {
   }).sort((left, right) => right.spend - left.spend);
 }
 
-function rankVisibleCalloutNodes(nodes, sizeMetric, transform, selectedId) {
-  const candidates = nodes.map((node) => ({
+function isCalloutSelected(node, selectedId) {
+  return node.calloutKind === "location"
+    ? selectedId === `location:${node.locationId}`
+    : node.members.some((member) => member.id === selectedId);
+}
+
+function rankVisibleCalloutNodes(nodes, locationNodes, sizeMetric, transform, selectedId) {
+  const representedLocations = new Set(nodes.flatMap((node) => node.members.map((member) => member.locationId).filter(Boolean)));
+  const locationCandidates = transform.k >= 1.35 ? locationNodes
+    .filter((location) => !representedLocations.has(location.id))
+    .map((location) => ({
+      ...location,
+      id: `location:${location.id}`,
+      locationId: location.id,
+      label: location.name,
+      calloutKind: "location",
+      members: [location],
+      records: [],
+      spend: 0,
+    })) : [];
+  const candidates = [...nodes.map((node) => ({ ...node, calloutKind: "activity" })), ...locationCandidates].map((node) => ({
     node,
     anchorX: transform.applyX(node.x),
     anchorY: transform.applyY(node.y),
   })).filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
-  const rawScore = ({ node }) => Math.log1p(sizeMetric === "none" ? node.records.length : node.spend);
+  const rawScore = ({ node }) => node.calloutKind === "location"
+    ? (node.evidenceStatus === "reviewed" ? 2 : 1)
+    : Math.log1p(sizeMetric === "none" ? node.records.length : node.spend);
   const maximum = Math.max(...candidates.map(rawScore), 1);
   const focusWeight = transform.k > 1.15 ? .68 : .28;
   const relevance = (candidate) => {
@@ -244,17 +274,18 @@ function rankVisibleCalloutNodes(nodes, sizeMetric, transform, selectedId) {
     return magnitude * (1 - focusWeight) + proximity * focusWeight;
   };
   return candidates.sort((left, right) => {
-    const leftSelected = left.node.members.some((member) => member.id === selectedId);
-    const rightSelected = right.node.members.some((member) => member.id === selectedId);
+    const leftSelected = isCalloutSelected(left.node, selectedId);
+    const rightSelected = isCalloutSelected(right.node, selectedId);
     return Number(rightSelected) - Number(leftSelected)
       || relevance(right) - relevance(left)
+      || Number(right.node.calloutKind === "activity") - Number(left.node.calloutKind === "activity")
       || right.node.records.length - left.node.records.length
       || left.node.id.localeCompare(right.node.id);
   });
 }
 
-function distributeCallouts(nodes, sizeMetric, transform, selectedId) {
-  const ranked = rankVisibleCalloutNodes(nodes, sizeMetric, transform, selectedId);
+function distributeCallouts(nodes, locationNodes, sizeMetric, transform, selectedId) {
+  const ranked = rankVisibleCalloutNodes(nodes, locationNodes, sizeMetric, transform, selectedId);
   const width = 196;
   const height = 46;
   const gutter = 18;
@@ -287,6 +318,10 @@ function distributeCallouts(nodes, sizeMetric, transform, selectedId) {
 }
 
 function calloutMeta(node, sizeMetric) {
+  if (node.calloutKind === "location") {
+    const branch = BRANCHES[node.branch]?.label || "Defense location";
+    return `${branch} · ${String(node.kind || "location").replaceAll("_", " ")}`;
+  }
   const hubs = node.members.length > 1 ? ` · ${node.members.length} hubs` : "";
   if (sizeMetric === "none") return `${node.records.length} records${hubs}`;
   return `${money(node.spend)} · ${node.records.length} records${hubs}`;
@@ -308,6 +343,7 @@ function markerSegments(node, radius, scale) {
 }
 
 function calloutLabel(node) {
+  if (node.calloutKind === "location") return node.label.length > 28 ? `${node.label.slice(0, 27)}…` : node.label;
   if (node.members.length > 1) {
     const place = String(node.label || "").replace(/ acquisition cluster$/i, "").split(",")[0].trim();
     return place ? `${place} area` : `${node.members.length} nearby hubs`;
@@ -350,15 +386,16 @@ function ServiceLegend({ counts, value, onToggle }) {
     {options.map((option) => {
       const branch = option.value === "all" ? null : BRANCHES[option.value];
       const active = option.value === "all" ? allSelected : selected.has(option.value);
+      const [label, shortLabel] = option.value === "all" ? ["All", "All"] : LEGEND_LABELS[option.value] || [branch.label, branch.label];
       return <button key={option.value} type="button" className={active ? "is-active" : ""} aria-pressed={active} onClick={() => onToggle(option.value)}>
         {branch ? <i style={{ background: branch.color }} aria-hidden="true" /> : <span className="opportunity-map__legend-all" style={{ background: "#17354c" }} aria-hidden="true" />}
-        {option.label}
+        <span className="opportunity-map__legend-label" data-short-label={shortLabel}>{label}</span> <b>({option.value === "all" ? Object.values(counts).reduce((total, count) => total + Number(count || 0), 0) : Number(counts[option.value] || 0)})</b>
       </button>;
     })}
   </div>;
 }
 
-const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSelect, onSelectLocation, clustersEnabled, calloutsEnabled, sizeMetric, branchCounts, branchValue, onToggleBranch }) {
+const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSelect, onSelectLocation, clustersEnabled, calloutsEnabled, sizeMetric }) {
   const svgRef = useRef(null);
   const viewportRef = useRef(null);
   const calloutsRef = useRef(null);
@@ -370,7 +407,7 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
   const locationNodes = useMemo(() => projectedPoints(locations), [locations]);
   const maxSpend = Math.max(...nodes.map((point) => point.spend), 1);
   const rankedLabels = useMemo(() => new Set(points.slice(0, 9).map((point) => point.id)), [points]);
-  const callouts = useMemo(() => calloutsEnabled ? distributeCallouts(nodes, sizeMetric, transform, selectedId) : [], [calloutsEnabled, nodes, selectedId, sizeMetric, transform]);
+  const callouts = useMemo(() => calloutsEnabled ? distributeCallouts(nodes, locationNodes, sizeMetric, transform, selectedId) : [], [calloutsEnabled, locationNodes, nodes, selectedId, sizeMetric, transform]);
 
   useEffect(() => {
     const svg = select(svgRef.current);
@@ -416,6 +453,10 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
     select(svgRef.current).transition().duration(180).call(zoomRef.current.transform, zoomIdentity);
   };
   const activateNode = (node) => {
+    if (node.calloutKind === "location") {
+      onSelectLocation(node.locationId);
+      return;
+    }
     if (node.members.length === 1) {
       onSelect(node.members[0].id);
       return;
@@ -444,7 +485,7 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
           {locationNodes.map((location) => {
             const selected = selectedId === `location:${location.id}`;
             const color = BRANCHES[location.branch]?.color || "#315b78";
-            return <g key={`location-${location.id}`} className={`opportunity-map__location${selected ? " is-selected" : ""}`} transform={`translate(${location.x} ${location.y})`} data-map-location={location.id} onClick={() => onSelectLocation(location.id)} onPointerEnter={(event) => showTooltip(event, { ...location, members: [location], tooltipKind: "location" })} onPointerLeave={() => setTooltip(null)}>
+            return <g key={`location-${location.id}`} className={`opportunity-map__location${selected ? " is-selected" : ""}`} transform={`translate(${location.x} ${location.y})`} data-map-location={location.id} role="button" tabIndex="0" aria-label={`${location.name}, ${BRANCHES[location.branch]?.label || "defense location"}`} aria-pressed={selected} onClick={() => onSelectLocation(location.id)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); onSelectLocation(location.id); } }} onPointerEnter={(event) => showTooltip(event, { ...location, members: [location], tooltipKind: "location" })} onPointerLeave={() => setTooltip(null)}>
               <circle className="opportunity-map__location-ring" r={5.6 / transform.k} />
               <circle className="opportunity-map__location-dot" r={3.6 / transform.k} style={{ fill: color }} />
             </g>;
@@ -476,11 +517,11 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
         {callouts.map(({ node, anchorX, anchorY, side, x, y, width, height }) => {
           const edgeX = side === "left" ? x + width : x;
           const elbowX = anchorX + (edgeX - anchorX) * .58;
-          const selected = node.members.some((member) => member.id === selectedId);
-          const accent = node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
-          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
+          const selected = isCalloutSelected(node, selectedId);
+          const accent = node.calloutKind === "activity" && node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
+          return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} data-map-callout={node.id} data-map-callout-kind={node.calloutKind} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
             <path className="opportunity-map__callout-line" d={`M${anchorX},${anchorY} L${elbowX},${anchorY} L${edgeX},${y + height / 2}`} style={{ stroke: accent }} />
-            <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} />
+            <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} onPointerDownCapture={(event) => { event.stopPropagation(); activateNode(node); }} />
             <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
             <text className="opportunity-map__callout-title" x={x + 12} y={y + 18}>{calloutLabel(node)}</text>
             <text className="opportunity-map__callout-meta" x={x + 12} y={y + 34}>{calloutMeta(node, sizeMetric)}</text>
@@ -488,7 +529,6 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
         })}
       </g> : null}
     </svg>
-    <ServiceLegend counts={branchCounts} value={branchValue} onToggle={onToggleBranch} />
     {tooltip ? <div className="opportunity-map__tooltip" role="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
       <strong>{tooltip.node.label || tooltip.node.name}</strong>
       {tooltip.node.tooltipKind === "location" ? <><span>{BRANCHES[tooltip.node.branch]?.label || "Defense location"} · {tooltip.node.kind.replaceAll("_", " ")}</span><small>{[tooltip.node.city, tooltip.node.state].filter(Boolean).join(", ") || "Published source location"} · {tooltip.node.inventoryStatus === "active_inventory" ? "Active in source inventory" : "Reviewed location"}</small></> : <><span>{sizeMetric === "none" ? "Uniform marker size" : `${money(tooltip.node.spend)} ${tooltip.node.metricLabel}`}</span><small>{BRANCHES[tooltip.node.branch]?.label || "Multiple services"} · {tooltip.node.records.length} records · {tooltip.node.activeCount} active · {tooltip.node.upcomingCount} upcoming{tooltip.node.members.length > 1 ? ` · ${tooltip.node.members.length} hubs` : ""}</small></>}
@@ -741,37 +781,36 @@ export default function OpportunityMap({ dataset }) {
   }, [commit]);
 
   return <section className="opportunity-map" data-opportunity-map data-map-source-records={records.length} data-map-source-locations={locations.length} data-map-visible-locations={model.locations.length} data-map-mapped-records={model.mappedRecords} data-map-exact-office-records={model.mappedExact} data-map-visible-spend={Math.round(model.spend)}>
-    <ControlWorkbenchHeader eyebrow="Market geography" title="Opportunity Map" summary="Explore reviewed buying offices and move from geography to active opportunity detail." />
     <ControlPageBody compact>
-      <section className="opportunity-map__controls" aria-label="Map filters">
-        <div className="opportunity-map__control-row opportunity-map__control-row--primary">
-          <label className="opportunity-map__search"><Search size={16} /><span className="sr-only">Search organizations and opportunities</span><input type="search" value={filters.query} onChange={(event) => commit({ query: event.target.value, organization: "" })} placeholder="Search offices, records, portfolios…" /></label>
-          <StatusTabs value={filters.status} onChange={(status) => commit({ status, organization: "" })} />
-          <EvidenceTabs value={filters.evidence} onChange={(evidence) => commit({ evidence, organization: "" })} />
-          <button type="button" className={`opportunity-map__filter-toggle${filtersOpen ? " is-active" : ""}`} aria-expanded={filtersOpen} onClick={() => setFiltersOpen((current) => !current)}><ListFilter size={14} />Filters{advancedFilterCount ? <b>{advancedFilterCount}</b> : null}</button>
-          {(advancedFilterCount || filters.status !== DEFAULT_FILTERS.status || filters.query) ? <button type="button" className="opportunity-map__reset" onClick={resetAll}>Reset</button> : null}
-        </div>
-        {filtersOpen ? <div className="opportunity-map__control-row opportunity-map__control-row--secondary">
-          <ControlSelect label="Map by" value={filters.by} options={[{ value: "contracting", label: "Contracting activity" }, { value: "funding", label: "Funding organization" }]} onChange={(by) => commit({ by, organization: "" })} />
-          <ControlSelect label="Scope" value={filters.scope} options={[{ value: "all", label: "Relevant indexed records" }, { value: "tracked", label: `Tracked only (${management.watchlist.length})` }, { value: "acquisition", label: "Acquisition opportunities" }]} onChange={(scope) => commit({ scope, organization: "" })} />
-          <ControlSelect label="Service" value={filters.branch} options={serviceOptions} onChange={(branch) => commit({ branch, organization: "" })} />
-          <ControlSelect label="Size by" value={filters.spend} options={[{ value: "none", label: "Nothing (uniform markers)" }, { value: "obligated", label: "Obligated spend" }, { value: "potential", label: "Potential value" }]} onChange={(spend) => commit({ spend, floor: spend === "none" ? "0" : filters.floor, organization: "" })} />
-          <ControlSelect label="Minimum" value={filters.floor} disabled={filters.spend === "none"} options={[{ value: "0", label: "Any spend" }, { value: "10000000", label: "$10M+" }, { value: "50000000", label: "$50M+" }, { value: "100000000", label: "$100M+" }, { value: "500000000", label: "$500M+" }, { value: "1000000000", label: "$1B+" }]} onChange={(floor) => commit({ floor, organization: "" })} />
-        </div> : null}
-      </section>
-
       <div className="opportunity-map__workspace">
         <section className="opportunity-map__map-panel">
-          <header className="opportunity-map__map-header">
-            <div className="opportunity-map__map-title"><Layers3 size={17} /><span><strong>United States acquisition activity</strong><small>{model.totalLocations} authoritative locations · {model.points.length} activity hubs · {filters.spend === "none" ? "uniform marker size" : `${money(model.spend)} ${filters.spend === "potential" ? "potential" : "obligated"}`}</small></span></div>
-            <div className="opportunity-map__map-actions" aria-label="Map display tools">
-              <button type="button" aria-pressed={filters.callouts === "on"} onClick={() => commit({ callouts: filters.callouts === "on" ? "off" : "on" })}><Tags size={14} />Callouts</button>
-              <button type="button" aria-pressed={filters.clusters === "on"} onClick={() => commit({ clusters: filters.clusters === "on" ? "off" : "on" })}><Group size={14} />Nearby groups</button>
-              <button type="button" aria-expanded={openPanel === "directory"} onClick={() => setOpenPanel((current) => current === "directory" ? "" : "directory")}><ListFilter size={14} />Find</button>
-              <button type="button" aria-expanded={openPanel === "evidence"} onClick={() => setOpenPanel((current) => current === "evidence" ? "" : "evidence")}><ShieldCheck size={14} />Evidence</button>
+          <header className="opportunity-map__command-band">
+            <div className="opportunity-map__command-primary">
+              <div className="opportunity-map__map-title"><Layers3 size={18} /><span><h2>Opportunity Map</h2><small>{model.totalLocations} locations · {model.points.length} activity hubs · {filters.spend === "none" ? "uniform markers" : `${money(model.spend)} ${filters.spend === "potential" ? "potential" : "obligated"}`}</small></span></div>
+              <label className="opportunity-map__search"><Search size={15} /><span className="sr-only">Search organizations and opportunities</span><input type="search" value={filters.query} onChange={(event) => commit({ query: event.target.value, organization: "" })} placeholder="Search offices, records, portfolios…" /></label>
+              <div className="opportunity-map__map-actions" aria-label="Map display tools">
+                <button type="button" className={`opportunity-map__filter-toggle${filtersOpen ? " is-active" : ""}`} aria-label="Filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((current) => !current)}><ListFilter size={14} /><span>Filters</span>{advancedFilterCount ? <b>{advancedFilterCount}</b> : null}</button>
+                <button type="button" aria-label="Callouts" aria-pressed={filters.callouts === "on"} onClick={() => commit({ callouts: filters.callouts === "on" ? "off" : "on" })}><Tags size={14} /><span>Callouts</span></button>
+                <button type="button" aria-label="Nearby groups" aria-pressed={filters.clusters === "on"} onClick={() => commit({ clusters: filters.clusters === "on" ? "off" : "on" })}><Group size={14} /><span>Nearby groups</span></button>
+                <button type="button" aria-label="Find" aria-expanded={openPanel === "directory"} onClick={() => setOpenPanel((current) => current === "directory" ? "" : "directory")}><ListFilter size={14} /><span>Find</span></button>
+                <button type="button" aria-label="Evidence" aria-expanded={openPanel === "evidence"} onClick={() => setOpenPanel((current) => current === "evidence" ? "" : "evidence")}><ShieldCheck size={14} /><span>Evidence</span></button>
+                {(advancedFilterCount || filters.status !== DEFAULT_FILTERS.status || filters.query) ? <button type="button" className="opportunity-map__reset" onClick={resetAll}>Reset</button> : null}
+              </div>
             </div>
+            <div className="opportunity-map__command-secondary" aria-label="Map filters">
+              <StatusTabs value={filters.status} onChange={(status) => commit({ status, organization: "" })} />
+              <EvidenceTabs value={filters.evidence} onChange={(evidence) => commit({ evidence, organization: "" })} />
+              <ServiceLegend counts={model.branchCounts} value={filters.branch} onToggle={toggleBranch} />
+            </div>
+            {filtersOpen ? <div className="opportunity-map__control-row opportunity-map__control-row--secondary">
+              <ControlSelect label="Map by" value={filters.by} options={[{ value: "contracting", label: "Contracting activity" }, { value: "funding", label: "Funding organization" }]} onChange={(by) => commit({ by, organization: "" })} />
+              <ControlSelect label="Scope" value={filters.scope} options={[{ value: "all", label: "Relevant indexed records" }, { value: "tracked", label: `Tracked only (${management.watchlist.length})` }, { value: "acquisition", label: "Acquisition opportunities" }]} onChange={(scope) => commit({ scope, organization: "" })} />
+              <ControlSelect label="Service" value={filters.branch} options={serviceOptions} onChange={(branch) => commit({ branch, organization: "" })} />
+              <ControlSelect label="Size by" value={filters.spend} options={[{ value: "none", label: "Nothing (uniform markers)" }, { value: "obligated", label: "Obligated spend" }, { value: "potential", label: "Potential value" }]} onChange={(spend) => commit({ spend, floor: spend === "none" ? "0" : filters.floor, organization: "" })} />
+              <ControlSelect label="Minimum" value={filters.floor} disabled={filters.spend === "none"} options={[{ value: "0", label: "Any spend" }, { value: "10000000", label: "$10M+" }, { value: "50000000", label: "$50M+" }, { value: "100000000", label: "$100M+" }, { value: "500000000", label: "$500M+" }, { value: "1000000000", label: "$1B+" }]} onChange={(floor) => commit({ floor, organization: "" })} />
+            </div> : null}
           </header>
-          {(model.points.length || model.locations.length) ? <MapCanvas key={mapResetKey} points={model.points} locations={model.locations} selectedId={selected ? selected.id : selectedLocation ? `location:${selectedLocation.id}` : ""} onSelect={selectPoint} onSelectLocation={selectLocation} clustersEnabled={filters.clusters === "on"} calloutsEnabled={filters.callouts === "on"} sizeMetric={filters.spend} branchCounts={model.branchCounts} branchValue={filters.branch} onToggleBranch={toggleBranch} /> : <div className="opportunity-map__empty"><CircleDollarSign size={28} /><strong>No locations match these filters</strong><p>Widen the lifecycle or evidence scope, reduce the spend floor, or clear the search.</p><button type="button" className="if-btn if-btn--secondary" onClick={resetAll}>Reset map</button></div>}
+          {(model.points.length || model.locations.length) ? <MapCanvas key={mapResetKey} points={model.points} locations={model.locations} selectedId={selected ? selected.id : selectedLocation ? `location:${selectedLocation.id}` : ""} onSelect={selectPoint} onSelectLocation={selectLocation} clustersEnabled={filters.clusters === "on"} calloutsEnabled={filters.callouts === "on"} sizeMetric={filters.spend} /> : <div className="opportunity-map__empty"><CircleDollarSign size={28} /><strong>No locations match these filters</strong><p>Widen the lifecycle or evidence scope, reduce the spend floor, or clear the search.</p><button type="button" className="if-btn if-btn--secondary" onClick={resetAll}>Reset map</button></div>}
           <footer className="opportunity-map__coverage"><span><b>{model.totalLocations}</b> source locations</span><span><b>{model.mappedRecords}</b> mapped activities</span><span><b>{model.mappedExact}</b> exact-office matches</span><span><b>{model.unresolved}</b> activity locations unresolved</span><p><Info size={13} />Lifecycle filters apply to activity. The location layer remains independent; “no linked spend” means no relationship is established in this snapshot, not zero spend.</p></footer>
         </section>
         {selected ? <DetailPanel point={selected} asOf={asOf} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} spendMetric={filters.spend === "potential" ? "potential" : "obligated"} onClose={() => commit({ organization: "" })} /> : null}
