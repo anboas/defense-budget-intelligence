@@ -59,8 +59,7 @@ const FILTER_VALUES = Object.freeze({
   status: new Set(["live", "active", "upcoming", "all"]),
   evidence: new Set(MAP_EVIDENCE_FILTER_VALUES),
   scope: new Set(["all", "tracked", "acquisition"]),
-  branch: new Set(["all", ...Object.keys(BRANCHES)]),
-  spend: new Set(["obligated", "potential"]),
+  spend: new Set(["none", "obligated", "potential"]),
   floor: new Set(["0", "10000000", "50000000", "100000000", "500000000", "1000000000"]),
   clusters: new Set(["on", "off"]),
   callouts: new Set(["on", "off"]),
@@ -78,8 +77,26 @@ function cleanFilters(candidate = {}) {
   return Object.fromEntries(Object.entries(DEFAULT_FILTERS).map(([key, fallback]) => {
     const value = String(candidate[key] ?? fallback);
     if (key === "query" || key === "organization") return [key, value.slice(0, 180)];
+    if (key === "branch") return [key, cleanBranchFilter(value)];
     return [key, FILTER_VALUES[key]?.has(value) ? value : fallback];
   }));
+}
+
+function cleanBranchFilter(value) {
+  const branches = [...new Set(String(value || "").split(",").filter((branch) => Object.hasOwn(BRANCHES, branch)))].sort();
+  return branches.length ? branches.join(",") : "all";
+}
+
+function selectedBranches(value) {
+  return cleanBranchFilter(value) === "all" ? [] : cleanBranchFilter(value).split(",");
+}
+
+function updateBranchSelection(currentValue, branch) {
+  if (branch === "all") return "all";
+  const current = new Set(selectedBranches(currentValue));
+  if (current.has(branch)) current.delete(branch);
+  else current.add(branch);
+  return current.size ? [...current].sort().join(",") : "all";
 }
 
 function readFilters() {
@@ -155,8 +172,9 @@ function officeBasis(record, dimension) {
   return dimension === "funding" ? record.fundingOfficeBasis : record.contractingOfficeBasis;
 }
 
-function branchOptions() {
-  return [{ value: "all", label: "All services" }, ...Object.entries(BRANCHES).map(([value, branch]) => ({ value, label: branch.label }))];
+function branchOptions(counts = {}) {
+  const total = Object.keys(BRANCHES).reduce((sum, branch) => sum + Number(counts[branch] || 0), 0);
+  return [{ value: "all", label: `All services (${total})` }, ...Object.entries(BRANCHES).map(([value, branch]) => ({ value, label: `${branch.label} (${Number(counts[value] || 0)})` }))];
 }
 
 function projectedPoints(points) {
@@ -166,7 +184,7 @@ function projectedPoints(points) {
   }).filter(Boolean);
 }
 
-function groupNearbyPoints(points, scale, enabled) {
+function groupNearbyPoints(points, scale, enabled, sizeMetric) {
   const projected = projectedPoints(points);
   if (!enabled) return projected.map((point) => ({ ...point, members: [point] }));
   const threshold = 48 / scale;
@@ -178,9 +196,10 @@ function groupNearbyPoints(points, scale, enabled) {
       groups.push(group);
     }
     group.members.push(point);
-    const totalWeight = group.members.reduce((total, member) => total + Math.max(Math.sqrt(member.spend || 0), 1), 0);
-    group.x = group.members.reduce((total, member) => total + member.x * Math.max(Math.sqrt(member.spend || 0), 1), 0) / totalWeight;
-    group.y = group.members.reduce((total, member) => total + member.y * Math.max(Math.sqrt(member.spend || 0), 1), 0) / totalWeight;
+    const weightFor = (member) => sizeMetric === "none" ? 1 : Math.max(Math.sqrt(member.spend || 0), 1);
+    const totalWeight = group.members.reduce((total, member) => total + weightFor(member), 0);
+    group.x = group.members.reduce((total, member) => total + member.x * weightFor(member), 0) / totalWeight;
+    group.y = group.members.reduce((total, member) => total + member.y * weightFor(member), 0) / totalWeight;
   });
   return groups.map((group) => {
     if (group.members.length === 1) return { ...group.members[0], members: group.members };
@@ -209,33 +228,41 @@ function groupNearbyPoints(points, scale, enabled) {
   }).sort((left, right) => right.spend - left.spend);
 }
 
-function distributeCallouts(nodes) {
-  const selected = [...nodes].sort((left, right) => right.spend - left.spend).slice(0, 3);
-  const sides = {
-    left: selected.filter((node) => node.x < MAP_WIDTH / 2).sort((left, right) => left.y - right.y),
-    right: selected.filter((node) => node.x >= MAP_WIDTH / 2).sort((left, right) => left.y - right.y),
-  };
+function distributeCallouts(nodes, sizeMetric) {
+  const score = (node) => sizeMetric === "none" ? node.records.length : node.spend;
+  const selected = [...nodes].sort((left, right) => score(right) - score(left)).slice(0, 8);
+  const width = 196;
+  const height = 46;
+  const gutter = 18;
+  const padding = 8;
   const results = [];
-  Object.entries(sides).forEach(([side, entries]) => {
-    const minY = 48;
-    const maxY = MAP_HEIGHT - 66;
-    const spacing = 60;
-    const ys = [];
-    entries.forEach((node) => {
-      const desired = Math.max(minY, Math.min(maxY, node.y - 22));
-      ys.push(ys.length ? Math.max(desired, ys.at(-1) + spacing) : desired);
-    });
-    if (ys.at(-1) > maxY) {
-      const shift = ys.at(-1) - maxY;
-      ys.forEach((_, index) => { ys[index] -= shift; });
+  const collides = (candidate) => results.some((placed) => candidate.x < placed.x + width + padding && candidate.x + width + padding > placed.x && candidate.y < placed.y + height + padding && candidate.y + height + padding > placed.y);
+  selected.forEach((node) => {
+    const preferLeft = node.x >= MAP_WIDTH / 2;
+    const leftX = node.x - width - 28;
+    const rightX = node.x + 28;
+    const horizontal = preferLeft ? [leftX, rightX] : [rightX, leftX];
+    const vertical = [-height / 2, -height - 16, 16, -height - 74, 74];
+    const candidates = horizontal.flatMap((x) => vertical.map((offset) => ({
+      x: Math.max(gutter, Math.min(MAP_WIDTH - width - gutter, x)),
+      y: Math.max(48, Math.min(MAP_HEIGHT - height - 20, node.y + offset)),
+    })));
+    let position = candidates.find((candidate) => !collides(candidate));
+    if (!position) {
+      const fallbackColumns = preferLeft ? [gutter, MAP_WIDTH - width - gutter] : [MAP_WIDTH - width - gutter, gutter];
+      position = fallbackColumns.flatMap((x) => [48, 108, 168, 228, 288, 348, 408, 468, 528].map((y) => ({ x, y }))).find((candidate) => !collides(candidate));
     }
-    entries.forEach((node, index) => {
-      const width = 190;
-      const x = side === "left" ? Math.min(MAP_WIDTH - width - 18, node.x + 36) : Math.max(18, node.x - width - 36);
-      results.push({ node, side, x, y: ys[index], width, height: 46 });
-    });
+    if (!position) return;
+    const side = position.x + width / 2 < node.x ? "left" : "right";
+    results.push({ node, side, ...position, width, height });
   });
   return results;
+}
+
+function calloutMeta(node, sizeMetric) {
+  const hubs = node.members.length > 1 ? ` · ${node.members.length} hubs` : "";
+  if (sizeMetric === "none") return `${node.records.length} records${hubs}`;
+  return `${money(node.spend)} · ${node.records.length} records${hubs}`;
 }
 
 function markerSegments(node, radius, scale) {
@@ -288,18 +315,34 @@ function EvidenceTabs({ value, onChange }) {
   </div>;
 }
 
-const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSelect, onSelectLocation, clustersEnabled, calloutsEnabled }) {
+function ServiceLegend({ counts, value, onToggle }) {
+  const selected = new Set(selectedBranches(value));
+  const allSelected = selected.size === 0;
+  const options = branchOptions(counts);
+  return <div className="opportunity-map__legend" aria-label="Service legend and filters" data-opportunity-map-legend>
+    {options.map((option) => {
+      const branch = option.value === "all" ? null : BRANCHES[option.value];
+      const active = option.value === "all" ? allSelected : selected.has(option.value);
+      return <button key={option.value} type="button" className={active ? "is-active" : ""} aria-pressed={active} onClick={() => onToggle(option.value)}>
+        {branch ? <i style={{ background: branch.color }} aria-hidden="true" /> : <span className="opportunity-map__legend-all" style={{ background: "#17354c" }} aria-hidden="true" />}
+        {option.label}
+      </button>;
+    })}
+  </div>;
+}
+
+const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSelect, onSelectLocation, clustersEnabled, calloutsEnabled, sizeMetric, branchCounts, branchValue, onToggleBranch }) {
   const svgRef = useRef(null);
   const viewportRef = useRef(null);
   const zoomOutputRef = useRef(null);
   const zoomRef = useRef(null);
   const [transform, setTransform] = useState(zoomIdentity);
   const [tooltip, setTooltip] = useState(null);
-  const nodes = useMemo(() => groupNearbyPoints(points, transform.k, clustersEnabled), [clustersEnabled, points, transform.k]);
+  const nodes = useMemo(() => groupNearbyPoints(points, transform.k, clustersEnabled, sizeMetric), [clustersEnabled, points, sizeMetric, transform.k]);
   const locationNodes = useMemo(() => projectedPoints(locations), [locations]);
   const maxSpend = Math.max(...nodes.map((point) => point.spend), 1);
   const rankedLabels = useMemo(() => new Set(points.slice(0, 9).map((point) => point.id)), [points]);
-  const callouts = useMemo(() => calloutsEnabled && transform.k < 1.35 ? distributeCallouts(nodes) : [], [calloutsEnabled, nodes, transform.k]);
+  const callouts = useMemo(() => calloutsEnabled && transform.k < 1.6 ? distributeCallouts(nodes, sizeMetric) : [], [calloutsEnabled, nodes, sizeMetric, transform.k]);
 
   useEffect(() => {
     const svg = select(svgRef.current);
@@ -359,7 +402,7 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
 
   return <div className="opportunity-map__canvas" data-opportunity-map-canvas>
     <svg ref={svgRef} viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label="United States contracting activity map" aria-describedby="opportunity-map-svg-description">
-      <desc id="opportunity-map-svg-description">Interactive map of mapped acquisition organizations. Nearby offices group at national scale. Marker size represents the selected spend measure. Select a numbered group to zoom or an office to inspect its activity.</desc>
+      <desc id="opportunity-map-svg-description">Interactive map of mapped acquisition organizations. Nearby offices group at national scale. Markers use the selected size mode. Select a numbered group to zoom or an office to inspect its activity.</desc>
       <rect className="opportunity-map__water" width={MAP_WIDTH} height={MAP_HEIGHT} />
       <g ref={viewportRef} transform={transform.toString()}>
         <GeographyLayer />
@@ -375,8 +418,8 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
         </g> : null}
         {callouts.length ? <g className="opportunity-map__callouts">
           {callouts.map(({ node, side, x, y, width, height }) => {
-            const edgeX = side === "left" ? x : x + width;
-            const elbowX = node.x + (edgeX - node.x) * .42;
+            const edgeX = side === "left" ? x + width : x;
+            const elbowX = node.x + (edgeX - node.x) * .58;
             const selected = node.members.some((member) => member.id === selectedId);
             const accent = node.members.length > 1 ? "#17354c" : BRANCHES[node.branch]?.color || "#315b78";
             return <g key={`callout-${node.id}`} className={`opportunity-map__callout${selected ? " is-selected" : ""}`} role="button" tabIndex="0" aria-label={`Inspect ${node.label}`} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }}>
@@ -384,18 +427,19 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
               <rect className="opportunity-map__callout-face" x={x} y={y} width={width} height={height} />
               <rect className="opportunity-map__callout-accent" x={x} y={y} width="4" height={height} style={{ fill: accent }} />
               <text className="opportunity-map__callout-title" x={x + 12} y={y + 18}>{calloutLabel(node)}</text>
-              <text className="opportunity-map__callout-meta" x={x + 12} y={y + 34}>{money(node.spend)} · {node.records.length} records{node.members.length > 1 ? ` · ${node.members.length} hubs` : ""}</text>
+              <text className="opportunity-map__callout-meta" x={x + 12} y={y + 34}>{calloutMeta(node, sizeMetric)}</text>
             </g>;
           })}
         </g> : null}
         <g className="opportunity-map__markers">
           {nodes.map((node) => {
-            const radius = (node.members.length > 1 ? 12 + 10 * Math.sqrt(node.spend / maxSpend) : 7 + 22 * Math.sqrt(node.spend / maxSpend)) / transform.k;
+            const radius = (sizeMetric === "none" ? (node.members.length > 1 ? 14 : 8) : node.members.length > 1 ? 12 + 10 * Math.sqrt(node.spend / maxSpend) : 7 + 22 * Math.sqrt(node.spend / maxSpend)) / transform.k;
             const selected = node.members.some((member) => member.id === selectedId);
             const color = BRANCHES[node.branch]?.color || "#315b78";
             const showLabel = node.members.length === 1 && (selected || (rankedLabels.has(node.id) && transform.k >= 1.55));
             const segments = markerSegments(node, radius, transform.k);
-            return <g key={node.id} className={`opportunity-map__marker${node.members.length > 1 ? " is-cluster" : ""}${selected ? " is-selected" : ""}`} transform={`translate(${node.x} ${node.y})`} role="button" tabIndex="0" aria-label={node.members.length > 1 ? `${node.members.length} nearby acquisition hubs, ${money(node.spend)}, ${node.records.length} indexed records. Select to zoom.` : `${node.label}, ${node.organizations.length} organizations, ${money(node.spend)} ${node.metricLabel}, ${node.records.length} indexed records`} aria-pressed={selected} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }} onPointerEnter={(event) => showTooltip(event, node)} onPointerLeave={() => setTooltip(null)} onFocus={(event) => showTooltip(event, node)} onBlur={() => setTooltip(null)}>
+            const valueLabel = sizeMetric === "none" ? "uniform marker size" : `${money(node.spend)} ${node.metricLabel}`;
+            return <g key={node.id} className={`opportunity-map__marker${node.members.length > 1 ? " is-cluster" : ""}${selected ? " is-selected" : ""}`} transform={`translate(${node.x} ${node.y})`} role="button" tabIndex="0" aria-label={node.members.length > 1 ? `${node.members.length} nearby acquisition hubs, ${valueLabel}, ${node.records.length} indexed records. Select to zoom.` : `${node.label}, ${node.organizations.length} organizations, ${valueLabel}, ${node.records.length} indexed records`} aria-pressed={selected} onClick={() => activateNode(node)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); activateNode(node); } }} onPointerEnter={(event) => showTooltip(event, node)} onPointerLeave={() => setTooltip(null)} onFocus={(event) => showTooltip(event, node)} onBlur={() => setTooltip(null)}>
               <circle className="opportunity-map__marker-focus-ring" r={radius + (node.members.length > 1 ? 7 : 5) / transform.k} />
               <circle className="opportunity-map__marker-shell" r={radius + (node.members.length > 1 ? 5 : 2.5) / transform.k} />
               <circle className="opportunity-map__marker-core" r={radius} style={{ fill: node.members.length > 1 ? "#17354c" : color }} />
@@ -410,9 +454,10 @@ const MapCanvas = memo(function MapCanvas({ points, locations, selectedId, onSel
         </g>
       </g>
     </svg>
+    <ServiceLegend counts={branchCounts} value={branchValue} onToggle={onToggleBranch} />
     {tooltip ? <div className="opportunity-map__tooltip" role="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
       <strong>{tooltip.node.label || tooltip.node.name}</strong>
-      {tooltip.node.tooltipKind === "location" ? <><span>{BRANCHES[tooltip.node.branch]?.label || "Defense location"} · {tooltip.node.kind.replaceAll("_", " ")}</span><small>{[tooltip.node.city, tooltip.node.state].filter(Boolean).join(", ") || "Published source location"} · {tooltip.node.inventoryStatus === "active_inventory" ? "Active in source inventory" : "Reviewed location"}</small></> : <><span>{money(tooltip.node.spend)} {tooltip.node.metricLabel}</span><small>{BRANCHES[tooltip.node.branch]?.label || "Multiple services"} · {tooltip.node.records.length} records · {tooltip.node.activeCount} active · {tooltip.node.upcomingCount} upcoming{tooltip.node.members.length > 1 ? ` · ${tooltip.node.members.length} hubs` : ""}</small></>}
+      {tooltip.node.tooltipKind === "location" ? <><span>{BRANCHES[tooltip.node.branch]?.label || "Defense location"} · {tooltip.node.kind.replaceAll("_", " ")}</span><small>{[tooltip.node.city, tooltip.node.state].filter(Boolean).join(", ") || "Published source location"} · {tooltip.node.inventoryStatus === "active_inventory" ? "Active in source inventory" : "Reviewed location"}</small></> : <><span>{sizeMetric === "none" ? "Uniform marker size" : `${money(tooltip.node.spend)} ${tooltip.node.metricLabel}`}</span><small>{BRANCHES[tooltip.node.branch]?.label || "Multiple services"} · {tooltip.node.records.length} records · {tooltip.node.activeCount} active · {tooltip.node.upcomingCount} upcoming{tooltip.node.members.length > 1 ? ` · ${tooltip.node.members.length} hubs` : ""}</small></>}
     </div> : null}
     <div className="opportunity-map__map-controls" aria-label="Map controls">
       <button type="button" onClick={() => zoomBy(1.4)} aria-label="Zoom in"><Plus size={17} /></button>
@@ -519,7 +564,7 @@ function EvidencePanel({ model, asOf, onClose }) {
       <div><strong>{model.linkedLocationCount}</strong><span>locations linked to mapped spend activity</span></div>
     </div>
     <section><h4>Placement standard</h4><p>Markers use exact USAspending award-detail offices first, then explicit offices from reviewed source records. Both must match the {registry.length}-location, {aliasCount}-alias registry. The map never substitutes a department headquarters for a missing office.</p></section>
-    <section><h4>What a marker means</h4><p>Each marker is a buying-activity hub with one or more indexed records. Nearby groups are display-only clusters and separate as you zoom. Marker size follows the selected published spend measure.</p></section>
+    <section><h4>What a marker means</h4><p>Each marker is a buying-activity hub with one or more indexed records. Nearby groups are display-only clusters and separate as you zoom. Marker size follows the selected Size by mode; Nothing keeps activity markers uniform.</p></section>
     <section><h4>Known boundary</h4><p>Redacted, unpublished, or unfamiliar office names stay in the unresolved count. Geographic coverage does not imply a qualified opportunity, active bid, or customer relationship.</p></section>
   </aside>;
 }
@@ -564,6 +609,9 @@ export default function OpportunityMap({ dataset }) {
   const model = useMemo(() => {
     const query = deferredQuery.trim().toLowerCase();
     const floor = Number(filters.floor || 0);
+    const valueMetric = filters.spend === "potential" ? "potential" : "obligated";
+    const branchFilter = new Set(selectedBranches(filters.branch));
+    const branchIncluded = (branch) => !branchFilter.size || branchFilter.has(branch);
     const unresolved = [];
     const byLocation = new Map();
     let considered = 0;
@@ -581,11 +629,10 @@ export default function OpportunityMap({ dataset }) {
       if (record.monitorStatus === "current" || record.monitorStatus === "stale") exactObserved += 1;
       const location = resolveOrganizationLocation(name);
       if (!location) { unresolved.push(record); return; }
-      if (filters.branch !== "all" && location.branch !== filters.branch) return;
       const current = byLocation.get(location.id) || { ...location, organizations: new Set(), records: [], spend: 0, activeCount: 0, upcomingCount: 0, trackedCount: 0, exactOfficeCount: 0 };
       current.organizations.add(name);
       current.records.push(record);
-      current.spend += recordAmount(record, filters.spend);
+      current.spend += recordAmount(record, valueMetric);
       if (officeBasis(record, filters.by) === "exact-award-detail") current.exactOfficeCount += 1;
       if (bucket === "active") current.activeCount += 1;
       if (bucket === "upcoming") current.upcomingCount += 1;
@@ -593,22 +640,27 @@ export default function OpportunityMap({ dataset }) {
       byLocation.set(location.id, current);
     });
     const resolvedPoints = [...byLocation.values()]
-      .map((point) => ({ ...point, organizations: [...point.organizations].sort(), metricLabel: filters.spend === "potential" ? "potential value" : "obligated spend" }))
+      .map((point) => ({ ...point, organizations: [...point.organizations].sort(), metricLabel: valueMetric === "potential" ? "potential value" : "obligated spend" }))
       .sort((left, right) => right.spend - left.spend || left.label.localeCompare(right.label));
     const resolvedRecords = resolvedPoints.reduce((total, point) => total + point.records.length, 0);
-    const points = resolvedPoints.filter((point) => point.spend >= floor);
-    const mappedRecords = points.reduce((total, point) => total + point.records.length, 0);
-    const mappedExact = points.reduce((total, point) => total + point.exactOfficeCount, 0);
+    const eligiblePoints = resolvedPoints.filter((point) => point.spend >= floor);
     const locationQuery = deferredQuery.trim().toLowerCase();
-    const visibleLocations = filters.evidence === "spend" ? [] : locations.filter((location) => {
-      if (filters.branch !== "all" && location.branch !== filters.branch) return false;
+    const eligibleLocations = filters.evidence === "spend" ? [] : locations.filter((location) => {
       if (locationQuery && ![location.name, location.city, location.state, location.kind, BRANCHES[location.branch]?.label].filter(Boolean).join(" ").toLowerCase().includes(locationQuery)) return false;
-      if (filters.evidence === "unbacked") return !linkedLocationIds.has(location.id);
       return !linkedLocationIds.has(location.id);
     });
+    const eligibleActivityPoints = filters.evidence === "unbacked" ? [] : eligiblePoints;
+    const branchCounts = Object.fromEntries(Object.keys(BRANCHES).map((branch) => [branch, 0]));
+    eligibleActivityPoints.forEach((point) => { branchCounts[point.branch] = Number(branchCounts[point.branch] || 0) + 1; });
+    eligibleLocations.forEach((location) => { branchCounts[location.branch] = Number(branchCounts[location.branch] || 0) + 1; });
+    const points = eligibleActivityPoints.filter((point) => branchIncluded(point.branch));
+    const visibleLocations = eligibleLocations.filter((location) => branchIncluded(location.branch));
+    const mappedRecords = points.reduce((total, point) => total + point.records.length, 0);
+    const mappedExact = points.reduce((total, point) => total + point.exactOfficeCount, 0);
     return {
-      points: filters.evidence === "unbacked" ? [] : points,
+      points,
       locations: visibleLocations,
+      branchCounts,
       considered,
       mappedRecords,
       mappedExact,
@@ -639,6 +691,13 @@ export default function OpportunityMap({ dataset }) {
 
   const selectPoint = useCallback((organization) => { setOpenPanel(""); commit({ organization }); }, [commit]);
   const selectLocation = useCallback((locationId) => { setOpenPanel(""); commit({ organization: `location:${locationId}` }); }, [commit]);
+  const branchSelections = selectedBranches(filters.branch);
+  const serviceOptions = branchOptions(model.branchCounts);
+  if (branchSelections.length > 1) {
+    const selectedCount = branchSelections.reduce((total, branch) => total + Number(model.branchCounts[branch] || 0), 0);
+    serviceOptions.unshift({ value: filters.branch, label: `${branchSelections.length} services selected (${selectedCount})`, disabled: true });
+  }
+  const toggleBranch = useCallback((branch) => commit({ branch: updateBranchSelection(filters.branch, branch), organization: "" }), [commit, filters.branch]);
   const advancedFilterCount = activeFilterCount(filters);
   const resetAll = useCallback(() => {
     setOpenPanel("");
@@ -661,16 +720,16 @@ export default function OpportunityMap({ dataset }) {
         {filtersOpen ? <div className="opportunity-map__control-row opportunity-map__control-row--secondary">
           <ControlSelect label="Map by" value={filters.by} options={[{ value: "contracting", label: "Contracting activity" }, { value: "funding", label: "Funding organization" }]} onChange={(by) => commit({ by, organization: "" })} />
           <ControlSelect label="Scope" value={filters.scope} options={[{ value: "all", label: "Relevant indexed records" }, { value: "tracked", label: `Tracked only (${management.watchlist.length})` }, { value: "acquisition", label: "Acquisition opportunities" }]} onChange={(scope) => commit({ scope, organization: "" })} />
-          <ControlSelect label="Service" value={filters.branch} options={branchOptions()} onChange={(branch) => commit({ branch, organization: "" })} />
-          <ControlSelect label="Size by" value={filters.spend} options={[{ value: "obligated", label: "Obligated spend" }, { value: "potential", label: "Potential value" }]} onChange={(spend) => commit({ spend, organization: "" })} />
-          <ControlSelect label="Minimum" value={filters.floor} options={[{ value: "0", label: "Any spend" }, { value: "10000000", label: "$10M+" }, { value: "50000000", label: "$50M+" }, { value: "100000000", label: "$100M+" }, { value: "500000000", label: "$500M+" }, { value: "1000000000", label: "$1B+" }]} onChange={(floor) => commit({ floor, organization: "" })} />
+          <ControlSelect label="Service" value={filters.branch} options={serviceOptions} onChange={(branch) => commit({ branch, organization: "" })} />
+          <ControlSelect label="Size by" value={filters.spend} options={[{ value: "none", label: "Nothing (uniform markers)" }, { value: "obligated", label: "Obligated spend" }, { value: "potential", label: "Potential value" }]} onChange={(spend) => commit({ spend, floor: spend === "none" ? "0" : filters.floor, organization: "" })} />
+          <ControlSelect label="Minimum" value={filters.floor} disabled={filters.spend === "none"} options={[{ value: "0", label: "Any spend" }, { value: "10000000", label: "$10M+" }, { value: "50000000", label: "$50M+" }, { value: "100000000", label: "$100M+" }, { value: "500000000", label: "$500M+" }, { value: "1000000000", label: "$1B+" }]} onChange={(floor) => commit({ floor, organization: "" })} />
         </div> : null}
       </section>
 
       <div className="opportunity-map__workspace">
         <section className="opportunity-map__map-panel">
           <header className="opportunity-map__map-header">
-            <div className="opportunity-map__map-title"><Layers3 size={17} /><span><strong>United States acquisition activity</strong><small>{model.totalLocations} authoritative locations · {model.points.length} spend hubs · {money(model.spend)} {filters.spend === "potential" ? "potential" : "obligated"}</small></span></div>
+            <div className="opportunity-map__map-title"><Layers3 size={17} /><span><strong>United States acquisition activity</strong><small>{model.totalLocations} authoritative locations · {model.points.length} activity hubs · {filters.spend === "none" ? "uniform marker size" : `${money(model.spend)} ${filters.spend === "potential" ? "potential" : "obligated"}`}</small></span></div>
             <div className="opportunity-map__map-actions" aria-label="Map display tools">
               <button type="button" aria-pressed={filters.callouts === "on"} onClick={() => commit({ callouts: filters.callouts === "on" ? "off" : "on" })}><Tags size={14} />Callouts</button>
               <button type="button" aria-pressed={filters.clusters === "on"} onClick={() => commit({ clusters: filters.clusters === "on" ? "off" : "on" })}><Group size={14} />Nearby groups</button>
@@ -678,12 +737,12 @@ export default function OpportunityMap({ dataset }) {
               <button type="button" aria-expanded={openPanel === "evidence"} onClick={() => setOpenPanel((current) => current === "evidence" ? "" : "evidence")}><ShieldCheck size={14} />Evidence</button>
             </div>
           </header>
-          {(model.points.length || model.locations.length) ? <MapCanvas key={mapResetKey} points={model.points} locations={model.locations} selectedId={selected ? selected.id : selectedLocation ? `location:${selectedLocation.id}` : ""} onSelect={selectPoint} onSelectLocation={selectLocation} clustersEnabled={filters.clusters === "on"} calloutsEnabled={filters.callouts === "on"} /> : <div className="opportunity-map__empty"><CircleDollarSign size={28} /><strong>No locations match these filters</strong><p>Widen the lifecycle or evidence scope, reduce the spend floor, or clear the search.</p><button type="button" className="if-btn if-btn--secondary" onClick={resetAll}>Reset map</button></div>}
+          {(model.points.length || model.locations.length) ? <MapCanvas key={mapResetKey} points={model.points} locations={model.locations} selectedId={selected ? selected.id : selectedLocation ? `location:${selectedLocation.id}` : ""} onSelect={selectPoint} onSelectLocation={selectLocation} clustersEnabled={filters.clusters === "on"} calloutsEnabled={filters.callouts === "on"} sizeMetric={filters.spend} branchCounts={model.branchCounts} branchValue={filters.branch} onToggleBranch={toggleBranch} /> : <div className="opportunity-map__empty"><CircleDollarSign size={28} /><strong>No locations match these filters</strong><p>Widen the lifecycle or evidence scope, reduce the spend floor, or clear the search.</p><button type="button" className="if-btn if-btn--secondary" onClick={resetAll}>Reset map</button></div>}
           <footer className="opportunity-map__coverage"><span><b>{model.totalLocations}</b> source locations</span><span><b>{model.mappedRecords}</b> mapped activities</span><span><b>{model.mappedExact}</b> exact-office matches</span><span><b>{model.unresolved}</b> activity locations unresolved</span><p><Info size={13} />Lifecycle filters apply to activity. The location layer remains independent; “no linked spend” means no relationship is established in this snapshot, not zero spend.</p></footer>
         </section>
-        {selected ? <DetailPanel point={selected} asOf={asOf} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} spendMetric={filters.spend} onClose={() => commit({ organization: "" })} /> : null}
+        {selected ? <DetailPanel point={selected} asOf={asOf} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} spendMetric={filters.spend === "potential" ? "potential" : "obligated"} onClose={() => commit({ organization: "" })} /> : null}
         {selectedLocation ? <LocationPanel location={selectedLocation} onClose={() => commit({ organization: "" })} /> : null}
-        {openPanel === "directory" ? <DirectoryPanel points={model.points} locations={model.locations} spendMetric={filters.spend} onSelect={selectPoint} onSelectLocation={selectLocation} onClose={() => setOpenPanel("")} /> : null}
+        {openPanel === "directory" ? <DirectoryPanel points={model.points} locations={model.locations} spendMetric={filters.spend === "potential" ? "potential" : "obligated"} onSelect={selectPoint} onSelectLocation={selectLocation} onClose={() => setOpenPanel("")} /> : null}
         {openPanel === "evidence" ? <EvidencePanel model={model} asOf={asOf} onClose={() => setOpenPanel("")} /> : null}
       </div>
     </ControlPageBody>
