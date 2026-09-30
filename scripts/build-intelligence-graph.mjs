@@ -36,6 +36,7 @@ const transactions = read("capture-transactions.json");
 const accountSpine = read("account-spine.json");
 const subawards = read("usaspending-subawards.json");
 const spendingCoverage = read("usaspending-coverage.json");
+const samBackbone = JSON.parse(readFileSync(resolve(ROOT, "src/data/sam-acquisition-backbone.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -63,6 +64,7 @@ const sourceByUrl = new Map();
 const classificationByKey = new Map();
 const contractVehicleByKey = new Map();
 const acquisitionPathByKey = new Map();
+const treasuryAccountByCode = new Map();
 
 function addEntity(type, entity) {
   if (!entity?.id || entityKeys[type].has(entity.id)) return entity?.id;
@@ -512,6 +514,29 @@ for (const account of accountSpine.accounts || []) {
   if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("account-spine", "official-account-url", "exact", account.sourceUrl));
 }
 
+const historicalAccounts = new Map();
+for (const snapshot of accountSpine.accountSnapshots || []) {
+  const prior = historicalAccounts.get(snapshot.federalAccountCode);
+  if (!prior || Number(snapshot.fiscalYear || 0) > Number(prior.fiscalYear || 0)) historicalAccounts.set(snapshot.federalAccountCode, snapshot);
+}
+for (const [federalAccountCode, account] of historicalAccounts) {
+  if (accountByCode.has(federalAccountCode)) continue;
+  const id = `account:${federalAccountCode}`;
+  accountByTitle.set(normalized(account.title), id);
+  accountByCode.set(federalAccountCode, id);
+  addEntity("federal-account", {
+    id,
+    federalAccountCode,
+    label: account.title,
+    obligatedAmount: Number(account.obligatedAmount || 0),
+    lastObservedFiscalYear: Number(account.fiscalYear || 0),
+    lifecycleStatus: "historical",
+    sourceArtifact: "account-spine",
+  });
+  const sourceId = source(account.sourceUrl, "account-spine", `Historical federal account ${federalAccountCode}`);
+  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("account-spine", "official-historical-account-url", "exact", account.sourceUrl));
+}
+
 for (const flow of accountSpine.awardFlows || []) {
   const awardId = awardByGeneratedId.get(flow.awardId);
   if (!awardId) continue;
@@ -520,6 +545,148 @@ for (const flow of accountSpine.awardFlows || []) {
     if (!accountId) continue;
     addRelation("award-funded-by-account", awardId, accountId, evidence("account-spine", "exact-usa-spending-account-flow", "exact", flow.sourceUrl), { obligatedAmount: Number(item.obligatedAmount || 0), relationshipClass: item.relationshipClass || "exact" });
   }
+}
+
+for (const row of accountSpine.executionBalances || []) {
+  let treasuryAccountId = treasuryAccountByCode.get(row.tasCode);
+  if (!treasuryAccountId) {
+    treasuryAccountId = `treasury-account:${row.tasCode}`;
+    treasuryAccountByCode.set(row.tasCode, treasuryAccountId);
+    addEntity("treasury-account", {
+      id: treasuryAccountId,
+      tasCode: row.tasCode,
+      label: row.title,
+      availability: row.availability,
+      sourceArtifact: "account-spine",
+    });
+    const sourceId = source(row.sourceUrl, "account-spine", `USAspending Treasury account ${row.tasCode}`);
+    if (sourceId) addRelation("supported-by-source", treasuryAccountId, sourceId, evidence("account-spine", "official-account-url", "exact", row.sourceUrl));
+  }
+  const federalAccountId = accountByCode.get(row.federalAccountCode);
+  if (federalAccountId) addRelation("federal-account-has-treasury-account", federalAccountId, treasuryAccountId, evidence("account-spine", "published-federal-account-child", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear });
+  addEntity("execution-balance", {
+    id: row.id,
+    label: `FY${row.fiscalYear} ${row.title}`,
+    fiscalYear: row.fiscalYear,
+    obligatedAmount: row.obligatedAmount,
+    outlayedAmount: row.outlayedAmount,
+    apportionmentApprovedAmount: row.apportionmentApprovedAmount,
+    unobligatedAmount: row.unobligatedAmount,
+    availability: row.availability,
+    sourceArtifact: "account-spine",
+  });
+  if (federalAccountId) addRelation("federal-account-has-execution-balance", federalAccountId, row.id, evidence("account-spine", "exact-federal-account-fiscal-year", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear });
+  addRelation("treasury-account-has-execution-balance", treasuryAccountId, row.id, evidence("account-spine", "exact-tafs-fiscal-year", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear });
+}
+
+for (const row of accountSpine.apportionmentRevisions || []) {
+  addEntity("apportionment-revision", {
+    id: row.id,
+    label: `FY${row.fiscalYear} ${row.accountTitle} iteration ${row.iteration}`,
+    fiscalYear: row.fiscalYear,
+    tafs: row.tafs,
+    iteration: row.iteration,
+    approvedAmount: row.approvedAmount,
+    approvedLine: row.approvedLine,
+    approvalTimestamp: row.approvalTimestamp,
+    isLatest: row.isLatest,
+    sourceIdentifier: row.sourceIdentifier,
+    sourceArtifact: "account-spine",
+  });
+  const treasuryAccountId = treasuryAccountByCode.get(row.tasCode);
+  if (treasuryAccountId) addRelation("treasury-account-apportioned-by-revision", treasuryAccountId, row.id, evidence("account-spine", "exact-tafs-iteration", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear, iteration: row.iteration, latest: row.isLatest });
+  const sourceId = source(row.sourceUrl, "account-spine", `OMB apportionment ${row.sourceIdentifier}`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("account-spine", "official-omb-json", "exact", row.sourceUrl));
+}
+
+for (const row of accountSpine.programActivities || []) {
+  addEntity("program-activity", { id: row.id, label: row.name, fiscalYear: row.fiscalYear, obligatedAmount: row.obligatedAmount, outlayedAmount: row.outlayedAmount, sourceArtifact: "account-spine" });
+  addRelation("program-activity-owned-by-organization", row.id, dodOrganizationId, evidence("account-spine", "official-agency-program-activity", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear });
+  const sourceId = source(row.sourceUrl, "account-spine", `USAspending FY${row.fiscalYear} program activities`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("account-spine", "official-api-endpoint", "exact", row.sourceUrl));
+}
+
+for (const row of accountSpine.objectClasses || []) {
+  addEntity("object-class", { id: row.id, label: row.name, fiscalYear: row.fiscalYear, obligatedAmount: row.obligatedAmount, outlayedAmount: row.outlayedAmount, sourceArtifact: "account-spine" });
+  addRelation("object-class-used-by-organization", row.id, dodOrganizationId, evidence("account-spine", "official-agency-object-class", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear });
+  const sourceId = source(row.sourceUrl, "account-spine", `USAspending FY${row.fiscalYear} object classes`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("account-spine", "official-api-endpoint", "exact", row.sourceUrl));
+}
+
+for (const row of accountSpine.treasuryOutlays || []) {
+  const id = `treasury-outlay-observation:${row.recordDate}`;
+  addEntity("treasury-outlay-observation", { id, label: `${row.recordDate} Department of Defense military-program outlays`, ...row, sourceArtifact: "account-spine" });
+  addRelation("treasury-outlay-observation-measures-organization", id, dodOrganizationId, evidence("account-spine", "official-monthly-treasury-statement", "exact", row.sourceUrl), { fiscalYear: row.fiscalYear, amountType: "net-outlays" });
+  const sourceId = source(row.sourceUrl, "account-spine", "Treasury Monthly Statement table 5");
+  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("account-spine", "official-api-endpoint", "exact", row.sourceUrl));
+}
+
+const samCollections = samBackbone.collections || {};
+const noticeByNoticeId = new Map();
+for (const row of samCollections.notices || []) {
+  noticeByNoticeId.set(row.noticeId, row.id);
+  addEntity("opportunity-notice", { ...row, sourceArtifact: "sam-acquisition-backbone" });
+  const sourceId = source(row.sourceUrl, "sam-acquisition-backbone", `SAM.gov notice ${row.noticeId}`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("sam-acquisition-backbone", "official-notice-url", "exact", row.sourceUrl));
+}
+const noticeVersionsByNotice = new Map();
+for (const row of samCollections.noticeVersions || []) {
+  addEntity("notice-version", { ...row, label: `${row.noticeId} observed ${row.observedAt}`, sourceArtifact: "sam-acquisition-backbone" });
+  const noticeId = noticeByNoticeId.get(row.noticeId);
+  if (noticeId) addRelation("notice-has-version", noticeId, row.id, evidence("sam-acquisition-backbone", "exact-notice-id", "exact", row.sourceUrl), { observedAt: row.observedAt });
+  const versions = noticeVersionsByNotice.get(row.noticeId) || [];
+  versions.push(row);
+  noticeVersionsByNotice.set(row.noticeId, versions);
+}
+for (const versions of noticeVersionsByNotice.values()) {
+  versions.sort((left, right) => String(left.observedAt).localeCompare(String(right.observedAt)));
+  for (let index = 1; index < versions.length; index += 1) addRelation("notice-version-supersedes", versions[index].id, versions[index - 1].id, evidence("sam-acquisition-backbone", "observation-order", "deterministic", versions[index].sourceUrl));
+}
+for (const row of samCollections.awardActions || []) {
+  addEntity("award-action", { ...row, label: `${row.piid} ${row.modificationNumber}`, sourceArtifact: "sam-acquisition-backbone" });
+  let awardId = awardByPiid.get(normalized(row.piid));
+  if (!awardId) {
+    awardId = `award:sam:${hash(row.piid)}`;
+    awardByPiid.set(normalized(row.piid), awardId);
+    addEntity("award", { id: awardId, piid: row.piid, label: row.piid, recipient: row.recipientName, sourceArtifact: "sam-acquisition-backbone" });
+  }
+  addRelation("award-modified-by-action", awardId, row.id, evidence("sam-acquisition-backbone", "exact-piid", "exact", row.sourceUrl), { modificationNumber: row.modificationNumber, actionDate: row.actionDate });
+  const noticeId = noticeByNoticeId.get(row.noticeId);
+  if (noticeId) addRelation("notice-results-in-award", noticeId, awardId, evidence("sam-acquisition-backbone", "source-declared-notice-award", "exact", row.sourceUrl));
+  const recipientId = organization(row.recipientName, "sam-acquisition-backbone", { uei: row.recipientUei }, { identityClass: "recipient" });
+  if (recipientId) addRelation("award-action-recipient", row.id, recipientId, evidence("sam-acquisition-backbone", row.recipientUei ? "published-uei" : "published-recipient-label", row.recipientUei ? "exact" : "source_declared", row.sourceUrl));
+  const vehicleId = row.referencedIdvPiid ? [...contractVehicleByKey.values()].find((id) => entities["contract-vehicle"].find((item) => item.id === id)?.piid === row.referencedIdvPiid) : null;
+  if (vehicleId) addRelation("award-action-ordered-under-vehicle", row.id, vehicleId, evidence("sam-acquisition-backbone", "published-referenced-idv-piid", "exact", row.sourceUrl));
+}
+for (const row of samCollections.vendorRegistrations || []) {
+  addEntity("vendor-registration", { ...row, label: row.legalBusinessName, sourceArtifact: "sam-acquisition-backbone" });
+  const organizationId = organization(row.legalBusinessName, "sam-acquisition-backbone", { uei: row.uei }, { identityClass: "recipient" });
+  if (organizationId) {
+    addRelation("organization-has-registration", organizationId, row.id, evidence("sam-acquisition-backbone", "exact-uei", "exact", row.sourceUrl));
+    const cageId = organizationIdentifier("cage", row.cageCode, "sam-acquisition-backbone");
+    if (cageId) addRelation("organization-has-identifier", organizationId, cageId, evidence("sam-acquisition-backbone", "published-cage", "exact", row.sourceUrl), { namespace: "cage" });
+  }
+}
+for (const row of samCollections.businessCertifications || []) {
+  addEntity("business-certification", { ...row, sourceArtifact: "sam-acquisition-backbone" });
+  const registrationId = `vendor-registration:${row.uei}`;
+  if (entityKeys["vendor-registration"].has(registrationId)) addRelation("registration-has-certification", registrationId, row.id, evidence("sam-acquisition-backbone", "published-business-type", "exact", row.sourceUrl));
+}
+for (const row of samCollections.hierarchyObservations || []) {
+  addEntity("organization-hierarchy-observation", { ...row, label: row.name, sourceArtifact: "sam-acquisition-backbone" });
+  const organizationId = organization(row.name, "sam-acquisition-backbone", { officeCode: row.code }, { identityClass: "government-office" });
+  if (organizationId) addRelation("organization-hierarchy-observed-as", organizationId, row.id, evidence("sam-acquisition-backbone", row.basis, "source_declared", row.sourceUrl));
+  const parentId = organization(row.parentName, "sam-acquisition-backbone", { officeCode: row.parentCode }, { identityClass: "government-office" });
+  if (parentId) addRelation("hierarchy-observation-parent", row.id, parentId, evidence("sam-acquisition-backbone", row.basis, "source_declared", row.sourceUrl));
+}
+for (const row of samCollections.subawards || []) {
+  addEntity("subaward", { ...row, label: row.recipientName || row.subawardNumber || row.reportId, sourceArtifact: "sam-acquisition-backbone" });
+  const awardId = awardByPiid.get(normalized(row.piid));
+  if (awardId) addRelation("award-has-subaward", awardId, row.id, evidence("sam-acquisition-backbone", "exact-prime-piid", "exact", row.sourceUrl));
+  const primeId = organization(row.primeName, "sam-acquisition-backbone", { uei: row.primeUei }, { identityClass: "recipient" });
+  if (primeId) addRelation("subaward-prime", row.id, primeId, evidence("sam-acquisition-backbone", row.primeUei ? "published-prime-uei" : "published-prime-label", row.primeUei ? "exact" : "source_declared", row.sourceUrl));
+  const recipientId = organization(row.recipientName, "sam-acquisition-backbone", { uei: row.recipientUei }, { identityClass: "recipient" });
+  if (recipientId) addRelation("subaward-recipient", row.id, recipientId, evidence("sam-acquisition-backbone", row.recipientUei ? "published-subawardee-uei" : "published-subawardee-label", row.recipientUei ? "exact" : "source_declared", row.sourceUrl));
 }
 
 for (const prime of subawards.primes || []) {
@@ -581,7 +748,7 @@ const organizationCoverage = {
   canonicalUeiIdentities: entities.organization.filter((item) => item.identity?.identifiers?.uei).length,
   publishedUeiIdentities: entities.organization.filter((item) => item.identity?.method === "published-uei").length,
   reviewedOfficeCodeIdentities: entities.organization.filter((item) => item.identity?.identifiers?.officeCode).length,
-  cageIdentities: entities.organization.filter((item) => item.identity?.identifiers?.cage).length,
+  cageIdentities: new Set(relations.filter((item) => item.type === "organization-has-identifier" && item.attributes?.namespace === "cage").map((item) => item.from)).size,
   labelOnlyIdentities: entities.organization.filter((item) => item.identity?.resolutionState === "label_only").length,
   needsReviewIdentities: entities.organization.filter((item) => item.identity?.resolutionState === "needs_review").length,
   aliases: entities.organization.reduce((total, item) => total + item.aliases.length, 0),
@@ -600,6 +767,7 @@ const temporalInputs = {
   calendar,
   transactions,
   accountSpine,
+  samBackbone,
   subawards,
   map,
   locationMetadata,
@@ -681,6 +849,30 @@ const graph = {
         scope: spendingCoverage.metadata?.scope,
         amountPolicy: spendingCoverage.metadata?.amountPolicy,
       },
+      acquisition: {
+        status: samBackbone.metadata?.status,
+        notices: entities["opportunity-notice"].length,
+        noticeVersions: entities["notice-version"].length,
+        awardActions: entities["award-action"].length,
+        vendorRegistrations: entities["vendor-registration"].length,
+        businessCertifications: entities["business-certification"].length,
+        hierarchyObservations: entities["organization-hierarchy-observation"].length,
+        subawards: entities.subaward.length,
+        sourceCoverage: samBackbone.coverage,
+      },
+      money: {
+        firstFiscalYear: accountSpine.metadata?.historyFiscalYears?.[0],
+        lastFiscalYear: accountSpine.metadata?.historyFiscalYears?.at(-1),
+        federalAccountSnapshots: accountSpine.accountSnapshots?.length || 0,
+        treasuryAccounts: entities["treasury-account"].length,
+        executionBalances: entities["execution-balance"].length,
+        apportionmentRevisions: entities["apportionment-revision"].length,
+        programActivities: entities["program-activity"].length,
+        objectClasses: entities["object-class"].length,
+        treasuryOutlayObservations: entities["treasury-outlay-observation"].length,
+        exactAwardAccountLinks: relations.filter((item) => item.type === "award-funded-by-account").length,
+        amountPolicy: accountSpine.metadata?.amountPolicy,
+      },
       budget: { lines: entities["budget-line"].length, exactAccountTitleLinks: relations.filter((item) => item.type === "budget-line-matches-account-title").length, unresolvedAccountTitleLinks: entities["budget-line"].length - relations.filter((item) => item.type === "budget-line-matches-account-title").length },
       geography: { locations: entities.location.length, activityLocationRelations: relations.filter((item) => ["contracting-activity-at", "funding-activity-at"].includes(item.type)).length },
       organizations: organizationCoverage,
@@ -711,6 +903,15 @@ const graph = {
       recompeteSignal: "Review-only timing signal derived from a reported award end date; never proof of a recompete or successor.",
       location: "Stable reviewed location ID from the authoritative map snapshot.",
       federalAccount: "Federal account code from USAspending account spine.",
+      treasuryAccount: "Exact Treasury account symbol (TAS/TAFS) published as a child of a USAspending federal account.",
+      apportionmentRevision: "Fiscal year plus TAFS plus OMB iteration. Every retained revision remains source-linked; newer revisions do not erase prior approvals.",
+      executionBalance: "Fiscal year plus exact TAS. Obligations, outlays, approved apportionment, and availability remain separate measures.",
+      programActivity: "Fiscal year plus source-published USAspending program-activity label. It remains agency-scoped unless an exact account relationship is published.",
+      objectClass: "Fiscal year plus source-published USAspending object-class label. It remains agency-scoped unless an exact account relationship is published.",
+      treasuryOutlayObservation: "Monthly Treasury Statement publication date for the Department of Defense military-program total.",
+      opportunityNotice: "Stable SAM.gov notice ID. Observed versions preserve change history without claiming the complete Data Services archive.",
+      awardAction: "SAM.gov contract transaction key, or PIID plus modification number plus action date when the source key is absent.",
+      vendorRegistration: "Exact SAM UEI registration observation. CAGE and public business attributes remain source claims with observation dates.",
       spendingObservation: "Fiscal year plus dimension plus exact published category identifier from the USAspending transaction aggregation endpoints.",
       source: "Canonical HTTP(S) URL.",
       evidenceClaim: "One source-attributed field value observed at a stated time. Competing claims are preserved rather than overwritten.",

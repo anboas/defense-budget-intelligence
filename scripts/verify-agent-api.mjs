@@ -225,6 +225,23 @@ try {
   assert.ok(result.payload.data.some((relation) => relation.type === "spending-observation-measures-entity"), "Spending observations must traverse to one measured subject");
   assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Spending observations must traverse to official source evidence");
 
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=execution-balance&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 4060);
+  const executionBalanceId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(executionBalanceId)}/relations?limit=20`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((relation) => relation.type === "treasury-account-has-execution-balance"), "Execution balances must traverse to their exact TAS");
+  assert.ok(result.payload.data.some((relation) => relation.type === "federal-account-has-execution-balance"), "Execution balances must traverse to their federal account");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=apportionment-revision&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 6105);
+  const apportionmentId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(apportionmentId)}/relations?limit=20`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "OMB revisions must traverse to official source evidence");
+
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=location&limit=1", { token: researchToken }));
   const locationEntityId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/locations/${encodeURIComponent(locationEntityId)}/metadata`, { token: researchToken }));

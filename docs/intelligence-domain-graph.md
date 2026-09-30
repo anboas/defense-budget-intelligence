@@ -1,7 +1,7 @@
 # Defense Intelligence domain graph
 
 **Status:** Implemented deterministic baseline  
-**Schema:** `1.4.0`
+**Schema:** `1.5.0`
 **Runtime artifacts:** `data/intelligence-graph.json.gzip`, `data/intelligence-graph-index.json`, `data/contract-lineage-index.json`, `data/temporal-evidence-index.json`
 
 ## Decision
@@ -36,12 +36,25 @@ The graph is generated from retained public-source snapshots. It does not create
 | Evidence claim | Subject, field, value, source, and observation time | 1,045 |
 | Evidence conflict | Retained competing or unresolved claim set | 489 |
 | Location | Stable reviewed Opportunity Map location ID | 885 |
-| Federal account | Federal account code | 153 |
+| Federal account | Federal account code | 164 current or historically observed |
 | Budget line | Stable PDB line ID | 3,888 |
 | Subaward summary | Exact generated prime-award ID | 379 |
 | Spending observation | Fiscal year, dimension, and exact source identity | 7,071 |
+| Opportunity notice | Stable SAM.gov notice ID | 0 pending protected source activation |
+| Notice version | Notice ID plus observed content hash | 0 pending protected source activation |
+| Award action | Contract transaction key or PIID/modification/action date | 0 pending protected source activation |
+| Vendor registration | Exact SAM UEI registration observation | 0 pending protected source activation |
+| Business certification | UEI plus source-published business-type claim | 0 pending protected source activation |
+| Organization hierarchy observation | Published organization path and observation time | 0 pending protected source activation |
+| Acquisition subaward | Prime contract key plus subaward report ID | 0 pending protected source activation |
+| Treasury account | Exact TAS/TAFS | 1,335 |
+| Apportionment revision | Fiscal year, TAFS, and OMB iteration | 6,105 |
+| Execution balance | Fiscal year plus exact TAS | 4,060 |
+| Program activity | Fiscal year plus source-published activity label | 803 |
+| Object class | Fiscal year plus source-published object-class label | 175 |
+| Treasury outlay observation | Monthly Treasury Statement record date | 59 |
 | Classification | Namespace plus code, such as NAICS, PSC, technology area, work category, or budget signal | 819 |
-| Source | Canonical public HTTP(S) URL | 4,531 |
+| Source | Canonical public HTTP(S) URL | 10,651 |
 
 Organization identity is deliberately conservative. Exact normalized labels may connect repeated public labels across surfaces, but this is not a fuzzy legal-entity resolution claim. UEI and future official organization/office codes supersede label-only identity when available.
 
@@ -74,6 +87,29 @@ Organization identity is deliberately conservative. Exact normalized labels may 
 - `budget-line-matches-account-title`
 - `budget-line-owned-by-organization`
 - `spending-observation-measures-entity`
+- `federal-account-has-treasury-account`
+- `federal-account-has-execution-balance`
+- `treasury-account-has-execution-balance`
+- `treasury-account-apportioned-by-revision`
+- `program-activity-owned-by-organization`
+- `object-class-used-by-organization`
+- `treasury-outlay-observation-measures-organization`
+
+### Acquisition backbone
+
+- `notice-has-version`
+- `notice-version-supersedes`
+- `notice-results-in-award`
+- `award-modified-by-action`
+- `award-action-ordered-under-vehicle`
+- `award-action-recipient`
+- `organization-has-registration`
+- `registration-has-certification`
+- `organization-hierarchy-observed-as`
+- `hierarchy-observation-parent`
+- `award-has-subaward`
+- `subaward-prime`
+- `subaward-recipient`
 
 ### Context and provenance
 
@@ -105,14 +141,15 @@ The UI must show the class and basis when the distinction affects interpretation
 - 530 activities connect to contract-monitor observations.
 - 400 activity-to-location relationships retain contracting or funding placement basis.
 - 500 stratified award-flow records produce 772 exact award-to-account relationships across 305 unique awards.
+- FY2022-FY2026 exact money history retains 741 federal-account snapshots, 1,335 Treasury accounts, 4,060 FY/TAS execution balances, 6,105 OMB revision records, 803 deduplicated program activities, 175 object classes, and 59 Treasury monthly outlay observations.
 - FY2017–FY2026 coverage retains 10 annual DoD contract-obligation totals, 7,061 deduplicated agency/recipient/PSC/NAICS category rows, and 1,489 unique ranked contracts and IDVs.
 - 379 award entities connect to exact prime subaward summaries.
-- 3,569 of 3,888 budget lines connect to 66 federal accounts by exact normalized account title. The remaining 319 are explicit unresolved account-title joins.
+- 3,571 of 3,888 budget lines connect to 68 current or historical federal accounts by exact normalized account title. The remaining 317 are explicit unresolved account-title joins.
 - 373 reviewed/source-declared organization-to-location relationships are retained from installation metadata.
 
 ## Runtime design
 
-`intelligence-graph.json` is the canonical build-time release-integrity artifact. `intelligence-graph.json.gzip` is its byte-equivalent gzip distribution artifact and is the public download on both production origins. The `.gzip` suffix avoids GitHub Pages' reserved precompressed-file handling. Neither artifact is part of initial page load. Schema 1.4 adds typed fiscal/category spending observations and broader ranked awards while retaining canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
+`intelligence-graph.json` is the canonical build-time release-integrity artifact. `intelligence-graph.json.gzip` is its byte-equivalent gzip distribution artifact and is the public download on both production origins. The `.gzip` suffix avoids GitHub Pages' reserved precompressed-file handling. Neither artifact is part of initial page load. Schema 1.5 adds the five-year exact money lifecycle and typed SAM acquisition backbone while retaining canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
 
 Agent API relation shards are paged in 4,000-relation files. The manifest publishes every page and total so high-degree organization, award, classification, source, and spending-observation traversal stays complete without exceeding the 10 MB API asset ceiling.
 
@@ -154,7 +191,7 @@ Deep links carry canonical IDs. Human-readable identifiers remain aliases for se
 
 ## Known gaps and next passes
 
-1. **Organization master data expansion.** UEI, reviewed office codes, exact recipient aliases, source-declared acquisition hierarchy, and explicit conflicts are now integrated. Next, add cited CAGE, agency/subagency identifiers, legal parent-child relationships, and effective dates. Keep label-only entities separate until official identity evidence exists.
+1. **Activate protected SAM data.** The complete typed collector is implemented but its five protected adapters remain unavailable until `SAM_GOV_API_KEY` is configured. After activation, prove the 90-day backfill, daily deltas, deletion handling, and public DoD award-latency disclosure.
 2. **Budget-to-account crosswalk.** Replace exact-title derived joins with Treasury/Federal Account Symbol evidence wherever a source mapping exists. Preserve unmatched lines.
 3. **Award-to-opportunity lineage.** Add solicitation and predecessor/successor relationships using exact source-declared notice or parent PIIDs. Do not infer recompetes from timing alone.
 4. **Location tenancy.** Expand reviewed organization-to-installation relationships and effective dates. Never infer tenancy from proximity.

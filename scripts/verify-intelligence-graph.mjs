@@ -32,7 +32,7 @@ assert.equal(graph.entities?.transaction?.length, 3085, "All exact FPDS actions 
 assert.equal(graph.entities?.location?.length, 885, "All authoritative locations must exist in the graph");
 assert.equal(graph.entities?.["budget-line"]?.length, 3888, "All public budget lines must exist in the graph");
 assert.equal(Object.keys(graph.indices?.byActivity || {}).length, 888, "Every activity must have a graph index");
-assert.ok(relations.length > 62000, "The graph should retain the complete cross-surface relation set");
+assert.ok(relations.length > 88000, "The graph should retain the complete cross-surface and money-lifecycle relation set");
 assert.ok(relations.every((relation) => INTELLIGENCE_RELATION_TYPES.includes(relation.type)), "Graph contains an unknown relationship type");
 assert.ok(relations.every((relation) => entities.has(relation.from) && entities.has(relation.to)), "Graph contains a dangling relationship endpoint");
 assert.ok(relations.every((relation) => relation.evidence?.sourceArtifact && relation.evidence?.basis && relation.evidence?.confidence), "Every graph relationship must retain evidence metadata");
@@ -53,8 +53,35 @@ assert.deepEqual(graph.metadata.coverage.spending, {
 }, "USAspending breadth coverage changed");
 assert.equal(graph.entities?.["spending-observation"]?.length, 7071, "Every annual and deduplicated category observation must exist once");
 assert.equal(graph.metadata.relationCounts["spending-observation-measures-entity"], 7071, "Every spending observation must measure exactly one typed subject");
-assert.equal(graph.metadata.relationCounts["supported-by-source"], 13135, "Every new observation and award must retain source evidence");
-assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3569, "Known exact budget-line to federal-account title links changed");
+assert.equal(graph.metadata.entityCounts["federal-account"], 164, "Current and historical federal accounts must remain independently addressable");
+assert.equal(graph.metadata.relationCounts["federal-account-has-execution-balance"], 4060, "Every execution balance must retain its exact federal-account edge");
+assert.equal(graph.metadata.relationCounts["supported-by-source"], 21623, "Every new observation, award, balance, revision, Treasury observation, and historical account must retain source evidence");
+assert.equal(graph.entities?.["treasury-account"]?.length, 1335, "Every exact historical TAS must exist once");
+assert.equal(graph.entities?.["execution-balance"]?.length, 4060, "Every FY/TAS execution balance must exist once");
+assert.equal(graph.entities?.["apportionment-revision"]?.length, 6105, "Every retained OMB apportionment revision must exist once");
+assert.ok(graph.entities?.["program-activity"]?.length >= 800, "Program activity depth regressed");
+assert.equal(graph.entities?.["object-class"]?.length, 175, "Object-class history regressed");
+assert.equal(graph.entities?.["treasury-outlay-observation"]?.length, 59, "Treasury monthly reconciliation history regressed");
+assert.equal(graph.metadata.relationCounts["treasury-account-has-execution-balance"], 4060, "Every execution balance must join its exact TAS");
+assert.equal(graph.metadata.relationCounts["treasury-account-apportioned-by-revision"], 5921, "Every joinable OMB revision must join its exact TAS");
+assert.deepEqual(graph.metadata.coverage.money, {
+  firstFiscalYear: 2022,
+  lastFiscalYear: 2026,
+  federalAccountSnapshots: 741,
+  treasuryAccounts: 1335,
+  executionBalances: 4060,
+  apportionmentRevisions: 6105,
+  programActivities: 803,
+  objectClasses: 175,
+  treasuryOutlayObservations: 59,
+  exactAwardAccountLinks: 772,
+  amountPolicy: "Request, budgetary resources, apportionment, obligations, and outlays are separate measures and must not be added together.",
+}, "Exact money lifecycle coverage changed");
+assert.equal(graph.metadata.coverage.acquisition.status, "unavailable", "SAM acquisition coverage must remain explicitly unavailable until the protected key is configured");
+for (const type of ["opportunity-notice", "notice-version", "award-action", "vendor-registration", "business-certification", "organization-hierarchy-observation", "subaward"]) {
+  assert.ok(type in graph.metadata.entityCounts, `SAM acquisition type ${type} must remain first-class even when its protected source is unavailable`);
+}
+assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3571, "Known exact budget-line to federal-account title links changed");
 assert.equal(graph.metadata.coverage.geography.activityLocationRelations, 400, "Reviewed map placement relationship coverage changed");
 assert.equal(graph.metadata.coverage.organizations.canonicalUeiIdentities, 571, "Published UEI identity coverage changed");
 assert.equal(graph.metadata.coverage.organizations.reviewedOfficeCodeIdentities, 50, "Reviewed contracting-office code coverage changed");
@@ -91,8 +118,8 @@ assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Eviden
 assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
 assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
 assert.deepEqual(graph.metadata.coverage.temporal, {
-  relationsAssessed: 63232,
-  current: 50606,
+  relationsAssessed: 88135,
+  current: 75509,
   historical: 12356,
   future: 270,
   stale: 0,

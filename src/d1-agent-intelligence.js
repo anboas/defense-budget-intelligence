@@ -2,7 +2,10 @@ const ENTITY_TYPES = Object.freeze([
   "activity", "award", "event", "transaction", "organization", "organization-identifier",
   "contract-vehicle", "acquisition-path", "recompete-signal", "evidence-claim", "evidence-conflict",
   "location", "federal-account", "budget-line", "subaward-summary", "classification", "source",
-  "spending-observation",
+  "spending-observation", "opportunity-notice", "notice-version", "award-action",
+  "vendor-registration", "business-certification", "organization-hierarchy-observation", "subaward",
+  "treasury-account", "apportionment-revision", "execution-balance", "program-activity",
+  "object-class", "treasury-outlay-observation",
 ]);
 
 const CLAIM_OPERATIONS = Object.freeze(["fill_missing", "replace", "append", "supersede", "add_relation"]);
@@ -236,6 +239,14 @@ function entityTypeFromId(id) {
     ["evidence-claim:", "evidence-claim"], ["evidence-conflict:", "evidence-conflict"],
     ["subaward-summary:", "subaward-summary"], ["budget-line:", "budget-line"],
     ["spending-observation:", "spending-observation"],
+    ["opportunity-notice:", "opportunity-notice"], ["notice-version:", "notice-version"],
+    ["award-action:", "award-action"], ["vendor-registration:", "vendor-registration"],
+    ["business-certification:", "business-certification"],
+    ["organization-hierarchy-observation:", "organization-hierarchy-observation"],
+    ["subaward:", "subaward"], ["treasury-account:", "treasury-account"],
+    ["apportionment-revision:", "apportionment-revision"], ["execution-balance:", "execution-balance"],
+    ["program-activity:", "program-activity"], ["object-class:", "object-class"],
+    ["treasury-outlay-observation:", "treasury-outlay-observation"],
     ["activity:", "activity"], ["award:", "award"], ["event:", "event"], ["transaction:", "transaction"],
     ["org:", "organization"], ["location:", "location"], ["account:", "federal-account"],
     ["class:", "classification"], ["source:", "source"],

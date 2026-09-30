@@ -198,66 +198,59 @@ Every financial fact needs an amount type, fiscal period, source timestamp, sour
 source identifier, content hash, and observation timestamp. Ingestion should be append-only
 with current materialized views, so corrections do not erase the historical record.
 
-## Sequenced delivery
+## Delivery status
 
-### Phase 1: Exact account spine
+### Exact money lifecycle: operational
 
-**Status:** In progress. FY2026 federal-account, Treasury-account, OMB apportionment, request-title, and exact award-account evidence is operational. FY2017-current annual DoD contract obligations and ranked agency/recipient/PSC/NAICS breadth are now retained. Exhaustive transaction-level award-account history and enacted-measure crosswalks remain open.
+Schema 1.5 retains five fiscal years of exact money evidence:
 
-No new credential is required.
+- 741 federal-account snapshots across FY2022-FY2026
+- 1,335 distinct Treasury accounts and 4,060 FY/TAS execution balances
+- 6,105 retained OMB apportionment revisions rather than only the latest file
+- 803 deduplicated program activities and 175 object-class observations
+- 59 independent Treasury Monthly Statement observations for DoD military-program outlays
+- 778 exact award-account relationships from the stratified award sample
 
-Status as of September 12, 2026: the first production slice is implemented. It ingests
-the latest FY2026 OMB Department apportionment JSON, all USAspending Department federal
-accounts and their Treasury-account children, and Department obligation burn periods.
-The Money Flow surface ships the four-stage account comparison, exact TAFS flow bars,
-burn curve, and source evidence. Award-account transactions, enacted measures, and
-historical fiscal years remain the next Phase 1 increments.
+USAspending and OMB remain the exact account spine. Treasury MTS observations are an
+independent agency-level reconciliation layer, not a substitute for TAS-level execution.
+The UI and graph must never add request, budget authority, apportionment, obligations,
+outlays, award totals, or ceilings together.
 
-- Ingest OMB apportionment JSON/XLSX by TAFS.
-- Replace keyword-only USAspending sampling with account, award-account, transaction,
-  obligation, and outlay pulls.
-- Normalize request, enacted, apportioned, obligated, and outlayed measures.
-- Ship Money Lifecycle, request-to-execution waterfall, account Sankey, and burn curve.
-- Correct current award labels so total/potential award values are not called obligations.
+Acceptance is enforced by `verify:money-lifecycle`, graph integrity, Agent API traversal,
+and source-linked relationship checks.
 
-Acceptance: a user can select an account and reconcile each displayed stage to an official
-source without relying on an inferred budget-line-to-award edge.
+### SAM acquisition backbone: implemented, protected source activation pending
 
-### Phase 2: Procurement horizon
+The schema, collector, normalization rules, Agent API types, and fail-closed verification
+are implemented for:
 
-Requires a protected SAM.gov API key.
+- opportunity notices and observed versions
+- award actions, modifications, orders, and referenced IDVs
+- vendor registrations, UEIs, CAGE codes, and public business classifications
+- source-declared federal hierarchy observations
+- acquisition subawards with prime and subrecipient identity
 
-- Ingest SAM opportunities, versions, contract awards, vehicles, and modifications.
-- Enrich offices through Federal Hierarchy and vendors through Entity data.
-- Join opportunities to award families where public identifiers support the link.
-- Ship active/upcoming work and vehicle timeline views.
+Live collection requires `SAM_GOV_API_KEY` in the protected secret store. Until the key is
+available, every SAM adapter reports `unavailable` or `stale`, preserves prior verified
+records, and publishes zero completeness claims. Public Contract Awards data can delay
+unrevealed DoD actions by at least 90 days. Observed opportunity versions are not presented
+as the complete SAM Data Services version archive.
 
-Acceptance: a user can trace an official notice through its public award lineage and see
-response, option, end-date, and recompete timing with disclosed source latency.
+### Remaining sequence
 
-### Phase 3: Downstream allocation
+1. Activate and prove the protected SAM collectors, then backfill 90 days and switch to
+   daily delta collection with deleted-record handling.
+2. Extend exact money history from five to ten fiscal years and add complete priority-award
+   transaction/action histories, subject to source throughput.
+3. Add request-to-mark-to-enactment evidence from GovInfo, Congress.gov, official committee
+   reports, public laws, and enacted tables.
+4. Add agency acquisition-forecast adapters, SBIR/STTR when stable, and authoritative
+   installation mission/tenant sources.
+5. Derive concentration, incumbent, teaming, recompete, expiration, and execution-risk
+   signals only after the relevant exact evidence passes coverage thresholds.
 
-- Ingest acquisition subawards and vendor-parent relationships.
-- Ship vendor/office networks, vehicle trees, geography, and concentration analysis.
-- Add watch rules for new notices, modifications, funding changes, and expiring work.
-
-Acceptance: a user can distinguish prime, subaward, recipient, and performance allocations
-and reproduce the reported totals.
-
-### Phase 4: Legislative marks and outcomes
-
-- Parse request-to-mark-to-enactment changes from GovInfo and official committee sources.
-- Add agency forecast connectors.
-- Add sourced analyst outcome annotations and review workflows.
-
-Acceptance: the system shows where a request changed before execution and keeps public
-financial evidence separate from analyst assessment of mission result.
-
-## Recommended next move
-
-Start with Phase 1, not SAM.gov. The account spine establishes the money semantics and
-prevents the procurement layer from becoming another list of notices and awards. SAM.gov
-then adds timing and acquisition structure to a financial graph that is already coherent.
+The durable program, source prerequisites, service-level objectives, and promotion gates
+are maintained in [`intelligence-data-roadmap.md`](./intelligence-data-roadmap.md).
 
 The validation spike in `.tmp/openclaw-spikes/federal-money-join/` is **PARTIAL**: exact
 account-level joins work, including multi-account awards; universal budget-line-to-award
