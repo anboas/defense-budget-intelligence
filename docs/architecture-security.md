@@ -50,7 +50,7 @@ The implementations differ only at persistence and platform adapters. Validation
 - Any route chunk: below 550 KB uncompressed.
 - Compiled CSS: at or below 350 KB.
 - Large route-specific snapshots must be fetched on demand, never imported into JavaScript bundles.
-- The complete intelligence graph is a deployment integrity artifact capped at 17.25 MB. Browsers use the deferred activity index capped at 3 MB; organization identity conflicts use a separate audit artifact capped at 100 KB.
+- The complete intelligence graph is a deployment integrity artifact capped at 73 MB after adding five years of exact money history. Its byte-equivalent gzip distribution is capped at 5 MB and the raw artifact is removed from Cloudflare publication. Browsers use the deferred activity index capped at 3 MB; organization identity conflicts use a separate audit artifact capped at 100 KB.
 - Runtime JSON uses short revalidation; content-hashed assets use one-year immutable caching.
 - Data requests must be abortable when their owning surface unmounts or changes.
 - D1 list/detail joins must bound the owning rows before enrichment and use purpose-built composite indexes for every correlated lookup.

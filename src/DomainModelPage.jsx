@@ -23,6 +23,19 @@ const ENTITY_META = {
   "budget-line": ["Budget lines", "funding"],
   "subaward-summary": ["Subaward sets", "execution"],
   "spending-observation": ["Spending observations", "execution"],
+  "opportunity-notice": ["SAM notices", "opportunity"],
+  "notice-version": ["Notice versions", "opportunity"],
+  "award-action": ["Award actions", "execution"],
+  "vendor-registration": ["Vendor registrations", "organization"],
+  "business-certification": ["Business certifications", "organization"],
+  "organization-hierarchy-observation": ["Hierarchy observations", "organization"],
+  subaward: ["Acquisition subawards", "execution"],
+  "treasury-account": ["Treasury accounts", "funding"],
+  "apportionment-revision": ["Apportionment revisions", "funding"],
+  "execution-balance": ["Execution balances", "funding"],
+  "program-activity": ["Program activities", "funding"],
+  "object-class": ["Object classes", "funding"],
+  "treasury-outlay-observation": ["Treasury outlays", "funding"],
   classification: ["Classifications", "classification"],
   source: ["Source records", "evidence"],
 };
@@ -56,6 +69,26 @@ const RELATION_ENDPOINTS = {
   "organization-has-identifier": ["organization", "organization-identifier"],
   "transaction-recipient": ["transaction", "organization"],
   "spending-observation-measures-entity": ["spending-observation", "organization"],
+  "notice-has-version": ["opportunity-notice", "notice-version"],
+  "notice-version-supersedes": ["notice-version", "notice-version"],
+  "notice-results-in-award": ["opportunity-notice", "award"],
+  "award-modified-by-action": ["award", "award-action"],
+  "award-action-ordered-under-vehicle": ["award-action", "contract-vehicle"],
+  "award-action-recipient": ["award-action", "organization"],
+  "organization-has-registration": ["organization", "vendor-registration"],
+  "registration-has-certification": ["vendor-registration", "business-certification"],
+  "organization-hierarchy-observed-as": ["organization", "organization-hierarchy-observation"],
+  "hierarchy-observation-parent": ["organization-hierarchy-observation", "organization"],
+  "award-has-subaward": ["award", "subaward"],
+  "subaward-prime": ["subaward", "organization"],
+  "subaward-recipient": ["subaward", "organization"],
+  "federal-account-has-treasury-account": ["federal-account", "treasury-account"],
+  "federal-account-has-execution-balance": ["federal-account", "execution-balance"],
+  "treasury-account-has-execution-balance": ["treasury-account", "execution-balance"],
+  "treasury-account-apportioned-by-revision": ["treasury-account", "apportionment-revision"],
+  "program-activity-owned-by-organization": ["program-activity", "organization"],
+  "object-class-used-by-organization": ["object-class", "organization"],
+  "treasury-outlay-observation-measures-organization": ["treasury-outlay-observation", "organization"],
   "entity-classified-as": ["activity", "classification"],
   "supported-by-source": ["activity", "source"],
   "evidence-claim-about": ["evidence-claim", "activity"],
@@ -65,11 +98,11 @@ const RELATION_ENDPOINTS = {
 
 const GROUPS = [
   { id: "evidence", label: "Evidence & provenance", types: ["source", "evidence-claim", "evidence-conflict"], x: 420, y: 18, width: 360, tone: "evidence" },
-  { id: "opportunity", label: "Opportunity lifecycle", types: ["activity", "event"], x: 420, y: 168, width: 360, tone: "activity" },
-  { id: "organization", label: "Organization identity", types: ["organization", "organization-identifier"], x: 34, y: 328, width: 294, tone: "identity" },
+  { id: "opportunity", label: "Opportunity lifecycle", types: ["activity", "event", "opportunity-notice", "notice-version"], x: 420, y: 168, width: 360, tone: "activity" },
+  { id: "organization", label: "Organization identity", types: ["organization", "organization-identifier", "vendor-registration", "business-certification", "organization-hierarchy-observation"], x: 34, y: 328, width: 294, tone: "identity" },
   { id: "geography", label: "Geography", types: ["location"], x: 34, y: 506, width: 294, tone: "location" },
-  { id: "execution", label: "Contract execution", types: ["award", "transaction", "subaward-summary", "spending-observation"], x: 872, y: 328, width: 294, tone: "execution" },
-  { id: "funding", label: "Funding structure", types: ["federal-account", "budget-line"], x: 872, y: 506, width: 294, tone: "funding" },
+  { id: "execution", label: "Contract execution", types: ["award", "award-action", "transaction", "subaward-summary", "subaward", "spending-observation"], x: 872, y: 328, width: 294, tone: "execution" },
+  { id: "funding", label: "Funding structure", types: ["federal-account", "treasury-account", "budget-line", "apportionment-revision", "execution-balance", "program-activity", "object-class", "treasury-outlay-observation"], x: 872, y: 506, width: 294, tone: "funding" },
   { id: "lineage", label: "Vehicle lineage", types: ["contract-vehicle", "acquisition-path", "recompete-signal"], x: 453, y: 358, width: 294, tone: "lineage" },
   { id: "classification", label: "Classification", types: ["classification"], x: 453, y: 536, width: 294, tone: "classification" },
 ];
@@ -99,7 +132,9 @@ function groupCount(group, counts) {
 }
 
 function diagramDetail(group, counts) {
-  return group.types.map((type) => `${number(counts[type])} ${ENTITY_META[type]?.[0].toLowerCase() || title(type).toLowerCase()}`).join(" · ");
+  const visible = group.types.slice(0, 2).map((type) => `${number(counts[type])} ${ENTITY_META[type]?.[0].toLowerCase() || title(type).toLowerCase()}`);
+  if (group.types.length > 2) visible.push(`+${group.types.length - 2} types`);
+  return visible.join(" · ");
 }
 
 function DomainDiagram({ counts }) {
@@ -160,6 +195,8 @@ export default function DomainModelPage({ routeHash = "" }) {
   const organizations = summary.metadata.coverage.organizations || {};
   const contracts = summary.metadata.coverage.contracts || {};
   const spending = summary.metadata.coverage.spending || {};
+  const money = summary.metadata.coverage.money || {};
+  const acquisition = summary.metadata.coverage.acquisition || {};
 
   return <section className="domain-model-page" data-domain-model-page data-domain-schema={summary.metadata.schemaVersion}>
     <ControlPageHeader compact divided eyebrow="Workspace administration" title="Domain model" summary="Inspect the canonical intelligence graph, its entity inventory, relationship coverage, validity, conflicts, and full record views." headingLevel={2} meta={<span className="if-badge if-badge--info">Schema {summary.metadata.schemaVersion}</span>} actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Source lineage</a><a className="if-btn if-btn--primary" href={`${import.meta.env.BASE_URL}data/intelligence-graph.json.gzip`} download><Download size={14} />Full graph</a></>} />
@@ -205,6 +242,8 @@ export default function DomainModelPage({ routeHash = "" }) {
       <section className="domain-model__panel"><header><div><span>Identity</span><h3>Organization resolution</h3></div><ShieldCheck size={18} /></header><dl><div><dt>UEI-backed</dt><dd>{number(organizations.canonicalUeiIdentities)}</dd></div><div><dt>Office-code</dt><dd>{number(organizations.reviewedOfficeCodeIdentities)}</dd></div><div><dt>Safe alias groups</dt><dd>{number(organizations.resolvedAliasGroups)}</dd></div><div><dt>Label-only</dt><dd>{number(organizations.labelOnlyIdentities)}</dd></div></dl></section>
       <section className="domain-model__panel"><header><div><span>Lineage</span><h3>Contract families</h3></div><GitBranch size={18} /></header><dl><div><dt>Parent IDVs</dt><dd>{number(contracts.exactParentVehicles)}</dd></div><div><dt>Linked orders</dt><dd>{number(contracts.activitiesWithExactParent)}</dd></div><div><dt>Resolved predecessors</dt><dd>{number(contracts.resolvedPredecessorLinks)}</dd></div><div><dt>Unresolved follow-ons</dt><dd>{number(contracts.unresolvedFollowOnClaims)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-spending-coverage><header><div><span>Spending depth</span><h3>DoD contract coverage</h3></div><Database size={18} /></header><dl><div><dt>Fiscal years</dt><dd>{spending.firstFiscalYear}–{spending.lastFiscalYear}</dd></div><div><dt>Spending observations</dt><dd>{number(spending.observations)}</dd></div><div><dt>Ranked awards / IDVs</dt><dd>{number(spending.uniqueRankedAwards)}</dd></div><div><dt>Category rows</dt><dd>{number(spending.categoryRows)}</dd></div></dl></section>
+      <section className="domain-model__panel" data-domain-money-coverage><header><div><span>Exact money</span><h3>Account lifecycle</h3></div><Database size={18} /></header><dl><div><dt>Fiscal years</dt><dd>{money.firstFiscalYear}–{money.lastFiscalYear}</dd></div><div><dt>Treasury accounts</dt><dd>{number(money.treasuryAccounts)}</dd></div><div><dt>Execution balances</dt><dd>{number(money.executionBalances)}</dd></div><div><dt>OMB revisions</dt><dd>{number(money.apportionmentRevisions)}</dd></div></dl></section>
+      <section className="domain-model__panel" data-domain-acquisition-coverage><header><div><span>Acquisition backbone</span><h3>SAM.gov source state</h3></div><Network size={18} /></header><dl><div><dt>Status</dt><dd>{title(acquisition.status || "unknown")}</dd></div><div><dt>Notices / versions</dt><dd>{number(acquisition.notices)} / {number(acquisition.noticeVersions)}</dd></div><div><dt>Award actions</dt><dd>{number(acquisition.awardActions)}</dd></div><div><dt>Registrations</dt><dd>{number(acquisition.vendorRegistrations)}</dd></div></dl></section>
     </div>
 
     <section className="domain-model__policy" data-domain-policy>

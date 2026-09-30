@@ -17,6 +17,7 @@ const ACCOUNT_SPINE_FILE = resolve(ROOT, "src/data/account-spine.json");
 const CAPTURE_CALENDAR_FILE = resolve(ROOT, "src/data/capture-calendar.json");
 const CAPTURE_TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.json");
 const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
+const SAM_ACQUISITION_BACKBONE_FILE = resolve(ROOT, "src/data/sam-acquisition-backbone.json");
 const MANUAL_PROCUREMENT_FILE = resolve(ROOT, "src/data/manual-procurement.json");
 const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
 const PROCUREMENT_DISCOVERY_FILE = resolve(ROOT, "src/data/procurement-discovery.json");
@@ -245,6 +246,10 @@ writeFileSync(
 writeFileSync(
   resolve(OUT_DIR, "sam-opportunities.json"),
   readFileSync(SAM_OPPORTUNITIES_FILE, "utf8"),
+);
+writeFileSync(
+  resolve(OUT_DIR, "sam-acquisition-backbone.json"),
+  readFileSync(SAM_ACQUISITION_BACKBONE_FILE, "utf8"),
 );
 writeFileSync(
   resolve(OUT_DIR, "manual-procurement.json"),

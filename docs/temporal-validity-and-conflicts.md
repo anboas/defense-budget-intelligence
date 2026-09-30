@@ -1,7 +1,7 @@
 # Temporal validity and evidence conflicts
 
 **Status:** Implemented deterministic baseline  
-**Schema:** `1.0.0` sidecar on intelligence graph `1.4.0`
+**Schema:** `1.0.0` sidecar on intelligence graph `1.5.0`
 **Artifacts:** `data/temporal-evidence-index.json`, `data/temporal-evidence-review.json`
 
 ## Decision

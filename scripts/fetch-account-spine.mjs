@@ -17,9 +17,12 @@ const COVERAGE_SOURCE_FILE = process.env.USASPENDING_COVERAGE_FILE
 const OMB_INDEX_URL = "https://apportionment-public.max.gov/";
 const USASPENDING_API = "https://api.usaspending.gov/api/v2";
 const USASPENDING_AWARD_ACCOUNTS_URL = `${USASPENDING_API}/awards/accounts/`;
+const TREASURY_MTS_URL = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/mts/mts_table_5";
 const today = new Date();
 const defaultFiscalYear = today.getUTCMonth() >= 9 ? today.getUTCFullYear() + 1 : today.getUTCFullYear();
 const FISCAL_YEAR = Number(process.env.ACCOUNT_SPINE_FISCAL_YEAR || defaultFiscalYear);
+const HISTORY_YEARS = Math.max(1, Math.min(10, Number(process.env.ACCOUNT_SPINE_HISTORY_YEARS || 5)));
+const FISCAL_YEARS = Array.from({ length: HISTORY_YEARS }, (_, index) => FISCAL_YEAR - HISTORY_YEARS + 1 + index);
 const AGENCY_CODE = process.env.ACCOUNT_SPINE_AGENCY_CODE || "097";
 const CONCURRENCY = Math.max(1, Number(process.env.ACCOUNT_SPINE_CONCURRENCY || 6));
 const AWARD_ACCOUNT_CONCURRENCY = Math.max(1, Number(process.env.AWARD_ACCOUNT_CONCURRENCY || 4));
@@ -104,19 +107,25 @@ async function mapLimit(items, limit, mapper) {
 function parseOmbLink(href) {
   const filename = decodeURIComponent(href.split("/").pop() || "");
   const match = filename.match(/TAFS=([^_]+)_Iteration=(\d+)_/);
-  return match ? { href, filename, tafs: match[1], iteration: Number(match[2]) } : null;
+  const fiscalYear = Number(decodeURIComponent(href).match(/Fiscal Year (\d{4})/i)?.[1] || 0);
+  return match && fiscalYear ? { href, filename, tafs: match[1], iteration: Number(match[2]), fiscalYear } : null;
 }
 
-function currentOmbLinks(html) {
-  const fiscalFolder = `/Fiscal Year ${FISCAL_YEAR}/Department of War/JSON/`;
-  const links = [...html.matchAll(/href="([^"]+\.json)"/gi)]
+function ombLinks(html) {
+  return [...html.matchAll(/href="([^"]+\.json)"/gi)]
     .map((match) => parseOmbLink(match[1]))
-    .filter((item) => item && decodeURIComponent(item.href).includes(fiscalFolder));
+    .filter((item) => item
+      && FISCAL_YEARS.includes(item.fiscalYear)
+      && /\/Department of (?:War|Defense)\/JSON\//i.test(decodeURIComponent(item.href)));
+}
+
+function latestOmbLinks(links) {
   const latest = new Map();
   for (const item of links) {
-    const prior = latest.get(item.tafs);
+    const key = `${item.fiscalYear}:${item.tafs}`;
+    const prior = latest.get(key);
     if (!prior || item.iteration > prior.iteration || (item.iteration === prior.iteration && item.filename > prior.filename)) {
-      latest.set(item.tafs, item);
+      latest.set(key, item);
     }
   }
   return [...latest.values()];
@@ -141,13 +150,16 @@ function normalizeOmbDocument(payload, link) {
   return {
     tasCode: ombTasCode(identity),
     tafs: link.tafs,
-    fiscalYear: Number(payload.FiscalYear || FISCAL_YEAR),
+    fiscalYear: Number(payload.FiscalYear || link.fiscalYear),
     accountTitle: identity.AccountTitle || "Unlabeled account",
     bureauTitle: identity.BudgetBureauTitle || "",
     approvedAmount: Number(total?.ApprovedAmount || 0),
     approvedLine: total?.LineNumber || null,
     approvalTimestamp: payload.ApprovalTimestamp || null,
     iteration: Number(identity.Iteration || link.iteration),
+    availabilityTypeCode: identity.AvailabilityTypeCode || null,
+    beginningPeriodOfAvailability: identity.BeginPoa ? Number(identity.BeginPoa) : null,
+    endingPeriodOfAvailability: identity.EndPoa ? Number(identity.EndPoa) : null,
     sourceUrl: new URL(link.href, OMB_INDEX_URL).href,
     sourceIdentifier: payload.FileName || link.filename.replace(/\.json$/i, ""),
   };
@@ -155,8 +167,8 @@ function normalizeOmbDocument(payload, link) {
 
 async function fetchOmbApportionments() {
   const index = await fetchText(OMB_INDEX_URL);
-  const links = currentOmbLinks(index);
-  if (!links.length) throw new Error(`No Department of War FY${FISCAL_YEAR} OMB apportionment JSON links found`);
+  const links = ombLinks(index);
+  if (!links.length) throw new Error(`No Department of War/Defense FY${FISCAL_YEARS[0]}-FY${FISCAL_YEAR} OMB apportionment JSON links found`);
   const failures = [];
   const documents = (await mapLimit(links, CONCURRENCY, async (link) => {
     try {
@@ -169,19 +181,29 @@ async function fetchOmbApportionments() {
   if (documents.length < Math.floor(links.length * 0.9)) {
     throw new Error(`OMB apportionment coverage too low: ${documents.length}/${links.length}`);
   }
-  return { documents, failures, discovered: links.length };
+  const latestDocuments = [];
+  for (const link of latestOmbLinks(links)) {
+    const matches = documents.filter((document) => document.fiscalYear === link.fiscalYear && document.tafs === link.tafs);
+    const latest = matches.sort((left, right) => right.iteration - left.iteration || right.sourceIdentifier.localeCompare(left.sourceIdentifier))[0];
+    if (latest) latestDocuments.push(latest);
+  }
+  return { documents, latestDocuments, failures, discovered: links.length };
 }
 
-async function fetchFederalAccounts() {
-  const firstUrl = `${USASPENDING_API}/agency/${AGENCY_CODE}/federal_account/?fiscal_year=${FISCAL_YEAR}&page=1&limit=100`;
+async function fetchPagedAgencyDimension(fiscalYear, dimension) {
+  const firstUrl = `${USASPENDING_API}/agency/${AGENCY_CODE}/${dimension}/?fiscal_year=${fiscalYear}&page=1&limit=100`;
   const first = await fetchJson(firstUrl);
   const totalPages = Math.max(1, Math.ceil((first.page_metadata?.total || first.results.length) / 100));
   const remaining = await mapLimit(
     Array.from({ length: totalPages - 1 }, (_, index) => index + 2),
     3,
-    (page) => fetchJson(`${USASPENDING_API}/agency/${AGENCY_CODE}/federal_account/?fiscal_year=${FISCAL_YEAR}&page=${page}&limit=100`),
+    (page) => fetchJson(`${USASPENDING_API}/agency/${AGENCY_CODE}/${dimension}/?fiscal_year=${fiscalYear}&page=${page}&limit=100`),
   );
-  const summaries = [first, ...remaining].flatMap((page) => page.results || []);
+  return [first, ...remaining].flatMap((page) => page.results || []);
+}
+
+async function fetchFederalAccounts() {
+  const summaries = await fetchPagedAgencyDimension(FISCAL_YEAR, "federal_account");
   const failures = [];
   const details = await mapLimit(summaries, CONCURRENCY, async (summary) => {
     const sourceUrl = `${USASPENDING_API}/federal_accounts/${encodeURIComponent(summary.code)}/`;
@@ -197,6 +219,54 @@ async function fetchFederalAccounts() {
     `${USASPENDING_API}/agency/${AGENCY_CODE}/budgetary_resources/?fiscal_year=${FISCAL_YEAR}`,
   );
   return { accounts: details, failures, agencyBudgetaryResources };
+}
+
+async function fetchExecutionHistory() {
+  const [accountYears, programActivityYears, objectClassYears, agencyBudgetaryResources, treasury] = await Promise.all([
+    mapLimit(FISCAL_YEARS, 2, async (fiscalYear) => ({ fiscalYear, accounts: await fetchPagedAgencyDimension(fiscalYear, "federal_account") })),
+    mapLimit(FISCAL_YEARS, 2, async (fiscalYear) => ({ fiscalYear, rows: await fetchPagedAgencyDimension(fiscalYear, "program_activity") })),
+    mapLimit(FISCAL_YEARS, 2, async (fiscalYear) => ({ fiscalYear, rows: await fetchPagedAgencyDimension(fiscalYear, "object_class") })),
+    fetchJson(`${USASPENDING_API}/agency/${AGENCY_CODE}/budgetary_resources/?fiscal_year=${FISCAL_YEAR}`),
+    fetchJson(`${TREASURY_MTS_URL}?filter=classification_desc:eq:Total--Department%20of%20Defense--Military%20Programs,record_date:gte:${FISCAL_YEARS[0] - 1}-10-01&sort=record_date&page%5Bsize%5D=1000`),
+  ]);
+  return {
+    accountYears,
+    programActivities: programActivityYears.flatMap(({ fiscalYear, rows }) => rows.map((row, index) => ({
+      id: `program-activity:${fiscalYear}:${normalizeTitle(row.name) || index}`,
+      fiscalYear,
+      name: row.name || "Unlabeled program activity",
+      obligatedAmount: Number(row.obligated_amount || 0),
+      outlayedAmount: Number(row.gross_outlay_amount || 0),
+      sourceUrl: `${USASPENDING_API}/agency/${AGENCY_CODE}/program_activity/?fiscal_year=${fiscalYear}`,
+    }))),
+    objectClasses: objectClassYears.flatMap(({ fiscalYear, rows }) => rows.map((row, index) => ({
+      id: `object-class:${fiscalYear}:${normalizeTitle(row.name) || index}`,
+      fiscalYear,
+      name: row.name || "Unlabeled object class",
+      obligatedAmount: Number(row.obligated_amount || 0),
+      outlayedAmount: Number(row.gross_outlay_amount || 0),
+      sourceUrl: `${USASPENDING_API}/agency/${AGENCY_CODE}/object_class/?fiscal_year=${fiscalYear}`,
+    }))),
+    agencyBudgetaryResources: agencyBudgetaryResources.agency_data_by_year || [],
+    treasuryOutlays: (treasury.data || []).map((row) => ({
+      recordDate: row.record_date,
+      fiscalYear: Number(row.record_fiscal_year || 0),
+      currentMonthGrossOutlayAmount: Number(row.current_month_gross_outly_amt || 0),
+      currentMonthNetOutlayAmount: Number(row.current_month_net_outly_amt || 0),
+      fiscalYearToDateGrossOutlayAmount: Number(row.current_fytd_gross_outly_amt || 0),
+      fiscalYearToDateNetOutlayAmount: Number(row.current_fytd_net_outly_amt || 0),
+      priorFiscalYearToDateNetOutlayAmount: Number(row.prior_fytd_net_outly_amt || 0),
+      sourceUrl: TREASURY_MTS_URL,
+    })),
+  };
+}
+
+function availability(tasCode, fiscalYear) {
+  const part = String(tasCode || "").split("-").find((value) => value === "X" || /^\d{4}(?:\/\d{4})?$/.test(value));
+  if (!part) return { kind: "unknown", startFiscalYear: null, endFiscalYear: null, status: "unknown" };
+  if (part === "X") return { kind: "no-year", startFiscalYear: null, endFiscalYear: null, status: "available" };
+  const [start, end = start] = part.split("/").map(Number);
+  return { kind: start === end ? "annual" : "multi-year", startFiscalYear: start, endFiscalYear: end, status: fiscalYear > end ? "expired" : fiscalYear === end ? "expiring" : "available" };
 }
 
 function sampledAwards() {
@@ -409,11 +479,13 @@ let omb;
 let usa;
 let request;
 let awardAccounts;
+let executionHistory;
 try {
-  [omb, usa, request] = await Promise.all([
+  [omb, usa, request, executionHistory] = await Promise.all([
     fetchOmbApportionments(),
     fetchFederalAccounts(),
     Promise.resolve(budgetRequests()),
+    fetchExecutionHistory(),
   ]);
   awardAccounts = await fetchAwardAccountFlows();
 } catch (error) {
@@ -435,7 +507,8 @@ try {
     throw error;
   }
 }
-const ombByTas = new Map(omb.documents.map((document) => [document.tasCode, document]));
+const ombByTas = new Map(omb.latestDocuments.filter((document) => document.fiscalYear === FISCAL_YEAR).map((document) => [document.tasCode, document]));
+const ombByFiscalYearAndTas = new Map(omb.latestDocuments.map((document) => [`${document.fiscalYear}:${document.tasCode}`, document]));
 const accounts = usa.accounts
   .map((account) => accountStages(account, request, ombByTas))
   .sort((left, right) => right.obligatedAmount - left.obligatedAmount);
@@ -455,29 +528,75 @@ const currentAccountCodes = new Set(accounts.map((account) => account.federalAcc
 const awardsMappedToCurrentAccounts = awardAccounts.flows.filter((award) => (
   award.accounts.some((account) => currentAccountCodes.has(account.federalAccountCode))
 )).length;
+const accountSnapshots = executionHistory.accountYears.flatMap(({ fiscalYear, accounts: yearlyAccounts }) => yearlyAccounts.map((account) => ({
+  id: `federal-account-snapshot:${fiscalYear}:${account.code}`,
+  fiscalYear,
+  federalAccountCode: account.code,
+  title: account.name,
+  obligatedAmount: Number(account.obligated_amount || 0),
+  outlayedAmount: Number(account.gross_outlay_amount || 0),
+  treasuryAccountCount: (account.children || []).length,
+  sourceUrl: `${USASPENDING_API}/agency/${AGENCY_CODE}/federal_account/?fiscal_year=${fiscalYear}`,
+})));
+const executionBalances = executionHistory.accountYears.flatMap(({ fiscalYear, accounts: yearlyAccounts }) => yearlyAccounts.flatMap((account) => (
+  (account.children || []).map((child) => {
+    const apportionment = ombByFiscalYearAndTas.get(`${fiscalYear}:${child.code}`) || null;
+    const period = availability(child.code, fiscalYear);
+    return {
+      id: `execution-balance:${fiscalYear}:${child.code}`,
+      fiscalYear,
+      federalAccountCode: account.code,
+      federalAccountTitle: account.name,
+      tasCode: child.code,
+      title: child.name,
+      obligatedAmount: Number(child.obligated_amount || 0),
+      outlayedAmount: Number(child.gross_outlay_amount || 0),
+      apportionmentApprovedAmount: apportionment ? Number(apportionment.approvedAmount || 0) : null,
+      apportionmentRevisionId: apportionment ? `apportionment-revision:${apportionment.fiscalYear}:${apportionment.tafs}:${apportionment.iteration}` : null,
+      unobligatedAmount: apportionment ? Math.max(0, Number(apportionment.approvedAmount || 0) - Number(child.obligated_amount || 0)) : null,
+      availability: period,
+      sourceUrl: `${USASPENDING_API}/agency/${AGENCY_CODE}/federal_account/?fiscal_year=${fiscalYear}`,
+    };
+  })
+)));
+const apportionmentRevisions = omb.documents.map((document) => ({
+  id: `apportionment-revision:${document.fiscalYear}:${document.tafs}:${document.iteration}`,
+  ...document,
+  isLatest: ombByFiscalYearAndTas.get(`${document.fiscalYear}:${document.tasCode}`)?.sourceIdentifier === document.sourceIdentifier,
+}));
 
 const output = {
   metadata: {
-    title: `FY${FISCAL_YEAR} Department of War Exact Account Spine`,
+    title: `FY${FISCAL_YEARS[0]}-FY${FISCAL_YEAR} Department of War Exact Money Lifecycle`,
     generatedAt: new Date().toISOString(),
     status: "current",
     lastAttemptAt: new Date().toISOString(),
     diagnostic: null,
     fiscalYear: FISCAL_YEAR,
     agencyCode: AGENCY_CODE,
-    relationshipPolicy: "TAFS joins are exact. Budget-request joins are derived only when normalized federal-account titles match exactly. No budget-line-to-award relationship is asserted.",
+    historyFiscalYears: FISCAL_YEARS,
+    relationshipPolicy: "TAFS joins, award-account joins, and fiscal periods are exact. Budget-request joins are derived only when normalized federal-account titles match exactly. No budget-line-to-award relationship is asserted.",
     amountPolicy: "Request, budgetary resources, apportionment, obligations, and outlays are separate measures and must not be added together.",
     sources: {
       ombApportionments: OMB_INDEX_URL,
       usaSpendingAgencyAccounts: `${USASPENDING_API}/agency/${AGENCY_CODE}/federal_account/`,
       usaSpendingBudgetaryResources: `${USASPENDING_API}/agency/${AGENCY_CODE}/budgetary_resources/`,
+      usaSpendingProgramActivities: `${USASPENDING_API}/agency/${AGENCY_CODE}/program_activity/`,
+      usaSpendingObjectClasses: `${USASPENDING_API}/agency/${AGENCY_CODE}/object_class/`,
       usaSpendingAwardAccounts: USASPENDING_AWARD_ACCOUNTS_URL,
+      treasuryMonthlyStatement: TREASURY_MTS_URL,
       usaSpendingAwardSampleGeneratedAt: awardAccounts.generatedAt,
       usaSpendingAwardSampleMethodology: awardAccounts.methodology,
       budgetRequestGeneratedAt: request.generatedAt,
     },
     coverage: {
       federalAccounts: accounts.length,
+      accountSnapshots: accountSnapshots.length,
+      executionBalances: executionBalances.length,
+      programActivities: executionHistory.programActivities.length,
+      objectClasses: executionHistory.objectClasses.length,
+      apportionmentRevisions: apportionmentRevisions.length,
+      treasuryMonthlyObservations: executionHistory.treasuryOutlays.length,
       treasuryAccounts,
       ombDocumentsDiscovered: omb.discovered,
       ombDocumentsFetched: omb.documents.length,
@@ -503,7 +622,14 @@ const output = {
     exactAwardAccountObligations,
   },
   agencyBurn: usa.agencyBudgetaryResources,
+  agencyBudgetaryResourcesHistory: executionHistory.agencyBudgetaryResources,
   accounts,
+  accountSnapshots,
+  executionBalances,
+  apportionmentRevisions,
+  programActivities: executionHistory.programActivities,
+  objectClasses: executionHistory.objectClasses,
+  treasuryOutlays: executionHistory.treasuryOutlays,
   awardFlows: awardAccounts.flows,
   unmatchedApportionments: omb.documents
     .filter((document) => !accounts.some((account) => account.treasuryAccounts.some((row) => row.tasCode === document.tasCode)))

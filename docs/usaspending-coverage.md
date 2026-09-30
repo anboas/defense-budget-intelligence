@@ -1,7 +1,7 @@
 # USAspending contract coverage
 
-**Source:** Official [USAspending API](https://api.usaspending.gov/docs/)  
-**Graph schema:** `1.4.0`  
+**Source:** Official [USAspending API](https://api.usaspending.gov/docs/)
+**Graph schema:** `1.5.0`
 **Refresh:** `npm run source:usaspending-coverage`
 
 ## Published boundary
@@ -45,7 +45,7 @@ The release verifier requires:
 
 ## Account spine
 
-The FY2026 account spine combines official USAspending federal-account and budgetary-resource endpoints with OMB apportionment JSON. Award-to-account relationships are added only through the exact USAspending generated award identifier and `/api/v2/awards/accounts/`. Titles and descriptions never create award-account links.
+The FY2022-FY2026 account spine combines official USAspending federal-account, Treasury-account, program-activity, object-class, and budgetary-resource endpoints with all discovered OMB apportionment revisions and independent Treasury Monthly Statement observations. Award-to-account relationships are added only through the exact USAspending generated award identifier and `/api/v2/awards/accounts/`. Titles and descriptions never create award-account links.
 
 The account sampler ranks the union of the technology corpus and the breadth registry, then probes a bounded number of exact award identifiers. Coverage metadata records the available population, selected sample, successful probes, exact account links, mapped current accounts, and failures.
 

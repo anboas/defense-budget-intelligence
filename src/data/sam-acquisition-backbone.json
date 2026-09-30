@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "status": "unavailable",
+    "lastAttemptAt": "2026-09-30T14:16:04.684Z",
+    "note": "SAM_GOV_API_KEY was unavailable. Every prior verified collection was preserved and no completeness claim was made."
+  },
+  "coverage": {
+    "opportunities": {
+      "status": "unavailable",
+      "records": 0
+    },
+    "contractAwards": {
+      "status": "unavailable",
+      "records": 0
+    },
+    "entityRegistrations": {
+      "status": "unavailable",
+      "records": 0
+    },
+    "federalHierarchy": {
+      "status": "unavailable",
+      "records": 0
+    },
+    "acquisitionSubawards": {
+      "status": "unavailable",
+      "records": 0
+    }
+  },
+  "collections": {
+    "notices": [],
+    "noticeVersions": [],
+    "awardActions": [],
+    "vendorRegistrations": [],
+    "businessCertifications": [],
+    "hierarchyObservations": [],
+    "subawards": []
+  }
+}
