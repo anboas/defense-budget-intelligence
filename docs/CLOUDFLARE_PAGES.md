@@ -60,6 +60,8 @@ The verifiers race two claims against fresh D1 databases, test generic login dis
 1. Confirm the `DBI_DB` binding points to the intelligence-platform D1 database and retains the `dbi_` table namespace.
 2. Authorize Wrangler through the protected host credential flow. Never place a Cloudflare token in chat, shell arguments, repository files, or logs.
 3. Run `npm run pages:deploy`.
+
+The deploy script publishes the complete integrity graph as `data/intelligence-graph.json.gz` and removes only the oversized uncompressed copy from the Cloudflare upload. The compressed artifact decodes byte-for-byte to the canonical build-time JSON and stays below Cloudflare Pages' 25 MiB per-file limit.
 4. Open the Cloudflare Pages hostname and complete the one-time first-party claim.
 5. Verify a second claim returns HTTP 409 and the account lifecycle passes on the live hostname.
 6. Set `DBI_ALLOW_FIRST_CLAIM=0`, redeploy, and verify the existing Super user can still sign in.
