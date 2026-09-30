@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
+import { buildContractLineageRegistry, CONTRACT_LINEAGE_SCHEMA_VERSION } from "./contract-lineage-resolver.mjs";
 import { buildOrganizationIdentityRegistry, splitOfficeCodes } from "./organization-identity-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -11,6 +12,8 @@ const OUT_FILE = resolve(DATA_DIR, "intelligence-graph.json");
 const INDEX_FILE = resolve(DATA_DIR, "intelligence-graph-index.json");
 const SUMMARY_FILE = resolve(DATA_DIR, "intelligence-graph-summary.json");
 const ORGANIZATION_REVIEW_FILE = resolve(DATA_DIR, "organization-identity-review.json");
+const CONTRACT_LINEAGE_INDEX_FILE = resolve(DATA_DIR, "contract-lineage-index.json");
+const CONTRACT_LINEAGE_REVIEW_FILE = resolve(DATA_DIR, "contract-lineage-review.json");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
 const normalized = (value) => String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "");
@@ -30,6 +33,12 @@ const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
 const discovery = read("procurement-discovery.json");
 const organizationRegistry = buildOrganizationIdentityRegistry({ agents, transactions });
+const contractLineageRegistry = buildContractLineageRegistry({
+  activities: agents.records || [],
+  monitorRecords: monitor.records || [],
+  awards: execution.awardDrilldown?.awards || [],
+  asOf: execution.coverage?.endDate || agents.metadata?.asOf,
+});
 const transactionRecipientByActivity = new Map(Object.entries(transactions.byOpportunity || {}).map(([opportunityId, actions]) => {
   const identities = [...new Map((actions || []).filter((action) => action.uei && action.vendor).map((action) => [String(action.uei).trim().toUpperCase(), { uei: action.uei, label: action.vendor }])).values()];
   return [opportunityId, identities.length === 1 ? identities[0] : null];
@@ -44,6 +53,8 @@ const organizationByKey = new Map();
 const organizationIdentifierByKey = new Map();
 const sourceByUrl = new Map();
 const classificationByKey = new Map();
+const contractVehicleByKey = new Map();
+const acquisitionPathByKey = new Map();
 
 function addEntity(type, entity) {
   if (!entity?.id || entityKeys[type].has(entity.id)) return entity?.id;
@@ -128,6 +139,41 @@ function classification(namespace, code, label, sourceArtifact) {
   return classificationByKey.get(key);
 }
 
+function contractVehicle(item) {
+  if (!item?.generatedAwardId || !item?.piid) return null;
+  if (!contractVehicleByKey.has(item.generatedAwardId)) {
+    const id = entityId("contract-vehicle", item.generatedAwardId);
+    contractVehicleByKey.set(item.generatedAwardId, id);
+    addEntity("contract-vehicle", {
+      id,
+      generatedAwardId: item.generatedAwardId,
+      piid: item.piid,
+      label: item.label || item.piid,
+      kind: "idv",
+      orderCount: item.activityIds?.length || 0,
+      sourceArtifacts: ["contract-monitor"],
+    });
+  }
+  return contractVehicleByKey.get(item.generatedAwardId);
+}
+
+function acquisitionPath(item) {
+  if (!item?.key || !item?.label) return null;
+  if (!acquisitionPathByKey.has(item.key)) {
+    const id = entityId("acquisition-path", item.key);
+    acquisitionPathByKey.set(item.key, id);
+    addEntity("acquisition-path", {
+      id,
+      key: item.key,
+      label: item.label,
+      kind: "source-declared-path",
+      activityCount: item.activityIds?.length || 0,
+      sourceArtifacts: ["agent-records"],
+    });
+  }
+  return acquisitionPathByKey.get(item.key);
+}
+
 function evidence(sourceArtifact, basis, confidence = "exact", sourceUrl = "", reviewState = "verified") {
   return { sourceArtifact, basis, confidence, reviewState, ...(sourceUrl ? { sourceUrl } : {}) };
 }
@@ -153,6 +199,30 @@ for (const location of map.locations || []) {
     const organizationId = organization(officeLabel, "opportunity-map-location-metadata", { officeCode }, { identityClass: "government-office" });
     addRelation("organization-operates-at-location", organizationId, id, evidence("opportunity-map-location-metadata", "reviewed-office-code-location", "reviewed", profile?.evidence?.primarySource?.url || location.sourceUrl, profile?.passes?.acquisition?.state || "reviewed"), { role: profile?.acquisition?.status || location.buyerRole || "contracting-office" });
   }
+}
+
+for (const item of contractLineageRegistry.exactVehicles) {
+  const vehicleId = contractVehicle(item);
+  for (const url of item.sourceUrls || []) {
+    const sourceId = source(url, "contract-monitor", `USAspending parent award ${item.piid}`);
+    if (sourceId) addRelation("supported-by-source", vehicleId, sourceId, evidence("contract-monitor", "published-parent-award-id", "exact", url));
+  }
+}
+for (const item of contractLineageRegistry.namedPaths) {
+  const pathId = acquisitionPath(item);
+  for (const url of item.sourceUrls.slice(0, 3)) {
+    const sourceId = source(url, "agent-records", `${item.label} source`);
+    if (sourceId) addRelation("supported-by-source", pathId, sourceId, evidence("agent-records", "published-acquisition-path-label", "source_declared", url));
+  }
+}
+for (const item of contractLineageRegistry.vehiclePathLinks) {
+  addRelation(
+    "contract-vehicle-associated-with-path",
+    contractVehicleByKey.get(item.parentGeneratedAwardId),
+    acquisitionPathByKey.get(item.pathKey),
+    evidence("agent-records", "co-published-order-and-acquisition-path", "source_declared", "", "source_declared"),
+    { supportingActivities: item.activityIds.length },
+  );
 }
 
 const awardByGeneratedId = new Map();
@@ -183,7 +253,7 @@ const mapById = new Map((map.records || []).map((item) => [item.opportunityId, i
 for (const record of agents.records || []) {
   const id = `activity:${record.opportunityId}`;
   addEntity("activity", { id, opportunityId: record.opportunityId, displayId: record.id, reference: record.reference, label: record.title, mode: record.mode, lifecycle: record.lifecycleStatus, sourceSystem: record.sourceSystem, sourceArtifact: "agent-records" });
-  const connection = byActivity[record.opportunityId] = { activityId: record.opportunityId, entityId: id, awardIds: [], eventIds: [], transactionIds: [], organizationIds: [], locationIds: [], accountIds: [], subawardSummaryIds: [], classificationIds: [], sourceIds: [], surfaces: ["spend-explorer", "opportunity-map", "procurement-discovery"], relationIds: [] };
+  const connection = byActivity[record.opportunityId] = { activityId: record.opportunityId, entityId: id, awardIds: [], eventIds: [], transactionIds: [], organizationIds: [], locationIds: [], accountIds: [], subawardSummaryIds: [], classificationIds: [], sourceIds: [], contractVehicleIds: [], acquisitionPathIds: [], predecessorActivityIds: [], successorActivityIds: [], recompeteSignalIds: [], surfaces: ["spend-explorer", "opportunity-map", "procurement-discovery"], relationIds: [] };
   if (calendarById.has(record.opportunityId)) connection.surfaces.push("capture-calendar");
   if (monitorIds.has(record.opportunityId)) connection.surfaces.push("contract-monitor");
   if (!discoveryIds.has(record.opportunityId)) throw new Error(`Activity ${record.opportunityId} is missing from procurement discovery`);
@@ -229,6 +299,57 @@ for (const record of agents.records || []) {
     connection.locationIds.push(locationId);
     const relation = addRelation(relationRecord.type, id, locationId, evidence("opportunity-map-data", relationRecord.evidenceBasis, relationRecord.evidenceBasis === "exact-award-detail" ? "exact" : "reviewed"));
     if (relation) connection.relationIds.push(relation);
+  }
+}
+
+for (const item of contractLineageRegistry.exactOrders) {
+  const connection = byActivity[item.activityId];
+  const activityId = connection?.entityId;
+  const vehicleId = contractVehicleByKey.get(item.parentGeneratedAwardId);
+  if (!activityId || !vehicleId) continue;
+  connection.contractVehicleIds.push(vehicleId);
+  addRelation("activity-ordered-under-vehicle", activityId, vehicleId, evidence("contract-monitor", "exact-parent-award-id", "exact", item.sourceUrl), { parentPiid: item.parentPiid, childPiid: item.childPiid, awardType: item.awardType });
+  const awardId = awardByGeneratedId.get(item.childGeneratedAwardId) || awardByPiid.get(normalized(item.childPiid));
+  if (awardId) addRelation("award-ordered-under-vehicle", awardId, vehicleId, evidence("contract-monitor", "exact-parent-award-id", "exact", item.sourceUrl), { parentPiid: item.parentPiid, childPiid: item.childPiid, awardType: item.awardType });
+}
+
+for (const item of contractLineageRegistry.activityPaths) {
+  const connection = byActivity[item.activityId];
+  const activityId = connection?.entityId;
+  const pathId = acquisitionPathByKey.get(item.pathKey);
+  if (!activityId || !pathId) continue;
+  connection.acquisitionPathIds.push(pathId);
+  addRelation("activity-uses-acquisition-path", activityId, pathId, evidence("agent-records", "published-acquisition-path-label", "source_declared", item.sourceUrl, "source_declared"));
+}
+
+for (const item of contractLineageRegistry.predecessorLinks) {
+  const successor = byActivity[item.successorActivityId];
+  const predecessor = byActivity[item.predecessorActivityId];
+  if (!successor || !predecessor) continue;
+  successor.predecessorActivityIds.push(predecessor.entityId);
+  predecessor.successorActivityIds.push(successor.entityId);
+  addRelation("activity-follow-on-to", successor.entityId, predecessor.entityId, evidence("agent-records", item.basis, item.confidence, item.sourceUrl, item.reviewState), { predecessorReference: item.predecessorReference });
+}
+
+for (const item of contractLineageRegistry.timingSignals) {
+  const awardId = awardByGeneratedId.get(item.awardGeneratedId);
+  if (!awardId) continue;
+  addEntity("recompete-signal", {
+    id: item.id,
+    label: `${item.piid} timing review`,
+    piid: item.piid,
+    endDate: item.endDate,
+    daysUntilEnd: item.daysUntilEnd,
+    status: item.status,
+    reviewState: item.reviewState,
+    caveat: item.caveat,
+    sourceArtifact: "budget-execution",
+  });
+  addRelation("award-has-recompete-signal", awardId, item.id, evidence("budget-execution", item.basis, item.confidence, "", item.reviewState));
+  const activity = Object.values(byActivity).find((connection) => connection.awardIds.includes(awardId));
+  if (activity) {
+    activity.recompeteSignalIds.push(item.id);
+    addRelation("activity-has-recompete-signal", activity.entityId, item.id, evidence("budget-execution", item.basis, item.confidence, "", item.reviewState));
   }
 }
 
@@ -311,6 +432,11 @@ for (const connection of Object.values(byActivity)) {
   connection.locationIds = [...new Set(connection.locationIds)];
   connection.classificationIds = [...new Set(connection.classificationIds.filter(Boolean))];
   connection.sourceIds = [...new Set(connection.sourceIds)];
+  connection.contractVehicleIds = [...new Set(connection.contractVehicleIds)];
+  connection.acquisitionPathIds = [...new Set(connection.acquisitionPathIds)];
+  connection.predecessorActivityIds = [...new Set(connection.predecessorActivityIds)];
+  connection.successorActivityIds = [...new Set(connection.successorActivityIds)];
+  connection.recompeteSignalIds = [...new Set(connection.recompeteSignalIds)];
   connection.relationIds = [...new Set(connection.relationIds)];
   connection.surfaces = [...new Set(connection.surfaces)];
   connection.counts = {
@@ -323,6 +449,11 @@ for (const connection of Object.values(byActivity)) {
     subawardSummaries: connection.subawardSummaryIds.length,
     classifications: connection.classificationIds.length,
     sources: connection.sourceIds.length,
+    contractVehicles: connection.contractVehicleIds.length,
+    acquisitionPaths: connection.acquisitionPathIds.length,
+    predecessors: connection.predecessorActivityIds.length,
+    successors: connection.successorActivityIds.length,
+    recompeteSignals: connection.recompeteSignalIds.length,
   };
 }
 
@@ -358,6 +489,17 @@ const graph = {
       budget: { lines: entities["budget-line"].length, exactAccountTitleLinks: relations.filter((item) => item.type === "budget-line-matches-account-title").length, unresolvedAccountTitleLinks: entities["budget-line"].length - relations.filter((item) => item.type === "budget-line-matches-account-title").length },
       geography: { locations: entities.location.length, activityLocationRelations: relations.filter((item) => ["contracting-activity-at", "funding-activity-at"].includes(item.type)).length },
       organizations: organizationCoverage,
+      contracts: {
+        exactParentVehicles: contractLineageRegistry.review.summary.exactParentVehicles,
+        activitiesWithExactParent: contractLineageRegistry.review.summary.activitiesWithExactParent,
+        multiOrderFamilies: contractLineageRegistry.review.summary.multiOrderFamilies,
+        ordersInMultiOrderFamilies: contractLineageRegistry.review.summary.ordersInMultiOrderFamilies,
+        namedAcquisitionPaths: contractLineageRegistry.review.summary.namedAcquisitionPaths,
+        activitiesWithNamedPath: contractLineageRegistry.review.summary.activitiesWithNamedPath,
+        resolvedPredecessorLinks: contractLineageRegistry.review.summary.resolvedPredecessorLinks,
+        unresolvedFollowOnClaims: contractLineageRegistry.review.summary.unresolvedFollowOnClaims,
+        recompeteTimingSignals: contractLineageRegistry.review.summary.recompeteTimingSignals,
+      },
     },
   },
   domain: {
@@ -368,6 +510,9 @@ const graph = {
       award: "USAspending generated award ID; PIID is retained as an alias.",
       organization: "Published UEI for recipients and reviewed office code for contracting offices take precedence. Unique normalized-label joins to a published UEI remain derived; ambiguous labels remain separate and queued for review. No fuzzy entity merge.",
       organizationIdentifier: "Typed public identifier entity. UEI and reviewed office-code claims retain their source artifact and join basis; CAGE remains empty until published evidence enters the corpus.",
+      contractVehicle: "Exact USAspending parent IDV generated award ID with parent PIID retained as its public identifier.",
+      acquisitionPath: "Source-declared vehicle or access-path label retained separately from exact parent IDV identity.",
+      recompeteSignal: "Review-only timing signal derived from a reported award end date; never proof of a recompete or successor.",
       location: "Stable reviewed location ID from the authoritative map snapshot.",
       federalAccount: "Federal account code from USAspending account spine.",
       source: "Canonical HTTP(S) URL.",
@@ -384,6 +529,12 @@ const graph = {
       conflictRule: "A normalized label published with multiple UEIs never merges those legal entities; it remains a review queue item.",
       aliasRule: "Multiple public labels sharing one exact UEI are retained as aliases of the UEI-canonical entity.",
       hierarchyRule: "Parent-child edges come only from retained source-declared acquisition paths and remain source-declared rather than legal-corporate claims.",
+    },
+    contractLineagePolicy: {
+      parentRule: "Only an exact published USAspending parent award identifier creates an order-to-IDV relationship.",
+      pathRule: "Published vehicle labels remain source-declared acquisition paths and never replace the exact parent IDV.",
+      predecessorRule: "A predecessor relationship requires an exact or explicitly reviewed predecessor reference that resolves to one retained activity.",
+      timingRule: "An award ending within 730 days creates a needs-review timing signal only; timing alone never asserts a recompete, follow-on, or successor.",
     },
   },
   entities,
@@ -406,6 +557,19 @@ const organizationReview = {
   conflicts: organizationRegistry.conflicts,
 };
 writeFileSync(ORGANIZATION_REVIEW_FILE, JSON.stringify(organizationReview));
+const contractLineageReview = {
+  metadata: {
+    schemaVersion: CONTRACT_LINEAGE_SCHEMA_VERSION,
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    title: "Contract family lineage and review queue",
+    trustBoundary: contractLineageRegistry.metadata.trustBoundary,
+  },
+  summary: contractLineageRegistry.review.summary,
+  predecessorConflicts: contractLineageRegistry.review.predecessorConflicts,
+  unresolvedFollowOnClaims: contractLineageRegistry.review.unresolvedFollowOnClaims,
+};
+writeFileSync(CONTRACT_LINEAGE_REVIEW_FILE, JSON.stringify(contractLineageReview));
 const lookup = Object.fromEntries(Object.entries(entities).map(([type, rows]) => [type, new Map(rows.map((row) => [row.id, row]))]));
 const compact = (type, id) => {
   const entity = lookup[type]?.get(id);
@@ -417,6 +581,9 @@ const compact = (type, id) => {
   if (type === "subaward-summary") return { id, label: entity.label, reportedCount: entity.reportedCount, detailStatus: entity.detailStatus };
   if (type === "classification") return { id, namespace: entity.namespace, code: entity.code, label: entity.label };
   if (type === "source") return { id, label: entity.label, url: entity.url, publisher: entity.publisher };
+  if (type === "contract-vehicle") return { id, piid: entity.piid, label: entity.label, kind: entity.kind, orderCount: entity.orderCount };
+  if (type === "acquisition-path") return { id, label: entity.label, kind: entity.kind, activityCount: entity.activityCount };
+  if (type === "recompete-signal") return { id, label: entity.label, piid: entity.piid, endDate: entity.endDate, daysUntilEnd: entity.daysUntilEnd, status: entity.status, caveat: entity.caveat };
   return { id, label: entity.label };
 };
 const activityIndex = Object.fromEntries(Object.entries(byActivity).map(([id, connection]) => {
@@ -433,6 +600,11 @@ const activityIndex = Object.fromEntries(Object.entries(byActivity).map(([id, co
   delete deferredConnection.transactionIds;
   delete deferredConnection.relationIds;
   delete deferredConnection.sourceIds;
+  delete deferredConnection.contractVehicleIds;
+  delete deferredConnection.acquisitionPathIds;
+  delete deferredConnection.predecessorActivityIds;
+  delete deferredConnection.successorActivityIds;
+  delete deferredConnection.recompeteSignalIds;
   return [id, {
     ...deferredConnection,
     connected: {
@@ -447,6 +619,42 @@ const activityIndex = Object.fromEntries(Object.entries(byActivity).map(([id, co
     evidenceSummary,
   }];
 }));
+const agentById = new Map((agents.records || []).map((record) => [record.opportunityId, record]));
+const compactActivity = (opportunityId) => {
+  const record = agentById.get(opportunityId);
+  if (!record) return null;
+  return { opportunityId, reference: record.reference, label: record.title, lifecycle: record.lifecycleStatus, mode: record.mode, obligatedAmount: Number(record.obligatedAmount || 0) };
+};
+const familyMembersByVehicleId = new Map(contractLineageRegistry.exactVehicles.map((item) => [contractVehicleByKey.get(item.generatedAwardId), item.activityIds]));
+const unresolvedClaimByActivity = new Map(contractLineageRegistry.review.unresolvedFollowOnClaims.map((item) => [item.activityId, item]));
+const predecessorLinkBySuccessor = new Map(contractLineageRegistry.predecessorLinks.map((item) => [item.successorActivityId, item]));
+const successorLinksByPredecessor = new Map();
+for (const item of contractLineageRegistry.predecessorLinks) successorLinksByPredecessor.set(item.predecessorActivityId, [...(successorLinksByPredecessor.get(item.predecessorActivityId) || []), item]);
+const contractLineageByActivity = Object.fromEntries(Object.entries(byActivity).flatMap(([opportunityId, connection]) => {
+  const vehicles = connection.contractVehicleIds.map((id) => compact("contract-vehicle", id)).filter(Boolean);
+  const acquisitionPaths = connection.acquisitionPathIds.map((id) => compact("acquisition-path", id)).filter(Boolean);
+  const siblingOrders = [...new Set(connection.contractVehicleIds.flatMap((id) => familyMembersByVehicleId.get(id) || []).filter((id) => id !== opportunityId))].map(compactActivity).filter(Boolean);
+  const predecessorLink = predecessorLinkBySuccessor.get(opportunityId);
+  const predecessors = predecessorLink ? [{ ...compactActivity(predecessorLink.predecessorActivityId), basis: predecessorLink.basis, confidence: predecessorLink.confidence, reviewState: predecessorLink.reviewState }] : [];
+  const successors = (successorLinksByPredecessor.get(opportunityId) || []).map((item) => ({ ...compactActivity(item.successorActivityId), basis: item.basis, confidence: item.confidence, reviewState: item.reviewState }));
+  const recompeteSignals = connection.recompeteSignalIds.map((id) => compact("recompete-signal", id)).filter(Boolean);
+  const unresolvedClaim = unresolvedClaimByActivity.get(opportunityId) || null;
+  if (![vehicles, acquisitionPaths, siblingOrders, predecessors, successors, recompeteSignals].some((items) => items.length) && !unresolvedClaim) return [];
+  return [[opportunityId, { vehicles, acquisitionPaths, siblingOrders, predecessors, successors, recompeteSignals, ...(unresolvedClaim ? { unresolvedClaim } : {}) }]];
+}));
+const contractLineageIndex = {
+  metadata: {
+    schemaVersion: CONTRACT_LINEAGE_SCHEMA_VERSION,
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    asOf: contractLineageRegistry.metadata.asOf,
+    title: "Contract family lineage browser index",
+    trustBoundary: contractLineageRegistry.metadata.trustBoundary,
+    summary: contractLineageRegistry.review.summary,
+  },
+  indices: { byActivity: contractLineageByActivity },
+};
+writeFileSync(CONTRACT_LINEAGE_INDEX_FILE, JSON.stringify(contractLineageIndex));
 const graphIndex = { metadata: graph.metadata, domain: graph.domain, indices: { byActivity: activityIndex } };
 writeFileSync(INDEX_FILE, JSON.stringify(graphIndex));
 const graphSummary = {
@@ -458,4 +666,4 @@ const graphSummary = {
   },
 };
 writeFileSync(SUMMARY_FILE, JSON.stringify(graphSummary));
-console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));
+console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

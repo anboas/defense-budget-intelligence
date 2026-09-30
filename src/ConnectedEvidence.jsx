@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadIntelligenceGraph } from "./intelligence-graph.js";
+import { loadContractLineage, loadIntelligenceGraph } from "./intelligence-graph.js";
 import "./ConnectedEvidence.css";
 
 const RELATION_LABELS = {
@@ -51,13 +51,14 @@ export default function ConnectedEvidence({ opportunityId }) {
 
   useEffect(() => {
     let active = true;
-    loadIntelligenceGraph()
-      .then((graph) => { if (active) setState({ status: "ready", graph }); })
+    Promise.all([loadIntelligenceGraph(), loadContractLineage().catch(() => null)])
+      .then(([graph, lineage]) => { if (active) setState({ status: "ready", graph, lineage }); })
       .catch((error) => { if (active) setState({ status: "error", graph: null, error }); });
     return () => { active = false; };
   }, [attempt]);
 
   const connection = state.graph?.indices?.byActivity?.[opportunityId] || null;
+  const contractLineage = state.lineage?.indices?.byActivity?.[opportunityId] || null;
   const primaryLocation = connection?.connected?.locations?.[0] || null;
   const counts = connection?.counts || {};
   const metrics = connection ? [
@@ -69,6 +70,8 @@ export default function ConnectedEvidence({ opportunityId }) {
     [counts.federalAccounts, "federal account"],
     [counts.subawardSummaries, "subaward set", "subaward sets"],
     [counts.sources, "source"],
+    [counts.contractVehicles, "parent vehicle"],
+    [counts.recompeteSignals, "timing signal"],
   ].filter(([value]) => Number(value || 0) > 0) : [];
 
   if (!opportunityId) return null;
@@ -99,6 +102,13 @@ export default function ConnectedEvidence({ opportunityId }) {
       </nav>
       <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
+        <ConnectionGroup title="Exact parent vehicles" items={contractLineage?.vehicles} renderItem={(vehicle) => <article key={vehicle.id} data-contract-vehicle><strong>{vehicle.piid}</strong><span>{countLabel(vehicle.orderCount, "linked order")}</span><em>Exact USAspending parent IDV</em></article>} />
+        <ConnectionGroup title="Published acquisition paths" items={contractLineage?.acquisitionPaths} renderItem={(path) => <article key={path.id} data-acquisition-path><strong>{path.label}</strong><span>{countLabel(path.activityCount, "linked activity")}</span><em>Source-declared path; not a substitute for parent IDV</em></article>} />
+        <ConnectionGroup title="Sibling orders" items={contractLineage?.siblingOrders?.slice(0, 8)} renderItem={(activity) => <article key={activity.opportunityId} data-contract-sibling><strong>{activity.reference || activity.label}</strong><span>{activity.label}</span><em>{money(activity.obligatedAmount)} obligated · {activity.lifecycle?.replaceAll("-", " ")}</em></article>} />
+        <ConnectionGroup title="Predecessors" items={contractLineage?.predecessors} renderItem={(activity) => <article key={activity.opportunityId} data-contract-predecessor><strong>{activity.reference || activity.label}</strong><span>{activity.label}</span><em>{activity.basis} · {activity.confidence}</em></article>} />
+        <ConnectionGroup title="Published successors" items={contractLineage?.successors} renderItem={(activity) => <article key={activity.opportunityId} data-contract-successor><strong>{activity.reference || activity.label}</strong><span>{activity.label}</span><em>{activity.basis} · {activity.confidence}</em></article>} />
+        <ConnectionGroup title="Recompete timing review" items={contractLineage?.recompeteSignals} renderItem={(signal) => <article key={signal.id} data-recompete-signal><strong>{signal.endDate}</strong><span>{countLabel(signal.daysUntilEnd, "day")} to reported end</span><em>{signal.caveat}</em></article>} />
+        {contractLineage?.unresolvedClaim ? <section className="connected-evidence__group" data-lineage-review><h4>Lineage review required</h4><div><article><strong>{contractLineage.unresolvedClaim.claim} wording</strong><span>{contractLineage.unresolvedClaim.reason}</span><em>No predecessor edge promoted</em></article></div></section> : null}
         <ConnectionGroup title="Organizations" items={connected.organizations} renderItem={(organization) => {
           const identifier = organization.identity?.identifiers?.uei ? `UEI ${organization.identity.identifiers.uei}` : organization.identity?.identifiers?.officeCode ? `Office ${organization.identity.identifiers.officeCode}` : organization.identity?.resolutionState === "needs_review" ? `${organization.identity.candidateUeis?.length || 0} UEI candidates · review required` : "Label-only identity";
           const aliases = organization.aliases?.length ? ` · ${organization.aliases.length} ${organization.aliases.length === 1 ? "alias" : "aliases"}` : "";
