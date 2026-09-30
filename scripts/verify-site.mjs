@@ -16,17 +16,20 @@ const compiledStyleBytes = styleAssets.reduce((total, asset) => total + asset.by
 const shellStyleBytes = styleAssets.find((asset) => /^index-.*\.css$/.test(asset.name))?.bytes || 0;
 const mapStyleBytes = styleAssets.find((asset) => /^OpportunityMap-.*\.css$/.test(asset.name))?.bytes || 0;
 const connectedEvidenceStyleBytes = styleAssets.find((asset) => /^ConnectedEvidence-.*\.css$/.test(asset.name))?.bytes || 0;
+const domainModelStyleBytes = styleAssets.find((asset) => /^DomainModelPage-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
 assert.ok(connectedEvidenceStyleBytes > 0 && connectedEvidenceStyleBytes <= 4_000, `Deferred connected-evidence CSS must stay within its 4 KB component budget, got ${connectedEvidenceStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 373_000, `Total scoped CSS must stay below 373 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Domain Model CSS must stay within its 8 KB route budget, got ${domainModelStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 381_000, `Total scoped CSS must stay below 381 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).length, 1, "Timeline, table, and charts should share one lazy Spend Explorer boundary");
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
+assert.equal(builtAssets.filter((name) => /^DomainModelPage-.*\.js$/.test(name)).length, 1, "Domain Model should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(name)).length, 1, "Integrations should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
@@ -197,7 +200,7 @@ async function assertFlowShell(page) {
     await page.locator('[data-nav-group-trigger="work"]').click();
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
     assert.ok(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count() >= 1, "Workspace admin should expose consolidated workspace management");
-    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections/i);
+    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections[\s\S]*Domain Model/i);
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
@@ -396,6 +399,22 @@ try {
   await assertOpenStateControls(page, "Connections", "[data-connections-surface]");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
+
+  await openSurface(page, "#/budget-spend/domain-model", "[data-domain-model-page]");
+  await assertActiveGroupState(page, "workspace-admin", "Domain Model");
+  assert.equal(await page.locator("[data-domain-diagram]").count(), 1, "Domain Model should expose one integrated architecture diagram");
+  assert.equal(await page.locator("[data-domain-diagram-node]").count(), 8, "The architecture diagram should group the graph into eight readable domains");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 17, "Domain Model should inventory every canonical entity type");
+  assert.equal(await page.locator("[data-domain-relation-row]").count(), 32, "Domain Model should inventory every canonical relationship type");
+  const domainOverviewText = await page.locator("[data-domain-model-page]").innerText();
+  assert.match(domainOverviewText, /17,507[\s\S]*typed entities[\s\S]*39,601[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
+  assert.match(domainOverviewText, /30,013[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
+  await page.getByRole("button", { name: /Evidence & provenance/ }).click();
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 3, "Domain filters should focus the inventory without changing graph facts");
+  await page.getByRole("button", { name: /All domains/ }).click();
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 17, "All domains should restore the complete entity inventory");
+  await assertNoPageOverflow(page, "Domain Model desktop");
+  await page.screenshot({ path: `${OUT_DIR}/domain-model-desktop.png`, fullPage: true });
 
   await openSurface(page, "#/budget-spend/map", "[data-opportunity-map]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunity Map", "Opportunity Map should own a first-class route title");
@@ -1604,7 +1623,11 @@ try {
   assert.equal(await connectedEvidence.locator('[data-temporal-status="conflicting"]').count(), 1, "Competing current and historical lifecycle claims should mark this record as conflicting");
   assert.equal(await connectedEvidence.locator('[data-evidence-conflict="needs_review"]').count(), 1, "Unresolved lifecycle disagreement should remain visible in the record drawer");
   assert.match(connectedEvidenceText, /historical · agent-records[\s\S]*active · opportunity-map-data/i, "Conflict disclosure should retain competing values and source artifacts");
-  assert.ok((await connectedEvidence.getAttribute("data-connected-evidence-id"))?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
+  const connectedActivityId = await connectedEvidence.getAttribute("data-connected-evidence-id");
+  assert.ok(connectedActivityId?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
+  const connectedFullView = connectedEvidence.getByRole("link", { name: /Full view/i });
+  assert.equal(await connectedFullView.count(), 1, "Every Connected Intelligence drawer should expose a durable full-page view");
+  assert.match(await connectedFullView.getAttribute("href"), new RegExp(`domain-model\\?activity=${connectedActivityId}$`), "Full view should carry the stable activity identity");
   assert.ok(await connectedEvidence.locator(".connected-evidence__routes a").count() >= 2, "Connected evidence should link back into analytical working surfaces");
   await connectedEvidence.locator(".connected-evidence__evidence > summary").click();
   assert.match(await connectedEvidence.locator(".connected-evidence__evidence").innerText(), /exact|source declared|deterministic/i, "Connected evidence should disclose join basis and confidence");
@@ -1939,6 +1962,15 @@ try {
   assert.ok(await page.locator("[data-source-health-monitor] details").count() > 5, "Sources should expose the full health inventory on demand");
   assert.doesNotMatch(await page.locator("[data-analytics-sources-page]").innerText(), FORBIDDEN_SURFACE_TEXT);
 
+  await page.evaluate((activityId) => { window.location.hash = `#/budget-spend/domain-model?activity=${encodeURIComponent(activityId)}`; }, connectedActivityId);
+  await page.waitForSelector(`[data-domain-record-view="${connectedActivityId}"] [data-connected-evidence-full-view="true"]`);
+  assert.equal(await page.locator('[data-active-page-title]').innerText(), "Domain Model", "Connected Intelligence full views should live in the ADMIN Domain Model surface");
+  assert.equal(await page.locator('[data-domain-record-view] [data-connected-evidence-id]').getAttribute("data-connected-evidence-id"), connectedActivityId, "Full-page evidence should preserve the exact stable record identity");
+  assert.equal(await resourceCount(page, "intelligence-graph-index.json"), 1, "Full-page evidence should reuse the session-cached graph index");
+  assert.equal(await resourceCount(page, "contract-lineage-index.json"), 1, "Full-page evidence should reuse the session-cached lineage index");
+  assert.equal(await resourceCount(page, "temporal-evidence-index.json"), 1, "Full-page evidence should reuse the session-cached temporal index");
+  await assertActiveGroupState(page, "workspace-admin", "Domain Model");
+
   await page.goto(`${BASE_URL}#/budget-spend/strategy`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-pdb-request-page]");
   assert.equal(new URL(page.url()).hash, "#/budget-spend", "Legacy strategy URLs should canonicalize to the request analytics surface");
@@ -2018,8 +2050,8 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 11, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work/, "Mobile navigation should keep primary, budget, and work groups visibly separated");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 12, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Admin[\s\S]*Domain Model/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
@@ -2258,6 +2290,13 @@ try {
   await assertNoPageOverflow(mobile, "Mobile sources");
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
+  await openSurface(mobile, "#/budget-spend/domain-model", "[data-domain-model-page]");
+  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 17, "Mobile Domain Model should retain the complete entity inventory");
+  const domainFilterHeights = await mobile.locator(".domain-model__filters button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(domainFilterHeights.every((height) => height >= 43.5), `Mobile domain filters must retain 44px touch targets: ${domainFilterHeights.join(", ")}`);
+  await assertNoPageOverflow(mobile, "Mobile Domain Model");
+  await mobile.screenshot({ path: `${OUT_DIR}/domain-model-mobile.png`, fullPage: true });
+
   await mobile.setViewportSize({ width: 360, height: 740 });
   await openSurface(mobile, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   const narrowAnalyticsGeometry = await mobile.evaluate(() => ({
@@ -2274,7 +2313,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 map=nationwide-spend-scaled schedule_views=3 spend_views=4 grouped_routes=8 money_flow_routes=5 work_routes=2 workspace_admin_routes=2 inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 map=nationwide-spend-scaled schedule_views=3 spend_views=4 grouped_routes=9 money_flow_routes=5 work_routes=2 workspace_admin_routes=3 domain_model=full-view inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");
