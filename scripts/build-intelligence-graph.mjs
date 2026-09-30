@@ -42,6 +42,7 @@ const legislative = JSON.parse(readFileSync(resolve(ROOT, "src/data/legislative-
 const strategic = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-intelligence.json"), "utf8"));
 const programIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/program-intelligence.json"), "utf8"));
 const roadmapIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
+const organizationIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/organization-intelligence.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -892,6 +893,51 @@ for (const row of roadmapIntelligence.citations || []) {
 for (const row of roadmapIntelligence.savedQueryTemplates || []) addEntity("saved-query-template", { ...row, sourceArtifact: "roadmap-intelligence" });
 for (const row of roadmapIntelligence.briefTemplates || []) addEntity("brief-template", { ...row, sourceArtifact: "roadmap-intelligence" });
 
+for (const row of organizationIntelligence.dossiers || []) {
+  addEntity("organization-dossier", { ...row, sourceArtifact: "organization-intelligence" });
+  const organizationId = organization(row.organizationName, "organization-intelligence", {}, { identityClass: row.categories?.includes("vendor") ? "recipient" : "government-office" });
+  if (organizationId) addRelation("organization-dossier-for-organization", row.id, organizationId, evidence("organization-intelligence", "bounded-reviewed-dossier", "reviewed", row.sourceUrls?.[0] || "", row.reviewState));
+  if (row.parentOrganizationName) {
+    const parentId = organization(row.parentOrganizationName, "organization-intelligence", {}, { identityClass: "government" });
+    if (parentId) addRelation("organization-dossier-parent-organization", row.id, parentId, evidence("organization-intelligence", "source-declared-or-reviewed-parent", "reviewed", row.sourceUrls?.[0] || "", row.reviewState));
+  }
+  for (const id of row.roleIds || []) if (entityKeys["official-role"].has(id)) addRelation("organization-dossier-includes-role", row.id, id, evidence("organization-intelligence", "exact-retained-role-id", "exact", "", row.reviewState));
+  for (const id of row.personIds || []) if (entityKeys.person.has(id)) addRelation("organization-dossier-includes-person", row.id, id, evidence("organization-intelligence", "exact-retained-person-id", "exact", "", row.reviewState));
+  for (const id of row.programIds || []) if (entityKeys["defense-program"].has(id)) addRelation("organization-dossier-includes-program", row.id, id, evidence("organization-intelligence", "exact-retained-program-id", "exact", "", row.reviewState));
+  for (const id of row.awardIds || []) {
+    const awardId = awardByGeneratedId.get(id) || (entityKeys.award.has(id) ? id : null);
+    if (awardId) addRelation("organization-dossier-includes-award", row.id, awardId, evidence("organization-intelligence", "exact-retained-award-id", "exact", `https://www.usaspending.gov/award/${id}/`, row.reviewState));
+  }
+  for (const id of row.accountIds || []) if (entityKeys["federal-account"].has(id)) addRelation("organization-dossier-includes-account", row.id, id, evidence("organization-intelligence", "exact-retained-account-id", "exact", "", row.reviewState));
+  for (const label of row.vendorNames || []) {
+    const vendorId = organization(label, "organization-intelligence", {}, { identityClass: "recipient" });
+    if (vendorId) addRelation("organization-dossier-includes-vendor", row.id, vendorId, evidence("organization-intelligence", "retained-award-vendor", "deterministic", "", row.reviewState));
+  }
+  for (const id of row.locationIds || []) if (entityKeys.location.has(id)) addRelation("organization-dossier-includes-location", row.id, id, evidence("organization-intelligence", "reviewed-retained-location-id", "reviewed", "", row.reviewState));
+  for (const url of row.sourceUrls || []) {
+    const sourceId = source(url, "organization-intelligence", `${row.label} dossier evidence`);
+    if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("organization-intelligence", "dossier-source-register", "reviewed", url, row.reviewState));
+  }
+}
+for (const row of organizationIntelligence.missionClaims || []) {
+  addEntity("organization-mission-claim", { ...row, sourceArtifact: "organization-intelligence" });
+  if (entityKeys["organization-dossier"].has(row.dossierId)) addRelation("organization-dossier-has-mission-claim", row.dossierId, row.id, evidence("organization-intelligence", row.claimType, "source_declared", row.sourceUrl, row.reviewState));
+  const sourceId = source(row.sourceUrl, "organization-intelligence", row.label);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("organization-intelligence", row.claimType, "exact", row.sourceUrl, row.reviewState));
+}
+for (const row of organizationIntelligence.financialSummaries || []) {
+  addEntity("organization-financial-summary", { ...row, sourceArtifact: "organization-intelligence" });
+  if (entityKeys["organization-dossier"].has(row.dossierId)) addRelation("organization-dossier-has-financial-summary", row.dossierId, row.id, evidence("organization-intelligence", row.measureType, "deterministic", "", row.reviewState));
+}
+for (const row of organizationIntelligence.researchGaps || []) {
+  addEntity("organization-research-gap", { ...row, sourceArtifact: "organization-intelligence" });
+  if (entityKeys["organization-dossier"].has(row.dossierId)) addRelation("organization-dossier-has-research-gap", row.dossierId, row.id, evidence("organization-intelligence", row.gapType, "exact", "", row.reviewState));
+}
+for (const row of organizationIntelligence.changeEvents || []) {
+  addEntity("organization-change-event", { ...row, sourceArtifact: "organization-intelligence" });
+  if (entityKeys["organization-dossier"].has(row.dossierId)) addRelation("organization-dossier-has-change-event", row.dossierId, row.id, evidence("organization-intelligence", row.eventType, "reviewed", "", row.reviewState));
+}
+
 for (const row of strategic.forecasts || []) {
   addEntity("acquisition-forecast", { ...row, sourceArtifact: "strategic-intelligence" });
   if (entityKeys.activity.has(row.activityId)) addRelation("activity-has-forecast", row.activityId, row.id, evidence("strategic-intelligence", "source-declared-agency-forecast-channel", row.sourceUrls?.length ? "source_declared" : "deterministic", row.sourceUrls?.[0] || "", row.reviewState));
@@ -1127,6 +1173,18 @@ const graph = {
         observedCurrentRoles: roadmapIntelligence.metadata?.coverage?.observedCurrentRoles || 0,
         evidenceBoundary: roadmapIntelligence.metadata?.evidenceBoundary,
       },
+      organizationIntelligence: {
+        dossiers: entities["organization-dossier"].length,
+        tier1: organizationIntelligence.metadata?.coverage?.tier1 || 0,
+        missionClaims: entities["organization-mission-claim"].length,
+        financialSummaries: entities["organization-financial-summary"].length,
+        researchGaps: entities["organization-research-gap"].length,
+        changeEvents: entities["organization-change-event"].length,
+        dossiersWithLeadership: organizationIntelligence.metadata?.coverage?.dossiersWithLeadership || 0,
+        dossiersWithMission: organizationIntelligence.metadata?.coverage?.dossiersWithMission || 0,
+        dossiersWithFinance: organizationIntelligence.metadata?.coverage?.dossiersWithFinance || 0,
+        evidenceBoundary: organizationIntelligence.metadata?.evidenceBoundary,
+      },
       industrialBase: {
         supplierRelationships: entities["supplier-relationship"].length,
         buyerProfiles: entities["buyer-profile"].length,
@@ -1225,6 +1283,11 @@ const graph = {
       person: "Public professional identity used only to connect an official role to cited government evidence. No private profile or inferred employment history.",
       officialRole: "Officially published professional role with exact dates when stated and an observed-current lower bound otherwise.",
       roleSuccession: "A source-published transfer or change of charter connecting exact predecessor and successor role records.",
+      organizationDossier: "A bounded projection of retained public evidence for one reviewed organization identity. Missing coverage remains an explicit research gap.",
+      organizationMissionClaim: "A source-published mission, charter, or jurisdiction claim with observation date and official URL.",
+      organizationFinancialSummary: "A typed financial measure whose semantics remain explicit; request, obligation, outlay, award value, and ceiling are never conflated.",
+      organizationResearchGap: "An unresolved evidence need with priority, status, and review state. Missing evidence is not represented as a negative fact.",
+      organizationChangeEvent: "A dated, source-backed change or observation retained in the organization timeline.",
       supplierRelationship: "A bounded prime-to-subrecipient relationship from retained USAspending subaward evidence; it is not a complete supplier registry.",
       marketProfile: "A deterministic summary of retained award evidence. Concentration and share values describe the retained corpus, not the entire federal market.",
       accountabilityFinding: "An official program finding retained with its source and resolution state. Missing public findings do not imply a clean record.",

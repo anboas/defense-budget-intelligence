@@ -15,6 +15,8 @@ const ENTITY_TYPES = Object.freeze([
   "document-version", "document-section", "document-table", "document-citation", "saved-query-template", "brief-template",
   "acquisition-forecast", "mission-assignment", "installation-tenant", "sbir-topic", "sbir-award",
   "competitive-signal", "expiration-signal", "execution-risk-signal", "protest-decision", "audit-finding", "outcome-evidence",
+  "organization-dossier", "organization-mission-claim", "organization-financial-summary",
+  "organization-research-gap", "organization-change-event",
 ]);
 
 const CLAIM_OPERATIONS = Object.freeze(["fill_missing", "replace", "append", "supersede", "add_relation"]);
@@ -278,6 +280,11 @@ function entityTypeFromId(id) {
     ["competitive-signal:", "competitive-signal"], ["expiration-signal:", "expiration-signal"],
     ["execution-risk-signal:", "execution-risk-signal"], ["protest-decision:", "protest-decision"],
     ["audit-finding:", "audit-finding"], ["outcome-evidence:", "outcome-evidence"],
+    ["organization-dossier:", "organization-dossier"],
+    ["organization-mission-claim:", "organization-mission-claim"],
+    ["organization-financial-summary:", "organization-financial-summary"],
+    ["organization-research-gap:", "organization-research-gap"],
+    ["organization-change-event:", "organization-change-event"],
     ["activity:", "activity"], ["award:", "award"], ["event:", "event"], ["transaction:", "transaction"],
     ["org:", "organization"], ["location:", "location"], ["account:", "federal-account"],
     ["class:", "classification"], ["source:", "source"],

@@ -5,24 +5,24 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const artifact = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
-const officialSources = JSON.parse(readFileSync(resolve(ROOT, "src/data/official-role-sources.json"), "utf8"));
+const directorySnapshot = JSON.parse(readFileSync(resolve(ROOT, "src/data/official-role-directory-snapshot.json"), "utf8"));
 const coverage = artifact.metadata?.coverage || {};
 
 assert.equal(artifact.metadata?.schemaVersion, "1.0.0", "Roadmap intelligence schema changed");
-assert.equal(coverage.people, 20, "Reviewed public professional coverage changed");
-assert.equal(coverage.officialRoles, 20, "Official role coverage changed");
+assert.ok(coverage.people >= 100, "Public professional coverage fell below the Organization Intelligence release floor");
+assert.ok(coverage.officialRoles >= 250, "Official role coverage fell below the Organization Intelligence release floor");
 assert.equal(coverage.successions, 4, "Exact role succession coverage changed");
-assert.equal(coverage.observedCurrentRoles, 13, "Observed-current role coverage changed");
+assert.ok(coverage.observedCurrentRoles >= 250, "Observed-current role coverage fell below the official-directory floor");
 assert.equal(coverage.supplierRelationships, 1000, "Bounded supplier relationship coverage changed");
 assert.equal(coverage.buyerProfiles, 22, "Buyer profile coverage changed");
 assert.equal(coverage.vendorProfiles, 235, "Vendor profile coverage changed");
 assert.equal(coverage.incumbentPositions, 879, "Incumbent-position coverage changed");
 assert.equal(coverage.programHealthProfiles, 2723, "Every defense program must retain a health summary");
 assert.equal(coverage.accountabilityFindings, 4, "Bounded accountability finding coverage changed");
-assert.equal(coverage.officialDocuments, 45, "Official document coverage changed");
-assert.equal(coverage.documentVersions, 45, "Every official document must retain one observed version");
+assert.ok(coverage.officialDocuments >= 50, "Official document coverage fell below the expanded source-register floor");
+assert.equal(coverage.documentVersions, coverage.officialDocuments, "Every official document must retain one observed version");
 assert.equal(coverage.documentTables, 3, "Verified table coverage changed");
-assert.equal(coverage.citations, 60, "Exact document citation coverage changed");
+assert.ok(coverage.citations >= 300, "Exact document citation coverage fell below the expanded role-evidence floor");
 assert.equal(coverage.embeddings, 0, "Embeddings must remain explicit zero until configured");
 assert.equal(coverage.correctiveActions, 0, "Corrective-action coverage must remain explicit zero until sourced");
 assert.equal(coverage.protestDecisions, 0, "Protest coverage must remain explicit zero until sourced");
@@ -32,9 +32,12 @@ assert.equal(coverage.briefTemplates, 5, "Brief template coverage changed");
 
 const people = new Set(artifact.people.map((row) => row.id));
 const roles = new Set(artifact.officialRoles.map((row) => row.id));
-const sources = new Map(officialSources.sources.map((row) => [row.id, row]));
+const sources = new Map(artifact.sources.map((row) => [row.id, row]));
 assert.equal(people.size, artifact.people.length, "Public professional IDs must be unique");
 assert.equal(roles.size, artifact.officialRoles.length, "Official role IDs must be unique");
+assert.equal(directorySnapshot.metadata?.status, "current", "Official directory snapshot must be current");
+assert.ok(directorySnapshot.roles.length >= 250, "Official directory snapshot fell below the role floor");
+assert.ok(directorySnapshot.sources.every((row) => /^https:\/\//.test(row.url) && row.contentHash), "Official directory sources require HTTPS URLs and content hashes");
 for (const role of artifact.officialRoles) {
   assert.ok(people.has(role.personId), `${role.id} references an unknown person`);
   assert.ok(role.effectiveFrom || role.effectiveTo, `${role.id} lacks a temporal boundary`);
