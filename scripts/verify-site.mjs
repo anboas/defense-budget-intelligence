@@ -404,15 +404,15 @@ try {
   await assertActiveGroupState(page, "workspace-admin", "Domain Model");
   assert.equal(await page.locator("[data-domain-diagram]").count(), 1, "Domain Model should expose one integrated architecture diagram");
   assert.equal(await page.locator("[data-domain-diagram-node]").count(), 8, "The architecture diagram should group the graph into eight readable domains");
-  assert.equal(await page.locator("[data-domain-entity-card]").count(), 17, "Domain Model should inventory every canonical entity type");
-  assert.equal(await page.locator("[data-domain-relation-row]").count(), 32, "Domain Model should inventory every canonical relationship type");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 18, "Domain Model should inventory every canonical entity type");
+  assert.equal(await page.locator("[data-domain-relation-row]").count(), 33, "Domain Model should inventory every canonical relationship type");
   const domainOverviewText = await page.locator("[data-domain-model-page]").innerText();
-  assert.match(domainOverviewText, /17,507[\s\S]*typed entities[\s\S]*39,601[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
-  assert.match(domainOverviewText, /30,013[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
+  assert.match(domainOverviewText, /28,742[\s\S]*typed entities[\s\S]*63,232[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
+  assert.match(domainOverviewText, /50,606[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
   await page.getByRole("button", { name: /Evidence & provenance/ }).click();
   assert.equal(await page.locator("[data-domain-entity-card]").count(), 3, "Domain filters should focus the inventory without changing graph facts");
   await page.getByRole("button", { name: /All domains/ }).click();
-  assert.equal(await page.locator("[data-domain-entity-card]").count(), 17, "All domains should restore the complete entity inventory");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 18, "All domains should restore the complete entity inventory");
   await assertNoPageOverflow(page, "Domain Model desktop");
   await page.screenshot({ path: `${OUT_DIR}/domain-model-desktop.png`, fullPage: true });
 
@@ -1704,7 +1704,7 @@ try {
   assert.match(subawardDetailText, /retained/i, "Subaward detail should distinguish the bounded detail sample");
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
-  await page.getByPlaceholder("Program, company, reference, buyer").fill("");
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
   const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
   const fundingLayer = page.getByRole("button", { name: "Funding", exact: true });
   await fundingLayer.click();
@@ -1715,7 +1715,6 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0, null, { timeout: 60_000 });
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
   assert.ok(await page.locator(".capture-timeline__action-marker").count() > 0, "FPDS feed should render timeline action pulses");
-  await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
   const applicationActionRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
   await applicationActionRow.waitFor();
   const pageHeightBeforeModal = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1939,11 +1938,11 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
   await page.waitForSelector("[data-intelligence-graph-summary]");
   const graphSummaryText = await page.locator("[data-intelligence-graph-summary]").innerText();
-  assert.match(graphSummaryText, /888 activities[\s\S]*702 awards[\s\S]*3,085 exact FPDS actions/i, "Source Lineage should expose the canonical activity, award, and transaction spine");
-  assert.match(graphSummaryText, /264 UEI-backed[\s\S]*50 reviewed office-code identities[\s\S]*11 ambiguous labels remain queued/i, "Source Lineage should expose organization identity coverage and unresolved conflicts");
+  assert.match(graphSummaryText, /888 activities[\s\S]*1,905 awards[\s\S]*3,085 exact FPDS actions/i, "Source Lineage should expose the canonical activity, award, and transaction spine");
+  assert.match(graphSummaryText, /571 UEI-backed[\s\S]*50 reviewed office-code identities[\s\S]*11 ambiguous labels remain queued/i, "Source Lineage should expose organization identity coverage and unresolved conflicts");
   assert.match(graphSummaryText, /166 exact parent IDVs[\s\S]*206 linked orders[\s\S]*26 multi-order families/i, "Source Lineage should expose exact contract-family coverage");
   assert.match(graphSummaryText, /3 resolved predecessor links[\s\S]*237 review-only timing signals[\s\S]*18 claims remain unresolved/i, "Source Lineage should distinguish resolved lineage from review-only signals");
-  assert.match(graphSummaryText, /30,013 current[\s\S]*8,691 historical[\s\S]*259 future[\s\S]*638 stale relationships/i, "Source Lineage should disclose relationship validity coverage");
+  assert.match(graphSummaryText, /50,606 current[\s\S]*12,356 historical[\s\S]*270 future[\s\S]*0 stale relationships/i, "Source Lineage should disclose relationship validity coverage");
   assert.match(graphSummaryText, /489 retained disagreements[\s\S]*408 resolved by newer current evidence[\s\S]*81 require review/i, "Source Lineage should separate deterministic supersession from unresolved conflicts");
   assert.match(graphSummaryText, /319 budget lines remain explicitly unresolved/i, "Source Lineage should keep unresolved crosswalks visible");
   assert.equal(await resourceCount(page, "intelligence-graph-summary.json"), 1, "Source Lineage should load one lightweight graph summary");
@@ -2291,7 +2290,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/domain-model", "[data-domain-model-page]");
-  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 17, "Mobile Domain Model should retain the complete entity inventory");
+  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 18, "Mobile Domain Model should retain the complete entity inventory");
   const domainFilterHeights = await mobile.locator(".domain-model__filters button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(domainFilterHeights.every((height) => height >= 43.5), `Mobile domain filters must retain 44px touch targets: ${domainFilterHeights.join(", ")}`);
   await assertNoPageOverflow(mobile, "Mobile Domain Model");

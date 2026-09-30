@@ -1,7 +1,7 @@
 # Temporal validity and evidence conflicts
 
 **Status:** Implemented deterministic baseline  
-**Schema:** `1.0.0` sidecar on intelligence graph `1.3.0`  
+**Schema:** `1.0.0` sidecar on intelligence graph `1.4.0`
 **Artifacts:** `data/temporal-evidence-index.json`, `data/temporal-evidence-review.json`
 
 ## Decision
@@ -35,8 +35,8 @@ The baseline detects:
 
 ## Current coverage
 
-- 39,601 graph relationships assessed;
-- 30,013 current, 8,691 historical, 259 future, and 638 stale relationships;
+- 63,232 graph relationships assessed;
+- 50,606 current, 12,356 historical, 270 future, and 0 stale relationships;
 - 489 retained conflicts or unresolved claims;
 - 408 resolved by newer current evidence;
 - 81 still require review;

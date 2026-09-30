@@ -1,16 +1,19 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const BUDGET_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const OUT_FILE = resolve(ROOT, "src/data/account-spine.json");
+const BUDGET_EXECUTION_FILE = resolve(ROOT, "public/data/budget-execution.json");
 const DEFAULT_SOURCE_DIR = process.env.HOME
   ? resolve(process.env.HOME, "clawd/artifacts/defense-budget-intelligence/budget")
   : resolve(ROOT, "../artifacts/defense-budget-intelligence/budget");
 const SOURCE_DIR = process.env.BUDGET_SOURCE_DIR || DEFAULT_SOURCE_DIR;
 const AWARD_SOURCE_FILE = process.env.USASPENDING_AWARD_FILE
   || resolve(SOURCE_DIR, "usaspending/FY2025-FY2026/technology-awards.json");
+const COVERAGE_SOURCE_FILE = process.env.USASPENDING_COVERAGE_FILE
+  || resolve(ROOT, "src/data/usaspending-coverage.json");
 const OMB_INDEX_URL = "https://apportionment-public.max.gov/";
 const USASPENDING_API = "https://api.usaspending.gov/api/v2";
 const USASPENDING_AWARD_ACCOUNTS_URL = `${USASPENDING_API}/awards/accounts/`;
@@ -20,7 +23,7 @@ const FISCAL_YEAR = Number(process.env.ACCOUNT_SPINE_FISCAL_YEAR || defaultFisca
 const AGENCY_CODE = process.env.ACCOUNT_SPINE_AGENCY_CODE || "097";
 const CONCURRENCY = Math.max(1, Number(process.env.ACCOUNT_SPINE_CONCURRENCY || 6));
 const AWARD_ACCOUNT_CONCURRENCY = Math.max(1, Number(process.env.AWARD_ACCOUNT_CONCURRENCY || 4));
-const AWARD_ACCOUNT_LIMIT = Math.max(1, Number(process.env.AWARD_ACCOUNT_LIMIT || 250));
+const AWARD_ACCOUNT_LIMIT = Math.max(1, Number(process.env.AWARD_ACCOUNT_LIMIT || 500));
 const REQUEST_TIMEOUT_MS = Math.max(5_000, Number(process.env.ACCOUNT_SPINE_REQUEST_TIMEOUT_MS || 30_000));
 const USER_AGENT = "defense-budget-intelligence-account-spine/1.0";
 
@@ -223,13 +226,68 @@ function sampledAwards() {
       awards.set(awardId, current);
     }
   }
-  const rankedAwards = [...awards.values()]
-    .sort((left, right) => right.awardAmount - left.awardAmount);
+  const coverage = existsSync(COVERAGE_SOURCE_FILE)
+    ? JSON.parse(readFileSync(COVERAGE_SOURCE_FILE, "utf8"))
+    : null;
+  for (const raw of coverage?.awards || []) {
+    const awardId = raw.generatedAwardId;
+    if (!awardId) continue;
+    const current = awards.get(awardId) || {
+      awardId,
+      awardNumber: String(raw.piid || ""),
+      recipient: String(raw.recipient || "Unspecified recipient").replace(/\s+/g, " ").trim(),
+      description: String(raw.description || "").replace(/\s+/g, " ").trim(),
+      startDate: raw.startDate || null,
+      endDate: raw.endDate || null,
+      awardAmount: Number(raw.awardAmount || 0),
+      awardingOffice: raw.awardingOffice || null,
+      fundingOffice: raw.fundingOffice || null,
+      fundingSubAgency: raw.fundingSubAgency || null,
+      areas: new Map(),
+      sourceUrl: raw.sourceUrl || `https://www.usaspending.gov/award/${encodeURIComponent(awardId)}/`,
+    };
+    current.awardAmount = Math.max(current.awardAmount, Number(raw.awardAmount || 0));
+    awards.set(awardId, current);
+  }
+  const executionAwards = existsSync(BUDGET_EXECUTION_FILE)
+    ? JSON.parse(readFileSync(BUDGET_EXECUTION_FILE, "utf8")).awardDrilldown?.awards || []
+    : [];
+  const technologyIds = new Set();
+  for (const raw of executionAwards) {
+    const awardId = raw.id;
+    if (!awardId) continue;
+    technologyIds.add(awardId);
+    const current = awards.get(awardId) || {
+      awardId,
+      awardNumber: String(raw.awardId || ""),
+      recipient: String(raw.recipient || "Unspecified recipient").replace(/\s+/g, " ").trim(),
+      description: String(raw.description || "").replace(/\s+/g, " ").trim(),
+      startDate: raw.startDate || null,
+      endDate: raw.endDate || null,
+      awardAmount: Number(raw.awardAmountDollars || 0),
+      awardingOffice: raw.awardingOffice || null,
+      fundingOffice: raw.fundingOffice || null,
+      fundingSubAgency: raw.fundingSubAgency || null,
+      areas: new Map(),
+      sourceUrl: `https://www.usaspending.gov/award/${encodeURIComponent(awardId)}/`,
+    };
+    for (const [index, areaId] of (raw.areaIds || []).entries()) current.areas.set(areaId, raw.areas?.[index] || raw.area || areaId);
+    current.awardAmount = Math.max(current.awardAmount, Number(raw.awardAmountDollars || 0));
+    awards.set(awardId, current);
+  }
+  const byAmount = (left, right) => right.awardAmount - left.awardAmount || left.awardId.localeCompare(right.awardId);
+  const technologyLimit = Math.min(Math.ceil(AWARD_ACCOUNT_LIMIT / 2), technologyIds.size);
+  const breadthLimit = Math.max(0, AWARD_ACCOUNT_LIMIT - technologyLimit);
+  const technologyAwards = [...awards.values()].filter((award) => technologyIds.has(award.awardId)).sort(byAmount).slice(0, technologyLimit);
+  const selectedIds = new Set(technologyAwards.map((award) => award.awardId));
+  const breadthAwards = [...awards.values()].filter((award) => !selectedIds.has(award.awardId)).sort(byAmount).slice(0, breadthLimit);
+  const rankedAwards = [...awards.values()].sort(byAmount);
+  const selectedAwards = [...technologyAwards, ...breadthAwards];
   return {
-    generatedAt: payload.metadata?.generatedAt || null,
-    methodology: payload.metadata?.methodology || null,
+    generatedAt: coverage?.metadata?.generatedAt || payload.metadata?.generatedAt || null,
+    methodology: "Stratified by published award-level value across the retained technology corpus and the FY2017-current DoD top-award/IDV breadth registry. Half the bounded sample preserves technology depth and half expands DoD breadth. Award-account joins use exact USAspending generated award identifiers.",
     availableAwardCount: rankedAwards.length,
-    awards: rankedAwards.slice(0, AWARD_ACCOUNT_LIMIT).map((award) => ({
+    awards: selectedAwards.map((award) => ({
       ...award,
       areas: [...award.areas].map(([id, label]) => ({ id, label })),
     })),
@@ -239,7 +297,12 @@ function sampledAwards() {
 async function fetchAwardAccountFlows() {
   const sample = sampledAwards();
   const failures = [];
+  const prior = existsSync(OUT_FILE) ? JSON.parse(readFileSync(OUT_FILE, "utf8")) : null;
+  const priorFlows = new Map((prior?.awardFlows || []).map((flow) => [flow.awardId, flow]));
+  const cacheAge = Date.now() - Date.parse(prior?.metadata?.generatedAt || 0);
+  const reusePrior = process.env.ACCOUNT_SPINE_FORCE_AWARD_REFRESH !== "1" && cacheAge >= 0 && cacheAge < 7 * 86_400_000;
   const flows = (await mapLimit(sample.awards, AWARD_ACCOUNT_CONCURRENCY, async (award) => {
+    if (reusePrior && priorFlows.has(award.awardId)) return { ...priorFlows.get(award.awardId), ...award, accounts: priorFlows.get(award.awardId).accounts || [] };
     try {
       const page = await fetchJsonPost(USASPENDING_AWARD_ACCOUNTS_URL, {
         award_id: award.awardId,

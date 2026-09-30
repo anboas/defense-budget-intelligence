@@ -35,6 +35,7 @@ const calendar = read("capture-calendar.json");
 const transactions = read("capture-transactions.json");
 const accountSpine = read("account-spine.json");
 const subawards = read("usaspending-subawards.json");
+const spendingCoverage = read("usaspending-coverage.json");
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -250,6 +251,116 @@ for (const award of execution.awardDrilldown?.awards || []) {
   addRelation("entity-classified-as", id, classification("psc", award.pscCode, award.pscDescription, "budget-execution"), evidence("budget-execution", "published-psc", "exact"));
   const sourceId = source(award.id ? `https://www.usaspending.gov/award/${award.id}/` : "", "budget-execution", `USAspending award ${award.awardId}`);
   if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("budget-execution", "generated-award-url", "exact", entities.source.find((item) => item.id === sourceId)?.url));
+}
+
+const spendingSources = Object.fromEntries(Object.entries(spendingCoverage.metadata?.sourceUrls || {})
+  .filter(([key]) => key !== "spendingByCategory")
+  .map(([key, url]) => [key, source(String(url), "usaspending-coverage", `USAspending ${key}`)]));
+const spendingCategorySources = new Map();
+const spendingCategorySource = (dimension) => {
+  if (!spendingCategorySources.has(dimension)) {
+    const url = String(spendingCoverage.metadata?.sourceUrls?.spendingByCategory || "")
+      .replace("{category}", dimension);
+    spendingCategorySources.set(dimension, source(url, "usaspending-coverage", `USAspending spendingByCategory ${dimension}`));
+  }
+  return spendingCategorySources.get(dimension);
+};
+const dodOrganizationId = organization("Department of Defense", "usaspending-coverage", {}, { identityClass: "government" });
+const addSpendingObservation = ({ id, label, fiscalYear, dimension, subjectCode = null, obligatedAmount, rank = null, status, subjectId, sourceId }) => {
+  addEntity("spending-observation", {
+    id,
+    label,
+    fiscalYear,
+    dimension,
+    subjectCode,
+    obligatedAmount: Number(obligatedAmount || 0),
+    rank,
+    status,
+    amountType: "fiscal-year-contract-obligations",
+    sourceArtifact: "usaspending-coverage",
+  });
+  addRelation("spending-observation-measures-entity", id, subjectId, evidence("usaspending-coverage", "official-transaction-aggregation", "exact", entities.source.find((item) => item.id === sourceId)?.url), { fiscalYear, dimension, rank, amountType: "obligations" });
+  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("usaspending-coverage", "official-api-endpoint", "exact", entities.source.find((item) => item.id === sourceId)?.url));
+};
+
+for (const row of spendingCoverage.annualTotals || []) {
+  addSpendingObservation({
+    id: `spending-observation:fiscal-year:${row.fiscalYear}`,
+    label: `FY${row.fiscalYear} Department of Defense contract obligations`,
+    fiscalYear: row.fiscalYear,
+    dimension: "fiscal-year",
+    obligatedAmount: row.obligatedAmount,
+    status: row.fiscalYear === spendingCoverage.metadata?.lastFiscalYear ? "year-to-date" : "complete-fiscal-year",
+    subjectId: dodOrganizationId,
+    sourceId: spendingSources.spendingOverTime,
+  });
+}
+
+for (const year of spendingCoverage.years || []) {
+  for (const [dimension, rows] of Object.entries(year.categories || {})) {
+    for (const row of rows || []) {
+      const identity = dimension === "recipient"
+        ? row.uei || row.id || row.code || row.name
+        : row.id ?? row.code ?? row.name;
+      const subjectId = dimension === "recipient"
+        ? organization(row.name, "usaspending-coverage", { uei: row.uei }, { identityClass: "recipient" })
+        : ["awarding_subagency", "funding_subagency"].includes(dimension)
+          ? organization(row.name, "usaspending-coverage", {}, { identityClass: "government" })
+          : classification(dimension, row.code || row.name, row.name, "usaspending-coverage");
+      addSpendingObservation({
+        id: `spending-observation:${year.fiscalYear}:${dimension}:${hash(identity)}`,
+        label: `FY${year.fiscalYear} ${row.name} contract obligations`,
+        fiscalYear: year.fiscalYear,
+        dimension,
+        subjectCode: row.uei || row.code || null,
+        obligatedAmount: row.obligatedAmount,
+        rank: row.rank,
+        status: year.status,
+        subjectId,
+        sourceId: spendingCategorySource(dimension),
+      });
+    }
+  }
+}
+
+for (const award of spendingCoverage.awards || []) {
+  const existingId = awardByGeneratedId.get(award.generatedAwardId) || awardByPiid.get(normalized(award.piid));
+  const id = existingId || `award:${award.generatedAwardId}`;
+  if (!existingId) {
+    awardByGeneratedId.set(award.generatedAwardId, id);
+    awardByPiid.set(normalized(award.piid), id);
+    addEntity("award", {
+      id,
+      generatedAwardId: award.generatedAwardId,
+      piid: award.piid,
+      label: award.description || award.piid,
+      recipient: award.recipient,
+      awardAmount: Number(award.awardAmount || 0),
+      amountType: award.kind === "idv" ? "published-idv-value-or-ceiling" : "published-award-total",
+      startDate: award.startDate,
+      endDate: award.endDate,
+      observedFiscalYears: award.observedFiscalYears,
+      fiscalYearRanks: award.fiscalYearRanks,
+      sourceArtifact: "usaspending-coverage",
+    });
+  } else {
+    const entity = entities.award.find((item) => item.id === id);
+    if (entity) {
+      entity.observedFiscalYears = award.observedFiscalYears;
+      entity.fiscalYearRanks = award.fiscalYearRanks;
+      entity.coverageAwardAmount = Number(award.awardAmount || 0);
+    }
+  }
+  const recipientId = organization(award.recipient, "usaspending-coverage", { uei: award.recipientUei }, { identityClass: "recipient" });
+  addRelation("award-recipient", id, recipientId, evidence("usaspending-coverage", award.recipientUei ? "published-recipient-uei" : "published-recipient-label", award.recipientUei ? "exact" : "source_declared", award.sourceUrl));
+  for (const [type, labelValue, role] of [["award-awarding-organization", award.awardingOffice || award.awardingSubAgency, "awarding"], ["award-funding-organization", award.fundingOffice || award.fundingSubAgency, "funding"]]) {
+    const organizationId = organization(labelValue, "usaspending-coverage", {}, { identityClass: "government" });
+    addRelation(type, id, organizationId, evidence("usaspending-coverage", "published-organization-label", "source_declared", award.sourceUrl), { role });
+  }
+  addRelation("entity-classified-as", id, classification("naics", award.naicsCode, award.naicsDescription, "usaspending-coverage"), evidence("usaspending-coverage", "published-naics", "exact", award.sourceUrl));
+  addRelation("entity-classified-as", id, classification("psc", award.pscCode, award.pscDescription, "usaspending-coverage"), evidence("usaspending-coverage", "published-psc", "exact", award.sourceUrl));
+  const sourceId = source(award.sourceUrl, "usaspending-coverage", `USAspending award ${award.piid}`);
+  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("usaspending-coverage", "generated-award-url", "exact", award.sourceUrl));
 }
 
 const discoveryIds = new Set((discovery.discovery || []).map((item) => item.opportunityId));
@@ -560,6 +671,16 @@ const graph = {
     coverage: {
       activities: { total: entities.activity.length, discovery: discoveryIds.size, map: map.records?.length || 0, monitor: monitorIds.size, calendar: calendar.records?.length || 0, awardLinked: Object.values(byActivity).filter((item) => item.awardIds.length).length },
       awards: { total: entities.award.length, accountLinked: new Set(relations.filter((item) => item.type === "award-funded-by-account").map((item) => item.from)).size, subawardLinked: new Set(relations.filter((item) => item.type === "award-has-subaward-summary").map((item) => item.from)).size },
+      spending: {
+        firstFiscalYear: spendingCoverage.metadata?.firstFiscalYear,
+        lastFiscalYear: spendingCoverage.metadata?.lastFiscalYear,
+        annualTotals: (spendingCoverage.annualTotals || []).length,
+        observations: entities["spending-observation"].length,
+        uniqueRankedAwards: spendingCoverage.metadata?.coverage?.uniqueRankedAwards || 0,
+        categoryRows: (spendingCoverage.years || []).reduce((total, year) => total + Object.values(year.categories || {}).reduce((sum, rows) => sum + rows.length, 0), 0),
+        scope: spendingCoverage.metadata?.scope,
+        amountPolicy: spendingCoverage.metadata?.amountPolicy,
+      },
       budget: { lines: entities["budget-line"].length, exactAccountTitleLinks: relations.filter((item) => item.type === "budget-line-matches-account-title").length, unresolvedAccountTitleLinks: entities["budget-line"].length - relations.filter((item) => item.type === "budget-line-matches-account-title").length },
       geography: { locations: entities.location.length, activityLocationRelations: relations.filter((item) => ["contracting-activity-at", "funding-activity-at"].includes(item.type)).length },
       organizations: organizationCoverage,
@@ -590,6 +711,7 @@ const graph = {
       recompeteSignal: "Review-only timing signal derived from a reported award end date; never proof of a recompete or successor.",
       location: "Stable reviewed location ID from the authoritative map snapshot.",
       federalAccount: "Federal account code from USAspending account spine.",
+      spendingObservation: "Fiscal year plus dimension plus exact published category identifier from the USAspending transaction aggregation endpoints.",
       source: "Canonical HTTP(S) URL.",
       evidenceClaim: "One source-attributed field value observed at a stated time. Competing claims are preserved rather than overwritten.",
       evidenceConflict: "A typed disagreement among retained claims. Resolution requires exact evidence, explicit review, or a newer current source under the published recency rule.",
@@ -781,6 +903,7 @@ writeFileSync(SUMMARY_FILE, JSON.stringify(graphSummary));
 
 const entityTypeById = new Map(Object.entries(entities).flatMap(([type, rows]) => rows.map((row) => [row.id, type])));
 const relationShards = Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, []]));
+const AGENT_RELATION_PAGE_SIZE = 4_000;
 for (const relation of relations) {
   const fromType = entityTypeById.get(relation.from);
   const toType = entityTypeById.get(relation.to);
@@ -789,7 +912,7 @@ for (const relation of relations) {
 }
 const agentGraphManifest = {
   metadata: {
-    schemaVersion: "1.0.0",
+    schemaVersion: "1.1.0",
     graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
     generatedAt: graph.metadata.generatedAt,
     asOf: graph.metadata.asOf,
@@ -801,7 +924,8 @@ const agentGraphManifest = {
   entityTypes: Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, {
     count: entities[type].length,
     entityPath: `/data/agent-graph/entities-${type}.json`,
-    relationPath: `/data/agent-graph/relations-${type}.json`,
+    relationPaths: Array.from({ length: Math.max(1, Math.ceil(relationShards[type].length / AGENT_RELATION_PAGE_SIZE)) }, (_, index) =>
+      `/data/agent-graph/relations-${type}-${String(index + 1).padStart(3, "0")}.json`),
     relationCount: relationShards[type].length,
   }])),
 };
@@ -813,15 +937,20 @@ for (const type of INTELLIGENCE_ENTITY_TYPES) {
     total: entities[type].length,
     entities: entities[type],
   }));
-  writeFileSync(resolve(AGENT_GRAPH_DIR, `relations-${type}.json`), JSON.stringify({
-    metadata: agentGraphManifest.metadata,
-    entityType: type,
-    total: relationShards[type].length,
-    relations: relationShards[type],
-  }));
+  const relationPages = agentGraphManifest.entityTypes[type].relationPaths;
+  for (const [index, relationPath] of relationPages.entries()) {
+    writeFileSync(resolve(ROOT, `public${relationPath}`), JSON.stringify({
+      metadata: agentGraphManifest.metadata,
+      entityType: type,
+      total: relationShards[type].length,
+      page: index + 1,
+      pages: relationPages.length,
+      relations: relationShards[type].slice(index * AGENT_RELATION_PAGE_SIZE, (index + 1) * AGENT_RELATION_PAGE_SIZE),
+    }));
+  }
 }
 const agentGraphBytes = Object.values(agentGraphManifest.entityTypes).reduce((total, item) => total
   + readFileSync(resolve(ROOT, `public${item.entityPath}`)).byteLength
-  + readFileSync(resolve(ROOT, `public${item.relationPath}`)).byteLength, readFileSync(resolve(AGENT_GRAPH_DIR, "manifest.json")).byteLength);
+  + item.relationPaths.reduce((sum, path) => sum + readFileSync(resolve(ROOT, `public${path}`)).byteLength, 0), readFileSync(resolve(AGENT_GRAPH_DIR, "manifest.json")).byteLength);
 
 console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, agentGraphDirectory: AGENT_GRAPH_DIR, agentGraphBytes, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

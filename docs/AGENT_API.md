@@ -85,7 +85,9 @@ Every server-side mutation writes an append-only actor/action/entity audit row. 
 - `GET /api/v1/agent/activities/{activityId}/connected`
 - `GET /api/v1/agent/locations/{locationId}/metadata`
 
-Graph reads expose all published entity and relationship types plus approved workspace overlays. List routes are type-scoped and bounded. Entity reads preserve the immutable published entity, applied claims, and the effective workspace view separately. Connected activity reads include contract lineage, temporal evidence, and approved overlay relations.
+Graph reads expose all published entity and relationship types plus approved workspace overlays, including fiscal/category `spending-observation` entities. List routes are type-scoped and bounded. Entity reads preserve the immutable published entity, applied claims, and the effective workspace view separately. Connected activity reads include contract lineage, temporal evidence, and approved overlay relations.
+
+The public Agent graph directory pages high-degree relationship shards in bounded 4,000-relation files. Its manifest publishes every page path and total. API clients continue to use the entity relation endpoint; the server assembles all relevant pages before applying direction, relation-type, and response limits.
 
 ### Evidence and sources
 
