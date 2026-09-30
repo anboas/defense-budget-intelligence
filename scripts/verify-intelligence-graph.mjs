@@ -55,7 +55,7 @@ assert.equal(graph.entities?.["spending-observation"]?.length, 7071, "Every annu
 assert.equal(graph.metadata.relationCounts["spending-observation-measures-entity"], 7071, "Every spending observation must measure exactly one typed subject");
 assert.equal(graph.metadata.entityCounts["federal-account"], 179, "Current and historical federal accounts must remain independently addressable");
 assert.equal(graph.metadata.relationCounts["federal-account-has-execution-balance"], 7986, "Every execution balance must retain its exact federal-account edge");
-assert.equal(graph.metadata.relationCounts["supported-by-source"], 29221, "Every new program, mark, observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
+assert.equal(graph.metadata.relationCounts["supported-by-source"], 29287, "Every new program, role, document, mark, observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
 assert.equal(graph.entities?.["treasury-account"]?.length, 1986, "Every exact historical TAS must exist once");
 assert.equal(graph.entities?.["execution-balance"]?.length, 7986, "Every FY/TAS execution balance must exist once");
 assert.equal(graph.entities?.["apportionment-revision"]?.length, 6105, "Every retained OMB apportionment revision must exist once");
@@ -105,6 +105,34 @@ assert.equal(graph.metadata.relationCounts["appropriation-mark-adjusts-budget-li
 assert.equal(graph.metadata.relationCounts["appropriation-mark-affects-defense-program"], 35, "Every House mark must join its exact defense program");
 assert.equal(graph.metadata.relationCounts["appropriation-mark-recommended-by-report"], 35, "Every House mark must retain exact report evidence");
 assert.equal(graph.metadata.relationCounts["appropriation-mark-considered-by-measure"], 35, "Every House mark must retain exact measure context");
+assert.equal(graph.entities?.person?.length, 20, "Reviewed public professional coverage changed");
+assert.equal(graph.entities?.["official-role"]?.length, 20, "Official role coverage changed");
+assert.equal(graph.entities?.["role-succession"]?.length, 4, "Exact role succession coverage changed");
+assert.equal(graph.metadata.relationCounts["person-holds-official-role"], 20, "Every official role must join its public professional identity");
+assert.equal(graph.metadata.relationCounts["official-role-at-organization"], 20, "Every official role must join its published organization");
+assert.equal(graph.metadata.relationCounts["role-succession-predecessor"], 4, "Every succession must retain its predecessor role");
+assert.equal(graph.metadata.relationCounts["role-succession-successor"], 4, "Every succession must retain its successor role");
+assert.equal(graph.entities?.["supplier-relationship"]?.length, 1000, "Bounded supplier relationship coverage changed");
+assert.equal(graph.entities?.["buyer-profile"]?.length, 22, "Buyer profile coverage changed");
+assert.equal(graph.entities?.["vendor-profile"]?.length, 235, "Vendor profile coverage changed");
+assert.equal(graph.entities?.["incumbent-position"]?.length, 879, "Incumbent-position coverage changed");
+assert.equal(graph.metadata.relationCounts["supplier-relationship-prime"], 1000, "Every supplier relationship must retain its prime organization");
+assert.equal(graph.metadata.relationCounts["supplier-relationship-supplier"], 1000, "Every supplier relationship must retain its supplier organization");
+assert.equal(graph.metadata.relationCounts["incumbent-position-for-activity"], 879, "Every incumbent position must join its activity");
+assert.equal(graph.entities?.["program-health-profile"]?.length, 2723, "Every defense program must retain one evidence summary");
+assert.equal(graph.entities?.["accountability-finding"]?.length, 4, "Bounded accountability finding coverage changed");
+assert.equal(graph.metadata.relationCounts["program-health-profile-summarizes-program"], 2723, "Every program health profile must join its defense program");
+assert.equal(graph.metadata.relationCounts["accountability-finding-about-program"], 4, "Every accountability finding must join its defense program");
+assert.equal(graph.entities?.["official-document"]?.length, 45, "Official document coverage changed");
+assert.equal(graph.entities?.["document-version"]?.length, 45, "Every official document must retain an observed version");
+assert.equal(graph.entities?.["document-section"]?.length, 25, "Document section coverage changed");
+assert.equal(graph.entities?.["document-table"]?.length, 3, "Verified document table coverage changed");
+assert.equal(graph.entities?.["document-citation"]?.length, 60, "Exact document citation coverage changed");
+assert.equal(graph.metadata.relationCounts["document-citation-supports-official-role"], 21, "Every official-role citation must retain its target");
+assert.equal(graph.metadata.relationCounts["document-citation-supports-appropriation-mark"], 35, "Every mark citation must retain its target");
+assert.equal(graph.metadata.relationCounts["document-citation-supports-accountability-finding"], 4, "Every accountability citation must retain its target");
+assert.equal(graph.entities?.["saved-query-template"]?.length, 8, "Saved query template coverage changed");
+assert.equal(graph.entities?.["brief-template"]?.length, 5, "Review-before-send brief coverage changed");
 assert.equal(graph.entities?.["program-element"]?.length, 1114, "R-1 program-element coverage changed");
 assert.equal(graph.entities?.project?.length, 745, "C-1 project coverage changed");
 assert.equal(graph.entities?.["acquisition-forecast"]?.length, 10, "Agency forecast baseline changed");
@@ -154,8 +182,8 @@ assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Eviden
 assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
 assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
 assert.deepEqual(graph.metadata.coverage.temporal, {
-  relationsAssessed: 120352,
-  current: 105854,
+  relationsAssessed: 127493,
+  current: 112995,
   historical: 14226,
   future: 272,
   stale: 0,

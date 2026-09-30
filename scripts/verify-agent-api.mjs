@@ -279,6 +279,42 @@ try {
   assert.ok(result.payload.data.some((relation) => relation.type === "appropriation-mark-recommended-by-report"), "House marks must traverse to their exact committee report");
   assert.ok(result.payload.data.some((relation) => relation.type === "appropriation-mark-considered-by-measure"), "House marks must traverse to their exact legislative measure");
 
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-role&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 20);
+  const officialRoleId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialRoleId)}/relations?limit=20`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "person-holds-official-role"), "Official roles must traverse to public professional identities");
+  assert.ok(result.payload.data.some((relation) => relation.type === "official-role-at-organization"), "Official roles must traverse to published organizations");
+  assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Official roles must traverse to official source evidence");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=supplier-relationship&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 1000);
+  const supplierRelationshipId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(supplierRelationshipId)}/relations?limit=20`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "supplier-relationship-prime"), "Supplier relationships must traverse to prime organizations");
+  assert.ok(result.payload.data.some((relation) => relation.type === "supplier-relationship-supplier"), "Supplier relationships must traverse to supplier organizations");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-document&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 45);
+  const officialDocumentId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialDocumentId)}/relations?limit=50`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-version"), "Official documents must traverse to observed versions");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=document-citation&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 60);
+  const documentCitationId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(documentCitationId)}/relations?limit=20`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-citation"), "Document citations must traverse to their official document");
+  assert.ok(result.payload.data.some((relation) => relation.type.startsWith("document-citation-supports-")), "Document citations must traverse to the supported graph fact");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=saved-query-template&limit=20", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 8);
+
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=mission-assignment&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.meta.total, 96);

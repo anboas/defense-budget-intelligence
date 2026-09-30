@@ -35,6 +35,7 @@ const BudgetRequestRoutes = lazyWithRefresh(() => import("./BudgetRequestRoutes.
 const ProfilePage = lazyWithRefresh(() => import("./ProfilePage.jsx"), "profile-page");
 const EventDiscoveryPage = lazyWithRefresh(() => import("./EventDiscoveryPage.jsx"), "event-discovery-page");
 const DomainModelPage = lazyWithRefresh(() => import("./DomainModelPage.jsx"), "domain-model-page");
+const IntelligenceProductsPage = lazyWithRefresh(() => import("./IntelligenceProductsPage.jsx"), "intelligence-products-page");
 
 const TABS = [
   { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
@@ -49,6 +50,7 @@ const TABS = [
   { id: "tasks", label: "Task Center", icon: ListChecks },
   { id: "connections", label: "Connections", icon: Database },
   { id: "domain-model", label: "Domain Model", icon: Network },
+  { id: "intelligence", label: "Intelligence Operations", icon: BrainCircuit },
   { id: "users", label: "Accounts", icon: Building2 },
   { id: "workspaces", label: "Workspaces", icon: Building2 },
   { id: "workspace-settings", label: "Workspace Settings", icon: Building2 },
@@ -72,6 +74,7 @@ const HASH_ROUTES = {
   tasks: "#/budget-spend/tasks",
   connections: "#/budget-spend/connections",
   "domain-model": "#/budget-spend/domain-model",
+  intelligence: "#/budget-spend/intelligence",
   users: "#/budget-spend/users",
   workspaces: "#/budget-spend/workspaces",
   "workspace-settings": "#/budget-spend/workspace",
@@ -393,6 +396,7 @@ function App() {
         {activeTab === "event-discovery" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading event discovery" loadingMessage="Candidates, source health, and scan history are loading." />}><EventDiscoveryPage /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}
         {activeTab === "domain-model" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading domain model" loadingMessage="The graph schema, inventories, and evidence coverage are loading." />}><DomainModelPage routeHash={routeHash} /></Suspense> : null}
+        {activeTab === "intelligence" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading intelligence operations" loadingMessage="People, industrial-base, accountability, document, and operational intelligence are loading." />}><IntelligenceProductsPage /></Suspense> : null}
         {coreReady && executionReady && accountSpineReady && captureCalendarReady && activeTab === "sources" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading source lineage" loadingMessage="Source coverage and health evidence are loading." />}><AnalyticsSources budgetData={data} accountSpine={ACCOUNT_SPINE} captureCalendar={CAPTURE_CALENDAR} awardSummary={AWARD_DRILLDOWN.summary} executionCoverage={EXECUTION_COVERAGE} subawardSnapshot={USASPENDING_SUBAWARDS} /></Suspense> : null}
         {PROFILE_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Personal settings and account controls are loading." />}><ProfilePage section={activeTab} /></Suspense> : null}
       </div>
