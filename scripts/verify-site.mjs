@@ -2335,6 +2335,7 @@ try {
   await openSurface(mobile, "#/budget-spend/intelligence", "[data-intelligence-products-page]");
   const intelligenceTabHeights = await mobile.locator(".intelligence-products__tabs button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(intelligenceTabHeights.every((height) => height >= 43.5), `Mobile intelligence tabs must retain 44px touch targets: ${intelligenceTabHeights.join(", ")}`);
+  await mobile.locator("[data-official-people-panel]").waitFor({ state: "attached" });
   assert.equal(await mobile.locator("[data-official-people-panel]").count(), 1, "Mobile Intelligence Operations should retain official people coverage");
   await assertNoPageOverflow(mobile, "Mobile Intelligence Operations");
   await mobile.screenshot({ path: `${OUT_DIR}/intelligence-operations-mobile.png`, fullPage: true });
