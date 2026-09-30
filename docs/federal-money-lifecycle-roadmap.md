@@ -202,21 +202,23 @@ with current materialized views, so corrections do not erase the historical reco
 
 ### Exact money lifecycle: operational
 
-Schema 1.5 retains five fiscal years of exact money evidence:
+Schema 2.0 retains ten fiscal years of exact money evidence:
 
-- 741 federal-account snapshots across FY2022-FY2026
-- 1,335 distinct Treasury accounts and 4,060 FY/TAS execution balances
+- 1,478 federal-account snapshots across FY2017-FY2026
+- 7,986 FY/TAS execution balances across the ten-year window
 - 6,105 retained OMB apportionment revisions rather than only the latest file
-- 803 deduplicated program activities and 175 object-class observations
-- 59 independent Treasury Monthly Statement observations for DoD military-program outlays
+- 1,639 source program-activity rows and 350 object-class rows before graph deduplication
+- 119 independent Treasury Monthly Statement observations for DoD military-program outlays
 - 778 exact award-account relationships from the stratified award sample
+- bounded exact transaction histories for 100 priority awards, retaining the first 5,
+  latest 15, and 10 largest-obligation actions plus observed action totals
 
 USAspending and OMB remain the exact account spine. Treasury MTS observations are an
 independent agency-level reconciliation layer, not a substitute for TAS-level execution.
 The UI and graph must never add request, budget authority, apportionment, obligations,
 outlays, award totals, or ceilings together.
 
-Acceptance is enforced by `verify:money-lifecycle`, graph integrity, Agent API traversal,
+Acceptance is enforced by `verify:data-coverage`, graph integrity, Agent API traversal,
 and source-linked relationship checks.
 
 ### SAM acquisition backbone: implemented, protected source activation pending

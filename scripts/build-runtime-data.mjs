@@ -14,6 +14,9 @@ import { resolveOrganizationLocation } from "../src/organization-locations.js";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SOURCE_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
 const ACCOUNT_SPINE_FILE = resolve(ROOT, "src/data/account-spine.json");
+const PRIORITY_AWARD_ACTIONS_FILE = resolve(ROOT, "src/data/priority-award-actions.json");
+const LEGISLATIVE_TRACEABILITY_FILE = resolve(ROOT, "src/data/legislative-traceability.json");
+const STRATEGIC_INTELLIGENCE_FILE = resolve(ROOT, "src/data/strategic-intelligence.json");
 const CAPTURE_CALENDAR_FILE = resolve(ROOT, "src/data/capture-calendar.json");
 const CAPTURE_TRANSACTIONS_FILE = resolve(ROOT, "src/data/capture-transactions.json");
 const SAM_OPPORTUNITIES_FILE = resolve(ROOT, "src/data/sam-opportunities.json");
@@ -223,6 +226,9 @@ writeFileSync(
   resolve(OUT_DIR, "account-spine.json"),
   readFileSync(ACCOUNT_SPINE_FILE, "utf8"),
 );
+writeFileSync(resolve(OUT_DIR, "priority-award-actions.json"), readFileSync(PRIORITY_AWARD_ACTIONS_FILE, "utf8"));
+writeFileSync(resolve(OUT_DIR, "legislative-traceability.json"), readFileSync(LEGISLATIVE_TRACEABILITY_FILE, "utf8"));
+writeFileSync(resolve(OUT_DIR, "strategic-intelligence.json"), readFileSync(STRATEGIC_INTELLIGENCE_FILE, "utf8"));
 writeFileSync(
   resolve(OUT_DIR, "capture-calendar.json"),
   JSON.stringify(captureCalendar),

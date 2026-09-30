@@ -37,6 +37,9 @@ const accountSpine = read("account-spine.json");
 const subawards = read("usaspending-subawards.json");
 const spendingCoverage = read("usaspending-coverage.json");
 const samBackbone = JSON.parse(readFileSync(resolve(ROOT, "src/data/sam-acquisition-backbone.json"), "utf8"));
+const priorityAwardActions = JSON.parse(readFileSync(resolve(ROOT, "src/data/priority-award-actions.json"), "utf8"));
+const legislative = JSON.parse(readFileSync(resolve(ROOT, "src/data/legislative-traceability.json"), "utf8"));
+const strategic = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-intelligence.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -658,6 +661,13 @@ for (const row of samCollections.awardActions || []) {
   const vehicleId = row.referencedIdvPiid ? [...contractVehicleByKey.values()].find((id) => entities["contract-vehicle"].find((item) => item.id === id)?.piid === row.referencedIdvPiid) : null;
   if (vehicleId) addRelation("award-action-ordered-under-vehicle", row.id, vehicleId, evidence("sam-acquisition-backbone", "published-referenced-idv-piid", "exact", row.sourceUrl));
 }
+for (const row of priorityAwardActions.actions || []) {
+  addEntity("award-action", { ...row, label: `${row.piid || row.awardId} ${row.modificationNumber || row.transactionId}`, sourceArtifact: "priority-award-actions" });
+  const awardId = awardByGeneratedId.get(row.awardId) || awardByPiid.get(normalized(row.piid));
+  if (awardId) addRelation("award-modified-by-action", awardId, row.id, evidence("priority-award-actions", "exact-generated-award-and-transaction-id", "exact", row.sourceUrl), { modificationNumber: row.modificationNumber, actionDate: row.actionDate, obligatedAmount: row.obligatedAmount });
+  const sourceId = source(row.sourceUrl, "priority-award-actions", `USAspending transaction ${row.transactionId}`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("priority-award-actions", "official-transaction-url", "exact", row.sourceUrl));
+}
 for (const row of samCollections.vendorRegistrations || []) {
   addEntity("vendor-registration", { ...row, label: row.legalBusinessName, sourceArtifact: "sam-acquisition-backbone" });
   const organizationId = organization(row.legalBusinessName, "sam-acquisition-backbone", { uei: row.uei }, { identityClass: "recipient" });
@@ -706,6 +716,81 @@ for (const line of core.records || []) {
   addRelation("budget-line-owned-by-organization", id, organizationId, evidence("budget-core", "published-budget-organization", "source_declared"));
   for (const term of line.technologyAreas || []) addRelation("entity-classified-as", id, classification("technology-area", term, term, "budget-core"), evidence("budget-core", "deterministic-technology-area", "deterministic"));
   for (const signal of line.signals || []) addRelation("entity-classified-as", id, classification("budget-signal", signal, signal, "budget-core"), evidence("budget-core", "deterministic-budget-signal", "deterministic"));
+  if (line.bookId === "R-1" && line.lineCode) {
+    const programElementId = `program-element:${normalized(`${line.org}|${line.lineCode}`)}`;
+    addEntity("program-element", { id: programElementId, code: line.lineCode, label: line.lineTitle || line.subActivityTitle || line.lineCode, organization: line.orgName, sourceArtifact: "budget-core" });
+    addRelation("program-element-represented-by-budget-line", programElementId, id, evidence("budget-core", "exact-r1-program-element-code", "exact"));
+  }
+  if (line.bookId === "C-1" && (line.lineCode || line.lineNumber)) {
+    const projectId = `project:${normalized(`${line.org}|${line.lineCode || line.lineNumber}|${line.lineTitle}`)}`;
+    addEntity("project", { id: projectId, code: line.lineCode || line.lineNumber, label: line.lineTitle || line.subActivityTitle || line.accountTitle, organization: line.orgName, sourceArtifact: "budget-core" });
+    addRelation("project-represented-by-budget-line", projectId, id, evidence("budget-core", "exact-c1-project-line", "exact"));
+  }
+}
+
+const legislativeEntityById = new Set();
+for (const row of legislative.measures || []) { addEntity("legislative-measure", { ...row, sourceArtifact: "legislative-traceability" }); legislativeEntityById.add(row.id); }
+for (const row of legislative.versions || []) { addEntity("legislative-version", { ...row, label: `${row.packageId} ${row.title || ""}`.trim(), sourceArtifact: "legislative-traceability" }); legislativeEntityById.add(row.id); }
+for (const row of legislative.committeeReports || []) { addEntity("committee-report", { ...row, sourceArtifact: "legislative-traceability" }); legislativeEntityById.add(row.id); }
+for (const row of legislative.enactedProvisions || []) { addEntity("enacted-provision", { ...row, sourceArtifact: "legislative-traceability" }); legislativeEntityById.add(row.id); }
+for (const row of legislative.relations || []) {
+  if (legislativeEntityById.has(row.from) && legislativeEntityById.has(row.to)) addRelation(row.type, row.from, row.to, evidence("legislative-traceability", row.basis, "exact", row.sourceUrl));
+}
+const versionsByMeasure = new Map();
+for (const row of legislative.versions || []) {
+  const rows = versionsByMeasure.get(row.measureId) || [];
+  rows.push(row);
+  versionsByMeasure.set(row.measureId, rows);
+  const sourceId = source(row.sourceUrl, "legislative-traceability", `GovInfo ${row.packageId}`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("legislative-traceability", "official-govinfo-package", "exact", row.sourceUrl));
+}
+for (const rows of versionsByMeasure.values()) {
+  rows.sort((left, right) => String(left.dateIssued || "").localeCompare(String(right.dateIssued || "")) || left.id.localeCompare(right.id));
+  for (let index = 1; index < rows.length; index += 1) addRelation("legislative-version-supersedes", rows[index].id, rows[index - 1].id, evidence("legislative-traceability", "official-version-date-order", "deterministic", rows[index].sourceUrl, "reviewed"));
+}
+for (const row of [...(legislative.measures || []), ...(legislative.committeeReports || []), ...(legislative.enactedProvisions || [])]) {
+  const sourceId = source(row.sourceUrl, "legislative-traceability", row.title || row.label);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("legislative-traceability", "official-source-url", "exact", row.sourceUrl));
+}
+
+for (const row of strategic.forecasts || []) {
+  addEntity("acquisition-forecast", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys.activity.has(row.activityId)) addRelation("activity-has-forecast", row.activityId, row.id, evidence("strategic-intelligence", "source-declared-agency-forecast-channel", row.sourceUrls?.length ? "source_declared" : "deterministic", row.sourceUrls?.[0] || "", row.reviewState));
+  for (const url of row.sourceUrls || []) {
+    const sourceId = source(url, "strategic-intelligence", `${row.label} forecast source`);
+    if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("strategic-intelligence", "official-forecast-url", "exact", url, row.reviewState));
+  }
+}
+for (const row of strategic.missionAssignments || []) {
+  addEntity("mission-assignment", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys.location.has(row.locationId)) addRelation("mission-assignment-at-location", row.id, row.locationId, evidence("strategic-intelligence", "reviewed-primary-source-mission", "reviewed", row.sourceUrl, row.reviewState));
+  const sourceId = source(row.sourceUrl, "strategic-intelligence", `${row.label} source`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("strategic-intelligence", "reviewed-primary-source", "reviewed", row.sourceUrl, row.reviewState));
+}
+for (const row of strategic.tenantAssignments || []) {
+  addEntity("installation-tenant", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys.location.has(row.locationId)) addRelation("installation-tenant-at-location", row.id, row.locationId, evidence("strategic-intelligence", "reviewed-organization-location", "reviewed", row.sourceUrl, row.reviewState));
+  const organizationId = organization(row.organizationName, "strategic-intelligence", {}, { identityClass: "government" });
+  if (organizationId) addRelation("installation-tenant-organization", row.id, organizationId, evidence("strategic-intelligence", "reviewed-primary-source-organization", "reviewed", row.sourceUrl, row.reviewState));
+  const sourceId = source(row.sourceUrl, "strategic-intelligence", `${row.organizationName} source`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("strategic-intelligence", "reviewed-primary-source", "reviewed", row.sourceUrl, row.reviewState));
+}
+for (const row of strategic.competitiveSignals || []) {
+  addEntity("competitive-signal", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys.activity.has(row.targetId)) addRelation("activity-has-competitive-signal", row.targetId, row.id, evidence("strategic-intelligence", "published-forecast-competition-posture", "source_declared", row.sourceUrls?.[0] || "", row.reviewState));
+}
+for (const row of strategic.expirationSignals || []) {
+  addEntity("expiration-signal", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys.award.has(row.targetAwardId)) addRelation("award-has-expiration-signal", row.targetAwardId, row.id, evidence("strategic-intelligence", "deterministic-reported-end-date-horizon", "deterministic", row.sourceUrl, row.reviewState));
+}
+for (const row of strategic.executionRiskSignals || []) {
+  addEntity("execution-risk-signal", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys["execution-balance"].has(row.targetBalanceId)) addRelation("execution-balance-has-risk-signal", row.targetBalanceId, row.id, evidence("strategic-intelligence", "deterministic-unobligated-share-threshold", "deterministic", row.sourceUrl, row.reviewState));
+}
+for (const row of strategic.outcomeEvidence || []) {
+  addEntity("outcome-evidence", { ...row, sourceArtifact: "strategic-intelligence" });
+  if (entityKeys.activity.has(row.targetActivityId)) addRelation("activity-has-outcome-evidence", row.targetActivityId, row.id, evidence("strategic-intelligence", "observed-award-or-transaction-activity", "exact", row.sourceUrls?.[0] || "", row.reviewState));
+  if (row.awardId && entityKeys.award.has(row.awardId)) addRelation("outcome-evidence-award", row.id, row.awardId, evidence("strategic-intelligence", "exact-generated-award-id", "exact", row.sourceUrls?.[0] || "", row.reviewState));
 }
 
 for (const connection of Object.values(byActivity)) {
@@ -873,6 +958,32 @@ const graph = {
         exactAwardAccountLinks: relations.filter((item) => item.type === "award-funded-by-account").length,
         amountPolicy: accountSpine.metadata?.amountPolicy,
       },
+      legislation: {
+        measures: entities["legislative-measure"].length,
+        versions: entities["legislative-version"].length,
+        committeeReports: entities["committee-report"].length,
+        enactedProvisions: entities["enacted-provision"].length,
+        appropriationMarks: entities["appropriation-mark"].length,
+        exactTraceabilityRelations: relations.filter((item) => ["measure-has-version", "measure-backed-by-report", "measure-enacted-as"].includes(item.type)).length,
+        caveat: legislative.metadata?.caveat,
+      },
+      market: {
+        acquisitionForecasts: entities["acquisition-forecast"].length,
+        reviewedMissionAssignments: entities["mission-assignment"].length,
+        reviewedTenantAssignments: entities["installation-tenant"].length,
+        sbirTopics: entities["sbir-topic"].length,
+        sbirAwards: entities["sbir-award"].length,
+        sourceHealth: strategic.sourceHealth,
+      },
+      signals: {
+        competitive: entities["competitive-signal"].length,
+        expiration: entities["expiration-signal"].length,
+        executionRisk: entities["execution-risk-signal"].length,
+        protests: entities["protest-decision"].length,
+        audits: entities["audit-finding"].length,
+        outcomes: entities["outcome-evidence"].length,
+        promotionPolicy: strategic.metadata?.promotionPolicy,
+      },
       budget: { lines: entities["budget-line"].length, exactAccountTitleLinks: relations.filter((item) => item.type === "budget-line-matches-account-title").length, unresolvedAccountTitleLinks: entities["budget-line"].length - relations.filter((item) => item.type === "budget-line-matches-account-title").length },
       geography: { locations: entities.location.length, activityLocationRelations: relations.filter((item) => ["contracting-activity-at", "funding-activity-at"].includes(item.type)).length },
       organizations: organizationCoverage,
@@ -913,6 +1024,15 @@ const graph = {
       awardAction: "SAM.gov contract transaction key, or PIID plus modification number plus action date when the source key is absent.",
       vendorRegistration: "Exact SAM UEI registration observation. CAGE and public business attributes remain source claims with observation dates.",
       spendingObservation: "Fiscal year plus dimension plus exact published category identifier from the USAspending transaction aggregation endpoints.",
+      legislativeMeasure: "Congress plus exact bill type and bill number from GovInfo/Congress.gov.",
+      legislativeVersion: "Exact GovInfo package identifier. Version chronology never substitutes for legal effect.",
+      committeeReport: "Exact GovInfo committee-report package identifier. A report links to a measure only when the published title contains the exact bill citation.",
+      enactedProvision: "Exact GovInfo package identity or Congress.gov public/private law identity.",
+      programElement: "Exact R-1 program-element code scoped by budget organization.",
+      project: "Exact C-1 project/line identity scoped by budget organization.",
+      acquisitionForecast: "Source-declared agency forecast record retained separately from solicitations and notices.",
+      missionAssignment: "Reviewed installation mission claim with an authoritative primary source.",
+      signal: "Deterministic, dated review trigger with retained inputs and caveat. Signals are not canonical outcome facts.",
       source: "Canonical HTTP(S) URL.",
       evidenceClaim: "One source-attributed field value observed at a stated time. Competing claims are preserved rather than overwritten.",
       evidenceConflict: "A typed disagreement among retained claims. Resolution requires exact evidence, explicit review, or a newer current source under the published recency rule.",

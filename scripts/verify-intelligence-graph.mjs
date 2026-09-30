@@ -32,14 +32,14 @@ assert.equal(graph.entities?.transaction?.length, 3085, "All exact FPDS actions 
 assert.equal(graph.entities?.location?.length, 885, "All authoritative locations must exist in the graph");
 assert.equal(graph.entities?.["budget-line"]?.length, 3888, "All public budget lines must exist in the graph");
 assert.equal(Object.keys(graph.indices?.byActivity || {}).length, 888, "Every activity must have a graph index");
-assert.ok(relations.length > 88000, "The graph should retain the complete cross-surface and money-lifecycle relation set");
+assert.ok(relations.length > 108000, "The graph should retain the complete cross-surface, legislative, signal, and money-lifecycle relation set");
 assert.ok(relations.every((relation) => INTELLIGENCE_RELATION_TYPES.includes(relation.type)), "Graph contains an unknown relationship type");
 assert.ok(relations.every((relation) => entities.has(relation.from) && entities.has(relation.to)), "Graph contains a dangling relationship endpoint");
 assert.ok(relations.every((relation) => relation.evidence?.sourceArtifact && relation.evidence?.basis && relation.evidence?.confidence), "Every graph relationship must retain evidence metadata");
 assert.ok(relations.every((relation) => relation.validity?.observedAt && "effectiveFrom" in relation.validity && "effectiveTo" in relation.validity && "supersededAt" in relation.validity && "reviewedAt" in relation.validity && relation.validity.reviewBy && TEMPORAL_STATUS_VALUES.includes(relation.validity?.status)), "Every graph relationship must retain explicit temporal and review fields");
 assert.equal(graph.metadata.coverage.activities.awardLinked, 702, "All retained awards must link to the canonical activity spine");
 assert.equal(graph.metadata.coverage.awards.accountLinked, 305, "Known unique award-to-account coverage changed");
-assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 772, "Known exact award-to-account relationships changed");
+assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 775, "Known exact award-to-account relationships changed");
 assert.equal(graph.metadata.coverage.awards.subawardLinked, 379, "All checked subaward primes must join exact award IDs");
 assert.deepEqual(graph.metadata.coverage.spending, {
   firstFiscalYear: 2017,
@@ -53,35 +53,55 @@ assert.deepEqual(graph.metadata.coverage.spending, {
 }, "USAspending breadth coverage changed");
 assert.equal(graph.entities?.["spending-observation"]?.length, 7071, "Every annual and deduplicated category observation must exist once");
 assert.equal(graph.metadata.relationCounts["spending-observation-measures-entity"], 7071, "Every spending observation must measure exactly one typed subject");
-assert.equal(graph.metadata.entityCounts["federal-account"], 164, "Current and historical federal accounts must remain independently addressable");
-assert.equal(graph.metadata.relationCounts["federal-account-has-execution-balance"], 4060, "Every execution balance must retain its exact federal-account edge");
-assert.equal(graph.metadata.relationCounts["supported-by-source"], 21623, "Every new observation, award, balance, revision, Treasury observation, and historical account must retain source evidence");
-assert.equal(graph.entities?.["treasury-account"]?.length, 1335, "Every exact historical TAS must exist once");
-assert.equal(graph.entities?.["execution-balance"]?.length, 4060, "Every FY/TAS execution balance must exist once");
+assert.equal(graph.metadata.entityCounts["federal-account"], 179, "Current and historical federal accounts must remain independently addressable");
+assert.equal(graph.metadata.relationCounts["federal-account-has-execution-balance"], 7986, "Every execution balance must retain its exact federal-account edge");
+assert.equal(graph.metadata.relationCounts["supported-by-source"], 26390, "Every new observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
+assert.equal(graph.entities?.["treasury-account"]?.length, 1986, "Every exact historical TAS must exist once");
+assert.equal(graph.entities?.["execution-balance"]?.length, 7986, "Every FY/TAS execution balance must exist once");
 assert.equal(graph.entities?.["apportionment-revision"]?.length, 6105, "Every retained OMB apportionment revision must exist once");
-assert.ok(graph.entities?.["program-activity"]?.length >= 800, "Program activity depth regressed");
-assert.equal(graph.entities?.["object-class"]?.length, 175, "Object-class history regressed");
-assert.equal(graph.entities?.["treasury-outlay-observation"]?.length, 59, "Treasury monthly reconciliation history regressed");
-assert.equal(graph.metadata.relationCounts["treasury-account-has-execution-balance"], 4060, "Every execution balance must join its exact TAS");
-assert.equal(graph.metadata.relationCounts["treasury-account-apportioned-by-revision"], 5921, "Every joinable OMB revision must join its exact TAS");
+assert.ok(graph.entities?.["program-activity"]?.length >= 1500, "Program activity depth regressed");
+assert.equal(graph.entities?.["object-class"]?.length, 350, "Object-class history regressed");
+assert.equal(graph.entities?.["treasury-outlay-observation"]?.length, 119, "Treasury monthly reconciliation history regressed");
+assert.equal(graph.metadata.relationCounts["treasury-account-has-execution-balance"], 7986, "Every execution balance must join its exact TAS");
+assert.equal(graph.metadata.relationCounts["treasury-account-apportioned-by-revision"], 5943, "Every joinable OMB revision must join its exact TAS");
 assert.deepEqual(graph.metadata.coverage.money, {
-  firstFiscalYear: 2022,
+  firstFiscalYear: 2017,
   lastFiscalYear: 2026,
-  federalAccountSnapshots: 741,
-  treasuryAccounts: 1335,
-  executionBalances: 4060,
+  federalAccountSnapshots: 1478,
+  treasuryAccounts: 1986,
+  executionBalances: 7986,
   apportionmentRevisions: 6105,
-  programActivities: 803,
-  objectClasses: 175,
-  treasuryOutlayObservations: 59,
-  exactAwardAccountLinks: 772,
+  programActivities: 1561,
+  objectClasses: 350,
+  treasuryOutlayObservations: 119,
+  exactAwardAccountLinks: 775,
   amountPolicy: "Request, budgetary resources, apportionment, obligations, and outlays are separate measures and must not be added together.",
 }, "Exact money lifecycle coverage changed");
 assert.equal(graph.metadata.coverage.acquisition.status, "unavailable", "SAM acquisition coverage must remain explicitly unavailable until the protected key is configured");
 for (const type of ["opportunity-notice", "notice-version", "award-action", "vendor-registration", "business-certification", "organization-hierarchy-observation", "subaward"]) {
   assert.ok(type in graph.metadata.entityCounts, `SAM acquisition type ${type} must remain first-class even when its protected source is unavailable`);
 }
-assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3571, "Known exact budget-line to federal-account title links changed");
+assert.equal(graph.entities?.["award-action"]?.length, 2774, "Every retained priority-award action must exist once");
+assert.equal(graph.metadata.relationCounts["award-modified-by-action"], 2774, "Every retained priority-award action must join its exact award");
+assert.equal(graph.entities?.["legislative-measure"]?.length, 8, "The annual enacted NDAA baseline must remain addressable");
+assert.equal(graph.entities?.["legislative-version"]?.length, 24, "Introduced, reported, and enrolled defense bill versions must remain addressable");
+assert.equal(graph.entities?.["committee-report"]?.length, 2, "Exact committee-report baseline changed");
+assert.equal(graph.entities?.["enacted-provision"]?.length, 8, "Every baseline defense measure must retain its enacted law identity");
+assert.equal(graph.metadata.relationCounts["measure-has-version"], 24, "Every defense bill version must join its exact measure");
+assert.equal(graph.metadata.relationCounts["measure-enacted-as"], 8, "Every enacted defense measure must join its exact public law");
+assert.equal(graph.entities?.["program-element"]?.length, 1114, "R-1 program-element coverage changed");
+assert.equal(graph.entities?.project?.length, 745, "C-1 project coverage changed");
+assert.equal(graph.entities?.["acquisition-forecast"]?.length, 10, "Agency forecast baseline changed");
+assert.equal(graph.entities?.["mission-assignment"]?.length, 96, "Reviewed installation mission coverage changed");
+assert.equal(graph.entities?.["installation-tenant"]?.length, 185, "Reviewed installation tenant coverage changed");
+assert.equal(graph.entities?.["competitive-signal"]?.length, 119, "Competition signal coverage changed");
+assert.equal(graph.entities?.["expiration-signal"]?.length, 267, "Expiration signal coverage changed");
+assert.equal(graph.entities?.["execution-risk-signal"]?.length, 256, "Execution review-signal coverage changed");
+assert.equal(graph.entities?.["outcome-evidence"]?.length, 130, "Exact award/transaction outcome evidence coverage changed");
+assert.equal(graph.entities?.["sbir-topic"]?.length, 0, "SBIR topics must remain empty while the official API is unavailable");
+assert.equal(graph.entities?.["protest-decision"]?.length, 0, "No protest decision may be promoted without an exact award or notice join");
+assert.equal(graph.entities?.["audit-finding"]?.length, 0, "No audit finding may be promoted without an exact official identifier crosswalk");
+assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3572, "Known exact budget-line to federal-account title links changed");
 assert.equal(graph.metadata.coverage.geography.activityLocationRelations, 400, "Reviewed map placement relationship coverage changed");
 assert.equal(graph.metadata.coverage.organizations.canonicalUeiIdentities, 571, "Published UEI identity coverage changed");
 assert.equal(graph.metadata.coverage.organizations.reviewedOfficeCodeIdentities, 50, "Reviewed contracting-office code coverage changed");
@@ -118,10 +138,10 @@ assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Eviden
 assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
 assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
 assert.deepEqual(graph.metadata.coverage.temporal, {
-  relationsAssessed: 88135,
-  current: 75509,
-  historical: 12356,
-  future: 270,
+  relationsAssessed: 108561,
+  current: 94063,
+  historical: 14226,
+  future: 272,
   stale: 0,
   superseded: 0,
   unknown: 0,

@@ -21,7 +21,7 @@ const TREASURY_MTS_URL = "https://api.fiscaldata.treasury.gov/services/api/fisca
 const today = new Date();
 const defaultFiscalYear = today.getUTCMonth() >= 9 ? today.getUTCFullYear() + 1 : today.getUTCFullYear();
 const FISCAL_YEAR = Number(process.env.ACCOUNT_SPINE_FISCAL_YEAR || defaultFiscalYear);
-const HISTORY_YEARS = Math.max(1, Math.min(10, Number(process.env.ACCOUNT_SPINE_HISTORY_YEARS || 5)));
+const HISTORY_YEARS = Math.max(1, Math.min(10, Number(process.env.ACCOUNT_SPINE_HISTORY_YEARS || 10)));
 const FISCAL_YEARS = Array.from({ length: HISTORY_YEARS }, (_, index) => FISCAL_YEAR - HISTORY_YEARS + 1 + index);
 const AGENCY_CODE = process.env.ACCOUNT_SPINE_AGENCY_CODE || "097";
 const CONCURRENCY = Math.max(1, Number(process.env.ACCOUNT_SPINE_CONCURRENCY || 6));
