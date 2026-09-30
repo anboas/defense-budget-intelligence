@@ -1704,7 +1704,7 @@ try {
   assert.match(subawardDetailText, /retained/i, "Subaward detail should distinguish the bounded detail sample");
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
-  await page.getByPlaceholder("Program, company, reference, buyer").fill("");
+  await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
   const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
   const fundingLayer = page.getByRole("button", { name: "Funding", exact: true });
   await fundingLayer.click();
@@ -1715,7 +1715,6 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0, null, { timeout: 60_000 });
   assert.equal(transactionRequests, 1, "Enabling the FPDS overlay should load the exact action feed once");
   assert.ok(await page.locator(".capture-timeline__action-marker").count() > 0, "FPDS feed should render timeline action pulses");
-  await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
   const applicationActionRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
   await applicationActionRow.waitFor();
   const pageHeightBeforeModal = await page.evaluate(() => document.documentElement.scrollHeight);
