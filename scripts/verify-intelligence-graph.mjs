@@ -14,6 +14,7 @@ const contractLineageIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/
 const contractLineageReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/contract-lineage-review.json"), "utf8"));
 const temporalEvidenceIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-index.json"), "utf8"));
 const temporalEvidenceReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-review.json"), "utf8"));
+const spendingCoverage = JSON.parse(readFileSync(resolve(ROOT, "src/data/usaspending-coverage.json"), "utf8"));
 const agentGraphManifest = JSON.parse(readFileSync(resolve(ROOT, "public/data/agent-graph/manifest.json"), "utf8"));
 const entities = new Set(Object.values(graph.entities || {}).flatMap((rows) => rows.map((row) => row.id)));
 const relations = graph.relations || [];
@@ -25,24 +26,37 @@ assert.equal(graphSummary.totals.entities, Object.values(graph.metadata.entityCo
 assert.deepEqual(graph.domain?.entityTypes, INTELLIGENCE_ENTITY_TYPES);
 assert.deepEqual(graph.domain?.relationTypes, INTELLIGENCE_RELATION_TYPES);
 assert.equal(graph.entities?.activity?.length, 888, "All stable activities must exist in the graph");
-assert.equal(graph.entities?.award?.length, 702, "All retained USAspending awards must exist in the graph");
+assert.equal(graph.entities?.award?.length, 1905, "All activity-linked and ranked USAspending awards must exist in the graph");
 assert.equal(graph.entities?.event?.length, 502, "All normalized public events must exist in the graph");
 assert.equal(graph.entities?.transaction?.length, 3085, "All exact FPDS actions must exist in the graph");
 assert.equal(graph.entities?.location?.length, 885, "All authoritative locations must exist in the graph");
 assert.equal(graph.entities?.["budget-line"]?.length, 3888, "All public budget lines must exist in the graph");
 assert.equal(Object.keys(graph.indices?.byActivity || {}).length, 888, "Every activity must have a graph index");
-assert.ok(relations.length > 15000, "The graph should retain the complete cross-surface relation set");
+assert.ok(relations.length > 62000, "The graph should retain the complete cross-surface relation set");
 assert.ok(relations.every((relation) => INTELLIGENCE_RELATION_TYPES.includes(relation.type)), "Graph contains an unknown relationship type");
 assert.ok(relations.every((relation) => entities.has(relation.from) && entities.has(relation.to)), "Graph contains a dangling relationship endpoint");
 assert.ok(relations.every((relation) => relation.evidence?.sourceArtifact && relation.evidence?.basis && relation.evidence?.confidence), "Every graph relationship must retain evidence metadata");
 assert.ok(relations.every((relation) => relation.validity?.observedAt && "effectiveFrom" in relation.validity && "effectiveTo" in relation.validity && "supersededAt" in relation.validity && "reviewedAt" in relation.validity && relation.validity.reviewBy && TEMPORAL_STATUS_VALUES.includes(relation.validity?.status)), "Every graph relationship must retain explicit temporal and review fields");
 assert.equal(graph.metadata.coverage.activities.awardLinked, 702, "All retained awards must link to the canonical activity spine");
-assert.equal(graph.metadata.coverage.awards.accountLinked, 183, "Known unique award-to-account coverage changed");
-assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 485, "Known exact award-to-account relationships changed");
+assert.equal(graph.metadata.coverage.awards.accountLinked, 305, "Known unique award-to-account coverage changed");
+assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 772, "Known exact award-to-account relationships changed");
 assert.equal(graph.metadata.coverage.awards.subawardLinked, 379, "All checked subaward primes must join exact award IDs");
+assert.deepEqual(graph.metadata.coverage.spending, {
+  firstFiscalYear: 2017,
+  lastFiscalYear: 2026,
+  annualTotals: 10,
+  observations: 7071,
+  uniqueRankedAwards: 1489,
+  categoryRows: 7061,
+  scope: spendingCoverage.metadata.scope,
+  amountPolicy: spendingCoverage.metadata.amountPolicy,
+}, "USAspending breadth coverage changed");
+assert.equal(graph.entities?.["spending-observation"]?.length, 7071, "Every annual and deduplicated category observation must exist once");
+assert.equal(graph.metadata.relationCounts["spending-observation-measures-entity"], 7071, "Every spending observation must measure exactly one typed subject");
+assert.equal(graph.metadata.relationCounts["supported-by-source"], 13135, "Every new observation and award must retain source evidence");
 assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3569, "Known exact budget-line to federal-account title links changed");
 assert.equal(graph.metadata.coverage.geography.activityLocationRelations, 400, "Reviewed map placement relationship coverage changed");
-assert.equal(graph.metadata.coverage.organizations.canonicalUeiIdentities, 264, "Published UEI identity coverage changed");
+assert.equal(graph.metadata.coverage.organizations.canonicalUeiIdentities, 571, "Published UEI identity coverage changed");
 assert.equal(graph.metadata.coverage.organizations.reviewedOfficeCodeIdentities, 50, "Reviewed contracting-office code coverage changed");
 assert.equal(graph.metadata.coverage.organizations.cageIdentities, 0, "CAGE coverage must remain explicit until published evidence enters the retained corpus");
 assert.equal(graph.metadata.coverage.organizations.resolvedAliasGroups, 23, "Known UEI-resolved alias coverage changed");
@@ -77,11 +91,11 @@ assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Eviden
 assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
 assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
 assert.deepEqual(graph.metadata.coverage.temporal, {
-  relationsAssessed: 39601,
-  current: 30013,
-  historical: 8691,
-  future: 259,
-  stale: 638,
+  relationsAssessed: 63232,
+  current: 50606,
+  historical: 12356,
+  future: 270,
+  stale: 0,
   superseded: 0,
   unknown: 0,
   totalConflicts: 489,
@@ -93,7 +107,7 @@ assert.deepEqual(graph.metadata.coverage.temporal, {
 const organizationIdentifiers = graph.entities?.["organization-identifier"] || [];
 const ueiIdentifiers = organizationIdentifiers.filter((item) => item.namespace === "uei");
 const officeIdentifiers = organizationIdentifiers.filter((item) => item.namespace === "officeCode");
-assert.equal(ueiIdentifiers.length, 264, "Every published UEI must exist once as a typed organization identifier");
+assert.equal(ueiIdentifiers.length, 571, "Every published UEI must exist once as a typed organization identifier");
 assert.equal(new Set(ueiIdentifiers.map((item) => item.value)).size, ueiIdentifiers.length, "UEI identifier entities must be unique");
 assert.equal(officeIdentifiers.length, 50, "Every reviewed office code must exist once as a typed organization identifier");
 assert.equal(new Set(officeIdentifiers.map((item) => item.value)).size, officeIdentifiers.length, "Office-code identifier entities must be unique");
@@ -157,7 +171,7 @@ assert.equal(graphIndex.metadata?.schemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSI
 assert.equal(Object.keys(graphIndex.indices?.byActivity || {}).length, 888, "The deferred activity graph index must cover every canonical activity");
 assert.ok(readFileSync(resolve(ROOT, "public/data/intelligence-graph-index.json")).byteLength < 3_000_000, "Deferred record graph index exceeds the 3 MB route-on-demand budget");
 
-assert.equal(agentGraphManifest.metadata?.schemaVersion, "1.0.0", "Agent graph directory schema changed");
+assert.equal(agentGraphManifest.metadata?.schemaVersion, "1.1.0", "Agent graph directory schema changed");
 assert.equal(agentGraphManifest.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Agent graph directory must track the canonical graph schema");
 assert.deepEqual(agentGraphManifest.domain?.entityTypes, INTELLIGENCE_ENTITY_TYPES, "Agent graph directory must publish every entity type");
 assert.deepEqual(agentGraphManifest.domain?.relationTypes, INTELLIGENCE_RELATION_TYPES, "Agent graph directory must publish every relation type");
@@ -166,15 +180,19 @@ assert.equal(agentGraphManifest.totals?.relations, graphSummary.totals.relations
 const entityTypeById = new Map(Object.entries(graph.entities).flatMap(([type, rows]) => rows.map((row) => [row.id, type])));
 for (const type of INTELLIGENCE_ENTITY_TYPES) {
   const entityPath = resolve(ROOT, `public/data/agent-graph/entities-${type}.json`);
-  const relationPath = resolve(ROOT, `public/data/agent-graph/relations-${type}.json`);
   const entityShard = JSON.parse(readFileSync(entityPath, "utf8"));
-  const relationShard = JSON.parse(readFileSync(relationPath, "utf8"));
+  const relationPaths = agentGraphManifest.entityTypes[type].relationPaths || [];
+  const relationPages = relationPaths.map((path) => ({ path: resolve(ROOT, `public${path}`), shard: JSON.parse(readFileSync(resolve(ROOT, `public${path}`), "utf8")) }));
+  const relationRows = relationPages.flatMap(({ shard }) => shard.relations || []);
   assert.equal(entityShard.entityType, type, `Agent entity shard ${type} must self-identify`);
   assert.equal(entityShard.entities.length, graph.metadata.entityCounts[type], `Agent entity shard ${type} count changed`);
   assert.ok(entityShard.entities.every((entity) => entityTypeById.get(entity.id) === type), `Agent entity shard ${type} contains another entity type`);
-  assert.equal(relationShard.entityType, type, `Agent relation shard ${type} must self-identify`);
-  assert.ok(relationShard.relations.every((relation) => entityTypeById.get(relation.from) === type || entityTypeById.get(relation.to) === type), `Agent relation shard ${type} contains an unrelated relation`);
+  assert.ok(relationPages.length >= 1, `Agent relation directory ${type} must publish at least one page`);
+  assert.ok(relationPages.every(({ shard }, index) => shard.entityType === type && shard.page === index + 1 && shard.pages === relationPages.length), `Agent relation pages ${type} must self-identify and remain ordered`);
+  assert.equal(relationRows.length, agentGraphManifest.entityTypes[type].relationCount, `Agent relation pages ${type} must retain every relation`);
+  assert.equal(new Set(relationRows.map((relation) => relation.id)).size, relationRows.length, `Agent relation pages ${type} must not overlap`);
+  assert.ok(relationRows.every((relation) => entityTypeById.get(relation.from) === type || entityTypeById.get(relation.to) === type), `Agent relation pages ${type} contain an unrelated relation`);
   assert.ok(statSync(entityPath).size < 10_000_000, `Agent entity shard ${type} exceeds its 10 MB API asset budget`);
-  assert.ok(statSync(relationPath).size < 10_000_000, `Agent relation shard ${type} exceeds its 10 MB API asset budget`);
+  assert.ok(relationPages.every(({ path }) => statSync(path).size < 10_000_000), `Agent relation page ${type} exceeds its 10 MB API asset budget`);
 }
 console.log(JSON.stringify({ status: "passed", entities: graph.metadata.entityCounts, relations: relations.length, coverage: graph.metadata.coverage }, null, 2));

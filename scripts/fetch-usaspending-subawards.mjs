@@ -1,9 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const BUDGET_FILE = resolve(ROOT, "src/data/budget-intelligence.json");
+const COVERAGE_FILE = resolve(ROOT, "src/data/usaspending-coverage.json");
 const OUT_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
 const API_URL = "https://api.usaspending.gov/api/v2/subawards/";
 const COUNT_URL = "https://api.usaspending.gov/api/v2/awards/count/subaward/";
@@ -11,16 +13,26 @@ const PAGE_LIMIT = Math.max(1, Math.min(100, Number(process.env.SUBAWARD_PAGE_LI
 const DETAIL_LIMIT = Math.max(1, Number(process.env.SUBAWARD_DETAIL_LIMIT || 100));
 const CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.SUBAWARD_CONCURRENCY || 4)));
 const PRIME_LIMIT = Math.max(1, Number(process.env.SUBAWARD_PRIME_LIMIT || 1000));
+const RETRY_LIMIT = Math.max(1, Number(process.env.SUBAWARD_RETRY_LIMIT || 100));
 
 const budget = JSON.parse(readFileSync(BUDGET_FILE, "utf8"));
 const awards = budget.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards || [];
+const breadth = JSON.parse(readFileSync(COVERAGE_FILE, "utf8"));
 let previous;
 try {
   previous = JSON.parse(readFileSync(OUT_FILE, "utf8"));
 } catch {
   previous = null;
 }
-const previousByPrime = new Map((previous?.primes || []).map((prime) => [prime.primeAwardId, prime]));
+let committedBaseline;
+try {
+  committedBaseline = JSON.parse(execFileSync("git", ["show", "HEAD:src/data/usaspending-subawards.json"], { cwd: ROOT, encoding: "utf8", maxBuffer: 100 * 1024 * 1024 }));
+} catch {
+  committedBaseline = null;
+}
+const retainedByPrime = new Map((committedBaseline?.primes || []).map((prime) => [prime.primeAwardId, prime]));
+for (const prime of previous?.primes || []) retainedByPrime.set(prime.primeAwardId, prime);
+const previousByPrime = retainedByPrime;
 const retryFailuresOnly = process.env.SUBAWARD_RETRY_FAILURES === "1" && previous?.failures?.length;
 const previousFailureIds = new Set((previous?.failures || []).map((failure) => failure.primeAwardId));
 
@@ -150,11 +162,34 @@ async function mapConcurrent(items, worker, concurrency) {
 }
 
 const generatedAt = new Date().toISOString();
-const eligibleAwards = awards.filter((award) => award.id).sort((left, right) => Number(right.awardAmountDollars || 0) - Number(left.awardAmountDollars || 0));
-const awardsToFetch = (retryFailuresOnly ? eligibleAwards.filter((award) => previousFailureIds.has(award.id)) : eligibleAwards.slice(0, PRIME_LIMIT));
+const technologyIds = new Set(awards.map((award) => award.id).filter(Boolean));
+const eligibleById = new Map(awards.filter((award) => award.id).map((award) => [award.id, award]));
+for (const award of breadth.awards || []) {
+  if (!award.generatedAwardId || eligibleById.has(award.generatedAwardId)) continue;
+  eligibleById.set(award.generatedAwardId, {
+    id: award.generatedAwardId,
+    awardId: award.piid,
+    recipient: award.recipient,
+    description: award.description,
+    awardAmountDollars: Number(award.awardAmount || 0),
+  });
+}
+const byAmount = (left, right) => Number(right.awardAmountDollars || 0) - Number(left.awardAmountDollars || 0) || left.id.localeCompare(right.id);
+const eligibleAwards = [...eligibleById.values()].sort(byAmount);
+const technologyLimit = Math.min(Math.ceil(PRIME_LIMIT / 2), technologyIds.size);
+const technologyAwards = eligibleAwards.filter((award) => technologyIds.has(award.id)).slice(0, technologyLimit);
+const selectedIds = new Set(technologyAwards.map((award) => award.id));
+const breadthAwards = eligibleAwards.filter((award) => !selectedIds.has(award.id)).slice(0, Math.max(0, PRIME_LIMIT - technologyAwards.length));
+const selectedAwards = [...technologyAwards, ...breadthAwards];
+const awardsToFetch = retryFailuresOnly
+  ? eligibleAwards.filter((award) => previousFailureIds.has(award.id)).slice(0, RETRY_LIMIT)
+  : selectedAwards;
 const fetched = await mapConcurrent(awardsToFetch, fetchPrime, CONCURRENCY);
-const failures = [];
-const allPrimeResults = retryFailuresOnly ? [...(previous.primes || [])] : [];
+const attemptedIds = new Set(awardsToFetch.map((award) => award.id));
+const failures = retryFailuresOnly
+  ? (previous?.failures || []).filter((failure) => !attemptedIds.has(failure.primeAwardId))
+  : [];
+const allPrimeResults = [...retainedByPrime.values()];
 for (const result of fetched) {
   if (result.ok) {
     const priorIndex = allPrimeResults.findIndex((prime) => prime.primeAwardId === result.item.id);
@@ -164,12 +199,18 @@ for (const result of fetched) {
   }
   const prior = previousByPrime.get(result.item.id);
   if (prior) {
-    allPrimeResults.push({ ...prior, status: "stale", error: result.error, changeStatus: "unchanged" });
+    const priorIndex = allPrimeResults.findIndex((prime) => prime.primeAwardId === result.item.id);
+    if (priorIndex >= 0) allPrimeResults.splice(priorIndex, 1, { ...prior, status: "stale", error: result.error, changeStatus: "unchanged" });
   }
   failures.push({ primeAwardId: result.item.id, primePiid: result.item.awardId || null, error: result.error, retainedPrevious: Boolean(prior) });
 }
 const primes = allPrimeResults.filter((prime) => prime.reportedCount > 0 || prime.status === "stale");
 const detailRows = primes.flatMap((prime) => prime.subawards || []);
+const checkedPrimeCount = retryFailuresOnly
+  ? Math.max(Number(previous?.metadata?.checkedPrimeCount || 0), Number(committedBaseline?.metadata?.checkedPrimeCount || 0), Number(previous?.metadata?.successfulPrimeCount || 0) + awardsToFetch.length)
+  : awardsToFetch.length;
+const targetPrimeCount = Math.min(PRIME_LIMIT, eligibleAwards.length);
+const coverageIncomplete = checkedPrimeCount < targetPrimeCount;
 const out = {
   metadata: {
     title: "USAspending Subaward Snapshot for Indexed DoD Prime Awards",
@@ -177,14 +218,14 @@ const out = {
     sourceUrl: API_URL,
     joinBasis: "Exact USAspending generated prime-award identifier",
     countUrl: COUNT_URL,
-    methodology: `Exact counts use USAspending's prime-award subaward-count endpoint. Up to ${DETAIL_LIMIT} recent detail rows per positive prime are retained; their dollars are a labeled sample, not a complete subaward total.`,
+    methodology: `Exact counts use USAspending's prime-award subaward-count endpoint. The bounded sample is stratified between the retained technology corpus and the FY2017-current DoD breadth registry. Up to ${DETAIL_LIMIT} recent detail rows per positive prime are retained; their dollars are a labeled sample, not a complete subaward total.`,
     indexedPrimeCount: eligibleAwards.length,
     primeLimit: PRIME_LIMIT,
-    checkedPrimeCount: awardsToFetch.length,
-    successfulPrimeCount: awardsToFetch.length - failures.length,
-    coverageStatus: failures.length
-      ? (eligibleAwards.length > awardsToFetch.length ? "partial-bounded-high-value-primes" : "partial-indexed-primes")
-      : (eligibleAwards.length > awardsToFetch.length ? "bounded-high-value-primes" : "complete-indexed-primes"),
+    checkedPrimeCount,
+    successfulPrimeCount: checkedPrimeCount - failures.length,
+    coverageStatus: failures.length || coverageIncomplete
+      ? (eligibleAwards.length > targetPrimeCount ? "partial-bounded-stratified-primes" : "partial-indexed-primes")
+      : (eligibleAwards.length > targetPrimeCount ? "bounded-stratified-primes" : "complete-indexed-primes"),
     failedPrimeCount: failures.length,
     primeWithSubawardsCount: primes.filter((prime) => prime.reportedCount > 0).length,
     reportedSubawardCount: primes.reduce((total, prime) => total + Number(prime.reportedCount || 0), 0),
@@ -193,7 +234,7 @@ const out = {
     changedPrimeCount: primes.filter((prime) => prime.changeStatus === "updated").length,
     stalePrimeCount: primes.filter((prime) => prime.status === "stale").length,
     partialPrimeCount: primes.filter((prime) => prime.status !== "current").length,
-    status: failures.length ? (allPrimeResults.length ? "partial" : "unavailable") : "current",
+    status: failures.length || coverageIncomplete ? (allPrimeResults.length ? "partial" : "unavailable") : "current",
   },
   primes,
   failures,

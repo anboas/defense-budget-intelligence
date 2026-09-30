@@ -1,4 +1,4 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.3.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.4.0";
 export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
 export const TEMPORAL_EVIDENCE_SCHEMA_VERSION = "1.0.0";
 
@@ -18,6 +18,7 @@ export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "federal-account",
   "budget-line",
   "subaward-summary",
+  "spending-observation",
   "classification",
   "source",
 ]);
@@ -50,6 +51,7 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "organization-part-of",
   "organization-has-identifier",
   "transaction-recipient",
+  "spending-observation-measures-entity",
   "entity-classified-as",
   "supported-by-source",
   "evidence-claim-about",

@@ -10,6 +10,7 @@ import {
   safeLogMetadata,
   sameOriginRequest,
 } from "../src/security-policy.js";
+import { INTELLIGENCE_GRAPH_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFile(resolve(root, path), "utf8");
@@ -126,8 +127,8 @@ const contractLineageIndexBytes = (await stat(resolve(root, "dist/data/contract-
 const contractLineageReviewBytes = (await stat(resolve(root, "dist/data/contract-lineage-review.json"))).size;
 const temporalEvidenceIndexBytes = (await stat(resolve(root, "dist/data/temporal-evidence-index.json"))).size;
 const temporalEvidenceReviewBytes = (await stat(resolve(root, "dist/data/temporal-evidence-review.json"))).size;
-assert.ok(intelligenceGraphBytes >= 28_000_000 && intelligenceGraphBytes <= 29_000_000, `Full evidence graph must retain temporal claims and conflicts within its 29MB ceiling, got ${intelligenceGraphBytes} bytes`);
-assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedBytes <= 2_500_000, `Compressed integrity graph must remain below its 2.5MB distribution budget, got ${intelligenceGraphCompressedBytes} bytes`);
+assert.ok(intelligenceGraphBytes >= 47_000_000 && intelligenceGraphBytes <= 49_000_000, `Full evidence graph must retain spending breadth and temporal evidence within its 49MB ceiling, got ${intelligenceGraphBytes} bytes`);
+assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedBytes <= 3_500_000, `Compressed integrity graph must remain below its 3.5MB distribution budget, got ${intelligenceGraphCompressedBytes} bytes`);
 assert.ok(gunzipSync(await readFile(resolve(root, "dist/data/intelligence-graph.json.gzip"))).equals(await readFile(resolve(root, "dist/data/intelligence-graph.json"))), "Compressed integrity graph must decode to the exact canonical JSON artifact");
 assert.ok(intelligenceGraphIndexBytes > 0 && intelligenceGraphIndexBytes <= 3_000_000, `Deferred browser evidence index exceeds its 3MB ceiling, got ${intelligenceGraphIndexBytes} bytes`);
 assert.ok(intelligenceGraphSummaryBytes > 0 && intelligenceGraphSummaryBytes <= 10_000, `Source Lineage graph summary exceeds its 10KB ceiling, got ${intelligenceGraphSummaryBytes} bytes`);
@@ -138,21 +139,21 @@ assert.ok(temporalEvidenceIndexBytes > 0 && temporalEvidenceIndexBytes <= 800_00
 assert.ok(temporalEvidenceReviewBytes > 0 && temporalEvidenceReviewBytes <= 700_000, `Temporal evidence review exceeds its 700KB audit budget, got ${temporalEvidenceReviewBytes} bytes`);
 const organizationIdentityReview = JSON.parse(await read("dist/data/organization-identity-review.json"));
 assert.equal(organizationIdentityReview.metadata?.schemaVersion, "1.0.0", "Organization identity review must publish its independent schema version");
-assert.equal(organizationIdentityReview.metadata?.graphSchemaVersion, "1.3.0", "Organization identity review must track the canonical graph schema");
+assert.equal(organizationIdentityReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Organization identity review must track the canonical graph schema");
 assert.ok(organizationIdentityReview.conflicts?.every((item) => item.status === "needs_review" && item.candidateUeis?.length > 1), "Ambiguous organization labels must remain explicit review items");
 const contractLineageIndex = JSON.parse(await read("dist/data/contract-lineage-index.json"));
 const contractLineageReview = JSON.parse(await read("dist/data/contract-lineage-review.json"));
 assert.equal(contractLineageIndex.metadata?.schemaVersion, "1.0.0", "Contract lineage index must publish its independent schema version");
-assert.equal(contractLineageIndex.metadata?.graphSchemaVersion, "1.3.0", "Contract lineage index must track the canonical graph schema");
+assert.equal(contractLineageIndex.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Contract lineage index must track the canonical graph schema");
 assert.equal(contractLineageReview.metadata?.schemaVersion, "1.0.0", "Contract lineage review must publish its independent schema version");
-assert.equal(contractLineageReview.metadata?.graphSchemaVersion, "1.3.0", "Contract lineage review must track the canonical graph schema");
+assert.equal(contractLineageReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Contract lineage review must track the canonical graph schema");
 assert.ok(contractLineageReview.unresolvedFollowOnClaims?.every((item) => item.status === "needs_review" && item.sourceUrls?.length), "Unresolved lineage claims must remain sourced review items");
 const temporalEvidenceIndex = JSON.parse(await read("dist/data/temporal-evidence-index.json"));
 const temporalEvidenceReview = JSON.parse(await read("dist/data/temporal-evidence-review.json"));
 assert.equal(temporalEvidenceIndex.metadata?.schemaVersion, "1.0.0", "Temporal index must publish its independent schema version");
-assert.equal(temporalEvidenceIndex.metadata?.graphSchemaVersion, "1.3.0", "Temporal index must track the canonical graph schema");
+assert.equal(temporalEvidenceIndex.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Temporal index must track the canonical graph schema");
 assert.equal(temporalEvidenceReview.metadata?.schemaVersion, "1.0.0", "Temporal review must publish its independent schema version");
-assert.equal(temporalEvidenceReview.metadata?.graphSchemaVersion, "1.3.0", "Temporal review must track the canonical graph schema");
+assert.equal(temporalEvidenceReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Temporal review must track the canonical graph schema");
 assert.equal(temporalEvidenceReview.conflicts?.filter((item) => item.status === "needs_review").length, 81, "Review-required temporal and conflict queue changed");
 const opportunityMapBytes = (await stat(resolve(root, "dist/data/opportunity-map-data.json"))).size;
 assert.ok(opportunityMapBytes >= 1_100_000 && opportunityMapBytes <= 1_200_000, `Opportunity Map evidence payload must retain the complete authoritative location and relationship layers without exceeding its route budget, got ${opportunityMapBytes} bytes`);

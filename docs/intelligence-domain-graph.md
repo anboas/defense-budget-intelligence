@@ -1,7 +1,7 @@
 # Defense Intelligence domain graph
 
 **Status:** Implemented deterministic baseline  
-**Schema:** `1.3.0`
+**Schema:** `1.4.0`
 **Runtime artifacts:** `data/intelligence-graph.json.gzip`, `data/intelligence-graph-index.json`, `data/contract-lineage-index.json`, `data/temporal-evidence-index.json`
 
 ## Decision
@@ -25,11 +25,11 @@ The graph is generated from retained public-source snapshots. It does not create
 | Entity | Canonical identity | Current scope |
 | --- | --- | ---: |
 | Activity | `opportunityId` | 888 |
-| Award | USAspending generated award ID; PIID retained as alias | 702 |
+| Award | USAspending generated award ID; PIID retained as alias | 1,905 |
 | Event | Stable normalized `eventId` | 502 |
 | Transaction | Stable exact FPDS `actionId` | 3,085 |
-| Organization | Exact UEI, reviewed office code, or role-scoped label-only identity | 1,175 |
-| Organization identifier | Namespace plus exact identifier value | 314 |
+| Organization | Exact UEI, reviewed office code, or role-scoped label-only identity | 2,047 |
+| Organization identifier | Namespace plus exact identifier value | 621 |
 | Contract vehicle | Exact published parent award identifier | 166 |
 | Acquisition path | Source-declared vehicle/path label | 31 |
 | Recompete signal | Bounded review-only timing observation | 237 |
@@ -39,8 +39,9 @@ The graph is generated from retained public-source snapshots. It does not create
 | Federal account | Federal account code | 153 |
 | Budget line | Stable PDB line ID | 3,888 |
 | Subaward summary | Exact generated prime-award ID | 379 |
-| Classification | Namespace plus code, such as NAICS, PSC, technology area, work category, or budget signal | 270 |
-| Source | Canonical public HTTP(S) URL | 3,298 |
+| Spending observation | Fiscal year, dimension, and exact source identity | 7,071 |
+| Classification | Namespace plus code, such as NAICS, PSC, technology area, work category, or budget signal | 819 |
+| Source | Canonical public HTTP(S) URL | 4,531 |
 
 Organization identity is deliberately conservative. Exact normalized labels may connect repeated public labels across surfaces, but this is not a fuzzy legal-entity resolution claim. UEI and future official organization/office codes supersede label-only identity when available.
 
@@ -72,6 +73,7 @@ Organization identity is deliberately conservative. Exact normalized labels may 
 - `award-has-recompete-signal`
 - `budget-line-matches-account-title`
 - `budget-line-owned-by-organization`
+- `spending-observation-measures-entity`
 
 ### Context and provenance
 
@@ -97,19 +99,22 @@ The UI must show the class and basis when the distinction affects interpretation
 ## Current deterministic coverage
 
 - All 888 activities exist in procurement discovery and the Opportunity Map projection.
-- 702 activities connect to retained USAspending awards by generated award ID or exact PIID.
+- 702 activities connect to retained USAspending awards by generated award ID or exact PIID; the broader award registry contains 1,905 unique awards and IDVs.
 - 198 activities connect to 502 normalized calendar events.
 - 131 activities connect to 3,085 exact FPDS actions.
 - 530 activities connect to contract-monitor observations.
 - 400 activity-to-location relationships retain contracting or funding placement basis.
-- 250 award-flow records produce 485 exact award-to-account relationships across 183 unique awards.
+- 500 stratified award-flow records produce 772 exact award-to-account relationships across 305 unique awards.
+- FY2017–FY2026 coverage retains 10 annual DoD contract-obligation totals, 7,061 deduplicated agency/recipient/PSC/NAICS category rows, and 1,489 unique ranked contracts and IDVs.
 - 379 award entities connect to exact prime subaward summaries.
 - 3,569 of 3,888 budget lines connect to 66 federal accounts by exact normalized account title. The remaining 319 are explicit unresolved account-title joins.
 - 373 reviewed/source-declared organization-to-location relationships are retained from installation metadata.
 
 ## Runtime design
 
-`intelligence-graph.json` is the canonical build-time release-integrity artifact. `intelligence-graph.json.gzip` is its byte-equivalent gzip distribution artifact and is the public download on both production origins. The `.gzip` suffix avoids GitHub Pages' reserved precompressed-file handling. Neither artifact is part of initial page load. Schema 1.3 includes canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
+`intelligence-graph.json` is the canonical build-time release-integrity artifact. `intelligence-graph.json.gzip` is its byte-equivalent gzip distribution artifact and is the public download on both production origins. The `.gzip` suffix avoids GitHub Pages' reserved precompressed-file handling. Neither artifact is part of initial page load. Schema 1.4 adds typed fiscal/category spending observations and broader ranked awards while retaining canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
+
+Agent API relation shards are paged in 4,000-relation files. The manifest publishes every page and total so high-degree organization, award, classification, source, and spending-observation traversal stays complete without exceeding the 10 MB API asset ceiling.
 
 `intelligence-graph-index.json` is a bounded deferred projection keyed by canonical activity ID. Record detail surfaces load it once on demand and reuse it for the browser session. It contains connected entity summaries, surface coverage, counts, and relationship evidence summaries without duplicating transaction and event bodies.
 

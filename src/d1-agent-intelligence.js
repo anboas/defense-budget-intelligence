@@ -2,6 +2,7 @@ const ENTITY_TYPES = Object.freeze([
   "activity", "award", "event", "transaction", "organization", "organization-identifier",
   "contract-vehicle", "acquisition-path", "recompete-signal", "evidence-claim", "evidence-conflict",
   "location", "federal-account", "budget-line", "subaward-summary", "classification", "source",
+  "spending-observation",
 ]);
 
 const CLAIM_OPERATIONS = Object.freeze(["fill_missing", "replace", "append", "supersede", "add_relation"]);
@@ -234,6 +235,7 @@ function entityTypeFromId(id) {
     ["acquisition-path:", "acquisition-path"], ["recompete-signal:", "recompete-signal"],
     ["evidence-claim:", "evidence-claim"], ["evidence-conflict:", "evidence-conflict"],
     ["subaward-summary:", "subaward-summary"], ["budget-line:", "budget-line"],
+    ["spending-observation:", "spending-observation"],
     ["activity:", "activity"], ["award:", "award"], ["event:", "event"], ["transaction:", "transaction"],
     ["org:", "organization"], ["location:", "location"], ["account:", "federal-account"],
     ["class:", "classification"], ["source:", "source"],
@@ -277,7 +279,10 @@ async function entityShard(request, env, deps, type) {
 
 async function relationShard(request, env, deps, type) {
   if (!ENTITY_TYPES.includes(type)) return null;
-  return deps.assetJson(request, env, `/data/agent-graph/relations-${type}.json`);
+  const manifest = await graphManifest(request, env, deps);
+  const paths = manifest.entityTypes?.[type]?.relationPaths || [];
+  const pages = await Promise.all(paths.map((path) => deps.assetJson(request, env, path)));
+  return { relations: pages.flatMap((page) => page?.relations || []) };
 }
 
 async function workspaceClaims(db, workspaceId, entityId) {

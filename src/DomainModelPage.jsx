@@ -22,6 +22,7 @@ const ENTITY_META = {
   "federal-account": ["Federal accounts", "funding"],
   "budget-line": ["Budget lines", "funding"],
   "subaward-summary": ["Subaward sets", "execution"],
+  "spending-observation": ["Spending observations", "execution"],
   classification: ["Classifications", "classification"],
   source: ["Source records", "evidence"],
 };
@@ -54,6 +55,7 @@ const RELATION_ENDPOINTS = {
   "organization-part-of": ["organization", "organization"],
   "organization-has-identifier": ["organization", "organization-identifier"],
   "transaction-recipient": ["transaction", "organization"],
+  "spending-observation-measures-entity": ["spending-observation", "organization"],
   "entity-classified-as": ["activity", "classification"],
   "supported-by-source": ["activity", "source"],
   "evidence-claim-about": ["evidence-claim", "activity"],
@@ -66,7 +68,7 @@ const GROUPS = [
   { id: "opportunity", label: "Opportunity lifecycle", types: ["activity", "event"], x: 420, y: 168, width: 360, tone: "activity" },
   { id: "organization", label: "Organization identity", types: ["organization", "organization-identifier"], x: 34, y: 328, width: 294, tone: "identity" },
   { id: "geography", label: "Geography", types: ["location"], x: 34, y: 506, width: 294, tone: "location" },
-  { id: "execution", label: "Contract execution", types: ["award", "transaction", "subaward-summary"], x: 872, y: 328, width: 294, tone: "execution" },
+  { id: "execution", label: "Contract execution", types: ["award", "transaction", "subaward-summary", "spending-observation"], x: 872, y: 328, width: 294, tone: "execution" },
   { id: "funding", label: "Funding structure", types: ["federal-account", "budget-line"], x: 872, y: 506, width: 294, tone: "funding" },
   { id: "lineage", label: "Vehicle lineage", types: ["contract-vehicle", "acquisition-path", "recompete-signal"], x: 453, y: 358, width: 294, tone: "lineage" },
   { id: "classification", label: "Classification", types: ["classification"], x: 453, y: 536, width: 294, tone: "classification" },
@@ -157,6 +159,7 @@ export default function DomainModelPage({ routeHash = "" }) {
   const temporal = summary.metadata.coverage.temporal || {};
   const organizations = summary.metadata.coverage.organizations || {};
   const contracts = summary.metadata.coverage.contracts || {};
+  const spending = summary.metadata.coverage.spending || {};
 
   return <section className="domain-model-page" data-domain-model-page data-domain-schema={summary.metadata.schemaVersion}>
     <ControlPageHeader compact divided eyebrow="Workspace administration" title="Domain model" summary="Inspect the canonical intelligence graph, its entity inventory, relationship coverage, validity, conflicts, and full record views." headingLevel={2} meta={<span className="if-badge if-badge--info">Schema {summary.metadata.schemaVersion}</span>} actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Source lineage</a><a className="if-btn if-btn--primary" href={`${import.meta.env.BASE_URL}data/intelligence-graph.json.gzip`} download><Download size={14} />Full graph</a></>} />
@@ -201,6 +204,7 @@ export default function DomainModelPage({ routeHash = "" }) {
       <section className="domain-model__panel"><header><div><span>Conflicts</span><h3>Evidence review</h3></div><AlertTriangle size={18} /></header><dl><div><dt>Retained disagreements</dt><dd>{number(temporal.totalConflicts)}</dd></div><div><dt>Resolved by recency</dt><dd>{number(temporal.resolved_by_recency)}</dd></div><div><dt>Require review</dt><dd>{number(temporal.needs_review)}</dd></div><div><dt>Ambiguous identities</dt><dd>{number(organizations.ambiguousNormalizedLabels)}</dd></div></dl><a href={`${import.meta.env.BASE_URL}data/temporal-evidence-review.json`} download>Download review queue <span aria-hidden="true">→</span></a></section>
       <section className="domain-model__panel"><header><div><span>Identity</span><h3>Organization resolution</h3></div><ShieldCheck size={18} /></header><dl><div><dt>UEI-backed</dt><dd>{number(organizations.canonicalUeiIdentities)}</dd></div><div><dt>Office-code</dt><dd>{number(organizations.reviewedOfficeCodeIdentities)}</dd></div><div><dt>Safe alias groups</dt><dd>{number(organizations.resolvedAliasGroups)}</dd></div><div><dt>Label-only</dt><dd>{number(organizations.labelOnlyIdentities)}</dd></div></dl></section>
       <section className="domain-model__panel"><header><div><span>Lineage</span><h3>Contract families</h3></div><GitBranch size={18} /></header><dl><div><dt>Parent IDVs</dt><dd>{number(contracts.exactParentVehicles)}</dd></div><div><dt>Linked orders</dt><dd>{number(contracts.activitiesWithExactParent)}</dd></div><div><dt>Resolved predecessors</dt><dd>{number(contracts.resolvedPredecessorLinks)}</dd></div><div><dt>Unresolved follow-ons</dt><dd>{number(contracts.unresolvedFollowOnClaims)}</dd></div></dl></section>
+      <section className="domain-model__panel" data-domain-spending-coverage><header><div><span>Spending depth</span><h3>DoD contract coverage</h3></div><Database size={18} /></header><dl><div><dt>Fiscal years</dt><dd>{spending.firstFiscalYear}–{spending.lastFiscalYear}</dd></div><div><dt>Spending observations</dt><dd>{number(spending.observations)}</dd></div><div><dt>Ranked awards / IDVs</dt><dd>{number(spending.uniqueRankedAwards)}</dd></div><div><dt>Category rows</dt><dd>{number(spending.categoryRows)}</dd></div></dl></section>
     </div>
 
     <section className="domain-model__policy" data-domain-policy>

@@ -22,6 +22,7 @@ const PROCUREMENT_DELTA_FILE = resolve(ROOT, "src/data/procurement-delta.json");
 const PROCUREMENT_DISCOVERY_FILE = resolve(ROOT, "src/data/procurement-discovery.json");
 const PROCUREMENT_FEED_FILE = resolve(ROOT, "src/data/procurement-feed.json");
 const SUBAWARDS_FILE = resolve(ROOT, "src/data/usaspending-subawards.json");
+const USASPENDING_COVERAGE_FILE = resolve(ROOT, "src/data/usaspending-coverage.json");
 const CONTRACT_MONITOR_FILE = resolve(ROOT, "src/data/contract-monitor.json");
 const MAP_LOCATIONS_FILE = resolve(ROOT, "src/data/opportunity-map-locations.json");
 const MAP_LOCATION_METADATA_FILE = resolve(ROOT, "src/data/opportunity-map-location-metadata.json");
@@ -287,6 +288,10 @@ writeFileSync(
         .map((prime) => [prime.primeAwardId, prime.subawards]),
     ),
   }),
+);
+writeFileSync(
+  resolve(OUT_DIR, "usaspending-coverage.json"),
+  readFileSync(USASPENDING_COVERAGE_FILE, "utf8"),
 );
 
 console.log(

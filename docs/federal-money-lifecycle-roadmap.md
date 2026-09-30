@@ -202,6 +202,8 @@ with current materialized views, so corrections do not erase the historical reco
 
 ### Phase 1: Exact account spine
 
+**Status:** In progress. FY2026 federal-account, Treasury-account, OMB apportionment, request-title, and exact award-account evidence is operational. FY2017-current annual DoD contract obligations and ranked agency/recipient/PSC/NAICS breadth are now retained. Exhaustive transaction-level award-account history and enacted-measure crosswalks remain open.
+
 No new credential is required.
 
 Status as of September 12, 2026: the first production slice is implemented. It ingests

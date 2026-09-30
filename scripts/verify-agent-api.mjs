@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 mkdirSync("test-results", { recursive: true });
+const publishedGraphSummary = JSON.parse(readFileSync("public/data/intelligence-graph-summary.json", "utf8"));
 
 async function freePort() {
   const server = createServer();
@@ -196,8 +197,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/graph/summary", { token: researchToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.meta.contractVersion, "1.1.0");
-  assert.equal(result.payload.data.published.totals.entities, 17_507);
-  assert.equal(result.payload.data.published.totals.relations, 39_601);
+  assert.deepEqual(result.payload.data.published.totals, publishedGraphSummary.totals);
   assert.deepEqual(result.payload.data.workspaceOverlay, { entities: 0, claims: 0, relations: 0, proposals: {} });
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=activity&limit=1", { token: researchToken }));
@@ -214,6 +214,16 @@ try {
   result = await body(await request(instance.baseUrl, `/api/v1/agent/activities/${encodeURIComponent(activityEntityId)}/connected`, { token: researchToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.data.activityId, activityEntityId.replace(/^activity:/, ""));
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=spending-observation&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 7071);
+  const spendingObservationId = result.payload.data[0].id;
+  assert.match(spendingObservationId, /^spending-observation:/);
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(spendingObservationId)}/relations?limit=10`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((relation) => relation.type === "spending-observation-measures-entity"), "Spending observations must traverse to one measured subject");
+  assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Spending observations must traverse to official source evidence");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=location&limit=1", { token: researchToken }));
   const locationEntityId = result.payload.data[0].id;

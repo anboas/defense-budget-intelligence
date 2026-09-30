@@ -21,6 +21,12 @@ The Today inbox presents new, field-changed, closing-soon, and removed records i
 
 This is a growing daily corpus inside a disclosed keyword-query boundary. The daily USAspending query now includes contract awards, IDVs, orders, and calls within that boundary. It is not a historical backfill or exhaustive DoW award, IDV, task-order, or modification inventory. Complete historical acquisition storage belongs in the workspace acquisition database and its archive tables rather than the static application bundle. The coverage ledger preserves that distinction.
 
+## USAspending DoD breadth registry
+
+`npm run source:usaspending-coverage` complements the keyword corpus with FY2017-current Department of Defense contract coverage. It retains complete-query-boundary annual obligations, ranked category observations for awarding/funding subagencies, recipients, PSCs and NAICS industries, and bounded top contract/IDV lists. The collector rejects repeated pagination identities and publishes requested versus realized category depth. Annual and category amounts are fiscal-year obligations; ranked award values are life-of-award totals or ceilings and are never summed with those obligations. See [USAspending contract coverage](./usaspending-coverage.md).
+
+The ranked award registry also broadens the exact account-spine sampler. Award-to-account relationships still require the official generated award identifier and USAspending award-account endpoint; no name or description inference is permitted.
+
 ## Technology and organization hierarchy
 
 Technology areas are a separate deterministic, multi-label dimension derived from published identifiers, title, and scope. They do not replace work categories. The explorer can sort and filter by technology area.
@@ -70,6 +76,6 @@ The monitor retains safe public contract facts only. On transient upstream failu
 
 ## USAspending subaward refresh
 
-`npm run source:subawards` checks up to the 1,000 highest-value indexed USAspending prime awards through the official exact-count endpoint, then retains at most 100 recent detail rows for positive primes. Metadata discloses the full indexed-prime count, checked-prime count, limit, and whether coverage is bounded. The snapshot records failed prime probes and remains `partial` when the public API returns an empty or invalid response. Do not interpret the retained detail dollar sum as the complete subaward total or the bounded prime set as complete corpus coverage.
+`npm run source:subawards` checks up to 1,000 indexed USAspending prime awards through the official exact-count endpoint. The sample is stratified between the retained technology corpus and the FY2017-current DoD breadth registry so broad collection cannot erase specialized depth. It retains at most 100 recent detail rows for positive primes. Metadata discloses the full indexed-prime count, checked-prime count, limit, and whether coverage is bounded. The snapshot records failed prime probes and remains `partial` when the public API returns an empty or invalid response. Every refresh unions the working snapshot with the last committed verified baseline, replaces only successfully refreshed primes, and marks failed overlaps stale rather than deleting evidence. Do not interpret the retained detail dollar sum as the complete subaward total or the bounded prime set as complete corpus coverage.
 
 The database stores retained detail at its native subaward grain. The normalized API exposes exact reported counts and sampled detail dollars as separate fields, and `/api/capture-calendar/opportunities/:opportunityId/subawards` returns the exact prime relationship plus the retained rows.
