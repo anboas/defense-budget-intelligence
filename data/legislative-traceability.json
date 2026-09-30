@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-09-30T17:05:03.991Z",
+    "generatedAt": "2026-09-30T18:35:34.110Z",
     "sourceAuthority": "official_primary",
     "sources": {
       "govinfo": "https://www.govinfo.gov/developers",
@@ -9,16 +9,16 @@
     },
     "coverage": {
       "since": "2017-01-01",
-      "measures": 8,
+      "measures": 9,
       "versions": 24,
-      "committeeReports": 2,
+      "committeeReports": 3,
       "enactedProvisions": 8,
-      "exactRelations": 34,
+      "exactRelations": 35,
       "failures": 1
     },
-    "caveat": "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published; table-level budget marks remain review-only until exact identifiers are extracted.",
+    "caveat": "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published. A separately reviewed FY2024 House RDT&E Army table supplies page-cited committee marks; Senate, conference, and enacted line-item amounts remain unasserted until their official tables are parsed.",
     "apiCredential": "public-demo",
-    "contentHash": "0c864f43392f44e5b0c9"
+    "contentHash": "967c14319c2effdf41bc"
   },
   "measures": [
     {
@@ -107,6 +107,17 @@
       "label": "FY2025 National Defense Authorization Act",
       "title": "National Defense Authorization Act for Fiscal Year 2025",
       "sourceUrl": "https://www.congress.gov/bill/118th-congress/senate-bill/4638",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:118:hr:4365",
+      "congress": 118,
+      "billType": "hr",
+      "billNumber": 4365,
+      "fiscalYear": 2024,
+      "label": "FY2024 Department of Defense Appropriations Bill",
+      "title": "Department of Defense Appropriations Act, 2024",
+      "sourceUrl": "https://www.congress.gov/bill/118th-congress/house-bill/4365",
       "baseline": "exact-official-identifier"
     }
   ],
@@ -441,6 +452,15 @@
       "congress": 118,
       "dateIssued": null,
       "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt301",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "committee-report:CRPT-118hrpt121",
+      "packageId": "CRPT-118hrpt121",
+      "title": "House Report 118-121: Department of Defense Appropriations Bill, 2024",
+      "congress": 118,
+      "dateIssued": "2023-06-27",
+      "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt121",
       "baseline": "exact-official-identifier"
     }
   ],
@@ -780,6 +800,13 @@
       "to": "enacted-provision:PLAW-118publ159",
       "basis": "exact-public-law-identity",
       "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-118publ159"
+    },
+    {
+      "type": "measure-backed-by-report",
+      "from": "legislative-measure:118:hr:4365",
+      "to": "committee-report:CRPT-118hrpt121",
+      "basis": "exact-congress-committee-report-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt121"
     }
   ],
   "failures": [
