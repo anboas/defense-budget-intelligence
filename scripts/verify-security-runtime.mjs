@@ -127,11 +127,11 @@ const contractLineageIndexBytes = (await stat(resolve(root, "dist/data/contract-
 const contractLineageReviewBytes = (await stat(resolve(root, "dist/data/contract-lineage-review.json"))).size;
 const temporalEvidenceIndexBytes = (await stat(resolve(root, "dist/data/temporal-evidence-index.json"))).size;
 const temporalEvidenceReviewBytes = (await stat(resolve(root, "dist/data/temporal-evidence-review.json"))).size;
-assert.ok(intelligenceGraphBytes >= 70_000_000 && intelligenceGraphBytes <= 73_000_000, `Full evidence graph must retain spending breadth, exact money history, and temporal evidence within its 73MB ceiling, got ${intelligenceGraphBytes} bytes`);
-assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedBytes <= 5_000_000, `Compressed integrity graph must remain below its 5MB distribution budget, got ${intelligenceGraphCompressedBytes} bytes`);
+assert.ok(intelligenceGraphBytes >= 85_000_000 && intelligenceGraphBytes <= 90_000_000, `Full evidence graph must retain ten-year money history, legislative evidence, priority actions, and review signals within its 90MB ceiling, got ${intelligenceGraphBytes} bytes`);
+assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedBytes <= 5_800_000, `Compressed integrity graph must remain below its 5.8MB distribution budget, got ${intelligenceGraphCompressedBytes} bytes`);
 assert.ok(gunzipSync(await readFile(resolve(root, "dist/data/intelligence-graph.json.gzip"))).equals(await readFile(resolve(root, "dist/data/intelligence-graph.json"))), "Compressed integrity graph must decode to the exact canonical JSON artifact");
 assert.ok(intelligenceGraphIndexBytes > 0 && intelligenceGraphIndexBytes <= 3_000_000, `Deferred browser evidence index exceeds its 3MB ceiling, got ${intelligenceGraphIndexBytes} bytes`);
-assert.ok(intelligenceGraphSummaryBytes > 0 && intelligenceGraphSummaryBytes <= 14_000, `Source Lineage graph summary exceeds its 14KB ceiling, got ${intelligenceGraphSummaryBytes} bytes`);
+assert.ok(intelligenceGraphSummaryBytes > 0 && intelligenceGraphSummaryBytes <= 20_000, `Source Lineage graph summary exceeds its 20KB ceiling, got ${intelligenceGraphSummaryBytes} bytes`);
 assert.ok(organizationIdentityReviewBytes > 0 && organizationIdentityReviewBytes <= 100_000, `Organization identity review exceeds its 100KB audit budget, got ${organizationIdentityReviewBytes} bytes`);
 assert.ok(contractLineageIndexBytes > 0 && contractLineageIndexBytes <= 350_000, `Deferred contract-lineage index exceeds its 350KB ceiling, got ${contractLineageIndexBytes} bytes`);
 assert.ok(contractLineageReviewBytes > 0 && contractLineageReviewBytes <= 100_000, `Contract-lineage review exceeds its 100KB audit budget, got ${contractLineageReviewBytes} bytes`);

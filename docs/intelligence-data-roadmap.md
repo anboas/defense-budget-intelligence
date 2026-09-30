@@ -26,12 +26,16 @@ new source must enable. Volume alone is not a release criterion.
 | Capability | Status | Canonical evidence |
 | --- | --- | --- |
 | DoD contract-spending breadth | Operational | USAspending FY2017-FY2026 |
-| Exact account and execution history | Operational | USAspending FY2022-FY2026 |
+| Exact account and execution history | Operational | USAspending FY2017-FY2026 |
 | OMB apportionment revision history | Operational | 6,105 source-linked revisions |
 | Independent Treasury outlay reconciliation | Operational | Monthly Treasury Statement table 5 |
 | SAM acquisition backbone | Code-complete, source blocked | Protected key required |
 | Autonomous graph proposals and publication | Operational | Agent API 1.1 scoped workflow |
-| Request-to-law traceability | Planned | GovInfo, Congress.gov, official committee sources |
+| Priority-award action history | Operational, bounded | USAspending exact transaction IDs |
+| Request-to-law traceability | Operational baseline | GovInfo and Congress.gov exact bill, version, report, and law identities |
+| Forecast and installation mission evidence | Operational baseline | Agency-source records and reviewed official installation sources |
+| Competitive, expiration, execution, and outcome signals | Operational review layer | Deterministic, dated, caveated signals only |
+| SBIR/STTR | Source unavailable | Official API under maintenance; no empty coverage claimed |
 
 ## Workstream A: acquisition backbone
 
@@ -69,25 +73,26 @@ and which subrecipients participate.
 **Outcome:** Users can move from request to account, TAFS, apportionment revision,
 obligation, outlay, award, recipient, and time remaining without mixing money concepts.
 
-### Delivered in schema 1.5
+### Delivered in schema 2.0
 
-- FY2022-FY2026 federal-account and TAS execution history
+- FY2017-FY2026 federal-account and TAS execution history
 - complete retained OMB revision history for that window
 - program activity and object class by fiscal year
 - Treasury Monthly Statement DoD military-program outlay observations
 - period-of-availability and expiring/expired state derived from exact TAS syntax
 - exact sampled award-to-account relationships
+- exact bounded transaction histories for 100 priority awards, retaining first, latest,
+  and largest-obligation actions plus the full observed-action count
 
 ### Next increments
 
-1. Extend the retained exact-account window to FY2017.
-2. Add complete action histories for priority awards and vehicles rather than only ranked
-   award summaries.
-3. Increase exact award-account coverage with resumable, rate-aware batches and durable
+1. Increase exact award-account coverage with resumable, rate-aware batches and durable
    source cursors.
-4. Reconcile account execution to Treasury-published datasets where a compatible TAS-level
+2. Reconcile account execution to Treasury-published datasets where a compatible TAS-level
    public endpoint exists; never manufacture an account-level Treasury total from agency data.
-5. Add alerts for expiring authority, abnormal obligation acceleration, revised
+3. Expand priority transaction history beyond the current bounded cohort only when source
+   throughput and Agent API payload budgets remain green.
+4. Promote reviewed alerts for expiring authority, abnormal obligation acceleration, revised
    apportionments, and award funding changes.
 
 ### Service levels
@@ -110,12 +115,22 @@ enacted authority.
 - Congress.gov bill, amendment, action, and committee metadata
 - official House, Senate, and conference tables
 
+### Operational baseline
+
+- exact Congress/bill identities for the bounded annual defense authorization and
+  appropriations corpus
+- official text-version history from Congress.gov and GovInfo package identity when
+  available
+- exact committee-report and public-law links published by Congress.gov
+- first-class R-1 program elements and C-1 projects from the DoD budget corpus
+
 ### Domain additions
 
 `legislative-measure`, `committee-report`, `appropriation-mark`, `enacted-provision`,
 `budget-adjustment`, `program-element`, and `project`.
 
-Table-to-budget-line matches without an exact identifier remain cited proposals. Acceptance
+Appropriation-mark and adjustment types are intentionally empty until official tables are
+parsed with page/table provenance. Table-to-budget-line matches without an exact identifier remain cited proposals. Acceptance
 requires page/table provenance, independent totals reconciliation, and reviewer promotion.
 
 ## Workstream D: market and competitive intelligence
@@ -135,6 +150,13 @@ competitive structure with explainable evidence.
 Derived signals must identify the model version, input facts, evaluation date, and review
 state. Predictions never become source facts.
 
+### Operational baseline
+
+- agency-forecast records are first-class entities with per-record source state
+- reviewed installation missions and tenants link to their official primary sources
+- expiration and competition signals are review-only and retain their inputs
+- SBIR/STTR remains explicitly unavailable while the federal API is under maintenance
+
 ## Workstream E: outcomes and risk
 
 **Outcome:** Connect public financial and acquisition evidence to delivery, protest,
@@ -144,6 +166,16 @@ schedule, and mission-result evidence without overstating public visibility.
 - official inspector-general, audit, congressional-hearing, and program-test evidence
 - sourced analyst annotations and outcome claims with competing evidence preserved
 - no claim of invoice-level or CPARS completeness without authorized system access
+
+### Operational baseline
+
+- exact award/transaction observations create outcome-evidence records without claiming
+  delivery or mission success
+- high unobligated-share observations create caveated execution-review signals, not findings
+- GAO protest coverage remains explicitly partial and no protest edge is promoted without
+  an exact award or notice identifier
+- audit-finding entities remain empty until a stable official identifier crosswalk passes
+  the promotion gate
 
 ## Quarterly roadmap review
 

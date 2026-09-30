@@ -1,0 +1,792 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "generatedAt": "2026-09-30T17:05:03.991Z",
+    "sourceAuthority": "official_primary",
+    "sources": {
+      "govinfo": "https://www.govinfo.gov/developers",
+      "congress": "https://api.congress.gov/"
+    },
+    "coverage": {
+      "since": "2017-01-01",
+      "measures": 8,
+      "versions": 24,
+      "committeeReports": 2,
+      "enactedProvisions": 8,
+      "exactRelations": 34,
+      "failures": 1
+    },
+    "caveat": "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published; table-level budget marks remain review-only until exact identifiers are extracted.",
+    "apiCredential": "public-demo",
+    "contentHash": "0c864f43392f44e5b0c9"
+  },
+  "measures": [
+    {
+      "id": "legislative-measure:115:hr:2810",
+      "congress": 115,
+      "billType": "hr",
+      "billNumber": 2810,
+      "fiscalYear": 2018,
+      "label": "FY2018 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2018",
+      "sourceUrl": "https://www.congress.gov/bill/115th-congress/house-bill/2810",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:115:hr:5515",
+      "congress": 115,
+      "billType": "hr",
+      "billNumber": 5515,
+      "fiscalYear": 2019,
+      "label": "FY2019 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2019",
+      "sourceUrl": "https://www.congress.gov/bill/115th-congress/house-bill/5515",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:116:s:1790",
+      "congress": 116,
+      "billType": "s",
+      "billNumber": 1790,
+      "fiscalYear": 2020,
+      "label": "FY2020 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2020",
+      "sourceUrl": "https://www.congress.gov/bill/116th-congress/senate-bill/1790",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:116:hr:6395",
+      "congress": 116,
+      "billType": "hr",
+      "billNumber": 6395,
+      "fiscalYear": 2021,
+      "label": "FY2021 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2021",
+      "sourceUrl": "https://www.congress.gov/bill/116th-congress/house-bill/6395",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:117:s:1605",
+      "congress": 117,
+      "billType": "s",
+      "billNumber": 1605,
+      "fiscalYear": 2022,
+      "label": "FY2022 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2022",
+      "sourceUrl": "https://www.congress.gov/bill/117th-congress/senate-bill/1605",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:117:hr:7776",
+      "congress": 117,
+      "billType": "hr",
+      "billNumber": 7776,
+      "fiscalYear": 2023,
+      "label": "FY2023 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2023",
+      "sourceUrl": "https://www.congress.gov/bill/117th-congress/house-bill/7776",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:118:hr:2670",
+      "congress": 118,
+      "billType": "hr",
+      "billNumber": 2670,
+      "fiscalYear": 2024,
+      "label": "FY2024 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2024",
+      "sourceUrl": "https://www.congress.gov/bill/118th-congress/house-bill/2670",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-measure:118:s:4638",
+      "congress": 118,
+      "billType": "s",
+      "billNumber": 4638,
+      "fiscalYear": 2025,
+      "label": "FY2025 National Defense Authorization Act",
+      "title": "National Defense Authorization Act for Fiscal Year 2025",
+      "sourceUrl": "https://www.congress.gov/bill/118th-congress/senate-bill/4638",
+      "baseline": "exact-official-identifier"
+    }
+  ],
+  "versions": [
+    {
+      "id": "legislative-version:BILLS-115hr2810ih",
+      "measureId": "legislative-measure:115:hr:2810",
+      "packageId": "BILLS-115hr2810ih",
+      "versionCode": "ih",
+      "title": "Introduced in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr2810ih",
+      "textLink": "https://www.congress.gov/115/bills/hr2810/BILLS-115hr2810ih.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-115hr2810rh",
+      "measureId": "legislative-measure:115:hr:2810",
+      "packageId": "BILLS-115hr2810rh",
+      "versionCode": "rh",
+      "title": "Reported in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr2810rh",
+      "textLink": "https://www.congress.gov/115/bills/hr2810/BILLS-115hr2810rh.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-115hr2810enr",
+      "measureId": "legislative-measure:115:hr:2810",
+      "packageId": "BILLS-115hr2810enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr2810enr",
+      "textLink": "https://www.congress.gov/115/bills/hr2810/BILLS-115hr2810enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-115hr5515ih",
+      "measureId": "legislative-measure:115:hr:5515",
+      "packageId": "BILLS-115hr5515ih",
+      "versionCode": "ih",
+      "title": "Introduced in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr5515ih",
+      "textLink": "https://www.congress.gov/115/bills/hr5515/BILLS-115hr5515ih.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-115hr5515rh",
+      "measureId": "legislative-measure:115:hr:5515",
+      "packageId": "BILLS-115hr5515rh",
+      "versionCode": "rh",
+      "title": "Reported in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr5515rh",
+      "textLink": "https://www.congress.gov/115/bills/hr5515/BILLS-115hr5515rh.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-115hr5515enr",
+      "measureId": "legislative-measure:115:hr:5515",
+      "packageId": "BILLS-115hr5515enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr5515enr",
+      "textLink": "https://www.congress.gov/115/bills/hr5515/BILLS-115hr5515enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-116s1790is",
+      "measureId": "legislative-measure:116:s:1790",
+      "packageId": "BILLS-116s1790is",
+      "versionCode": "is",
+      "title": "Introduced in Senate",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116s1790is",
+      "textLink": "https://www.congress.gov/116/bills/s1790/BILLS-116s1790is.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-116s1790rs",
+      "measureId": "legislative-measure:116:s:1790",
+      "packageId": "BILLS-116s1790rs",
+      "versionCode": "rs",
+      "title": "Reported in Senate",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116s1790rs",
+      "textLink": "https://www.congress.gov/116/bills/s1790/BILLS-116s1790rs.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-116s1790enr",
+      "measureId": "legislative-measure:116:s:1790",
+      "packageId": "BILLS-116s1790enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116s1790enr",
+      "textLink": "https://www.congress.gov/116/bills/s1790/BILLS-116s1790enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-116hr6395ih",
+      "measureId": "legislative-measure:116:hr:6395",
+      "packageId": "BILLS-116hr6395ih",
+      "versionCode": "ih",
+      "title": "Introduced in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116hr6395ih",
+      "textLink": "https://www.congress.gov/116/bills/hr6395/BILLS-116hr6395ih.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-116hr6395rh",
+      "measureId": "legislative-measure:116:hr:6395",
+      "packageId": "BILLS-116hr6395rh",
+      "versionCode": "rh",
+      "title": "Reported in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116hr6395rh",
+      "textLink": "https://www.congress.gov/116/bills/hr6395/BILLS-116hr6395rh.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-116hr6395enr",
+      "measureId": "legislative-measure:116:hr:6395",
+      "packageId": "BILLS-116hr6395enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116hr6395enr",
+      "textLink": "https://www.congress.gov/116/bills/hr6395/BILLS-116hr6395enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-117s1605is",
+      "measureId": "legislative-measure:117:s:1605",
+      "packageId": "BILLS-117s1605is",
+      "versionCode": "is",
+      "title": "Introduced in Senate",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117s1605is",
+      "textLink": "https://www.congress.gov/117/bills/s1605/BILLS-117s1605is.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-117s1605rs",
+      "measureId": "legislative-measure:117:s:1605",
+      "packageId": "BILLS-117s1605rs",
+      "versionCode": "rs",
+      "title": "Reported in Senate",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117s1605rs",
+      "textLink": "https://www.congress.gov/117/bills/s1605/BILLS-117s1605rs.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-117s1605enr",
+      "measureId": "legislative-measure:117:s:1605",
+      "packageId": "BILLS-117s1605enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117s1605enr",
+      "textLink": "https://www.congress.gov/117/bills/s1605/BILLS-117s1605enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-117hr7776ih",
+      "measureId": "legislative-measure:117:hr:7776",
+      "packageId": "BILLS-117hr7776ih",
+      "versionCode": "ih",
+      "title": "Introduced in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117hr7776ih",
+      "textLink": "https://www.congress.gov/117/bills/hr7776/BILLS-117hr7776ih.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-117hr7776rh",
+      "measureId": "legislative-measure:117:hr:7776",
+      "packageId": "BILLS-117hr7776rh",
+      "versionCode": "rh",
+      "title": "Reported in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117hr7776rh",
+      "textLink": "https://www.congress.gov/117/bills/hr7776/BILLS-117hr7776rh.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-117hr7776enr",
+      "measureId": "legislative-measure:117:hr:7776",
+      "packageId": "BILLS-117hr7776enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117hr7776enr",
+      "textLink": "https://www.congress.gov/117/bills/hr7776/BILLS-117hr7776enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-118hr2670ih",
+      "measureId": "legislative-measure:118:hr:2670",
+      "packageId": "BILLS-118hr2670ih",
+      "versionCode": "ih",
+      "title": "Introduced in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118hr2670ih",
+      "textLink": "https://www.congress.gov/118/bills/hr2670/BILLS-118hr2670ih.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-118hr2670rh",
+      "measureId": "legislative-measure:118:hr:2670",
+      "packageId": "BILLS-118hr2670rh",
+      "versionCode": "rh",
+      "title": "Reported in House",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118hr2670rh",
+      "textLink": "https://www.congress.gov/118/bills/hr2670/BILLS-118hr2670rh.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-118hr2670enr",
+      "measureId": "legislative-measure:118:hr:2670",
+      "packageId": "BILLS-118hr2670enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118hr2670enr",
+      "textLink": "https://www.congress.gov/118/bills/hr2670/BILLS-118hr2670enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-118s4638is",
+      "measureId": "legislative-measure:118:s:4638",
+      "packageId": "BILLS-118s4638is",
+      "versionCode": "is",
+      "title": "Introduced in Senate",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118s4638is",
+      "textLink": "https://www.congress.gov/118/bills/s4638/BILLS-118s4638is.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-118s4638rs",
+      "measureId": "legislative-measure:118:s:4638",
+      "packageId": "BILLS-118s4638rs",
+      "versionCode": "rs",
+      "title": "Reported in Senate",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118s4638rs",
+      "textLink": "https://www.congress.gov/118/bills/s4638/BILLS-118s4638rs.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "legislative-version:BILLS-118s4638enr",
+      "measureId": "legislative-measure:118:s:4638",
+      "packageId": "BILLS-118s4638enr",
+      "versionCode": "enr",
+      "title": "Enrolled Bill",
+      "dateIssued": null,
+      "lastModified": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118s4638enr",
+      "textLink": "https://www.congress.gov/118/bills/s4638/BILLS-118s4638enr.htm",
+      "pdfLink": null,
+      "baseline": "exact-official-identifier"
+    }
+  ],
+  "committeeReports": [
+    {
+      "id": "committee-report:CRPT-118hrpt125",
+      "packageId": "CRPT-118hrpt125",
+      "title": "CRPT-118hrpt125",
+      "congress": 118,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt125",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "committee-report:CRPT-118hrpt301",
+      "packageId": "CRPT-118hrpt301",
+      "title": "CRPT-118hrpt301",
+      "congress": 118,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt301",
+      "baseline": "exact-official-identifier"
+    }
+  ],
+  "enactedProvisions": [
+    {
+      "id": "enacted-provision:PLAW-115publ91",
+      "packageId": "PLAW-115publ91",
+      "title": "Public Law 115-91",
+      "congress": 115,
+      "fiscalYear": 2018,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-115publ91",
+      "publicLawNumber": "115-91",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-115publ232",
+      "packageId": "PLAW-115publ232",
+      "title": "Public Law 115-232",
+      "congress": 115,
+      "fiscalYear": 2019,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-115publ232",
+      "publicLawNumber": "115-232",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-116publ92",
+      "packageId": "PLAW-116publ92",
+      "title": "Public Law 116-92",
+      "congress": 116,
+      "fiscalYear": 2020,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-116publ92",
+      "publicLawNumber": "116-92",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-116publ283",
+      "packageId": "PLAW-116publ283",
+      "title": "Public Law 116-283",
+      "congress": 116,
+      "fiscalYear": 2021,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-116publ283",
+      "publicLawNumber": "116-283",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-117publ81",
+      "packageId": "PLAW-117publ81",
+      "title": "Public Law 117-81",
+      "congress": 117,
+      "fiscalYear": 2022,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-117publ81",
+      "publicLawNumber": "117-81",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-117publ263",
+      "packageId": "PLAW-117publ263",
+      "title": "Public Law 117-263",
+      "congress": 117,
+      "fiscalYear": 2023,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-117publ263",
+      "publicLawNumber": "117-263",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-118publ31",
+      "packageId": "PLAW-118publ31",
+      "title": "Public Law 118-31",
+      "congress": 118,
+      "fiscalYear": 2024,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-118publ31",
+      "publicLawNumber": "118-31",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    },
+    {
+      "id": "enacted-provision:PLAW-118publ159",
+      "packageId": "PLAW-118publ159",
+      "title": "Public Law 118-159",
+      "congress": 118,
+      "fiscalYear": 2025,
+      "dateIssued": null,
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-118publ159",
+      "publicLawNumber": "118-159",
+      "lawType": "Public Law",
+      "baseline": "exact-official-identifier"
+    }
+  ],
+  "relations": [
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:115:hr:2810",
+      "to": "legislative-version:BILLS-115hr2810ih",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr2810ih"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:115:hr:2810",
+      "to": "legislative-version:BILLS-115hr2810rh",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr2810rh"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:115:hr:2810",
+      "to": "legislative-version:BILLS-115hr2810enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr2810enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:115:hr:2810",
+      "to": "enacted-provision:PLAW-115publ91",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-115publ91"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:115:hr:5515",
+      "to": "legislative-version:BILLS-115hr5515ih",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr5515ih"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:115:hr:5515",
+      "to": "legislative-version:BILLS-115hr5515rh",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr5515rh"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:115:hr:5515",
+      "to": "legislative-version:BILLS-115hr5515enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-115hr5515enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:115:hr:5515",
+      "to": "enacted-provision:PLAW-115publ232",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-115publ232"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:116:s:1790",
+      "to": "legislative-version:BILLS-116s1790is",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116s1790is"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:116:s:1790",
+      "to": "legislative-version:BILLS-116s1790rs",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116s1790rs"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:116:s:1790",
+      "to": "legislative-version:BILLS-116s1790enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116s1790enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:116:s:1790",
+      "to": "enacted-provision:PLAW-116publ92",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-116publ92"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:116:hr:6395",
+      "to": "legislative-version:BILLS-116hr6395ih",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116hr6395ih"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:116:hr:6395",
+      "to": "legislative-version:BILLS-116hr6395rh",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116hr6395rh"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:116:hr:6395",
+      "to": "legislative-version:BILLS-116hr6395enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-116hr6395enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:116:hr:6395",
+      "to": "enacted-provision:PLAW-116publ283",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-116publ283"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:117:s:1605",
+      "to": "legislative-version:BILLS-117s1605is",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117s1605is"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:117:s:1605",
+      "to": "legislative-version:BILLS-117s1605rs",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117s1605rs"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:117:s:1605",
+      "to": "legislative-version:BILLS-117s1605enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117s1605enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:117:s:1605",
+      "to": "enacted-provision:PLAW-117publ81",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-117publ81"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:117:hr:7776",
+      "to": "legislative-version:BILLS-117hr7776ih",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117hr7776ih"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:117:hr:7776",
+      "to": "legislative-version:BILLS-117hr7776rh",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117hr7776rh"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:117:hr:7776",
+      "to": "legislative-version:BILLS-117hr7776enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-117hr7776enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:117:hr:7776",
+      "to": "enacted-provision:PLAW-117publ263",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-117publ263"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:118:hr:2670",
+      "to": "legislative-version:BILLS-118hr2670ih",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118hr2670ih"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:118:hr:2670",
+      "to": "legislative-version:BILLS-118hr2670rh",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118hr2670rh"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:118:hr:2670",
+      "to": "legislative-version:BILLS-118hr2670enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118hr2670enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:118:hr:2670",
+      "to": "enacted-provision:PLAW-118publ31",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-118publ31"
+    },
+    {
+      "type": "measure-backed-by-report",
+      "from": "legislative-measure:118:hr:2670",
+      "to": "committee-report:CRPT-118hrpt125",
+      "basis": "exact-congress-committee-report-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt125"
+    },
+    {
+      "type": "measure-backed-by-report",
+      "from": "legislative-measure:118:hr:2670",
+      "to": "committee-report:CRPT-118hrpt301",
+      "basis": "exact-congress-committee-report-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/CRPT-118hrpt301"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:118:s:4638",
+      "to": "legislative-version:BILLS-118s4638is",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118s4638is"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:118:s:4638",
+      "to": "legislative-version:BILLS-118s4638rs",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118s4638rs"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:118:s:4638",
+      "to": "legislative-version:BILLS-118s4638enr",
+      "basis": "exact-govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-118s4638enr"
+    },
+    {
+      "type": "measure-enacted-as",
+      "from": "legislative-measure:118:s:4638",
+      "to": "enacted-provision:PLAW-118publ159",
+      "basis": "exact-public-law-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/PLAW-118publ159"
+    }
+  ],
+  "failures": [
+    {
+      "stage": "search",
+      "query": "GovInfo defense collections",
+      "error": "GovInfo search skipped after public demo-key throttling; exact Congress.gov seed collection remained active."
+    }
+  ]
+}

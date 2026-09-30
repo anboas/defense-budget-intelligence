@@ -6,6 +6,10 @@ const ENTITY_TYPES = Object.freeze([
   "vendor-registration", "business-certification", "organization-hierarchy-observation", "subaward",
   "treasury-account", "apportionment-revision", "execution-balance", "program-activity",
   "object-class", "treasury-outlay-observation",
+  "legislative-measure", "legislative-version", "committee-report", "enacted-provision",
+  "appropriation-mark", "budget-adjustment", "program-element", "project",
+  "acquisition-forecast", "mission-assignment", "installation-tenant", "sbir-topic", "sbir-award",
+  "competitive-signal", "expiration-signal", "execution-risk-signal", "protest-decision", "audit-finding", "outcome-evidence",
 ]);
 
 const CLAIM_OPERATIONS = Object.freeze(["fill_missing", "replace", "append", "supersede", "add_relation"]);
@@ -247,6 +251,15 @@ function entityTypeFromId(id) {
     ["apportionment-revision:", "apportionment-revision"], ["execution-balance:", "execution-balance"],
     ["program-activity:", "program-activity"], ["object-class:", "object-class"],
     ["treasury-outlay-observation:", "treasury-outlay-observation"],
+    ["legislative-measure:", "legislative-measure"], ["legislative-version:", "legislative-version"],
+    ["committee-report:", "committee-report"], ["enacted-provision:", "enacted-provision"],
+    ["appropriation-mark:", "appropriation-mark"], ["budget-adjustment:", "budget-adjustment"],
+    ["program-element:", "program-element"], ["project:", "project"],
+    ["acquisition-forecast:", "acquisition-forecast"], ["mission-assignment:", "mission-assignment"],
+    ["installation-tenant:", "installation-tenant"], ["sbir-topic:", "sbir-topic"], ["sbir-award:", "sbir-award"],
+    ["competitive-signal:", "competitive-signal"], ["expiration-signal:", "expiration-signal"],
+    ["execution-risk-signal:", "execution-risk-signal"], ["protest-decision:", "protest-decision"],
+    ["audit-finding:", "audit-finding"], ["outcome-evidence:", "outcome-evidence"],
     ["activity:", "activity"], ["award:", "award"], ["event:", "event"], ["transaction:", "transaction"],
     ["org:", "organization"], ["location:", "location"], ["account:", "federal-account"],
     ["class:", "classification"], ["source:", "source"],
