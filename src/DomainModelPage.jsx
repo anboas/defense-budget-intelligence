@@ -56,6 +56,11 @@ const ENTITY_META = {
   person: ["Public professionals", "people"],
   "official-role": ["Official roles", "people"],
   "role-succession": ["Role successions", "people"],
+  "organization-dossier": ["Organization dossiers", "organization"],
+  "organization-mission-claim": ["Mission claims", "organization"],
+  "organization-financial-summary": ["Financial summaries", "organization"],
+  "organization-research-gap": ["Research gaps", "organization"],
+  "organization-change-event": ["Change events", "organization"],
   "supplier-relationship": ["Supplier relationships", "industrial-base"],
   "buyer-profile": ["Buyer profiles", "industrial-base"],
   "vendor-profile": ["Vendor profiles", "industrial-base"],
@@ -159,6 +164,19 @@ const RELATION_ENDPOINTS = {
   "official-role-at-organization": ["official-role", "organization"],
   "role-succession-predecessor": ["role-succession", "official-role"],
   "role-succession-successor": ["role-succession", "official-role"],
+  "organization-dossier-for-organization": ["organization-dossier", "organization"],
+  "organization-dossier-parent-organization": ["organization-dossier", "organization"],
+  "organization-dossier-has-mission-claim": ["organization-dossier", "organization-mission-claim"],
+  "organization-dossier-has-financial-summary": ["organization-dossier", "organization-financial-summary"],
+  "organization-dossier-has-research-gap": ["organization-dossier", "organization-research-gap"],
+  "organization-dossier-has-change-event": ["organization-dossier", "organization-change-event"],
+  "organization-dossier-includes-role": ["organization-dossier", "official-role"],
+  "organization-dossier-includes-person": ["organization-dossier", "person"],
+  "organization-dossier-includes-program": ["organization-dossier", "defense-program"],
+  "organization-dossier-includes-award": ["organization-dossier", "award"],
+  "organization-dossier-includes-account": ["organization-dossier", "federal-account"],
+  "organization-dossier-includes-vendor": ["organization-dossier", "organization"],
+  "organization-dossier-includes-location": ["organization-dossier", "location"],
   "supplier-relationship-prime": ["supplier-relationship", "organization"],
   "supplier-relationship-supplier": ["supplier-relationship", "organization"],
   "buyer-profile-for-organization": ["buyer-profile", "organization"],
@@ -197,7 +215,7 @@ const RELATION_ENDPOINTS = {
 const GROUPS = [
   { id: "evidence", label: "Evidence & provenance", types: ["source", "evidence-claim", "evidence-conflict"], x: 420, y: 18, width: 360, tone: "evidence" },
   { id: "opportunity", label: "Opportunity lifecycle", types: ["activity", "event", "opportunity-notice", "notice-version", "acquisition-forecast", "sbir-topic"], x: 420, y: 168, width: 360, tone: "activity" },
-  { id: "organization", label: "Organization identity", types: ["organization", "organization-identifier", "vendor-registration", "business-certification", "organization-hierarchy-observation", "buyer-profile", "vendor-profile"], x: 34, y: 328, width: 294, tone: "identity" },
+  { id: "organization", label: "Organization intelligence", types: ["organization", "organization-identifier", "organization-dossier", "organization-mission-claim", "organization-financial-summary", "organization-research-gap", "organization-change-event", "vendor-registration", "business-certification", "organization-hierarchy-observation", "buyer-profile", "vendor-profile"], x: 34, y: 328, width: 294, tone: "identity" },
   { id: "geography", label: "Geography & missions", types: ["location", "mission-assignment", "installation-tenant"], x: 34, y: 506, width: 294, tone: "location" },
   { id: "execution", label: "Contract execution", types: ["award", "award-action", "transaction", "subaward-summary", "subaward", "spending-observation", "sbir-award", "supplier-relationship", "incumbent-position"], x: 872, y: 328, width: 294, tone: "execution" },
   { id: "funding", label: "Funding structure", types: ["federal-account", "treasury-account", "budget-line", "apportionment-revision", "execution-balance", "program-activity", "object-class", "treasury-outlay-observation", "program-element", "project"], x: 872, y: 506, width: 294, tone: "funding" },
@@ -304,6 +322,7 @@ export default function DomainModelPage({ routeHash = "" }) {
   const acquisition = summary.metadata.coverage.acquisition || {};
   const programs = summary.metadata.coverage.programs || {};
   const people = summary.metadata.coverage.people || {};
+  const organizationIntelligence = summary.metadata.coverage.organizationIntelligence || {};
   const industrialBase = summary.metadata.coverage.industrialBase || {};
   const documents = summary.metadata.coverage.documents || {};
   const operations = summary.metadata.coverage.operations || {};
@@ -355,6 +374,7 @@ export default function DomainModelPage({ routeHash = "" }) {
       <section className="domain-model__panel" data-domain-money-coverage><header><div><span>Exact money</span><h3>Account lifecycle</h3></div><Database size={18} /></header><dl><div><dt>Fiscal years</dt><dd>{money.firstFiscalYear}–{money.lastFiscalYear}</dd></div><div><dt>Treasury accounts</dt><dd>{number(money.treasuryAccounts)}</dd></div><div><dt>Execution balances</dt><dd>{number(money.executionBalances)}</dd></div><div><dt>OMB revisions</dt><dd>{number(money.apportionmentRevisions)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-program-coverage><header><div><span>Program intelligence</span><h3>Program evidence</h3></div><Network size={18} /></header><dl><div><dt>Defense programs</dt><dd>{number(programs.defensePrograms)}</dd></div><div><dt>Request baselines</dt><dd>{number(programs.requestBaselines)}</dd></div><div><dt>Page-cited House marks</dt><dd>{number(programs.pageCitedAppropriationMarks)}</dd></div><div><dt>Changed marks</dt><dd>{number(programs.changedAppropriationMarks)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-people-coverage><header><div><span>Official people</span><h3>Role tenure</h3></div><ShieldCheck size={18} /></header><dl><div><dt>Public professionals</dt><dd>{number(people.people)}</dd></div><div><dt>Official roles</dt><dd>{number(people.officialRoles)}</dd></div><div><dt>Observed current</dt><dd>{number(people.observedCurrentRoles)}</dd></div><div><dt>Sourced successions</dt><dd>{number(people.successions)}</dd></div></dl></section>
+      <section className="domain-model__panel" data-domain-organization-intelligence><header><div><span>Organization intelligence</span><h3>Research dossiers</h3></div><Network size={18} /></header><dl><div><dt>Prioritized dossiers</dt><dd>{number(organizationIntelligence.dossiers)}</dd></div><div><dt>Mission claims</dt><dd>{number(organizationIntelligence.missionClaims)}</dd></div><div><dt>Financial summaries</dt><dd>{number(organizationIntelligence.financialSummaries)}</dd></div><div><dt>Open research gaps</dt><dd>{number(organizationIntelligence.researchGaps)}</dd></div></dl><a href="#/budget-spend/intelligence">Open organization dossiers <span aria-hidden="true">→</span></a></section>
       <section className="domain-model__panel" data-domain-industrial-base-coverage><header><div><span>Industrial base</span><h3>Market relationships</h3></div><GitBranch size={18} /></header><dl><div><dt>Supplier links</dt><dd>{number(industrialBase.supplierRelationships)}</dd></div><div><dt>Buyer profiles</dt><dd>{number(industrialBase.buyerProfiles)}</dd></div><div><dt>Vendor profiles</dt><dd>{number(industrialBase.vendorProfiles)}</dd></div><div><dt>Incumbent positions</dt><dd>{number(industrialBase.incumbentPositions)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-document-coverage><header><div><span>Document intelligence</span><h3>Cited corpus</h3></div><Database size={18} /></header><dl><div><dt>Official documents</dt><dd>{number(documents.officialDocuments)}</dd></div><div><dt>Observed versions</dt><dd>{number(documents.versions)}</dd></div><div><dt>Verified tables</dt><dd>{number(documents.tables)}</dd></div><div><dt>Exact citations</dt><dd>{number(documents.citations)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-operations-coverage><header><div><span>Operational products</span><h3>Reusable analysis</h3></div><Network size={18} /></header><dl><div><dt>Saved query templates</dt><dd>{number(operations.savedQueryTemplates)}</dd></div><div><dt>Brief templates</dt><dd>{number(operations.briefTemplates)}</dd></div><div><dt>Publication policy</dt><dd>{title(operations.publicationPolicy || "review before send")}</dd></div><div><dt>Embeddings</dt><dd>{number(documents.embeddings)}</dd></div></dl><a href="#/budget-spend/intelligence">Open intelligence operations <span aria-hidden="true">→</span></a></section>

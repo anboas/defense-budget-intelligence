@@ -281,12 +281,26 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-role&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 20);
+  assert.equal(result.payload.meta.total, 292);
   const officialRoleId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialRoleId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "person-holds-official-role"), "Official roles must traverse to public professional identities");
   assert.ok(result.payload.data.some((relation) => relation.type === "official-role-at-organization"), "Official roles must traverse to published organizations");
   assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Official roles must traverse to official source evidence");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=organization-dossier&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 100);
+  const dossierId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(dossierId)}/relations?type=organization-dossier-for-organization&limit=10`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((relation) => relation.type === "organization-dossier-for-organization"), "Organization dossiers must traverse to their canonical organization identity");
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(dossierId)}/relations?type=organization-dossier-has-research-gap&limit=10`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((relation) => relation.type === "organization-dossier-has-research-gap"), "Organization dossiers must expose unresolved research work");
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(dossierId)}/relations?type=supported-by-source&limit=10`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Organization dossiers must traverse to retained source evidence");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=supplier-relationship&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
@@ -298,14 +312,14 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-document&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 45);
+  assert.equal(result.payload.meta.total, 54);
   const officialDocumentId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialDocumentId)}/relations?limit=50`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-version"), "Official documents must traverse to observed versions");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=document-citation&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 60);
+  assert.equal(result.payload.meta.total, 332);
   const documentCitationId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(documentCitationId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-citation"), "Document citations must traverse to their official document");

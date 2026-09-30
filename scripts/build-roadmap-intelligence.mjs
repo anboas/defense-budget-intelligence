@@ -24,13 +24,39 @@ const minDate = (values) => sortedUnique(values).at(0) || "";
 const maxDate = (values) => sortedUnique(values).at(-1) || "";
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-const roles = read(resolve(DATA, "official-role-sources.json"));
+const curatedRoles = read(resolve(DATA, "official-role-sources.json"));
+const roleDirectory = read(resolve(DATA, "official-role-directory-snapshot.json"));
 const subawards = read(resolve(DATA, "usaspending-subawards.json"));
 const program = read(resolve(DATA, "program-intelligence.json"));
 const legislation = read(resolve(DATA, "legislative-traceability.json"));
 const execution = read(resolve(PUBLIC, "budget-execution.json"));
 const agents = read(resolve(PUBLIC, "agent-records.json"));
 const generatedAt = new Date().toISOString();
+
+const personKey = (value) => String(value || "").toLowerCase()
+  .replace(/\b(senator|representative|rep|dr|jr|sr|ii|iii|iv)\b\.?/g, " ")
+  .replace(/\b[a-z]\b/g, " ")
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim();
+const curatedPersonByKey = new Map(curatedRoles.people.map((person) => [personKey(person.label), person]));
+const directoryPersonRemap = new Map();
+for (const person of roleDirectory.people || []) {
+  const existing = curatedPersonByKey.get(personKey(person.label));
+  directoryPersonRemap.set(person.id, existing?.id || person.id);
+}
+const roles = {
+  sources: [...new Map([...(curatedRoles.sources || []), ...(roleDirectory.sources || [])].map((row) => [row.id, row])).values()],
+  people: [...new Map([
+    ...(curatedRoles.people || []),
+    ...(roleDirectory.people || []).map((person) => ({ ...person, id: directoryPersonRemap.get(person.id) || person.id })),
+  ].map((row) => [row.id, row])).values()],
+  roles: [...new Map([
+    ...(curatedRoles.roles || []),
+    ...(roleDirectory.roles || []).map((role) => ({ ...role, personId: directoryPersonRemap.get(role.personId) || role.personId })),
+  ].map((row) => [row.id, row])).values()],
+  successions: curatedRoles.successions || [],
+  organizations: roleDirectory.organizations || [],
+};
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -333,6 +359,7 @@ const output = {
   people: roles.people,
   officialRoles: roles.roles,
   roleSuccessions: roles.successions,
+  officialRoleOrganizations: roles.organizations,
   supplierRelationships,
   buyerProfiles,
   vendorProfiles,

@@ -359,10 +359,10 @@ function distributeCallouts(nodes, locationNodes, sizeMetric, transform, selecte
       : node.members.length > 1
         ? 12 + 10 * Math.sqrt(node.spend / maxSpend)
         : 7 + 22 * Math.sqrt(node.spend / maxSpend);
-    return { anchorX: transform.applyX(node.x), anchorY: transform.applyY(node.y), clearance: radius + (node.members.length > 1 ? 9 : 6.5) };
+    return { anchorX: transform.applyX(node.x), anchorY: transform.applyY(node.y), clearance: radius + (node.members.length > 1 ? 13 : 11) };
   }).filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
   const visibleLocationAnchors = locationNodes
-    .map((node) => ({ anchorX: transform.applyX(node.x), anchorY: transform.applyY(node.y), clearance: 9.6 }))
+    .map((node) => ({ anchorX: transform.applyX(node.x), anchorY: transform.applyY(node.y), clearance: 14 }))
     .filter(({ anchorX, anchorY }) => anchorX >= 0 && anchorX <= MAP_WIDTH && anchorY >= 46 && anchorY <= MAP_HEIGHT - 24);
   const coversNode = (candidate, anchors) => anchors.some(({ anchorX, anchorY, clearance }) => anchorX >= candidate.x - clearance && anchorX <= candidate.x + width + clearance && anchorY >= candidate.y - clearance && anchorY <= candidate.y + height + clearance);
   const leaderConflicts = (candidate) => {
