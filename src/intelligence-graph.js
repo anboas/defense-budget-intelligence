@@ -1,4 +1,5 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.1.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.2.0";
+export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
 
 export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "activity",
@@ -7,6 +8,9 @@ export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "transaction",
   "organization",
   "organization-identifier",
+  "contract-vehicle",
+  "acquisition-path",
+  "recompete-signal",
   "location",
   "federal-account",
   "budget-line",
@@ -19,6 +23,10 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "activity-awarded-as",
   "activity-has-event",
   "activity-has-transaction",
+  "activity-ordered-under-vehicle",
+  "activity-uses-acquisition-path",
+  "activity-follow-on-to",
+  "activity-has-recompete-signal",
   "activity-recipient",
   "activity-contracting-organization",
   "activity-funding-organization",
@@ -29,6 +37,9 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "award-funding-organization",
   "award-funded-by-account",
   "award-has-subaward-summary",
+  "award-ordered-under-vehicle",
+  "award-has-recompete-signal",
+  "contract-vehicle-associated-with-path",
   "budget-line-matches-account-title",
   "budget-line-owned-by-organization",
   "organization-located-at",
@@ -45,6 +56,8 @@ let cached = null;
 let pending = null;
 let cachedSummary = null;
 let pendingSummary = null;
+let cachedContractLineage = null;
+let pendingContractLineage = null;
 
 export function emptyIntelligenceGraph() {
   return EMPTY_GRAPH;
@@ -88,4 +101,24 @@ export async function loadIntelligenceGraphSummary() {
       .finally(() => { pendingSummary = null; });
   }
   return pendingSummary;
+}
+
+export async function loadContractLineage() {
+  if (cachedContractLineage) return cachedContractLineage;
+  if (!pendingContractLineage) {
+    pendingContractLineage = fetch(`${import.meta.env.BASE_URL}data/contract-lineage-index.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (payload?.metadata?.schemaVersion !== CONTRACT_LINEAGE_SCHEMA_VERSION || payload?.metadata?.graphSchemaVersion !== INTELLIGENCE_GRAPH_SCHEMA_VERSION) {
+          throw new Error(`Contract lineage requires schema ${CONTRACT_LINEAGE_SCHEMA_VERSION} on graph ${INTELLIGENCE_GRAPH_SCHEMA_VERSION}`);
+        }
+        cachedContractLineage = payload;
+        return cachedContractLineage;
+      })
+      .finally(() => { pendingContractLineage = null; });
+  }
+  return pendingContractLineage;
 }
