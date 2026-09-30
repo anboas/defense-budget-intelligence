@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
+import { CONFLICT_STATUS_VALUES, TEMPORAL_EVIDENCE_SCHEMA_VERSION, TEMPORAL_STATUS_VALUES } from "./temporal-evidence-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const graph = JSON.parse(readFileSync(resolve(ROOT, "public/data/intelligence-graph.json"), "utf8"));
@@ -11,6 +12,8 @@ const graphSummary = JSON.parse(readFileSync(resolve(ROOT, "public/data/intellig
 const organizationReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/organization-identity-review.json"), "utf8"));
 const contractLineageIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/contract-lineage-index.json"), "utf8"));
 const contractLineageReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/contract-lineage-review.json"), "utf8"));
+const temporalEvidenceIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-index.json"), "utf8"));
+const temporalEvidenceReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-review.json"), "utf8"));
 const entities = new Set(Object.values(graph.entities || {}).flatMap((rows) => rows.map((row) => row.id)));
 const relations = graph.relations || [];
 
@@ -31,6 +34,7 @@ assert.ok(relations.length > 15000, "The graph should retain the complete cross-
 assert.ok(relations.every((relation) => INTELLIGENCE_RELATION_TYPES.includes(relation.type)), "Graph contains an unknown relationship type");
 assert.ok(relations.every((relation) => entities.has(relation.from) && entities.has(relation.to)), "Graph contains a dangling relationship endpoint");
 assert.ok(relations.every((relation) => relation.evidence?.sourceArtifact && relation.evidence?.basis && relation.evidence?.confidence), "Every graph relationship must retain evidence metadata");
+assert.ok(relations.every((relation) => relation.validity?.observedAt && "effectiveFrom" in relation.validity && "effectiveTo" in relation.validity && "supersededAt" in relation.validity && "reviewedAt" in relation.validity && relation.validity.reviewBy && TEMPORAL_STATUS_VALUES.includes(relation.validity?.status)), "Every graph relationship must retain explicit temporal and review fields");
 assert.equal(graph.metadata.coverage.activities.awardLinked, 702, "All retained awards must link to the canonical activity spine");
 assert.equal(graph.metadata.coverage.awards.accountLinked, 183, "Known unique award-to-account coverage changed");
 assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 485, "Known exact award-to-account relationships changed");
@@ -66,6 +70,24 @@ assert.equal(graph.metadata.relationCounts["contract-vehicle-associated-with-pat
 assert.equal(graph.metadata.relationCounts["activity-follow-on-to"], 3, "Exact predecessor coverage changed");
 assert.equal(graph.metadata.relationCounts["activity-has-recompete-signal"], 237, "Review-only timing signal coverage changed");
 assert.equal(graph.metadata.relationCounts["award-has-recompete-signal"], 237, "Award timing signal coverage changed");
+assert.equal(graph.entities?.["evidence-claim"]?.length, 1045, "Temporal evidence claim coverage changed");
+assert.equal(graph.entities?.["evidence-conflict"]?.length, 489, "Evidence conflict coverage changed");
+assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Evidence claim target coverage changed");
+assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
+assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
+assert.deepEqual(graph.metadata.coverage.temporal, {
+  relationsAssessed: 39601,
+  current: 30013,
+  historical: 8691,
+  future: 259,
+  stale: 638,
+  superseded: 0,
+  unknown: 0,
+  totalConflicts: 489,
+  resolved_by_recency: 408,
+  needs_review: 81,
+  kinds: { amount: 398, identity: 11, lifecycle: 52, lineage: 18, schedule: 10 },
+}, "Temporal validity and conflict coverage changed");
 
 const organizationIdentifiers = graph.entities?.["organization-identifier"] || [];
 const ueiIdentifiers = organizationIdentifiers.filter((item) => item.namespace === "uei");
@@ -105,6 +127,22 @@ assert.equal(contractLineageReview.unresolvedFollowOnClaims.length, 18, "Every u
 assert.ok(contractLineageReview.unresolvedFollowOnClaims.every((item) => item.status === "needs_review" && item.reason && item.sourceUrls?.length), "Unresolved follow-on claims must retain review state, reason, and sources");
 assert.ok(readFileSync(resolve(ROOT, "public/data/contract-lineage-index.json")).byteLength < 350_000, "Contract lineage browser index exceeds its 350 KB route-on-demand budget");
 assert.ok(readFileSync(resolve(ROOT, "public/data/contract-lineage-review.json")).byteLength < 100_000, "Contract lineage review exceeds its 100 KB audit budget");
+
+assert.equal(temporalEvidenceIndex.metadata?.schemaVersion, TEMPORAL_EVIDENCE_SCHEMA_VERSION, "Temporal evidence index schema changed");
+assert.equal(temporalEvidenceIndex.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Temporal evidence index must track the graph schema");
+assert.equal(Object.keys(temporalEvidenceIndex.indices?.byActivity || {}).length, 888, "Temporal browser index must cover every canonical activity");
+assert.deepEqual(temporalEvidenceIndex.metadata?.summary, graph.metadata.coverage.temporal, "Temporal browser summary must match the canonical graph");
+assert.equal(temporalEvidenceReview.metadata?.schemaVersion, TEMPORAL_EVIDENCE_SCHEMA_VERSION, "Temporal review schema changed");
+assert.equal(temporalEvidenceReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Temporal review must track the graph schema");
+assert.equal(temporalEvidenceReview.conflicts?.length, 489, "Every evidence disagreement must remain reviewable");
+const evidenceClaims = new Map(temporalEvidenceReview.conflicts.flatMap((conflict) => conflict.claims || []).map((claim) => [claim.id, claim]));
+assert.equal(evidenceClaims.size, 1045, "Every competing claim must remain in the review artifact");
+assert.ok(temporalEvidenceReview.conflicts.every((conflict) => CONFLICT_STATUS_VALUES.includes(conflict.status) && conflict.claimIds?.length >= 1 && conflict.claimIds.every((id) => evidenceClaims.has(id))), "Every conflict or unresolved claim must retain typed status and complete claim membership");
+assert.ok(temporalEvidenceReview.conflicts.filter((conflict) => conflict.kind !== "lineage").every((conflict) => conflict.claimIds.length > 1), "Non-lineage disagreements must retain every competing claim");
+assert.ok(temporalEvidenceReview.conflicts.filter((conflict) => conflict.status === "resolved_by_recency").every((conflict) => conflict.winningClaimId && conflict.claimIds.includes(conflict.winningClaimId)), "Recency resolutions must point to one of the retained claims");
+assert.ok(temporalEvidenceReview.conflicts.filter((conflict) => conflict.status === "needs_review").every((conflict) => !conflict.winningClaimId && conflict.reason), "Review-required conflicts must remain unresolved with a reason");
+assert.ok(readFileSync(resolve(ROOT, "public/data/temporal-evidence-index.json")).byteLength < 800_000, "Temporal browser index exceeds its 800 KB route-on-demand budget");
+assert.ok(readFileSync(resolve(ROOT, "public/data/temporal-evidence-review.json")).byteLength < 700_000, "Temporal evidence review exceeds its 700 KB audit budget");
 
 for (const [opportunityId, index] of Object.entries(graph.indices.byActivity)) {
   assert.equal(index.activityId, opportunityId);

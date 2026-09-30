@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadContractLineage, loadIntelligenceGraph } from "./intelligence-graph.js";
+import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from "./intelligence-graph.js";
 import "./ConnectedEvidence.css";
 
 const RELATION_LABELS = {
@@ -40,6 +40,11 @@ function countLabel(value, singular, plural = `${singular}s`) {
   return `${Number(value || 0).toLocaleString()} ${Number(value || 0) === 1 ? singular : plural}`;
 }
 
+function claimValue(claim) {
+  if (/Amount$/.test(claim.field)) return money(claim.value);
+  return String(claim.value || "Unknown").replaceAll("_", " ");
+}
+
 function ConnectionGroup({ title, items, renderItem }) {
   if (!items?.length) return null;
   return <section className="connected-evidence__group"><h4>{title}</h4><div>{items.map(renderItem)}</div></section>;
@@ -51,14 +56,17 @@ export default function ConnectedEvidence({ opportunityId }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([loadIntelligenceGraph(), loadContractLineage().catch(() => null)])
-      .then(([graph, lineage]) => { if (active) setState({ status: "ready", graph, lineage }); })
+    Promise.all([loadIntelligenceGraph(), loadContractLineage().catch(() => null), loadTemporalEvidence().catch(() => null)])
+      .then(([graph, lineage, temporal]) => { if (active) setState({ status: "ready", graph, lineage, temporal }); })
       .catch((error) => { if (active) setState({ status: "error", graph: null, error }); });
     return () => { active = false; };
   }, [attempt]);
 
   const connection = state.graph?.indices?.byActivity?.[opportunityId] || null;
   const contractLineage = state.lineage?.indices?.byActivity?.[opportunityId] || null;
+  const temporalEvidence = state.temporal?.indices?.byActivity?.[opportunityId] || null;
+  const unresolvedConflicts = temporalEvidence?.conflicts?.filter((item) => item.status === "needs_review") || [];
+  const validityStatus = unresolvedConflicts.length ? "conflicting" : temporalEvidence?.validity?.status || "unknown";
   const primaryLocation = connection?.connected?.locations?.[0] || null;
   const counts = connection?.counts || {};
   const metrics = connection ? [
@@ -92,7 +100,7 @@ export default function ConnectedEvidence({ opportunityId }) {
     <section className="connected-evidence" data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId}>
       <header>
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
-        <small>{connection.surfaces.length} linked surfaces · deterministic joins only</small>
+        <small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces · deterministic joins only</small>
       </header>
       <div className="connected-evidence__metrics" aria-label="Connected evidence counts">
         {metrics.map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}
@@ -109,6 +117,7 @@ export default function ConnectedEvidence({ opportunityId }) {
         <ConnectionGroup title="Published successors" items={contractLineage?.successors} renderItem={(activity) => <article key={activity.opportunityId} data-contract-successor><strong>{activity.reference || activity.label}</strong><span>{activity.label}</span><em>{activity.basis} · {activity.confidence}</em></article>} />
         <ConnectionGroup title="Recompete timing review" items={contractLineage?.recompeteSignals} renderItem={(signal) => <article key={signal.id} data-recompete-signal><strong>{signal.endDate}</strong><span>{countLabel(signal.daysUntilEnd, "day")} to reported end</span><em>{signal.caveat}</em></article>} />
         {contractLineage?.unresolvedClaim ? <section className="connected-evidence__group" data-lineage-review><h4>Lineage review required</h4><div><article><strong>{contractLineage.unresolvedClaim.claim} wording</strong><span>{contractLineage.unresolvedClaim.reason}</span><em>No predecessor edge promoted</em></article></div></section> : null}
+        <ConnectionGroup title="Validity and conflicts" items={temporalEvidence?.conflicts?.slice(0, 8)} renderItem={(conflict) => <article key={conflict.id} data-evidence-conflict={conflict.status}><strong>{conflict.field.replaceAll(/([A-Z])/g, " $1")}</strong><span>{conflict.claims.map((claim) => `${claimValue(claim)} · ${claim.sourceArtifact}`).join(" | ")}</span><em>{conflict.status === "resolved_by_recency" ? "Newer current evidence supersedes the older claim" : conflict.reason}</em></article>} />
         <ConnectionGroup title="Organizations" items={connected.organizations} renderItem={(organization) => {
           const identifier = organization.identity?.identifiers?.uei ? `UEI ${organization.identity.identifiers.uei}` : organization.identity?.identifiers?.officeCode ? `Office ${organization.identity.identifiers.officeCode}` : organization.identity?.resolutionState === "needs_review" ? `${organization.identity.candidateUeis?.length || 0} UEI candidates · review required` : "Label-only identity";
           const aliases = organization.aliases?.length ? ` · ${organization.aliases.length} ${organization.aliases.length === 1 ? "alias" : "aliases"}` : "";
@@ -123,7 +132,7 @@ export default function ConnectedEvidence({ opportunityId }) {
         <div>
           {connection.evidenceSummary.map((evidence) => <article key={`${evidence.type}-${evidence.basis}-${evidence.sourceArtifact}`}><strong>{RELATION_LABELS[evidence.type] || evidence.type}</strong><span>{evidence.basis.replaceAll("-", " ")} · {evidence.confidence.replaceAll("_", " ")}</span><em>{countLabel(evidence.count, "edge")} · {evidence.sourceArtifact}</em></article>)}
         </div>
-        <p>Exact identifiers and source-declared relationships are authoritative. Normalized-label and account-title matches remain explicitly derived; no fuzzy identity merge or unsupported budget-line-to-award link is asserted.</p>
+        <p>Exact identifiers and source-declared relationships are authoritative. Temporal state uses source observation and effective dates; newer current evidence may supersede an older value, while stale or ambiguous claims remain unresolved. No fuzzy identity merge or unsupported budget-line-to-award link is asserted.</p>
       </details>
       <footer>
         <div>{connection.surfaces.map((surface) => <span key={surface}>{SURFACE_LABELS[surface] || surface}</span>)}</div>

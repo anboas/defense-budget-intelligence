@@ -1,8 +1,8 @@
 # Defense Intelligence domain graph
 
 **Status:** Implemented deterministic baseline  
-**Schema:** `1.0.0`  
-**Runtime artifacts:** `data/intelligence-graph.json`, `data/intelligence-graph-index.json`
+**Schema:** `1.3.0`
+**Runtime artifacts:** `data/intelligence-graph.json`, `data/intelligence-graph-index.json`, `data/contract-lineage-index.json`, `data/temporal-evidence-index.json`
 
 ## Decision
 
@@ -28,13 +28,19 @@ The graph is generated from retained public-source snapshots. It does not create
 | Award | USAspending generated award ID; PIID retained as alias | 702 |
 | Event | Stable normalized `eventId` | 502 |
 | Transaction | Stable exact FPDS `actionId` | 3,085 |
-| Organization | Exact normalized public label, upgraded with UEI when published | 957 |
+| Organization | Exact UEI, reviewed office code, or role-scoped label-only identity | 1,175 |
+| Organization identifier | Namespace plus exact identifier value | 314 |
+| Contract vehicle | Exact published parent award identifier | 166 |
+| Acquisition path | Source-declared vehicle/path label | 31 |
+| Recompete signal | Bounded review-only timing observation | 237 |
+| Evidence claim | Subject, field, value, source, and observation time | 1,045 |
+| Evidence conflict | Retained competing or unresolved claim set | 489 |
 | Location | Stable reviewed Opportunity Map location ID | 885 |
 | Federal account | Federal account code | 153 |
 | Budget line | Stable PDB line ID | 3,888 |
 | Subaward summary | Exact generated prime-award ID | 379 |
 | Classification | Namespace plus code, such as NAICS, PSC, technology area, work category, or budget signal | 270 |
-| Source | Canonical public HTTP(S) URL | 2,845 |
+| Source | Canonical public HTTP(S) URL | 3,298 |
 
 Organization identity is deliberately conservative. Exact normalized labels may connect repeated public labels across surfaces, but this is not a fuzzy legal-entity resolution claim. UEI and future official organization/office codes supersede label-only identity when available.
 
@@ -50,6 +56,10 @@ Organization identity is deliberately conservative. Exact normalized labels may 
 - `activity-funding-organization`
 - `contracting-activity-at`
 - `funding-activity-at`
+- `activity-ordered-under-vehicle`
+- `activity-uses-acquisition-path`
+- `activity-follow-on-to`
+- `activity-has-recompete-signal`
 
 ### Money lineage
 
@@ -58,6 +68,8 @@ Organization identity is deliberately conservative. Exact normalized labels may 
 - `award-funding-organization`
 - `award-funded-by-account`
 - `award-has-subaward-summary`
+- `award-ordered-under-vehicle`
+- `award-has-recompete-signal`
 - `budget-line-matches-account-title`
 - `budget-line-owned-by-organization`
 
@@ -66,6 +78,9 @@ Organization identity is deliberately conservative. Exact normalized labels may 
 - `organization-located-at`
 - `entity-classified-as`
 - `supported-by-source`
+- `evidence-claim-about`
+- `evidence-conflict-has-claim`
+- `evidence-conflict-resolved-by`
 
 ## Evidence classes
 
@@ -94,11 +109,13 @@ The UI must show the class and basis when the distinction affects interpretation
 
 ## Runtime design
 
-`intelligence-graph.json` is the complete generated graph and release-integrity artifact. It is not part of initial page load. Schema 1.1 adds UEI-canonical recipient identities, reviewed contracting-office identifiers, transaction-recipient edges, source-declared hierarchy, office/location edges, and an explicit organization review queue.
+`intelligence-graph.json` is the complete generated graph and release-integrity artifact. It is not part of initial page load. Schema 1.3 includes canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
 
 `intelligence-graph-index.json` is a bounded deferred projection keyed by canonical activity ID. Record detail surfaces load it once on demand and reuse it for the browser session. It contains connected entity summaries, surface coverage, counts, and relationship evidence summaries without duplicating transaction and event bodies.
 
 `organization-identity-review.json` is a small audit artifact containing exact UEI-resolved aliases and normalized labels that map to multiple UEIs. Ambiguous labels remain `needs_review`; they never auto-merge.
+
+`temporal-evidence-index.json` is a deferred activity-keyed projection of validity and conflicts. `temporal-evidence-review.json` is the bounded audit queue containing every retained claim, resolution basis, source artifact, and unresolved disagreement. See [Temporal validity and evidence conflicts](temporal-validity-and-conflicts.md).
 
 Build validation rejects:
 
@@ -106,6 +123,8 @@ Build validation rejects:
 - duplicate entity IDs;
 - dangling relationship endpoints;
 - relationships without source artifact, basis, and confidence;
+- relationships without explicit observation, review, effective-date, supersession, and validity fields;
+- conflict resolutions that do not point to a retained competing claim;
 - unsafe or credential-shaped source URLs;
 - loss of the established activity, award, event, transaction, location, subaward, account, or budget-line coverage;
 - an activity index that omits any canonical opportunity ID;
