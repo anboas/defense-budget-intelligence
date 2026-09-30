@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
 import { buildContractLineageRegistry, CONTRACT_LINEAGE_SCHEMA_VERSION } from "./contract-lineage-resolver.mjs";
 import { buildOrganizationIdentityRegistry, splitOfficeCodes } from "./organization-identity-resolver.mjs";
+import { buildTemporalEvidenceRegistry } from "./temporal-evidence-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA_DIR = resolve(ROOT, "public/data");
@@ -14,6 +15,8 @@ const SUMMARY_FILE = resolve(DATA_DIR, "intelligence-graph-summary.json");
 const ORGANIZATION_REVIEW_FILE = resolve(DATA_DIR, "organization-identity-review.json");
 const CONTRACT_LINEAGE_INDEX_FILE = resolve(DATA_DIR, "contract-lineage-index.json");
 const CONTRACT_LINEAGE_REVIEW_FILE = resolve(DATA_DIR, "contract-lineage-review.json");
+const TEMPORAL_EVIDENCE_INDEX_FILE = resolve(DATA_DIR, "temporal-evidence-index.json");
+const TEMPORAL_EVIDENCE_REVIEW_FILE = resolve(DATA_DIR, "temporal-evidence-review.json");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
 const normalized = (value) => String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "");
@@ -474,11 +477,78 @@ const organizationCoverage = {
   transactionRecipientRelations: relations.filter((item) => item.type === "transaction-recipient").length,
 };
 
+const temporalInputs = {
+  entities,
+  relations,
+  agents,
+  execution,
+  calendar,
+  transactions,
+  accountSpine,
+  subawards,
+  map,
+  locationMetadata,
+  monitor,
+  discovery,
+  core,
+  organizationConflicts: organizationRegistry.conflicts,
+  predecessorConflicts: contractLineageRegistry.review.predecessorConflicts,
+  unresolvedFollowOnClaims: contractLineageRegistry.review.unresolvedFollowOnClaims,
+};
+const temporalEvidence = buildTemporalEvidenceRegistry(temporalInputs);
+for (const claim of temporalEvidence.claims) {
+  addEntity("evidence-claim", {
+    id: claim.id,
+    label: `${claim.field}: ${String(claim.value)}`,
+    field: claim.field,
+    value: claim.value,
+    observedAt: claim.observedAt,
+    reviewState: claim.reviewState,
+    sourceArtifact: claim.sourceArtifact,
+  });
+  if (entityKeys.activity.has(claim.subjectId) || Object.values(entityKeys).some((keys) => keys.has(claim.subjectId))) {
+    addRelation("evidence-claim-about", claim.id, claim.subjectId, evidence(claim.sourceArtifact, `published-${claim.field}-claim`, "source_declared", claim.sourceUrl, claim.reviewState));
+  }
+  const sourceId = source(claim.sourceUrl, claim.sourceArtifact, `${claim.field} claim source`);
+  if (sourceId) addRelation("supported-by-source", claim.id, sourceId, evidence(claim.sourceArtifact, "claim-source-url", "exact", claim.sourceUrl, claim.reviewState));
+}
+for (const conflict of temporalEvidence.conflicts) {
+  addEntity("evidence-conflict", {
+    id: conflict.id,
+    label: `${conflict.kind}: ${conflict.field}`,
+    field: conflict.field,
+    kind: conflict.kind,
+    status: conflict.status,
+    reason: conflict.reason,
+    resolutionBasis: conflict.resolutionBasis || null,
+    sourceArtifact: "temporal-evidence-review",
+  });
+  for (const claimId of conflict.claimIds) addRelation("evidence-conflict-has-claim", conflict.id, claimId, evidence("temporal-evidence-review", "retained-competing-claim", "exact", "", conflict.status));
+  if (conflict.winningClaimId) addRelation("evidence-conflict-resolved-by", conflict.id, conflict.winningClaimId, evidence("temporal-evidence-review", conflict.resolutionBasis, "reviewed", "", "resolved"));
+}
+const addedTemporalRelationCount = relations.filter((relation) => !relation.validity).length;
+const reviewQueueReviewBy = new Date(Date.parse(temporalEvidence.metadata.evaluationDate) + 90 * 86_400_000).toISOString().slice(0, 10);
+for (const relation of relations.filter((item) => !item.validity)) {
+  relation.validity = {
+    observedAt: temporalEvidence.metadata.generatedAt,
+    effectiveFrom: null,
+    effectiveTo: null,
+    supersededAt: null,
+    reviewedAt: temporalEvidence.metadata.evaluationDate,
+    reviewBy: reviewQueueReviewBy,
+    status: "current",
+    basis: "review-queue-generation",
+  };
+}
+temporalEvidence.relationStatusCounts.current += addedTemporalRelationCount;
+temporalEvidence.review.summary.relationsAssessed = relations.length;
+temporalEvidence.review.summary.current += addedTemporalRelationCount;
+
 const graph = {
   metadata: {
     schemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
-    generatedAt: agents.metadata?.generatedAt || new Date().toISOString(),
-    asOf: agents.metadata?.asOf || calendar.metadata?.asOf,
+    generatedAt: temporalEvidence.metadata.generatedAt,
+    asOf: temporalEvidence.metadata.evaluationDate,
     title: "Defense Intelligence cross-surface evidence graph",
     authorityBoundary: "Deterministic public-source joins only. Exact IDs and source-declared relationships are authoritative; normalized-label and account-title joins are explicitly derived and never presented as universal federal crosswalks.",
     entityCounts: Object.fromEntries(Object.entries(entities).map(([type, rows]) => [type, rows.length])),
@@ -500,6 +570,7 @@ const graph = {
         unresolvedFollowOnClaims: contractLineageRegistry.review.summary.unresolvedFollowOnClaims,
         recompeteTimingSignals: contractLineageRegistry.review.summary.recompeteTimingSignals,
       },
+      temporal: temporalEvidence.review.summary,
     },
   },
   domain: {
@@ -516,6 +587,8 @@ const graph = {
       location: "Stable reviewed location ID from the authoritative map snapshot.",
       federalAccount: "Federal account code from USAspending account spine.",
       source: "Canonical HTTP(S) URL.",
+      evidenceClaim: "One source-attributed field value observed at a stated time. Competing claims are preserved rather than overwritten.",
+      evidenceConflict: "A typed disagreement among retained claims. Resolution requires exact evidence, explicit review, or a newer current source under the published recency rule.",
     },
     evidenceRules: {
       exact: "Stable source identifier or exact public relationship.",
@@ -535,6 +608,12 @@ const graph = {
       pathRule: "Published vehicle labels remain source-declared acquisition paths and never replace the exact parent IDV.",
       predecessorRule: "A predecessor relationship requires an exact or explicitly reviewed predecessor reference that resolves to one retained activity.",
       timingRule: "An award ending within 730 days creates a needs-review timing signal only; timing alone never asserts a recompete, follow-on, or successor.",
+    },
+    temporalValidityPolicy: {
+      evaluationRule: "Relationship validity is evaluated against the latest retained source observation, never browser time.",
+      states: ["current", "historical", "future", "stale", "superseded", "unknown"],
+      supersessionRule: "Only a newer current observation of the same stable subject and field may supersede an older value automatically.",
+      conflictRule: "Identifier disagreements, stale observations, ambiguous identity, and unresolved lineage remain review items; fuzzy similarity never selects a winner.",
     },
   },
   entities,
@@ -655,6 +734,30 @@ const contractLineageIndex = {
   indices: { byActivity: contractLineageByActivity },
 };
 writeFileSync(CONTRACT_LINEAGE_INDEX_FILE, JSON.stringify(contractLineageIndex));
+const temporalEvidenceIndex = {
+  metadata: {
+    ...temporalEvidence.metadata,
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    title: "Temporal validity and evidence-conflict browser index",
+    summary: temporalEvidence.review.summary,
+  },
+  indices: { byActivity: temporalEvidence.byActivity },
+};
+writeFileSync(TEMPORAL_EVIDENCE_INDEX_FILE, JSON.stringify(temporalEvidenceIndex));
+const temporalClaimById = new Map(temporalEvidence.claims.map((claim) => [claim.id, claim]));
+const temporalEvidenceReview = {
+  metadata: {
+    ...temporalEvidence.metadata,
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    title: "Temporal validity and evidence-conflict review queue",
+  },
+  summary: temporalEvidence.review.summary,
+  conflicts: temporalEvidence.conflicts.map((conflict) => ({
+    ...conflict,
+    claims: conflict.claimIds.map((id) => temporalClaimById.get(id)),
+  })),
+};
+writeFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE, JSON.stringify(temporalEvidenceReview));
 const graphIndex = { metadata: graph.metadata, domain: graph.domain, indices: { byActivity: activityIndex } };
 writeFileSync(INDEX_FILE, JSON.stringify(graphIndex));
 const graphSummary = {
@@ -666,4 +769,4 @@ const graphSummary = {
   },
 };
 writeFileSync(SUMMARY_FILE, JSON.stringify(graphSummary));
-console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));
+console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

@@ -1,5 +1,6 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.2.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "1.3.0";
 export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
+export const TEMPORAL_EVIDENCE_SCHEMA_VERSION = "1.0.0";
 
 export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "activity",
@@ -11,6 +12,8 @@ export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "contract-vehicle",
   "acquisition-path",
   "recompete-signal",
+  "evidence-claim",
+  "evidence-conflict",
   "location",
   "federal-account",
   "budget-line",
@@ -49,6 +52,9 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "transaction-recipient",
   "entity-classified-as",
   "supported-by-source",
+  "evidence-claim-about",
+  "evidence-conflict-has-claim",
+  "evidence-conflict-resolved-by",
 ]);
 
 const EMPTY_GRAPH = Object.freeze({ metadata: {}, domain: {}, entities: {}, relations: [], indices: { byActivity: {} } });
@@ -58,6 +64,8 @@ let cachedSummary = null;
 let pendingSummary = null;
 let cachedContractLineage = null;
 let pendingContractLineage = null;
+let cachedTemporalEvidence = null;
+let pendingTemporalEvidence = null;
 
 export function emptyIntelligenceGraph() {
   return EMPTY_GRAPH;
@@ -121,4 +129,24 @@ export async function loadContractLineage() {
       .finally(() => { pendingContractLineage = null; });
   }
   return pendingContractLineage;
+}
+
+export async function loadTemporalEvidence() {
+  if (cachedTemporalEvidence) return cachedTemporalEvidence;
+  if (!pendingTemporalEvidence) {
+    pendingTemporalEvidence = fetch(`${import.meta.env.BASE_URL}data/temporal-evidence-index.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (payload?.metadata?.schemaVersion !== TEMPORAL_EVIDENCE_SCHEMA_VERSION || payload?.metadata?.graphSchemaVersion !== INTELLIGENCE_GRAPH_SCHEMA_VERSION) {
+          throw new Error(`Temporal evidence requires schema ${TEMPORAL_EVIDENCE_SCHEMA_VERSION} on graph ${INTELLIGENCE_GRAPH_SCHEMA_VERSION}`);
+        }
+        cachedTemporalEvidence = payload;
+        return cachedTemporalEvidence;
+      })
+      .finally(() => { pendingTemporalEvidence = null; });
+  }
+  return pendingTemporalEvidence;
 }
