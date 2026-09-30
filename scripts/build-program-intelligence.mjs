@@ -21,7 +21,8 @@ function unzipText(file, path) {
 }
 
 function decodeXml(value = "") {
-  return String(value).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&#10;/g, "\n").replace(/&#13;/g, "\r").replace(/_x000D_/g, "\r");
+  const entities = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", "#10": "\n", "#13": "\r" };
+  return String(value).replace(/&(amp|lt|gt|quot|apos|#10|#13);/g, (match, entity) => entities[entity] ?? match).replace(/_x000D_/g, "\r");
 }
 
 function text(value = "") {
