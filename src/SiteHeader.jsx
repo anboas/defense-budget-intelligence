@@ -10,7 +10,7 @@ import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, wri
 const PRIMARY_IDS = ["spend", "map", "schedule"];
 const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
 const WORK_IDS = new Set(["watchlist", "tasks", "event-discovery"]);
-const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "workspace-settings"]);
+const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "intelligence", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 const MONEY_META = {
   overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
@@ -26,6 +26,7 @@ const ADMIN_META = {
   "event-discovery": { badge: "Curate", description: "Review official-source candidates, source health, and ingestion history." },
   connections: { badge: "Admin", description: "Integration health, credentials, request diagnostics, and workspace audit." },
   "domain-model": { badge: "Graph", description: "Canonical entities, typed relationships, validity, conflicts, and full record views." },
+  intelligence: { badge: "Intel", description: "Official roles, industrial-base relationships, accountability evidence, documents, and reusable briefs." },
   users: { badge: "Owner", description: "Create global accounts, recover passwords, suspend access, and emulate users." },
   workspaces: { badge: "Access", description: "Create workspaces, review access requests, and control membership." },
   "workspace-settings": { badge: "Access", description: "Configure workspace identity, membership roles, teams, and AI policy." },
@@ -62,7 +63,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
-  const workspaceAdminItems = ["connections", "domain-model", ...(auth?.user?.canManageWorkspace ? ["workspace-settings"] : [])].map((id) => {
+  const workspaceAdminItems = ["connections", "domain-model", "intelligence", ...(auth?.user?.canManageWorkspace ? ["workspace-settings"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);

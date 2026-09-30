@@ -35,6 +35,11 @@ new source must enable. Volume alone is not a release criterion.
 | Request-to-law traceability | Operational baseline | GovInfo and Congress.gov exact bill, version, report, and law identities |
 | Forecast and installation mission evidence | Operational baseline | Agency-source records and reviewed official installation sources |
 | Competitive, expiration, execution, and outcome signals | Operational review layer | Deterministic, dated, caveated signals only |
+| Official people and role tenure | Operational bounded baseline | 20 public professionals, 20 roles, four exact successions |
+| Industrial-base and teaming intelligence | Operational partial baseline | 1,000 sampled prime-to-supplier relationships and retained-award market profiles |
+| Outcomes and accountability | Operational bounded baseline | Program health summaries and four source-linked official findings |
+| Document intelligence | Operational cited baseline | 45 official documents, 45 versions, 60 typed citations |
+| Operational intelligence products | Operational template baseline | Eight saved graph queries and five review-before-send briefs |
 | SBIR/STTR | Source unavailable | Official API under maintenance; no empty coverage claimed |
 
 ## Preserved strategic sequence: program intelligence through operational products
@@ -67,6 +72,34 @@ This sequence is durable. Finishing one release does not remove the later workst
 8. **Operational products.** Deliver program health, buyer, office, vendor, industrial-base,
    and request-to-enactment pages plus recompete and expiring-funds calendars, source-change
    alerts, saved graph queries, scheduled briefs, and policy-controlled agent promotion.
+
+### Schema 2.2 operational baseline
+
+The first integrated delivery of workstreams 4–8 is intentionally bounded:
+
+- 20 public professionals and 20 official roles retain exact dates where the official
+  source states them; current-directory observations are lower bounds, not inferred starts.
+- Four source-published changes of charter preserve predecessor, successor, effective date,
+  organization, quotation, and official source.
+- 1,000 prime-to-supplier relationships, 22 buyer profiles, 235 vendor profiles, and 879
+  incumbent positions summarize retained award and sampled subaward evidence. They do not
+  claim complete federal-market coverage.
+- Every one of the 2,723 defense programs has a deterministic evidence summary. Four
+  official program findings are retained as accountability evidence. Public protest,
+  audit, and corrective-action coverage remains explicit zero until exact joins pass.
+- 45 official documents, 45 observed versions, 25 sections, three verified table extracts,
+  and 60 typed citations connect evidence to official roles, appropriation marks, and
+  accountability findings. Embeddings remain explicit zero until a reproducible cited
+  retrieval pipeline is configured.
+- Eight saved-query templates and five weekly brief templates are first-class graph
+  entities. Brief publication policy is `review-before-send`; templates do not create an
+  external delivery authorization.
+
+The remaining depth work continues: broaden role coverage to contracting officers and
+requirements owners, add exact corporate-family and CAGE evidence after SAM activation,
+build a stable protest/audit/corrective-action crosswalk, retain complete source bytes and
+revision diffs, and connect operational templates to policy-controlled scheduling and
+workspace review state.
 
 ### Cross-workstream acceptance gates
 

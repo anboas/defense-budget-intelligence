@@ -41,6 +41,7 @@ const priorityAwardActions = JSON.parse(readFileSync(resolve(ROOT, "src/data/pri
 const legislative = JSON.parse(readFileSync(resolve(ROOT, "src/data/legislative-traceability.json"), "utf8"));
 const strategic = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-intelligence.json"), "utf8"));
 const programIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/program-intelligence.json"), "utf8"));
+const roadmapIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -812,6 +813,85 @@ for (const row of programIntelligence.appropriationMarks || []) {
   if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("program-intelligence", "official-report-table-page", "exact", row.sourceUrl, row.reviewState));
 }
 
+const roadmapSourceById = new Map();
+for (const row of roadmapIntelligence.sources || []) {
+  const id = source(row.url, "roadmap-intelligence", row.title || row.label);
+  if (id) roadmapSourceById.set(row.id, id);
+}
+for (const row of roadmapIntelligence.people || []) addEntity("person", { ...row, sourceArtifact: "roadmap-intelligence" });
+for (const row of roadmapIntelligence.officialRoles || []) {
+  addEntity("official-role", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys.person.has(row.personId)) addRelation("person-holds-official-role", row.personId, row.id, evidence("roadmap-intelligence", "official-professional-role", "reviewed", roadmapIntelligence.sources?.find((item) => item.id === row.sourceIds?.[0])?.url || "", row.reviewState));
+  const organizationId = organization(row.organizationName, "roadmap-intelligence", {}, { identityClass: "government-office" });
+  if (organizationId) addRelation("official-role-at-organization", row.id, organizationId, evidence("roadmap-intelligence", "official-role-organization", "source_declared", roadmapIntelligence.sources?.find((item) => item.id === row.sourceIds?.[0])?.url || "", row.reviewState));
+  for (const sourceId of row.sourceIds || []) {
+    const graphSourceId = roadmapSourceById.get(sourceId);
+    if (graphSourceId) addRelation("supported-by-source", row.id, graphSourceId, evidence("roadmap-intelligence", "official-role-source", "reviewed", roadmapIntelligence.sources?.find((item) => item.id === sourceId)?.url || "", row.reviewState));
+  }
+}
+for (const row of roadmapIntelligence.roleSuccessions || []) {
+  addEntity("role-succession", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["official-role"].has(row.predecessorRoleId)) addRelation("role-succession-predecessor", row.id, row.predecessorRoleId, evidence("roadmap-intelligence", "official-change-of-charter", "reviewed", roadmapIntelligence.sources?.find((item) => item.id === row.sourceId)?.url || "", row.reviewState));
+  if (entityKeys["official-role"].has(row.successorRoleId)) addRelation("role-succession-successor", row.id, row.successorRoleId, evidence("roadmap-intelligence", "official-change-of-charter", "reviewed", roadmapIntelligence.sources?.find((item) => item.id === row.sourceId)?.url || "", row.reviewState));
+}
+for (const row of roadmapIntelligence.supplierRelationships || []) {
+  addEntity("supplier-relationship", { ...row, sourceArtifact: "roadmap-intelligence" });
+  const primeId = organization(row.primeName, "roadmap-intelligence", {}, { identityClass: "recipient" });
+  const supplierId = organization(row.supplierName, "roadmap-intelligence", {}, { identityClass: "recipient" });
+  if (primeId) addRelation("supplier-relationship-prime", row.id, primeId, evidence("roadmap-intelligence", "sampled-usaspending-prime", "exact", "", row.reviewState));
+  if (supplierId) addRelation("supplier-relationship-supplier", row.id, supplierId, evidence("roadmap-intelligence", "sampled-usaspending-subrecipient", "exact", "", row.reviewState));
+}
+for (const row of roadmapIntelligence.buyerProfiles || []) {
+  addEntity("buyer-profile", { ...row, sourceArtifact: "roadmap-intelligence" });
+  const organizationId = organization(row.label, "roadmap-intelligence", {}, { identityClass: "government-office" });
+  if (organizationId) addRelation("buyer-profile-for-organization", row.id, organizationId, evidence("roadmap-intelligence", row.evidenceBasis, "deterministic", "", row.reviewState));
+}
+for (const row of roadmapIntelligence.vendorProfiles || []) {
+  addEntity("vendor-profile", { ...row, sourceArtifact: "roadmap-intelligence" });
+  const organizationId = organization(row.label, "roadmap-intelligence", {}, { identityClass: "recipient" });
+  if (organizationId) addRelation("vendor-profile-for-organization", row.id, organizationId, evidence("roadmap-intelligence", row.evidenceBasis, "deterministic", "", row.reviewState));
+}
+for (const row of roadmapIntelligence.incumbentPositions || []) {
+  addEntity("incumbent-position", { ...row, sourceArtifact: "roadmap-intelligence" });
+  const activityId = String(row.activityId || "").startsWith("activity:") ? row.activityId : `activity:${row.activityId}`;
+  if (entityKeys.activity.has(activityId)) addRelation("incumbent-position-for-activity", row.id, activityId, evidence("roadmap-intelligence", row.evidenceBasis, row.evidenceBasis === "retained-live-award" ? "exact" : "source_declared", row.sourceUrls?.[0] || "", row.reviewState));
+  const organizationId = organization(row.organizationName, "roadmap-intelligence", {}, { identityClass: "recipient" });
+  if (organizationId) addRelation("incumbent-position-for-organization", row.id, organizationId, evidence("roadmap-intelligence", row.evidenceBasis, row.evidenceBasis === "retained-live-award" ? "exact" : "source_declared", row.sourceUrls?.[0] || "", row.reviewState));
+}
+for (const row of roadmapIntelligence.programHealthProfiles || []) {
+  addEntity("program-health-profile", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["defense-program"].has(row.programId)) addRelation("program-health-profile-summarizes-program", row.id, row.programId, evidence("roadmap-intelligence", "deterministic-retained-evidence-summary", "deterministic", "", row.reviewState));
+}
+for (const row of roadmapIntelligence.accountabilityFindings || []) {
+  addEntity("accountability-finding", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["defense-program"].has(row.targetProgramId)) addRelation("accountability-finding-about-program", row.id, row.targetProgramId, evidence("roadmap-intelligence", "official-program-assessment", "source_declared", row.sourceUrl, row.reviewState));
+}
+for (const row of roadmapIntelligence.officialDocuments || []) {
+  addEntity("official-document", { ...row, sourceArtifact: "roadmap-intelligence" });
+  const sourceId = source(row.url, "roadmap-intelligence", row.label);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("roadmap-intelligence", "canonical-official-document-url", "exact", row.url, row.reviewState));
+}
+for (const row of roadmapIntelligence.documentVersions || []) {
+  addEntity("document-version", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["official-document"].has(row.documentId)) addRelation("official-document-has-version", row.documentId, row.id, evidence("roadmap-intelligence", row.hashBasis, "deterministic", row.sourceUrl, row.reviewState));
+}
+for (const row of roadmapIntelligence.documentSections || []) {
+  addEntity("document-section", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["official-document"].has(row.documentId)) addRelation("official-document-has-section", row.documentId, row.id, evidence("roadmap-intelligence", row.sectionType, "reviewed", row.sourceUrl, row.reviewState));
+}
+for (const row of roadmapIntelligence.documentTables || []) {
+  addEntity("document-table", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["official-document"].has(row.documentId)) addRelation("official-document-has-table", row.documentId, row.id, evidence("roadmap-intelligence", row.hashBasis, "exact", row.sourceUrl, row.reviewState));
+}
+for (const row of roadmapIntelligence.citations || []) {
+  addEntity("document-citation", { ...row, sourceArtifact: "roadmap-intelligence" });
+  if (entityKeys["official-document"].has(row.documentId)) addRelation("official-document-has-citation", row.documentId, row.id, evidence("roadmap-intelligence", row.selectorType, "reviewed", row.sourceUrl, row.reviewState));
+  const relationType = { "official-role": "document-citation-supports-official-role", "appropriation-mark": "document-citation-supports-appropriation-mark", "accountability-finding": "document-citation-supports-accountability-finding" }[row.targetType];
+  if (relationType && entityKeys[row.targetType]?.has(row.targetId)) addRelation(relationType, row.id, row.targetId, evidence("roadmap-intelligence", row.selectorType, "reviewed", row.sourceUrl, row.reviewState));
+}
+for (const row of roadmapIntelligence.savedQueryTemplates || []) addEntity("saved-query-template", { ...row, sourceArtifact: "roadmap-intelligence" });
+for (const row of roadmapIntelligence.briefTemplates || []) addEntity("brief-template", { ...row, sourceArtifact: "roadmap-intelligence" });
+
 for (const row of strategic.forecasts || []) {
   addEntity("acquisition-forecast", { ...row, sourceArtifact: "strategic-intelligence" });
   if (entityKeys.activity.has(row.activityId)) addRelation("activity-has-forecast", row.activityId, row.id, evidence("strategic-intelligence", "source-declared-agency-forecast-channel", row.sourceUrls?.length ? "source_declared" : "deterministic", row.sourceUrls?.[0] || "", row.reviewState));
@@ -1040,6 +1120,40 @@ const graph = {
         changedAppropriationMarks: (programIntelligence.appropriationMarks || []).filter((row) => row.changeAmountThousands !== 0).length,
         evidenceBoundary: programIntelligence.metadata?.evidenceBoundary,
       },
+      people: {
+        people: entities.person.length,
+        officialRoles: entities["official-role"].length,
+        successions: entities["role-succession"].length,
+        observedCurrentRoles: roadmapIntelligence.metadata?.coverage?.observedCurrentRoles || 0,
+        evidenceBoundary: roadmapIntelligence.metadata?.evidenceBoundary,
+      },
+      industrialBase: {
+        supplierRelationships: entities["supplier-relationship"].length,
+        buyerProfiles: entities["buyer-profile"].length,
+        vendorProfiles: entities["vendor-profile"].length,
+        incumbentPositions: entities["incumbent-position"].length,
+        coverageState: roadmapIntelligence.metadata?.sourceStates?.industrialBase,
+      },
+      accountability: {
+        programHealthProfiles: entities["program-health-profile"].length,
+        findings: entities["accountability-finding"].length,
+        correctiveActions: roadmapIntelligence.metadata?.coverage?.correctiveActions || 0,
+        protestDecisions: roadmapIntelligence.metadata?.coverage?.protestDecisions || 0,
+        auditFindings: roadmapIntelligence.metadata?.coverage?.auditFindings || 0,
+      },
+      documents: {
+        officialDocuments: entities["official-document"].length,
+        versions: entities["document-version"].length,
+        sections: entities["document-section"].length,
+        tables: entities["document-table"].length,
+        citations: entities["document-citation"].length,
+        embeddings: roadmapIntelligence.metadata?.coverage?.embeddings || 0,
+      },
+      operations: {
+        savedQueryTemplates: entities["saved-query-template"].length,
+        briefTemplates: entities["brief-template"].length,
+        publicationPolicy: "review-before-send",
+      },
       market: {
         acquisitionForecasts: entities["acquisition-forecast"].length,
         reviewedMissionAssignments: entities["mission-assignment"].length,
@@ -1108,6 +1222,15 @@ const graph = {
       programBaseline: "A source-published President's Budget request baseline. It is not an Acquisition Program Baseline or independent cost estimate.",
       programAssessment: "Cost, schedule, risk, test, milestone, and breach observations retain their official report source and never inherit from portfolio findings unless the source names the program.",
       appropriationMark: "Official chamber recommendation linked by account, printed line number, request amount, table, and page. It is not enacted authority.",
+      person: "Public professional identity used only to connect an official role to cited government evidence. No private profile or inferred employment history.",
+      officialRole: "Officially published professional role with exact dates when stated and an observed-current lower bound otherwise.",
+      roleSuccession: "A source-published transfer or change of charter connecting exact predecessor and successor role records.",
+      supplierRelationship: "A bounded prime-to-subrecipient relationship from retained USAspending subaward evidence; it is not a complete supplier registry.",
+      marketProfile: "A deterministic summary of retained award evidence. Concentration and share values describe the retained corpus, not the entire federal market.",
+      accountabilityFinding: "An official program finding retained with its source and resolution state. Missing public findings do not imply a clean record.",
+      officialDocument: "Canonical official publication identity with observed versions, sections, tables, hashes, and exact citations where retained.",
+      documentCitation: "A typed selector from an official document to one supported graph fact. Metadata hashes are not represented as source-byte hashes.",
+      operationalTemplate: "A reusable query or brief definition. Templates require review before external publication or delivery.",
       acquisitionForecast: "Source-declared agency forecast record retained separately from solicitations and notices.",
       missionAssignment: "Reviewed installation mission claim with an authoritative primary source.",
       signal: "Deterministic, dated review trigger with retained inputs and caveat. Signals are not canonical outcome facts.",
