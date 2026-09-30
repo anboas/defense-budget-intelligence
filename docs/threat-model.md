@@ -35,6 +35,7 @@ Public source content, browser input, provider output, issue text, and repositor
 - authenticated Viewer, Analyst, or Manager attempting privilege or workspace escalation;
 - compromised Super-user browser or stolen session;
 - leaked agent/provider/scheduler credential;
+- an autonomous enrichment agent attempting to publish uncited, dangling, oversized, private-source, or schema-breaking graph claims;
 - malicious or compromised dependency, GitHub Action, container base, or source dataset;
 - upstream service failure or adversarial provider payload;
 - mistaken maintainer or automation performing an over-broad destructive action.
@@ -68,6 +69,7 @@ The following require the real, non-emulating Super user: global account managem
 3. **Controlled onboarding:** production registration defaults closed and can be enabled only in invitation-only mode by the real Super user. Invite redemption creates no workspace access. Any future public-open onboarding must add approval, edge challenge, and registration-specific rate controls before a new policy mode can be introduced.
 4. **Recovery assurance:** D1/PostgreSQL private-state restoration needs recurring exercises and measured recovery objectives.
 5. **Legacy agent credentials:** new governance requires expiry, but existing indefinite tokens require inventory and rotation.
+6. **Agent evidence poisoning:** enrichment is isolated behind strict schemas, public-source URL checks, bounded cited claims, separate proposer/reviewer/publisher scopes, optimistic versions, atomic D1 publication, immutable published snapshots, and an append-only activity trail. Autonomous clients should use distinct credentials for proposal, review, and publication.
 6. **Client-derived password proof:** the proof is a reusable credential if intercepted outside TLS. TLS/HSTS and HttpOnly session handling are mandatory; a future passkey flow removes this class.
 
 Revisit this model after any new provider, public upload, authentication method, tenant boundary, executable extension, or external delivery channel.

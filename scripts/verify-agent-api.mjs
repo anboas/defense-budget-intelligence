@@ -96,6 +96,7 @@ async function body(response) {
 
 const persistPath = resolve(mkdtempSync("test-results/agent-api-"));
 let instance;
+let workspaceEntityId;
 try {
   instance = await startPages(persistPath);
   let result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities"));
@@ -121,6 +122,7 @@ try {
   const allScopes = [
     "records:read", "records:write", "tracking:read", "tracking:write", "events:read", "events:write",
     "activity:read", "activity:write", "integrations:read",
+    "graph:read", "evidence:read", "enrichment:propose", "review:read", "review:write", "graph:admin",
   ];
   result = await body(await request(instance.baseUrl, "/api/v1/auth/agent-keys", {
     method: "POST", cookie: ownerCookie, body: { name: "API verifier", scopes: allScopes },
@@ -137,13 +139,21 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.deepEqual(result.payload.data.resources, ["records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations"]);
+  assert.equal(result.payload.data.contractVersion, "1.1.0");
+  assert.deepEqual(result.payload.data.resources, [
+    "records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations",
+    "graph", "entities", "activities", "locations", "evidence", "sources", "enrichment", "reviews", "jobs",
+  ]);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.openapi, "3.1.0");
+  assert.equal(result.payload.info.version, "1.1.0");
   assert.ok(result.payload.paths["/api/v1/agent/record-dispositions/{recordId}"], "Agent OpenAPI must document workspace tombstone and restore operations");
   assert.ok(result.payload.paths["/api/v1/agent/event-catalog"], "Agent OpenAPI must document curated event catalog search");
+  assert.ok(result.payload.paths["/api/v1/agent/entities/{entityId}/relations"], "Agent OpenAPI must document graph traversal");
+  assert.ok(result.payload.paths["/api/v1/agent/enrichment/proposals"], "Agent OpenAPI must document cited enrichment proposals");
+  assert.ok(result.payload.paths["/api/v1/agent/jobs"], "Agent OpenAPI must document intelligence publication jobs");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/event-catalog?q=simulation&includePast=1", { token: agentToken }));
   assert.equal(result.response.status, 200);
@@ -172,6 +182,145 @@ try {
   assert.equal(result.response.status, 200);
   assert.ok(result.payload.meta.total >= 875, `Expected at least 875 factual records, received ${result.payload.meta.total}`);
   const factualRecordId = result.payload.data[0].opportunityId;
+
+  result = await body(await request(instance.baseUrl, "/api/v1/auth/agent-keys", {
+    method: "POST", cookie: ownerCookie, body: {
+      name: "Autonomous research verifier",
+      scopes: ["graph:read", "evidence:read", "enrichment:propose", "review:read"],
+    },
+  }));
+  assert.equal(result.response.status, 201);
+  const researchKeyId = result.payload.key.id;
+  const researchToken = result.payload.token;
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/graph/summary", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.contractVersion, "1.1.0");
+  assert.equal(result.payload.data.published.totals.entities, 17_507);
+  assert.equal(result.payload.data.published.totals.relations, 39_601);
+  assert.deepEqual(result.payload.data.workspaceOverlay, { entities: 0, claims: 0, relations: 0, proposals: {} });
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=activity&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.length, 1);
+  const activityEntityId = result.payload.data[0].id;
+  assert.match(activityEntityId, /^activity:/);
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(activityEntityId)}`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.baseEntity.id, activityEntityId);
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(activityEntityId)}/relations?limit=10`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.ok(result.payload.data.length > 0, "Graph traversal must return evidence-backed relations");
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/activities/${encodeURIComponent(activityEntityId)}/connected`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.activityId, activityEntityId.replace(/^activity:/, ""));
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=location&limit=1", { token: researchToken }));
+  const locationEntityId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/locations/${encodeURIComponent(locationEntityId)}/metadata`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.locationId, locationEntityId.replace(/^location:/, ""));
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/reviews?queue=temporal&limit=2", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 489);
+  assert.equal(result.payload.data.length, 2);
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/enrichment/proposals", {
+    method: "POST", token: researchToken, headers: { "idempotency-key": crypto.randomUUID() }, body: {
+      title: "Invalid private-source proposal",
+      unsupported: true,
+      target: { entityId: activityEntityId, entityType: "activity" },
+      claims: [{
+        fieldPath: "identity.token", operation: "replace", value: "unsafe", confidence: "low",
+        sources: [{ url: "http://127.0.0.1/private", title: "Private", authority: "other_public" }],
+      }],
+    },
+  }));
+  assert.equal(result.response.status, 400, "Strict proposals must reject extra fields, protected paths, and private sources");
+
+  workspaceEntityId = "workspace:organization:agent-api-verifier";
+  const proposalInput = {
+    title: "Add a cited workspace organization",
+    summary: "Verification proposal for autonomous, evidence-backed graph enrichment.",
+    target: { entityId: workspaceEntityId, entityType: "organization", create: true, label: "Agent API Verified Organization" },
+    model: "verification-model",
+    responseId: "response-verifier",
+    traceId: "trace-verifier",
+    claims: [{
+      fieldPath: "identity.uei", operation: "fill_missing", value: "TESTUEI123456", confidence: "exact",
+      rationale: "The cited registration record publishes this exact identifier.", observedAt: "2026-09-29T12:00:00Z",
+      sources: [{
+        url: "https://sam.gov/entity/TESTUEI123456/coreData", title: "SAM.gov entity registration", publisher: "U.S. General Services Administration",
+        authority: "official_primary", retrievedAt: "2026-09-29T12:00:00Z", supports: "Publishes the organization identity and UEI.",
+      }],
+    }, {
+      operation: "add_relation", confidence: "high", rationale: "The cited award record identifies the recipient.", observedAt: "2026-09-29T12:00:00Z",
+      relation: { type: "activity-recipient", fromEntityId: activityEntityId, toEntityId: workspaceEntityId, attributes: { basis: "official-award" } },
+      sources: [{
+        url: "https://www.usaspending.gov/award/CONT_AWD_TEST", title: "USAspending award record", publisher: "U.S. Department of the Treasury",
+        authority: "public_database", retrievedAt: "2026-09-29T12:00:00Z", supports: "Identifies the activity recipient.",
+      }],
+    }],
+  };
+  const proposalKey = crypto.randomUUID();
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/enrichment/proposals", {
+    method: "POST", token: researchToken, headers: { "idempotency-key": proposalKey }, body: proposalInput,
+  }));
+  assert.equal(result.response.status, 201);
+  const proposal = result.payload.data;
+  assert.equal(proposal.status, "needs_review");
+  assert.equal(proposal.version, 1);
+  const proposalReplay = await request(instance.baseUrl, "/api/v1/agent/enrichment/proposals", {
+    method: "POST", token: researchToken, headers: { "idempotency-key": proposalKey }, body: proposalInput,
+  });
+  assert.equal(proposalReplay.status, 201);
+  assert.equal(proposalReplay.headers.get("idempotent-replay"), "true");
+
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/reviews/${proposal.id}`, {
+    method: "PATCH", token: researchToken, headers: { "if-match": "1" }, body: { decision: "approved", note: "Research agents cannot self-approve." },
+  }));
+  assert.equal(result.response.status, 403, "Proposal scope must not permit self-approval");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/jobs", {
+    method: "POST", token: researchToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { kind: "publish_proposal", proposalId: proposal.id, version: 1 },
+  }));
+  assert.equal(result.response.status, 403, "Proposal scope must not permit publication");
+
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/reviews/${proposal.id}`, {
+    method: "PATCH", token: agentToken, headers: { "if-match": "1" }, body: { decision: "approved", note: "Citations and identifiers verified." },
+  }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.status, "approved");
+  assert.equal(result.payload.data.version, 2);
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/reviews/${proposal.id}`, {
+    method: "PATCH", token: agentToken, headers: { "if-match": "1" }, body: { decision: "rejected", note: "Stale decision" },
+  }));
+  assert.equal(result.response.status, 409, "Stale proposal review versions must be rejected");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/jobs", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { kind: "publish_proposal", proposalId: proposal.id, version: 2 },
+  }));
+  assert.equal(result.response.status, 201);
+  assert.equal(result.payload.data.status, "completed");
+  assert.deepEqual(result.payload.data.output, { targetEntityId: workspaceEntityId, claims: 1, relations: 1, sources: 2 });
+
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(workspaceEntityId)}`, { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.effectiveEntity.identity.uei, "TESTUEI123456");
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(workspaceEntityId)}/relations`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "activity-recipient" && relation.from === activityEntityId));
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/evidence/claims?targetEntityId=${encodeURIComponent(workspaceEntityId)}`, { token: researchToken }));
+  assert.equal(result.payload.data.length, 1);
+  assert.equal(result.payload.data[0].reviewState, "applied");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/sources?q=SAM.gov", { token: researchToken }));
+  assert.ok(result.payload.data.some((source) => source.workspaceOverlay && /SAM\.gov entity/.test(source.title)));
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/graph/summary", { token: researchToken }));
+  assert.deepEqual(result.payload.data.workspaceOverlay, { entities: 1, claims: 1, relations: 1, proposals: { applied: 1 } });
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/jobs", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": crypto.randomUUID() }, body: { kind: "reindex_workspace" },
+  }));
+  assert.equal(result.response.status, 201);
+  assert.deepEqual(result.payload.data.output, { entities: 1, claims: 1, relations: 1, indexedAt: result.payload.data.output.indexedAt });
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/analytics?dimension=workCategory&measure=obligatedAmount&limit=10", { token: agentToken }));
   assert.equal(result.response.status, 200);
@@ -318,16 +467,20 @@ try {
   assert.ok(result.payload.data.some((entry) => entry.recordId === factualRecordId && entry.note === "Updated shared note"), "Tracking state must survive restart");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: restartToken }));
   assert.ok(result.payload.data.some((entry) => entry.id === event.id && entry.notes === "Validated through the Agent API" && entry.milestones?.length === 2 && entry.links?.length === 2 && entry.categoryIds?.[0] === "workshop"), "Event milestones, links, and categories must survive restart with the event state");
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(workspaceEntityId)}`, { token: restartToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.data.effectiveEntity.identity.uei, "TESTUEI123456", "Approved intelligence overlays must survive runtime restart");
 
   await request(instance.baseUrl, `/api/v1/agent/events/${event.id}`, { method: "DELETE", token: restartToken });
   await request(instance.baseUrl, `/api/v1/agent/tracking/${encodeURIComponent(factualRecordId)}`, { method: "DELETE", token: restartToken });
   await request(instance.baseUrl, `/api/v1/agent/records/${encodeURIComponent(updatedManual.opportunityId)}`, { method: "DELETE", token: restartToken });
   await request(instance.baseUrl, `/api/v1/auth/agent-keys/${restartKeyId}`, { method: "DELETE", cookie: ownerCookie });
+  await request(instance.baseUrl, `/api/v1/auth/agent-keys/${researchKeyId}`, { method: "DELETE", cookie: ownerCookie });
   await request(instance.baseUrl, `/api/v1/auth/agent-keys/${firstKeyId}`, { method: "DELETE", cookie: ownerCookie });
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: restartToken }));
   assert.equal(result.response.status, 401, "Revoked agent credentials must fail immediately");
 
-  console.log("Verified authenticated Agent API discovery, scoped credentials, evidence and analytical reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
+  console.log("Verified Agent API 1.1 discovery, graph traversal, cited proposals, separate review/publish scopes, atomic workspace overlays, evidence/source reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
 } finally {
   await stopPages(instance);
   rmSync(persistPath, { recursive: true, force: true });

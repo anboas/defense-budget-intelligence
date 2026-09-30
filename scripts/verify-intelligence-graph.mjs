@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
@@ -14,6 +14,7 @@ const contractLineageIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/
 const contractLineageReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/contract-lineage-review.json"), "utf8"));
 const temporalEvidenceIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-index.json"), "utf8"));
 const temporalEvidenceReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-review.json"), "utf8"));
+const agentGraphManifest = JSON.parse(readFileSync(resolve(ROOT, "public/data/agent-graph/manifest.json"), "utf8"));
 const entities = new Set(Object.values(graph.entities || {}).flatMap((rows) => rows.map((row) => row.id)));
 const relations = graph.relations || [];
 
@@ -155,4 +156,25 @@ assert.deepEqual(unsafeSources, [], "Source entities must use safe public HTTP(S
 assert.equal(graphIndex.metadata?.schemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION);
 assert.equal(Object.keys(graphIndex.indices?.byActivity || {}).length, 888, "The deferred activity graph index must cover every canonical activity");
 assert.ok(readFileSync(resolve(ROOT, "public/data/intelligence-graph-index.json")).byteLength < 3_000_000, "Deferred record graph index exceeds the 3 MB route-on-demand budget");
+
+assert.equal(agentGraphManifest.metadata?.schemaVersion, "1.0.0", "Agent graph directory schema changed");
+assert.equal(agentGraphManifest.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Agent graph directory must track the canonical graph schema");
+assert.deepEqual(agentGraphManifest.domain?.entityTypes, INTELLIGENCE_ENTITY_TYPES, "Agent graph directory must publish every entity type");
+assert.deepEqual(agentGraphManifest.domain?.relationTypes, INTELLIGENCE_RELATION_TYPES, "Agent graph directory must publish every relation type");
+assert.equal(agentGraphManifest.totals?.entities, graphSummary.totals.entities, "Agent graph directory must retain every canonical entity");
+assert.equal(agentGraphManifest.totals?.relations, graphSummary.totals.relations, "Agent graph directory must retain the canonical relation count");
+const entityTypeById = new Map(Object.entries(graph.entities).flatMap(([type, rows]) => rows.map((row) => [row.id, type])));
+for (const type of INTELLIGENCE_ENTITY_TYPES) {
+  const entityPath = resolve(ROOT, `public/data/agent-graph/entities-${type}.json`);
+  const relationPath = resolve(ROOT, `public/data/agent-graph/relations-${type}.json`);
+  const entityShard = JSON.parse(readFileSync(entityPath, "utf8"));
+  const relationShard = JSON.parse(readFileSync(relationPath, "utf8"));
+  assert.equal(entityShard.entityType, type, `Agent entity shard ${type} must self-identify`);
+  assert.equal(entityShard.entities.length, graph.metadata.entityCounts[type], `Agent entity shard ${type} count changed`);
+  assert.ok(entityShard.entities.every((entity) => entityTypeById.get(entity.id) === type), `Agent entity shard ${type} contains another entity type`);
+  assert.equal(relationShard.entityType, type, `Agent relation shard ${type} must self-identify`);
+  assert.ok(relationShard.relations.every((relation) => entityTypeById.get(relation.from) === type || entityTypeById.get(relation.to) === type), `Agent relation shard ${type} contains an unrelated relation`);
+  assert.ok(statSync(entityPath).size < 10_000_000, `Agent entity shard ${type} exceeds its 10 MB API asset budget`);
+  assert.ok(statSync(relationPath).size < 10_000_000, `Agent relation shard ${type} exceeds its 10 MB API asset budget`);
+}
 console.log(JSON.stringify({ status: "passed", entities: graph.metadata.entityCounts, relations: relations.length, coverage: graph.metadata.coverage }, null, 2));
