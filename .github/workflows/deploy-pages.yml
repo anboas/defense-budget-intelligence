@@ -80,6 +80,9 @@ jobs:
           name: dbi-security-evidence
           path: test-results/security
           if-no-files-found: warn
+      - name: Prepare static Pages artifact
+        if: github.event_name != 'pull_request'
+        run: npm run pages:prepare
       - name: Publish gh-pages branch
         if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@329bcc8f12caed2cefe5a5b80781499a6f3b361b # v4
