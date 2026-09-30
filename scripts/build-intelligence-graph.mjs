@@ -20,6 +20,7 @@ const CONTRACT_LINEAGE_INDEX_FILE = resolve(DATA_DIR, "contract-lineage-index.js
 const CONTRACT_LINEAGE_REVIEW_FILE = resolve(DATA_DIR, "contract-lineage-review.json");
 const TEMPORAL_EVIDENCE_INDEX_FILE = resolve(DATA_DIR, "temporal-evidence-index.json");
 const TEMPORAL_EVIDENCE_REVIEW_FILE = resolve(DATA_DIR, "temporal-evidence-review.json");
+const AGENT_GRAPH_DIR = resolve(DATA_DIR, "agent-graph");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
 const normalized = (value) => String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "");
@@ -625,6 +626,8 @@ const graph = {
 };
 
 mkdirSync(DATA_DIR, { recursive: true });
+rmSync(AGENT_GRAPH_DIR, { recursive: true, force: true });
+mkdirSync(AGENT_GRAPH_DIR, { recursive: true });
 const graphJson = JSON.stringify(graph);
 writeFileSync(OUT_FILE, graphJson);
 writeFileSync(OUT_GZIP_FILE, gzipSync(graphJson, { level: 9 }));
@@ -775,4 +778,50 @@ const graphSummary = {
   },
 };
 writeFileSync(SUMMARY_FILE, JSON.stringify(graphSummary));
-console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));
+
+const entityTypeById = new Map(Object.entries(entities).flatMap(([type, rows]) => rows.map((row) => [row.id, type])));
+const relationShards = Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, []]));
+for (const relation of relations) {
+  const fromType = entityTypeById.get(relation.from);
+  const toType = entityTypeById.get(relation.to);
+  if (fromType) relationShards[fromType].push(relation);
+  if (toType && toType !== fromType) relationShards[toType].push(relation);
+}
+const agentGraphManifest = {
+  metadata: {
+    schemaVersion: "1.0.0",
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    asOf: graph.metadata.asOf,
+    title: "Agent API graph directory",
+    authorityBoundary: graph.metadata.authorityBoundary,
+  },
+  domain: graph.domain,
+  totals: graphSummary.totals,
+  entityTypes: Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, {
+    count: entities[type].length,
+    entityPath: `/data/agent-graph/entities-${type}.json`,
+    relationPath: `/data/agent-graph/relations-${type}.json`,
+    relationCount: relationShards[type].length,
+  }])),
+};
+writeFileSync(resolve(AGENT_GRAPH_DIR, "manifest.json"), JSON.stringify(agentGraphManifest));
+for (const type of INTELLIGENCE_ENTITY_TYPES) {
+  writeFileSync(resolve(AGENT_GRAPH_DIR, `entities-${type}.json`), JSON.stringify({
+    metadata: agentGraphManifest.metadata,
+    entityType: type,
+    total: entities[type].length,
+    entities: entities[type],
+  }));
+  writeFileSync(resolve(AGENT_GRAPH_DIR, `relations-${type}.json`), JSON.stringify({
+    metadata: agentGraphManifest.metadata,
+    entityType: type,
+    total: relationShards[type].length,
+    relations: relationShards[type],
+  }));
+}
+const agentGraphBytes = Object.values(agentGraphManifest.entityTypes).reduce((total, item) => total
+  + readFileSync(resolve(ROOT, `public${item.entityPath}`)).byteLength
+  + readFileSync(resolve(ROOT, `public${item.relationPath}`)).byteLength, readFileSync(resolve(AGENT_GRAPH_DIR, "manifest.json")).byteLength);
+
+console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, agentGraphDirectory: AGENT_GRAPH_DIR, agentGraphBytes, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

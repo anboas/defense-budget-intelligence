@@ -70,6 +70,7 @@ import { D1_REGISTRATION_SCHEMA, d1PublicRegistrationStatus, d1RegistrationRespo
 import { d1SessionManagementResponse } from "./d1-session-management.js";
 import { D1_SENSITIVE_RATE_LIMIT_SCHEMA, enforceD1SensitiveMutationLimit } from "./d1-sensitive-rate-limit.js";
 import { D1_SAAS_CONTROL_PLANE_SCHEMA, d1EntitlementDecision, d1SaasControlPlaneResponse } from "./d1-saas-control-plane.js";
+import { AGENT_INTELLIGENCE_RESOURCES, AGENT_INTELLIGENCE_SCOPES, D1_AGENT_INTELLIGENCE_SCHEMA, agentIntelligenceResponse } from "./d1-agent-intelligence.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import { catalogEventByIdFromRows } from "./event-catalog.js";
 import {
@@ -103,6 +104,7 @@ const AGENT_SCOPES = Object.freeze([
   "events:read", "events:write",
   "activity:read", "activity:write",
   "integrations:read",
+  ...AGENT_INTELLIGENCE_SCOPES,
 ]);
 const USER_ROLES = WORKSPACE_ROLE_IDS;
 const USER_STATUSES = Object.freeze(["active", "suspended"]);
@@ -117,7 +119,7 @@ const DEFAULT_EVENT_CATEGORIES = Object.freeze([
   ["summit", "Summit", "Executive, technical, and mission summits"],
   ["other", "Other", "Workspace events outside the managed categories"],
 ]);
-const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read"]);
+const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read", "graph:read", "evidence:read", "review:read"]);
 const EVENT_AGENT_API_DEPS = Object.freeze({ cleanText, safeJson, recordActivity, hasScope, error: agentError, json: agentJson });
 const EVENT_DISCOVERY_API_DEPS = Object.freeze({ cleanText, safeJson, recordActivity, sameOriginRequest, sessionUser, canAdministerUsers, hashValue, json, defaultWorkspaceId: DEFAULT_WORKSPACE_ID });
 function defaultEventCategoryStatements(db, workspaceId, now) {
@@ -128,6 +130,7 @@ function defaultEventCategoryStatements(db, workspaceId, now) {
   `).bind(workspaceId, categoryId, name, description, now, now));
 }
 const SCHEMA = Object.freeze([
+  ...D1_AGENT_INTELLIGENCE_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_super_user (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
     user_id TEXT NOT NULL UNIQUE,
@@ -1021,7 +1024,8 @@ async function canAdministerWorkspace(db, user, workspaceId) {
 }
 
 function scopesForRole(role) {
-  if (["super_user", "administrator", "analyst"].includes(role)) return [...AGENT_SCOPES];
+  if (["super_user", "administrator"].includes(role)) return [...AGENT_SCOPES];
+  if (role === "analyst") return AGENT_SCOPES.filter((scope) => !["review:write", "graph:admin"].includes(scope));
   return [...READ_SCOPES];
 }
 
@@ -3198,9 +3202,12 @@ async function agentApiResponse(request, env, db) {
     } else if (await rateLimited(db, principal)) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
-      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT,
-      resources: ["records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations"],
-      writeBoundary: "Source-backed evidence is immutable; management state and manual Agent API records are writable.",
+      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.1.0",
+      resources: [
+        "records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories",
+        "activity", "api-requests", "integrations", ...AGENT_INTELLIGENCE_RESOURCES,
+      ],
+      writeBoundary: "Published snapshots are immutable. Agents submit cited workspace proposals; authorized reviewers approve them, and graph administrators publish them atomically as queryable workspace overlays.",
     }, 200, { requestId });
     else if (resource === "openapi.json" && request.method === "GET") response = Response.json(agentOpenApiDocument(new URL(request.url).origin, SESSION_COOKIE), { headers: { "cache-control": "no-store" } });
     else if (resource === "records") response = await recordsResponse(request, env, db, principal, segments);
@@ -3220,6 +3227,9 @@ async function agentApiResponse(request, env, db) {
     else if (resource === "api-requests") response = await apiRequestsResponse(request, db, principal);
     else if (resource === "integrations") response = await integrationsResponse(request, env, principal);
     else if (resource === "analytics") response = await analyticsResponse(request, env, db, principal);
+    else if (AGENT_INTELLIGENCE_RESOURCES.includes(resource)) response = await agentIntelligenceResponse(request, env, db, principal, resource, segments, {
+      error: agentError, json: agentJson, assetJson, boundedInteger, expectedVersion, hasScope, idempotent, recordActivity, safeJson,
+    });
     else response = agentError("route_not_found", "Unknown Agent API route", 404, requestId);
   } catch (error) {
     thrownError = error;
