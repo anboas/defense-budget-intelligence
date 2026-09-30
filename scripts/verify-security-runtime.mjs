@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 import {
   MAX_JSON_BODY_BYTES,
   SECURITY_HEADERS,
@@ -115,6 +116,7 @@ assert.ok(connectedEvidenceCssBytes > 0 && connectedEvidenceCssBytes <= 4_000, `
 assert.ok(cssBytes <= 373_000, `Total production CSS exceeds the 373KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
 const intelligenceGraphBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json"))).size;
+const intelligenceGraphCompressedBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json.gz"))).size;
 const intelligenceGraphIndexBytes = (await stat(resolve(root, "dist/data/intelligence-graph-index.json"))).size;
 const intelligenceGraphSummaryBytes = (await stat(resolve(root, "dist/data/intelligence-graph-summary.json"))).size;
 const organizationIdentityReviewBytes = (await stat(resolve(root, "dist/data/organization-identity-review.json"))).size;
@@ -123,6 +125,8 @@ const contractLineageReviewBytes = (await stat(resolve(root, "dist/data/contract
 const temporalEvidenceIndexBytes = (await stat(resolve(root, "dist/data/temporal-evidence-index.json"))).size;
 const temporalEvidenceReviewBytes = (await stat(resolve(root, "dist/data/temporal-evidence-review.json"))).size;
 assert.ok(intelligenceGraphBytes >= 28_000_000 && intelligenceGraphBytes <= 29_000_000, `Full evidence graph must retain temporal claims and conflicts within its 29MB ceiling, got ${intelligenceGraphBytes} bytes`);
+assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedBytes <= 2_500_000, `Compressed integrity graph must remain below its 2.5MB distribution budget, got ${intelligenceGraphCompressedBytes} bytes`);
+assert.ok(gunzipSync(await readFile(resolve(root, "dist/data/intelligence-graph.json.gz"))).equals(await readFile(resolve(root, "dist/data/intelligence-graph.json"))), "Compressed integrity graph must decode to the exact canonical JSON artifact");
 assert.ok(intelligenceGraphIndexBytes > 0 && intelligenceGraphIndexBytes <= 3_000_000, `Deferred browser evidence index exceeds its 3MB ceiling, got ${intelligenceGraphIndexBytes} bytes`);
 assert.ok(intelligenceGraphSummaryBytes > 0 && intelligenceGraphSummaryBytes <= 10_000, `Source Lineage graph summary exceeds its 10KB ceiling, got ${intelligenceGraphSummaryBytes} bytes`);
 assert.ok(organizationIdentityReviewBytes > 0 && organizationIdentityReviewBytes <= 100_000, `Organization identity review exceeds its 100KB audit budget, got ${organizationIdentityReviewBytes} bytes`);

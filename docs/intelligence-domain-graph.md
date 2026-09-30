@@ -2,7 +2,7 @@
 
 **Status:** Implemented deterministic baseline  
 **Schema:** `1.3.0`
-**Runtime artifacts:** `data/intelligence-graph.json`, `data/intelligence-graph-index.json`, `data/contract-lineage-index.json`, `data/temporal-evidence-index.json`
+**Runtime artifacts:** `data/intelligence-graph.json.gz`, `data/intelligence-graph-index.json`, `data/contract-lineage-index.json`, `data/temporal-evidence-index.json`
 
 ## Decision
 
@@ -109,7 +109,7 @@ The UI must show the class and basis when the distinction affects interpretation
 
 ## Runtime design
 
-`intelligence-graph.json` is the complete generated graph and release-integrity artifact. It is not part of initial page load. Schema 1.3 includes canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
+`intelligence-graph.json` is the canonical build-time release-integrity artifact. `intelligence-graph.json.gz` is its byte-equivalent compressed distribution artifact and is the public download on both production origins. Neither is part of initial page load. Schema 1.3 includes canonical organization identity, contract-family lineage, relationship validity, evidence claims, supersession decisions, and unresolved conflict queues.
 
 `intelligence-graph-index.json` is a bounded deferred projection keyed by canonical activity ID. Record detail surfaces load it once on demand and reuse it for the browser session. It contains connected entity summaries, surface coverage, counts, and relationship evidence summaries without duplicating transaction and event bodies.
 

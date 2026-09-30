@@ -53,8 +53,9 @@
     "verify:postgres-auth:local": "node scripts/verify-postgres-auth-local.mjs",
     "verify:prod-interactions": "BUDGET_VERIFY_URL=https://defense-budget-intelligence.pages.dev/ node scripts/verify-site.mjs",
     "verify:prod-smoke": "node scripts/prod-smoke.mjs",
-    "pages:dev": "npm run build:cloudflare && wrangler pages dev dist",
-    "pages:deploy": "npm run build:cloudflare && wrangler pages deploy dist --project-name defense-budget-intelligence",
+    "pages:prepare": "node scripts/prepare-cloudflare-pages.mjs",
+    "pages:dev": "npm run build:cloudflare && npm run pages:prepare && wrangler pages dev dist",
+    "pages:deploy": "npm run build:cloudflare && npm run pages:prepare && wrangler pages deploy dist --project-name defense-budget-intelligence",
     "scheduler:deploy": "wrangler deploy --config wrangler.scheduler.toml",
     "preview": "vite preview --host 0.0.0.0"
   },
