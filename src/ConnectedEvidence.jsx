@@ -50,7 +50,7 @@ function ConnectionGroup({ title, items, renderItem }) {
   return <section className="connected-evidence__group"><h4>{title}</h4><div>{items.map(renderItem)}</div></section>;
 }
 
-export default function ConnectedEvidence({ opportunityId }) {
+export default function ConnectedEvidence({ opportunityId, fullView = false }) {
   const [state, setState] = useState({ status: "loading", graph: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -89,6 +89,7 @@ export default function ConnectedEvidence({ opportunityId }) {
 
   const connected = connection.connected || {};
   const routeLinks = [
+    !fullView ? ["Full view", `#/budget-spend/domain-model?activity=${encodeURIComponent(opportunityId)}`] : null,
     ["Timeline", `#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(opportunityId)}`],
     primaryLocation ? ["Map", `#/budget-spend/map?mapOrg=${encodeURIComponent(primaryLocation.sourceId)}`] : null,
     counts.awards ? ["Awards", "#/budget-spend/awards"] : null,
@@ -97,7 +98,7 @@ export default function ConnectedEvidence({ opportunityId }) {
   ].filter(Boolean);
 
   return (
-    <section className="connected-evidence" data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId}>
+    <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}`} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined}>
       <header>
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
         <small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces · deterministic joins only</small>
