@@ -37,6 +37,47 @@ new source must enable. Volume alone is not a release criterion.
 | Competitive, expiration, execution, and outcome signals | Operational review layer | Deterministic, dated, caveated signals only |
 | SBIR/STTR | Source unavailable | Official API under maintenance; no empty coverage claimed |
 
+## Preserved strategic sequence: program intelligence through operational products
+
+This sequence is durable. Finishing one release does not remove the later workstreams.
+
+2. **Defense Program Intelligence.** Model programs, budget sponsors, baselines, cost and
+   schedule observations, acquisition milestones, breaches, tests, and risks. Connect them
+   to budget lines, accounts, locations, awards, vehicles, vendors, legislation, and mission
+   evidence. Initial delivery begins with exact R-1/P-1/C-1 identities and official GAO
+   findings. Empty evidence domains remain visible until authoritative records are retained.
+3. **Line-item request-to-law traceability.** Parse House, Senate, conference, and enacted
+   tables with page/table provenance. Preserve request, recommendation, conference, enacted,
+   transfer, and rescission amounts as different claims.
+4. **Industrial-base and teaming intelligence.** Model corporate families, CAGE facilities,
+   prime/subcontract networks, supplier concentration, geographic dependencies, incumbent
+   position, certifications, and vehicle or office concentration.
+5. **Official people and role tenure. Strategic priority.** Model public professional roles
+   such as program executive officers, program managers, contracting officers, requirement
+   owners, and congressional committee roles. Every role edge requires an official source,
+   effective dates, historical retention, and succession evidence. Personal profiles and
+   inferred employment are out of scope. This workstream is promoted immediately after the
+   current Program Intelligence and line-item traceability release.
+6. **Outcomes and accountability.** Add exact GAO protest decisions, GAO and DoD IG findings,
+   DOT&E test findings, hearings, breaches, corrective actions, and resolution state while
+   disclosing incomplete public coverage.
+7. **Document intelligence.** Store official documents, versions, sections, tables, hashes,
+   citations, and embeddings as first-class evidence so agents can answer with paragraph and
+   table-level provenance.
+8. **Operational products.** Deliver program health, buyer, office, vendor, industrial-base,
+   and request-to-enactment pages plus recompete and expiring-funds calendars, source-change
+   alerts, saved graph queries, scheduled briefs, and policy-controlled agent promotion.
+
+### Cross-workstream acceptance gates
+
+- Exact identifiers or cited review proposals only; title similarity never creates fact.
+- Effective dates and role tenure are mandatory wherever the claim can change over time.
+- Every amount declares its semantic type and unit.
+- Every extracted table value retains document, page, table, row identifier, and arithmetic
+  reconciliation.
+- Agent API vocabulary, ADMIN inventory, review queues, and graph integrity checks ship with
+  each new domain.
+
 ## Workstream A: acquisition backbone
 
 **Outcome:** A buyer or award-family page that explains who buys, which notice and
@@ -129,9 +170,11 @@ enacted authority.
 `legislative-measure`, `committee-report`, `appropriation-mark`, `enacted-provision`,
 `budget-adjustment`, `program-element`, and `project`.
 
-Appropriation-mark and adjustment types are intentionally empty until official tables are
-parsed with page/table provenance. Table-to-budget-line matches without an exact identifier remain cited proposals. Acceptance
-requires page/table provenance, independent totals reconciliation, and reviewer promotion.
+The first exact table pass covers 35 FY2024 House RDT&E Army recommendations from House
+Report 118-121, printed pages 188-190. Each mark joins by account, line number, program
+element, and request amount, with arithmetic reconciliation. Senate, conference, enacted,
+transfer, rescission, and other account tables remain unasserted until the same evidence
+standard is met. Table-to-budget-line matches without exact identifiers remain cited proposals.
 
 ## Workstream D: market and competitive intelligence
 

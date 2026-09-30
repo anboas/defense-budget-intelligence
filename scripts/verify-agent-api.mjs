@@ -252,11 +252,32 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=legislative-measure&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 8);
+  assert.equal(result.payload.meta.total, 9);
   const measureId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(measureId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "measure-has-version"), "Defense measures must traverse to exact official text versions");
   assert.ok(result.payload.data.some((relation) => relation.type === "measure-enacted-as"), "Enacted defense measures must traverse to exact public-law identity");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=defense-program&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 2723);
+  const programId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(programId)}/relations?limit=50`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "defense-program-represented-by-budget-line"), "Defense programs must traverse to official budget lines");
+  assert.ok(result.payload.data.some((relation) => relation.type === "defense-program-has-baseline"), "Defense programs must traverse to official request baselines");
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=program-baseline&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 2755);
+
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=appropriation-mark&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 35);
+  const markId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(markId)}/relations?limit=20`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "appropriation-mark-affects-defense-program"), "House marks must traverse to their exact defense program");
+  assert.ok(result.payload.data.some((relation) => relation.type === "appropriation-mark-recommended-by-report"), "House marks must traverse to their exact committee report");
+  assert.ok(result.payload.data.some((relation) => relation.type === "appropriation-mark-considered-by-measure"), "House marks must traverse to their exact legislative measure");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=mission-assignment&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);

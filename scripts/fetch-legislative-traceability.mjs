@@ -24,6 +24,16 @@ const ENACTED_NDAA_BASELINE = Object.freeze([
   { congress: 118, type: "hr", number: 2670, fiscalYear: 2024, law: "118-31", reports: ["118hrpt125", "118hrpt301"] },
   { congress: 118, type: "s", number: 4638, fiscalYear: 2025, law: "118-159" },
 ]);
+const DEFENSE_APPROPRIATIONS_BASELINE = Object.freeze([
+  {
+    congress: 118,
+    type: "hr",
+    number: 4365,
+    fiscalYear: 2024,
+    title: "Department of Defense Appropriations Act, 2024",
+    reports: ["118hrpt121"],
+  },
+]);
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -152,6 +162,37 @@ async function main() {
     }
   }
 
+  for (const seed of DEFENSE_APPROPRIATIONS_BASELINE) {
+    const measureId = `legislative-measure:${seed.congress}:${seed.type}:${seed.number}`;
+    const sourceUrl = `https://www.congress.gov/bill/${seed.congress}th-congress/${seed.type === "hr" ? "house-bill" : "senate-bill"}/${seed.number}`;
+    if (!measures.has(measureId)) measures.set(measureId, {
+      id: measureId,
+      congress: seed.congress,
+      billType: seed.type,
+      billNumber: seed.number,
+      fiscalYear: seed.fiscalYear,
+      label: `FY${seed.fiscalYear} Department of Defense Appropriations Bill`,
+      title: seed.title,
+      sourceUrl,
+      baseline: "exact-official-identifier",
+    });
+    for (const reportCode of seed.reports) {
+      const packageId = `CRPT-${reportCode}`;
+      const reportId = `committee-report:${packageId}`;
+      const reportUrl = `https://www.govinfo.gov/app/details/${packageId}`;
+      if (!reports.some((row) => row.id === reportId)) reports.push({
+        id: reportId,
+        packageId,
+        title: `House Report 118-121: Department of Defense Appropriations Bill, 2024`,
+        congress: seed.congress,
+        dateIssued: "2023-06-27",
+        sourceUrl: reportUrl,
+        baseline: "exact-official-identifier",
+      });
+      relations.push({ type: "measure-backed-by-report", from: measureId, to: reportId, basis: "exact-congress-committee-report-identity", sourceUrl: reportUrl });
+    }
+  }
+
   for (const measure of process.env.CONGRESS_SEED_ENRICHMENT === "0" ? [] : measures.values()) {
     try {
       const payload = await json(`${CONGRESS}/bill/${measure.congress}/${measure.billType}/${measure.billNumber}?format=json&api_key=${encodeURIComponent(API_KEY)}`);
@@ -212,7 +253,7 @@ async function main() {
       sourceAuthority: "official_primary",
       sources: { govinfo: "https://www.govinfo.gov/developers", congress: "https://api.congress.gov/" },
       coverage: { since: SINCE, measures: measures.size, versions: versions.length, committeeReports: reports.length, enactedProvisions: laws.size, exactRelations: relations.length, failures: errors.length },
-      caveat: "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published; table-level budget marks remain review-only until exact identifiers are extracted.",
+      caveat: "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published. A separately reviewed FY2024 House RDT&E Army table supplies page-cited committee marks; Senate, conference, and enacted line-item amounts remain unasserted until their official tables are parsed.",
       apiCredential: API_KEY === PUBLIC_DEMO_KEY ? "public-demo" : "configured",
       contentHash: hash(JSON.stringify({ measures: [...measures.values()], versions, reports, laws: [...laws.values()], relations })),
     },
