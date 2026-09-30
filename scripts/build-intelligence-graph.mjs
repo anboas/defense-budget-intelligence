@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -11,7 +11,8 @@ import { buildTemporalEvidenceRegistry } from "./temporal-evidence-resolver.mjs"
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA_DIR = resolve(ROOT, "public/data");
 const OUT_FILE = resolve(DATA_DIR, "intelligence-graph.json");
-const OUT_GZIP_FILE = resolve(DATA_DIR, "intelligence-graph.json.gz");
+const OUT_GZIP_FILE = resolve(DATA_DIR, "intelligence-graph.json.gzip");
+const LEGACY_GZIP_FILE = resolve(DATA_DIR, "intelligence-graph.json.gz");
 const INDEX_FILE = resolve(DATA_DIR, "intelligence-graph-index.json");
 const SUMMARY_FILE = resolve(DATA_DIR, "intelligence-graph-summary.json");
 const ORGANIZATION_REVIEW_FILE = resolve(DATA_DIR, "organization-identity-review.json");
@@ -627,6 +628,7 @@ mkdirSync(DATA_DIR, { recursive: true });
 const graphJson = JSON.stringify(graph);
 writeFileSync(OUT_FILE, graphJson);
 writeFileSync(OUT_GZIP_FILE, gzipSync(graphJson, { level: 9 }));
+if (existsSync(LEGACY_GZIP_FILE)) rmSync(LEGACY_GZIP_FILE);
 const organizationReview = {
   metadata: {
     schemaVersion: "1.0.0",

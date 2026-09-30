@@ -1924,7 +1924,7 @@ try {
   assert.match(graphSummaryText, /489 retained disagreements[\s\S]*408 resolved by newer current evidence[\s\S]*81 require review/i, "Source Lineage should separate deterministic supersession from unresolved conflicts");
   assert.match(graphSummaryText, /319 budget lines remain explicitly unresolved/i, "Source Lineage should keep unresolved crosswalks visible");
   assert.equal(await resourceCount(page, "intelligence-graph-summary.json"), 1, "Source Lineage should load one lightweight graph summary");
-  assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/intelligence-graph.json.gz"]').count(), 1, "Source Lineage should offer an explicit compressed integrity-graph download");
+  assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/intelligence-graph.json.gzip"]').count(), 1, "Source Lineage should offer an explicit compressed integrity-graph download");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/organization-identity-review.json"]').count(), 1, "Source Lineage should offer an explicit organization identity review download");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/contract-lineage-review.json"]').count(), 1, "Source Lineage should offer an explicit contract-lineage review download");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/temporal-evidence-review.json"]').count(), 1, "Source Lineage should offer an explicit temporal and conflict review download");
