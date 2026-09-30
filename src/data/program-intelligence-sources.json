@@ -1,0 +1,132 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "reviewedAt": "2026-09-30",
+    "policy": "Program identities require exact budget identifiers or an explicitly reviewed public alias. Legislative line values require an official table, printed line number, page, and independently reconciled arithmetic. Portfolio findings never become program-specific facts unless the source names the program."
+  },
+  "sources": [
+    {
+      "id": "gao-25-107569",
+      "title": "Weapon Systems Annual Assessment: DOD Leaders Should Ensure That Newer Programs Are Structured for Speed and Innovation",
+      "publisher": "U.S. Government Accountability Office",
+      "url": "https://www.gao.gov/products/gao-25-107569",
+      "publishedAt": "2025-06-11",
+      "authority": "official_primary",
+      "access": "official-report-page"
+    },
+    {
+      "id": "crpt-118hrpt121",
+      "title": "House Report 118-121: Department of Defense Appropriations Bill, 2024",
+      "publisher": "U.S. Government Publishing Office",
+      "url": "https://www.govinfo.gov/app/details/CRPT-118hrpt121",
+      "publishedAt": "2023-06-27",
+      "authority": "official_primary",
+      "access": "official-report-pdf"
+    }
+  ],
+  "reviewedProgramAliases": [
+    {
+      "canonicalName": "LGM-35A Sentinel",
+      "aliases": ["Ground Based Strategic Deterrent", "Ground Based Strategic Deterrent EMD", "Sentinel Operations & Maint. Complex, Inc", "Sentinel Land Acquisition, Inc", "Sentinel Consolidated Vehicle Maint. Complex", "Sentinel Security Forces Operations Complex"],
+      "organization": "Air Force / Space Force",
+      "basis": "GAO names Sentinel; official DoD budget rows retain the preceding Ground Based Strategic Deterrent name and current Sentinel MILCON names.",
+      "sourceId": "gao-25-107569",
+      "reviewState": "reviewed"
+    }
+  ],
+  "portfolioFindings": [
+    {
+      "id": "program-risk:gao-25-107569-mdap-cost-growth",
+      "kind": "program-risk",
+      "programKey": "portfolio:major-defense-acquisition-programs",
+      "label": "MDAP portfolio cost growth",
+      "finding": "Combined total estimates increased by $49.3 billion for 30 major defense acquisition programs also included in the prior assessment.",
+      "amountDollars": 49300000000,
+      "reviewState": "source_snapshot",
+      "sourceId": "gao-25-107569"
+    },
+    {
+      "id": "cost-estimate:gao-25-107569-portfolio",
+      "kind": "cost-estimate",
+      "programKey": "portfolio:major-defense-acquisition-programs",
+      "label": "Planned investment in costliest weapon programs",
+      "estimateDollars": 2400000000000,
+      "estimateType": "portfolio-planned-investment",
+      "reviewState": "source_snapshot",
+      "sourceId": "gao-25-107569"
+    },
+    {
+      "id": "schedule-event:gao-25-107569-mdap-ioc",
+      "kind": "schedule-event",
+      "programKey": "portfolio:major-defense-acquisition-programs",
+      "label": "Average initial-capability schedule",
+      "durationYears": 12,
+      "reportedChangeMonths": 18,
+      "finding": "Expected time for MDAPs to provide an initial capability increased by 18 months to almost 12 years from program start.",
+      "reviewState": "source_snapshot",
+      "sourceId": "gao-25-107569"
+    },
+    {
+      "id": "program-risk:gao-25-107569-sentinel-cost-growth",
+      "kind": "program-risk",
+      "programKey": "reviewed-alias:LGM-35A Sentinel",
+      "label": "Sentinel estimate growth concentration",
+      "finding": "GAO reported that the Air Force Sentinel missile program accounted for more than $36 billion, or 73 percent, of the $49.3 billion portfolio increase.",
+      "amountDollars": 36000000000,
+      "share": 0.73,
+      "reviewState": "source_snapshot",
+      "sourceId": "gao-25-107569"
+    }
+  ],
+  "appropriationTables": [
+    {
+      "id": "fy2024-house-rdte-army",
+      "measureId": "legislative-measure:118:hr:4365",
+      "reportId": "committee-report:CRPT-118hrpt121",
+      "fiscalYear": 2024,
+      "bookId": "R-1",
+      "organization": "A",
+      "accountTitle": "Research, Development, Test and Evaluation, Army",
+      "tableTitle": "Explanation of Project Level Adjustments",
+      "units": "thousands-of-dollars",
+      "sourceId": "crpt-118hrpt121",
+      "marks": [
+        [188, 1, "DEFENSE RESEARCH SCIENCES", 296670, 324670, 28000],
+        [188, 2, "UNIVERSITY RESEARCH INITIATIVES", 75672, 85672, 10000],
+        [188, 3, "UNIVERSITY AND INDUSTRY RESEARCH CENTERS", 108946, 113946, 5000],
+        [188, 4, "CYBER COLLABORATIVE RESEARCH ALLIANCE", 5459, 5459, 0],
+        [188, 5, "ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING BASIC RESEARCH", 10708, 10708, 0],
+        [188, 6, "ARMY AGILE INNOVATION AND DEVELOPMENT-APPLIED RESEARCH", 5613, 5613, 0],
+        [188, 8, "COUNTER IMPROVISED-THREAT ADVANCED STUDIES", 6242, 6242, 0],
+        [188, 9, "LETHALITY TECHNOLOGY", 85578, 118078, 32500],
+        [188, 10, "ARMY APPLIED RESEARCH", 34572, 34572, 0],
+        [188, 11, "SOLDIER LETHALITY TECHNOLOGY", 104470, 157470, 53000],
+        [189, 12, "GROUND TECHNOLOGY", 60005, 141005, 81000],
+        [189, 13, "NEXT GENERATION COMBAT VEHICLE TECHNOLOGY", 166500, 217700, 51200],
+        [189, 14, "NETWORK C3I TECHNOLOGY", 81618, 126618, 45000],
+        [189, 15, "LONG RANGE PRECISION FIRES TECHNOLOGY", 34683, 54683, 20000],
+        [189, 16, "FUTURE VERTICAL LIFT TECHNOLOGY", 73844, 93844, 20000],
+        [190, 17, "AIR AND MISSILE DEFENSE TECHNOLOGY", 33301, 70301, 37000],
+        [190, 18, "ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING TECHNOLOGIES", 24142, 24142, 0],
+        [190, 19, "ALL DOMAIN CONVERGENCE APPLIED RESEARCH", 14297, 14297, 0],
+        [190, 20, "C3I APPLIED RESEARCH", 30659, 30659, 0],
+        [190, 21, "AIR PLATFORM APPLIED RESEARCH", 48163, 53163, 5000],
+        [190, 22, "SOLDIER APPLIED RESEARCH", 18986, 18986, 0],
+        [190, 23, "C3I APPLIED CYBER", 22714, 22714, 0],
+        [190, 24, "BIOTECHNOLOGY FOR MATERIALS - APPLIED RESEARCH", 16736, 16736, 0],
+        [190, 25, "MANPOWER/PERSONNEL/TRAINING TECHNOLOGY", 19969, 19969, 0],
+        [190, 26, "MEDICAL TECHNOLOGY", 66266, 86266, 20000],
+        [190, 27, "MEDICAL ADVANCED TECHNOLOGY", 4147, 9147, 5000],
+        [190, 28, "MANPOWER, PERSONNEL AND TRAINING ADVANCED TECHNOLOGY", 16316, 16316, 0],
+        [190, 29, "ARMY AGILE INNOVATION AND DEMONSTRATION", 23156, 23156, 0],
+        [190, 30, "ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING ADVANCED TECHNOLOGIES", 13187, 13187, 0],
+        [190, 31, "ALL DOMAIN CONVERGENCE ADVANCED TECHNOLOGY", 33332, 33332, 0],
+        [190, 32, "C3I ADVANCED TECHNOLOGY", 19225, 19225, 0],
+        [190, 33, "AIR PLATFORM ADVANCED TECHNOLOGY", 14165, 14165, 0],
+        [190, 34, "SOLDIER ADVANCED TECHNOLOGY", 1214, 1214, 0],
+        [190, 36, "LETHALITY ADVANCED TECHNOLOGY", 20582, 55582, 35000],
+        [190, 37, "ARMY ADVANCED TECHNOLOGY DEVELOPMENT", 136280, 136280, 0]
+      ]
+    }
+  ]
+}

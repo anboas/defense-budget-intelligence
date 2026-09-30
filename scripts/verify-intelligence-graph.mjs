@@ -30,9 +30,9 @@ assert.equal(graph.entities?.award?.length, 1905, "All activity-linked and ranke
 assert.equal(graph.entities?.event?.length, 502, "All normalized public events must exist in the graph");
 assert.equal(graph.entities?.transaction?.length, 3085, "All exact FPDS actions must exist in the graph");
 assert.equal(graph.entities?.location?.length, 885, "All authoritative locations must exist in the graph");
-assert.equal(graph.entities?.["budget-line"]?.length, 3888, "All public budget lines must exist in the graph");
+assert.equal(graph.entities?.["budget-line"]?.length, 3923, "All current and page-matched historical budget lines must exist in the graph");
 assert.equal(Object.keys(graph.indices?.byActivity || {}).length, 888, "Every activity must have a graph index");
-assert.ok(relations.length > 108000, "The graph should retain the complete cross-surface, legislative, signal, and money-lifecycle relation set");
+assert.ok(relations.length > 120000, "The graph should retain the complete cross-surface, program, legislative, signal, and money-lifecycle relation set");
 assert.ok(relations.every((relation) => INTELLIGENCE_RELATION_TYPES.includes(relation.type)), "Graph contains an unknown relationship type");
 assert.ok(relations.every((relation) => entities.has(relation.from) && entities.has(relation.to)), "Graph contains a dangling relationship endpoint");
 assert.ok(relations.every((relation) => relation.evidence?.sourceArtifact && relation.evidence?.basis && relation.evidence?.confidence), "Every graph relationship must retain evidence metadata");
@@ -55,7 +55,7 @@ assert.equal(graph.entities?.["spending-observation"]?.length, 7071, "Every annu
 assert.equal(graph.metadata.relationCounts["spending-observation-measures-entity"], 7071, "Every spending observation must measure exactly one typed subject");
 assert.equal(graph.metadata.entityCounts["federal-account"], 179, "Current and historical federal accounts must remain independently addressable");
 assert.equal(graph.metadata.relationCounts["federal-account-has-execution-balance"], 7986, "Every execution balance must retain its exact federal-account edge");
-assert.equal(graph.metadata.relationCounts["supported-by-source"], 26390, "Every new observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
+assert.equal(graph.metadata.relationCounts["supported-by-source"], 29221, "Every new program, mark, observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
 assert.equal(graph.entities?.["treasury-account"]?.length, 1986, "Every exact historical TAS must exist once");
 assert.equal(graph.entities?.["execution-balance"]?.length, 7986, "Every FY/TAS execution balance must exist once");
 assert.equal(graph.entities?.["apportionment-revision"]?.length, 6105, "Every retained OMB apportionment revision must exist once");
@@ -83,12 +83,28 @@ for (const type of ["opportunity-notice", "notice-version", "award-action", "ven
 }
 assert.equal(graph.entities?.["award-action"]?.length, 2774, "Every retained priority-award action must exist once");
 assert.equal(graph.metadata.relationCounts["award-modified-by-action"], 2774, "Every retained priority-award action must join its exact award");
-assert.equal(graph.entities?.["legislative-measure"]?.length, 8, "The annual enacted NDAA baseline must remain addressable");
+assert.equal(graph.entities?.["legislative-measure"]?.length, 9, "The enacted NDAA baseline and FY2024 defense appropriations measure must remain addressable");
 assert.equal(graph.entities?.["legislative-version"]?.length, 24, "Introduced, reported, and enrolled defense bill versions must remain addressable");
-assert.equal(graph.entities?.["committee-report"]?.length, 2, "Exact committee-report baseline changed");
+assert.equal(graph.entities?.["committee-report"]?.length, 3, "Exact committee-report baseline changed");
 assert.equal(graph.entities?.["enacted-provision"]?.length, 8, "Every baseline defense measure must retain its enacted law identity");
 assert.equal(graph.metadata.relationCounts["measure-has-version"], 24, "Every defense bill version must join its exact measure");
 assert.equal(graph.metadata.relationCounts["measure-enacted-as"], 8, "Every enacted defense measure must join its exact public law");
+assert.equal(graph.entities?.["defense-program"]?.length, 2723, "Every canonical program identity must exist once");
+assert.equal(graph.entities?.["program-office"]?.length, 30, "Every source-declared budget-sponsor office must exist once");
+assert.equal(graph.entities?.["program-baseline"]?.length, 2755, "Every official request baseline must remain addressable");
+assert.equal(graph.entities?.["cost-estimate"]?.length, 1, "Reviewed program cost-estimate coverage changed");
+assert.equal(graph.entities?.["schedule-event"]?.length, 1, "Reviewed program schedule-event coverage changed");
+assert.equal(graph.entities?.["program-risk"]?.length, 2, "Reviewed program-risk coverage changed");
+assert.equal(graph.entities?.["acquisition-milestone"]?.length, 0, "No acquisition milestone may be promoted without authoritative program-level evidence");
+assert.equal(graph.entities?.["unit-cost-breach"]?.length, 0, "No unit-cost breach may be promoted without authoritative program-level evidence");
+assert.equal(graph.entities?.["test-finding"]?.length, 0, "No test finding may be promoted without authoritative program-level evidence");
+assert.equal(graph.entities?.["appropriation-mark"]?.length, 35, "Every reviewed FY2024 House RDT&E Army mark must exist once");
+assert.equal(graph.metadata.relationCounts["defense-program-represented-by-budget-line"], 3237, "Program-to-budget-line coverage changed");
+assert.equal(graph.metadata.relationCounts["defense-program-has-baseline"], 2755, "Every request baseline must join its program");
+assert.equal(graph.metadata.relationCounts["appropriation-mark-adjusts-budget-line"], 35, "Every House mark must join its exact budget line");
+assert.equal(graph.metadata.relationCounts["appropriation-mark-affects-defense-program"], 35, "Every House mark must join its exact defense program");
+assert.equal(graph.metadata.relationCounts["appropriation-mark-recommended-by-report"], 35, "Every House mark must retain exact report evidence");
+assert.equal(graph.metadata.relationCounts["appropriation-mark-considered-by-measure"], 35, "Every House mark must retain exact measure context");
 assert.equal(graph.entities?.["program-element"]?.length, 1114, "R-1 program-element coverage changed");
 assert.equal(graph.entities?.project?.length, 745, "C-1 project coverage changed");
 assert.equal(graph.entities?.["acquisition-forecast"]?.length, 10, "Agency forecast baseline changed");
@@ -101,7 +117,7 @@ assert.equal(graph.entities?.["outcome-evidence"]?.length, 130, "Exact award/tra
 assert.equal(graph.entities?.["sbir-topic"]?.length, 0, "SBIR topics must remain empty while the official API is unavailable");
 assert.equal(graph.entities?.["protest-decision"]?.length, 0, "No protest decision may be promoted without an exact award or notice join");
 assert.equal(graph.entities?.["audit-finding"]?.length, 0, "No audit finding may be promoted without an exact official identifier crosswalk");
-assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3572, "Known exact budget-line to federal-account title links changed");
+assert.equal(graph.metadata.coverage.budget.exactAccountTitleLinks, 3607, "Known exact budget-line to federal-account title links changed");
 assert.equal(graph.metadata.coverage.geography.activityLocationRelations, 400, "Reviewed map placement relationship coverage changed");
 assert.equal(graph.metadata.coverage.organizations.canonicalUeiIdentities, 571, "Published UEI identity coverage changed");
 assert.equal(graph.metadata.coverage.organizations.reviewedOfficeCodeIdentities, 50, "Reviewed contracting-office code coverage changed");
@@ -138,8 +154,8 @@ assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Eviden
 assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
 assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
 assert.deepEqual(graph.metadata.coverage.temporal, {
-  relationsAssessed: 108561,
-  current: 94063,
+  relationsAssessed: 120352,
+  current: 105854,
   historical: 14226,
   future: 272,
   stale: 0,

@@ -1,4 +1,4 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.0.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.1.0";
 export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
 export const TEMPORAL_EVIDENCE_SCHEMA_VERSION = "1.0.0";
 
@@ -40,6 +40,15 @@ export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "budget-adjustment",
   "program-element",
   "project",
+  "defense-program",
+  "program-office",
+  "acquisition-milestone",
+  "program-baseline",
+  "cost-estimate",
+  "schedule-event",
+  "unit-cost-breach",
+  "test-finding",
+  "program-risk",
   "acquisition-forecast",
   "mission-assignment",
   "installation-tenant",
@@ -113,6 +122,19 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "budget-adjustment-affects-budget-line",
   "program-element-represented-by-budget-line",
   "project-represented-by-budget-line",
+  "defense-program-represented-by-budget-line",
+  "defense-program-owned-by-program-office",
+  "program-office-part-of-organization",
+  "defense-program-has-acquisition-milestone",
+  "defense-program-has-baseline",
+  "defense-program-has-cost-estimate",
+  "defense-program-has-schedule-event",
+  "defense-program-has-unit-cost-breach",
+  "defense-program-has-test-finding",
+  "defense-program-has-risk",
+  "appropriation-mark-affects-defense-program",
+  "appropriation-mark-recommended-by-report",
+  "appropriation-mark-considered-by-measure",
   "activity-has-forecast",
   "mission-assignment-at-location",
   "mission-assignment-for-organization",

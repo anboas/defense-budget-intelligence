@@ -44,6 +44,15 @@ const ENTITY_META = {
   "budget-adjustment": ["Budget adjustments", "legislation"],
   "program-element": ["Program elements", "funding"],
   project: ["Budget projects", "funding"],
+  "defense-program": ["Defense programs", "programs"],
+  "program-office": ["Program offices", "programs"],
+  "acquisition-milestone": ["Acquisition milestones", "programs"],
+  "program-baseline": ["Program baselines", "programs"],
+  "cost-estimate": ["Cost estimates", "programs"],
+  "schedule-event": ["Schedule events", "programs"],
+  "unit-cost-breach": ["Unit-cost breaches", "programs"],
+  "test-finding": ["Test findings", "programs"],
+  "program-risk": ["Program risks", "programs"],
   "acquisition-forecast": ["Acquisition forecasts", "opportunity"],
   "mission-assignment": ["Mission assignments", "geography"],
   "installation-tenant": ["Installation tenants", "geography"],
@@ -117,6 +126,19 @@ const RELATION_ENDPOINTS = {
   "budget-adjustment-affects-budget-line": ["budget-adjustment", "budget-line"],
   "program-element-represented-by-budget-line": ["program-element", "budget-line"],
   "project-represented-by-budget-line": ["project", "budget-line"],
+  "defense-program-represented-by-budget-line": ["defense-program", "budget-line"],
+  "defense-program-owned-by-program-office": ["defense-program", "program-office"],
+  "program-office-part-of-organization": ["program-office", "organization"],
+  "defense-program-has-acquisition-milestone": ["defense-program", "acquisition-milestone"],
+  "defense-program-has-baseline": ["defense-program", "program-baseline"],
+  "defense-program-has-cost-estimate": ["defense-program", "cost-estimate"],
+  "defense-program-has-schedule-event": ["defense-program", "schedule-event"],
+  "defense-program-has-unit-cost-breach": ["defense-program", "unit-cost-breach"],
+  "defense-program-has-test-finding": ["defense-program", "test-finding"],
+  "defense-program-has-risk": ["defense-program", "program-risk"],
+  "appropriation-mark-affects-defense-program": ["appropriation-mark", "defense-program"],
+  "appropriation-mark-recommended-by-report": ["appropriation-mark", "committee-report"],
+  "appropriation-mark-considered-by-measure": ["appropriation-mark", "legislative-measure"],
   "activity-has-forecast": ["activity", "acquisition-forecast"],
   "mission-assignment-at-location": ["mission-assignment", "location"],
   "mission-assignment-for-organization": ["mission-assignment", "organization"],
@@ -145,7 +167,8 @@ const GROUPS = [
   { id: "execution", label: "Contract execution", types: ["award", "award-action", "transaction", "subaward-summary", "subaward", "spending-observation", "sbir-award"], x: 872, y: 328, width: 294, tone: "execution" },
   { id: "funding", label: "Funding structure", types: ["federal-account", "treasury-account", "budget-line", "apportionment-revision", "execution-balance", "program-activity", "object-class", "treasury-outlay-observation", "program-element", "project"], x: 872, y: 506, width: 294, tone: "funding" },
   { id: "lineage", label: "Vehicle lineage", types: ["contract-vehicle", "acquisition-path", "recompete-signal"], x: 453, y: 358, width: 294, tone: "lineage" },
-  { id: "classification", label: "Classification", types: ["classification"], x: 453, y: 536, width: 294, tone: "classification" },
+  { id: "programs", label: "Program intelligence", types: ["defense-program", "program-office", "program-baseline", "cost-estimate", "schedule-event", "acquisition-milestone", "unit-cost-breach", "test-finding", "program-risk"], x: 453, y: 536, width: 294, tone: "program" },
+  { id: "classification", label: "Classification", types: ["classification"], x: 453, y: 680, width: 294, tone: "classification" },
   { id: "legislation", label: "Request to enactment", types: ["legislative-measure", "legislative-version", "committee-report", "enacted-provision", "appropriation-mark", "budget-adjustment"], x: 780, y: 18, width: 386, tone: "funding" },
   { id: "signals", label: "Decision signals", types: ["competitive-signal", "expiration-signal", "execution-risk-signal", "protest-decision", "audit-finding", "outcome-evidence"], x: 34, y: 18, width: 386, tone: "lineage" },
 ];
@@ -156,7 +179,8 @@ const CONNECTORS = [
   ["M420 240C292 276 214 410 181 506", "located at"],
   ["M780 218C890 218 935 292 1019 328", "award / action"],
   ["M600 268V358", "vehicle / follow-on"],
-  ["M600 268V536", "classified as"],
+  ["M600 268V680", "classified as"],
+  ["M872 556H747", "program funding"],
   ["M872 388C824 405 786 420 747 420", "ordered under"],
   ["M1019 428V506", "funded by"],
   ["M328 378C398 390 420 412 453 420", "organization path"],
@@ -182,9 +206,9 @@ function diagramDetail(group, counts) {
 
 function DomainDiagram({ counts }) {
   return <div className="domain-model__diagram-scroller" tabIndex="0" aria-label="Scrollable domain model diagram">
-    <svg className="domain-model__diagram" viewBox="0 0 1200 660" role="img" aria-labelledby="domain-diagram-title domain-diagram-description" data-domain-diagram>
+    <svg className="domain-model__diagram" viewBox="0 0 1200 810" role="img" aria-labelledby="domain-diagram-title domain-diagram-description" data-domain-diagram>
       <title id="domain-diagram-title">Defense Intelligence domain model</title>
-      <desc id="domain-diagram-description">Evidence and sources support the opportunity lifecycle, which connects to organizations, locations, contract execution, funding, vehicle lineage, and classifications.</desc>
+      <desc id="domain-diagram-description">Evidence and sources support opportunity, program, organization, geography, contract, funding, legislative, lineage, signal, and classification domains.</desc>
       <defs><marker id="domain-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" /></marker></defs>
       <g className="domain-model__connectors" aria-hidden="true">
         {CONNECTORS.map(([path, label], index) => <path key={`${label}-${index}`} d={path} data-domain-connector={label} />)}
@@ -240,6 +264,7 @@ export default function DomainModelPage({ routeHash = "" }) {
   const spending = summary.metadata.coverage.spending || {};
   const money = summary.metadata.coverage.money || {};
   const acquisition = summary.metadata.coverage.acquisition || {};
+  const programs = summary.metadata.coverage.programs || {};
 
   return <section className="domain-model-page" data-domain-model-page data-domain-schema={summary.metadata.schemaVersion}>
     <ControlPageHeader compact divided eyebrow="Workspace administration" title="Domain model" summary="Inspect the canonical intelligence graph, its entity inventory, relationship coverage, validity, conflicts, and full record views." headingLevel={2} meta={<span className="if-badge if-badge--info">Schema {summary.metadata.schemaVersion}</span>} actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Source lineage</a><a className="if-btn if-btn--primary" href={`${import.meta.env.BASE_URL}data/intelligence-graph.json.gzip`} download><Download size={14} />Full graph</a></>} />
@@ -286,6 +311,7 @@ export default function DomainModelPage({ routeHash = "" }) {
       <section className="domain-model__panel"><header><div><span>Lineage</span><h3>Contract families</h3></div><GitBranch size={18} /></header><dl><div><dt>Parent IDVs</dt><dd>{number(contracts.exactParentVehicles)}</dd></div><div><dt>Linked orders</dt><dd>{number(contracts.activitiesWithExactParent)}</dd></div><div><dt>Resolved predecessors</dt><dd>{number(contracts.resolvedPredecessorLinks)}</dd></div><div><dt>Unresolved follow-ons</dt><dd>{number(contracts.unresolvedFollowOnClaims)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-spending-coverage><header><div><span>Spending depth</span><h3>DoD contract coverage</h3></div><Database size={18} /></header><dl><div><dt>Fiscal years</dt><dd>{spending.firstFiscalYear}–{spending.lastFiscalYear}</dd></div><div><dt>Spending observations</dt><dd>{number(spending.observations)}</dd></div><div><dt>Ranked awards / IDVs</dt><dd>{number(spending.uniqueRankedAwards)}</dd></div><div><dt>Category rows</dt><dd>{number(spending.categoryRows)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-money-coverage><header><div><span>Exact money</span><h3>Account lifecycle</h3></div><Database size={18} /></header><dl><div><dt>Fiscal years</dt><dd>{money.firstFiscalYear}–{money.lastFiscalYear}</dd></div><div><dt>Treasury accounts</dt><dd>{number(money.treasuryAccounts)}</dd></div><div><dt>Execution balances</dt><dd>{number(money.executionBalances)}</dd></div><div><dt>OMB revisions</dt><dd>{number(money.apportionmentRevisions)}</dd></div></dl></section>
+      <section className="domain-model__panel" data-domain-program-coverage><header><div><span>Program intelligence</span><h3>Program evidence</h3></div><Network size={18} /></header><dl><div><dt>Defense programs</dt><dd>{number(programs.defensePrograms)}</dd></div><div><dt>Request baselines</dt><dd>{number(programs.requestBaselines)}</dd></div><div><dt>Page-cited House marks</dt><dd>{number(programs.pageCitedAppropriationMarks)}</dd></div><div><dt>Changed marks</dt><dd>{number(programs.changedAppropriationMarks)}</dd></div></dl></section>
       <section className="domain-model__panel" data-domain-acquisition-coverage><header><div><span>Acquisition backbone</span><h3>SAM.gov source state</h3></div><Network size={18} /></header><dl><div><dt>Status</dt><dd>{title(acquisition.status || "unknown")}</dd></div><div><dt>Notices / versions</dt><dd>{number(acquisition.notices)} / {number(acquisition.noticeVersions)}</dd></div><div><dt>Award actions</dt><dd>{number(acquisition.awardActions)}</dd></div><div><dt>Registrations</dt><dd>{number(acquisition.vendorRegistrations)}</dd></div></dl></section>
     </div>
 

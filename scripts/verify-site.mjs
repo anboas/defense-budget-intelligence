@@ -403,18 +403,19 @@ try {
   await openSurface(page, "#/budget-spend/domain-model", "[data-domain-model-page]");
   await assertActiveGroupState(page, "workspace-admin", "Domain Model");
   assert.equal(await page.locator("[data-domain-diagram]").count(), 1, "Domain Model should expose one integrated architecture diagram");
-  assert.equal(await page.locator("[data-domain-diagram-node]").count(), 10, "The architecture diagram should group the graph into ten readable domains");
-  assert.equal(await page.locator("[data-domain-entity-card]").count(), 50, "Domain Model should inventory every canonical entity type");
-  assert.equal(await page.locator("[data-domain-relation-row]").count(), 75, "Domain Model should inventory every canonical relationship type");
+  assert.equal(await page.locator("[data-domain-diagram-node]").count(), 11, "The architecture diagram should group the graph into eleven readable domains");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 59, "Domain Model should inventory every canonical entity type");
+  assert.equal(await page.locator("[data-domain-relation-row]").count(), 88, "Domain Model should inventory every canonical relationship type");
   const domainOverviewText = await page.locator("[data-domain-model-page]").innerText();
-  assert.match(domainOverviewText, /58,827[\s\S]*typed entities[\s\S]*108,561[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
-  assert.match(domainOverviewText, /94,063[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
+  assert.match(domainOverviewText, /64,418[\s\S]*typed entities[\s\S]*120,352[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
+  assert.match(domainOverviewText, /105,854[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
   assert.match(domainOverviewText, /Treasury accounts[\s\S]*1,986[\s\S]*Execution balances[\s\S]*7,986[\s\S]*OMB revisions[\s\S]*6,105/i, "Domain Model should disclose exact money lifecycle depth");
   assert.match(domainOverviewText, /Acquisition backbone[\s\S]*Unavailable/i, "Domain Model should disclose the protected SAM source state rather than implying coverage");
+  assert.match(domainOverviewText, /Program intelligence[\s\S]*Defense programs[\s\S]*2,723[\s\S]*Page-cited House marks[\s\S]*35/i, "Domain Model should disclose program and page-cited mark coverage");
   await page.getByRole("button", { name: /Evidence & provenance/ }).click();
   assert.equal(await page.locator("[data-domain-entity-card]").count(), 3, "Domain filters should focus the inventory without changing graph facts");
   await page.getByRole("button", { name: /All domains/ }).click();
-  assert.equal(await page.locator("[data-domain-entity-card]").count(), 50, "All domains should restore the complete entity inventory");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 59, "All domains should restore the complete entity inventory");
   await assertNoPageOverflow(page, "Domain Model desktop");
   await page.screenshot({ path: `${OUT_DIR}/domain-model-desktop.png`, fullPage: true });
 
@@ -1944,16 +1945,19 @@ try {
   assert.match(graphSummaryText, /571 UEI-backed[\s\S]*50 reviewed office-code identities[\s\S]*11 ambiguous labels remain queued/i, "Source Lineage should expose organization identity coverage and unresolved conflicts");
   assert.match(graphSummaryText, /166 exact parent IDVs[\s\S]*206 linked orders[\s\S]*26 multi-order families/i, "Source Lineage should expose exact contract-family coverage");
   assert.match(graphSummaryText, /3 resolved predecessor links[\s\S]*237 review-only timing signals[\s\S]*18 claims remain unresolved/i, "Source Lineage should distinguish resolved lineage from review-only signals");
-  assert.match(graphSummaryText, /94,063 current[\s\S]*14,226 historical[\s\S]*272 future[\s\S]*0 stale relationships/i, "Source Lineage should disclose relationship validity coverage");
+  assert.match(graphSummaryText, /105,854 current[\s\S]*14,226 historical[\s\S]*272 future[\s\S]*0 stale relationships/i, "Source Lineage should disclose relationship validity coverage");
   assert.match(graphSummaryText, /489 retained disagreements[\s\S]*408 resolved by newer current evidence[\s\S]*81 require review/i, "Source Lineage should separate deterministic supersession from unresolved conflicts");
   assert.match(graphSummaryText, /316 budget lines remain explicitly unresolved/i, "Source Lineage should keep unresolved crosswalks visible");
   assert.match(graphSummaryText, /FY2017–FY2026[\s\S]*1,986 Treasury accounts[\s\S]*7,986 execution balances[\s\S]*6,105 OMB revisions/i, "Source Lineage should disclose exact money lifecycle depth");
   assert.match(graphSummaryText, /Acquisition backbone[\s\S]*Protected source unavailable/i, "Source Lineage should disclose the blocked SAM source instead of implying coverage");
+  assert.match(graphSummaryText, /Program intelligence[\s\S]*2,723 defense programs[\s\S]*2,755 request baselines[\s\S]*30 budget-sponsor offices/i, "Source Lineage should disclose program intelligence coverage");
+  assert.match(graphSummaryText, /Request to enactment[\s\S]*35 page-cited House marks[\s\S]*enacted line-item amounts remain pending/i, "Source Lineage should disclose exact committee-mark coverage and the remaining enacted boundary");
   assert.equal(await resourceCount(page, "intelligence-graph-summary.json"), 1, "Source Lineage should load one lightweight graph summary");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/intelligence-graph.json.gzip"]').count(), 1, "Source Lineage should offer an explicit compressed integrity-graph download");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/organization-identity-review.json"]').count(), 1, "Source Lineage should offer an explicit organization identity review download");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/contract-lineage-review.json"]').count(), 1, "Source Lineage should offer an explicit contract-lineage review download");
   assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/temporal-evidence-review.json"]').count(), 1, "Source Lineage should offer an explicit temporal and conflict review download");
+  assert.equal(await page.locator('[data-analytics-sources-page] a[download][href$="/data/program-intelligence.json"]').count(), 1, "Source Lineage should offer the program intelligence artifact");
   assert.equal(await page.locator("[data-source-flow] .if-ingest-stage").count(), 6, "Sources should trace six published data layers with the shared ingest-flow pattern");
   const sourceJoinPolicy = page.locator(".source-join-policy");
   assert.equal(await sourceJoinPolicy.locator(".if-relationship-bundle").count(), 6, "Sources should disclose six join rules with the shared relationship pattern");
@@ -2294,7 +2298,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/domain-model", "[data-domain-model-page]");
-  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 50, "Mobile Domain Model should retain the complete entity inventory");
+  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 59, "Mobile Domain Model should retain the complete entity inventory");
   const domainFilterHeights = await mobile.locator(".domain-model__filters button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(domainFilterHeights.every((height) => height >= 43.5), `Mobile domain filters must retain 44px touch targets: ${domainFilterHeights.join(", ")}`);
   await assertNoPageOverflow(mobile, "Mobile Domain Model");

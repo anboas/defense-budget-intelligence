@@ -40,6 +40,7 @@ const samBackbone = JSON.parse(readFileSync(resolve(ROOT, "src/data/sam-acquisit
 const priorityAwardActions = JSON.parse(readFileSync(resolve(ROOT, "src/data/priority-award-actions.json"), "utf8"));
 const legislative = JSON.parse(readFileSync(resolve(ROOT, "src/data/legislative-traceability.json"), "utf8"));
 const strategic = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-intelligence.json"), "utf8"));
+const programIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/program-intelligence.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -753,6 +754,64 @@ for (const row of [...(legislative.measures || []), ...(legislative.committeeRep
   if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("legislative-traceability", "official-source-url", "exact", row.sourceUrl));
 }
 
+const programSourceById = new Map();
+for (const row of programIntelligence.sources || []) {
+  const id = source(row.url, "program-intelligence", row.title);
+  if (id) programSourceById.set(row.id, id);
+}
+for (const row of programIntelligence.programOffices || []) {
+  addEntity("program-office", { ...row, sourceArtifact: "program-intelligence" });
+  const organizationId = organization(row.organization, "program-intelligence", {}, { identityClass: "government" });
+  if (organizationId) addRelation("program-office-part-of-organization", row.id, organizationId, evidence("program-intelligence", row.identityBasis, "source_declared", "", row.reviewState));
+}
+for (const row of programIntelligence.programs || []) {
+  addEntity("defense-program", { ...row, sourceArtifact: "program-intelligence" });
+  const officeId = `program-office:${hash(row.organization)}`;
+  if (entityKeys["program-office"].has(officeId)) addRelation("defense-program-owned-by-program-office", row.id, officeId, evidence("program-intelligence", "published-budget-sponsor", "source_declared", "", row.reviewState));
+}
+for (const row of programIntelligence.programBudgetLines || []) {
+  if (entityKeys["defense-program"].has(row.programId) && entityKeys["budget-line"].has(row.budgetLineId)) addRelation("defense-program-represented-by-budget-line", row.programId, row.budgetLineId, evidence("program-intelligence", row.basis, row.basis.startsWith("reviewed") ? "reviewed" : "exact"));
+}
+for (const row of programIntelligence.historicalBudgetLines || []) {
+  addEntity("budget-line", { ...row, sourceArtifact: "program-intelligence" });
+  const accountId = accountByTitle.get(normalized(row.accountTitle || row.account));
+  if (accountId) addRelation("budget-line-matches-account-title", row.id, accountId, evidence("program-intelligence", "exact-normalized-account-title", "derived", row.sourceUrl, "deterministic"));
+  const organizationId = organization(row.organization, "program-intelligence", {}, { identityClass: "government" });
+  if (organizationId) addRelation("budget-line-owned-by-organization", row.id, organizationId, evidence("program-intelligence", "published-budget-organization", "source_declared", row.sourceUrl, row.reviewState));
+  if (entityKeys["defense-program"].has(row.programId)) addRelation("defense-program-represented-by-budget-line", row.programId, row.id, evidence("program-intelligence", "exact-fy2024-r1-program-element-code", "exact", row.sourceUrl, row.reviewState));
+  const sourceId = source(row.sourceUrl, "program-intelligence", `FY2024 R-1 ${row.lineCode}`);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("program-intelligence", "official-comptroller-workbook", "exact", row.sourceUrl, row.reviewState));
+}
+for (const row of programIntelligence.programBaselines || []) {
+  addEntity("program-baseline", { ...row, sourceArtifact: "program-intelligence" });
+  if (entityKeys["defense-program"].has(row.programId)) addRelation("defense-program-has-baseline", row.programId, row.id, evidence("program-intelligence", "official-presidents-budget-request", "exact", row.sourceUrl, row.reviewState));
+  const sourceId = source(row.sourceUrl, "program-intelligence", row.label);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("program-intelligence", "official-budget-source", "exact", row.sourceUrl, row.reviewState));
+}
+const findingRelation = {
+  "acquisition-milestone": "defense-program-has-acquisition-milestone",
+  "cost-estimate": "defense-program-has-cost-estimate",
+  "schedule-event": "defense-program-has-schedule-event",
+  "unit-cost-breach": "defense-program-has-unit-cost-breach",
+  "test-finding": "defense-program-has-test-finding",
+  "program-risk": "defense-program-has-risk",
+};
+for (const row of programIntelligence.findings || []) {
+  addEntity(row.kind, { ...row, sourceArtifact: "program-intelligence" });
+  if (entityKeys["defense-program"].has(row.programId)) addRelation(findingRelation[row.kind], row.programId, row.id, evidence("program-intelligence", "official-program-assessment", "source_declared", row.sourceUrl, row.reviewState));
+  const sourceId = programSourceById.get(row.sourceId);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("program-intelligence", "official-report-finding", "exact", row.sourceUrl, row.reviewState));
+}
+for (const row of programIntelligence.appropriationMarks || []) {
+  addEntity("appropriation-mark", { ...row, sourceArtifact: "program-intelligence" });
+  if (entityKeys["budget-line"].has(row.budgetLineId)) addRelation("appropriation-mark-adjusts-budget-line", row.id, row.budgetLineId, evidence("program-intelligence", row.matchBasis, "reviewed", row.sourceUrl, row.reviewState));
+  if (entityKeys["defense-program"].has(row.programId)) addRelation("appropriation-mark-affects-defense-program", row.id, row.programId, evidence("program-intelligence", row.matchBasis, "reviewed", row.sourceUrl, row.reviewState));
+  if (entityKeys["committee-report"].has(row.reportId)) addRelation("appropriation-mark-recommended-by-report", row.id, row.reportId, evidence("program-intelligence", "exact-report-table-and-page", "exact", row.sourceUrl, row.reviewState));
+  if (entityKeys["legislative-measure"].has(row.measureId)) addRelation("appropriation-mark-considered-by-measure", row.id, row.measureId, evidence("program-intelligence", "report-accompanies-exact-measure", "exact", row.sourceUrl, row.reviewState));
+  const sourceId = programSourceById.get(row.sourceId);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("program-intelligence", "official-report-table-page", "exact", row.sourceUrl, row.reviewState));
+}
+
 for (const row of strategic.forecasts || []) {
   addEntity("acquisition-forecast", { ...row, sourceArtifact: "strategic-intelligence" });
   if (entityKeys.activity.has(row.activityId)) addRelation("activity-has-forecast", row.activityId, row.id, evidence("strategic-intelligence", "source-declared-agency-forecast-channel", row.sourceUrls?.length ? "source_declared" : "deterministic", row.sourceUrls?.[0] || "", row.reviewState));
@@ -967,6 +1026,20 @@ const graph = {
         exactTraceabilityRelations: relations.filter((item) => ["measure-has-version", "measure-backed-by-report", "measure-enacted-as"].includes(item.type)).length,
         caveat: legislative.metadata?.caveat,
       },
+      programs: {
+        defensePrograms: entities["defense-program"].length,
+        programOffices: entities["program-office"].length,
+        requestBaselines: entities["program-baseline"].length,
+        costEstimates: entities["cost-estimate"].length,
+        scheduleEvents: entities["schedule-event"].length,
+        acquisitionMilestones: entities["acquisition-milestone"].length,
+        unitCostBreaches: entities["unit-cost-breach"].length,
+        testFindings: entities["test-finding"].length,
+        programRisks: entities["program-risk"].length,
+        pageCitedAppropriationMarks: entities["appropriation-mark"].length,
+        changedAppropriationMarks: (programIntelligence.appropriationMarks || []).filter((row) => row.changeAmountThousands !== 0).length,
+        evidenceBoundary: programIntelligence.metadata?.evidenceBoundary,
+      },
       market: {
         acquisitionForecasts: entities["acquisition-forecast"].length,
         reviewedMissionAssignments: entities["mission-assignment"].length,
@@ -1030,6 +1103,11 @@ const graph = {
       enactedProvision: "Exact GovInfo package identity or Congress.gov public/private law identity.",
       programElement: "Exact R-1 program-element code scoped by budget organization.",
       project: "Exact C-1 project/line identity scoped by budget organization.",
+      defenseProgram: "Exact R-1, P-1, or C-1 identity scoped by budget organization, except for explicitly reviewed public aliases. Program portfolios remain separate from individual programs.",
+      programOffice: "Source-published budget sponsor by default. A PEO or program-management office is not asserted until an official role source is retained.",
+      programBaseline: "A source-published President's Budget request baseline. It is not an Acquisition Program Baseline or independent cost estimate.",
+      programAssessment: "Cost, schedule, risk, test, milestone, and breach observations retain their official report source and never inherit from portfolio findings unless the source names the program.",
+      appropriationMark: "Official chamber recommendation linked by account, printed line number, request amount, table, and page. It is not enacted authority.",
       acquisitionForecast: "Source-declared agency forecast record retained separately from solicitations and notices.",
       missionAssignment: "Reviewed installation mission claim with an authoritative primary source.",
       signal: "Deterministic, dated review trigger with retained inputs and caveat. Signals are not canonical outcome facts.",
