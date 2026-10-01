@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "observedAt": "2026-09-30",
+    "observedAt": "2026-10-01",
     "scope": "Public professional defense acquisition and congressional oversight roles only",
     "evidenceBoundary": "Exact appointment and relinquishment dates are retained when an official source states them. Directory and committee pages create observed-current lower bounds, not inferred tenure start dates. Personal contact data and inferred employment are excluded."
   },
@@ -68,6 +68,27 @@
       "publisher": "Senate Committee on Armed Services",
       "url": "https://www.armed-services.senate.gov/subcommittees",
       "publishedAt": "2026-09-30"
+    },
+    {
+      "id": "socom-commander-biography-2026",
+      "title": "USSOCOM Commander Biography",
+      "publisher": "U.S. Special Operations Command",
+      "url": "https://www.socom.mil/about/commanders-biography",
+      "publishedAt": "2026-10-01"
+    },
+    {
+      "id": "socom-about-2026",
+      "title": "About USSOCOM",
+      "publisher": "U.S. Special Operations Command",
+      "url": "https://www.socom.mil/about",
+      "publishedAt": "2026-10-01"
+    },
+    {
+      "id": "dla-leadership-2026",
+      "title": "DLA Leadership",
+      "publisher": "Defense Logistics Agency",
+      "url": "https://www.dla.mil/About-DLA/Leaders/Director/",
+      "publishedAt": "2026-10-01"
     }
   ],
   "people": [
@@ -90,7 +111,9 @@
     { "id": "person:roger-wicker", "label": "Roger Wicker" },
     { "id": "person:jack-reed", "label": "Jack Reed" },
     { "id": "person:joni-ernst", "label": "Joni K. Ernst" },
-    { "id": "person:elissa-slotkin", "label": "Elissa Slotkin" }
+    { "id": "person:elissa-slotkin", "label": "Elissa Slotkin" },
+    { "id": "person:frank-bradley", "label": "Frank M. Bradley" },
+    { "id": "person:mark-simerly", "label": "Mark T. Simerly" }
   ],
   "roles": [
     {
@@ -371,6 +394,34 @@
       "status": "observed-current",
       "sourceIds": ["senate-armed-services-subcommittees-119"],
       "evidenceQuote": "The official subcommittee directory identifies Elissa Slotkin as ranking member.",
+      "reviewState": "source_snapshot"
+    },
+    {
+      "id": "official-role:frank-bradley-ussocom-commander",
+      "personId": "person:frank-bradley",
+      "title": "Commander, U.S. Special Operations Command",
+      "roleType": "combatant-commander",
+      "organizationName": "U.S. Special Operations Command",
+      "effectiveFrom": "2025-10-03",
+      "effectiveTo": "",
+      "datePrecision": "day",
+      "status": "observed-current",
+      "sourceIds": ["socom-commander-biography-2026", "socom-about-2026"],
+      "evidenceQuote": "Became the commander of U.S. Special Operations Command, Oct. 3, 2025.",
+      "reviewState": "source_snapshot"
+    },
+    {
+      "id": "official-role:mark-simerly-dla-director",
+      "personId": "person:mark-simerly",
+      "title": "Director, Defense Logistics Agency",
+      "roleType": "agency-director",
+      "organizationName": "Defense Logistics Agency",
+      "effectiveFrom": "2026-10-01",
+      "effectiveTo": "",
+      "datePrecision": "observed-current-lower-bound",
+      "status": "observed-current",
+      "sourceIds": ["dla-leadership-2026"],
+      "evidenceQuote": "LTG, U.S. Army, Mark T. Simerly\n\nDirector, Defense Logistics Agency",
       "reviewState": "source_snapshot"
     }
   ],
