@@ -281,7 +281,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-role&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 292);
+  assert.equal(result.payload.meta.total, 294);
   const officialRoleId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialRoleId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "person-holds-official-role"), "Official roles must traverse to public professional identities");
@@ -320,14 +320,14 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-document&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 54);
+  assert.equal(result.payload.meta.total, 57);
   const officialDocumentId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialDocumentId)}/relations?limit=50`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-version"), "Official documents must traverse to observed versions");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=document-citation&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 332);
+  assert.equal(result.payload.meta.total, 335);
   const documentCitationId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(documentCitationId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-citation"), "Document citations must traverse to their official document");

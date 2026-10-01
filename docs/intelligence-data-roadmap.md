@@ -37,10 +37,10 @@ new source must enable. Volume alone is not a release criterion.
 | Competitive, expiration, execution, and outcome signals | Operational review layer | Deterministic, dated, caveated signals only |
 | Organization intelligence | Operational bounded baseline | 100 prioritized dossiers, mission/finance/timeline projections, explicit research queues |
 | Organization source monitoring | Operational review baseline | 10 hashed official sources, 17 exact dossier links, fail-closed change proposals |
-| Official people and role tenure | Operational expanded baseline | 111 public professionals, 292 sourced roles, four exact successions |
+| Official people and role tenure | Operational expanded baseline | 113 public professionals, 294 sourced roles, four exact successions |
 | Industrial-base and teaming intelligence | Operational partial baseline | 1,000 sampled prime-to-supplier relationships and retained-award market profiles |
 | Outcomes and accountability | Operational bounded baseline | Program health summaries and four source-linked official findings |
-| Document intelligence | Operational cited baseline | 54 official documents, 54 versions, 332 typed citations |
+| Document intelligence | Operational cited baseline | 57 official documents, 57 versions, 335 typed citations |
 | Operational intelligence products | Operational template baseline | Eight saved graph queries and five review-before-send briefs |
 | SBIR/STTR | Source unavailable | Official API under maintenance; no empty coverage claimed |
 
@@ -110,11 +110,11 @@ datasets. The bounded first cohort includes:
 
 - 100 durable dossiers selected across sourced leadership, mission organizations, program
   offices, major buyers, and major vendors.
-- 111 public professionals and 292 official role observations. Current-directory evidence
+- 113 public professionals and 294 official role observations. Current-directory evidence
   establishes an observation lower bound only; it never manufactures an appointment date.
-- 54 official mission or jurisdiction claims and 59 typed financial summaries. Request,
+- 56 official mission or jurisdiction claims and 60 typed financial summaries. Request,
   obligation, outlay, award value, and ceiling semantics remain separate.
-- 257 open research gaps and 257 dated change events. Missing public evidence is work to do,
+- 254 open research gaps and 257 dated change events. Missing public evidence is work to do,
   not a negative assertion.
 - Full ADMIN dossier routes and Agent API traversal into people, roles, programs, awards,
   accounts, vendors, locations, sources, mission claims, financial summaries, and timelines.

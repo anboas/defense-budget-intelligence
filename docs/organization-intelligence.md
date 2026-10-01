@@ -72,15 +72,15 @@ reviewable diff artifact rather than an ungrounded alert stream.
 ## Schema 2.4 coverage
 
 - 100 organization dossiers
-- 111 public professionals
-- 292 sourced official roles
-- 54 mission or jurisdiction claims
-- 59 financial summaries
-- 257 research gaps
+- 113 public professionals
+- 294 sourced official roles
+- 56 mission or jurisdiction claims
+- 60 financial summaries
+- 254 research gaps
 - 257 change events
 - 10 monitored official sources and 10 current content-hash observations
 - 17 exact source-to-dossier coverage links
-- 72,093 graph entities and 134,961 relations
+- 72,113 graph entities and 134,991 relations
 
 The ADMIN route loads `organization-intelligence.json` and the 15 KB
 `organization-change-monitor.json` only when opened. The initial shell, Opportunity Map,
