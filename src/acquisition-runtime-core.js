@@ -15,6 +15,7 @@ export const DEFAULT_ACQUISITION_CONFIG = Object.freeze({
   maxRetries: 3,
   organizationName: "DEPT OF DEFENSE",
   noticeTypes: [],
+  noticeIds: [],
   backfillOffsetDays: 0,
   backfillRequestedAt: null,
 });
@@ -37,6 +38,9 @@ export function normalizeAcquisitionConfig(input = {}) {
   const noticeTypes = Array.isArray(input.noticeTypes)
     ? [...new Set(input.noticeTypes.map((value) => text(value, 1).toLowerCase()).filter((value) => SAM_NOTICE_TYPES.includes(value)))]
     : [];
+  const noticeIds = Array.isArray(input.noticeIds)
+    ? [...new Set(input.noticeIds.map((value) => text(value, 180)).filter(Boolean))].slice(0, 25)
+    : [];
   return {
     enabled: input.enabled === undefined ? DEFAULT_ACQUISITION_CONFIG.enabled : Boolean(input.enabled),
     cadenceHours: integer(input.cadenceHours, DEFAULT_ACQUISITION_CONFIG.cadenceHours, 6, 168),
@@ -48,6 +52,7 @@ export function normalizeAcquisitionConfig(input = {}) {
     maxRetries: integer(input.maxRetries, DEFAULT_ACQUISITION_CONFIG.maxRetries, 0, 6),
     organizationName: text(input.organizationName, 240) || DEFAULT_ACQUISITION_CONFIG.organizationName,
     noticeTypes,
+    noticeIds,
     backfillOffsetDays: integer(input.backfillOffsetDays, DEFAULT_ACQUISITION_CONFIG.backfillOffsetDays, 0, 3650),
     backfillRequestedAt: timestamp(input.backfillRequestedAt),
   };
@@ -250,10 +255,11 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
   let retries = 0;
   let throttleWaitMs = 0;
   let adaptiveSplits = 0;
-  const noticeTypeScopes = config.noticeTypes.length ? config.noticeTypes : [""];
+  const noticeTypeScopes = config.noticeIds.length ? [""] : config.noticeTypes.length ? config.noticeTypes : [""];
+  const noticeIdScopes = config.noticeIds.length ? config.noticeIds : [""];
   const dateScopes = samQuerySlices(window);
   const completedScopes = [];
-  for (const noticeType of noticeTypeScopes) {
+  for (const noticeId of noticeIdScopes) for (const noticeType of noticeTypeScopes) {
     const pendingScopes = [...dateScopes];
     while (pendingScopes.length) {
       const dateScope = pendingScopes.shift();
@@ -266,7 +272,8 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
         const url = new URL("https://api.sam.gov/opportunities/v2/search");
         url.searchParams.set("postedFrom", dateScope.postedFrom);
         url.searchParams.set("postedTo", dateScope.postedTo);
-        if (config.organizationName) url.searchParams.set("organizationName", config.organizationName);
+        if (config.organizationName && !noticeId) url.searchParams.set("organizationName", config.organizationName);
+        if (noticeId) url.searchParams.set("noticeid", noticeId);
         if (noticeType) url.searchParams.set("ptype", noticeType);
         url.searchParams.set("limit", String(limit));
         url.searchParams.set("offset", String(offset));
@@ -309,12 +316,12 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
       if (scopeTotal === null) throw Object.assign(new Error(`SAM.gov notice-type/date scope exceeded the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
       totalRecords += Number(scopeTotal || 0);
       if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned more than the bounded ${config.maxPages * limit} record window for one notice-type/date scope; no partial refresh was applied`), { code: "source_truncated" });
-      completedScopes.push({ ...dateScope, noticeType: noticeType || null, totalRecords: Number(scopeTotal || 0) });
+      completedScopes.push({ ...dateScope, noticeType: noticeType || null, noticeId: noticeId || null, totalRecords: Number(scopeTotal || 0) });
     }
   }
   return {
     records: [...new Map(records.map((record) => [record.sourceRecordId, record])).values()],
-    metadata: { ...window, pages, requests, retries, throttleWaitMs, adaptiveSplits, totalRecords: Number(totalRecords || records.length), noticeTypesQueried: config.noticeTypes, dateScopes: completedScopes, complete: true, config },
+    metadata: { ...window, pages, requests, retries, throttleWaitMs, adaptiveSplits, totalRecords: Number(totalRecords || records.length), noticeTypesQueried: config.noticeTypes, noticeIdsQueried: config.noticeIds, dateScopes: completedScopes, complete: true, config },
   };
 }
 

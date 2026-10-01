@@ -90,9 +90,16 @@ try {
   assert.match(requestedUrl, /organizationName=DEPT\+OF\+DEFENSE/);
   assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must use SAM.gov's documented api_key query parameter");
   assert.equal(requestedHeaderKey, "", "The workspace key must not be sent in an unsupported x-api-key header");
+  let priorityUrl = "";
+  await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { initialLookbackDays: 7, noticeIds: ["priority-notice-1"] }, sleep: async () => {}, fetchImpl: async (url) => {
+    priorityUrl = String(url);
+    return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "priority-notice-1", title: "Priority notice" }] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.equal(new URL(priorityUrl).searchParams.get("noticeid"), "priority-notice-1", "Priority notices must use SAM.gov's exact noticeid filter");
+  assert.equal(new URL(priorityUrl).searchParams.has("organizationName"), false, "Exact notice probes must not depend on SAM.gov organization taxonomy");
   assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
     enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
-    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"], backfillOffsetDays: 0, backfillRequestedAt: null,
+    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"], noticeIds: [], backfillOffsetDays: 0, backfillRequestedAt: null,
   }, "Workspace acquisition settings must be clamped to the documented and operational safety envelope");
   assert.equal(acquisitionBackfillDue("2026-10-01T15:16:17.521Z", { backfillRequestedAt: "2026-10-01T15:20:00Z" }), true, "A newer one-shot backfill request must bypass the normal cadence");
   assert.equal(acquisitionBackfillDue("2026-10-01T15:21:00Z", { backfillRequestedAt: "2026-10-01T15:20:00Z" }), false, "A successful refresh after the request must consume the one-shot backfill");
