@@ -92,7 +92,7 @@ try {
   assert.equal(recovered.metadata.retries, 1);
   assert.equal(recovered.metadata.requests, 2);
   const typeUrls = [];
-  await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { noticeTypes: ["p", "r"], maxPages: 2, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async (url) => {
+  await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { noticeTypes: ["p", "r"], maxPages: 1, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async (url) => {
     typeUrls.push(String(url));
     return new Response(JSON.stringify({ totalRecords: 0, opportunitiesData: [] }), { status: 200, headers: { "content-type": "application/json" } });
   } });

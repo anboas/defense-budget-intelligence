@@ -204,8 +204,9 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
   const noticeTypeScopes = config.noticeTypes.length ? config.noticeTypes : [""];
   for (const noticeType of noticeTypeScopes) {
     let offset = 0;
+    let scopePages = 0;
     let scopeTotal = null;
-    while (pages < config.maxPages) {
+    while (scopePages < config.maxPages) {
       if (pages > 0 && config.requestIntervalMs) await sleep(config.requestIntervalMs);
       const url = new URL("https://api.sam.gov/opportunities/v2/search");
       url.searchParams.set("postedFrom", window.postedFrom);
@@ -236,6 +237,7 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
       scopeTotal = Number(payload.totalRecords || scopeTotal || 0);
       records.push(...rows.map(normalizeSamOpportunity).filter(Boolean));
       pages += 1;
+      scopePages += 1;
       offset += rows.length;
       if (!rows.length || offset >= scopeTotal) break;
     }
