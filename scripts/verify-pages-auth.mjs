@@ -706,7 +706,9 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(response.status, 401, "The research scheduler must reject unauthenticated triggers");
     response = await apiRequest(baseUrl, "/api/v1/system/research-schedule", { method: "POST", headers: { authorization: "Bearer verification-only-scheduler-token-0000001" } });
     assert.equal(response.status, 202, "The protected scheduler must accept the configured service token");
-    assert.equal((await response.json()).scheduled, 0, "A recently completed workspace must respect its configured cadence");
+    body = await response.json();
+    assert.equal(body.eligibleWorkspaces, 1, "Only workspaces with an active workspace OpenAI key may enter autonomous scheduling");
+    assert.equal(body.scheduled, 0, "A recently completed workspace must respect its configured cadence");
     const samGovKey = "sam_verification_workspace_0001";
     response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", { cookie: viewerCookie });
     assert.ok([401, 403].includes(response.status), "Non-manager sessions must not read workspace provider credential metadata");

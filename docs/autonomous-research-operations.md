@@ -6,6 +6,7 @@ Defense Budget Intelligence runs organization-gap discovery inside the authentic
 
 - The shared Cloudflare scheduler wakes every 15 minutes and calls the protected `/api/v1/system/research-schedule` endpoint.
 - Each workspace decides whether a run is due from its own saved cadence.
+- Workspaces without an active workspace OpenAI key are excluded before a run is queued.
 - One active run is allowed per workspace. A second manual or scheduled trigger returns the active run instead of duplicating work.
 - The cron request remains attached until its selected targets complete, giving high-throughput runs the scheduled Worker execution window instead of a short background tail.
 - Runs and target attempts are durable. The ADMIN dashboard polls the same D1 ledger used by the scheduler.

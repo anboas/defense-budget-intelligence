@@ -528,7 +528,9 @@ async function schedulerAuthorized(request, env) {
 export async function researchSchedulerResponse(request, db, env, _context, deps) {
   if (request.method !== "POST") return deps.json({ error: "Method not allowed" }, 405);
   if (!await schedulerAuthorized(request, env)) return deps.json({ error: "Unauthorized" }, 401);
-  const workspaces = await db.prepare("SELECT workspace_id FROM dbi_workspaces ORDER BY created_at LIMIT 20").all();
+  const workspaces = await db.prepare(`SELECT DISTINCT w.workspace_id
+    FROM dbi_workspaces w INNER JOIN dbi_openai_keys k ON k.workspace_id=w.workspace_id
+    WHERE k.scope_type='workspace' AND k.revoked_at='' ORDER BY w.created_at LIMIT 20`).all();
   const scheduled = [];
   for (const row of workspaces.results || []) {
     const config = await ensureConfig(db, row.workspace_id);
@@ -541,7 +543,7 @@ export async function researchSchedulerResponse(request, db, env, _context, deps
     scheduled.push(queued.id);
     await executeResearchRun({ db, env, request, runId: queued.id, workspaceId: row.workspace_id, config, decryptSecret: deps.decryptSecret, assetJson: deps.assetJson, deps });
   }
-  return deps.json({ scheduled: scheduled.length, runIds: scheduled }, 202);
+  return deps.json({ eligibleWorkspaces: (workspaces.results || []).length, scheduled: scheduled.length, runIds: scheduled }, 202);
 }
 
 export async function researchOperationsResponse(request, db, env, _context, deps) {
