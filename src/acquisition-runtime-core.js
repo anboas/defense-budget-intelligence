@@ -214,12 +214,13 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
       if (noticeType) url.searchParams.set("ptype", noticeType);
       url.searchParams.set("limit", String(limit));
       url.searchParams.set("offset", String(offset));
+      url.searchParams.set("api_key", key);
       let response;
       let error;
       for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
         try {
           requests += 1;
-          response = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "defense-budget-intelligence/1.0", "x-api-key": key } });
+          response = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "defense-budget-intelligence/1.0" } });
           if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) break;
           error = new Error(`SAM.gov opportunity search returned ${response.status}`);
         } catch (requestError) { error = requestError; }

@@ -35,6 +35,16 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
   if (!available) return null;
   if (!status && !error) return <ControlAsyncState compact state="loading" title="Loading acquisition source status" message="Reading workspace history and source coverage." />;
   const quality = status?.quality || {}; const history = status?.durableHistory || {}; const archives = status?.archives || {}; const latest = status?.refresh?.latest; const config = status?.config || {};
+  const hasVerifiedCoverage = Boolean(status?.credential?.configured && latest?.status === "succeeded" && Number(history.records || 0) > 0);
+  const coverageSummary = !status?.credential?.configured
+    ? "SAM.gov key not configured · no task will run"
+    : latest?.status === "failed"
+      ? "SAM.gov refresh failed · prior verified records preserved"
+      : !latest
+        ? "SAM.gov key configured · first verified refresh pending"
+        : Number(history.records || 0) === 0
+          ? "SAM.gov returned zero verified records · source health requires attention"
+          : `${count(history.records)} durable records · ${config.enabled ? status.refresh.due ? "refresh due" : "current" : "automation paused"}`;
   const openConfig = () => { setDraft({ ...config, noticeTypes: [...(config.noticeTypes || [])] }); setConfigOpen(true); };
   const saveConfig = async (event) => {
     event.preventDefault(); setBusy(true); setError("");
@@ -45,7 +55,7 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
   const numberField = (key, label, hint, min, max, step = 1) => <label className="if-field"><span className="if-field__label">{label}</span><input className="if-input" type="number" min={min} max={max} step={step} value={draft?.[key] ?? ""} onChange={(event) => setDraft((current) => ({ ...current, [key]: Number(event.target.value) }))} /><small className="if-field__hint">{hint}</small></label>;
   return <>
     <details className="acquisition-runtime" data-acquisition-runtime>
-      <summary><span>{status?.credential?.configured && latest?.status !== "failed" ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}<strong>Acquisition source & coverage</strong></span><small>{status?.credential?.configured ? `${count(history.records)} durable records · ${config.enabled ? status.refresh.due ? "refresh due" : "current" : "automation paused"}` : "SAM.gov key not configured · no task will run"}</small></summary>
+      <summary><span>{hasVerifiedCoverage ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}<strong>Acquisition source & coverage</strong></span><small>{coverageSummary}</small></summary>
       <div className="acquisition-runtime__body">
         <div className="acquisition-runtime__metrics" aria-label="Durable acquisition coverage"><span><Database size={15} /><b>{count(history.records)}</b><small>Durable records</small></span><span><b>{count(history.changedToday || history.changed_today)}</b><small>Changed in 24h</small></span><span><b>{count(history.lifecycleLinks)}</b><small>Exact links</small></span><span><b>{count(quality.stale)}</b><small>Stale records</small></span></div>
         <div className="acquisition-runtime__status">
@@ -54,6 +64,7 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
           {canManage ? <span className="if-action-row__actions"><button type="button" className="if-btn if-btn--secondary" onClick={openConfig}><Settings2 size={15} />Configure</button><button type="button" className="if-btn if-btn--secondary" disabled={busy || !status?.credential?.configured} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? "is-spinning" : ""} />{busy ? "Refreshing…" : "Refresh now"}</button></span> : null}
         </div>
         <div className="acquisition-runtime__quality"><strong>Data-quality queue</strong><span>{count(quality.missing_identifier)} missing identifiers</span><span>{count(quality.missing_office)} missing offices</span><span>{count(quality.missing_naics)} missing NAICS</span></div>
+        {status?.credential?.configured && !hasVerifiedCoverage ? <p className="if-alert if-alert--warning" role="status" data-sam-zero-coverage>{coverageSummary}. Spend Explorer will not claim live SAM.gov coverage until a successful refresh retains at least one official notice.</p> : null}
         <p><strong>Archive health:</strong> {count(archives.observations)} observations, {count(archives.changes)} field-change records, and {count(archives.deliveryAttempts)} delivery attempts retained outside the hot tables. Hot observation history is kept for {count(archives.observationRetentionDays || 365)} days; delivery attempts for {count(archives.deliveryRetentionDays || 180)} days.</p>
         <p>The hourly scheduler runs only due workspaces with automation enabled and an active workspace key. Requests are paced, retried with backoff, and bounded to {count((config.pageSize || 0) * (config.maxPages || 0))} records per run. Failed, rate-limited, or truncated reads preserve the prior verified corpus.</p>
         {status?.delivery?.pendingProvider ? <p className="if-alert if-alert--info" role="status">{count(status.delivery.pendingProvider)} alert delivery job{status.delivery.pendingProvider === 1 ? " is" : "s are"} retained until an outbound provider is configured. In-app alerts remain available.</p> : null}

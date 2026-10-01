@@ -47,7 +47,8 @@ while (true) {
   url.searchParams.set("deptname", "DEPT OF DEFENSE");
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("offset", String(offset));
-  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "defense-budget-intelligence/1.0", "x-api-key": apiKey } });
+  url.searchParams.set("api_key", apiKey);
+  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "defense-budget-intelligence/1.0" } });
   if (!response.ok) throw new Error(`SAM.gov opportunity search returned ${response.status}`);
   const payload = await response.json();
   const rows = payload.opportunitiesData || [];

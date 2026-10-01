@@ -69,14 +69,15 @@ try {
   assert.equal(normalized.lifecycleStage, "opportunity");
   const window = samQueryWindow({ lastCompletedAt: "2026-09-18T00:00:00Z", now: new Date("2026-09-19T12:00:00Z") });
   assert.equal(window.lookbackDays, 3, "Incremental workspace refreshes must overlap three days to catch late amendments");
-  let requestedUrl = ""; let requestedKey = "";
+  let requestedUrl = ""; let requestedKey = ""; let requestedHeaderKey = "";
   const fetched = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", lastCompletedAt: "2026-09-18T00:00:00Z", fetchImpl: async (url, options) => {
-    requestedUrl = String(url); requestedKey = options.headers["x-api-key"];
+    requestedUrl = String(url); requestedKey = new URL(requestedUrl).searchParams.get("api_key") || ""; requestedHeaderKey = options.headers["x-api-key"] || "";
     return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "notice-runtime-1", solicitationNumber: "W15P7T-26-R-0001", title: "Runtime notice", type: "Solicitation", postedDate: "2026-09-19", active: "Yes" }] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.equal(fetched.records.length, 1);
   assert.match(requestedUrl, /organizationName=DEPT\+OF\+DEFENSE/);
-  assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must travel only in the protected request header");
+  assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must use SAM.gov's documented api_key query parameter");
+  assert.equal(requestedHeaderKey, "", "The workspace key must not be sent in an unsupported x-api-key header");
   assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
     enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
     maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"],
