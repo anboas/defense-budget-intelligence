@@ -1,4 +1,4 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.3.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.4.0";
 export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
 export const TEMPORAL_EVIDENCE_SCHEMA_VERSION = "1.0.0";
 
@@ -57,6 +57,9 @@ export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "organization-financial-summary",
   "organization-research-gap",
   "organization-change-event",
+  "organization-source-monitor",
+  "organization-source-observation",
+  "organization-change-proposal",
   "supplier-relationship",
   "buyer-profile",
   "vendor-profile",
@@ -173,6 +176,10 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "organization-dossier-includes-account",
   "organization-dossier-includes-vendor",
   "organization-dossier-includes-location",
+  "organization-source-monitor-has-observation",
+  "organization-source-monitor-covers-dossier",
+  "organization-change-proposal-targets-role",
+  "organization-change-proposal-targets-dossier",
   "supplier-relationship-prime",
   "supplier-relationship-supplier",
   "buyer-profile-for-organization",

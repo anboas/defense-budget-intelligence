@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ControlAsyncState, ControlPageHeader } from "control-surface-ui/react";
-import { BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, Search, ShieldCheck, UsersRound } from "lucide-react";
+import { BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, Search, ShieldCheck, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import "./IntelligenceProductsPage.css";
 
@@ -10,6 +10,7 @@ const SECTIONS = [
   ["industrial-base", "Industrial base"],
   ["accountability", "Accountability"],
   ["documents", "Documents"],
+  ["monitoring", "Organization watch"],
   ["operations", "Operational products"],
 ];
 
@@ -77,19 +78,19 @@ function OrganizationDossier({ dossier, data, rolesById, people }) {
 export default function IntelligenceProductsPage({ routeHash = "" }) {
   const auth = useAuth();
   const allowed = auth?.staticHost || auth?.user?.canManageWorkspace;
-  const [state, setState] = useState({ status: "loading", roadmap: null, organizations: null, error: "" });
+  const [state, setState] = useState({ status: "loading", roadmap: null, organizations: null, monitor: null, error: "" });
   const [section, setSection] = useState("organizations");
   const [organizationQuery, setOrganizationQuery] = useState("");
 
   useEffect(() => {
     if (!allowed) return undefined;
     let active = true;
-    Promise.all(["roadmap-intelligence.json", "organization-intelligence.json"].map((name) => fetch(`${import.meta.env.BASE_URL}data/${name}`).then((response) => {
+    Promise.all(["roadmap-intelligence.json", "organization-intelligence.json", "organization-change-monitor.json"].map((name) => fetch(`${import.meta.env.BASE_URL}data/${name}`).then((response) => {
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json();
     })))
-      .then(([roadmap, organizations]) => { if (active) setState({ status: "ready", roadmap, organizations, error: "" }); })
-      .catch((error) => { if (active) setState({ status: "error", roadmap: null, organizations: null, error: error.message }); });
+      .then(([roadmap, organizations, monitor]) => { if (active) setState({ status: "ready", roadmap, organizations, monitor, error: "" }); })
+      .catch((error) => { if (active) setState({ status: "error", roadmap: null, organizations: null, monitor: null, error: error.message }); });
     return () => { active = false; };
   }, [allowed]);
 
@@ -117,6 +118,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     <div className="intelligence-products__metrics" aria-label="Roadmap intelligence totals">
       <article data-organization-dossier-count={organizationData.metadata.coverage.dossiers}><Building2 size={18} /><strong>{number(organizationData.metadata.coverage.dossiers)}</strong><span>organization dossiers</span></article>
       <article data-official-role-count={coverage.officialRoles}><UsersRound size={18} /><strong>{number(coverage.officialRoles)}</strong><span>official roles</span></article>
+      <article data-monitored-source-count={state.monitor.metadata.coverage.monitoredSources}><RefreshCcw size={18} /><strong>{number(state.monitor.metadata.coverage.monitoredSources)}</strong><span>monitored sources</span></article>
       <article data-supplier-relationship-count={coverage.supplierRelationships}><Network size={18} /><strong>{number(coverage.supplierRelationships)}</strong><span>supplier links</span></article>
       <article data-document-count={coverage.officialDocuments}><BookOpenText size={18} /><strong>{number(coverage.officialDocuments)}</strong><span>official documents</span></article>
       <article data-citation-count={coverage.citations}><FileSearch size={18} /><strong>{number(coverage.citations)}</strong><span>exact citations</span></article>
@@ -161,6 +163,11 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     {section === "documents" ? <section className="intelligence-products__split" data-document-intelligence-panel>
       <article className="intelligence-products__panel"><header><div><span>Official corpus</span><h3>Documents and versions</h3><p>Canonical URLs, observed versions, sections, verified table extracts, and content-hash basis remain reviewable.</p></div><b>{number(coverage.documentVersions)} versions</b></header><div className="intelligence-products__table">{data.officialDocuments.slice(0, 40).map((row) => <div key={row.id}><span><strong>{row.label}</strong><small>{row.publisher} · {row.documentType}</small></span><a href={row.url} target="_blank" rel="noreferrer">Open</a></div>)}</div></article>
       <article className="intelligence-products__panel"><header><div><span>Fact-level provenance</span><h3>Exact citations</h3><p>Citations bind quoted claims or printed-page table rows to typed graph facts. Embeddings remain unavailable.</p></div><b>{number(coverage.citations)} citations</b></header><div className="intelligence-products__table">{data.citations.slice(0, 40).map((row) => <div key={row.id}><span><strong>{row.targetType.replaceAll("-", " ")}</strong><small>{row.selectorType.replaceAll("-", " ")}</small></span><a href={row.sourceUrl} target="_blank" rel="noreferrer">Evidence</a></div>)}</div></article>
+    </section> : null}
+
+    {section === "monitoring" ? <section className="intelligence-products__split" data-organization-watch-panel>
+      <article className="intelligence-products__panel"><header><div><span>Official source registry</span><h3>Organization watch</h3><p>Daily directory and weekly source observations retain content hashes, allowed hosts, dossier coverage, and source state. Unchanged pages are suppressed.</p></div><b>{number(state.monitor.metadata.coverage.monitoredSources)} sources</b></header><div className="intelligence-products__table">{state.monitor.sources.map((row) => <div key={row.id} data-organization-monitor-source={row.sourceId}><span><strong>{row.label}</strong><small>{row.publisher} · {row.cadence} · {number(row.linkedDossierIds.length)} dossiers</small></span><span className={`if-badge ${row.changeState === "changed" ? "if-badge--warning" : "if-badge--success"}`}>{row.changeState.replaceAll("-", " ")}</span></div>)}</div></article>
+      <article className="intelligence-products__panel"><header><div><span>Review-first changes</span><h3>Change proposals</h3><p>A new listing is a lower-bound observation. A missing listing never ends a tenure. Changed source content cannot overwrite a dossier until reviewed.</p></div><b>{number(state.monitor.metadata.coverage.reviewProposals)} pending</b></header>{state.monitor.proposals.length ? <div className="intelligence-products__findings">{state.monitor.proposals.map((row) => <article key={row.id} data-organization-change-proposal={row.id}><strong>{row.label}</strong><p>{row.detail}</p><span className="if-badge if-badge--warning">{row.kind.replaceAll("-", " ")}</span></article>)}</div> : <div className="intelligence-products__organization-empty" data-organization-watch-clear><ShieldCheck size={26} /><h3>No source changes pending</h3><p>The current monitored pages match the last verified baseline. Future differences enter this queue instead of silently changing tenure or dossier facts.</p></div>}</article>
     </section> : null}
 
     {section === "operations" ? <section className="intelligence-products__split" data-operational-products-panel>

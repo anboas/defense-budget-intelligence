@@ -52,7 +52,24 @@ added together or presented as interchangeable measures.
 6. Promote only exact or reviewed relationships.
 7. Publish source changes as dated events rather than silent overwrites.
 
-## Schema 2.3 coverage
+## Organization Watch
+
+Schema 2.4 adds a fail-closed monitoring layer over the dossier source register:
+
+- every monitored official source retains its canonical URL, allowed host, adapter,
+  cadence, priority, content hash, observation time, and exact dossier coverage;
+- a newly listed public role becomes a lower-bound observation proposal;
+- a role that disappears from a directory becomes a review proposal and never establishes
+  a tenure end date by itself;
+- changed source content cannot overwrite mission, finance, hierarchy, or leadership facts;
+- unchanged observations are suppressed from the analyst queue; and
+- failed refreshes preserve the last verified snapshot and expose diagnostics.
+
+The scheduled source-refresh workflow preserves the previous verified role and dossier
+snapshots before regeneration. `organization-change-monitor.json` is therefore a bounded,
+reviewable diff artifact rather than an ungrounded alert stream.
+
+## Schema 2.4 coverage
 
 - 100 organization dossiers
 - 111 public professionals
@@ -61,7 +78,10 @@ added together or presented as interchangeable measures.
 - 59 financial summaries
 - 257 research gaps
 - 257 change events
-- 72,073 graph entities and 134,924 relations
+- 10 monitored official sources and 10 current content-hash observations
+- 17 exact source-to-dossier coverage links
+- 72,093 graph entities and 134,961 relations
 
-The ADMIN route loads `organization-intelligence.json` only when opened. The initial shell,
-Opportunity Map, and deferred activity index remain unchanged.
+The ADMIN route loads `organization-intelligence.json` and the 15 KB
+`organization-change-monitor.json` only when opened. The initial shell, Opportunity Map,
+and deferred activity index remain unchanged.

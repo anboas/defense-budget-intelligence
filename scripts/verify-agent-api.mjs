@@ -288,6 +288,14 @@ try {
   assert.ok(result.payload.data.some((relation) => relation.type === "official-role-at-organization"), "Official roles must traverse to published organizations");
   assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Official roles must traverse to official source evidence");
 
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=organization-source-monitor&limit=1", { token: researchToken }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.payload.meta.total, 10);
+  const organizationMonitorId = result.payload.data[0].id;
+  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(organizationMonitorId)}/relations?limit=30`, { token: researchToken }));
+  assert.ok(result.payload.data.some((relation) => relation.type === "organization-source-monitor-has-observation"), "Organization source monitors must traverse to their content-hash observations");
+  assert.ok(result.payload.data.some((relation) => relation.type === "organization-source-monitor-covers-dossier"), "Organization source monitors must traverse to exactly covered dossiers");
+
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=organization-dossier&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.meta.total, 100);

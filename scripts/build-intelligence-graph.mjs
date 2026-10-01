@@ -43,6 +43,7 @@ const strategic = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-inte
 const programIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/program-intelligence.json"), "utf8"));
 const roadmapIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
 const organizationIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/organization-intelligence.json"), "utf8"));
+const organizationChangeMonitor = JSON.parse(readFileSync(resolve(ROOT, "src/data/organization-change-monitor.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -937,6 +938,21 @@ for (const row of organizationIntelligence.changeEvents || []) {
   addEntity("organization-change-event", { ...row, sourceArtifact: "organization-intelligence" });
   if (entityKeys["organization-dossier"].has(row.dossierId)) addRelation("organization-dossier-has-change-event", row.dossierId, row.id, evidence("organization-intelligence", row.eventType, "reviewed", "", row.reviewState));
 }
+for (const row of organizationChangeMonitor.sources || []) {
+  addEntity("organization-source-monitor", { ...row, sourceArtifact: "organization-change-monitor" });
+  const sourceId = source(row.url, "organization-change-monitor", row.label);
+  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("organization-change-monitor", "monitored-official-source", "exact", row.url, row.reviewState));
+  for (const dossierId of row.linkedDossierIds || []) if (entityKeys["organization-dossier"].has(dossierId)) addRelation("organization-source-monitor-covers-dossier", row.id, dossierId, evidence("organization-change-monitor", "exact-source-url-membership", "exact", row.url, row.reviewState));
+}
+for (const row of organizationChangeMonitor.sourceObservations || []) {
+  addEntity("organization-source-observation", { ...row, sourceArtifact: "organization-change-monitor" });
+  if (entityKeys["organization-source-monitor"].has(row.monitorId)) addRelation("organization-source-monitor-has-observation", row.monitorId, row.id, evidence("organization-change-monitor", "content-hash-observation", "deterministic", "", row.reviewState));
+}
+for (const row of organizationChangeMonitor.proposals || []) {
+  addEntity("organization-change-proposal", { ...row, sourceArtifact: "organization-change-monitor" });
+  if (row.subjectType === "official-role" && entityKeys["official-role"].has(row.subjectId)) addRelation("organization-change-proposal-targets-role", row.id, row.subjectId, evidence("organization-change-monitor", row.kind, "review_only", "", row.status));
+  if (row.subjectType === "organization-dossier" && entityKeys["organization-dossier"].has(row.subjectId)) addRelation("organization-change-proposal-targets-dossier", row.id, row.subjectId, evidence("organization-change-monitor", row.kind, "review_only", "", row.status));
+}
 
 for (const row of strategic.forecasts || []) {
   addEntity("acquisition-forecast", { ...row, sourceArtifact: "strategic-intelligence" });
@@ -1183,6 +1199,9 @@ const graph = {
         dossiersWithLeadership: organizationIntelligence.metadata?.coverage?.dossiersWithLeadership || 0,
         dossiersWithMission: organizationIntelligence.metadata?.coverage?.dossiersWithMission || 0,
         dossiersWithFinance: organizationIntelligence.metadata?.coverage?.dossiersWithFinance || 0,
+        monitoredSources: organizationChangeMonitor.metadata?.coverage?.monitoredSources || 0,
+        changedSources: organizationChangeMonitor.metadata?.coverage?.changedSources || 0,
+        reviewProposals: organizationChangeMonitor.metadata?.coverage?.reviewProposals || 0,
         evidenceBoundary: organizationIntelligence.metadata?.evidenceBoundary,
       },
       industrialBase: {
