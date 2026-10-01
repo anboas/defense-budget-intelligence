@@ -1,24 +1,24 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-01T00:35:20.511Z",
+    "generatedAt": "2026-10-01T11:41:58.883Z",
     "status": "current",
     "coverage": {
       "dossiers": 100,
       "tier1": 52,
-      "roles": 292,
-      "people": 111,
-      "missionClaims": 54,
-      "financialSummaries": 59,
-      "researchGaps": 257,
+      "roles": 294,
+      "people": 113,
+      "missionClaims": 56,
+      "financialSummaries": 60,
+      "researchGaps": 254,
       "changeEvents": 257,
       "dossiersWithLeadership": 27,
-      "dossiersWithMission": 50,
-      "dossiersWithFinance": 50
+      "dossiersWithMission": 52,
+      "dossiersWithFinance": 51
     },
     "evidenceBoundary": "Dossiers are bounded projections of retained public evidence. Observed-current professional roles are lower-bound observations, not appointment dates. Request, authority, obligation, outlay, award value, and ceiling measures remain separate. Missing public evidence is an explicit research gap, never a negative assertion.",
     "selectionPolicy": "The 100-dossier cohort prioritizes sourced leadership and oversight organizations, reviewed mission organizations, published budget sponsors, major buyers, and major vendors. Category quotas preserve breadth while deterministic ranking preserves high-value coverage.",
-    "contentHash": "992b34adfb67a2b4c51e"
+    "contentHash": "9b6b497b5cc0c4491aa0"
   },
   "dossiers": [
     {
@@ -453,18 +453,139 @@
       "reviewState": "bounded-reviewed"
     },
     {
+      "id": "organization-dossier:d9eaab1c8e660a7ee1d8",
+      "label": "Defense Logistics Agency",
+      "organizationName": "Defense Logistics Agency",
+      "categories": [
+        "buyer",
+        "program-office",
+        "public-leadership"
+      ],
+      "priorityTier": "tier-1",
+      "parentOrganizationName": "",
+      "roleIds": [
+        "official-role:mark-simerly-dla-director"
+      ],
+      "personIds": [
+        "person:mark-simerly"
+      ],
+      "missionClaimIds": [
+        "organization-mission-claim:3380a791a9950abfd5f9"
+      ],
+      "financialSummaryIds": [
+        "organization-financial-summary:1efcb3f4552042856602",
+        "organization-financial-summary:fdc7853b26cae1db77ae"
+      ],
+      "programIds": [
+        "defense-program:abe8e5b65b1ac2a49b45",
+        "defense-program:ab94e8de8bff11aeca41",
+        "defense-program:1fda42de340edaa95162",
+        "defense-program:12b02b79c387f66a14b8",
+        "defense-program:04a862b3dd05dbfbc1cb",
+        "defense-program:7e139fdcbec14db75d1c",
+        "defense-program:f2b26d379374308ef921",
+        "defense-program:e081a6e6215ac866db7a",
+        "defense-program:045bd2764fcd6f1d6429",
+        "defense-program:e07b5cc0a9b3b1d0f9f1",
+        "defense-program:68f0924b79b7f1f29ea1",
+        "defense-program:6271e2da1c20184066e0",
+        "defense-program:78f2f4e2b38d34aaa4cf",
+        "defense-program:22b7ae7cad9cf0c1c4fa",
+        "defense-program:fef9b6730e1ec15fc924",
+        "defense-program:5888028c7e9762c06ad8",
+        "defense-program:4c4e736b74d44e2cf94a",
+        "defense-program:3881dfdeb6b140edfd0b",
+        "defense-program:16b4b65f85655007a5a3",
+        "defense-program:269684cbd465b5d4d491",
+        "defense-program:489ce5fbb77d7ec7d37d",
+        "defense-program:3d30006012da3fcd5a50",
+        "defense-program:7825d5be53f1c40cff5b",
+        "defense-program:9bd28dbace8b3e35c9f2",
+        "defense-program:2736ea8c3003c140eae7",
+        "defense-program:20b017db8a2f89d2e86c",
+        "defense-program:1ff9f3d24eed2b782d91",
+        "defense-program:e4dbd7d7a888d11f9ab0",
+        "defense-program:8e83a50a52470bcea3d3",
+        "defense-program:4dd49a48db2bdbcc4514",
+        "defense-program:1e15c2d0345c6447cc0a",
+        "defense-program:ab940d7c8fd7d7c3d8a7",
+        "defense-program:02a31953b59ab908a64d",
+        "defense-program:8acc9e62d19bc3d663e1",
+        "defense-program:121e3e9fc15e5c9fc31a",
+        "defense-program:81c28a91ab5467812117",
+        "defense-program:5a46b643a33cda6609d7"
+      ],
+      "awardIds": [
+        "CONT_AWD_SP470122F0180_9700_47QTCA22D004D_4732",
+        "CONT_AWD_SP330020F1300_9700_SP330020D0021_9700",
+        "CONT_AWD_SPRBL121F0059_9700_SPRBL115D0017_9700",
+        "CONT_AWD_SP470124F0084_9700_GS35F0926R_4730",
+        "CONT_AWD_SP470925F0062_9700_SP470924D0051_9700",
+        "CONT_AWD_SP470125C0100_9700_-NONE-_-NONE-"
+      ],
+      "accountIds": [],
+      "vendorNames": [
+        "ADVANTAGED SOLUTIONS",
+        "RAYTHEON",
+        "UNITY TECHNOLOGIES",
+        "CREDENCE MANAGEMENT SOLUTIONS LIABILITY COMPANY"
+      ],
+      "locationIds": [],
+      "sourceUrls": [
+        "https://www.dla.mil/About-DLA/Leaders/Director/",
+        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
+        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
+        "https://www.usaspending.gov/award/CONT_AWD_SP470122F0180_9700_47QTCA22D004D_4732/",
+        "https://www.usaspending.gov/award/CONT_AWD_SP330020F1300_9700_SP330020D0021_9700/",
+        "https://www.usaspending.gov/award/CONT_AWD_SPRBL121F0059_9700_SPRBL115D0017_9700/",
+        "https://www.usaspending.gov/award/CONT_AWD_SP470124F0084_9700_GS35F0926R_4730/",
+        "https://www.usaspending.gov/award/CONT_AWD_SP470925F0062_9700_SP470924D0051_9700/"
+      ],
+      "researchGapIds": [
+        "organization-research-gap:5198ad972af00d73288e"
+      ],
+      "changeEventIds": [
+        "organization-change-event:6d2e5140e252df917234"
+      ],
+      "coverage": {
+        "roles": 1,
+        "people": 1,
+        "missions": 1,
+        "financialMeasures": 2,
+        "programs": 37,
+        "awards": 6,
+        "accounts": 0,
+        "vendors": 4,
+        "locations": 0,
+        "sources": 9,
+        "researchGaps": 1
+      },
+      "freshness": {
+        "latestObservation": "2026-10-01",
+        "reviewBy": "2026-12-29",
+        "status": "current"
+      },
+      "reviewState": "bounded-reviewed"
+    },
+    {
       "id": "organization-dossier:30cd759491fa91c28ae0",
       "label": "U.S. Special Operations Command",
       "organizationName": "U.S. Special Operations Command",
       "categories": [
         "buyer",
         "mission-organization",
-        "program-office"
+        "program-office",
+        "public-leadership"
       ],
       "priorityTier": "tier-1",
       "parentOrganizationName": "",
-      "roleIds": [],
-      "personIds": [],
+      "roleIds": [
+        "official-role:frank-bradley-ussocom-commander"
+      ],
+      "personIds": [
+        "person:frank-bradley"
+      ],
       "missionClaimIds": [
         "organization-mission-claim:c932e33932965aa86629",
         "organization-mission-claim:8430ffbc787290051d3a"
@@ -556,6 +677,7 @@
         "location:tampa"
       ],
       "sourceUrls": [
+        "https://www.socom.mil/about/commanders-biography",
         "https://www.socom.mil/about",
         "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
         "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
@@ -564,13 +686,14 @@
         "https://www.usaspending.gov/award/CONT_AWD_H9225418F2124_9700_H9225417D0001_9700/"
       ],
       "researchGapIds": [
-        "organization-research-gap:88053f43fba68d4c7294",
         "organization-research-gap:0c2cf6ba6d0f1a105e88"
       ],
-      "changeEventIds": [],
+      "changeEventIds": [
+        "organization-change-event:18fb9deb771e43810d26"
+      ],
       "coverage": {
-        "roles": 0,
-        "people": 0,
+        "roles": 1,
+        "people": 1,
         "missions": 2,
         "financialMeasures": 2,
         "programs": 68,
@@ -578,8 +701,8 @@
         "accounts": 0,
         "vendors": 2,
         "locations": 1,
-        "sources": 6,
-        "researchGaps": 2
+        "sources": 7,
+        "researchGaps": 1
       },
       "freshness": {
         "latestObservation": "2026-09-28",
@@ -1859,6 +1982,57 @@
         "organization-research-gap:d43cb4971238447a130b",
         "organization-research-gap:9e4f246852d378aae34c",
         "organization-research-gap:fd1b3a6675752fba6189"
+      ],
+      "changeEventIds": [],
+      "coverage": {
+        "roles": 0,
+        "people": 0,
+        "missions": 1,
+        "financialMeasures": 0,
+        "programs": 0,
+        "awards": 0,
+        "accounts": 0,
+        "vendors": 0,
+        "locations": 1,
+        "sources": 1,
+        "researchGaps": 3
+      },
+      "freshness": {
+        "latestObservation": "2026-09-28",
+        "reviewBy": "2026-12-29",
+        "status": "current"
+      },
+      "reviewState": "bounded-reviewed"
+    },
+    {
+      "id": "organization-dossier:e86009d895f75c607fe1",
+      "label": "Defense Logistics Agency Headquarters",
+      "organizationName": "Defense Logistics Agency Headquarters",
+      "categories": [
+        "mission-organization"
+      ],
+      "priorityTier": "tier-1",
+      "parentOrganizationName": "",
+      "roleIds": [],
+      "personIds": [],
+      "missionClaimIds": [
+        "organization-mission-claim:639cac00b21b572c129b"
+      ],
+      "financialSummaryIds": [],
+      "programIds": [],
+      "awardIds": [],
+      "accountIds": [],
+      "vendorNames": [],
+      "locationIds": [
+        "location:dla-hq"
+      ],
+      "sourceUrls": [
+        "https://www.dla.mil/About-DLA/Contact-Us/"
+      ],
+      "researchGapIds": [
+        "organization-research-gap:c9620194cc9ab4ac5610",
+        "organization-research-gap:2aa833eff873d2a0cab9",
+        "organization-research-gap:c40fc3bcdc82c7396802"
       ],
       "changeEventIds": [],
       "coverage": {
@@ -3780,112 +3954,6 @@
       "reviewState": "bounded-reviewed"
     },
     {
-      "id": "organization-dossier:6cc1db74272004555868",
-      "label": "U.S. Army Program Executive Office Command, Control, Communications, and Network",
-      "organizationName": "U.S. Army Program Executive Office Command, Control, Communications, and Network",
-      "categories": [
-        "public-leadership"
-      ],
-      "priorityTier": "tier-1",
-      "parentOrganizationName": "",
-      "roleIds": [
-        "official-role:kevin-chaney-peo-c3n"
-      ],
-      "personIds": [
-        "person:kevin-chaney"
-      ],
-      "missionClaimIds": [],
-      "financialSummaryIds": [],
-      "programIds": [],
-      "awardIds": [],
-      "accountIds": [],
-      "vendorNames": [],
-      "locationIds": [],
-      "sourceUrls": [
-        "https://www.dvidshub.net/image/9144449/project-manager-integrated-enterprise-network-holds-change-charter-and-retirement-ceremonies"
-      ],
-      "researchGapIds": [
-        "organization-research-gap:255369fcd5f6f3c7bcab",
-        "organization-research-gap:fcfb3263884f9ae3fe31",
-        "organization-research-gap:e10f5d0620117346254e"
-      ],
-      "changeEventIds": [
-        "organization-change-event:31c725233f939f9831d6"
-      ],
-      "coverage": {
-        "roles": 1,
-        "people": 1,
-        "missions": 0,
-        "financialMeasures": 0,
-        "programs": 0,
-        "awards": 0,
-        "accounts": 0,
-        "vendors": 0,
-        "locations": 0,
-        "sources": 1,
-        "researchGaps": 3
-      },
-      "freshness": {
-        "latestObservation": "2025-06-26",
-        "reviewBy": "2026-12-29",
-        "status": "review-due"
-      },
-      "reviewState": "bounded-reviewed"
-    },
-    {
-      "id": "organization-dossier:2a4613f366c5621815fe",
-      "label": "U.S. Army Program Executive Office Simulation, Training and Instrumentation",
-      "organizationName": "U.S. Army Program Executive Office Simulation, Training and Instrumentation",
-      "categories": [
-        "public-leadership"
-      ],
-      "priorityTier": "tier-1",
-      "parentOrganizationName": "",
-      "roleIds": [
-        "official-role:christine-beeler-peo-stri"
-      ],
-      "personIds": [
-        "person:christine-beeler"
-      ],
-      "missionClaimIds": [],
-      "financialSummaryIds": [],
-      "programIds": [],
-      "awardIds": [],
-      "accountIds": [],
-      "vendorNames": [],
-      "locationIds": [],
-      "sourceUrls": [
-        "https://www.dvidshub.net/image/9141003/pm-trade-change-charter-2025"
-      ],
-      "researchGapIds": [
-        "organization-research-gap:738ea4e0437ef48af012",
-        "organization-research-gap:3395256e791866abedf1",
-        "organization-research-gap:bd53c910058ee4f5f7a5"
-      ],
-      "changeEventIds": [
-        "organization-change-event:433218e7998a909d28bc"
-      ],
-      "coverage": {
-        "roles": 1,
-        "people": 1,
-        "missions": 0,
-        "financialMeasures": 0,
-        "programs": 0,
-        "awards": 0,
-        "accounts": 0,
-        "vendors": 0,
-        "locations": 0,
-        "sources": 1,
-        "researchGaps": 3
-      },
-      "freshness": {
-        "latestObservation": "2025-06-27",
-        "reviewBy": "2026-12-29",
-        "status": "review-due"
-      },
-      "reviewState": "bounded-reviewed"
-    },
-    {
       "id": "organization-dossier:4a78d8363d8c447dfb3a",
       "label": "Department of the Army",
       "organizationName": "Department of the Army",
@@ -4749,115 +4817,6 @@
         "vendors": 5,
         "locations": 0,
         "sources": 25,
-        "researchGaps": 2
-      },
-      "freshness": {
-        "latestObservation": "2026-10-01",
-        "reviewBy": "2026-12-29",
-        "status": "current"
-      },
-      "reviewState": "bounded-reviewed"
-    },
-    {
-      "id": "organization-dossier:d9eaab1c8e660a7ee1d8",
-      "label": "Defense Logistics Agency",
-      "organizationName": "Defense Logistics Agency",
-      "categories": [
-        "buyer",
-        "program-office"
-      ],
-      "priorityTier": "tier-2",
-      "parentOrganizationName": "",
-      "roleIds": [],
-      "personIds": [],
-      "missionClaimIds": [
-        "organization-mission-claim:3380a791a9950abfd5f9"
-      ],
-      "financialSummaryIds": [
-        "organization-financial-summary:1efcb3f4552042856602",
-        "organization-financial-summary:fdc7853b26cae1db77ae"
-      ],
-      "programIds": [
-        "defense-program:abe8e5b65b1ac2a49b45",
-        "defense-program:ab94e8de8bff11aeca41",
-        "defense-program:1fda42de340edaa95162",
-        "defense-program:12b02b79c387f66a14b8",
-        "defense-program:04a862b3dd05dbfbc1cb",
-        "defense-program:7e139fdcbec14db75d1c",
-        "defense-program:f2b26d379374308ef921",
-        "defense-program:e081a6e6215ac866db7a",
-        "defense-program:045bd2764fcd6f1d6429",
-        "defense-program:e07b5cc0a9b3b1d0f9f1",
-        "defense-program:68f0924b79b7f1f29ea1",
-        "defense-program:6271e2da1c20184066e0",
-        "defense-program:78f2f4e2b38d34aaa4cf",
-        "defense-program:22b7ae7cad9cf0c1c4fa",
-        "defense-program:fef9b6730e1ec15fc924",
-        "defense-program:5888028c7e9762c06ad8",
-        "defense-program:4c4e736b74d44e2cf94a",
-        "defense-program:3881dfdeb6b140edfd0b",
-        "defense-program:16b4b65f85655007a5a3",
-        "defense-program:269684cbd465b5d4d491",
-        "defense-program:489ce5fbb77d7ec7d37d",
-        "defense-program:3d30006012da3fcd5a50",
-        "defense-program:7825d5be53f1c40cff5b",
-        "defense-program:9bd28dbace8b3e35c9f2",
-        "defense-program:2736ea8c3003c140eae7",
-        "defense-program:20b017db8a2f89d2e86c",
-        "defense-program:1ff9f3d24eed2b782d91",
-        "defense-program:e4dbd7d7a888d11f9ab0",
-        "defense-program:8e83a50a52470bcea3d3",
-        "defense-program:4dd49a48db2bdbcc4514",
-        "defense-program:1e15c2d0345c6447cc0a",
-        "defense-program:ab940d7c8fd7d7c3d8a7",
-        "defense-program:02a31953b59ab908a64d",
-        "defense-program:8acc9e62d19bc3d663e1",
-        "defense-program:121e3e9fc15e5c9fc31a",
-        "defense-program:81c28a91ab5467812117",
-        "defense-program:5a46b643a33cda6609d7"
-      ],
-      "awardIds": [
-        "CONT_AWD_SP470122F0180_9700_47QTCA22D004D_4732",
-        "CONT_AWD_SP330020F1300_9700_SP330020D0021_9700",
-        "CONT_AWD_SPRBL121F0059_9700_SPRBL115D0017_9700",
-        "CONT_AWD_SP470124F0084_9700_GS35F0926R_4730",
-        "CONT_AWD_SP470925F0062_9700_SP470924D0051_9700",
-        "CONT_AWD_SP470125C0100_9700_-NONE-_-NONE-"
-      ],
-      "accountIds": [],
-      "vendorNames": [
-        "ADVANTAGED SOLUTIONS",
-        "RAYTHEON",
-        "UNITY TECHNOLOGIES",
-        "CREDENCE MANAGEMENT SOLUTIONS LIABILITY COMPANY"
-      ],
-      "locationIds": [],
-      "sourceUrls": [
-        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-        "https://www.usaspending.gov/award/CONT_AWD_SP470122F0180_9700_47QTCA22D004D_4732/",
-        "https://www.usaspending.gov/award/CONT_AWD_SP330020F1300_9700_SP330020D0021_9700/",
-        "https://www.usaspending.gov/award/CONT_AWD_SPRBL121F0059_9700_SPRBL115D0017_9700/",
-        "https://www.usaspending.gov/award/CONT_AWD_SP470124F0084_9700_GS35F0926R_4730/",
-        "https://www.usaspending.gov/award/CONT_AWD_SP470925F0062_9700_SP470924D0051_9700/"
-      ],
-      "researchGapIds": [
-        "organization-research-gap:86a76bb61216d60d34fc",
-        "organization-research-gap:5198ad972af00d73288e"
-      ],
-      "changeEventIds": [],
-      "coverage": {
-        "roles": 0,
-        "people": 0,
-        "missions": 1,
-        "financialMeasures": 2,
-        "programs": 37,
-        "awards": 6,
-        "accounts": 0,
-        "vendors": 4,
-        "locations": 0,
-        "sources": 8,
         "researchGaps": 2
       },
       "freshness": {
@@ -9045,6 +9004,60 @@
       "reviewState": "bounded-reviewed"
     },
     {
+      "id": "organization-dossier:ec2764842e11e40ae418",
+      "label": "OTE",
+      "organizationName": "OTE",
+      "categories": [
+        "program-office"
+      ],
+      "priorityTier": "tier-2",
+      "parentOrganizationName": "",
+      "roleIds": [],
+      "personIds": [],
+      "missionClaimIds": [
+        "organization-mission-claim:22b916f7f6c77eb25c69"
+      ],
+      "financialSummaryIds": [
+        "organization-financial-summary:6e4c7edd5b8a20b64c0e"
+      ],
+      "programIds": [
+        "defense-program:49245cf2fc70e5be1aad",
+        "defense-program:1569f31fcacf41c2ea21",
+        "defense-program:565a8722cd047b98b448"
+      ],
+      "awardIds": [],
+      "accountIds": [],
+      "vendorNames": [],
+      "locationIds": [],
+      "sourceUrls": [
+        "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx"
+      ],
+      "researchGapIds": [
+        "organization-research-gap:6708982796a3df1705fb",
+        "organization-research-gap:ff0d5a2b76c3544d23bc"
+      ],
+      "changeEventIds": [],
+      "coverage": {
+        "roles": 0,
+        "people": 0,
+        "missions": 1,
+        "financialMeasures": 1,
+        "programs": 3,
+        "awards": 0,
+        "accounts": 0,
+        "vendors": 0,
+        "locations": 0,
+        "sources": 1,
+        "researchGaps": 2
+      },
+      "freshness": {
+        "latestObservation": "2026-10-01",
+        "reviewBy": "2026-12-29",
+        "status": "current"
+      },
+      "reviewState": "bounded-reviewed"
+    },
+    {
       "id": "organization-dossier:5951c69d43259c6feba5",
       "label": "Pentagon Force Protection Agency",
       "organizationName": "Pentagon Force Protection Agency",
@@ -10242,6 +10255,27 @@
   ],
   "missionClaims": [
     {
+      "id": "organization-mission-claim:c932e33932965aa86629",
+      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
+      "label": "U.S. Special Operations Command mission",
+      "claim": "USSOCOM headquarters at MacDill Air Force Base develops and provides special operations forces and capabilities for national defense.",
+      "claimType": "official-mission-or-assignment",
+      "sourceUrl": "https://www.socom.mil/about",
+      "observedAt": "2026-09-28",
+      "locationId": "location:tampa",
+      "reviewState": "reviewed"
+    },
+    {
+      "id": "organization-mission-claim:8430ffbc787290051d3a",
+      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
+      "label": "U.S. Special Operations Command published budget portfolio",
+      "claim": "Published budget sponsorship covers 68 retained defense program records.",
+      "claimType": "published-budget-portfolio",
+      "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
+      "observedAt": "2026-10-01",
+      "reviewState": "deterministic"
+    },
+    {
       "id": "organization-mission-claim:97a8c08cdcebd17fdc70",
       "dossierId": "organization-dossier:23c402c262b01a4bdc8d",
       "label": "House Armed Services Subcommittee on Cyber, Information Technologies, and Innovation jurisdiction",
@@ -10250,6 +10284,16 @@
       "sourceUrl": "https://armedservices.house.gov/Issues/Issue/?IssueID=14892",
       "observedAt": "2026-09-30",
       "reviewState": "source_snapshot"
+    },
+    {
+      "id": "organization-mission-claim:3380a791a9950abfd5f9",
+      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
+      "label": "Defense Logistics Agency published budget portfolio",
+      "claim": "Published budget sponsorship covers 37 retained defense program records.",
+      "claimType": "published-budget-portfolio",
+      "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
+      "observedAt": "2026-10-01",
+      "reviewState": "deterministic"
     },
     {
       "id": "organization-mission-claim:b03945a52bdb59505947",
@@ -10280,27 +10324,6 @@
       "sourceUrl": "https://www.appropriations.senate.gov/subcommittees/defense",
       "observedAt": "2026-09-30",
       "reviewState": "source_snapshot"
-    },
-    {
-      "id": "organization-mission-claim:c932e33932965aa86629",
-      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
-      "label": "U.S. Special Operations Command mission",
-      "claim": "USSOCOM headquarters at MacDill Air Force Base develops and provides special operations forces and capabilities for national defense.",
-      "claimType": "official-mission-or-assignment",
-      "sourceUrl": "https://www.socom.mil/about",
-      "observedAt": "2026-09-28",
-      "locationId": "location:tampa",
-      "reviewState": "reviewed"
-    },
-    {
-      "id": "organization-mission-claim:8430ffbc787290051d3a",
-      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
-      "label": "U.S. Special Operations Command published budget portfolio",
-      "claim": "Published budget sponsorship covers 68 retained defense program records.",
-      "claimType": "published-budget-portfolio",
-      "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-      "observedAt": "2026-10-01",
-      "reviewState": "deterministic"
     },
     {
       "id": "organization-mission-claim:f7eb5b5b565d2ffcb502",
@@ -10600,6 +10623,17 @@
       "reviewState": "reviewed"
     },
     {
+      "id": "organization-mission-claim:639cac00b21b572c129b",
+      "dossierId": "organization-dossier:e86009d895f75c607fe1",
+      "label": "Defense Logistics Agency Headquarters mission",
+      "claim": "Agency headquarters in the McNamara Headquarters Complex at Fort Belvoir.",
+      "claimType": "official-mission-or-assignment",
+      "sourceUrl": "https://www.dla.mil/About-DLA/Contact-Us/",
+      "observedAt": "2026-09-28",
+      "locationId": "location:dla-hq",
+      "reviewState": "reviewed"
+    },
+    {
       "id": "organization-mission-claim:13d65802a023d6c355ff",
       "dossierId": "organization-dossier:59bea56b635fe04c25de",
       "label": "Air Force / Space Force published budget portfolio",
@@ -10646,16 +10680,6 @@
       "claim": "Published budget sponsorship covers 57 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
-      "reviewState": "deterministic"
-    },
-    {
-      "id": "organization-mission-claim:3380a791a9950abfd5f9",
-      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
-      "label": "Defense Logistics Agency published budget portfolio",
-      "claim": "Published budget sponsorship covers 37 retained defense program records.",
-      "claimType": "published-budget-portfolio",
-      "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
       "observedAt": "2026-10-01",
       "reviewState": "deterministic"
     },
@@ -10800,6 +10824,16 @@
       "reviewState": "deterministic"
     },
     {
+      "id": "organization-mission-claim:22b916f7f6c77eb25c69",
+      "dossierId": "organization-dossier:ec2764842e11e40ae418",
+      "label": "OTE published budget portfolio",
+      "claim": "Published budget sponsorship covers 3 retained defense program records.",
+      "claimType": "published-budget-portfolio",
+      "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
+      "observedAt": "2026-10-01",
+      "reviewState": "deterministic"
+    },
+    {
       "id": "organization-mission-claim:1dea5e1133c4c0340e7f",
       "dossierId": "organization-dossier:19a38167e67941039509",
       "label": "Defense Contract Management Agency published budget portfolio",
@@ -10811,17 +10845,6 @@
     }
   ],
   "financialSummaries": [
-    {
-      "id": "organization-financial-summary:2f2a9f3734c4b27d2898",
-      "dossierId": "organization-dossier:d90fcb2612bb1c455146",
-      "label": "Retained buyer award value",
-      "measureType": "retained-life-of-award-value",
-      "amountDollars": 721469334327.5703,
-      "awardCount": 234,
-      "vendorCount": 79,
-      "sourceBoundary": "Retained award corpus; not annual obligations or total market size.",
-      "reviewState": "deterministic"
-    },
     {
       "id": "organization-financial-summary:268053a0a5cbaad29e61",
       "dossierId": "organization-dossier:30cd759491fa91c28ae0",
@@ -10842,6 +10865,39 @@
       "programCount": 68,
       "baselineCount": 68,
       "sourceBoundary": "Budget requests are separate from authority, obligations, outlays, award value, and ceilings.",
+      "reviewState": "deterministic"
+    },
+    {
+      "id": "organization-financial-summary:1efcb3f4552042856602",
+      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
+      "label": "Retained buyer award value",
+      "measureType": "retained-life-of-award-value",
+      "amountDollars": 920203122.6999999,
+      "awardCount": 5,
+      "vendorCount": 3,
+      "sourceBoundary": "Retained award corpus; not annual obligations or total market size.",
+      "reviewState": "deterministic"
+    },
+    {
+      "id": "organization-financial-summary:fdc7853b26cae1db77ae",
+      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
+      "label": "Published request baselines",
+      "measureType": "presidents-budget-request",
+      "amountDollars": 734518,
+      "programCount": 37,
+      "baselineCount": 37,
+      "sourceBoundary": "Budget requests are separate from authority, obligations, outlays, award value, and ceilings.",
+      "reviewState": "deterministic"
+    },
+    {
+      "id": "organization-financial-summary:2f2a9f3734c4b27d2898",
+      "dossierId": "organization-dossier:d90fcb2612bb1c455146",
+      "label": "Retained buyer award value",
+      "measureType": "retained-life-of-award-value",
+      "amountDollars": 721469334327.5703,
+      "awardCount": 234,
+      "vendorCount": 79,
+      "sourceBoundary": "Retained award corpus; not annual obligations or total market size.",
       "reviewState": "deterministic"
     },
     {
@@ -10907,28 +10963,6 @@
       "amountDollars": 18475745.000000004,
       "programCount": 57,
       "baselineCount": 57,
-      "sourceBoundary": "Budget requests are separate from authority, obligations, outlays, award value, and ceilings.",
-      "reviewState": "deterministic"
-    },
-    {
-      "id": "organization-financial-summary:1efcb3f4552042856602",
-      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
-      "label": "Retained buyer award value",
-      "measureType": "retained-life-of-award-value",
-      "amountDollars": 920203122.6999999,
-      "awardCount": 5,
-      "vendorCount": 3,
-      "sourceBoundary": "Retained award corpus; not annual obligations or total market size.",
-      "reviewState": "deterministic"
-    },
-    {
-      "id": "organization-financial-summary:fdc7853b26cae1db77ae",
-      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
-      "label": "Published request baselines",
-      "measureType": "presidents-budget-request",
-      "amountDollars": 734518,
-      "programCount": 37,
-      "baselineCount": 37,
       "sourceBoundary": "Budget requests are separate from authority, obligations, outlays, award value, and ceilings.",
       "reviewState": "deterministic"
     },
@@ -11138,6 +11172,17 @@
       "amountDollars": 39806.99999999999,
       "programCount": 4,
       "baselineCount": 4,
+      "sourceBoundary": "Budget requests are separate from authority, obligations, outlays, award value, and ceilings.",
+      "reviewState": "deterministic"
+    },
+    {
+      "id": "organization-financial-summary:6e4c7edd5b8a20b64c0e",
+      "dossierId": "organization-dossier:ec2764842e11e40ae418",
+      "label": "Published request baselines",
+      "measureType": "presidents-budget-request",
+      "amountDollars": 112364.99999999999,
+      "programCount": 3,
+      "baselineCount": 3,
       "sourceBoundary": "Budget requests are separate from authority, obligations, outlays, award value, and ceilings.",
       "reviewState": "deterministic"
     },
@@ -11483,6 +11528,16 @@
       "reviewState": "needs_review"
     },
     {
+      "id": "organization-research-gap:0c2cf6ba6d0f1a105e88",
+      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
+      "gapType": "hierarchy",
+      "label": "U.S. Special Operations Command: hierarchy",
+      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
+      "priority": "medium",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
       "id": "organization-research-gap:dad4aff1aac2c4b3e75e",
       "dossierId": "organization-dossier:23c402c262b01a4bdc8d",
       "gapType": "finance",
@@ -11568,6 +11623,16 @@
       "gapType": "finance",
       "label": "House Armed Services Subcommittee on Tactical Air and Land Forces: finance",
       "description": "Resolve organization-scoped request, authority, obligation, outlay, or exact award measures.",
+      "priority": "medium",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
+      "id": "organization-research-gap:5198ad972af00d73288e",
+      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
+      "gapType": "hierarchy",
+      "label": "Defense Logistics Agency: hierarchy",
+      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
       "priority": "medium",
       "status": "open",
       "reviewState": "needs_review"
@@ -11937,86 +12002,6 @@
       "dossierId": "organization-dossier:737a5ee40a1f19c1b026",
       "gapType": "hierarchy",
       "label": "House Appropriations Subcommittee on Defense: hierarchy",
-      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
-      "priority": "medium",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:1d7405cee4168b494b1f",
-      "dossierId": "organization-dossier:a4f287eababe0f2b15e0",
-      "gapType": "mission",
-      "label": "House Committee on Appropriations: mission",
-      "description": "Obtain a current official charter, mission statement, directive, or jurisdiction page.",
-      "priority": "high",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:02918841d34a191eae24",
-      "dossierId": "organization-dossier:a4f287eababe0f2b15e0",
-      "gapType": "finance",
-      "label": "House Committee on Appropriations: finance",
-      "description": "Resolve organization-scoped request, authority, obligation, outlay, or exact award measures.",
-      "priority": "medium",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:4b19f55de27608108004",
-      "dossierId": "organization-dossier:a4f287eababe0f2b15e0",
-      "gapType": "hierarchy",
-      "label": "House Committee on Appropriations: hierarchy",
-      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
-      "priority": "medium",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:55871dc21db2c6bd4aca",
-      "dossierId": "organization-dossier:ced2207463c1ba104197",
-      "gapType": "mission",
-      "label": "Soldier Medical Devices Project Management Office: mission",
-      "description": "Obtain a current official charter, mission statement, directive, or jurisdiction page.",
-      "priority": "high",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:a9df99c200cf145505a9",
-      "dossierId": "organization-dossier:ced2207463c1ba104197",
-      "gapType": "finance",
-      "label": "Soldier Medical Devices Project Management Office: finance",
-      "description": "Resolve organization-scoped request, authority, obligation, outlay, or exact award measures.",
-      "priority": "medium",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:5b824c6985afd1a7081c",
-      "dossierId": "organization-dossier:ced2207463c1ba104197",
-      "gapType": "hierarchy",
-      "label": "Soldier Medical Devices Project Management Office: hierarchy",
-      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
-      "priority": "medium",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:88053f43fba68d4c7294",
-      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
-      "gapType": "leadership",
-      "label": "U.S. Special Operations Command: leadership",
-      "description": "Identify current and historical public professional leaders with official tenure evidence.",
-      "priority": "high",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:0c2cf6ba6d0f1a105e88",
-      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
-      "gapType": "hierarchy",
-      "label": "U.S. Special Operations Command: hierarchy",
       "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
       "priority": "medium",
       "status": "open",
@@ -12743,6 +12728,36 @@
       "reviewState": "needs_review"
     },
     {
+      "id": "organization-research-gap:c9620194cc9ab4ac5610",
+      "dossierId": "organization-dossier:e86009d895f75c607fe1",
+      "gapType": "leadership",
+      "label": "Defense Logistics Agency Headquarters: leadership",
+      "description": "Identify current and historical public professional leaders with official tenure evidence.",
+      "priority": "high",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
+      "id": "organization-research-gap:2aa833eff873d2a0cab9",
+      "dossierId": "organization-dossier:e86009d895f75c607fe1",
+      "gapType": "finance",
+      "label": "Defense Logistics Agency Headquarters: finance",
+      "description": "Resolve organization-scoped request, authority, obligation, outlay, or exact award measures.",
+      "priority": "medium",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
+      "id": "organization-research-gap:c40fc3bcdc82c7396802",
+      "dossierId": "organization-dossier:e86009d895f75c607fe1",
+      "gapType": "hierarchy",
+      "label": "Defense Logistics Agency Headquarters: hierarchy",
+      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
+      "priority": "medium",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
       "id": "organization-research-gap:f19445aa018955bc38e9",
       "dossierId": "organization-dossier:59bea56b635fe04c25de",
       "gapType": "leadership",
@@ -12837,26 +12852,6 @@
       "dossierId": "organization-dossier:463bfa0b5f5fcc2d1abe",
       "gapType": "hierarchy",
       "label": "Missile Defense Agency: hierarchy",
-      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
-      "priority": "medium",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:86a76bb61216d60d34fc",
-      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
-      "gapType": "leadership",
-      "label": "Defense Logistics Agency: leadership",
-      "description": "Identify current and historical public professional leaders with official tenure evidence.",
-      "priority": "high",
-      "status": "open",
-      "reviewState": "needs_review"
-    },
-    {
-      "id": "organization-research-gap:5198ad972af00d73288e",
-      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
-      "gapType": "hierarchy",
-      "label": "Defense Logistics Agency: hierarchy",
       "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
       "priority": "medium",
       "status": "open",
@@ -13137,6 +13132,26 @@
       "dossierId": "organization-dossier:a60bb8a213ce1e65f4d3",
       "gapType": "hierarchy",
       "label": "DIA: hierarchy",
+      "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
+      "priority": "medium",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
+      "id": "organization-research-gap:6708982796a3df1705fb",
+      "dossierId": "organization-dossier:ec2764842e11e40ae418",
+      "gapType": "leadership",
+      "label": "OTE: leadership",
+      "description": "Identify current and historical public professional leaders with official tenure evidence.",
+      "priority": "high",
+      "status": "open",
+      "reviewState": "needs_review"
+    },
+    {
+      "id": "organization-research-gap:ff0d5a2b76c3544d23bc",
+      "dossierId": "organization-dossier:ec2764842e11e40ae418",
+      "gapType": "hierarchy",
+      "label": "OTE: hierarchy",
       "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
       "priority": "medium",
       "status": "open",
@@ -13973,60 +13988,60 @@
       "reviewState": "needs_review"
     },
     {
-      "id": "organization-research-gap:255369fcd5f6f3c7bcab",
-      "dossierId": "organization-dossier:6cc1db74272004555868",
+      "id": "organization-research-gap:1d7405cee4168b494b1f",
+      "dossierId": "organization-dossier:a4f287eababe0f2b15e0",
       "gapType": "mission",
-      "label": "U.S. Army Program Executive Office Command, Control, Communications, and Network: mission",
+      "label": "House Committee on Appropriations: mission",
       "description": "Obtain a current official charter, mission statement, directive, or jurisdiction page.",
       "priority": "high",
       "status": "open",
       "reviewState": "needs_review"
     },
     {
-      "id": "organization-research-gap:fcfb3263884f9ae3fe31",
-      "dossierId": "organization-dossier:6cc1db74272004555868",
+      "id": "organization-research-gap:02918841d34a191eae24",
+      "dossierId": "organization-dossier:a4f287eababe0f2b15e0",
       "gapType": "finance",
-      "label": "U.S. Army Program Executive Office Command, Control, Communications, and Network: finance",
+      "label": "House Committee on Appropriations: finance",
       "description": "Resolve organization-scoped request, authority, obligation, outlay, or exact award measures.",
       "priority": "medium",
       "status": "open",
       "reviewState": "needs_review"
     },
     {
-      "id": "organization-research-gap:e10f5d0620117346254e",
-      "dossierId": "organization-dossier:6cc1db74272004555868",
+      "id": "organization-research-gap:4b19f55de27608108004",
+      "dossierId": "organization-dossier:a4f287eababe0f2b15e0",
       "gapType": "hierarchy",
-      "label": "U.S. Army Program Executive Office Command, Control, Communications, and Network: hierarchy",
+      "label": "House Committee on Appropriations: hierarchy",
       "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
       "priority": "medium",
       "status": "open",
       "reviewState": "needs_review"
     },
     {
-      "id": "organization-research-gap:738ea4e0437ef48af012",
-      "dossierId": "organization-dossier:2a4613f366c5621815fe",
+      "id": "organization-research-gap:55871dc21db2c6bd4aca",
+      "dossierId": "organization-dossier:ced2207463c1ba104197",
       "gapType": "mission",
-      "label": "U.S. Army Program Executive Office Simulation, Training and Instrumentation: mission",
+      "label": "Soldier Medical Devices Project Management Office: mission",
       "description": "Obtain a current official charter, mission statement, directive, or jurisdiction page.",
       "priority": "high",
       "status": "open",
       "reviewState": "needs_review"
     },
     {
-      "id": "organization-research-gap:3395256e791866abedf1",
-      "dossierId": "organization-dossier:2a4613f366c5621815fe",
+      "id": "organization-research-gap:a9df99c200cf145505a9",
+      "dossierId": "organization-dossier:ced2207463c1ba104197",
       "gapType": "finance",
-      "label": "U.S. Army Program Executive Office Simulation, Training and Instrumentation: finance",
+      "label": "Soldier Medical Devices Project Management Office: finance",
       "description": "Resolve organization-scoped request, authority, obligation, outlay, or exact award measures.",
       "priority": "medium",
       "status": "open",
       "reviewState": "needs_review"
     },
     {
-      "id": "organization-research-gap:bd53c910058ee4f5f7a5",
-      "dossierId": "organization-dossier:2a4613f366c5621815fe",
+      "id": "organization-research-gap:5b824c6985afd1a7081c",
+      "dossierId": "organization-dossier:ced2207463c1ba104197",
       "gapType": "hierarchy",
-      "label": "U.S. Army Program Executive Office Simulation, Training and Instrumentation: hierarchy",
+      "label": "Soldier Medical Devices Project Management Office: hierarchy",
       "description": "Resolve the exact parent and subordinate organization structure from an official hierarchy source.",
       "priority": "medium",
       "status": "open",
@@ -14291,6 +14306,20 @@
       "personId": "person:donald-norcross-f8865ec3",
       "sourceIds": [
         "hasc-members"
+      ],
+      "reviewState": "source_snapshot"
+    },
+    {
+      "id": "organization-change-event:18fb9deb771e43810d26",
+      "dossierId": "organization-dossier:30cd759491fa91c28ae0",
+      "label": "Commander, U.S. Special Operations Command: role start or observation",
+      "eventType": "role-start-or-observation",
+      "effectiveAt": "2025-10-03",
+      "roleId": "official-role:frank-bradley-ussocom-commander",
+      "personId": "person:frank-bradley",
+      "sourceIds": [
+        "socom-commander-biography-2026",
+        "socom-about-2026"
       ],
       "reviewState": "source_snapshot"
     },
@@ -15500,6 +15529,19 @@
       "personId": "person:donald-norcross-f8865ec3",
       "sourceIds": [
         "hasc-tactical"
+      ],
+      "reviewState": "source_snapshot"
+    },
+    {
+      "id": "organization-change-event:6d2e5140e252df917234",
+      "dossierId": "organization-dossier:d9eaab1c8e660a7ee1d8",
+      "label": "Director, Defense Logistics Agency: role start or observation",
+      "eventType": "role-start-or-observation",
+      "effectiveAt": "2026-10-01",
+      "roleId": "official-role:mark-simerly-dla-director",
+      "personId": "person:mark-simerly",
+      "sourceIds": [
+        "dla-leadership-2026"
       ],
       "reviewState": "source_snapshot"
     },
@@ -17350,32 +17392,6 @@
         "dvids-smd-2024"
       ],
       "reviewState": "reviewed"
-    },
-    {
-      "id": "organization-change-event:31c725233f939f9831d6",
-      "dossierId": "organization-dossier:6cc1db74272004555868",
-      "label": "Program Executive Officer: role start or observation",
-      "eventType": "role-start-or-observation",
-      "effectiveAt": "2025-06-26",
-      "roleId": "official-role:kevin-chaney-peo-c3n",
-      "personId": "person:kevin-chaney",
-      "sourceIds": [
-        "dvids-pm-ien-2025"
-      ],
-      "reviewState": "source_snapshot"
-    },
-    {
-      "id": "organization-change-event:433218e7998a909d28bc",
-      "dossierId": "organization-dossier:2a4613f366c5621815fe",
-      "label": "Program Executive Officer: role start or observation",
-      "eventType": "role-start-or-observation",
-      "effectiveAt": "2025-06-27",
-      "roleId": "official-role:christine-beeler-peo-stri",
-      "personId": "person:christine-beeler",
-      "sourceIds": [
-        "dvids-pm-trade-2025"
-      ],
-      "reviewState": "source_snapshot"
     }
   ],
   "people": [
@@ -17462,6 +17478,14 @@
       "id": "person:elissa-slotkin",
       "label": "Elissa Slotkin",
       "publicProfileUrl": ""
+    },
+    {
+      "id": "person:frank-bradley",
+      "label": "Frank M. Bradley"
+    },
+    {
+      "id": "person:mark-simerly",
+      "label": "Mark T. Simerly"
     },
     {
       "id": "person:abe-hamadeh-7e46f145",
@@ -18239,6 +18263,39 @@
         "senate-armed-services-subcommittees-119"
       ],
       "evidenceQuote": "The official subcommittee directory identifies Elissa Slotkin as ranking member.",
+      "reviewState": "source_snapshot"
+    },
+    {
+      "id": "official-role:frank-bradley-ussocom-commander",
+      "personId": "person:frank-bradley",
+      "title": "Commander, U.S. Special Operations Command",
+      "roleType": "combatant-commander",
+      "organizationName": "U.S. Special Operations Command",
+      "effectiveFrom": "2025-10-03",
+      "effectiveTo": "",
+      "datePrecision": "day",
+      "status": "observed-current",
+      "sourceIds": [
+        "socom-commander-biography-2026",
+        "socom-about-2026"
+      ],
+      "evidenceQuote": "Became the commander of U.S. Special Operations Command, Oct. 3, 2025.",
+      "reviewState": "source_snapshot"
+    },
+    {
+      "id": "official-role:mark-simerly-dla-director",
+      "personId": "person:mark-simerly",
+      "title": "Director, Defense Logistics Agency",
+      "roleType": "agency-director",
+      "organizationName": "Defense Logistics Agency",
+      "effectiveFrom": "2026-10-01",
+      "effectiveTo": "",
+      "datePrecision": "observed-current-lower-bound",
+      "status": "observed-current",
+      "sourceIds": [
+        "dla-leadership-2026"
+      ],
+      "evidenceQuote": "LTG, U.S. Army, Mark T. Simerly\n\nDirector, Defense Logistics Agency",
       "reviewState": "source_snapshot"
     },
     {
@@ -22657,6 +22714,27 @@
       "publisher": "Senate Committee on Armed Services",
       "url": "https://www.armed-services.senate.gov/subcommittees",
       "publishedAt": "2026-09-30"
+    },
+    {
+      "id": "socom-commander-biography-2026",
+      "title": "USSOCOM Commander Biography",
+      "publisher": "U.S. Special Operations Command",
+      "url": "https://www.socom.mil/about/commanders-biography",
+      "publishedAt": "2026-10-01"
+    },
+    {
+      "id": "socom-about-2026",
+      "title": "About USSOCOM",
+      "publisher": "U.S. Special Operations Command",
+      "url": "https://www.socom.mil/about",
+      "publishedAt": "2026-10-01"
+    },
+    {
+      "id": "dla-leadership-2026",
+      "title": "DLA Leadership",
+      "publisher": "Defense Logistics Agency",
+      "url": "https://www.dla.mil/About-DLA/Leaders/Director/",
+      "publishedAt": "2026-10-01"
     },
     {
       "id": "hasc-members",
