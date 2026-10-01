@@ -146,6 +146,15 @@ try {
   assert.equal(await page.locator('[data-budget-nav-menu="platform-admin"] a[data-budget-nav]').count(), 2, "Platform administration should contain Accounts and Workspaces only");
   assert.match(await page.locator('[data-budget-nav-menu="platform-admin"]').innerText(), /Accounts[\s\S]*Workspaces/i);
   await page.locator('[data-nav-group-trigger="platform-admin"]').click();
+  await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-research-discovery-dashboard]');
+  await page.waitForSelector('[data-research-config]');
+  const researchDashboardText = await page.locator('[data-research-discovery-dashboard]').innerText();
+  assert.match(researchDashboardText, /Discovery operations[\s\S]*Graph records added[\s\S]*Organizations explored[\s\S]*Research-gap exploration[\s\S]*Run throughput[\s\S]*Research configuration[\s\S]*Recent cycles[\s\S]*Recent findings/i, "Workspace managers must receive the complete autonomous research dashboard");
+  assert.equal(await page.locator('[data-research-config] .if-picker').count(), 5, "Research configuration must expose enabled, cadence, model, reasoning, and publication controls");
+  assert.equal(await page.locator('[data-research-config] input[type="number"]').count(), 5, "Research configuration must expose bounded batch, concurrency, source, claim, and revisit controls");
+  assert.equal(await page.locator('[data-research-run-chart]').count(), 1, "Research operations must expose one accessible run-throughput chart");
+  await page.screenshot({ path: "test-results/research-discovery-dashboard-desktop.png", fullPage: true });
   const desktopTrigger = page.locator("[data-profile-menu-trigger]");
   const desktopTriggerBox = await desktopTrigger.boundingBox();
   assert.ok(desktopTriggerBox && desktopTriggerBox.height >= 34 && desktopTriggerBox.height <= 38, `Desktop profile trigger should match the compact account control, got ${desktopTriggerBox?.height}px`);
@@ -1340,6 +1349,18 @@ try {
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
   assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
+  await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-research-discovery-dashboard]');
+  await page.waitForSelector('[data-research-config]');
+  const mobileResearchGeometry = await page.locator('[data-research-discovery-dashboard]').evaluate((node) => ({
+    overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    controls: [...node.querySelectorAll('button, input, select')].filter((control) => getComputedStyle(control).display !== "none").map((control) => control.getBoundingClientRect().height),
+    metricColumns: getComputedStyle(node.querySelector('.research-dashboard__metrics')).gridTemplateColumns.split(" ").length,
+  }));
+  assert.ok(mobileResearchGeometry.overflow <= 2, `Mobile research operations must not overflow: ${JSON.stringify(mobileResearchGeometry)}`);
+  assert.ok(mobileResearchGeometry.controls.every((height) => height >= 43.5), `Mobile research controls must retain 44px targets: ${mobileResearchGeometry.controls.join(", ")}`);
+  assert.equal(mobileResearchGeometry.metricColumns, 2, "Mobile research KPIs must use a compact two-column grid");
+  await page.screenshot({ path: "test-results/research-discovery-dashboard-mobile.png", fullPage: true });
   const trigger = page.locator("[data-profile-menu-trigger]");
   const box = await trigger.boundingBox();
   assert.ok(box && box.width >= 42 && box.height >= 42, "Mobile profile trigger must meet the 42px touch target");

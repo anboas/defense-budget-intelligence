@@ -3,13 +3,14 @@ import { readFileSync } from "node:fs";
 import scheduler from "../workers/acquisition-scheduler.js";
 
 const config = readFileSync("wrangler.scheduler.toml", "utf8");
-assert.match(config, /crons\s*=\s*\["17 \* \* \* \*"\]/, "The acquisition scheduler must run hourly at a stable offset");
+assert.match(config, /crons\s*=\s*\["\*\/15 \* \* \* \*"\]/, "The shared scheduler must evaluate due workspaces every 15 minutes");
 assert.match(config, /DBI_APP_ORIGIN\s*=\s*"https:\/\/defense-budget-intelligence\.pages\.dev"/, "The scheduler must target the production application boundary");
 
 const originalFetch = globalThis.fetch;
 const requests = [];
 globalThis.fetch = async (url, options) => {
   requests.push({ url: String(url), options });
+  if (String(url).includes("research-schedule")) return Response.json({ scheduled: 1, runIds: ["run-1"] }, { status: 202 });
   return String(url).includes("event-discovery")
     ? Response.json({ sourcesAttempted: 2, succeeded: 2 })
     : Response.json({ keyedWorkspaces: 0, dueWorkspaces: 0, executed: 0 });
@@ -20,9 +21,11 @@ try {
   const result = await task;
   assert.equal(result.acquisition.executed, 0);
   assert.equal(result.eventDiscovery.succeeded, 2);
+  assert.equal(result.researchDiscovery.scheduled, 1);
   assert.deepEqual(requests.map((request) => request.url).sort(), [
     "https://defense-budget-intelligence.pages.dev/api/v1/system/acquisition-schedule",
     "https://defense-budget-intelligence.pages.dev/api/v1/system/event-discovery-schedule",
+    "https://defense-budget-intelligence.pages.dev/api/v1/system/research-schedule",
   ]);
   assert.ok(requests.every((request) => request.options.method === "POST"));
   assert.ok(requests.every((request) => /^Bearer /.test(request.options.headers.authorization)));
@@ -32,4 +35,4 @@ try {
   globalThis.fetch = originalFetch;
 }
 
-console.log("Verified hourly acquisition and event-discovery triggers, protected endpoint handoff, and closed public trigger surface.");
+console.log("Verified 15-minute acquisition, event-discovery, and research triggers, protected endpoint handoff, and closed public trigger surface.");

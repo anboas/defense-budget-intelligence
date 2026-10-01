@@ -661,6 +661,52 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.workspaceKeys[0].status, "active");
     assert.deepEqual(body.personalKeys[0].usage, { requestCount: 0, successCount: 0, failureCount: 0, inputTokens: 0, outputTokens: 0, averageLatencyMs: 0, lastRequestAt: null }, "New credentials must expose an empty aggregate usage boundary without inventing calls");
     assert.doesNotMatch(JSON.stringify(body), /encryptedKey|encrypted_key|keyIv|key_iv/i, "Credential listings must expose metadata only");
+    response = await apiRequest(baseUrl, "/api/v1/auth/research-operations", { cookie: viewerCookie });
+    assert.ok([401, 403].includes(response.status), "Non-manager sessions must not inspect autonomous research operations");
+    response = await apiRequest(baseUrl, "/api/v1/auth/research-operations", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Workspace managers must be able to inspect autonomous research operations");
+    body = await response.json();
+    assert.equal(body.config.model, "gpt-5-nano", "The server-side discovery default must use the lowest-cost supported GPT-5 model");
+    assert.equal(body.config.reasoningEffort, "low");
+    assert.equal(body.config.cadenceMinutes, 15);
+    assert.equal(body.credentialAvailable, true);
+    response = await apiRequest(baseUrl, "/api/v1/auth/research-operations/config", {
+      method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+        enabled: true, cadenceMinutes: 30, batchSize: 3, concurrency: 2, maxSourcesPerTarget: 3,
+        maxClaimsPerTarget: 2, revisitAfterHours: 48, model: "gpt-5-nano", reasoningEffort: "low", autoPublish: true,
+      },
+    });
+    assert.equal(response.status, 200, "Workspace managers must be able to tune research speed and cost controls");
+    body = await response.json();
+    assert.equal(body.config.batchSize, 3);
+    response = await apiRequest(baseUrl, "/api/v1/auth/research-operations/run", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {} });
+    assert.equal(response.status, 200, "Manual research cycles must execute as durable server-side work");
+    const researchRunId = (await response.json()).run.id;
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      response = await apiRequest(baseUrl, "/api/v1/auth/research-operations", { cookie: ownerCookie });
+      body = await response.json();
+      const run = body.runs.find((candidate) => candidate.id === researchRunId);
+      if (run && ["succeeded", "partial", "failed"].includes(run.status)) break;
+      await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    }
+    const completedResearchRun = body.runs.find((candidate) => candidate.id === researchRunId);
+    assert.equal(completedResearchRun?.status, "succeeded", "Mock research must complete inside the durable Pages/D1 lifecycle");
+    assert.equal(completedResearchRun?.targetsCompleted, 3);
+    assert.equal(completedResearchRun?.claimsPublished, 3, "Exact mock claims must pass the autonomous publication gate");
+    assert.equal(completedResearchRun?.entitiesPublished, 6, "Three exact leadership findings must materialize people and official roles");
+    assert.ok(completedResearchRun?.relationsPublished >= 9, "Leadership findings must materialize dossier and role relationships");
+    assert.equal(body.summary.organizationsExplored, 3);
+    const publishedResearchClaims = body.claims.filter((claim) => claim.runId === researchRunId && claim.status === "published");
+    assert.equal(publishedResearchClaims.length, 3);
+    response = await apiRequest(baseUrl, `/api/v1/agent/evidence/claims?targetEntityId=${encodeURIComponent(publishedResearchClaims[0].dossierId)}`, { cookie: ownerCookie });
+    assert.equal(response.status, 200, "Autonomously published evidence must be immediately queryable through Agent API 1.1");
+    body = await response.json();
+    assert.ok(body.data.some((claim) => claim.proposalId === publishedResearchClaims[0].value?.proposalId || claim.targetEntityId === publishedResearchClaims[0].dossierId), "The Agent API evidence resource must expose the applied workspace overlay");
+    response = await apiRequest(baseUrl, "/api/v1/system/research-schedule", { method: "POST", body: {} });
+    assert.equal(response.status, 401, "The research scheduler must reject unauthenticated triggers");
+    response = await apiRequest(baseUrl, "/api/v1/system/research-schedule", { method: "POST", headers: { authorization: "Bearer verification-only-scheduler-token-0000001" } });
+    assert.equal(response.status, 202, "The protected scheduler must accept the configured service token");
+    assert.equal((await response.json()).scheduled, 0, "A recently completed workspace must respect its configured cadence");
     const samGovKey = "sam_verification_workspace_0001";
     response = await apiRequest(baseUrl, "/api/v1/auth/provider-credentials/sam-gov", { cookie: viewerCookie });
     assert.ok([401, 403].includes(response.status), "Non-manager sessions must not read workspace provider credential metadata");

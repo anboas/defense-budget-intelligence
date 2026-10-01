@@ -18,13 +18,15 @@ const mapStyleBytes = styleAssets.find((asset) => /^OpportunityMap-.*\.css$/.tes
 const connectedEvidenceStyleBytes = styleAssets.find((asset) => /^ConnectedEvidence-.*\.css$/.test(asset.name))?.bytes || 0;
 const domainModelStyleBytes = styleAssets.find((asset) => /^DomainModelPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^IntelligenceProductsPage-.*\.css$/.test(asset.name))?.bytes || 0;
+const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
 assert.ok(connectedEvidenceStyleBytes > 0 && connectedEvidenceStyleBytes <= 4_000, `Deferred connected-evidence CSS must stay within its 4 KB component budget, got ${connectedEvidenceStyleBytes.toLocaleString()} bytes`);
 assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Domain Model CSS must stay within its 8 KB route budget, got ${domainModelStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 400_000, `Total scoped CSS must stay below 400 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 410_000, `Total scoped CSS must stay below 410 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
@@ -32,6 +34,7 @@ assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).l
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
 assert.equal(builtAssets.filter((name) => /^DomainModelPage-.*\.js$/.test(name)).length, 1, "Domain Model should ship behind its own lazy administration boundary");
+assert.equal(builtAssets.filter((name) => /^ResearchDiscoveryDashboard-.*\.js$/.test(name)).length, 1, "Discovery Operations should ship behind its own deferred administration boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(name)).length, 1, "Integrations should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
@@ -449,6 +452,9 @@ try {
   assert.equal(await page.locator("[data-organization-monitor-source]").count(), 10, "Organization Watch should retain every monitored official source");
   assert.equal(await page.locator("[data-organization-watch-clear]").count(), 1, "An unchanged baseline should disclose that no source changes are pending");
   assert.match(await page.locator("[data-organization-watch-panel]").innerText(), /missing listing never ends a tenure[\s\S]*cannot overwrite a dossier until reviewed/i, "Organization Watch should disclose its fail-closed review policy");
+  await page.getByRole("button", { name: "Discovery ops" }).click();
+  await page.waitForSelector('[data-research-discovery-dashboard][data-research-discovery-state="primary-only"]');
+  assert.match(await page.locator("[data-research-discovery-dashboard]").innerText(), /Server-side operations live on Cloudflare[\s\S]*primary authenticated application/i, "The static fallback must direct operators to the authenticated research runtime without simulating run state");
   await page.getByRole("button", { name: "Industrial base" }).click();
   assert.equal(await page.locator("[data-industrial-base-panel]").count(), 1, "Industrial-base evidence should be available on demand");
   await page.getByRole("button", { name: "Accountability" }).click();

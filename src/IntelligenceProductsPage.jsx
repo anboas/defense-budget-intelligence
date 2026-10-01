@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ControlAsyncState, ControlPageHeader } from "control-surface-ui/react";
-import { BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, Search, ShieldCheck, UsersRound } from "lucide-react";
+import { Activity, BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, Search, ShieldCheck, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import "./IntelligenceProductsPage.css";
+
+const ResearchDiscoveryDashboard = lazy(() => import("./ResearchDiscoveryDashboard.jsx"));
 
 const SECTIONS = [
   ["organizations", "Organizations"],
@@ -11,6 +13,7 @@ const SECTIONS = [
   ["accountability", "Accountability"],
   ["documents", "Documents"],
   ["monitoring", "Organization watch"],
+  ["discovery", "Discovery ops"],
   ["operations", "Operational products"],
 ];
 
@@ -35,6 +38,13 @@ function setOrganizationRoute(id = "") {
   const [path, search = ""] = String(window.location.hash || "#/budget-spend/intelligence").split("?");
   const params = new URLSearchParams(search);
   if (id) params.set("organization", id); else params.delete("organization");
+  window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
+}
+
+function setSectionRoute(section) {
+  const [path, search = ""] = String(window.location.hash || "#/budget-spend/intelligence").split("?");
+  const params = new URLSearchParams(search);
+  if (section === "organizations") params.delete("view"); else params.set("view", section);
   window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
 }
 
@@ -79,7 +89,8 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
   const auth = useAuth();
   const allowed = auth?.staticHost || auth?.user?.canManageWorkspace;
   const [state, setState] = useState({ status: "loading", roadmap: null, organizations: null, monitor: null, error: "" });
-  const [section, setSection] = useState("organizations");
+  const routedSection = new URLSearchParams(String(routeHash).split("?")[1] || "").get("view") || "organizations";
+  const section = SECTIONS.some(([id]) => id === routedSection) ? routedSection : "organizations";
   const [organizationQuery, setOrganizationQuery] = useState("");
 
   useEffect(() => {
@@ -128,7 +139,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     <div className="intelligence-products__health-grid" data-source-health>{data.sourceHealth.map((row) => <SourceState key={row.id} row={row} />)}</div>
 
     <nav className="intelligence-products__tabs" aria-label="Intelligence product sections">
-      {SECTIONS.map(([id, label]) => <button key={id} type="button" className={section === id ? "is-active" : ""} aria-pressed={section === id} onClick={() => setSection(id)}>{label}</button>)}
+      {SECTIONS.map(([id, label]) => <button key={id} type="button" className={section === id ? "is-active" : ""} aria-pressed={section === id} onClick={() => setSectionRoute(id)}>{label}</button>)}
     </nav>
 
     {section === "organizations" ? <section className="intelligence-products__organizations" data-organization-intelligence-panel>
@@ -169,6 +180,8 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
       <article className="intelligence-products__panel"><header><div><span>Official source registry</span><h3>Organization watch</h3><p>Daily directory and weekly source observations retain content hashes, allowed hosts, dossier coverage, and source state. Unchanged pages are suppressed.</p></div><b>{number(state.monitor.metadata.coverage.monitoredSources)} sources</b></header><div className="intelligence-products__table">{state.monitor.sources.map((row) => <div key={row.id} data-organization-monitor-source={row.sourceId}><span><strong>{row.label}</strong><small>{row.publisher} · {row.cadence} · {number(row.linkedDossierIds.length)} dossiers</small></span><span className={`if-badge ${row.changeState === "changed" ? "if-badge--warning" : "if-badge--success"}`}>{row.changeState.replaceAll("-", " ")}</span></div>)}</div></article>
       <article className="intelligence-products__panel"><header><div><span>Review-first changes</span><h3>Change proposals</h3><p>A new listing is a lower-bound observation. A missing listing never ends a tenure. Changed source content cannot overwrite a dossier until reviewed.</p></div><b>{number(state.monitor.metadata.coverage.reviewProposals)} pending</b></header>{state.monitor.proposals.length ? <div className="intelligence-products__findings">{state.monitor.proposals.map((row) => <article key={row.id} data-organization-change-proposal={row.id}><strong>{row.label}</strong><p>{row.detail}</p><span className="if-badge if-badge--warning">{row.kind.replaceAll("-", " ")}</span></article>)}</div> : <div className="intelligence-products__organization-empty" data-organization-watch-clear><ShieldCheck size={26} /><h3>No source changes pending</h3><p>The current monitored pages match the last verified baseline. Future differences enter this queue instead of silently changing tenure or dossier facts.</p></div>}</article>
     </section> : null}
+
+    {section === "discovery" ? <Suspense fallback={<ControlAsyncState compact state="loading" icon={<Activity size={22} />} title="Loading discovery operations" message="Loading the server-side research dashboard." />}><ResearchDiscoveryDashboard totalGaps={organizationData.metadata.coverage.researchGaps} totalOrganizations={organizationData.metadata.coverage.dossiers} /></Suspense> : null}
 
     {section === "operations" ? <section className="intelligence-products__split" data-operational-products-panel>
       <article className="intelligence-products__panel"><header><div><span>Reusable analysis</span><h3>Saved graph queries</h3><p>Durable definitions for repeatable analyst workflows across the canonical entity model.</p></div><b>{number(coverage.savedQueryTemplates)} templates</b></header><div className="intelligence-products__template-grid">{data.savedQueryTemplates.map((row) => <article key={row.id}><strong>{row.label}</strong><p>{row.entityTypes.join(" · ")}</p><span className="if-badge">{row.scope.replaceAll("-", " ")}</span></article>)}</div></article>
