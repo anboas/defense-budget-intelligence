@@ -44,6 +44,14 @@ if (!suppliedExport) {
     "INSERT INTO dbi_intelligence_relations VALUES('relation-recovery','workspace-recovery','{\"source\":\"source-recovery\"}');",
     "CREATE TABLE dbi_intelligence_jobs (job_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, output_json TEXT NOT NULL);",
     "INSERT INTO dbi_intelligence_jobs VALUES('job-recovery','workspace-recovery','{\"status\":\"completed\"}');",
+    "CREATE TABLE dbi_research_configs (workspace_id TEXT PRIMARY KEY, config_json TEXT NOT NULL);",
+    "INSERT INTO dbi_research_configs VALUES('workspace-recovery','{\"cadenceMinutes\":15}');",
+    "CREATE TABLE dbi_research_runs (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, status TEXT NOT NULL);",
+    "INSERT INTO dbi_research_runs VALUES('run-recovery','workspace-recovery','succeeded');",
+    "CREATE TABLE dbi_research_run_targets (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, dossier_id TEXT NOT NULL);",
+    "INSERT INTO dbi_research_run_targets VALUES('target-recovery','run-recovery','organization-dossier:recovery');",
+    "CREATE TABLE dbi_research_claims (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, status TEXT NOT NULL);",
+    "INSERT INTO dbi_research_claims VALUES('research-claim-recovery','run-recovery','published');",
   ].join("\n"));
 }
 
@@ -55,7 +63,7 @@ runWrangler(["d1", "execute", database, "--local", "--persist-to", persist, "--f
 
 const query = suppliedExport
   ? "SELECT COUNT(*) AS users FROM dbi_users; SELECT COUNT(*) AS workspaces FROM dbi_workspaces; SELECT COUNT(*) AS migrations FROM dbi_schema_migrations; SELECT COUNT(*) AS intelligence_tables FROM sqlite_master WHERE type='table' AND name LIKE 'dbi_intelligence_%';"
-  : "SELECT length(payload_json) AS payload_length, payload_sha256 FROM oip_workspace_snapshots WHERE workspace_id='recovery-fixture'; SELECT COUNT(*) AS users FROM dbi_users; SELECT (SELECT COUNT(*) FROM dbi_intelligence_proposals)+(SELECT COUNT(*) FROM dbi_intelligence_sources)+(SELECT COUNT(*) FROM dbi_intelligence_entities)+(SELECT COUNT(*) FROM dbi_intelligence_claims)+(SELECT COUNT(*) FROM dbi_intelligence_relations)+(SELECT COUNT(*) FROM dbi_intelligence_jobs) AS intelligence_rows;";
+  : "SELECT length(payload_json) AS payload_length, payload_sha256 FROM oip_workspace_snapshots WHERE workspace_id='recovery-fixture'; SELECT COUNT(*) AS users FROM dbi_users; SELECT (SELECT COUNT(*) FROM dbi_intelligence_proposals)+(SELECT COUNT(*) FROM dbi_intelligence_sources)+(SELECT COUNT(*) FROM dbi_intelligence_entities)+(SELECT COUNT(*) FROM dbi_intelligence_claims)+(SELECT COUNT(*) FROM dbi_intelligence_relations)+(SELECT COUNT(*) FROM dbi_intelligence_jobs) AS intelligence_rows; SELECT (SELECT COUNT(*) FROM dbi_research_configs)+(SELECT COUNT(*) FROM dbi_research_runs)+(SELECT COUNT(*) FROM dbi_research_run_targets)+(SELECT COUNT(*) FROM dbi_research_claims) AS research_rows;";
 const output = runWrangler(["d1", "execute", database, "--local", "--persist-to", persist, "--command", query, "--json"]);
 const parsed = JSON.parse(output.slice(output.indexOf("[")));
 if (suppliedExport) {
@@ -68,6 +76,7 @@ if (suppliedExport) {
   assert.equal(parsed[0]?.results?.[0]?.payload_sha256, payloadHash, "Oversized snapshot digest must survive restore");
   assert.equal(Number(parsed[1]?.results?.[0]?.users), 1, "Fixture user must survive restore");
   assert.equal(Number(parsed[2]?.results?.[0]?.intelligence_rows), 6, "Agent intelligence proposals, sources, entities, claims, relations, and jobs must survive restore");
+  assert.equal(Number(parsed[3]?.results?.[0]?.research_rows), 4, "Research configurations, runs, targets, and claim ledgers must survive restore");
 }
 
 console.log("D1 recovery contract passed", {

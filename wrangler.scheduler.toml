@@ -6,7 +6,7 @@ compatibility_date = "2026-08-28"
 DBI_APP_ORIGIN = "https://defense-budget-intelligence.pages.dev"
 
 [triggers]
-crons = ["17 * * * *"]
+crons = ["*/15 * * * *"]
 
 [observability]
 enabled = true

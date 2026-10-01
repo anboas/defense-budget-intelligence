@@ -113,12 +113,14 @@ const mapCssBytes = cssAssets.find(({ asset }) => /^OpportunityMap-.*\.css$/.tes
 const connectedEvidenceCssBytes = cssAssets.find(({ asset }) => /^ConnectedEvidence-.*\.css$/.test(asset))?.bytes || 0;
 const domainModelCssBytes = cssAssets.find(({ asset }) => /^DomainModelPage-.*\.css$/.test(asset))?.bytes || 0;
 const intelligenceProductsCssBytes = cssAssets.find(({ asset }) => /^IntelligenceProductsPage-.*\.css$/.test(asset))?.bytes || 0;
+const researchDiscoveryCssBytes = cssAssets.find(({ asset }) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset))?.bytes || 0;
 assert.ok(shellCssBytes <= 350_000, `Initial production CSS exceeds the 350KB ceiling (${shellCssBytes} bytes)`);
 assert.ok(mapCssBytes > 0 && mapCssBytes <= 19_000, `Lazy Opportunity Map CSS exceeds its 19KB route ceiling (${mapCssBytes} bytes)`);
 assert.ok(connectedEvidenceCssBytes > 0 && connectedEvidenceCssBytes <= 4_000, `Deferred connected-evidence CSS exceeds its 4KB component ceiling (${connectedEvidenceCssBytes} bytes)`);
 assert.ok(domainModelCssBytes > 0 && domainModelCssBytes <= 8_000, `Lazy domain-model CSS exceeds its 8KB route ceiling (${domainModelCssBytes} bytes)`);
 assert.ok(intelligenceProductsCssBytes > 0 && intelligenceProductsCssBytes <= 13_000, `Lazy organization-intelligence CSS exceeds its 13KB route ceiling (${intelligenceProductsCssBytes} bytes)`);
-assert.ok(cssBytes <= 400_000, `Total production CSS exceeds the 400KB ceiling (${cssBytes} bytes)`);
+assert.ok(researchDiscoveryCssBytes > 0 && researchDiscoveryCssBytes <= 10_000, `Deferred discovery-operations CSS exceeds its 10KB component ceiling (${researchDiscoveryCssBytes} bytes)`);
+assert.ok(cssBytes <= 410_000, `Total production CSS exceeds the 410KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
 const intelligenceGraphBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json"))).size;
 const intelligenceGraphCompressedBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json.gzip"))).size;

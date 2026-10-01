@@ -71,6 +71,7 @@ import { d1SessionManagementResponse } from "./d1-session-management.js";
 import { D1_SENSITIVE_RATE_LIMIT_SCHEMA, enforceD1SensitiveMutationLimit } from "./d1-sensitive-rate-limit.js";
 import { D1_SAAS_CONTROL_PLANE_SCHEMA, d1EntitlementDecision, d1SaasControlPlaneResponse } from "./d1-saas-control-plane.js";
 import { AGENT_INTELLIGENCE_RESOURCES, AGENT_INTELLIGENCE_SCOPES, D1_AGENT_INTELLIGENCE_SCHEMA, agentIntelligenceResponse } from "./d1-agent-intelligence.js";
+import { D1_RESEARCH_OPERATIONS_SCHEMA, researchOperationsResponse, researchSchedulerResponse } from "./d1-research-operations.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import { catalogEventByIdFromRows } from "./event-catalog.js";
 import {
@@ -131,6 +132,7 @@ function defaultEventCategoryStatements(db, workspaceId, now) {
 }
 const SCHEMA = Object.freeze([
   ...D1_AGENT_INTELLIGENCE_SCHEMA,
+  ...D1_RESEARCH_OPERATIONS_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_super_user (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
     user_id TEXT NOT NULL UNIQUE,
@@ -3250,7 +3252,7 @@ async function agentApiResponse(request, env, db) {
   if (thrownError) console.error("Agent API request failed", { requestId, resource, error: thrownError?.message });
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
-export async function pagesAuthApiResponse(request, env = {}) {
+export async function pagesAuthApiResponse(request, env = {}, context = null) {
   const db = databaseFromEnv(env);
   if (!db) return json({ error: "Persistent account database is unavailable" }, 503);
   await ensureSchema(db); const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
@@ -3258,6 +3260,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (rateLimited) return rateLimited;
   if (pathname === "/api/v1/system/acquisition-schedule") return acquisitionSchedulerResponse(request, db, env, { decryptSecret: decryptOpenAiKey, json });
   if (pathname === "/api/v1/system/event-discovery-schedule") return eventDiscoverySchedulerResponse(request, db, env, EVENT_DISCOVERY_API_DEPS);
+  if (pathname === "/api/v1/system/research-schedule") return researchSchedulerResponse(request, db, env, context, { assetJson, decryptSecret: decryptOpenAiKey, json, recordActivity, recordApiRequest });
   if (pathname === "/api/v1/auth/status") return statusResponse(request, db, env);
   if (pathname === "/api/v1/auth/claim") return claimResponse(request, db, env);
   if (pathname === "/api/v1/auth/register" || pathname === "/api/v1/auth/registration" || pathname.startsWith("/api/v1/auth/registration/")) return d1RegistrationResponse(request, db, env, {
@@ -3284,6 +3287,7 @@ export async function pagesAuthApiResponse(request, env = {}) {
   if (pathname === "/api/v1/auth/acquisition" || pathname.startsWith("/api/v1/auth/acquisition/")) return acquisitionRuntimeResponse(request, db, env, { canAdministerWorkspaces, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey, json, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/event-ai" || pathname.startsWith("/api/v1/auth/event-ai/")) return eventAiResponse(request, db, env);
   if (pathname === "/api/v1/auth/event-discovery" || pathname.startsWith("/api/v1/auth/event-discovery/")) return eventDiscoveryResponse(request, db, EVENT_DISCOVERY_API_DEPS, env);
+  if (pathname === "/api/v1/auth/research-operations" || pathname.startsWith("/api/v1/auth/research-operations/")) return researchOperationsResponse(request, db, env, context, { assetJson, canAdministerWorkspaces, decryptSecret: decryptOpenAiKey, json, recordActivity, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/client-errors") return handleClientErrorsResponse(request, db, { json, recordApiRequest, safeJson, sameOriginRequest, sessionUser });
   if (pathname === "/api/v1/auth/users" || pathname.startsWith("/api/v1/auth/users/")) return usersResponse(request, db);
   if (pathname === "/api/v1/auth/agent-keys" || pathname.startsWith("/api/v1/auth/agent-keys/")) return agentKeysResponse(request, db);
