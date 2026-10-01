@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQuerySlices, samQueryWindow } from "../src/acquisition-runtime-core.js";
+import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQuerySlices, samQueryWindow, splitSamQueryScope } from "../src/acquisition-runtime-core.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureRoot = mkdtempSync(resolve(tmpdir(), "dbi-procurement-discovery-"));
@@ -74,6 +74,10 @@ try {
     { postedFrom: "07/10/2026", postedTo: "07/16/2026" },
     { postedFrom: "07/17/2026", postedTo: "07/17/2026" },
   ], "Large SAM windows must be partitioned into bounded seven-day date scopes");
+  assert.deepEqual(splitSamQueryScope({ postedFrom: "07/03/2026", postedTo: "07/09/2026" }), [
+    { postedFrom: "07/03/2026", postedTo: "07/06/2026" },
+    { postedFrom: "07/07/2026", postedTo: "07/09/2026" },
+  ], "Oversized SAM scopes must split into non-overlapping child windows");
   let requestedUrl = ""; let requestedKey = ""; let requestedHeaderKey = "";
   const fetched = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", lastCompletedAt: "2026-09-18T00:00:00Z", config: { incrementalLookbackDays: 1 }, fetchImpl: async (url, options) => {
     requestedUrl = String(url); requestedKey = new URL(requestedUrl).searchParams.get("api_key") || ""; requestedHeaderKey = options.headers["x-api-key"] || "";
@@ -104,6 +108,17 @@ try {
     return new Response(JSON.stringify({ totalRecords: 0, opportunitiesData: [] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.deepEqual(typeUrls.map((url) => new URL(url).searchParams.get("ptype")), ["p", "r"], "Each selected SAM.gov notice type must use its documented scalar ptype request");
+  const adaptiveUrls = [];
+  const adaptive = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { initialLookbackDays: 2, maxPages: 1, pageSize: 1000, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async (url) => {
+    const parsedUrl = new URL(url); adaptiveUrls.push(parsedUrl);
+    const sameDay = parsedUrl.searchParams.get("postedFrom") === parsedUrl.searchParams.get("postedTo");
+    return new Response(JSON.stringify(sameDay
+      ? { totalRecords: 1, opportunitiesData: [{ noticeId: `adaptive-${parsedUrl.searchParams.get("postedFrom")}`, title: "Bounded daily row" }] }
+      : { totalRecords: 30_000, opportunitiesData: [{ noticeId: "discarded-parent-probe", title: "Oversized parent" }] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.ok(adaptive.metadata.adaptiveSplits > 0, "Oversized SAM date scopes must split adaptively");
+  assert.ok(adaptive.records.every((record) => record.sourceRecordId !== "discarded-parent-probe"), "Parent-scope probe rows must not leak into an adaptive refresh");
+  assert.ok(adaptiveUrls.some((url) => url.searchParams.get("postedFrom") === url.searchParams.get("postedTo")), "Adaptive splitting must reach daily scopes when required");
   await assert.rejects(() => fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { initialLookbackDays: 1, maxPages: 1, pageSize: 1000, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async () => new Response(JSON.stringify({ totalRecords: 2000, opportunitiesData: [{ noticeId: "truncated-1", title: "Partial" }] }), { status: 200, headers: { "content-type": "application/json" } }) }), (error) => error.code === "source_truncated", "A bounded partial SAM response must fail closed");
   const links = exactLifecycleLinks([{ sourceRecordId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceRecordId: "notice-b", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);
   assert.deepEqual(links.map((link) => [link.fromId, link.toId, link.relationship, link.basis]), [["notice-a", "notice-b", "resulted_in_award", "solicitation_number"]], "Lifecycle links must require an exact disclosed identifier");
