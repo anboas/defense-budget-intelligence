@@ -182,6 +182,22 @@ export function samQueryWindow({ lastCompletedAt, now = new Date(), config: conf
   return { postedFrom: mmddyyyy(start), postedTo: mmddyyyy(now), lookbackDays };
 }
 
+export function samQuerySlices(window, sliceDays = 7) {
+  const parse = (value) => {
+    const [month, day, year] = String(value || "").split("/").map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+  };
+  const format = (value) => `${String(value.getUTCMonth() + 1).padStart(2, "0")}/${String(value.getUTCDate()).padStart(2, "0")}/${value.getUTCFullYear()}`;
+  const start = parse(window?.postedFrom); const end = parse(window?.postedTo);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start > end) return [];
+  const boundedDays = integer(sliceDays, 7, 1, 31); const slices = [];
+  for (let cursor = start; cursor <= end; cursor = new Date(cursor.getTime() + boundedDays * DAY_MS)) {
+    const sliceEnd = new Date(Math.min(end.getTime(), cursor.getTime() + (boundedDays - 1) * DAY_MS));
+    slices.push({ postedFrom: format(cursor), postedTo: format(sliceEnd) });
+  }
+  return slices;
+}
+
 function retryDelay(response, attempt, minimum) {
   const rawRetryAfter = response?.headers?.get?.("retry-after");
   const retryAfter = rawRetryAfter === null || rawRetryAfter === undefined ? Number.NaN : Number(rawRetryAfter);
@@ -202,50 +218,55 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
   let retries = 0;
   let throttleWaitMs = 0;
   const noticeTypeScopes = config.noticeTypes.length ? config.noticeTypes : [""];
+  const dateScopes = samQuerySlices(window);
   for (const noticeType of noticeTypeScopes) {
-    let offset = 0;
-    let scopeTotal = null;
-    while (pages < config.maxPages) {
-      if (pages > 0 && config.requestIntervalMs) await sleep(config.requestIntervalMs);
-      const url = new URL("https://api.sam.gov/opportunities/v2/search");
-      url.searchParams.set("postedFrom", window.postedFrom);
-      url.searchParams.set("postedTo", window.postedTo);
-      if (config.organizationName) url.searchParams.set("organizationName", config.organizationName);
-      if (noticeType) url.searchParams.set("ptype", noticeType);
-      url.searchParams.set("limit", String(limit));
-      url.searchParams.set("offset", String(offset));
-      url.searchParams.set("api_key", key);
-      let response;
-      let error;
-      for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
-        try {
-          requests += 1;
-          response = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "defense-budget-intelligence/1.0" } });
-          if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) break;
-          error = new Error(`SAM.gov opportunity search returned ${response.status}`);
-        } catch (requestError) { error = requestError; }
-        if (attempt >= config.maxRetries) break;
-        retries += 1;
-        const delay = retryDelay(response, attempt, config.requestIntervalMs);
-        throttleWaitMs += delay;
-        await sleep(delay);
+    for (const dateScope of dateScopes) {
+      let offset = 0;
+      let scopePages = 0;
+      let scopeTotal = null;
+      while (scopePages < config.maxPages) {
+        if (pages > 0 && config.requestIntervalMs) await sleep(config.requestIntervalMs);
+        const url = new URL("https://api.sam.gov/opportunities/v2/search");
+        url.searchParams.set("postedFrom", dateScope.postedFrom);
+        url.searchParams.set("postedTo", dateScope.postedTo);
+        if (config.organizationName) url.searchParams.set("organizationName", config.organizationName);
+        if (noticeType) url.searchParams.set("ptype", noticeType);
+        url.searchParams.set("limit", String(limit));
+        url.searchParams.set("offset", String(offset));
+        url.searchParams.set("api_key", key);
+        let response;
+        let error;
+        for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
+          try {
+            requests += 1;
+            response = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "defense-budget-intelligence/1.0" } });
+            if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) break;
+            error = new Error(`SAM.gov opportunity search returned ${response.status}`);
+          } catch (requestError) { error = requestError; }
+          if (attempt >= config.maxRetries) break;
+          retries += 1;
+          const delay = retryDelay(response, attempt, config.requestIntervalMs);
+          throttleWaitMs += delay;
+          await sleep(delay);
+        }
+        if (!response?.ok) throw Object.assign(error || new Error(`SAM.gov opportunity search returned ${response?.status || "no response"}`), { code: response?.status === 429 ? "rate_limited" : "source_unavailable" });
+        const payload = await response.json();
+        const rows = Array.isArray(payload.opportunitiesData) ? payload.opportunitiesData : [];
+        scopeTotal = Number(payload.totalRecords || scopeTotal || 0);
+        records.push(...rows.map(normalizeSamOpportunity).filter(Boolean));
+        pages += 1;
+        scopePages += 1;
+        offset += rows.length;
+        if (!rows.length || offset >= scopeTotal) break;
       }
-      if (!response?.ok) throw Object.assign(error || new Error(`SAM.gov opportunity search returned ${response?.status || "no response"}`), { code: response?.status === 429 ? "rate_limited" : "source_unavailable" });
-      const payload = await response.json();
-      const rows = Array.isArray(payload.opportunitiesData) ? payload.opportunitiesData : [];
-      scopeTotal = Number(payload.totalRecords || scopeTotal || 0);
-      records.push(...rows.map(normalizeSamOpportunity).filter(Boolean));
-      pages += 1;
-      offset += rows.length;
-      if (!rows.length || offset >= scopeTotal) break;
+      if (scopeTotal === null) throw Object.assign(new Error(`SAM.gov notice-type/date scope exceeded the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
+      totalRecords += Number(scopeTotal || 0);
+      if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned more than the bounded ${config.maxPages * limit} record window for one notice-type/date scope; no partial refresh was applied`), { code: "source_truncated" });
     }
-    if (scopeTotal === null) throw Object.assign(new Error(`SAM.gov notice-type scope exceeded the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
-    totalRecords += Number(scopeTotal || 0);
-    if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned more than the bounded ${config.maxPages * limit} record window; no partial refresh was applied`), { code: "source_truncated" });
   }
   return {
     records: [...new Map(records.map((record) => [record.sourceRecordId, record])).values()],
-    metadata: { ...window, pages, requests, retries, throttleWaitMs, totalRecords: Number(totalRecords || records.length), noticeTypesQueried: config.noticeTypes, complete: true, config },
+    metadata: { ...window, pages, requests, retries, throttleWaitMs, totalRecords: Number(totalRecords || records.length), noticeTypesQueried: config.noticeTypes, dateScopes, complete: true, config },
   };
 }
 
