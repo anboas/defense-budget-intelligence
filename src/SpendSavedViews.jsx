@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bookmark, Copy, Mail, Pencil, Share2, Star, Trash2 } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { samNoticeTypeId, samNoticeTypeLabel } from "./sam-notice-types.js";
 
 const STORAGE_KEY = "dbi:spend-saved-views:v1";
 const FAVORITES_KEY = "dbi:spend-saved-view-favorites:v1";
@@ -12,10 +13,11 @@ function readFavorites() { try { const value = JSON.parse(window.localStorage.ge
 function storeFavorites(values) { window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...values])); }
 function matches(record, view, tombstonedIds) {
   const filters = view.filters || {}; const query = String(view.query || "").trim().toLowerCase();
-  const searchable = [record.title, record.id, record.reference, record.party, record.recipient, record.portfolio, record.organization?.path?.join(" "), ...(record.technologyAreas || [])].filter(Boolean).join(" ").toLowerCase();
+  const searchable = [record.title, record.id, record.reference, record.party, record.recipient, record.portfolio, record.noticeType, samNoticeTypeLabel(record.noticeType), record.organization?.path?.join(" "), ...(record.technologyAreas || [])].filter(Boolean).join(" ").toLowerCase();
   const tombstoned = tombstonedIds.has(record.opportunityId);
   return (filters.disposition === "tombstoned" ? tombstoned : !tombstoned) && (!query || searchable.includes(query))
     && (!filters.technology || filters.technology === "all" || (record.technologyAreas || []).includes(filters.technology))
+    && (!filters.noticeType || filters.noticeType === "all" || samNoticeTypeId(record.noticeType) === filters.noticeType)
     && (!filters.branch || filters.branch === "all" || record.organization?.branch === filters.branch)
     && (!filters.component || filters.component === "all" || record.organization?.component === filters.component)
     && (!filters.office || filters.office === "all" || record.organization?.office === filters.office);
@@ -29,6 +31,7 @@ function viewHref(entry) {
   if (entry.query) params.set("capQuery", entry.query);
   const filters = entry.filters || {};
   if (filters.technology && filters.technology !== "all") params.set("technology", filters.technology);
+  if (filters.noticeType && filters.noticeType !== "all") params.set("noticeType", filters.noticeType);
   if (filters.branch && filters.branch !== "all") params.set("orgBranch", filters.branch);
   if (filters.component && filters.component !== "all") params.set("orgComponent", filters.component);
   if (filters.office && filters.office !== "all") params.set("orgOffice", filters.office);

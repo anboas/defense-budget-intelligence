@@ -13,6 +13,8 @@ import AcquisitionRuntimePanel from "./AcquisitionRuntimePanel.jsx";
 import { reportClientError } from "./client-error-reporting.js";
 import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import { useAuth } from "./AuthContext.jsx";
+import { SAM_NOTICE_TYPE_OPTIONS, samNoticeTypeId, samNoticeTypeLabel } from "./sam-notice-types.js";
+import { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
@@ -23,6 +25,10 @@ function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
   const value = params.get("spendView");
   return VIEWS.has(value) ? value : "timeline";
+}
+
+function readTableNoticeType(params) {
+  return params.get("noticeType") || parseMultiValues(params.get("capNoticeType"))[0] || "all";
 }
 
 function updateRoute(view, patch = {}) {
@@ -66,7 +72,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const [focusedRecordId, setFocusedRecordId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
   const [tableFilters, setTableFilters] = useState(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-    return { technology: params.get("technology") || "all", branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" };
+    return { technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" };
   });
   const dispositions = useRecordDispositions();
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
@@ -94,7 +100,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
       setQuery(params.get("capQuery") || "");
       setFocusedRecordId(params.get("capRecord") || "");
-      setTableFilters({ technology: params.get("technology") || "all", branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" });
+      setTableFilters({ technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" });
     };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -133,7 +139,14 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       records: [...merged.values()],
     };
   }, [runtimeSamRecords, samOpportunities]);
-  const select = (next) => { setView(next); updateRoute(next); };
+  const select = (next) => {
+    setView(next);
+    if (next === "timeline") {
+      updateRoute(next, { capNoticeType: tableFilters.noticeType === "all" ? "" : serializeMultiValues([tableFilters.noticeType]) });
+      return;
+    }
+    updateRoute(next, { noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
+  };
   const tabs = <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
     <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
     <button type="button" className={`if-tab${view === "timeline" ? " is-active" : ""}`} aria-pressed={view === "timeline"} onClick={() => select("timeline")}><CalendarClock size={15} />Timeline</button>
@@ -145,6 +158,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveSamOpportunities?.records, manualProcurement?.records, procurementDelta?.records, subawardSnapshot],
   );
   const technologyOptions = useMemo(() => [...new Set(rows.flatMap((record) => record.technologyAreas || []))].sort((left, right) => (TECHNOLOGY_AREA_BY_ID.get(left)?.label || left).localeCompare(TECHNOLOGY_AREA_BY_ID.get(right)?.label || right)), [rows]);
+  const noticeTypeOptions = useMemo(() => SAM_NOTICE_TYPE_OPTIONS.filter((option) => rows.some((record) => samNoticeTypeId(record.noticeType) === option.id)), [rows]);
   const latestFeed = dailyFeed.history?.[0];
   const latestFeedDate = latestFeed?.date || null;
   const branchOptions = useMemo(() => [...new Set(rows.map((record) => record.organization?.branch).filter(Boolean))].sort(), [rows]);
@@ -154,6 +168,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     const tombstoned = dispositions.tombstonedIds.has(record.opportunityId);
     return (tableFilters.disposition === "tombstoned" ? tombstoned : !tombstoned)
       && (tableFilters.technology === "all" || (record.technologyAreas || []).includes(tableFilters.technology))
+      && (tableFilters.noticeType === "all" || samNoticeTypeId(record.noticeType) === tableFilters.noticeType)
       && (tableFilters.branch === "all" || record.organization?.branch === tableFilters.branch)
       && (tableFilters.component === "all" || record.organization?.component === tableFilters.component)
       && (tableFilters.office === "all" || record.organization?.office === tableFilters.office)
@@ -164,15 +179,18 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     if (key === "branch") { next.component = "all"; next.office = "all"; }
     if (key === "component") next.office = "all";
     setTableFilters(next);
-    updateRoute(view === "today" ? "today" : "table", { technology: next.technology === "all" ? "" : next.technology, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
+    updateRoute(view === "today" ? "today" : "table", { technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
   };
   const tableColumns = [
     { key: "record", label: "Record", required: true, sticky: true, minWidth: 300, value: (record) => `${record.id || record.reference || "Unidentified"} ${record.title || "Untitled"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title].filter(Boolean).join(" "), render: (record) => <><strong>{record.id || record.reference || "Unidentified"}</strong><small>{record.title || "Untitled public record"}</small></> },
     { key: "recipient", label: "Recipient / sponsor", facet: true, minWidth: 190, value: (record) => record.party || record.recipient || "Not published" },
     { key: "portfolio", label: "Portfolio", facet: true, minWidth: 150, value: (record) => record.portfolio || "Unclassified" },
     { key: "technology", label: "Technology area", minWidth: 190, value: (record) => (record.technologyAreas || []).map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area).join(" · ") || "Not classified" },
+    { key: "noticeType", label: "Notice type", facet: true, minWidth: 170, value: (record) => samNoticeTypeLabel(record.noticeType) },
     { key: "organization", label: "DoW hierarchy", minWidth: 220, value: (record) => record.organization?.path?.slice(1, 4).join(" → ") || "Not published", render: (record) => <><strong>{record.organization?.component || "Component not published"}</strong><small>{[record.organization?.branch, record.organization?.office].filter(Boolean).join(" · ")}</small></> },
     { key: "dateAdded", label: "Date added", minWidth: 140, value: (record) => record.firstSeenAt || "", sortValue: (record) => record.firstSeenAt || "", render: (record) => <><strong>{date(record.firstSeenAt)}</strong>{record.sourcePublishedAt ? <small>Source posted {date(record.sourcePublishedAt)}</small> : null}</> },
+    { key: "posted", label: "Posted date", minWidth: 140, value: (record) => record.sourcePublishedAt || record.solicitationStart || "", sortValue: (record) => record.sourcePublishedAt || record.solicitationStart || "0000-00-00", render: (record) => date(record.sourcePublishedAt || record.solicitationStart) },
+    { key: "deadline", label: "Response deadline", minWidth: 155, value: (record) => record.solicitationEnd || "", sortValue: (record) => record.solicitationEnd || "9999-12-31", render: (record) => date(record.solicitationEnd) },
     { key: "change", label: "Latest change", minWidth: 210, value: (record) => [record.lastChangeType, ...(record.changedFields || []).map((field) => field.label)].filter(Boolean).join(" "), render: (record) => <><strong>{record.lastChangeType === "added" ? "Added" : record.lastChangeType === "removed" ? "Removed" : record.lastChangeType === "updated" ? "Updated" : "No retained change"}</strong>{record.changedFields?.length ? <small>{record.changedFields.slice(0, 3).map((field) => field.label).join(" · ")}{record.changedFields.length > 3 ? ` +${record.changedFields.length - 3}` : ""}</small> : null}</> },
     { key: "obligations", label: "Observed", sortValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), exportValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), render: (record) => <strong>{money(record.obligatedAmount || record.fpdsObligatedAmount)}</strong> },
     { key: "end", label: "Reported end", minWidth: 140, value: (record) => record.currentEnd || record.potentialEnd || "", render: (record) => date(record.currentEnd || record.potentialEnd) },
@@ -197,7 +215,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     const next = { ...tableFilters, ...(saved.filters || {}), disposition: saved.filters?.disposition === "tombstoned" ? "tombstoned" : "active", changes: "all" };
     setTableFilters(next);
     setQuery(saved.query || "");
-    updateRoute("table", { capQuery: saved.query || "", technology: next.technology === "all" ? "" : next.technology, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
+    updateRoute("table", { capQuery: saved.query || "", technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
   }} />;
 
   if (view === "today") return <section className="spend-explorer spend-explorer--today" data-spend-explorer="today">
@@ -218,13 +236,14 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       <section className="spend-explorer__hierarchy" aria-label="Explorer hierarchy and record controls" data-explorer-hierarchy>
         <div><span>Explore hierarchy</span><strong>{["Department of War", tableFilters.branch !== "all" ? tableFilters.branch : "All branches", tableFilters.component !== "all" ? tableFilters.component : "All services & components", tableFilters.office !== "all" ? tableFilters.office : null].filter(Boolean).join(" → ")}</strong></div>
         <ControlSelect label="Technology area" value={tableFilters.technology} options={[{ value: "all", label: "All technology areas" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} />
+        <ControlSelect label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} />
         <ControlSelect label="DoW branch" value={tableFilters.branch} options={[{ value: "all", label: "DoW: all branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} />
         <ControlSelect label="Service / component" value={tableFilters.component} options={[{ value: "all", label: "All services & components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
         <ControlSelect label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All published offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
         <ControlSelect label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active explorer" }, { value: "tombstoned", label: `Tombstoned (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
       </section>
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
-      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, technology areas, organizations, and references…" exportFilename="spend-explorer.csv" mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
+      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, notice types, organizations, and references…" exportFilename="spend-explorer.csv" mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : tableFilters.noticeType !== "all" ? ["record", "noticeType", "deadline", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
     </ControlPageBody>
   </section>;
 }

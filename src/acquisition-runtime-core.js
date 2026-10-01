@@ -1,4 +1,5 @@
 import { classifyTechnologyAreas, organizationHierarchy } from "./procurement-taxonomy.js";
+import { samNoticeTypeId } from "./sam-notice-types.js";
 
 const DAY_MS = 86_400_000;
 
@@ -146,6 +147,7 @@ export function normalizeSamOpportunity(row = {}) {
 
 const SAVED_VIEW_FILTERS = Object.freeze({
   technology: 120,
+  noticeType: 40,
   branch: 160,
   component: 240,
   office: 320,
@@ -410,6 +412,7 @@ export function matchesSavedAcquisitionView(record = {}, spec = {}) {
   const searchable = [record.title, record.noticeId, record.solicitationNumber, record.department, record.subTier, record.office, record.naicsCode, record.pscCode].filter(Boolean).join(" ").toLowerCase();
   return (!query || searchable.includes(query))
     && (!filters.technology || filters.technology === "all" || technologyAreas.includes(filters.technology))
+    && (!filters.noticeType || filters.noticeType === "all" || samNoticeTypeId(record.noticeType || record.type || record.baseType) === filters.noticeType)
     && (!filters.branch || filters.branch === "all" || organization.branch === filters.branch)
     && (!filters.component || filters.component === "all" || organization.component === filters.component)
     && (!filters.office || filters.office === "all" || organization.office === filters.office)
