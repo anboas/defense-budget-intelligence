@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQuerySlices, samQueryWindow } from "../src/acquisition-runtime-core.js";
+import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQuerySlices, samQueryWindow } from "../src/acquisition-runtime-core.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureRoot = mkdtempSync(resolve(tmpdir(), "dbi-procurement-discovery-"));
@@ -85,8 +85,10 @@ try {
   assert.equal(requestedHeaderKey, "", "The workspace key must not be sent in an unsupported x-api-key header");
   assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
     enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
-    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"],
+    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"], backfillRequestedAt: null,
   }, "Workspace acquisition settings must be clamped to the documented and operational safety envelope");
+  assert.equal(acquisitionBackfillDue("2026-10-01T15:16:17.521Z", { backfillRequestedAt: "2026-10-01T15:20:00Z" }), true, "A newer one-shot backfill request must bypass the normal cadence");
+  assert.equal(acquisitionBackfillDue("2026-10-01T15:21:00Z", { backfillRequestedAt: "2026-10-01T15:20:00Z" }), false, "A successful refresh after the request must consume the one-shot backfill");
   const waits = []; let rateAttempts = 0;
   const recovered = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { initialLookbackDays: 1, maxRetries: 1, requestIntervalMs: 250 }, sleep: async (milliseconds) => waits.push(milliseconds), fetchImpl: async () => {
     rateAttempts += 1;
