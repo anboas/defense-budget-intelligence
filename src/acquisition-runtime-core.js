@@ -15,6 +15,7 @@ export const DEFAULT_ACQUISITION_CONFIG = Object.freeze({
   maxRetries: 3,
   organizationName: "DEPT OF DEFENSE",
   noticeTypes: [],
+  backfillOffsetDays: 0,
   backfillRequestedAt: null,
 });
 
@@ -47,6 +48,7 @@ export function normalizeAcquisitionConfig(input = {}) {
     maxRetries: integer(input.maxRetries, DEFAULT_ACQUISITION_CONFIG.maxRetries, 0, 6),
     organizationName: text(input.organizationName, 240) || DEFAULT_ACQUISITION_CONFIG.organizationName,
     noticeTypes,
+    backfillOffsetDays: integer(input.backfillOffsetDays, DEFAULT_ACQUISITION_CONFIG.backfillOffsetDays, 0, 3650),
     backfillRequestedAt: timestamp(input.backfillRequestedAt),
   };
 }
@@ -190,9 +192,11 @@ export function samQueryWindow({ lastCompletedAt, now = new Date(), config: conf
   const config = normalizeAcquisitionConfig(configInput);
   const completed = Date.parse(lastCompletedAt || "");
   const lookbackDays = Number.isFinite(completed) ? config.incrementalLookbackDays : config.initialLookbackDays;
-  const start = new Date(now.getTime() - lookbackDays * DAY_MS);
+  const offsetDays = Number.isFinite(completed) ? 0 : config.backfillOffsetDays;
+  const start = new Date(now.getTime() - (lookbackDays + offsetDays) * DAY_MS);
+  const end = new Date(now.getTime() - offsetDays * DAY_MS);
   const mmddyyyy = (value) => `${String(value.getUTCMonth() + 1).padStart(2, "0")}/${String(value.getUTCDate()).padStart(2, "0")}/${value.getUTCFullYear()}`;
-  return { postedFrom: mmddyyyy(start), postedTo: mmddyyyy(now), lookbackDays };
+  return { postedFrom: mmddyyyy(start), postedTo: mmddyyyy(end), lookbackDays, offsetDays };
 }
 
 function parseSamDate(value) {
