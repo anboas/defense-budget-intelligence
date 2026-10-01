@@ -69,6 +69,9 @@ try {
   assert.equal(normalized.lifecycleStage, "opportunity");
   const window = samQueryWindow({ lastCompletedAt: "2026-09-18T00:00:00Z", now: new Date("2026-09-19T12:00:00Z") });
   assert.equal(window.lookbackDays, 3, "Incremental workspace refreshes must overlap three days to catch late amendments");
+  assert.equal(window.offsetDays, 0, "Incremental refreshes must ignore historical backfill offsets");
+  const historicalWindow = samQueryWindow({ now: new Date("2026-09-19T12:00:00Z"), config: { initialLookbackDays: 90, backfillOffsetDays: 90 } });
+  assert.deepEqual(historicalWindow, { postedFrom: "03/23/2026", postedTo: "06/21/2026", lookbackDays: 90, offsetDays: 90 }, "Historical backfills must use bounded cursor windows");
   assert.deepEqual(samQuerySlices({ postedFrom: "07/03/2026", postedTo: "07/17/2026" }), [
     { postedFrom: "07/03/2026", postedTo: "07/09/2026" },
     { postedFrom: "07/10/2026", postedTo: "07/16/2026" },
@@ -89,7 +92,7 @@ try {
   assert.equal(requestedHeaderKey, "", "The workspace key must not be sent in an unsupported x-api-key header");
   assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
     enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
-    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"], backfillRequestedAt: null,
+    maxPages: 25, requestIntervalMs: 250, maxRetries: 6, organizationName: "DEPT OF DEFENSE", noticeTypes: ["p"], backfillOffsetDays: 0, backfillRequestedAt: null,
   }, "Workspace acquisition settings must be clamped to the documented and operational safety envelope");
   assert.equal(acquisitionBackfillDue("2026-10-01T15:16:17.521Z", { backfillRequestedAt: "2026-10-01T15:20:00Z" }), true, "A newer one-shot backfill request must bypass the normal cadence");
   assert.equal(acquisitionBackfillDue("2026-10-01T15:21:00Z", { backfillRequestedAt: "2026-10-01T15:20:00Z" }), false, "A successful refresh after the request must consume the one-shot backfill");
