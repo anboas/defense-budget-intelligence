@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQuerySlices, samQueryWindow, splitSamQueryScope } from "../src/acquisition-runtime-core.js";
+import { samNoticeTypeId, samNoticeTypeLabel } from "../src/sam-notice-types.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const fixtureRoot = mkdtempSync(resolve(tmpdir(), "dbi-procurement-discovery-"));
@@ -146,9 +147,13 @@ try {
   assert.ok(expandedLinks.some((link) => link.relationship === "amends_notice" && link.basis === "notice_id"), "Exact notice identifiers must link amendments");
   assert.ok(expandedLinks.some((link) => link.relationship === "ordered_from_vehicle" && link.basis === "parent_award_id"), "Exact parent award identifiers must link orders to vehicles");
   assert.ok(expandedLinks.some((link) => link.relationship === "modifies_award" && link.basis === "award_id"), "Exact award identifiers must link modifications");
-  const saved = normalizeSavedAcquisitionView({ query: "runtime", filters: { branch: "Army", naics: "541512", untrustedField: "discard me" }, credential: "must-not-survive" });
-  assert.deepEqual(saved, { query: "runtime", filters: { branch: "Army", naics: "541512" } }, "Saved acquisition views must retain only the allowlisted filter contract");
-  assert.equal(matchesSavedAcquisitionView({ ...normalized, naicsCode: "541512", organization: { branch: "Army" } }, saved), true, "Durable alert matching must use the normalized saved-view contract");
+  assert.equal(samNoticeTypeId("Sources Sought"), "r", "SAM notice labels must normalize to stable filter IDs");
+  assert.equal(samNoticeTypeId("RFI"), "r", "RFI must be a first-class alias for Sources Sought");
+  assert.equal(samNoticeTypeLabel("r"), "Sources sought / RFI", "Stable notice IDs must retain human-readable labels");
+  const saved = normalizeSavedAcquisitionView({ query: "runtime", filters: { branch: "Army", noticeType: "r", naics: "541512", untrustedField: "discard me" }, credential: "must-not-survive" });
+  assert.deepEqual(saved, { query: "runtime", filters: { branch: "Army", noticeType: "r", naics: "541512" } }, "Saved acquisition views must retain only the allowlisted filter contract");
+  assert.equal(matchesSavedAcquisitionView({ ...normalized, noticeType: "Sources Sought", naicsCode: "541512", organization: { branch: "Army" } }, saved), true, "Durable RFI alerts must use the same normalized notice-type contract as Spend Explorer");
+  assert.equal(matchesSavedAcquisitionView({ ...normalized, noticeType: "Special Notice", naicsCode: "541512", organization: { branch: "Army" } }, saved), false, "Saved RFI views must reject other SAM notice classes");
   console.log("Procurement discovery contract passed: field-level diffs, daily history, and explicit coverage boundaries.");
 } finally {
   if (process.env.KEEP_PROCUREMENT_DISCOVERY_FIXTURE) console.log(`Retained fixture at ${fixtureRoot}`);

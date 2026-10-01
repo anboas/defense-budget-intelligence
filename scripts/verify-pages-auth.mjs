@@ -767,7 +767,7 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.deepEqual(body.records, []);
     assert.deepEqual(body.pagination, { offset: 0, limit: 10, total: 0, hasMore: false });
-    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { name: "Fourth Estate AI", query: "artificial intelligence", filters: { branch: "Fourth Estate", untrustedField: "discard me" }, alertMode: "daily", credential: "discard me" } });
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { name: "Fourth Estate AI RFIs", query: "artificial intelligence", filters: { branch: "Fourth Estate", noticeType: "r", untrustedField: "discard me" }, alertMode: "daily", credential: "discard me" } });
     assert.equal(response.status, 201, "D1 must persist cross-device acquisition views");
     body = await response.json();
     const acquisitionViewId = body.view.id;
@@ -780,6 +780,7 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.views.length, 1);
     assert.equal(body.views[0].filters.branch, "Fourth Estate");
+    assert.equal(body.views[0].filters.noticeType, "r", "D1 saved views must preserve the first-class Sources Sought / RFI facet");
     assert.equal(body.views[0].filters.untrustedField, undefined, "D1 saved views must discard fields outside the filter allowlist");
     assert.equal(body.views[0].unreadCount, 0);
     response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/saved-views/${acquisitionViewId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
