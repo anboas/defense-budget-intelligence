@@ -1,6 +1,7 @@
 import { cleanText } from "./security-policy.js";
 import {
   ACQUISITION_SOURCE,
+  acquisitionBackfillDue,
   acquisitionNextDueAt,
   changedFields,
   exactLifecycleLinks,
@@ -135,10 +136,11 @@ async function status(db, workspaceId) {
   ]);
   const completed = Date.parse(latest?.completed_at || latest?.started_at || "");
   const nextDueAt = acquisitionNextDueAt(latest?.completed_at, config);
+  const backfillDue = acquisitionBackfillDue(latest?.completed_at, config);
   return {
     source: "SAM.gov", credential: credential ? { configured: true, label: credential.label, lastFour: credential.secret_last_four, lastUsedAt: credential.last_used_at || null } : { configured: false },
     config,
-    refresh: { latest: run(latest), due: config.enabled && (!Number.isFinite(completed) || !nextDueAt || Date.now() >= Date.parse(nextDueAt)), nextDueAt, schedule: `Every ${config.cadenceHours} hours`, execution: "cloudflare-cron-with-first-access-fallback", eligible: Boolean(credential && config.enabled) },
+    refresh: { latest: run(latest), due: config.enabled && (backfillDue || !Number.isFinite(completed) || !nextDueAt || Date.now() >= Date.parse(nextDueAt)), backfillDue, nextDueAt, schedule: `Every ${config.cadenceHours} hours`, execution: "cloudflare-cron-with-first-access-fallback", eligible: Boolean(credential && config.enabled) },
     durableHistory: { records: Number(counts?.records || 0), active: Number(counts?.active || 0), changedToday: Number(counts?.changed_today || 0), lifecycleLinks: Number(linkCount?.total || 0) },
     quality: Object.fromEntries(Object.entries(quality || {}).map(([key, value]) => [key, Number(value || 0)])),
     delivery: { total: Number(delivery?.total || 0), pendingProvider: Number(delivery?.pending_provider || 0), failed: Number(delivery?.failed || 0) },
@@ -212,10 +214,11 @@ export async function runD1AcquisitionRefresh({ db, env, workspaceId, trigger = 
   if (running && Date.now() - Date.parse(running.started_at) < 30 * 60_000) return { skipped: true, reason: "refresh_running", runId: running.id };
   if (running) await db.prepare("UPDATE dbi_acquisition_refresh_runs SET status = 'failed', error_code = 'stale_run', error_message = 'The prior refresh exceeded the 30-minute execution window', completed_at = ? WHERE id = ?").bind(new Date().toISOString(), running.id).run();
   const latest = await db.prepare("SELECT completed_at FROM dbi_acquisition_refresh_runs WHERE workspace_id = ? AND source = ? AND status = 'succeeded' ORDER BY completed_at DESC LIMIT 1").bind(workspaceId, ACQUISITION_SOURCE).first();
+  const backfillDue = acquisitionBackfillDue(latest?.completed_at, config);
   const id = crypto.randomUUID(); const started = new Date().toISOString();
   await db.prepare("INSERT INTO dbi_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type, started_at) VALUES (?,?,?,'running',?,?)").bind(id, workspaceId, ACQUISITION_SOURCE, trigger, started).run();
   try {
-    const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: latest?.completed_at, config });
+    const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: backfillDue ? null : latest?.completed_at, config });
     const counts = await persist(db, env, workspaceId, id, result.records, result.metadata); const completed = new Date().toISOString();
     await db.prepare("UPDATE dbi_workspace_provider_credentials SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completed, completed, credential.id).run();
     return { skipped: false, run: { id, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded }, metadata: result.metadata };
@@ -237,7 +240,7 @@ export async function runScheduledAcquisitionSweep(db, env, { decryptSecret, max
   const due = (credentials.results || []).filter((row) => {
     const config = normalizeAcquisitionConfig(row.config_json ? { ...parsed(row.config_json, {}), enabled: row.enabled === null ? undefined : Boolean(row.enabled), cadenceHours: row.cadence_hours } : {});
     const nextDueAt = acquisitionNextDueAt(row.last_completed_at, config);
-    return config.enabled && (!nextDueAt || Date.now() >= Date.parse(nextDueAt));
+    return config.enabled && (acquisitionBackfillDue(row.last_completed_at, config) || !nextDueAt || Date.now() >= Date.parse(nextDueAt));
   }).slice(0, Math.max(1, Math.min(5, Number(maxWorkspaces) || 1)));
   const results = [];
   for (const row of due) results.push({ workspaceId: row.workspace_id, ...(await runD1AcquisitionRefresh({ db, env, workspaceId: row.workspace_id, trigger: "scheduled", decryptSecret })) });

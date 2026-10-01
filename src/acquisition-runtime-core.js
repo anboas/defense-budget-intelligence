@@ -15,6 +15,7 @@ export const DEFAULT_ACQUISITION_CONFIG = Object.freeze({
   maxRetries: 3,
   organizationName: "DEPT OF DEFENSE",
   noticeTypes: [],
+  backfillRequestedAt: null,
 });
 
 function text(value, limit = 500) {
@@ -24,6 +25,11 @@ function text(value, limit = 500) {
 function integer(value, fallback, minimum, maximum) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, Math.trunc(parsed))) : fallback;
+}
+
+function timestamp(value) {
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
 export function normalizeAcquisitionConfig(input = {}) {
@@ -41,6 +47,7 @@ export function normalizeAcquisitionConfig(input = {}) {
     maxRetries: integer(input.maxRetries, DEFAULT_ACQUISITION_CONFIG.maxRetries, 0, 6),
     organizationName: text(input.organizationName, 240) || DEFAULT_ACQUISITION_CONFIG.organizationName,
     noticeTypes,
+    backfillRequestedAt: timestamp(input.backfillRequestedAt),
   };
 }
 
@@ -49,6 +56,12 @@ export function acquisitionNextDueAt(lastCompletedAt, configInput = {}) {
   if (!Number.isFinite(completed)) return null;
   const config = normalizeAcquisitionConfig(configInput);
   return new Date(completed + config.cadenceHours * 3_600_000).toISOString();
+}
+
+export function acquisitionBackfillDue(lastCompletedAt, configInput = {}) {
+  const completed = Date.parse(lastCompletedAt || "");
+  const requested = Date.parse(normalizeAcquisitionConfig(configInput).backfillRequestedAt || "");
+  return Number.isFinite(requested) && (!Number.isFinite(completed) || requested > completed);
 }
 
 function dateOnly(value) {
