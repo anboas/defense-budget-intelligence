@@ -55,7 +55,7 @@ assert.equal(graph.entities?.["spending-observation"]?.length, 7071, "Every annu
 assert.equal(graph.metadata.relationCounts["spending-observation-measures-entity"], 7071, "Every spending observation must measure exactly one typed subject");
 assert.equal(graph.metadata.entityCounts["federal-account"], 179, "Current and historical federal accounts must remain independently addressable");
 assert.equal(graph.metadata.relationCounts["federal-account-has-execution-balance"], 7986, "Every execution balance must retain its exact federal-account edge");
-assert.equal(graph.metadata.relationCounts["supported-by-source"], 30354, "Every program, role, dossier, document, mark, observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
+assert.equal(graph.metadata.relationCounts["supported-by-source"], 30364, "Every program, role, dossier, monitor, document, mark, observation, award, balance, revision, transaction, legislative record, mission, and historical account must retain source evidence");
 assert.equal(graph.entities?.["treasury-account"]?.length, 1986, "Every exact historical TAS must exist once");
 assert.equal(graph.entities?.["execution-balance"]?.length, 7986, "Every FY/TAS execution balance must exist once");
 assert.equal(graph.entities?.["apportionment-revision"]?.length, 6105, "Every retained OMB apportionment revision must exist once");
@@ -117,11 +117,16 @@ assert.equal(graph.entities?.["organization-mission-claim"]?.length, 54, "Review
 assert.equal(graph.entities?.["organization-financial-summary"]?.length, 59, "Typed organization financial coverage changed");
 assert.equal(graph.entities?.["organization-research-gap"]?.length, 257, "Organization research queue coverage changed");
 assert.equal(graph.entities?.["organization-change-event"]?.length, 257, "Organization change-timeline coverage changed");
+assert.equal(graph.entities?.["organization-source-monitor"]?.length, 10, "Official organization source-monitor coverage changed");
+assert.equal(graph.entities?.["organization-source-observation"]?.length, 10, "Every monitored source must retain its current observation");
+assert.equal(graph.entities?.["organization-change-proposal"]?.length, 0, "The current unchanged baseline must not manufacture source-change proposals");
 assert.equal(graph.metadata.relationCounts["organization-dossier-for-organization"], 100, "Every dossier must join one canonical organization");
 assert.equal(graph.metadata.relationCounts["organization-dossier-includes-role"], 292, "Every retained dossier role must remain traversable");
 assert.equal(graph.metadata.relationCounts["organization-dossier-includes-program"], 2710, "Dossier program coverage changed");
 assert.equal(graph.metadata.relationCounts["organization-dossier-includes-award"], 635, "Dossier award coverage changed");
 assert.equal(graph.metadata.relationCounts["organization-dossier-has-research-gap"], 257, "Every research gap must join its dossier");
+assert.equal(graph.metadata.relationCounts["organization-source-monitor-has-observation"], 10, "Every source monitor must retain its content-hash observation");
+assert.equal(graph.metadata.relationCounts["organization-source-monitor-covers-dossier"], 17, "Every exact monitored-source dossier membership must remain traversable");
 assert.equal(graph.entities?.["supplier-relationship"]?.length, 1000, "Bounded supplier relationship coverage changed");
 assert.equal(graph.entities?.["buyer-profile"]?.length, 22, "Buyer profile coverage changed");
 assert.equal(graph.entities?.["vendor-profile"]?.length, 235, "Vendor profile coverage changed");
@@ -192,8 +197,8 @@ assert.equal(graph.metadata.relationCounts["evidence-claim-about"], 990, "Eviden
 assert.equal(graph.metadata.relationCounts["evidence-conflict-has-claim"], 1045, "Conflict-to-claim coverage changed");
 assert.equal(graph.metadata.relationCounts["evidence-conflict-resolved-by"], 408, "Recency resolution coverage changed");
 assert.deepEqual(graph.metadata.coverage.temporal, {
-  relationsAssessed: 134924,
-  current: 120426,
+  relationsAssessed: 134961,
+  current: 120463,
   historical: 14226,
   future: 272,
   stale: 0,

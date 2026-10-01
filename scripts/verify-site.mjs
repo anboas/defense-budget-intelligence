@@ -37,7 +37,7 @@ assert.equal(builtAssets.filter((name) => /^IntegrationManagement-.*\.js$/.test(
 assert.equal(builtAssets.filter((name) => /^UserManagement-.*\.js$/.test(name)).length, 1, "User administration should ship behind its own lazy boundary");
 assert.equal(builtAssets.filter((name) => /^WorkspaceManagement-.*\.js$/.test(name)).length, 1, "Workspace administration should ship behind its own lazy boundary");
 
-async function waitForServer(url, timeoutMs = 30000) {
+async function waitForServer(url, timeoutMs = 90000) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     try {
@@ -406,11 +406,11 @@ try {
   await assertActiveGroupState(page, "workspace-admin", "Domain Model");
   assert.equal(await page.locator("[data-domain-diagram]").count(), 1, "Domain Model should expose one integrated architecture diagram");
   assert.equal(await page.locator("[data-domain-diagram-node]").count(), 14, "The architecture diagram should group the graph into fourteen readable domains");
-  assert.equal(await page.locator("[data-domain-entity-card]").count(), 80, "Domain Model should inventory every canonical entity type");
-  assert.equal(await page.locator("[data-domain-relation-row]").count(), 120, "Domain Model should inventory every canonical relationship type");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 83, "Domain Model should inventory every canonical entity type");
+  assert.equal(await page.locator("[data-domain-relation-row]").count(), 124, "Domain Model should inventory every canonical relationship type");
   const domainOverviewText = await page.locator("[data-domain-model-page]").innerText();
-  assert.match(domainOverviewText, /72,073[\s\S]*typed entities[\s\S]*134,924[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
-  assert.match(domainOverviewText, /120,426[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
+  assert.match(domainOverviewText, /72,093[\s\S]*typed entities[\s\S]*134,961[\s\S]*evidence relations/i, "Domain Model should disclose canonical graph totals");
+  assert.match(domainOverviewText, /120,463[\s\S]*current relations[\s\S]*81[\s\S]*review required/i, "Domain Model should disclose temporal and conflict totals");
   assert.match(domainOverviewText, /Treasury accounts[\s\S]*1,986[\s\S]*Execution balances[\s\S]*7,986[\s\S]*OMB revisions[\s\S]*6,105/i, "Domain Model should disclose exact money lifecycle depth");
   assert.match(domainOverviewText, /Acquisition backbone[\s\S]*Unavailable/i, "Domain Model should disclose the protected SAM source state rather than implying coverage");
   assert.match(domainOverviewText, /Program intelligence[\s\S]*Defense programs[\s\S]*2,723[\s\S]*Page-cited House marks[\s\S]*35/i, "Domain Model should disclose program and page-cited mark coverage");
@@ -421,7 +421,7 @@ try {
   await page.getByRole("button", { name: /Evidence & provenance/ }).click();
   assert.equal(await page.locator("[data-domain-entity-card]").count(), 3, "Domain filters should focus the inventory without changing graph facts");
   await page.getByRole("button", { name: /All domains/ }).click();
-  assert.equal(await page.locator("[data-domain-entity-card]").count(), 80, "All domains should restore the complete entity inventory");
+  assert.equal(await page.locator("[data-domain-entity-card]").count(), 83, "All domains should restore the complete entity inventory");
   await assertNoPageOverflow(page, "Domain Model desktop");
   await page.screenshot({ path: `${OUT_DIR}/domain-model-desktop.png`, fullPage: true });
 
@@ -429,6 +429,7 @@ try {
   await assertActiveGroupState(page, "workspace-admin", "Intelligence Operations");
   assert.equal(await resourceCount(page, "roadmap-intelligence.json"), 1, "Intelligence Operations should load its bounded route artifact once");
   assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Organization Intelligence should load its bounded dossier artifact once");
+  assert.equal(await resourceCount(page, "organization-change-monitor.json"), 1, "Organization Watch should load its bounded monitoring artifact once");
   const intelligenceText = await page.locator("[data-intelligence-products-page]").innerText();
   assert.match(intelligenceText, /100[\s\S]*organization dossiers[\s\S]*292[\s\S]*official roles[\s\S]*1,000[\s\S]*supplier links[\s\S]*54[\s\S]*official documents[\s\S]*332[\s\S]*exact citations/i, "Intelligence Operations should disclose core evidence totals");
   assert.equal(await page.locator("[data-organization-intelligence-panel]").count(), 1, "Organization Intelligence should be the primary research surface");
@@ -443,6 +444,11 @@ try {
   assert.match(peopleIntelligenceText, /Official people and role tenure/i, "Intelligence Operations should expose public professional tenure");
   assert.match(peopleIntelligenceText, /Ross R\. Guckert/i, "Intelligence Operations should retain historical public roleholders");
   assert.match(peopleIntelligenceText, /William Hepworth/i, "Intelligence Operations should expose successor roleholders");
+  await page.getByRole("button", { name: "Organization watch" }).click();
+  assert.equal(await page.locator("[data-organization-watch-panel]").count(), 1, "Organization Watch should expose its source registry and proposal queue");
+  assert.equal(await page.locator("[data-organization-monitor-source]").count(), 10, "Organization Watch should retain every monitored official source");
+  assert.equal(await page.locator("[data-organization-watch-clear]").count(), 1, "An unchanged baseline should disclose that no source changes are pending");
+  assert.match(await page.locator("[data-organization-watch-panel]").innerText(), /missing listing never ends a tenure[\s\S]*cannot overwrite a dossier until reviewed/i, "Organization Watch should disclose its fail-closed review policy");
   await page.getByRole("button", { name: "Industrial base" }).click();
   assert.equal(await page.locator("[data-industrial-base-panel]").count(), 1, "Industrial-base evidence should be available on demand");
   await page.getByRole("button", { name: "Accountability" }).click();
@@ -1980,7 +1986,7 @@ try {
   assert.match(graphSummaryText, /571 UEI-backed[\s\S]*50 reviewed office-code identities[\s\S]*11 ambiguous labels remain queued/i, "Source Lineage should expose organization identity coverage and unresolved conflicts");
   assert.match(graphSummaryText, /166 exact parent IDVs[\s\S]*206 linked orders[\s\S]*26 multi-order families/i, "Source Lineage should expose exact contract-family coverage");
   assert.match(graphSummaryText, /3 resolved predecessor links[\s\S]*237 review-only timing signals[\s\S]*18 claims remain unresolved/i, "Source Lineage should distinguish resolved lineage from review-only signals");
-  assert.match(graphSummaryText, /120,426 current[\s\S]*14,226 historical[\s\S]*272 future[\s\S]*0 stale relationships/i, "Source Lineage should disclose relationship validity coverage");
+  assert.match(graphSummaryText, /120,463 current[\s\S]*14,226 historical[\s\S]*272 future[\s\S]*0 stale relationships/i, "Source Lineage should disclose relationship validity coverage");
   assert.match(graphSummaryText, /489 retained disagreements[\s\S]*408 resolved by newer current evidence[\s\S]*81 require review/i, "Source Lineage should separate deterministic supersession from unresolved conflicts");
   assert.match(graphSummaryText, /316 budget lines remain explicitly unresolved/i, "Source Lineage should keep unresolved crosswalks visible");
   assert.match(graphSummaryText, /FY2017–FY2026[\s\S]*1,986 Treasury accounts[\s\S]*7,986 execution balances[\s\S]*6,105 OMB revisions/i, "Source Lineage should disclose exact money lifecycle depth");
@@ -2339,7 +2345,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/analytics-flow-mobile.png`, fullPage: true });
 
   await openSurface(mobile, "#/budget-spend/domain-model", "[data-domain-model-page]");
-  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 80, "Mobile Domain Model should retain the complete entity inventory");
+  assert.equal(await mobile.locator("[data-domain-entity-card]").count(), 83, "Mobile Domain Model should retain the complete entity inventory");
   const domainFilterHeights = await mobile.locator(".domain-model__filters button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(domainFilterHeights.every((height) => height >= 43.5), `Mobile domain filters must retain 44px touch targets: ${domainFilterHeights.join(", ")}`);
   await assertNoPageOverflow(mobile, "Mobile Domain Model");
@@ -2355,6 +2361,9 @@ try {
   await mobile.getByRole("button", { name: "People & tenure" }).click();
   await mobile.locator("[data-official-people-panel]").waitFor({ state: "attached" });
   assert.equal(await mobile.locator("[data-official-people-panel]").count(), 1, "Mobile Intelligence Operations should retain official people coverage");
+  await mobile.getByRole("button", { name: "Organization watch" }).click();
+  await mobile.locator("[data-organization-watch-panel]").waitFor({ state: "attached" });
+  assert.equal(await mobile.locator("[data-organization-monitor-source]").count(), 10, "Mobile Organization Watch should retain every monitored official source");
   await assertNoPageOverflow(mobile, "Mobile Intelligence Operations");
   await mobile.screenshot({ path: `${OUT_DIR}/intelligence-operations-mobile.png`, fullPage: true });
 

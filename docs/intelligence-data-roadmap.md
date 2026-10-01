@@ -36,6 +36,7 @@ new source must enable. Volume alone is not a release criterion.
 | Forecast and installation mission evidence | Operational baseline | Agency-source records and reviewed official installation sources |
 | Competitive, expiration, execution, and outcome signals | Operational review layer | Deterministic, dated, caveated signals only |
 | Organization intelligence | Operational bounded baseline | 100 prioritized dossiers, mission/finance/timeline projections, explicit research queues |
+| Organization source monitoring | Operational review baseline | 10 hashed official sources, 17 exact dossier links, fail-closed change proposals |
 | Official people and role tenure | Operational expanded baseline | 111 public professionals, 292 sourced roles, four exact successions |
 | Industrial-base and teaming intelligence | Operational partial baseline | 1,000 sampled prime-to-supplier relationships and retained-award market profiles |
 | Outcomes and accountability | Operational bounded baseline | Program health summaries and four source-linked official findings |
@@ -118,9 +119,24 @@ datasets. The bounded first cohort includes:
 - Full ADMIN dossier routes and Agent API traversal into people, roles, programs, awards,
   accounts, vendors, locations, sources, mission claims, financial summaries, and timelines.
 
-The next depth pass expands executive and program-management coverage beyond committee
-directories, adds exact official hierarchy and charter monitoring, and promotes source diffs
-into reviewable change proposals without silent overwrites.
+### Schema 2.4 Organization Watch baseline
+
+Organization Watch operationalizes the source-diff portion of the depth roadmap:
+
+- 10 official source pages are registered with allowed hosts, adapters, cadence, priority,
+  content hash, and current observation state.
+- Exact source membership connects those monitors to 17 organization dossiers.
+- Previous verified role and dossier snapshots are retained during scheduled refreshes.
+- New role listings, absent role listings, mission or finance additions, content changes,
+  and dossier-coverage changes create review proposals.
+- A missing directory listing never ends a tenure, and no proposal is promoted
+  automatically. The unchanged current baseline therefore has zero pending proposals.
+- ADMIN, Source Lineage, the canonical graph, and Agent API expose monitoring state without
+  adding the 15 KB deferred artifact to the initial shell or Opportunity Map.
+
+The next depth pass expands exact executive and program-management coverage beyond
+committee directories, adds official hierarchy and charter adapters, and connects reviewed
+proposals to Agent API enrichment publication while retaining human-visible provenance.
 
 ### Cross-workstream acceptance gates
 

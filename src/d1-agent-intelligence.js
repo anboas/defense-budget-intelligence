@@ -17,6 +17,7 @@ const ENTITY_TYPES = Object.freeze([
   "competitive-signal", "expiration-signal", "execution-risk-signal", "protest-decision", "audit-finding", "outcome-evidence",
   "organization-dossier", "organization-mission-claim", "organization-financial-summary",
   "organization-research-gap", "organization-change-event",
+  "organization-source-monitor", "organization-source-observation", "organization-change-proposal",
 ]);
 
 const CLAIM_OPERATIONS = Object.freeze(["fill_missing", "replace", "append", "supersede", "add_relation"]);
@@ -285,6 +286,9 @@ function entityTypeFromId(id) {
     ["organization-financial-summary:", "organization-financial-summary"],
     ["organization-research-gap:", "organization-research-gap"],
     ["organization-change-event:", "organization-change-event"],
+    ["organization-source-monitor:", "organization-source-monitor"],
+    ["organization-source-observation:", "organization-source-observation"],
+    ["organization-change-proposal:", "organization-change-proposal"],
     ["activity:", "activity"], ["award:", "award"], ["event:", "event"], ["transaction:", "transaction"],
     ["org:", "organization"], ["location:", "location"], ["account:", "federal-account"],
     ["class:", "classification"], ["source:", "source"],
