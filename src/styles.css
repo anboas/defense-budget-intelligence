@@ -6478,6 +6478,8 @@ td .dot {
 }
 
 @media (max-width: 760px) {
+  .capture-page { gap: 4px; }
+
   .capture-gantt-heading { align-items: stretch; }
 
   .capture-followon-detail__actions button,
