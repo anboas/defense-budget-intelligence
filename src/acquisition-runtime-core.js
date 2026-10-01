@@ -195,20 +195,35 @@ export function samQueryWindow({ lastCompletedAt, now = new Date(), config: conf
   return { postedFrom: mmddyyyy(start), postedTo: mmddyyyy(now), lookbackDays };
 }
 
+function parseSamDate(value) {
+  const [month, day, year] = String(value || "").split("/").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function formatSamDate(value) {
+  return `${String(value.getUTCMonth() + 1).padStart(2, "0")}/${String(value.getUTCDate()).padStart(2, "0")}/${value.getUTCFullYear()}`;
+}
+
 export function samQuerySlices(window, sliceDays = 7) {
-  const parse = (value) => {
-    const [month, day, year] = String(value || "").split("/").map(Number);
-    return new Date(Date.UTC(year, month - 1, day));
-  };
-  const format = (value) => `${String(value.getUTCMonth() + 1).padStart(2, "0")}/${String(value.getUTCDate()).padStart(2, "0")}/${value.getUTCFullYear()}`;
-  const start = parse(window?.postedFrom); const end = parse(window?.postedTo);
+  const start = parseSamDate(window?.postedFrom); const end = parseSamDate(window?.postedTo);
   if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start > end) return [];
   const boundedDays = integer(sliceDays, 7, 1, 31); const slices = [];
   for (let cursor = start; cursor <= end; cursor = new Date(cursor.getTime() + boundedDays * DAY_MS)) {
     const sliceEnd = new Date(Math.min(end.getTime(), cursor.getTime() + (boundedDays - 1) * DAY_MS));
-    slices.push({ postedFrom: format(cursor), postedTo: format(sliceEnd) });
+    slices.push({ postedFrom: formatSamDate(cursor), postedTo: formatSamDate(sliceEnd) });
   }
   return slices;
+}
+
+export function splitSamQueryScope(scope) {
+  const start = parseSamDate(scope?.postedFrom); const end = parseSamDate(scope?.postedTo);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start >= end) return [];
+  const midpoint = new Date(start.getTime() + Math.floor((end.getTime() - start.getTime()) / (2 * DAY_MS)) * DAY_MS);
+  const rightStart = new Date(midpoint.getTime() + DAY_MS);
+  return [
+    { postedFrom: formatSamDate(start), postedTo: formatSamDate(midpoint) },
+    { postedFrom: formatSamDate(rightStart), postedTo: formatSamDate(end) },
+  ];
 }
 
 function retryDelay(response, attempt, minimum) {
@@ -230,13 +245,18 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
   let requests = 0;
   let retries = 0;
   let throttleWaitMs = 0;
+  let adaptiveSplits = 0;
   const noticeTypeScopes = config.noticeTypes.length ? config.noticeTypes : [""];
   const dateScopes = samQuerySlices(window);
+  const completedScopes = [];
   for (const noticeType of noticeTypeScopes) {
-    for (const dateScope of dateScopes) {
+    const pendingScopes = [...dateScopes];
+    while (pendingScopes.length) {
+      const dateScope = pendingScopes.shift();
       let offset = 0;
       let scopePages = 0;
       let scopeTotal = null;
+      let splitScheduled = false;
       while (scopePages < config.maxPages) {
         if (pages > 0 && config.requestIntervalMs) await sleep(config.requestIntervalMs);
         const url = new URL("https://api.sam.gov/opportunities/v2/search");
@@ -266,20 +286,31 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
         const payload = await response.json();
         const rows = Array.isArray(payload.opportunitiesData) ? payload.opportunitiesData : [];
         scopeTotal = Number(payload.totalRecords || scopeTotal || 0);
+        if (scopePages === 0 && scopeTotal > config.maxPages * limit) {
+          const childScopes = splitSamQueryScope(dateScope);
+          if (childScopes.length) {
+            pendingScopes.unshift(...childScopes);
+            adaptiveSplits += 1;
+            splitScheduled = true;
+            break;
+          }
+        }
         records.push(...rows.map(normalizeSamOpportunity).filter(Boolean));
         pages += 1;
         scopePages += 1;
         offset += rows.length;
         if (!rows.length || offset >= scopeTotal) break;
       }
+      if (splitScheduled) continue;
       if (scopeTotal === null) throw Object.assign(new Error(`SAM.gov notice-type/date scope exceeded the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
       totalRecords += Number(scopeTotal || 0);
       if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned more than the bounded ${config.maxPages * limit} record window for one notice-type/date scope; no partial refresh was applied`), { code: "source_truncated" });
+      completedScopes.push({ ...dateScope, noticeType: noticeType || null, totalRecords: Number(scopeTotal || 0) });
     }
   }
   return {
     records: [...new Map(records.map((record) => [record.sourceRecordId, record])).values()],
-    metadata: { ...window, pages, requests, retries, throttleWaitMs, totalRecords: Number(totalRecords || records.length), noticeTypesQueried: config.noticeTypes, dateScopes, complete: true, config },
+    metadata: { ...window, pages, requests, retries, throttleWaitMs, adaptiveSplits, totalRecords: Number(totalRecords || records.length), noticeTypesQueried: config.noticeTypes, dateScopes: completedScopes, complete: true, config },
   };
 }
 
