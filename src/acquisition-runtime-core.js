@@ -257,7 +257,7 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
   let adaptiveSplits = 0;
   const noticeTypeScopes = config.noticeIds.length ? [""] : config.noticeTypes.length ? config.noticeTypes : [""];
   const noticeIdScopes = config.noticeIds.length ? config.noticeIds : [""];
-  const dateScopes = samQuerySlices(window);
+  const dateScopes = config.noticeIds.length ? [{ postedFrom: window.postedFrom, postedTo: window.postedTo }] : samQuerySlices(window);
   const completedScopes = [];
   for (const noticeId of noticeIdScopes) for (const noticeType of noticeTypeScopes) {
     const pendingScopes = [...dateScopes];
