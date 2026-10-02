@@ -13,7 +13,7 @@ import {
   sha256,
   stableJson,
 } from "../src/acquisition-runtime-core.js";
-import { analyzeOpportunityWithOpenAi, normalizeOpportunityAiAssessment } from "../src/opportunity-ai-runtime.js";
+import { analyzeOpportunityWithOpenAi, normalizeOpportunityAiAssessment, resolveOpportunityForIntake } from "../src/opportunity-ai-runtime.js";
 import { deliveryJobSchedule } from "../src/acquisition-delivery-core.js";
 import { processPostgresAcquisitionDeliveryQueue, registerAcquisitionDeliveryRoutes } from "./acquisition-delivery-routes.mjs";
 
@@ -249,38 +249,45 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
     if (!noticeId) return reply.code(400).send({ error: "paste a valid SAM.gov opportunity link or notice ID", code: "invalid_reference" });
     const existing = await pool.query("SELECT * FROM app_acquisition_records WHERE workspace_id = $1 AND source = $2 AND lower(source_record_id) = lower($3) AND removed_at IS NULL", [current.workspaceId, ACQUISITION_SOURCE, noticeId]);
     if (existing.rowCount) return { record: publicRecord(existing.rows[0]), intake: { status: "already_retained", noticeId, source: "workspace" } };
-    const credential = await pool.query("SELECT * FROM app_workspace_provider_credentials WHERE workspace_id = $1 AND provider = 'sam_gov' AND revoked_at IS NULL LIMIT 1", [current.workspaceId]);
-    if (!credential.rowCount) return reply.code(409).send({ error: "configure the workspace SAM.gov credential before importing a notice", code: "credential_unavailable" });
-    const apiKey = decryptSecret({ encrypted_key: credential.rows[0].encrypted_secret, key_iv: credential.rows[0].secret_iv, key_version: credential.rows[0].secret_version });
-    if (!apiKey) return reply.code(503).send({ error: "the workspace SAM.gov credential could not be decrypted", code: "credential_unavailable" });
+    const [credential, aiCredential] = await Promise.all([
+      pool.query("SELECT * FROM app_workspace_provider_credentials WHERE workspace_id = $1 AND provider = 'sam_gov' AND revoked_at IS NULL LIMIT 1", [current.workspaceId]),
+      pool.query("SELECT * FROM app_openai_keys WHERE workspace_id = $1 AND scope_type = 'workspace' AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [current.workspaceId]),
+    ]);
+    if (!credential.rowCount && !aiCredential.rowCount) return reply.code(409).send({ error: "configure a workspace OpenAI or SAM.gov credential before importing a notice", code: "credential_unavailable" });
+    const apiKey = credential.rowCount ? decryptSecret({ encrypted_key: credential.rows[0].encrypted_secret, key_iv: credential.rows[0].secret_iv, key_version: credential.rows[0].secret_version }) : "";
+    const openAiKey = aiCredential.rowCount ? decryptSecret(aiCredential.rows[0]) : "";
+    if (!apiKey && !openAiKey) return reply.code(503).send({ error: "the workspace retrieval credentials could not be decrypted", code: "credential_unavailable" });
     const runId = randomUUID();
     await pool.query("INSERT INTO app_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type) VALUES ($1,$2,$3,'running','link_intake')", [runId, current.workspaceId, ACQUISITION_SOURCE]);
     try {
       const mockMode = String(process.env.DBI_ACQUISITION_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
-      const result = mockMode ? { records: [normalizeSamOpportunity({ noticeId, solicitationNumber: `MOCK-${noticeId.slice(0, 12)}`, title: "AI-enabled mission software and systems engineering support", description: "Systems engineering, software development, artificial intelligence, data analytics, cybersecurity, and program management support.", type: "Sources Sought", postedDate: "2026-10-01", responseDeadLine: "2026-10-31", naicsCode: "541512", classificationCode: "DA10", department: "DEPT OF DEFENSE", subTier: "DEPT OF THE ARMY", office: "ACC", active: "Yes", uiLink: `https://sam.gov/opp/${encodeURIComponent(noticeId)}/view` })], metadata: { complete: true, noticeIdsQueried: [noticeId], mock: true } }
-        : await fetchSamOpportunities({ apiKey, config: { initialLookbackDays: 365, noticeIds: [noticeId], pageSize: 10, maxPages: 1, requestIntervalMs: 250, maxRetries: 2, organizationName: "" } });
-      let opportunity = result.records.find((item) => item.sourceRecordId.toLowerCase() === noticeId.toLowerCase());
-      if (!opportunity) throw Object.assign(new Error("SAM.gov did not return this notice identifier in the bounded exact lookup"), { code: "notice_not_found", httpStatus: 404 });
-      const aiCredential = await pool.query("SELECT * FROM app_openai_keys WHERE workspace_id = $1 AND scope_type = 'workspace' AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [current.workspaceId]);
+      let result;
+      let opportunity;
+      let source;
+      let openAiUsed = false;
+      if (mockMode) {
+        opportunity = normalizeSamOpportunity({ noticeId, solicitationNumber: `MOCK-${noticeId.slice(0, 12)}`, title: "AI-enabled mission software and systems engineering support", description: "Systems engineering, software development, artificial intelligence, data analytics, cybersecurity, and program management support.", type: "Sources Sought", postedDate: "2026-10-01", responseDeadLine: "2026-10-31", naicsCode: "541512", classificationCode: "DA10", department: "DEPT OF DEFENSE", subTier: "DEPT OF THE ARMY", office: "ACC", active: "Yes", uiLink: `https://sam.gov/opp/${encodeURIComponent(noticeId)}/view` });
+        result = { records: [opportunity], metadata: { complete: true, noticeIdsQueried: [noticeId], mock: true } };
+        source = "mock";
+      } else {
+        ({ result, opportunity, source, openAiUsed } = await resolveOpportunityForIntake({ noticeId, reference: request.body?.reference, samApiKey: apiKey, openAiApiKey: openAiKey }));
+      }
       let ai = { status: "unavailable", reason: "workspace_openai_key_unavailable" };
       if (mockMode) {
         opportunity.aiAssessment = normalizeOpportunityAiAssessment({ summary: "This notice combines systems engineering, software delivery, and AI/data work in a current sources-sought window.", capabilityClusters: [{ id: "systems-engineering", rationale: "The published scope explicitly requests systems engineering.", confidence: "high" }, { id: "software-development", rationale: "The published scope explicitly requests software development.", confidence: "high" }, { id: "ai-autonomy", rationale: "The published scope explicitly requests artificial intelligence support.", confidence: "high" }], fitReasons: ["NAICS 541512 aligns with the active profile", "The scope names multiple priority capability lanes"], risks: ["Vehicle, set-aside, incumbent, staffing, and workshare require further review"], recommendedAction: "pursue", caveats: ["Mock verification assessment"], sourceUrls: [opportunity.sourceUrl] }, opportunity, { model: "mock-opportunity-model", responseId: `mock-${runId}` });
         ai = { status: "completed", mode: "mock" };
-      } else if (aiCredential.rowCount) {
-        const openAiKey = decryptSecret(aiCredential.rows[0]);
-        if (openAiKey) {
-          try { opportunity.aiAssessment = await analyzeOpportunityWithOpenAi({ apiKey: openAiKey, record: opportunity }); ai = { status: "completed", mode: "structured" }; }
-          catch (error) { ai = { status: "failed", code: cleanText(error.code || "provider_failed", 100) }; }
-        }
+      } else if (openAiKey) {
+        try { opportunity.aiAssessment = await analyzeOpportunityWithOpenAi({ apiKey: openAiKey, record: opportunity }); openAiUsed = true; ai = { status: "completed", mode: "structured" }; }
+        catch (error) { openAiUsed = true; ai = { status: "failed", code: cleanText(error.code || "provider_failed", 100) }; }
       }
-      const counts = await persistRefresh(pool, current.workspaceId, runId, [opportunity], { ...result.metadata, intake: true, ai });
+      const counts = await persistRefresh(pool, current.workspaceId, runId, [opportunity], { ...(result?.metadata || {}), intake: true, source, ai });
       const persisted = await pool.query("SELECT * FROM app_acquisition_records WHERE workspace_id = $1 AND source = $2 AND lower(source_record_id) = lower($3)", [current.workspaceId, ACQUISITION_SOURCE, opportunity.sourceRecordId]);
-      await pool.query("UPDATE app_workspace_provider_credentials SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [credential.rows[0].id]);
-      if (aiCredential.rowCount && ai.status === "completed" && !mockMode) await pool.query("UPDATE app_openai_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [aiCredential.rows[0].id]);
-      return reply.code(201).send({ record: publicRecord(persisted.rows[0]), intake: { status: counts.added ? "imported" : "updated", noticeId, source: "sam_gov_exact", ai } });
+      if (credential.rowCount && apiKey) await pool.query("UPDATE app_workspace_provider_credentials SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [credential.rows[0].id]);
+      if (aiCredential.rowCount && openAiUsed && !mockMode) await pool.query("UPDATE app_openai_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [aiCredential.rows[0].id]);
+      return reply.code(201).send({ record: publicRecord(persisted.rows[0]), intake: { status: counts.added ? "imported" : "updated", noticeId, source, retrieval: source === "openai_web_search" ? { status: "completed", reviewState: "needs_review" } : { status: "completed" }, ai } });
     } catch (error) {
       await pool.query("UPDATE app_acquisition_refresh_runs SET status = 'failed', error_code = $1, error_message = $2, completed_at = NOW() WHERE id = $3", [cleanText(error.code || "source_unavailable", 80), cleanText(error.message, 500), runId]);
-      return reply.code(Number(error.httpStatus || (error.code === "rate_limited" ? 429 : 502))).send({ error: error.code === "notice_not_found" ? "this notice was not returned by SAM.gov's exact opportunity lookup" : "SAM.gov could not complete the exact notice lookup", code: error.code || "source_unavailable" });
+      return reply.code(Number(error.httpStatus || (error.code === "rate_limited" ? 429 : 502))).send({ error: error.code === "notice_not_found" ? "neither SAM.gov nor OpenAI could verify this exact notice" : error.code === "unverified_source" || error.code === "notice_mismatch" ? "OpenAI found SAM.gov content but could not verify the exact notice identity" : "the opportunity could not be retrieved from SAM.gov or OpenAI", code: error.code || "source_unavailable" });
     }
   });
 

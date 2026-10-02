@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, parseSamOpportunityReference, samQuerySlices, samQueryWindow, splitSamQueryScope } from "../src/acquisition-runtime-core.js";
 import { classifyOpportunityFit } from "../src/opportunity-fit.js";
-import { analyzeOpportunityWithOpenAi, buildOpportunityAiRequest, normalizeOpportunityAiAssessment } from "../src/opportunity-ai-runtime.js";
+import { analyzeOpportunityWithOpenAi, buildOpportunityAiRequest, buildOpportunityRetrievalRequest, normalizeOpportunityAiAssessment, resolveOpportunityForIntake, retrieveOpportunityWithOpenAi } from "../src/opportunity-ai-runtime.js";
 import { samNoticeTypeId, samNoticeTypeLabel } from "../src/sam-notice-types.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -177,6 +177,39 @@ try {
   assert.equal(aiAssessment.provenance.reviewState, "needs_review", "AI opportunity assessments must remain reviewable derived metadata");
   const normalizedAi = normalizeOpportunityAiAssessment({ summary: "x", capabilityClusters: [{ id: "untrusted", rationale: "x", confidence: "high" }], fitReasons: [], risks: [], recommendedAction: "pursue", caveats: [], sourceUrls: [] }, normalized);
   assert.deepEqual(normalizedAi.capabilityClusters, [], "Unknown AI cluster IDs must be rejected before persistence");
+  const retrievalNoticeId = "8e101b6ad5ca48c5ab542d9d9bd883a0";
+  const retrievalSourceUrl = `https://sam.gov/opp/${retrievalNoticeId}/view`;
+  const retrievalRequest = buildOpportunityRetrievalRequest({ noticeId: retrievalNoticeId, reference: retrievalSourceUrl });
+  assert.equal(retrievalRequest.store, false, "OpenAI SAM retrieval must use non-persistent provider responses");
+  assert.equal(retrievalRequest.tool_choice, "required", "OpenAI SAM retrieval must execute web search rather than answering from model memory");
+  assert.deepEqual(retrievalRequest.tools[0].filters.allowed_domains, ["sam.gov"], "OpenAI SAM retrieval must be restricted to official SAM.gov sources");
+  assert.deepEqual(retrievalRequest.include, ["web_search_call.action.sources"], "OpenAI SAM retrieval must retain the provider's complete consulted-source inventory");
+  assert.equal(retrievalRequest.text.format.strict, true, "OpenAI SAM retrieval must require strict structured output");
+  let retrievalAuthorization = "";
+  let retrievalBody;
+  const retrieved = await retrieveOpportunityWithOpenAi({ apiKey: "openai_retrieval_verification_key", noticeId: retrievalNoticeId, reference: retrievalSourceUrl, fetchImpl: async (_url, options) => {
+    retrievalAuthorization = options.headers.authorization;
+    retrievalBody = JSON.parse(options.body);
+    const payload = { found: true, noticeId: retrievalNoticeId, solicitationNumber: "W31P4Q-26-R-0001", title: "C2BMC systems engineering support", description: "Published systems engineering and software integration scope.", noticeType: "Sources Sought", postedDate: "2026-09-20", modifiedDate: "2026-09-21", responseDeadline: "2026-10-20", archiveDate: "2026-10-21", naicsCode: "541512", pscCode: "DA10", setAside: "", department: "DEPT OF DEFENSE", subTier: "DEPT OF THE ARMY", office: "ACC", organizationPath: "DEPT OF DEFENSE.ARMY.ACC", placeOfPerformance: "United States", active: true, sourceUrls: [retrievalSourceUrl, "https://attacker.example/fake"], caveats: ["Attachments were not available in the indexed page."] };
+    return new Response(JSON.stringify({ id: "resp-sam-retrieval-1", output: [
+      { type: "web_search_call", action: { type: "open_page", sources: [{ url: retrievalSourceUrl, title: "SAM.gov opportunity" }] } },
+      { type: "message", content: [{ type: "output_text", text: JSON.stringify(payload), annotations: [{ type: "url_citation", url: retrievalSourceUrl, title: "SAM.gov opportunity" }] }] },
+    ] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.equal(retrievalAuthorization, "Bearer openai_retrieval_verification_key");
+  assert.equal(retrievalBody.tools[0].type, "web_search");
+  assert.equal(retrieved.noticeId, retrievalNoticeId);
+  assert.equal(retrieved.sourceUrl, retrievalSourceUrl);
+  assert.equal(retrieved.retrievalProvenance.kind, "openai-web-search");
+  assert.equal(retrieved.retrievalProvenance.reviewState, "needs_review");
+  assert.deepEqual(retrieved.retrievalProvenance.sourceUrls, [retrievalSourceUrl], "Only provider-grounded official sources may enter retrieval provenance");
+  const fallback = await resolveOpportunityForIntake({ noticeId: retrievalNoticeId, reference: retrievalSourceUrl, samApiKey: "sam_key", openAiApiKey: "openai_key",
+    fetchSam: async () => { throw Object.assign(new Error("SAM unavailable"), { code: "source_unavailable" }); },
+    retrieveWithOpenAi: async () => retrieved });
+  assert.equal(fallback.source, "openai_web_search", "A failed exact SAM API lookup must fall back to OpenAI web retrieval");
+  assert.equal(fallback.openAiUsed, true);
+  assert.equal(fallback.result.metadata.retrieval.samStatus, "source_unavailable");
+  await assert.rejects(() => retrieveOpportunityWithOpenAi({ apiKey: "openai_retrieval_verification_key", noticeId: retrievalNoticeId, reference: retrievalSourceUrl, fetchImpl: async () => new Response(JSON.stringify({ id: "resp-unverified", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ found: true, noticeId: retrievalNoticeId, solicitationNumber: "", title: "Unverified result", description: "", noticeType: "", postedDate: "", modifiedDate: "", responseDeadline: "", archiveDate: "", naicsCode: "", pscCode: "", setAside: "", department: "", subTier: "", office: "", organizationPath: "", placeOfPerformance: "", active: false, sourceUrls: [retrievalSourceUrl], caveats: [] }) }] }] }), { status: 200 }) }), /provider-grounded evidence/, "A model-supplied URL without provider evidence must fail closed");
   console.log("Procurement discovery contract passed: field-level diffs, daily history, and explicit coverage boundaries.");
 } finally {
   if (process.env.KEEP_PROCUREMENT_DISCOVERY_FIXTURE) console.log(`Retained fixture at ${fixtureRoot}`);

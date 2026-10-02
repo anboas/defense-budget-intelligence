@@ -294,6 +294,7 @@ try {
   await page.getByRole("button", { name: "Radar", exact: true }).click();
   await page.waitForSelector("[data-opportunity-radar]");
   assert.match(await page.locator("[data-opportunity-radar]").innerText(), /Add a SAM.gov opportunity[\s\S]*Sabre-aligned[\s\S]*Capability clusters/i, "Opportunity Radar must lead with exact notice intake, the active fit profile, and browsable work clusters");
+  assert.match(await page.locator(".opportunity-radar__intake").innerText(), /SAM API[\s\S]*OpenAI[\s\S]*SAM\.gov-only web retrieval/i, "Opportunity Radar must disclose the cited OpenAI fallback used when the exact SAM API lookup cannot resolve a valid page");
   assert.equal(await page.locator(".opportunity-radar__clusters button").count(), 7, "Opportunity Radar must expose the all-work board plus six capability clusters");
   assert.equal(await page.getByPlaceholder(/sam.gov\/opp/i).count(), 1, "Opportunity Radar must expose one direct SAM.gov link intake");
   await page.getByPlaceholder(/sam.gov\/opp/i).fill("https://attacker.example/opp/1234567890abcdef1234567890abcdef/view");
