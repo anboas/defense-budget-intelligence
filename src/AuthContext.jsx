@@ -259,6 +259,7 @@ export default function AuthProvider({ children }) {
     getAcquisitionConfig: () => authApi.getAcquisitionConfig(),
     updateAcquisitionConfig: (values) => authApi.updateAcquisitionConfig(values),
     refreshAcquisitionSource: (trigger) => authApi.refreshAcquisitionSource(trigger),
+    intakeAcquisitionOpportunity: (reference) => authApi.intakeAcquisitionOpportunity(reference),
     listAcquisitionRecords: (values) => authApi.listAcquisitionRecords(values),
     listAcquisitionSavedViews: () => authApi.listAcquisitionSavedViews(),
     createAcquisitionSavedView: (values) => authApi.createAcquisitionSavedView(values),

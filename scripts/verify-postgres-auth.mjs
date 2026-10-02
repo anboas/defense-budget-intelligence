@@ -225,6 +225,19 @@ response = await request("/api/v1/auth/provider-credentials/sam-gov", { cookie: 
 body = await response.json();
 assert.equal(body.credentials.filter((credential) => credential.status === "active").length, 1);
 assert.ok(body.credentials.some((credential) => credential.id === samGovKeyId && credential.status === "revoked"));
+const intakeNoticeId = "abcdef1234567890abcdef1234567890";
+response = await request("/api/v1/auth/acquisition/intake", { method: "POST", cookie: ownerCookie, body: { reference: "https://attacker.example/opp/abcdef1234567890abcdef1234567890/view" } });
+assert.equal(response.status, 400, "PostgreSQL SAM.gov link intake must reject lookalike hosts");
+response = await request("/api/v1/auth/acquisition/intake", { method: "POST", cookie: ownerCookie, body: { reference: `https://sam.gov/opp/${intakeNoticeId}/view` } });
+assert.equal(response.status, 201, "PostgreSQL workspace writers must import an exact SAM.gov notice");
+body = await response.json();
+assert.equal(body.record.noticeId, intakeNoticeId);
+assert.equal(body.intake.status, "imported");
+assert.equal(body.intake.ai.status, "completed");
+assert.equal(body.record.aiAssessment.provenance.reviewState, "needs_review");
+response = await request("/api/v1/auth/acquisition/intake", { method: "POST", cookie: ownerCookie, body: { reference: intakeNoticeId } });
+assert.equal(response.status, 200, "PostgreSQL repeated intake must reuse the retained workspace record");
+assert.equal((await response.json()).intake.status, "already_retained");
 response = await request(`/api/v1/auth/provider-credentials/sam-gov/${replacementSamGovKeyId}`, { method: "DELETE", cookie: ownerCookie, body: {} });
 assert.equal(response.status, 200, "PostgreSQL must revoke workspace SAM.gov credentials");
 response = await request("/api/v1/auth/acquisition/status", { cookie: ownerCookie });
@@ -247,8 +260,9 @@ assert.equal(response.status, 409, "PostgreSQL acquisition refresh must fail saf
 response = await request("/api/v1/auth/acquisition/records?limit=10", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL must expose the workspace-owned acquisition corpus");
 body = await response.json();
-assert.deepEqual(body.records, []);
-assert.deepEqual(body.pagination, { offset: 0, limit: 10, total: 0, hasMore: false });
+assert.equal(body.records.length, 1);
+assert.equal(body.records[0].noticeId, intakeNoticeId);
+assert.deepEqual(body.pagination, { offset: 0, limit: 10, total: 1, hasMore: false });
 response = await request("/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie,
   body: { name: "PostgreSQL Fourth Estate AI", query: "artificial intelligence", filters: { branch: "Fourth Estate", untrustedField: "discard me" }, alertMode: "daily", credential: "discard me" } });
 assert.equal(response.status, 201, "PostgreSQL must persist cross-device acquisition views");

@@ -127,6 +127,7 @@ export const authApi = {
   getAcquisitionConfig: () => request("/acquisition/config", { method: "GET", headers: {} }),
   updateAcquisitionConfig: (values) => request("/acquisition/config", { method: "PATCH", body: JSON.stringify(values) }),
   refreshAcquisitionSource: (trigger = "manual") => request("/acquisition/refresh", { method: "POST", body: JSON.stringify({ trigger }) }),
+  intakeAcquisitionOpportunity: (reference) => request("/acquisition/intake", { method: "POST", body: JSON.stringify({ reference }) }),
   listAcquisitionRecords: ({ limit = 1000, offset = 0, removed = false } = {}) => request(`/acquisition/records?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}${removed ? "&removed=1" : ""}`, { method: "GET", headers: {} }),
   listAcquisitionSavedViews: () => request("/acquisition/saved-views", { method: "GET", headers: {} }),
   createAcquisitionSavedView: (values) => request("/acquisition/saved-views", { method: "POST", body: JSON.stringify(values) }),
