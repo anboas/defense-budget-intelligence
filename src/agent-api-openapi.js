@@ -8,6 +8,8 @@ export function agentOpenApiDocument(origin, sessionCookie) {
     "/api/v1/agent/tracking/{recordId}": { put: { summary: "Track or update a record", security }, delete: { summary: "Stop tracking a record", security } },
     "/api/v1/agent/record-dispositions": { get: { summary: "List workspace record tombstones", security } },
     "/api/v1/agent/record-dispositions/{recordId}": { put: { summary: "Tombstone a record for this workspace", security }, delete: { summary: "Restore a tombstoned record", security } },
+    "/api/v1/agent/record-groups": { get: { summary: "List workspace lifecycle groups", security }, post: { summary: "Review and group related records with OpenAI", security } },
+    "/api/v1/agent/record-groups/{groupId}": { delete: { summary: "Remove a lifecycle grouping overlay", security } },
     "/api/v1/agent/events": { get: { summary: "List operator events", security }, post: { summary: "Create an operator event", security } },
     "/api/v1/agent/events/{eventId}": { get: { summary: "Read an event", security }, patch: { summary: "Update an event", security }, delete: { summary: "Delete an event", security } },
     "/api/v1/agent/event-catalog": { get: { summary: "Search the curated event catalog", security } },
