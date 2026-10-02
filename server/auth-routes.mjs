@@ -38,6 +38,7 @@ import {
 import { registerTeamEmulationRoutes } from "./team-emulation-routes.mjs";
 import { recordUserActivity, registerUserActivityRoutes } from "./user-activity-routes.mjs";
 import { registerRecordDispositionRoutes } from "./record-disposition-routes.mjs";
+import { registerRecordGroupRoutes } from "./record-group-routes.mjs";
 import { registerProviderCredentialRoutes } from "./provider-credential-routes.mjs";
 import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.mjs";
 import { registerAccountRegistrationRoute, registrationPublicStatus } from "./account-registration-routes.mjs";
@@ -579,6 +580,7 @@ export async function registerAuthRoutes(app, pool) {
   registerTeamEmulationRoutes(app, pool, { assertSameOrigin, authenticated, hydratedUser, canAdministerWorkspaces });
   registerUserActivityRoutes(app, pool, { assertSameOrigin, authenticated });
   registerRecordDispositionRoutes(app, pool, { assertSameOrigin, authenticated });
+  registerRecordGroupRoutes(app, pool, { assertSameOrigin, authenticated, decryptSecret: decryptOpenAiKey });
   registerProviderCredentialRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, encryptSecret: encryptOpenAiKey, recordApiRequest });
   registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey });
   registerAccountRegistrationRoute(app, pool, { account, assertSameOrigin, authenticated, canAdministerUsers, cleanText, enabled, hydratedUser, issueSession, recordUserActivity, sha256, validEmail, validProof });
