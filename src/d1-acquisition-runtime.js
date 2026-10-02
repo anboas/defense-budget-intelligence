@@ -14,7 +14,7 @@ import {
   sha256,
   stableJson,
 } from "./acquisition-runtime-core.js";
-import { analyzeOpportunityWithOpenAi, normalizeOpportunityAiAssessment } from "./opportunity-ai-runtime.js";
+import { analyzeOpportunityWithOpenAi, normalizeOpportunityAiAssessment, resolveOpportunityForIntake } from "./opportunity-ai-runtime.js";
 import { deliveryJobSchedule } from "./acquisition-delivery-core.js";
 import {
   ACQUISITION_DELIVERY_SCHEMA,
@@ -237,40 +237,47 @@ async function intakeD1Opportunity(db, env, workspaceId, reference, decryptSecre
   if (!noticeId) return { error: "Paste a valid SAM.gov opportunity link or notice ID", status: 400 };
   const existing = await db.prepare("SELECT * FROM dbi_acquisition_records WHERE workspace_id = ? AND source = ? AND lower(source_record_id) = lower(?) AND removed_at = ''").bind(workspaceId, ACQUISITION_SOURCE, noticeId).first();
   if (existing) return { record: record(existing), intake: { status: "already_retained", noticeId, source: "workspace" } };
-  const credential = await db.prepare("SELECT * FROM dbi_workspace_provider_credentials WHERE workspace_id = ? AND provider = 'sam_gov' AND revoked_at = '' LIMIT 1").bind(workspaceId).first();
-  if (!credential) return { error: "Configure the workspace SAM.gov credential before importing a notice", code: "credential_unavailable", status: 409 };
-  const apiKey = await decryptSecret({ encrypted_key: credential.encrypted_secret, key_iv: credential.secret_iv, key_version: credential.secret_version }, env);
-  if (!apiKey) return { error: "The workspace SAM.gov credential could not be decrypted", code: "credential_unavailable", status: 503 };
+  const [credential, aiCredential] = await Promise.all([
+    db.prepare("SELECT * FROM dbi_workspace_provider_credentials WHERE workspace_id = ? AND provider = 'sam_gov' AND revoked_at = '' LIMIT 1").bind(workspaceId).first(),
+    db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id = ? AND scope_type = 'workspace' AND revoked_at = '' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(workspaceId).first(),
+  ]);
+  if (!credential && !aiCredential) return { error: "Configure a workspace OpenAI or SAM.gov credential before importing a notice", code: "credential_unavailable", status: 409 };
+  const apiKey = credential ? await decryptSecret({ encrypted_key: credential.encrypted_secret, key_iv: credential.secret_iv, key_version: credential.secret_version }, env) : "";
+  const openAiKey = aiCredential ? await decryptSecret(aiCredential, env) : "";
+  if (!apiKey && !openAiKey) return { error: "The workspace retrieval credentials could not be decrypted", code: "credential_unavailable", status: 503 };
   const runId = crypto.randomUUID(); const startedAt = new Date().toISOString();
   await db.prepare("INSERT INTO dbi_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type, started_at) VALUES (?,?,?,'running','link_intake',?)").bind(runId, workspaceId, ACQUISITION_SOURCE, startedAt).run();
   try {
     const mockMode = String(env.DBI_ACQUISITION_MOCK_MODE || env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
-    const result = mockMode ? { records: [normalizeSamOpportunity({ noticeId, solicitationNumber: `MOCK-${noticeId.slice(0, 12)}`, title: "AI-enabled mission software and systems engineering support", description: "Systems engineering, software development, artificial intelligence, data analytics, cybersecurity, and program management support.", type: "Sources Sought", postedDate: "2026-10-01", responseDeadLine: "2026-10-31", naicsCode: "541512", classificationCode: "DA10", department: "DEPT OF DEFENSE", subTier: "DEPT OF THE ARMY", office: "ACC", active: "Yes", uiLink: `https://sam.gov/opp/${encodeURIComponent(noticeId)}/view` })], metadata: { complete: true, noticeIdsQueried: [noticeId], mock: true } }
-      : await fetchSamOpportunities({ apiKey, config: { initialLookbackDays: 365, noticeIds: [noticeId], pageSize: 10, maxPages: 1, requestIntervalMs: 250, maxRetries: 2, organizationName: "" } });
-    let opportunity = result.records.find((item) => item.sourceRecordId.toLowerCase() === noticeId.toLowerCase());
-    if (!opportunity) throw Object.assign(new Error("SAM.gov did not return this notice identifier in the bounded exact lookup"), { code: "notice_not_found", httpStatus: 404 });
-    const aiCredential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id = ? AND scope_type = 'workspace' AND revoked_at = '' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(workspaceId).first();
+    let result;
+    let opportunity;
+    let source;
+    let openAiUsed = false;
+    if (mockMode) {
+      opportunity = normalizeSamOpportunity({ noticeId, solicitationNumber: `MOCK-${noticeId.slice(0, 12)}`, title: "AI-enabled mission software and systems engineering support", description: "Systems engineering, software development, artificial intelligence, data analytics, cybersecurity, and program management support.", type: "Sources Sought", postedDate: "2026-10-01", responseDeadLine: "2026-10-31", naicsCode: "541512", classificationCode: "DA10", department: "DEPT OF DEFENSE", subTier: "DEPT OF THE ARMY", office: "ACC", active: "Yes", uiLink: `https://sam.gov/opp/${encodeURIComponent(noticeId)}/view` });
+      result = { records: [opportunity], metadata: { complete: true, noticeIdsQueried: [noticeId], mock: true } };
+      source = "mock";
+    } else {
+      ({ result, opportunity, source, openAiUsed } = await resolveOpportunityForIntake({ noticeId, reference, samApiKey: apiKey, openAiApiKey: openAiKey }));
+    }
     let ai = { status: "unavailable", reason: "workspace_openai_key_unavailable" };
     if (mockMode) {
       opportunity.aiAssessment = normalizeOpportunityAiAssessment({ summary: "This notice combines systems engineering, software delivery, and AI/data work in a current sources-sought window.", capabilityClusters: [{ id: "systems-engineering", rationale: "The published scope explicitly requests systems engineering.", confidence: "high" }, { id: "software-development", rationale: "The published scope explicitly requests software development.", confidence: "high" }, { id: "ai-autonomy", rationale: "The published scope explicitly requests artificial intelligence support.", confidence: "high" }], fitReasons: ["NAICS 541512 aligns with the active profile", "The scope names multiple priority capability lanes"], risks: ["Vehicle, set-aside, incumbent, staffing, and workshare require further review"], recommendedAction: "pursue", caveats: ["Mock verification assessment"], sourceUrls: [opportunity.sourceUrl] }, opportunity, { model: "mock-opportunity-model", responseId: `mock-${runId}` });
       ai = { status: "completed", mode: "mock" };
-    } else if (aiCredential) {
-      const openAiKey = await decryptSecret(aiCredential, env);
-      if (openAiKey) {
-        try { opportunity.aiAssessment = await analyzeOpportunityWithOpenAi({ apiKey: openAiKey, record: opportunity }); ai = { status: "completed", mode: "structured" }; }
-        catch (error) { ai = { status: "failed", code: cleanText(error.code || "provider_failed", 100) }; }
-      }
+    } else if (openAiKey) {
+      try { opportunity.aiAssessment = await analyzeOpportunityWithOpenAi({ apiKey: openAiKey, record: opportunity }); openAiUsed = true; ai = { status: "completed", mode: "structured" }; }
+      catch (error) { openAiUsed = true; ai = { status: "failed", code: cleanText(error.code || "provider_failed", 100) }; }
     }
-    const counts = await persist(db, env, workspaceId, runId, [opportunity], { ...result.metadata, intake: true, ai });
+    const counts = await persist(db, env, workspaceId, runId, [opportunity], { ...(result?.metadata || {}), intake: true, source, ai });
     const persisted = await db.prepare("SELECT * FROM dbi_acquisition_records WHERE workspace_id = ? AND source = ? AND lower(source_record_id) = lower(?)").bind(workspaceId, ACQUISITION_SOURCE, opportunity.sourceRecordId).first();
     const completedAt = new Date().toISOString();
-    await db.prepare("UPDATE dbi_workspace_provider_credentials SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completedAt, completedAt, credential.id).run();
-    if (aiCredential && ai.status === "completed" && !mockMode) await db.prepare("UPDATE dbi_openai_keys SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completedAt, completedAt, aiCredential.id).run();
-    return { record: record(persisted), intake: { status: counts.added ? "imported" : "updated", noticeId, source: "sam_gov_exact", ai } };
+    if (credential && apiKey) await db.prepare("UPDATE dbi_workspace_provider_credentials SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completedAt, completedAt, credential.id).run();
+    if (aiCredential && openAiUsed && !mockMode) await db.prepare("UPDATE dbi_openai_keys SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completedAt, completedAt, aiCredential.id).run();
+    return { record: record(persisted), intake: { status: counts.added ? "imported" : "updated", noticeId, source, retrieval: source === "openai_web_search" ? { status: "completed", reviewState: "needs_review" } : { status: "completed" }, ai } };
   } catch (error) {
     const completedAt = new Date().toISOString();
     await db.prepare("UPDATE dbi_acquisition_refresh_runs SET status = 'failed', error_code = ?, error_message = ?, completed_at = ? WHERE id = ?").bind(cleanText(error.code || "source_unavailable", 80), cleanText(error.message, 500), completedAt, runId).run();
-    return { error: error.code === "notice_not_found" ? "This notice was not returned by SAM.gov's exact opportunity lookup" : "SAM.gov could not complete the exact notice lookup", code: error.code || "source_unavailable", status: Number(error.httpStatus || (error.code === "rate_limited" ? 429 : 502)) };
+    return { error: error.code === "notice_not_found" ? "Neither SAM.gov nor OpenAI could verify this exact notice" : error.code === "unverified_source" || error.code === "notice_mismatch" ? "OpenAI found SAM.gov content but could not verify the exact notice identity" : "The opportunity could not be retrieved from SAM.gov or OpenAI", code: error.code || "source_unavailable", status: Number(error.httpStatus || (error.code === "rate_limited" ? 429 : 502)) };
   }
 }
 
