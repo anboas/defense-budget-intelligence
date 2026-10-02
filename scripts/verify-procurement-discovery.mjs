@@ -4,7 +4,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, samQuerySlices, samQueryWindow, splitSamQueryScope } from "../src/acquisition-runtime-core.js";
+import { acquisitionBackfillDue, exactLifecycleLinks, fetchSamOpportunities, matchesSavedAcquisitionView, normalizeAcquisitionConfig, normalizeSamOpportunity, normalizeSavedAcquisitionView, parseSamOpportunityReference, samQuerySlices, samQueryWindow, splitSamQueryScope } from "../src/acquisition-runtime-core.js";
+import { classifyOpportunityFit } from "../src/opportunity-fit.js";
+import { analyzeOpportunityWithOpenAi, buildOpportunityAiRequest, normalizeOpportunityAiAssessment } from "../src/opportunity-ai-runtime.js";
 import { samNoticeTypeId, samNoticeTypeLabel } from "../src/sam-notice-types.js";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -154,6 +156,27 @@ try {
   assert.deepEqual(saved, { query: "runtime", filters: { branch: "Army", noticeType: "r", naics: "541512" } }, "Saved acquisition views must retain only the allowlisted filter contract");
   assert.equal(matchesSavedAcquisitionView({ ...normalized, noticeType: "Sources Sought", naicsCode: "541512", organization: { branch: "Army" } }, saved), true, "Durable RFI alerts must use the same normalized notice-type contract as Spend Explorer");
   assert.equal(matchesSavedAcquisitionView({ ...normalized, noticeType: "Special Notice", naicsCode: "541512", organization: { branch: "Army" } }, saved), false, "Saved RFI views must reject other SAM notice classes");
+  assert.equal(parseSamOpportunityReference("https://sam.gov/opp/8e101b6ad5ca48c5ab542d9d9bd883a0/view"), "8e101b6ad5ca48c5ab542d9d9bd883a0", "SAM.gov intake must extract canonical opportunity IDs from public links");
+  assert.equal(parseSamOpportunityReference("https://attacker.example/opp/8e101b6ad5ca48c5ab542d9d9bd883a0/view"), null, "SAM.gov intake must reject lookalike hosts");
+  assert.equal(parseSamOpportunityReference("8e101b6ad5ca48c5ab542d9d9bd883a0"), "8e101b6ad5ca48c5ab542d9d9bd883a0", "SAM.gov intake must accept a pasted notice ID");
+  const fit = classifyOpportunityFit({ title: "AI mission software modernization", description: "Model-based systems engineering, DevSecOps, data analytics, and cybersecurity support", naicsCode: "541512", pscCode: "DA10", active: true });
+  assert.ok(fit.score >= 70, `Multi-signal Sabre-aligned records must rank as a strong fit, got ${fit.score}`);
+  assert.deepEqual(new Set(fit.clusterIds), new Set(["ai-autonomy", "systems-engineering", "software-development", "data-analytics", "cyber-mission-systems"]));
+  assert.ok(fit.reasons.some((reason) => reason.includes("NAICS 541512")), "Fit explanations must disclose source-code evidence");
+  const aiRequest = buildOpportunityAiRequest({ ...normalized, description: "Software development and systems engineering", naicsCode: "541512" });
+  assert.equal(aiRequest.store, false, "Opportunity AI analysis must use non-persistent provider responses");
+  assert.equal(aiRequest.text.format.strict, true, "Opportunity AI analysis must require strict structured output");
+  assert.equal(aiRequest.text.format.schema.additionalProperties, false, "Opportunity AI output must reject extra fields");
+  let aiAuthorization = "";
+  const aiAssessment = await analyzeOpportunityWithOpenAi({ apiKey: "openai_verification_key", record: { ...normalized, sourceUrl: "https://sam.gov/opp/notice-runtime-1/view" }, fetchImpl: async (_url, options) => {
+    aiAuthorization = options.headers.authorization;
+    return new Response(JSON.stringify({ id: "resp-opportunity-1", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ summary: "Published software and systems work.", capabilityClusters: [{ id: "software-development", rationale: "The scope states software development.", confidence: "high" }], fitReasons: ["NAICS 541512"], risks: ["Vehicle access is not established"], recommendedAction: "research", caveats: [], sourceUrls: ["https://sam.gov/opp/notice-runtime-1/view", "javascript:alert(1)"] }) }] }] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.equal(aiAuthorization, "Bearer openai_verification_key");
+  assert.deepEqual(aiAssessment.sourceUrls, ["https://sam.gov/opp/notice-runtime-1/view"], "AI citations must be constrained to the supplied authoritative notice URL");
+  assert.equal(aiAssessment.provenance.reviewState, "needs_review", "AI opportunity assessments must remain reviewable derived metadata");
+  const normalizedAi = normalizeOpportunityAiAssessment({ summary: "x", capabilityClusters: [{ id: "untrusted", rationale: "x", confidence: "high" }], fitReasons: [], risks: [], recommendedAction: "pursue", caveats: [], sourceUrls: [] }, normalized);
+  assert.deepEqual(normalizedAi.capabilityClusters, [], "Unknown AI cluster IDs must be rejected before persistence");
   console.log("Procurement discovery contract passed: field-level diffs, daily history, and explicit coverage boundaries.");
 } finally {
   if (process.env.KEEP_PROCUREMENT_DISCOVERY_FIXTURE) console.log(`Retained fixture at ${fixtureRoot}`);

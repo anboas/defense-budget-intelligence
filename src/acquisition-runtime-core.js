@@ -21,6 +21,21 @@ export const DEFAULT_ACQUISITION_CONFIG = Object.freeze({
   backfillRequestedAt: null,
 });
 
+export function parseSamOpportunityReference(value) {
+  const raw = text(value, 2_000);
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (!/(^|\.)sam\.gov$/i.test(url.hostname)) return null;
+    const pathMatch = url.pathname.match(/\/opp\/([^/]+)(?:\/|$)/i);
+    const queryId = url.searchParams.get("noticeid") || url.searchParams.get("noticeId") || "";
+    const noticeId = text(pathMatch?.[1] || queryId, 180);
+    return /^[a-z0-9][a-z0-9_-]{7,179}$/i.test(noticeId) ? noticeId : null;
+  } catch {
+    return /^[a-z0-9][a-z0-9_-]{7,179}$/i.test(raw) ? raw : null;
+  }
+}
+
 function text(value, limit = 500) {
   return String(value || "").trim().slice(0, limit);
 }

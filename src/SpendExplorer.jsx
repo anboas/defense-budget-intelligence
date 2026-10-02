@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox, Radar as RadarIcon } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -15,16 +15,18 @@ import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import { useAuth } from "./AuthContext.jsx";
 import { SAM_NOTICE_TYPE_OPTIONS, samNoticeTypeId, samNoticeTypeLabel } from "./sam-notice-types.js";
 import { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
+import OpportunityRadar from "./OpportunityRadar.jsx";
+import { classifyOpportunityFit } from "./opportunity-fit.js";
 
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
 
-const VIEWS = new Set(["today", "timeline", "table", "charts"]);
+const VIEWS = new Set(["radar", "today", "timeline", "table", "charts"]);
 
 function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
   const value = params.get("spendView");
-  return VIEWS.has(value) ? value : "timeline";
+  return VIEWS.has(value) ? value : "radar";
 }
 
 function readTableNoticeType(params) {
@@ -148,6 +150,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     updateRoute(next, { noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
   };
   const tabs = <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
+    <button type="button" className={`if-tab${view === "radar" ? " is-active" : ""}`} aria-pressed={view === "radar"} onClick={() => select("radar")}><RadarIcon size={15} />Radar</button>
     <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
     <button type="button" className={`if-tab${view === "timeline" ? " is-active" : ""}`} aria-pressed={view === "timeline"} onClick={() => select("timeline")}><CalendarClock size={15} />Timeline</button>
     <button type="button" className={`if-tab${view === "table" ? " is-active" : ""}`} aria-pressed={view === "table"} onClick={() => select("table")}><FileSpreadsheet size={15} />Table</button>
@@ -210,6 +213,13 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { id: "changed", label: "Changed today", value: Number(latestFeed?.summary?.updated || 0).toLocaleString(), meta: "Field-level source changes" },
     { id: "coverage", label: "Monitor coverage", value: `${Number(dailyFeed.metadata?.coverage?.contractMonitor?.coveragePct || 0).toLocaleString()}%`, meta: `${Number(dailyFeed.metadata?.coverage?.contractMonitor?.gapCount || 0).toLocaleString()} disclosed gaps` },
   ];
+  const radarAssessments = useMemo(() => rows.map((record) => classifyOpportunityFit(record)), [rows]);
+  const radarMetrics = [
+    { id: "strong", label: "Strong fit", value: radarAssessments.filter((item) => item.score >= 70).length.toLocaleString(), meta: "Explainable 70+ profile score" },
+    { id: "potential", label: "Potential fit", value: radarAssessments.filter((item) => item.score >= 45).length.toLocaleString(), meta: "Explainable 45+ profile score" },
+    { id: "rfi", label: "RFIs / sources sought", value: rows.filter((record) => samNoticeTypeId(record.noticeType) === "r").length.toLocaleString(), meta: "Source-backed opportunity records" },
+    { id: "coded", label: "Code-backed", value: rows.filter((record) => record.naicsCode || record.pscCode).length.toLocaleString(), meta: "Published NAICS or PSC" },
+  ];
   const savedViewRows = rows.length ? rows : (discoveryIndex.discovery || []);
   const savedViews = <SpendSavedViews rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
     const next = { ...tableFilters, ...(saved.filters || {}), disposition: saved.filters?.disposition === "tombstoned" ? "tombstoned" : "active", changes: "all" };
@@ -218,6 +228,10 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     updateRoute("table", { capQuery: saved.query || "", technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
   }} />;
 
+  if (view === "radar") return <section className="spend-explorer spend-explorer--radar" data-spend-explorer="radar">
+    <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Radar" summary="Find applicable work, inspect why it fits, add known SAM.gov notices, and track what matters." metrics={radarMetrics} metricLabel="Opportunity radar summary" tabs={tabs} />
+    <ControlPageBody compact><OpportunityRadar rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} runtimeAvailable={runtimeAvailable} onRuntimeRecordsChanged={loadRuntimeRecords} /></ControlPageBody>
+  </section>;
   if (view === "today") return <section className="spend-explorer spend-explorer--today" data-spend-explorer="today">
     <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>

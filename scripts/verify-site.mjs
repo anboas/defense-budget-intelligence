@@ -273,7 +273,7 @@ try {
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
   assert.ok(initialDecodedDataBytes <= 2_000_000, `Today should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
-  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Spend Explorer should expose Brief, Timeline, Table, and Charts");
+  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 5, "Spend Explorer should expose Radar, Brief, Timeline, Table, and Charts");
   assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Decision Brief should expose reusable saved acquisition views with unread state");
   assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Decision Brief should expose source coverage and automation behind one disclosure");
   assert.match(await page.locator("[data-decision-brief]").innerText(), /Needs attention[\s\S]*What changed[\s\S]*Due soon[\s\S]*Continue where you left off/i, "Decision Brief should lead with decisions, changes, deadlines, and continuity");
@@ -291,6 +291,15 @@ try {
   assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI watch copy/i, "Saved views should duplicate without changing the original scope");
   await page.getByRole("button", { name: "Delete saved view AI watch", exact: true }).click();
   await page.getByRole("button", { name: "Delete saved view AI watch copy" }).click();
+  await page.getByRole("button", { name: "Radar", exact: true }).click();
+  await page.waitForSelector("[data-opportunity-radar]");
+  assert.match(await page.locator("[data-opportunity-radar]").innerText(), /Add a SAM.gov opportunity[\s\S]*Sabre-aligned[\s\S]*Capability clusters/i, "Opportunity Radar must lead with exact notice intake, the active fit profile, and browsable work clusters");
+  assert.equal(await page.locator(".opportunity-radar__clusters button").count(), 7, "Opportunity Radar must expose the all-work board plus six capability clusters");
+  assert.equal(await page.getByPlaceholder(/sam.gov\/opp/i).count(), 1, "Opportunity Radar must expose one direct SAM.gov link intake");
+  await page.getByPlaceholder(/sam.gov\/opp/i).fill("https://attacker.example/opp/1234567890abcdef1234567890abcdef/view");
+  await page.getByRole("button", { name: "Check and add" }).click();
+  assert.match(await page.locator(".opportunity-radar__intake [role=status]").innerText(), /Paste a SAM.gov opportunity link or notice ID/i, "Client intake must reject SAM.gov lookalike hosts before any source request");
+  assert.equal(await page.locator('[data-opportunity-radar] [data-dbi-data-table="opportunity-radar"]').count(), 1, "Opportunity Radar must expose the classified working table");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
   assert.match(await page.title(), /^Spend Explorer · Defense Budget & Spend Analytics$/);
   assert.equal(await page.locator("h1").count(), 1, "Each route should expose one product H1");
@@ -2045,9 +2054,9 @@ try {
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
   await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.location.hash === "#/budget-spend/explorer");
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Spend Timeline");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Opportunity Radar");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForSelector("[data-transaction-analytics-page]");
+  await page.waitForSelector("[data-opportunity-radar]");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -2056,8 +2065,10 @@ try {
   await installVerificationDate(ultrawide);
   await ultrawide.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-defense-budget-app]");
+  await ultrawide.waitForSelector("[data-opportunity-radar]");
+  assert.equal(new URL(ultrawide.url()).hash, "#/budget-spend/explorer", "Spend Explorer should open on Opportunity Radar by default");
+  await ultrawide.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-transaction-analytics-page]");
-  assert.equal(new URL(ultrawide.url()).hash, "#/budget-spend/explorer", "Spend Explorer should open on the Timeline by default");
   const ultrawideGeometry = await ultrawide.evaluate(() => {
     const contentNode = document.querySelector(".app__content");
     const content = contentNode?.getBoundingClientRect();
@@ -2105,7 +2116,7 @@ try {
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-spend-today]");
   await assertFlowShell(mobile);
-  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 4, "Mobile Spend Explorer should expose the four focused views");
+  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 5, "Mobile Spend Explorer should expose the five focused views");
   assert.ok(await mobile.locator("[data-decision-brief] .decision-brief__record-list > a").count() <= 4, "Mobile Decision Brief should start with a tightly bounded change list");
   const mobileBriefActions = await mobile.locator('[data-decision-brief] :is(.decision-brief__action, .decision-brief__record-list > a, .decision-brief__compact-list > a)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
   assert.ok(mobileBriefActions.length > 0 && mobileBriefActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Decision Brief actions should preserve 44px touch targets: ${JSON.stringify(mobileBriefActions)}`);
@@ -2201,6 +2212,13 @@ try {
   assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 3000, "Mobile Awards should stay within a bounded five-card working surface");
   await mobile.screenshot({ path: `${OUT_DIR}/awards-mobile.png`, fullPage: true });
   await assertNoPageOverflow(mobile, "Mobile awards");
+
+  await openSurface(mobile, "#/budget-spend/explorer?spendView=radar", "[data-opportunity-radar]");
+  assert.equal(await mobile.locator(".opportunity-radar__clusters button").count(), 7, "Mobile Opportunity Radar must retain every capability cluster");
+  const mobileRadarGeometry = await mobile.locator("[data-opportunity-radar]").evaluate((node) => ({ width: node.getBoundingClientRect().width, viewportWidth: window.innerWidth, intakeHeight: node.querySelector(".opportunity-radar__intake")?.getBoundingClientRect().height || 0 }));
+  assert.ok(mobileRadarGeometry.width <= mobileRadarGeometry.viewportWidth, `Mobile Opportunity Radar must stay within the viewport: ${JSON.stringify(mobileRadarGeometry)}`);
+  assert.ok(mobileRadarGeometry.intakeHeight <= 360, `Mobile SAM.gov intake must remain compact and reachable: ${JSON.stringify(mobileRadarGeometry)}`);
+  await assertNoPageOverflow(mobile, "Mobile opportunity radar");
 
   await openSurface(mobile, "#/budget-spend/explorer?spendView=timeline", "[data-transaction-analytics-page]");
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 0, "Advanced transaction filters should start collapsed on mobile");
