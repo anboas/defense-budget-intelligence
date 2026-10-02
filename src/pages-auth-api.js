@@ -64,6 +64,7 @@ import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js"
 import { D1_USER_ACTIVITY_SCHEMA, recordUserActivityD1, userActivityResponse as handleUserActivityResponse } from "./d1-user-activity.js";
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
+import { D1_RECORD_GROUP_SCHEMA, recordGroupsResponse as handleRecordGroupsResponse } from "./d1-record-groups.js";
 import { clientErrorsResponse as handleClientErrorsResponse } from "./d1-client-errors.js";
 import { providerCredentialsResponse as handleProviderCredentialsResponse } from "./d1-provider-credentials.js";
 import { D1_REGISTRATION_SCHEMA, d1PublicRegistrationStatus, d1RegistrationResponse } from "./d1-registration.js";
@@ -574,6 +575,7 @@ const SCHEMA = Object.freeze([
     PRIMARY KEY (workspace_id, record_id)
   )`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_record_dispositions_workspace ON dbi_workspace_record_dispositions (workspace_id, disposition, updated_at DESC)",
+  ...D1_RECORD_GROUP_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_events (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -3206,7 +3208,7 @@ async function agentApiResponse(request, env, db) {
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
       principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.1.0",
       resources: [
-        "records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories",
+        "records", "analytics", "tracking", "record-dispositions", "record-groups", "events", "event-catalog", "event-categories",
         "activity", "api-requests", "integrations", ...AGENT_INTELLIGENCE_RESOURCES,
       ],
       writeBoundary: "Published snapshots are immutable. Agents submit cited workspace proposals; authorized reviewers approve them, and graph administrators publish them atomically as queryable workspace overlays.",
@@ -3222,6 +3224,7 @@ async function agentApiResponse(request, env, db) {
       recordActivity,
       safeJson,
     });
+    else if (resource === "record-groups") response = await handleRecordGroupsResponse(request, env, db, principal, segments, { allRecords: allAgentRecords, decryptSecret: decryptOpenAiKey, error: agentError, hasScope, json: agentJson, recordActivity, safeJson });
     else if (resource === "events") response = await eventsResponse(request, env, db, principal, segments);
     else if (resource === "event-catalog") response = await eventCatalogResponse(request, db, principal, segments, EVENT_AGENT_API_DEPS);
     else if (resource === "event-categories") response = await eventCategoriesResponse(request, db, principal, segments, EVENT_AGENT_API_DEPS);

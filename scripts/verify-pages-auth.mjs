@@ -651,6 +651,28 @@ async function verifyApiLifecycle(persistPath) {
     const workspaceOpenAiKeyId = body.key.id;
     assert.equal(body.key.lastFour, "0002");
     assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey), "Credential responses must never echo a workspace secret");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-groups", {
+      method: "POST", cookie: viewerCookie, origin: baseUrl.slice(0, -1),
+      body: { memberIds: ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"] },
+    });
+    assert.ok([401, 403].includes(response.status), "Viewers must not create AI-reviewed lifecycle groups");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-groups", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { memberIds: ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"] },
+    });
+    assert.equal(response.status, 201, "Workspace writers must be able to AI-review and group lifecycle records");
+    body = await response.json();
+    const recordGroupId = body.data.id;
+    assert.deepEqual(body.data.memberIds, ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"]);
+    assert.equal(body.data.relationship, "successive-phase");
+    assert.equal(body.data.provenance.reviewState, "accepted");
+    assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey), "Lifecycle grouping responses must never expose the OpenAI credential");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-groups", { cookie: ownerCookie });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.ok(body.data.some((group) => group.id === recordGroupId), "D1 must persist workspace lifecycle groups");
+    response = await apiRequest(baseUrl, `/api/v1/agent/record-groups/${recordGroupId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 204, "Removing a lifecycle overlay must leave the source records intact");
     response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${personalOpenAiKeyId}`, {
       method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Owner rotated label" },
     });

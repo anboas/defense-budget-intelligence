@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import "./CaptureCalendar.css";
 import { createPortal } from "react-dom";
 import {
   BarChart3,
@@ -12,11 +13,13 @@ import {
   ExternalLink,
   Filter,
   GitCompareArrows,
+  GitMerge,
   Maximize2,
   Minimize2,
   Network,
   Search,
   ShieldCheck,
+  Sparkles,
   Star,
   Trash2,
   X,
@@ -41,6 +44,8 @@ import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./Sea
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
 import { SAM_NOTICE_TYPE_OPTIONS, samNoticeTypeId, samNoticeTypeLabel } from "./sam-notice-types.js";
+import { collapseLifecycleRecords } from "./record-linking.js";
+import { useRecordGroups } from "./record-groups.js";
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
@@ -250,6 +255,10 @@ function dateDiffDays(start, end) {
 function monthYear(value) {
   if (!value) return "";
   return new Date(`${value}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", year: "2-digit", timeZone: "UTC" });
+}
+
+function currentUtcDate() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function parseHashFilters() {
@@ -978,13 +987,32 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ov
   })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward actions in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipients`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} />] : []).concat(followOnElements);
 }
 
-function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity, watchedIds, onToggleWatch }) {
+function LifecycleGroupPanel({ record, onOpenMember, onRemove }) {
+  const group = record.lifecycleGroup || {};
+  const saved = !group.automatic;
+  return <div className="capture-lifecycle-detail" data-lifecycle-group-detail>
+    <div className="if-alert if-alert--info" role="status"><span><strong>Non-destructive lifecycle group</strong><br />Each award remains a separate source record. This view only combines their timeline lanes.</span></div>
+    <dl>
+      <div><dt>Relationship</dt><dd>{label(group.relationship || "related-workstream")}</dd></div>
+      <div><dt>Confidence</dt><dd>{group.confidence === "exact" ? "Exact evidence" : `${group.confidence || "review"} confidence`}</dd></div>
+      <div><dt>Provenance</dt><dd>{group.automatic ? "Automatic exact-link resolver" : `${group.provenance?.model || "OpenAI"} review`}</dd></div>
+      <div><dt>Records</dt><dd>{record.lifecycleMembers.length}</dd></div>
+    </dl>
+    <section><strong>Why these are linked</strong><ul>{(group.basis || group.evidence || []).map((item) => <li key={item}>{item}</li>)}</ul>{group.rationale ? <p>{group.rationale}</p> : null}</section>
+    <section><strong>Source records</strong><div className="capture-lifecycle-detail__members">{record.lifecycleMembers.map((member) => <button type="button" key={member.opportunityId} onClick={() => onOpenMember(member.opportunityId)}><span><b>{member.id} · {member.title}</b><small>{member.reference} · {formatDate(member.start)} to {formatDate(member.currentEnd)}</small></span><ChevronRight size={16} /></button>)}</div></section>
+    {saved && onRemove ? <button type="button" className="if-btn if-btn--secondary" onClick={() => onRemove(group.id)}>Remove grouping</button> : null}
+  </div>;
+}
+
+function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, asOf, dataAsOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity, watchedIds, onToggleWatch, mergeMode, mergeSelectedIds, onToggleMergeSelect }) {
   const scrollerRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [followOnDetail, setFollowOnDetail] = useState(null);
   const years = Array.from({ length: endYear - startYear + 1 }, (_value, index) => startYear + index);
   const asOfPosition = positionFor(asOf, startYear, endYear);
   const showAsOf = asOf >= `${startYear}-01-01` && asOf <= `${endYear}-12-31`;
+  const dataAsOfPosition = positionFor(dataAsOf, startYear, endYear);
+  const showDataAsOf = dataAsOf && dataAsOf !== asOf && dataAsOf >= `${startYear}-01-01` && dataAsOf <= `${endYear}-12-31`;
   const groups = groupBy === "none"
     ? [{ id: "all", label: null, records }]
     : [...records.reduce((map, record) => {
@@ -1056,23 +1084,25 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, as
         <div className="capture-timeline__head capture-timeline__label"><strong>Contract / acquisition</strong><span>{activeFields.map((field) => ROW_FIELD_OPTIONS.find(([id]) => id === field)?.[1]).join(" · ")}</span></div>
         <div className="capture-timeline__head capture-timeline__years">
           {years.map((year) => <span key={year}><b>{year}</b><small><i>Q1</i><i>Q2</i><i>Q3</i><i>Q4</i></small></span>)}
-          {showAsOf ? <em className="capture-timeline__today-label" style={{ left: `${asOfPosition}%` }}>As of {monthYear(asOf)}</em> : null}
+          {showAsOf ? <em className="capture-timeline__today-label" style={{ left: `${asOfPosition}%` }}>Today · {formatDate(asOf)}</em> : null}
+          {showDataAsOf ? <em className="capture-timeline__data-label" style={{ left: `${dataAsOfPosition}%` }}>Data through · {formatDate(dataAsOf)}</em> : null}
         </div>
         {groups.map((group) => (
           <Fragment key={group.id}>
             {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
             {group.records.map((record) => (
-              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}${watchedIds.has(record.opportunityId) ? " is-watched" : ""}`} data-capture-timeline-row data-record-id={record.opportunityId}>
+              <div key={record.opportunityId} className={`capture-timeline__row capture-timeline__row--${record.lifecycleStatus}${selectedId === record.opportunityId ? " is-selected" : ""}${watchedIds.has(record.opportunityId) ? " is-watched" : ""}${record.lifecycleMembers ? " is-lifecycle-group" : ""}`} data-capture-timeline-row data-record-id={record.opportunityId}>
                 <div className="capture-timeline__label">
-                  <span className="capture-timeline__badges"><b>{record.id}</b><em>{label(record.lifecycleStatus)}</em><i className={`capture-timeline__urgency is-${timelineUrgency(record, asOf).tone}`}>{timelineUrgency(record, asOf).label}</i></span>
-                  <button type="button" className={`capture-timeline__star${watchedIds.has(record.opportunityId) ? " is-starred" : ""}`} aria-pressed={watchedIds.has(record.opportunityId)} onClick={() => onToggleWatch(record.opportunityId)} aria-label={watchedIds.has(record.opportunityId) ? `Stop tracking ${record.title}` : `Track ${record.title}`}><Star size={16} fill={watchedIds.has(record.opportunityId) ? "currentColor" : "none"} /></button>
+                  <span className="capture-timeline__badges">{mergeMode && !record.lifecycleMembers ? <input type="checkbox" checked={mergeSelectedIds.has(record.opportunityId)} onChange={() => onToggleMergeSelect(record.opportunityId)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${record.title} for lifecycle grouping`} /> : null}<b>{record.id}</b><em>{record.lifecycleMembers ? `${record.lifecycleMembers.length} linked awards` : label(record.lifecycleStatus)}</em><i className={`capture-timeline__urgency is-${timelineUrgency(record, asOf).tone}`}>{timelineUrgency(record, asOf).label}</i></span>
+                  {record.lifecycleMembers ? <span className="capture-timeline__linked-mark" title={record.lifecycleGroup?.automatic ? "Automatically linked with exact evidence" : "AI-reviewed lifecycle group"}><GitMerge size={15} /></span> : <button type="button" className={`capture-timeline__star${watchedIds.has(record.opportunityId) ? " is-starred" : ""}`} aria-pressed={watchedIds.has(record.opportunityId)} onClick={() => onToggleWatch(record.opportunityId)} aria-label={watchedIds.has(record.opportunityId) ? `Stop tracking ${record.title}` : `Track ${record.title}`}><Star size={16} fill={watchedIds.has(record.opportunityId) ? "currentColor" : "none"} /></button>}
                   <button type="button" className="capture-timeline__record-button" onClick={() => onSelect(record.opportunityId)} aria-label={`Open ${record.title} details`}><strong>{record.title}</strong></button>
-                  <small className="capture-timeline__fields">{activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
+                  <small className="capture-timeline__fields">{record.lifecycleMembers ? <span>{record.lifecycleMembers.map((member) => member.reference).filter(Boolean).join(" → ")}</span> : activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
                 </div>
                 <span className="capture-timeline__plot" role="button" tabIndex={0} onClick={(event) => { if (!event.target.closest("[data-followon-activity]")) onSelect(record.opportunityId); }} onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} onFocusCapture={(event) => showFocusedContext(record, event)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHover(null); }} onKeyDown={(event) => activateTimelineMark(record, event)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
-                  <TimelineBar record={record} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[record.opportunityId] || []} followOnActivities={followOnByOpportunity?.[record.opportunityId] || []} onOpenFollowOn={(detail) => { setHover(null); setFollowOnDetail(detail); }} />
+                  {showDataAsOf ? <span className="capture-timeline__data-as-of" style={{ left: `${dataAsOfPosition}%` }} aria-hidden="true" /> : null}
+                  {(record.lifecycleMembers || [record]).map((member) => <TimelineBar key={member.opportunityId} record={member} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[member.opportunityId] || []} followOnActivities={followOnByOpportunity?.[member.opportunityId] || []} onOpenFollowOn={(detail) => { setHover(null); setFollowOnDetail(detail); }} />)}
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
               </div>
@@ -1124,6 +1154,8 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [ganttToolsOpen, setGanttToolsOpen] = useState(false);
   const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSelectedIds, setMergeSelectedIds] = useState(() => new Set());
   const ganttDialogRef = useRef(null);
   const [comparisonIds, setComparisonIds] = useState(() => {
     const validIds = new Set(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot).map((record) => record.opportunityId));
@@ -1142,7 +1174,8 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       .catch(() => { /* Date-added sorting remains explicit and stable when the deferred feed is unavailable. */ });
     return () => { active = false; };
   }, [discoveryFeed.discovery.length, filters.capSort]);
-  const asOf = dataset.metadata.asOf;
+  const dataAsOf = dataset.metadata.asOf;
+  const asOf = currentUtcDate();
   const sourceRecords = useMemo(() => dataset.records || [], [dataset]);
   const effectiveSubawardSnapshot = useMemo(() => ({
     ...subawardSnapshot,
@@ -1151,9 +1184,10 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       subawards: subawardDetails?.byPrime?.[prime.primeAwardId] || [],
     })),
   }), [subawardDetails, subawardSnapshot]);
-  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, asOf, samOpportunities.records || [], manualProcurement.records || [], effectiveSubawardSnapshot), procurementDelta.records || [], discoveryFeed.discovery || []), [asOf, awards, discoveryFeed.discovery, effectiveSubawardSnapshot, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
+  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, dataAsOf, samOpportunities.records || [], manualProcurement.records || [], effectiveSubawardSnapshot), procurementDelta.records || [], discoveryFeed.discovery || []), [awards, dataAsOf, discoveryFeed.discovery, effectiveSubawardSnapshot, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
   const management = useManagementState(records);
   const dispositions = useRecordDispositions();
+  const recordGroups = useRecordGroups(records);
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
   const timelineEndYear = Math.max(Number(filters.capFrom), Number(filters.capTo));
   const portfolios = useMemo(() => [...new Set(records.map((record) => record.portfolio))].sort(), [records]);
@@ -1312,7 +1346,8 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   }, [asOf, dispositions.tombstonedIds, enriched, filters, management.watchedIds, timelineEndYear, timelineStartYear]);
 
   const visible = filtered;
-  const selected = enriched.find((record) => record.opportunityId === selectedId) || null;
+  const timelineRecords = useMemo(() => collapseLifecycleRecords(visible, recordGroups.groups), [recordGroups.groups, visible]);
+  const selected = timelineRecords.find((record) => record.opportunityId === selectedId) || enriched.find((record) => record.opportunityId === selectedId) || null;
   const selectedLiveAward = selected ? awardMap.get(String(selected.reference || "").toUpperCase()) : null;
   const selectedActions = actionDataset?.byOpportunity?.[selectedId] || [];
   const resolvedActionState = actionDataset ? "ready" : actionState === "error" ? "error" : "loading";
@@ -1323,6 +1358,25 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     ? enriched.filter((record) => record.opportunityId !== selected.opportunityId && record.vehicle === selected.vehicle && !parentRelations.some((related) => related.opportunityId === record.opportunityId)).slice(0, 8)
     : [];
   const followOnRelations = selected ? followOnByOpportunity[selected.opportunityId] || [] : [];
+
+  function toggleMergeSelection(opportunityId) {
+    setMergeSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(opportunityId)) next.delete(opportunityId);
+      else next.add(opportunityId);
+      return next;
+    });
+  }
+
+  async function groupSelectedWithAi() {
+    try {
+      const group = await recordGroups.groupWithAi([...mergeSelectedIds]);
+      if (group) {
+        setMergeSelectedIds(new Set());
+        setMergeMode(false);
+      }
+    } catch { /* The hook publishes the bounded operator-facing failure. */ }
+  }
 
   function setSelectedId(nextId) {
     setSelectedIdState(nextId);
@@ -1634,22 +1688,24 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
 
       {selected ? (
-        <ControlDrawer open onClose={() => setSelectedId("")} title={selected.title} header={<ControlRecordHeader eyebrow={selected.id} title={selected.title} summary="Published transaction, schedule, procurement, and provenance evidence." status={<ControlStatusBadge status={selected.lifecycleStatus || "active"} />} meta={[{ label: "Portfolio", value: selected.portfolio }, { label: "Recipient", value: selected.party || "Not published" }, { label: "Reference", value: selected.reference || "Not published" }]} actions={<div className="capture-detail__heading-actions"><button type="button" className={management.watchedIds.has(selected.opportunityId) ? "is-active is-starred" : ""} aria-pressed={management.watchedIds.has(selected.opportunityId)} onClick={() => management.toggleWatch(selected.opportunityId)} aria-label={management.watchedIds.has(selected.opportunityId) ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={management.watchedIds.has(selected.opportunityId) ? "currentColor" : "none"} />{management.watchedIds.has(selected.opportunityId) ? "Tracked" : "Track"}</button><button type="button" className={comparisonIds.includes(selected.opportunityId) ? "is-active" : ""} onClick={() => toggleComparison(selected.opportunityId)} aria-label={comparisonIds.includes(selected.opportunityId) ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{comparisonIds.includes(selected.opportunityId) ? "Compared" : "Compare"}</button></div>} />} size="wide" closeLabel="Close record details" drawerProps={{ "data-capture-detail-modal": "" }}>
-          <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />
+        <ControlDrawer open onClose={() => setSelectedId("")} title={selected.title} header={<ControlRecordHeader eyebrow={selected.id} title={selected.title} summary={selected.lifecycleMembers ? "One timeline line with each source award preserved as a separate segment." : "Published transaction, schedule, procurement, and provenance evidence."} status={<ControlStatusBadge status={selected.lifecycleMembers ? "linked lifecycle" : selected.lifecycleStatus || "active"} />} meta={[{ label: "Portfolio", value: selected.portfolio }, { label: "Recipient", value: selected.party || "Not published" }, { label: "Reference", value: selected.reference || "Not published" }]} actions={selected.lifecycleMembers ? null : <div className="capture-detail__heading-actions"><button type="button" className={management.watchedIds.has(selected.opportunityId) ? "is-active is-starred" : ""} aria-pressed={management.watchedIds.has(selected.opportunityId)} onClick={() => management.toggleWatch(selected.opportunityId)} aria-label={management.watchedIds.has(selected.opportunityId) ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={management.watchedIds.has(selected.opportunityId) ? "currentColor" : "none"} />{management.watchedIds.has(selected.opportunityId) ? "Tracked" : "Track"}</button><button type="button" className={comparisonIds.includes(selected.opportunityId) ? "is-active" : ""} onClick={() => toggleComparison(selected.opportunityId)} aria-label={comparisonIds.includes(selected.opportunityId) ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{comparisonIds.includes(selected.opportunityId) ? "Compared" : "Compare"}</button></div>} />} size="wide" closeLabel="Close record details" drawerProps={{ "data-capture-detail-modal": "" }}>
+          {selected.lifecycleMembers ? <LifecycleGroupPanel record={selected} onOpenMember={setSelectedId} onRemove={(groupId) => { void recordGroups.remove(groupId); setSelectedId(""); }} /> : <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />}
         </ControlDrawer>
       ) : null}
 
       <section className={`capture-section capture-gantt-section${timelineExpanded ? " is-fullscreen" : ""}`} data-capture-gantt-section data-fpds-overlay-state={selectedFeeds.has("fpds") ? (actionDataset ? "ready" : actionState) : "disabled"}>
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{visible.length.toLocaleString()} of {filtered.length.toLocaleString()} filtered rows · {followOnLinkCount} published or curated predecessor links · hover only actual timeline marks for contextual evidence</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Award performance, acquisition events, and transaction overlays</strong><small>{timelineRecords.length.toLocaleString()} timeline lines · {visible.length.toLocaleString()} source records · {followOnLinkCount} published, curated, or exact auto-links · data through {formatDate(dataAsOf)}</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
         <div className="capture-gantt-commandbar" data-capture-gantt-commandbar>
           <div className="capture-gantt-commandbar__group" aria-label="Timeline window"><span>Window</span><button type="button" aria-pressed={timelineStartYear === Number(asOf.slice(0, 4)) && timelineEndYear === Number(asOf.slice(0, 4))} onClick={() => setTimelineWindow(0, 0)}>Current</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 1) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 2)} onClick={() => setTimelineWindow(1, 2)}>3 year</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 3) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 3)} onClick={() => setTimelineWindow(3, 3)}>7 year</button><button type="button" aria-pressed={timelineStartYear === TIMELINE_FIRST_YEAR && timelineEndYear === TIMELINE_LAST_YEAR} onClick={() => setFilters({ capFrom: String(TIMELINE_FIRST_YEAR), capTo: String(TIMELINE_LAST_YEAR) })}>All</button></div>
           <div className="capture-gantt-commandbar__group" aria-label="Timeline layers"><span>Layers</span><button type="button" aria-pressed={!parseMultiValues(filters.capFeed).length} onClick={() => setFilters({ capFeed: "none" })}>Schedule</button><button type="button" aria-pressed={selectedFeeds.has("changes")} onClick={() => toggleTimelineFeed("changes")}>Changes</button><button type="button" aria-pressed={selectedFeeds.has("followon")} onClick={() => toggleTimelineFeed("followon")}>Follow-ons</button><button type="button" aria-pressed={selectedFeeds.has("fpds") && selectedFeeds.has("fiscal")} onClick={() => toggleTimelineFeed("fpds", "fiscal")}>Funding</button><button type="button" aria-pressed={selectedFeeds.has("subawards")} onClick={() => toggleTimelineFeed("subawards")}>Subawards</button></div>
-          <div className="capture-gantt-commandbar__actions"><button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Now</button><button type="button" onClick={() => setGanttToolsOpen(true)}>Display</button><button type="button" aria-pressed={timelineExpanded} onClick={() => setTimelineExpanded((value) => !value)}>{timelineExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{timelineExpanded ? "Exit" : "Expand"}</button></div>
+          <div className="capture-gantt-commandbar__actions"><button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Today</button><button type="button" aria-pressed={mergeMode} onClick={() => { setMergeMode((value) => !value); setMergeSelectedIds(new Set()); recordGroups.setNotice(""); }}><GitMerge size={15} />Group records</button><button type="button" onClick={() => setGanttToolsOpen(true)}>Display</button><button type="button" aria-pressed={timelineExpanded} onClick={() => setTimelineExpanded((value) => !value)}>{timelineExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{timelineExpanded ? "Exit" : "Expand"}</button></div>
         </div>
+        {mergeMode ? <div className="capture-lifecycle-toolbar" data-lifecycle-group-toolbar><span><strong>Select related records</strong><small>Grouping changes only this timeline view; source awards and evidence remain separate.</small></span><button type="button" className="if-btn if-btn--primary" disabled={mergeSelectedIds.size < 2 || recordGroups.state === "running"} onClick={groupSelectedWithAi}><Sparkles size={15} />{recordGroups.state === "running" ? "Reviewing…" : `AI review & group (${mergeSelectedIds.size})`}</button><button type="button" className="if-btn if-btn--secondary" onClick={() => { setMergeMode(false); setMergeSelectedIds(new Set()); }}>Cancel</button></div> : null}
+        {recordGroups.notice ? <p className={`if-alert ${recordGroups.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status">{recordGroups.notice}</p> : null}
         {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} dialogRef={ganttDialogRef} title="Timeline controls" eyebrow="Transactions" summary="Adjust the visible time window, row density, grouping, labels, and evidence overlays." size="wide" closeLabel="Close Timeline controls" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
           <div className="capture-gantt-tools capture-gantt-tools--dialog">{ganttControlGroups}</div>
         </ControlDialog> : null}
-        {visible.length ? <CaptureTimeline records={visible} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} /> : <CaptureEmpty title="No matching transactions" message="Adjust or clear filters to restore public transaction records." />}
+        {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} asOf={asOf} dataAsOf={dataAsOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} /> : <CaptureEmpty title="No matching transactions" message="Adjust or clear filters to restore public transaction records." />}
       </section>
 
       {showLegacyTransactionExtras ? <><details className="capture-analytics-disclosure" data-capture-analytics-disclosure>

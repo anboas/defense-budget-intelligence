@@ -195,6 +195,21 @@ body = await response.json();
 const workspaceOpenAiKeyId = body.key.id;
 assert.equal(body.key.lastFour, "0002");
 assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey));
+response = await request("/api/v1/agent/record-groups", { method: "POST", cookie: ownerCookie,
+  body: { memberIds: ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"] } });
+assert.equal(response.status, 201, "PostgreSQL workspace writers must be able to AI-review and group lifecycle records");
+body = await response.json();
+const recordGroupId = body.data.id;
+assert.deepEqual(body.data.memberIds, ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"]);
+assert.equal(body.data.relationship, "successive-phase");
+assert.equal(body.data.provenance.reviewState, "accepted");
+assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey));
+response = await request("/api/v1/agent/record-groups", { cookie: ownerCookie });
+assert.equal(response.status, 200);
+body = await response.json();
+assert.ok(body.data.some((group) => group.id === recordGroupId), "PostgreSQL must persist workspace lifecycle groups");
+response = await request(`/api/v1/agent/record-groups/${recordGroupId}`, { method: "DELETE", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 204, "Removing a PostgreSQL lifecycle overlay must leave source records intact");
 response = await request(`/api/v1/auth/openai-keys/${personalOpenAiKeyId}`, { method: "PATCH", cookie: ownerCookie,
   body: { label: "PostgreSQL personal renamed" } });
 assert.equal(response.status, 200);

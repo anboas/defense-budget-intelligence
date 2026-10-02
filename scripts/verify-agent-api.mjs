@@ -142,7 +142,7 @@ try {
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
   assert.equal(result.payload.data.contractVersion, "1.1.0");
   assert.deepEqual(result.payload.data.resources, [
-    "records", "analytics", "tracking", "record-dispositions", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations",
+    "records", "analytics", "tracking", "record-dispositions", "record-groups", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations",
     "graph", "entities", "activities", "locations", "evidence", "sources", "enrichment", "reviews", "jobs",
   ]);
 
@@ -151,6 +151,7 @@ try {
   assert.equal(result.payload.openapi, "3.1.0");
   assert.equal(result.payload.info.version, "1.1.0");
   assert.ok(result.payload.paths["/api/v1/agent/record-dispositions/{recordId}"], "Agent OpenAPI must document workspace tombstone and restore operations");
+  assert.ok(result.payload.paths["/api/v1/agent/record-groups"], "Agent OpenAPI must document lifecycle grouping operations");
   assert.ok(result.payload.paths["/api/v1/agent/event-catalog"], "Agent OpenAPI must document curated event catalog search");
   assert.ok(result.payload.paths["/api/v1/agent/entities/{entityId}/relations"], "Agent OpenAPI must document graph traversal");
   assert.ok(result.payload.paths["/api/v1/agent/enrichment/proposals"], "Agent OpenAPI must document cited enrichment proposals");
