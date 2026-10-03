@@ -1,5 +1,6 @@
 import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, exactRecordGroupAssessment, lifecycleTitleStem } from "./record-linking.js";
 import { cleanText } from "./security-policy.js";
+import { AI_OPERATION_LIMIT, AI_OPERATION_WINDOW_MINUTES, consumeD1AiOperationLimit } from "./d1-sensitive-rate-limit.js";
 
 export const D1_RECORD_GROUP_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS dbi_workspace_record_groups (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, title TEXT NOT NULL,
@@ -90,6 +91,10 @@ export async function recordGroupsResponse(request, env, db, principal, segments
   const credential = exact ? null : await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id = ? AND scope_type = 'workspace' AND revoked_at = '' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
   const apiKey = credential ? await decryptSecret(credential, env) : "";
   if (!exact && !apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential before AI grouping", 409);
+  if (!exact) {
+    const quota = await consumeD1AiOperationLimit(db, principal);
+    if (quota.limited) return error("ai_rate_limited", `AI research is limited to ${AI_OPERATION_LIMIT} provider operations per ${AI_OPERATION_WINDOW_MINUTES} minutes`, 429, undefined, { retryAfterSeconds: quota.retryAfter }, { "retry-after": String(quota.retryAfter) });
+  }
   const mockMode = String(env.DBI_RECORD_LINKING_MOCK_MODE || env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
   let assessment;
   try {

@@ -383,6 +383,17 @@ assert.equal(response.status, 200);
 response = await request("/api/v1/auth/event-ai/models?credentialScope=workspace", { cookie: ownerCookie });
 body = await response.json();
 assert.equal(body.inventory.producerModel, "gpt-5.4-mini");
+
+let aiLimitResponse;
+for (let attempt = 0; attempt < 15; attempt += 1) {
+  aiLimitResponse = await request("/api/v1/agent/record-intelligence/opp_f2a64db1164b5263690b/research", { method: "POST", cookie: ownerCookie, body: {} });
+  if (aiLimitResponse.status === 429) break;
+  assert.equal(aiLimitResponse.status, 201, "PostgreSQL record research must remain available below the AI abuse ceiling");
+}
+assert.equal(aiLimitResponse.status, 429, "PostgreSQL must bound paid AI operations for signed-in human sessions");
+assert.ok(Number(aiLimitResponse.headers.get("retry-after")) >= 1, "PostgreSQL AI limits must publish Retry-After");
+assert.equal((await aiLimitResponse.json()).code, "ai_rate_limited");
+
 response = await request(`/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, { method: "DELETE", cookie: ownerCookie });
 assert.equal(response.status, 200);
 response = await request("/api/v1/auth/event-ai", { method: "POST", cookie: ownerCookie, body: {

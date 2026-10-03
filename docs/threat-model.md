@@ -56,7 +56,7 @@ Public source content, browser input, provider output, issue text, and repositor
 | Source poisoning | Stable identifiers, source provenance, schema validation, fail-closed refresh, exact-link policy | Official source compromise or incorrect official data |
 | Scheduler or delivery abuse | Opaque service token, key-gated workspace selection, pacing/backoff, idempotency, queue limits | Valid service-token theft until rotation |
 | Evidence destruction | Append-only observations, audit/incident ledgers, retention rules, exact releases, quarterly restore contracts | A full production cutover remains an authorized incident operation rather than an automated test |
-| Denial of service | Body/parameter/time limits, rate limits, bounded pagination/concurrency, edge protection | Distributed low-rate abuse and upstream exhaustion |
+| Denial of service or paid-provider exhaustion | Body/parameter/time limits, global and sensitive-operation rate limits, actor/workspace quotas before provider-backed record research, bounded pagination/concurrency, edge protection | Distributed low-rate abuse and upstream exhaustion |
 
 ## Privileged operations
 

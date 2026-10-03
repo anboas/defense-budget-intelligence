@@ -234,6 +234,7 @@ export async function runAuthRetentionMaintenance(pool) {
   await pool.query("DELETE FROM app_api_request_log WHERE completed_at < NOW() - INTERVAL '90 days'");
   await pool.query("DELETE FROM app_event_ai_jobs WHERE completed_at < NOW() - INTERVAL '90 days'");
   await pool.query("DELETE FROM app_login_attempts WHERE attempted_at < NOW() - INTERVAL '24 hours'");
+  await pool.query("DELETE FROM app_ai_operation_rate_limits WHERE expires_at < NOW()");
   await pool.query("DELETE FROM app_user_activity WHERE occurred_at < NOW() - INTERVAL '90 days'");
 }
 

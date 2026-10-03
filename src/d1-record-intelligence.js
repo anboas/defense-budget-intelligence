@@ -1,6 +1,7 @@
 import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence, exactRecordGroupAssessment } from "./record-linking.js";
 import { rankResearchCandidates, researchRecordWithOpenAi } from "./record-research.js";
 import { cleanText } from "./security-policy.js";
+import { AI_OPERATION_LIMIT, AI_OPERATION_WINDOW_MINUTES, consumeD1AiOperationLimit } from "./d1-sensitive-rate-limit.js";
 
 export const D1_RECORD_INTELLIGENCE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS dbi_workspace_record_research (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, opportunity_id TEXT NOT NULL,
@@ -84,6 +85,13 @@ function mockRelationshipAssessment(records) {
   };
 }
 
+async function aiQuotaResponse(db, principal, error) {
+  const quota = await consumeD1AiOperationLimit(db, principal);
+  return quota.limited
+    ? error("ai_rate_limited", `AI research is limited to ${AI_OPERATION_LIMIT} provider operations per ${AI_OPERATION_WINDOW_MINUTES} minutes`, 429, undefined, { retryAfterSeconds: quota.retryAfter }, { "retry-after": String(quota.retryAfter) })
+    : null;
+}
+
 async function saveRelationship(db, principal, relationship, recordActivity) {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
@@ -134,6 +142,10 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
     const credential = exact ? null : await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
     const apiKey = credential ? await decryptSecret(credential, env) : "";
     if (!exact && !apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
+    if (!exact) {
+      const limited = await aiQuotaResponse(db, principal, error);
+      if (limited) return limited;
+    }
     let assessment;
     try { assessment = exact || (mockMode ? mockRelationshipAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records })); }
     catch (providerError) { return error(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), Number(providerError.httpStatus || 502)); }
@@ -147,6 +159,8 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
     const credential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
     const apiKey = credential ? await decryptSecret(credential, env) : "";
     if (!apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
+    const limited = await aiQuotaResponse(db, principal, error);
+    if (limited) return limited;
     const candidates = rankResearchCandidates(record, universe.records);
     let report;
     try { report = mockMode ? mockResearch(record, candidates) : await researchRecordWithOpenAi({ apiKey, record, candidates }); }
