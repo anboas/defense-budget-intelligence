@@ -1981,15 +1981,20 @@ export default function TransactionAnalytics({
           <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
           <div className="analytics-commandbar__secondary">
             <div className="analytics-mobile-chart-picker"><span>Chart</span><ControlSelect ariaLabel="Visible mobile chart" value={mobileChartId} options={chartOptions.filter(([id]) => activeChartIds.includes(id))} onChange={(chartId) => setMobileChartByView((current) => ({ ...current, [activeView]: chartId }))} /></div>
-            <div><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>
-            <div><span>Dimension</span><ControlSelect ariaLabel="Dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
-            <div><span>Measure</span><ControlSelect ariaLabel="Measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
+            <div className="analytics-record-type"><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>
+            <div className="analytics-dimension"><span>Dimension</span><ControlSelect ariaLabel="Dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
+            <div className="analytics-measure"><span>Measure</span><ControlSelect ariaLabel="Measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
             <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
             {activeFilters ? <button type="button" className="analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
           </div>
         </div>} secondaryControls={<><details className="analytics-manager" data-analytics-manager>
           <summary><Filter size={14} aria-hidden="true" /><strong>Filter data & manage charts</strong><span>{activeFilters ? `${activeFilters} active filters` : "All records"} · {activeChartIds.length} of {chartOptions.length} charts</span></summary>
           <div className="analytics-manager__grid">
+            <div className="analytics-manager__mobile-actions">
+              <div><span>Dimension</span><ControlSelect ariaLabel="Mobile dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
+              <div><span>Measure</span><ControlSelect ariaLabel="Mobile measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
+              <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
+            </div>
             {filterDefinitions.map((definition) => (
               <SearchMultiSelect
                 key={definition.id}

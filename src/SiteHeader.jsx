@@ -12,6 +12,26 @@ const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
 const WORK_IDS = new Set(["watchlist", "tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "intelligence", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
+const MOBILE_TITLES = {
+  spend: "Spend",
+  map: "Map",
+  schedule: "Schedule",
+  overview: "PDB Request",
+  trends: "History",
+  lifecycle: "Account Flow",
+  awards: "Awards",
+  sources: "Sources",
+  watchlist: "Watchlist",
+  tasks: "Tasks",
+  "event-discovery": "Discovery",
+  connections: "Connections",
+  "domain-model": "Data Model",
+  intelligence: "Intelligence",
+  "workspace-settings": "Workspace",
+  users: "Accounts",
+  workspaces: "Workspaces",
+  directory: "Directory",
+};
 const MONEY_META = {
   overview: { badge: "3,888 lines", description: "Current PDB request lines, organizations, books, and factual funding signals." },
   trends: { badge: "4 vintages", description: "Request changes across published budget vintages and fiscal years." },
@@ -226,7 +246,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
       <div className="if-product-header__inner masthead__inner">
         <a href={routes.spend} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Spend Explorer" title="Go to Spend Explorer">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
-          <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title>{activeTitle}</h1></span>
+          <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title data-mobile-label={MOBILE_TITLES[activeTab] || activeTitle}>{activeTitle}</h1></span>
         </a>
 
         <nav className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">

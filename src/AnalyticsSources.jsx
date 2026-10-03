@@ -3,16 +3,8 @@ import { ControlDisclosure } from "control-surface-ui/react";
 import { Database, ExternalLink, Network, RefreshCcw } from "lucide-react";
 import sourceHealth from "./data/source-health.json";
 import AnalysisSection from "./AnalysisSection.jsx";
+import { GRAPH_DOWNLOADS, sourceProbeDateTime } from "./analytics-sources-support.js";
 import { loadIntelligenceGraphSummary } from "./intelligence-graph.js";
-function dateTime(value) {
-  return new Date(value).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 export default function AnalyticsSources({ budgetData, accountSpine, captureCalendar, awardSummary, executionCoverage, subawardSnapshot }) {
   const books = budgetData.metadata.sources || [];
   const inventory = budgetData.metadata.dataInventory || {};
@@ -108,8 +100,8 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
           <article><strong>{healthTotals.unavailable || 0}</strong><span>unavailable at last probe</span></article>
         </div>
       </section>
-      {graphSummary ? <AnalysisSection title="Cross-surface evidence graph" meta={`${graphSummary.totals.entities.toLocaleString()} typed entities · ${graphSummary.totals.relations.toLocaleString()} evidence-bearing relations`} icon={Network}>
-        <div className="if-relationship-bundle-grid if-relationship-bundle-grid--mobile-scroll" data-intelligence-graph-summary>
+      {graphSummary ? <ControlDisclosure className="analytics-sources__graph-disclosure" icon={<Network size={16} />} title="Cross-surface evidence graph" summary={`${graphSummary.totals.entities.toLocaleString()} typed entities · ${graphSummary.totals.relations.toLocaleString()} evidence-bearing relations`}>
+        <div className="if-relationship-bundle-grid" data-intelligence-graph-summary>
           <article className="if-relationship-bundle"><h3>Activity spine</h3><p>{graphSummary.metadata.entityCounts.activity.toLocaleString()} activities · {graphSummary.metadata.coverage.activities.awardLinked.toLocaleString()} award-linked · {graphSummary.metadata.coverage.activities.calendar.toLocaleString()} with canonical calendar records.</p></article>
           <article className="if-relationship-bundle"><h3>Awards and actions</h3><p>{graphSummary.metadata.entityCounts.award.toLocaleString()} awards · {graphSummary.metadata.entityCounts.transaction.toLocaleString()} exact FPDS actions · {graphSummary.metadata.entityCounts["subaward-summary"].toLocaleString()} prime subaward summaries.</p></article>
           <article className="if-relationship-bundle"><h3>Spending breadth</h3><p>FY{graphSummary.metadata.coverage.spending.firstFiscalYear}–FY{graphSummary.metadata.coverage.spending.lastFiscalYear} · {graphSummary.metadata.coverage.spending.observations.toLocaleString()} obligation observations · {graphSummary.metadata.coverage.spending.uniqueRankedAwards.toLocaleString()} ranked awards and IDVs.</p></article>
@@ -133,10 +125,11 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
           <article className="if-relationship-bundle"><h3>Budget crosswalk</h3><p>{graphSummary.metadata.coverage.budget.exactAccountTitleLinks.toLocaleString()} exact normalized title links; {graphSummary.metadata.coverage.budget.unresolvedAccountTitleLinks.toLocaleString()} budget lines remain explicitly unresolved.</p></article>
           <article className="if-relationship-bundle"><h3>Evidence policy</h3><p>Exact, reviewed, source-declared, deterministic, and derived joins remain distinct. Fuzzy identity and unsupported budget-line-to-award links are prohibited.</p></article>
         </div>
-        <p className="lifecycle-caveat">The graph is a projection of retained evidence, not a scoring system. <a href={`${import.meta.env.BASE_URL}data/intelligence-graph.json.gzip`} download>Download the complete integrity graph</a> · <a href={`${import.meta.env.BASE_URL}data/organization-intelligence.json`} download>Download organization dossiers and research queues</a> · <a href={`${import.meta.env.BASE_URL}data/organization-change-monitor.json`} download>Download Organization Watch observations and review proposals</a> · <a href={`${import.meta.env.BASE_URL}data/roadmap-intelligence.json`} download>Download people, industrial-base, document, and operations intelligence</a> · <a href={`${import.meta.env.BASE_URL}data/program-intelligence.json`} download>Download program intelligence</a> · <a href={`${import.meta.env.BASE_URL}data/legislative-traceability.json`} download>Download legislative traceability</a> · <a href={`${import.meta.env.BASE_URL}data/strategic-intelligence.json`} download>Download strategic evidence</a> · <a href={`${import.meta.env.BASE_URL}data/priority-award-actions.json`} download>Download priority award actions</a> · <a href={`${import.meta.env.BASE_URL}data/organization-identity-review.json`} download>Download organization identity review</a> · <a href={`${import.meta.env.BASE_URL}data/contract-lineage-review.json`} download>Download contract lineage review</a> · <a href={`${import.meta.env.BASE_URL}data/temporal-evidence-review.json`} download>Download temporal and conflict review</a>.</p>
-      </AnalysisSection> : null}
+        <p className="lifecycle-caveat">The graph is a projection of retained evidence, not a scoring system. <a href={`${import.meta.env.BASE_URL}data/intelligence-graph.json.gzip`} download>Download the complete integrity graph</a>.</p>
+        <details className="source-downloads"><summary>Additional machine-readable exports</summary><ul>{GRAPH_DOWNLOADS.map(([label, path]) => <li key={path}><a href={`${import.meta.env.BASE_URL}data/${path}`} download>{label}</a></li>)}</ul></details>
+      </ControlDisclosure> : null}
       <AnalysisSection title="Money-flow lineage" meta="left to right from request to public subaward actions" icon={Database}>
-        <div className="if-ingest-flow if-ingest-flow--mobile-scroll" data-source-flow>
+        <div className="if-ingest-flow" data-source-flow>
           {layers.map((layer) => <article className="if-ingest-stage" key={layer.id}>
             <span className="if-ingest-stage__index">{layer.stage}</span>
             <div><h3>{layer.title}</h3><p>{layer.system} · {layer.relationship}</p></div>
@@ -145,7 +138,7 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
         </div>
       </AnalysisSection>
       <ControlDisclosure className="source-join-policy" icon={<Network size={16} />} title="Join policy" summary="Six relationship rules; amounts remain at their published grains">
-        <div className="if-relationship-bundle-grid if-relationship-bundle-grid--mobile-scroll">
+        <div className="if-relationship-bundle-grid">
           <article className="if-relationship-bundle"><h3>Request → federal account</h3><p>Derived only when normalized account titles match exactly.</p></article>
           <article className="if-relationship-bundle"><h3>OMB → Treasury account</h3><p>Exact full TAFS/TAS identifier.</p></article>
           <article className="if-relationship-bundle"><h3>Award → federal account</h3><p>Exact USAspending transaction funding-account relationship.</p></article>
@@ -154,7 +147,7 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
           <article className="if-relationship-bundle"><h3>Budget line → award</h3><p>Unlinked unless a public identifier or cited source supports the edge.</p></article>
         </div>
       </ControlDisclosure>
-      <AnalysisSection title="Source health" meta={`point-in-time probe ${dateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
+      <AnalysisSection title="Source health" meta={`point-in-time probe ${sourceProbeDateTime(sourceHealth.metadata.checkedAt)}`} icon={RefreshCcw}>
         <div className={`source-health-grid${showAllSourceHealth ? " is-expanded" : ""}`} data-source-health-monitor>
           {visibleHealthSources.map((source) => (
             <details key={source.id} className={`source-health-card source-health-card--${source.health.toLowerCase()}`}>
