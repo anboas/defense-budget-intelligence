@@ -21,7 +21,7 @@ const request = buildRecordResearchRequest(ndmsDraft, candidates);
 assert.equal(request.store, false);
 assert.equal(request.tool_choice, "required");
 assert.equal(request.text.format.strict, true);
-assert.deepEqual(request.tools[0].filters.allowed_domains.includes("sam.gov"), true);
+assert.deepEqual(request.tools[0].filters.allowed_domains, ["sam.gov", "usaspending.gov", "fpds.gov", "navy.mil", "navair.navy.mil", "gsa.gov"]);
 assert.ok(!JSON.stringify(request).includes("masked-test-key"));
 
 const consulted = [
