@@ -1,4 +1,4 @@
-import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, lifecycleTitleStem } from "./record-linking.js";
+import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, exactRecordGroupAssessment, lifecycleTitleStem } from "./record-linking.js";
 import { cleanText } from "./security-policy.js";
 
 export const D1_RECORD_GROUP_SCHEMA = [
@@ -86,17 +86,18 @@ export async function recordGroupsResponse(request, env, db, principal, segments
   const byId = new Map(universe.records.map((record) => [record.opportunityId, record]));
   const records = memberIds.map((id) => byId.get(id)).filter(Boolean);
   if (records.length !== memberIds.length) return error("record_not_found", "Every selected record must exist in the active workspace corpus", 404);
-  const credential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id = ? AND scope_type = 'workspace' AND revoked_at = '' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
+  const exact = exactRecordGroupAssessment(records, { allowFollowOn: false });
+  const credential = exact ? null : await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id = ? AND scope_type = 'workspace' AND revoked_at = '' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
   const apiKey = credential ? await decryptSecret(credential, env) : "";
-  if (!apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential before AI grouping", 409);
+  if (!exact && !apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential before AI grouping", 409);
   const mockMode = String(env.DBI_RECORD_LINKING_MOCK_MODE || env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
   let assessment;
   try {
-    assessment = mockMode ? mockAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records });
+    assessment = exact || (mockMode ? mockAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records }));
   } catch (providerError) {
     return error(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500) || "OpenAI could not review the selected records", Number(providerError.httpStatus || 502));
   }
-  if (assessment.decision !== "group" || assessment.confidence !== "high") {
+  if (assessment.decision !== "group" || !["high", "exact"].includes(assessment.confidence)) {
     return json(null, 200, { decision: assessment.decision, confidence: assessment.confidence, message: assessment.rationale || "OpenAI did not find high-confidence evidence that these records form one lifecycle.", assessment });
   }
   const now = new Date().toISOString();

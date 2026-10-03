@@ -21,7 +21,7 @@ async function request(path, options = {}) {
   });
   if (response.status === 204) return null;
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error?.message || payload.error || "Record intelligence request failed.");
+  if (!response.ok) throw Object.assign(new Error(payload.error?.message || payload.error || "Record intelligence request failed."), { code: payload.error?.code || payload.code || "record_intelligence_failed" });
   return payload?.data ?? payload;
 }
 
@@ -50,7 +50,7 @@ export function useRecordIntelligence(records = [], opportunityId = "") {
   const research = useCallback(async (recordId = opportunityId) => {
     if (!recordId || !remote) throw new Error("AI research requires an authenticated workspace with an OpenAI credential.");
     setState("researching");
-    setNotice("OpenAI is researching official sources and checking past and future relationships…");
+    setNotice("Researching official sources, decision posture, key dates, next actions, and lifecycle evidence. Transient provider failures retry once automatically…");
     try {
       const payload = await request(`/${encodeURIComponent(recordId)}/research`, { method: "POST", body: "{}" });
       if (payload?.report) setReports((current) => [payload.report, ...current.filter((row) => row.id !== payload.report.id)]);
@@ -65,7 +65,7 @@ export function useRecordIntelligence(records = [], opportunityId = "") {
     const ids = [...new Set(memberIds)].slice(0, 2);
     if (ids.length !== 2 || !remote) throw new Error("Select exactly two records in an authenticated workspace.");
     setState("linking");
-    setNotice("OpenAI is checking predecessor, follow-on, and same-requirement evidence…");
+    setNotice("Checking exact lifecycle evidence first; AI reviews only ambiguous predecessor, follow-on, or same-requirement evidence…");
     try {
       const payload = await request("/relationships", { method: "POST", body: JSON.stringify({ memberIds: ids }) });
       const relationship = cleanRelationship(payload);

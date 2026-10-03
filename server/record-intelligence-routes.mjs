@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { accessCapabilities } from "../src/access-model.js";
-import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence } from "../src/record-linking.js";
+import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence, exactRecordGroupAssessment } from "../src/record-linking.js";
 import { rankResearchCandidates, researchRecordWithOpenAi } from "../src/record-research.js";
 import { cleanText } from "../src/security-policy.js";
 import { recordUniverse } from "./record-universe.mjs";
@@ -29,6 +29,9 @@ function mockResearch(record, candidates) {
     stage: record.noticeType || record.lifecycleStatus || "Published record",
     scope: record.context || record.sourceDescription || record.title,
     incumbentPosture: exact ? "A published active-work record is linked to this acquisition as a follow-on candidate." : "No incumbent relationship was established by the mock verifier.",
+    decisionBrief: { recommendedAction: exact ? "pursue" : "research", priority: exact ? "high" : "medium", rationale: exact ? "Published lifecycle evidence supports near-term qualification." : "Additional official evidence is needed before qualification.", sourceUrls: sourceUrls.slice(0, 2) },
+    keyDates: record.solicitationEnd && sourceUrls.length ? [{ label: "Response deadline", date: record.solicitationEnd, basis: "Published acquisition response deadline.", sourceUrls: sourceUrls.slice(0, 1) }] : [],
+    nextActions: sourceUrls.length ? [{ action: "Review the latest official notice and attachments.", rationale: "Confirm scope, timing, and qualification evidence before a bid decision.", sourceUrls: sourceUrls.slice(0, 2) }] : [],
     findings: sourceUrls.length ? [{ text: "The retained public record and relationship evidence were reviewed.", sourceUrls: sourceUrls.slice(0, 2) }] : [],
     risks: [], openQuestions: ["Confirm any unpublished amendments or acquisition strategy changes."], caveats: ["Human review required."],
     sources: sourceUrls.map((url) => ({ url, title: "Official source" })),
@@ -38,7 +41,7 @@ function mockResearch(record, candidates) {
 }
 
 function relationshipFromAssessment(records, assessment) {
-  const exact = exactFollowOnEvidence(records[0], records[1]);
+  const exact = exactFollowOnEvidence(records[0], records[1]) || exactLifecycleEvidence(records[0], records[1]);
   const ordered = [...records].sort((left, right) => String(left.start || left.solicitationStart || "9999").localeCompare(String(right.start || right.solicitationStart || "9999")));
   return { sourceId: exact?.sourceId || ordered[0].opportunityId, targetId: exact?.targetId || ordered[1].opportunityId, relationship: exact?.relationship || assessment.relationship || "related-workstream", confidence: exact?.confidence || assessment.confidence, rationale: assessment.rationale || (exact ? exact.basis.join("; ") : "OpenAI found a high-confidence public-record relationship."), evidence: exact?.basis || assessment.evidence || [], sourceUrls: [...new Set(records.flatMap((record) => record.sourceUrls || []))].slice(0, 8), caveats: assessment.caveats || [], provenance: exact ? { kind: "exact-rule", reviewState: "accepted", model: null, createdAt: null } : assessment.provenance };
 }
@@ -78,14 +81,14 @@ export function registerRecordIntelligenceRoutes(app, pool, { assertSameOrigin, 
     const byId = new Map(universe.map((record) => [record.opportunityId, record]));
     const records = memberIds.map((id) => byId.get(id)).filter(Boolean);
     if (records.length !== 2) return reply.code(404).send({ error: "both records must exist in the active workspace corpus" });
-    const stored = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type='workspace' AND workspace_id=$1 AND revoked_at IS NULL ORDER BY is_default DESC,created_at DESC LIMIT 1", [user.active_workspace_id]);
+    const exact = exactRecordGroupAssessment(records);
+    const stored = exact ? { rowCount: 0, rows: [] } : await pool.query("SELECT * FROM app_openai_keys WHERE scope_type='workspace' AND workspace_id=$1 AND revoked_at IS NULL ORDER BY is_default DESC,created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
-    if (!apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential first", code: "credential_unavailable" });
+    if (!exact && !apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential first", code: "credential_unavailable" });
     const mockMode = String(process.env.DBI_RECORD_RESEARCH_MOCK_MODE || process.env.DBI_RECORD_LINKING_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     let assessment;
     try {
-      const exact = exactFollowOnEvidence(records[0], records[1]);
-      assessment = exact ? { decision: "group", relationship: exact.relationship, confidence: "exact", rationale: exact.basis.join("; "), evidence: exact.basis, caveats: [], provenance: { kind: "exact-rule", reviewState: "accepted" } } : mockMode ? mockRelationshipAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records });
+      assessment = exact || (mockMode ? mockRelationshipAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records }));
     } catch (error) { return reply.code(Number(error.httpStatus || 502)).send({ error: cleanText(error.message, 500), code: cleanText(error.code, 100) || "openai_failed" }); }
     if (assessment.decision !== "group" || !["high", "exact"].includes(assessment.confidence)) return { data: null, meta: { decision: assessment.decision, confidence: assessment.confidence, message: assessment.rationale, assessment } };
     const relationship = await saveRelationship(pool, user, relationshipFromAssessment(records, assessment));

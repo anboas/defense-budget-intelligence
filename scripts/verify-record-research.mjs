@@ -31,6 +31,9 @@ const consulted = [
 const sensitiveProviderUrl = `${ndmsDraft.sourceUrls[0]}?api_key=sensitive-source-token&utm_source=provider&noticeid=retained`;
 const payload = {
   summary: "The draft RFP is a follow-on to active NDMS work.", stage: "Draft RFP", scope: "Depot Maintenance System software support.", incumbentPosture: "The active award remains separately preserved.",
+  decisionBrief: { recommendedAction: "pursue", priority: "high", rationale: "The published draft and active predecessor support immediate qualification.", sourceUrls: consulted.map((source) => source.url) },
+  keyDates: [{ label: "Response deadline", date: "2026-10-05", basis: "Published SAM.gov response deadline.", sourceUrls: [consulted[0].url] }],
+  nextActions: [{ action: "Review the draft RFP attachments.", rationale: "Confirm scope and qualification requirements before shaping.", sourceUrls: [consulted[0].url] }],
   findings: [{ text: "The program identity and published codes align.", sourceUrls: consulted.map((source) => source.url) }, { text: "Unsupported claim", sourceUrls: ["https://example.com/nope"] }],
   risks: [], openQuestions: ["Confirm the final RFP schedule."],
   relationshipProposals: [{ targetId: supportV.opportunityId, relationship: "predecessor", confidence: "high", rationale: "Matching NDMS identity, buyer, codes, and overlapping timing.", sourceUrls: consulted.map((source) => source.url), caveats: ["Distinct records"] }, { targetId: "missing", relationship: "related-workstream", confidence: "high", rationale: "No", sourceUrls: consulted.map((source) => source.url), caveats: [] }],
@@ -39,6 +42,9 @@ const payload = {
 const normalized = normalizeRecordResearch(payload, ndmsDraft, candidates, { responseId: "resp-test", consultedSources: consulted });
 assert.equal(normalized.findings.length, 1, "Unsupported citations must remove the claim");
 assert.equal(normalized.relationshipProposals.length, 1, "Relationships may target only supplied candidates");
+assert.equal(normalized.decisionBrief.recommendedAction, "pursue", "Research must produce a grounded operator recommendation");
+assert.equal(normalized.keyDates[0].date, "2026-10-05", "Published decision dates must remain structured");
+assert.equal(normalized.nextActions.length, 1, "Grounded next actions must survive normalization");
 assert.equal(normalized.provenance.reviewState, "needs_review");
 
 const sanitized = normalizeRecordResearch({ ...payload, summary: `Sanitized official citation ${sensitiveProviderUrl}`, findings: [{ text: `Sanitized official citation ${sensitiveProviderUrl}`, sourceUrls: [sensitiveProviderUrl] }] }, ndmsDraft, candidates, {
@@ -50,6 +56,7 @@ assert.equal(sanitized.sources[0].url.includes("noticeid=retained"), true, "Non-
 assert.doesNotMatch(JSON.stringify(sanitized), /api_key|utm_source|sensitive-source-token/i, "Research output must strip sensitive and tracking query parameters from source URLs");
 
 let posted;
+let attempts = 0;
 const researched = await researchRecordWithOpenAi({
   apiKey: "masked-test-key", record: ndmsDraft, candidates,
   fetchImpl: async (_url, options) => {
@@ -63,5 +70,23 @@ const researched = await researchRecordWithOpenAi({
 assert.equal(posted.store, false);
 assert.equal(researched.relationshipProposals[0].targetId, supportV.opportunityId);
 assert.equal(researched.sources.length, 2);
+assert.equal(researched.provenance.attempts, 1);
+
+const retried = await researchRecordWithOpenAi({
+  apiKey: "masked-test-key", record: ndmsDraft, candidates,
+  fetchImpl: async (_url, options) => {
+    attempts += 1;
+    posted = JSON.parse(options.body);
+    if (attempts === 1) return { ok: true, status: 200, json: async () => ({ id: "resp-malformed", output_text: "{malformed" }) };
+    return { ok: true, status: 200, json: async () => ({ id: "resp-retry", output_text: JSON.stringify(payload), output: [
+      { type: "web_search_call", action: { sources: consulted } },
+      { type: "message", content: [{ type: "output_text", text: JSON.stringify(payload), annotations: consulted.map((source) => ({ type: "url_citation", url: source.url, title: source.title })) }] },
+    ] }) };
+  },
+});
+assert.equal(attempts, 2, "Malformed structured output must receive one bounded retry");
+assert.equal(posted.reasoning.effort, "low", "The retry must reduce reasoning latency");
+assert.equal(posted.tools[0].search_context_size, "low", "The retry must use a smaller search context");
+assert.equal(retried.provenance.degradedRetry, true);
 
 console.log("Record research contract passed");

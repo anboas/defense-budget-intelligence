@@ -63,7 +63,7 @@ export function useRecordGroups(records = []) {
     if (ids.length < 2) throw new Error("Select at least two records to review.");
     if (!remote) throw new Error("AI grouping requires an authenticated workspace with an OpenAI credential.");
     setState("running");
-    setNotice("OpenAI is checking whether the selected records form one lifecycle…");
+    setNotice("Checking exact lifecycle evidence first; AI reviews only ambiguous selections…");
     try {
       const payload = await request("", { method: "POST", body: JSON.stringify({ memberIds: ids }) });
       const group = cleanGroups([payload?.data])[0];

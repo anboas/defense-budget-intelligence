@@ -36,6 +36,7 @@
 .record-page__research-report section p, .record-page__research-report ul { margin: 0; }
 .record-page__research-report li { margin: .35rem 0; line-height: 1.45; }
 .record-page__research-report li small { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .25rem; }
+.record-page__decision { padding: .85rem; border-left: 5px solid #6d28a8; background: #faf5ff; }
 .record-page__caveats { padding: .75rem; background: #fff7e8; border-left: 4px solid #b56a10; }
 @media (max-width: 900px) { .record-page__lifecycle-grid, .record-page__body { grid-template-columns: 1fr; } .record-page__lifecycle-grid .is-current { order: -1; } }
 @media (max-width: 620px) { .record-page__top-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } .record-page__top-actions .if-btn:last-child { grid-column: 1 / -1; } .record-page__top-actions .if-btn { min-height: 44px; justify-content: center; } .record-page__lifecycle > header { align-items: stretch; flex-direction: column; } .record-page__events article { grid-template-columns: 1fr; } }
