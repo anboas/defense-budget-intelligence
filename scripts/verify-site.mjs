@@ -1546,7 +1546,17 @@ try {
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Close filters", exact: true }).click();
-  assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__row").count() > 50, "Transactions should render every matching timeline row instead of silently truncating at fifty");
+  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Transactions should initially render one bounded Timeline batch");
+  const progressiveTotal = Number(await page.locator("[data-capture-timeline]").getAttribute("data-timeline-total"));
+  assert.ok(progressiveTotal > 500, "Progressive Timeline should disclose the complete filtered result count");
+  assert.match((await page.locator("[data-timeline-progress]").innerText()).replace(/\s+/g, " "), new RegExp(`Showing 50 of ${progressiveTotal.toLocaleString()}`), "Progressive Timeline should expose its rendered and total line counts");
+  await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await page.waitForFunction(() => document.querySelectorAll("[data-capture-timeline-row]").length === 100);
+  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 100, "Approaching the Timeline boundary should lazy-load the next batch");
+  await page.locator("[data-timeline-progress]").getByRole("button", { name: "Load next 50" }).click();
+  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 150, "Manual continuation should add one Timeline batch without replacing prior rows");
+  await page.locator("[data-timeline-progress]").getByRole("button", { name: "Show all" }).click();
+  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), progressiveTotal, "Explicit Show all should retain access to the complete filtered Timeline");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").first().evaluate((node) => getComputedStyle(node).contentVisibility), "auto", "Full-result timelines should use browser-native row virtualization");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__urgency").count() > 50, "Every rendered row should expose date urgency without a composite score");
   const barBox = await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().boundingBox();
@@ -1636,8 +1646,10 @@ try {
   await classificationOverlayTrigger.click();
   await chooseControlSelect(page, "Grouping", "Work category");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
-  assert.ok(await page.locator("[data-work-category-overlay]").count() > 50, "Every matching row should expose a contextual work-category lane");
-  assert.ok(await page.locator("[data-ingestion-provenance-overlay]").count() > 50, "Every matching row should expose a contextual ingestion-provenance lane");
+  const workOverlayCount = await page.locator("[data-work-category-overlay]").count();
+  const provenanceOverlayCount = await page.locator("[data-ingestion-provenance-overlay]").count();
+  assert.ok(workOverlayCount > 0, "Dated rows in the rendered batch should expose contextual work-category lanes");
+  assert.equal(provenanceOverlayCount, workOverlayCount, "Every dated row with a work lane should expose the matching ingestion-provenance lane");
   const workOverlay = page.locator("[data-work-category-overlay]").first();
   await workOverlay.hover();
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Type of work/i, "Work overlay hover should disclose category context");
@@ -1645,6 +1657,7 @@ try {
   await provenanceOverlay.hover();
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Ingestion provenance/i, "Provenance overlay hover should disclose import context");
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Work-category grouping should render factual group bands");
+  await page.locator("[data-timeline-progress]").getByRole("button", { name: "Show all" }).click();
   await page.screenshot({ path: `${OUT_DIR}/transactions-classification-overlays-desktop.png` });
   const desktopTimelineScroll = await page.locator("[data-capture-timeline]").evaluate((node) => ({ clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }));
   assert.ok(desktopTimelineScroll.scrollHeight > desktopTimelineScroll.clientHeight, "Long Gantts should use a bounded internal vertical scroller");
@@ -1671,7 +1684,7 @@ try {
   assert.ok(Math.abs(desktopStickyTimelineHeader.yearsTop - desktopStickyTimelineHeader.timelineTop) <= 1, `The Gantt year and quarter scale should stay pinned to the scroller top: ${JSON.stringify(desktopStickyTimelineHeader)}`);
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = node.scrollHeight; });
   const desktopLastRowReachable = await page.locator("[data-capture-timeline]").evaluate((node) => {
-    const row = node.querySelector(".capture-timeline__row:last-of-type");
+    const row = [...node.querySelectorAll(".capture-timeline__row")].at(-1);
     if (!row) return false;
     const timelineRect = node.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
