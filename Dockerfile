@@ -35,6 +35,7 @@ COPY --chown=node:node src/acquisition-runtime-core.js ./src/acquisition-runtime
 COPY --chown=node:node src/opportunity-ai-runtime.js ./src/opportunity-ai-runtime.js
 COPY --chown=node:node src/opportunity-fit.js ./src/opportunity-fit.js
 COPY --chown=node:node src/record-linking.js ./src/record-linking.js
+COPY --chown=node:node src/record-research.js ./src/record-research.js
 COPY --chown=node:node src/sam-notice-types.js ./src/sam-notice-types.js
 COPY --chown=node:node src/acquisition-delivery-core.js ./src/acquisition-delivery-core.js
 COPY --chown=node:node src/registration-core.js ./src/registration-core.js

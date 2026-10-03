@@ -2,6 +2,7 @@ export const RECORD_LINKING_MODEL = "gpt-5.4-mini";
 
 const ROMAN_PHASE = /\b(?:i|ii|iii|iv|v|vi|vii|viii|ix|x)\b/gi;
 const SAFE_RELATIONSHIPS = new Set(["successive-phase", "follow-on", "same-requirement", "related-workstream"]);
+const GENERIC_ACRONYMS = new Set(["AI", "API", "DOD", "DOW", "FAR", "IDIQ", "NAVAIR", "NAICS", "PSC", "RFI", "RFP", "RFQ", "SAM", "USA"]);
 
 function clean(value, limit = 500) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, limit);
@@ -67,34 +68,158 @@ export function exactLifecycleEvidence(left, right) {
 }
 
 export function automaticLifecycleGroups(records = []) {
-  const claimed = new Set();
   const groups = [];
-  const ordered = [...records].filter((record) => record?.opportunityId).sort((left, right) => String(left.start || "9999").localeCompare(String(right.start || "9999")));
-  for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
-    const left = ordered[leftIndex];
-    if (claimed.has(left.opportunityId)) continue;
-    for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
-      const right = ordered[rightIndex];
-      if (claimed.has(right.opportunityId)) continue;
-      const evidence = exactLifecycleEvidence(left, right);
-      if (!evidence) continue;
-      const members = [left, right].sort((a, b) => String(a.start || "").localeCompare(String(b.start || "")));
-      const memberIds = members.map((record) => record.opportunityId);
+  const buckets = new Map();
+  for (const record of records) {
+    if (!record?.opportunityId || record.mode !== "contract-performance") continue;
+    const parent = recordParentReference(record);
+    const stem = normalized(lifecycleTitleStem(record.title));
+    const party = normalized(record.party);
+    if (!parent || stem.length < 12 || party.length < 3) continue;
+    const key = `${parent}|${stem}|${party}`;
+    const bucket = buckets.get(key) || [];
+    bucket.push(record);
+    buckets.set(key, bucket);
+  }
+  for (const bucket of buckets.values()) {
+    const ordered = bucket.sort((left, right) => String(left.start || "9999").localeCompare(String(right.start || "9999")));
+    let chain = [];
+    let chainEvidence = [];
+    const flush = () => {
+      if (chain.length < 2) { chain = []; chainEvidence = []; return; }
+      const memberIds = chain.map((record) => record.opportunityId);
       groups.push({
         id: `auto:${memberIds.join("+")}`,
-        title: evidence.title,
+        title: chainEvidence[0].title,
         memberIds,
-        relationship: evidence.relationship,
-        confidence: evidence.confidence,
-        basis: evidence.basis,
+        relationship: "successive-phase",
+        confidence: "exact",
+        basis: [...new Set(chainEvidence.flatMap((evidence) => evidence.basis))],
         provenance: { kind: "exact-rule", reviewState: "accepted", model: null, createdAt: null },
         automatic: true,
       });
-      memberIds.forEach((id) => claimed.add(id));
-      break;
+      chain = [];
+      chainEvidence = [];
+    };
+    for (const record of ordered) {
+      if (!chain.length) { chain = [record]; continue; }
+      const evidence = exactLifecycleEvidence(chain.at(-1), record);
+      if (evidence) { chain.push(record); chainEvidence.push(evidence); continue; }
+      flush();
+      chain = [record];
     }
+    flush();
   }
   return groups;
+}
+
+function distinctiveAcronyms(value) {
+  return [...new Set(String(value || "").match(/\b[A-Z][A-Z0-9-]{2,11}\b/g) || [])]
+    .filter((value) => !GENERIC_ACRONYMS.has(value));
+}
+
+function organizationText(record) {
+  return normalized([
+    record?.owner,
+    record?.fundingOffice,
+    record?.contractingOffice,
+    record?.sourceOrganizationPath,
+    ...(record?.organization?.path || []),
+  ].filter(Boolean).join(" "));
+}
+
+export function exactFollowOnEvidence(left, right) {
+  if (!left?.opportunityId || !right?.opportunityId || left.opportunityId === right.opportunityId) return null;
+  const contract = left.mode === "contract-performance" ? left : right.mode === "contract-performance" ? right : null;
+  const acquisition = left.mode === "acquisition-window" ? left : right.mode === "acquisition-window" ? right : null;
+  if (!contract || !acquisition) return null;
+  const posted = acquisition.solicitationStart || acquisition.sourcePublishedAt || "";
+  const contractEnd = contract.currentEnd || contract.potentialEnd || "";
+  if (!posted || !contract.start || contract.start > posted || !contractEnd || contractEnd < posted) return null;
+  if (!/\b(?:draft\s+request\s+for\s+proposal|draft\s+rfp|follow[- ]?on|recompete)\b/i.test(`${acquisition.title || ""} ${acquisition.context || ""}`)) return null;
+  const contractAcronyms = new Set(distinctiveAcronyms(`${contract.title || ""} ${contract.context || ""}`));
+  const sharedAcronyms = distinctiveAcronyms(`${acquisition.title || ""} ${acquisition.context || ""}`).filter((value) => contractAcronyms.has(value));
+  const sameNaics = Boolean(contract.naicsCode && contract.naicsCode === acquisition.naicsCode);
+  const samePsc = Boolean(contract.pscCode && String(contract.pscCode).toUpperCase() === String(acquisition.pscCode || "").toUpperCase());
+  const contractOrganization = organizationText(contract);
+  const acquisitionOrganization = organizationText(acquisition);
+  const organizationAligned = Boolean(contractOrganization && acquisitionOrganization && [contract.owner, contract.fundingOffice, contract.contractingOffice]
+    .map(normalized).filter((value) => value.length >= 6).some((value) => acquisitionOrganization.includes(value)));
+  if (!sharedAcronyms.length || !(sameNaics && samePsc) || (!organizationAligned && sharedAcronyms.length < 1)) return null;
+  return {
+    sourceId: contract.opportunityId,
+    targetId: acquisition.opportunityId,
+    relationship: "follow-on",
+    confidence: "exact",
+    title: `${sharedAcronyms[0]} follow-on`,
+    basis: [
+      `Shared distinctive program identifier ${sharedAcronyms.join(", ")}`,
+      `Matching NAICS ${contract.naicsCode} and PSC ${String(contract.pscCode).toUpperCase()}`,
+      organizationAligned ? "Published buyer path aligns with the active work" : "Active incumbent term overlaps the published draft-RFP window",
+      `Draft RFP posted ${posted} while the reported incumbent term runs through ${contractEnd}`,
+    ],
+  };
+}
+
+export function automaticRecordRelationships(records = []) {
+  const contractsByKey = new Map();
+  for (const record of records) {
+    if (!record?.opportunityId || record.mode !== "contract-performance") continue;
+    for (const acronym of distinctiveAcronyms(`${record.title || ""} ${record.context || ""}`)) {
+      const key = `${acronym}|${record.naicsCode || ""}|${String(record.pscCode || "").toUpperCase()}`;
+      const bucket = contractsByKey.get(key) || [];
+      bucket.push(record);
+      contractsByKey.set(key, bucket);
+    }
+  }
+  const relationships = [];
+  const seen = new Set();
+  for (const group of automaticLifecycleGroups(records)) {
+    const members = group.memberIds.map((id) => records.find((record) => record.opportunityId === id)).filter(Boolean)
+      .sort((left, right) => String(left.start || "9999").localeCompare(String(right.start || "9999")));
+    for (let index = 1; index < members.length; index += 1) {
+      const source = members[index - 1];
+      const target = members[index];
+      const evidence = exactLifecycleEvidence(source, target);
+      if (!evidence) continue;
+      const edgeKey = `${source.opportunityId}|${target.opportunityId}|${evidence.relationship}`;
+      seen.add(edgeKey);
+      relationships.push({
+        id: `auto-link:${edgeKey}`,
+        sourceId: source.opportunityId,
+        targetId: target.opportunityId,
+        relationship: evidence.relationship,
+        confidence: evidence.confidence,
+        rationale: evidence.basis.join("; "),
+        evidence: evidence.basis,
+        sourceUrls: [...new Set([...(source.sourceUrls || []), ...(target.sourceUrls || [])])].slice(0, 8),
+        provenance: { kind: "exact-rule", reviewState: "accepted", model: null, createdAt: null },
+        automatic: true,
+      });
+    }
+  }
+  for (const acquisition of records) {
+    if (!acquisition?.opportunityId || acquisition.mode !== "acquisition-window") continue;
+    for (const acronym of distinctiveAcronyms(`${acquisition.title || ""} ${acquisition.context || ""}`)) {
+      const key = `${acronym}|${acquisition.naicsCode || ""}|${String(acquisition.pscCode || "").toUpperCase()}`;
+      for (const contract of contractsByKey.get(key) || []) {
+        const evidence = exactFollowOnEvidence(contract, acquisition);
+        if (!evidence) continue;
+        const edgeKey = `${evidence.sourceId}|${evidence.targetId}|${evidence.relationship}`;
+        if (seen.has(edgeKey)) continue;
+        seen.add(edgeKey);
+        relationships.push({
+          id: `auto-link:${edgeKey}`,
+          ...evidence,
+          evidence: evidence.basis,
+          sourceUrls: [...new Set([...(contract.sourceUrls || []), ...(acquisition.sourceUrls || [])])].slice(0, 8),
+          provenance: { kind: "exact-rule", reviewState: "accepted", model: null, createdAt: null },
+          automatic: true,
+        });
+      }
+    }
+  }
+  return relationships;
 }
 
 function commonValue(records, key, fallback = "") {

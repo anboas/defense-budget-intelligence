@@ -19,6 +19,7 @@ const connectedEvidenceStyleBytes = styleAssets.find((asset) => /^ConnectedEvide
 const domainModelStyleBytes = styleAssets.find((asset) => /^DomainModelPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^IntelligenceProductsPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
+const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRecordPage-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
@@ -26,7 +27,8 @@ assert.ok(connectedEvidenceStyleBytes > 0 && connectedEvidenceStyleBytes <= 4_00
 assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Domain Model CSS must stay within its 8 KB route budget, got ${domainModelStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 410_000, `Total scoped CSS must stay below 410 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 415_000, `Total scoped CSS must stay below 415 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
@@ -1560,11 +1562,20 @@ try {
   assert.equal(await ndmsLifecycle.count(), 1, "Exact lifecycle evidence should automatically place NDMS support IV and V on one row");
   assert.equal(await ndmsLifecycle.locator(".capture-timeline__bar--base").count(), 2, "The grouped NDMS line must preserve separate IV and V award segments");
   assert.match(await ndmsLifecycle.locator(".capture-timeline__fields").textContent(), /47QFAA24F0008.*47QFAA25F0006/s, "The grouped line must retain both award identities");
-  await page.getByRole("button", { name: "Group records", exact: true }).click();
-  assert.equal(await page.locator("[data-lifecycle-group-toolbar]").count(), 1, "Manual lifecycle grouping should expose the checkbox and AI review workflow");
-  assert.ok(await page.locator("[data-capture-timeline-row] input[type=checkbox]").count() >= 2, "Ungrouped records should remain selectable for AI review");
+  await page.getByRole("button", { name: "Link records", exact: true }).click();
+  assert.equal(await page.locator("[data-lifecycle-group-toolbar]").count(), 1, "Record linking should expose the checkbox and AI review workflow");
+  assert.ok(await page.locator("[data-capture-timeline-row] input[type=checkbox]").count() >= 2, "Grouped and ungrouped records should remain selectable for AI relationship review");
+  assert.equal(await page.getByRole("button", { name: "AI review & link (0)", exact: true }).count(), 1, "Timeline linking must distinguish typed relationships from same-lifecycle grouping");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await timelineSearch.fill("");
+  await ndmsLifecycle.getByRole("button", { name: /Open NDMS software development support details/i }).click();
+  await page.waitForSelector("[data-opportunity-record-page]");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /spendView=record.*capRecord=opp_f2a64db1164b5263690b/, "Opening a grouped active-work line must resolve to its current source record workspace");
+  assert.match(await page.locator("[data-opportunity-record-page]").innerText(), /NDMS software development support V/i, "The dedicated record page must preserve the active award identity");
+  assert.equal(await page.locator("[data-record-lifecycle]").count(), 1, "Every record page must expose past, current, and future lifecycle lanes");
+  assert.match(await page.locator("[data-record-lifecycle]").innerText(), /Past \/ incumbent[\s\S]*NDMS software development support IV[\s\S]*This record[\s\S]*Future \/ follow-on/i, "The active NDMS record must expose its exact predecessor while keeping room for the draft-RFP follow-on");
+  assert.equal(await page.getByRole("button", { name: "Research with AI", exact: true }).count(), 1, "A specific record must expose official-source AI research from its own workspace");
+  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-capture-timeline]");
   await page.getByRole("button", { name: "Display", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Grouping:/ }).click();
@@ -2291,6 +2302,13 @@ try {
   assert.ok(await mobileTimelineRecordButton.evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Timeline row titles should provide a 44px touch target");
   await mobileTimelineRecordButton.tap();
   assert.equal(await mobile.locator("[data-capture-hovercard]").count(), 0, "Touch selection should not leave a hover card covering the timeline");
+  await mobile.waitForSelector("[data-opportunity-record-page]");
+  assert.match(decodeURIComponent(new URL(mobile.url()).hash), /spendView=record.*capRecord=/, "Mobile Timeline titles should open the dedicated record workspace");
+  assert.equal(await mobile.locator("[data-record-lifecycle]").count(), 1, "The mobile record workspace should retain the linked lifecycle");
+  await assertNoPageOverflow(mobile, "Mobile opportunity record");
+  await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
+  await mobile.waitForSelector("[data-capture-timeline]");
+  await mobile.locator("[data-capture-timeline] .capture-timeline__plot").first().evaluate((node) => node.click());
   await mobile.waitForSelector("[data-capture-detail-modal]");
   const mobileModalGeometry = await mobile.locator("[data-capture-detail-modal]").evaluate((node) => {
     const rect = node.getBoundingClientRect();
