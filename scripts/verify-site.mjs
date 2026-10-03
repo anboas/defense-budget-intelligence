@@ -942,7 +942,7 @@ try {
   assert.ok(automaticAdditionCount >= 677, `Transactions should retain the automated USAspending baseline and permit new feeds, got ${automaticAdditionCount}`);
   await assertButtonIntegrity(page, "Spend Explorer", "[data-transaction-analytics-page]");
   await assertOpenStateControls(page, "Spend Explorer", "[data-transaction-analytics-page]");
-  assert.match(transactionText, /Decision view[\s\S]*records/i, "Timeline should lead with the compact decision rail instead of a metric wall");
+  assert.match(transactionText, /Find records[\s\S]*matches/i, "Timeline should lead with a plain-language find rail instead of a metric wall");
   const capturePayload = await page.evaluate(() => fetch(new URL("data/capture-calendar.json", document.baseURI)).then((response) => response.json()));
   const subawardPayload = await page.evaluate(() => fetch(new URL("data/usaspending-subawards.json", document.baseURI)).then((response) => response.json()));
   assert.equal(capturePayload.metadata.coverage.normalizedEvents, 502, "Source packet should retain every canonical event");
@@ -1547,6 +1547,8 @@ try {
   await page.getByRole("button", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Close filters", exact: true }).click();
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Transactions should initially render one bounded Timeline batch");
+  const legacyAwardRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "DAAA0998E0006" });
+  assert.doesNotMatch(await legacyAwardRow.innerText(), /199812!2100!/, "Timeline labels should replace serialized legacy rows with readable award identity");
   const progressiveTotal = Number(await page.locator("[data-capture-timeline]").getAttribute("data-timeline-total"));
   assert.ok(progressiveTotal > 500, "Progressive Timeline should disclose the complete filtered result count");
   assert.match((await page.locator("[data-timeline-progress]").innerText()).replace(/\s+/g, " "), new RegExp(`Showing 50 of ${progressiveTotal.toLocaleString()}`), "Progressive Timeline should expose its rendered and total line counts");
@@ -1572,7 +1574,7 @@ try {
   assert.equal(await ndmsLifecycle.count(), 1, "Exact lifecycle evidence should automatically place NDMS support IV and V on one row");
   assert.equal(await ndmsLifecycle.locator(".capture-timeline__bar--base").count(), 2, "The grouped NDMS line must preserve separate IV and V award segments");
   assert.match(await ndmsLifecycle.locator(".capture-timeline__fields").textContent(), /47QFAA24F0008.*47QFAA25F0006/s, "The grouped line must retain both award identities");
-  await page.getByRole("button", { name: "Lifecycle workbench", exact: true }).click();
+  await page.getByRole("button", { name: "Link records", exact: true }).click();
   assert.equal(await page.locator("[data-lifecycle-group-toolbar]").count(), 1, "Record linking should expose the checkbox and AI review workflow");
   assert.ok(await page.locator("[data-capture-timeline-row] input[type=checkbox]").count() >= 2, "Grouped and ungrouped records should remain selectable for AI relationship review");
   const relationshipReviewButton = page.getByRole("button", { name: "Review & link (0/2)", exact: true });
@@ -1599,7 +1601,7 @@ try {
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "Controls", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Grouping:/ }).click();
   assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 15, "Gantt should expose decision-priority grouping alongside the fourteen factual grouping modes");
@@ -1633,12 +1635,12 @@ try {
   assert.match(hoverText, /Latest FPDS action/i);
   await firstTimelineBar.focus();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 1, "Keyboard focus on an actual Gantt bar should expose contextual evidence");
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "Controls", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Funding office");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
 
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "Controls", exact: true }).click();
   const classificationOverlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
   await classificationOverlayTrigger.click();
   await page.getByRole("option", { name: "Type of work" }).click();
@@ -1762,7 +1764,7 @@ try {
   assert.match(applicationDetail, /Cost Plus Fixed Fee \(CPFF\) Level of Effort/i);
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "Controls", exact: true }).click();
   const overlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
   await overlayTrigger.click();
   await page.getByRole("option", { name: "Competition / set-aside" }).click();
@@ -1865,7 +1867,7 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "Controls", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Overlays:/ }).waitFor();
   assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /Decision priority/, "Malformed grouping should canonicalize to the decision-first default");
@@ -1877,7 +1879,7 @@ try {
   assert.match(new URL(page.url()).hash, /capFields=none/, "Title-only field state should be shareable");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "Controls", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal((await page.locator("[data-capture-field-picker] summary").textContent())?.trim(), "Row fields (0)", "Title-only field state should survive reload");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
@@ -2282,13 +2284,14 @@ try {
   }));
   assert.equal(compactMobileGeometry.freshnessCount, 0, "Mobile Transactions should begin with the transaction workspace, not source-health cards");
   assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
-  assert.ok(compactMobileGeometry.firstRowTop <= 760, `The first mobile Gantt row should be reachable within one viewport, got ${compactMobileGeometry.firstRowTop}px`);
+  assert.ok(compactMobileGeometry.firstRowTop <= 620, `The first mobile Gantt row should stay near the initial viewport, got ${compactMobileGeometry.firstRowTop}px`);
+  assert.equal(await mobile.locator(".capture-gantt-commandbar__group:visible").count(), 0, "Mobile should keep duplicate window and layer controls inside the focused Controls dialog");
   await mobile.getByRole("button", { name: "Filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 24, "All advanced filters should remain reachable");
   await mobile.getByRole("button", { name: "Close filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
-  await mobile.getByRole("button", { name: "Display", exact: true }).click();
+  await mobile.getByRole("button", { name: "Controls", exact: true }).click();
   await mobile.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal(await mobile.locator("[data-capture-gantt-dialog]").evaluate((surface) => surface.closest("dialog")?.open), true, "Mobile Timeline controls should open in a focused dialog instead of pushing the Gantt below the viewport");
   const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-dialog] .if-picker__trigger, [data-capture-gantt-dialog] [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));

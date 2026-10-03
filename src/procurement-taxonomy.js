@@ -81,6 +81,16 @@ function compactText(parts) {
   return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
+function readableProcurementTitle(record = {}, liveAward = null) {
+  const title = compactText([record.title]);
+  const looksLikeSerializedLegacyRow = (title.match(/!/g) || []).length >= 8;
+  if (title && !looksLikeSerializedLegacyRow) return title;
+  return compactText([
+    liveAward?.pscDescription || record.pscDescription || liveAward?.naicsDescription || record.naicsDescription || record.awardType || liveAward?.contractType || "Contract",
+    record.party || liveAward?.recipient,
+  ]) || `Contract ${record.reference || liveAward?.awardId || "record"}`;
+}
+
 function codeCategoryIds(pscCode = "", naicsCode = "", pscDescription = "", naicsDescription = "") {
   const psc = String(pscCode).toUpperCase();
   const naics = String(naicsCode);
@@ -167,7 +177,7 @@ export function automatedAwardRecord(award, asOf) {
     id: reference || "USAspending award",
     portfolio: award.buyerSubAgency || award.fundingSubAgency || "USAspending award feed",
     mode: "contract-performance",
-    title: award.description || `${award.contractType || "Contract"} ${reference}`,
+    title: readableProcurementTitle({ title: award.description, party: award.recipient, reference }, award),
     party: award.recipient || "Recipient not published",
     owner: award.fundingSubAgency || award.buyerSubAgency || null,
     fundingOffice: award.fundingOffice || award.fundingSubAgency || null,
@@ -455,6 +465,7 @@ export function enrichSourceRecord(record, liveAward = null, subawardSummary = n
   });
   return attachSubawards({
     ...record,
+    title: readableProcurementTitle(record, liveAward),
     liveAward,
     naicsCode: record.naicsCode || liveAward?.naicsCode || null,
     naicsDescription: record.naicsDescription || liveAward?.naicsDescription || null,
