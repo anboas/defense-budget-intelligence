@@ -1933,7 +1933,7 @@ try {
   await page.locator(".analytics-search input").focus();
   await page.waitForSelector("[data-analytics-hovercard]", { state: "detached" });
   await page.locator("[data-analytics-manager] summary").click();
-  assert.equal(await page.locator("[data-analytics-manager] .if-picker__trigger").count(), 9, "Analytics should expose eight searchable data facets and one chart manager");
+  assert.equal(await page.locator("[data-analytics-manager] .if-picker__trigger").count(), 11, "Analytics should retain mobile dimension and measure controls alongside eight searchable data facets and one chart manager");
   await page.getByRole("button", { name: /^Type of work:/ }).click();
   await page.getByLabel("Search Type of work").fill("software");
   await page.locator('[data-if-picker-menu] [role="option"]').first().click();
@@ -1995,7 +1995,7 @@ try {
   assert.match(await page.locator('[data-d3-analytics="dimension-explorer"] header').innerText(), /Pricing type by records/i, "Dimension and measure controls should reconfigure the shared ranking");
   await page.locator('.analytics-search input').fill('Application Arsenal');
   assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Search should cross-filter the record explorer and charts");
-  assert.match(await page.locator('.analytics-export').innerText(), /Export/, "Filtered analytical slices should be exportable");
+  assert.match(await page.locator('.analytics-export:visible').innerText(), /Export/, "Filtered analytical slices should be exportable");
   await page.locator('.analytics-reset').click();
   await page.getByRole("button", { name: "Coverage & lineage" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Coverage should expose six focused evidence, provenance, and quality views");
@@ -2057,6 +2057,9 @@ try {
 
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Source Lineage");
+  const graphDisclosure = page.locator("details.analytics-sources__graph-disclosure");
+  assert.equal(await graphDisclosure.getAttribute("open"), null, "The dense evidence graph should start collapsed");
+  await graphDisclosure.locator(":scope > summary").click();
   await page.waitForSelector("[data-intelligence-graph-summary]");
   const graphSummaryText = await page.locator("[data-intelligence-graph-summary]").innerText();
   assert.match(graphSummaryText, /888 activities[\s\S]*1,905 awards[\s\S]*3,085 exact FPDS actions/i, "Source Lineage should expose the canonical activity, award, and transaction spine");
@@ -2384,11 +2387,11 @@ try {
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
   const compactAnalyticsChartGap = compactAnalyticsGeometry.firstChartTop - compactAnalyticsGeometry.briefBottom;
   assert.ok(compactAnalyticsChartGap >= 0 && compactAnalyticsChartGap <= 24, `Mobile Analytics should place the first chart immediately after the factual brief, got a ${compactAnalyticsChartGap}px gap`);
-  const mobileWorkbenchControls = await mobile.locator('.if-workbench-header button').evaluateAll((nodes) => nodes.map((node) => ({ label: node.getAttribute("aria-label") || node.textContent.trim(), height: node.getBoundingClientRect().height, className: node.className })));
+  const mobileWorkbenchControls = await mobile.locator('.if-workbench-header button:visible').evaluateAll((nodes) => nodes.map((node) => ({ label: node.getAttribute("aria-label") || node.textContent.trim(), height: node.getBoundingClientRect().height, className: node.className })));
   assert.ok(mobileWorkbenchControls.every(({ height }) => height >= 43.5), `Mobile analytics controls should meet the 44px touch contract: ${JSON.stringify(mobileWorkbenchControls)}`);
   await mobile.locator("[data-analytics-manager] summary").click();
   const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.equal(mobileAnalyticsManagerHeights.length, 9, "Mobile should retain every data facet and the chart manager");
+  assert.equal(mobileAnalyticsManagerHeights.length, 11, "Mobile should retain dimension, measure, every data facet, and the chart manager");
   assert.ok(mobileAnalyticsManagerHeights.every((height) => height >= 43.5), `Mobile analytics manager controls should be 44px: ${mobileAnalyticsManagerHeights.join(", ")}`);
   await assertNoPageOverflow(mobile, "Expanded mobile analytics manager");
   await mobile.locator("[data-analytics-manager] summary").click();

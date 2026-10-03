@@ -3935,29 +3935,6 @@ button.if-chart-bar.is-selected {
   background: var(--if-bg-surface);
 }
 
-@media (max-width: 40rem) {
-  .if-ingest-flow--mobile-scroll,
-  .if-relationship-bundle-grid--mobile-scroll {
-    display: flex;
-    gap: var(--if-space-2);
-    overflow-x: auto;
-    padding-block-end: var(--if-space-1);
-    overscroll-behavior-inline: contain;
-    scroll-snap-type: inline proximity;
-    scrollbar-width: thin;
-  }
-
-  .if-ingest-flow--mobile-scroll > .if-ingest-stage,
-  .if-relationship-bundle-grid--mobile-scroll > .if-relationship-bundle {
-    flex: 0 0 min(17rem, 82vw);
-    scroll-snap-align: start;
-  }
-
-  .if-ingest-flow--mobile-scroll > .if-ingest-stage {
-    min-height: 8rem;
-  }
-}
-
 @keyframes if-component-inventory-filter-in {
   from {
     opacity: 0.82;
