@@ -4,6 +4,7 @@ import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvid
 import { rankResearchCandidates, researchRecordWithOpenAi } from "../src/record-research.js";
 import { cleanText } from "../src/security-policy.js";
 import { recordUniverse } from "./record-universe.mjs";
+import { consumeAiOperationLimit, sendAiRateLimit } from "./ai-operation-rate-limit.mjs";
 
 function jsonValue(value, fallback) { if (value && typeof value === "object") return value; try { return JSON.parse(value || ""); } catch { return fallback; } }
 function publicResearch(row) { return { id: row.id, opportunityId: row.opportunity_id, ...jsonValue(row.report_json, {}), createdBy: row.created_by, createdAt: row.created_at }; }
@@ -85,6 +86,10 @@ export function registerRecordIntelligenceRoutes(app, pool, { assertSameOrigin, 
     const stored = exact ? { rowCount: 0, rows: [] } : await pool.query("SELECT * FROM app_openai_keys WHERE scope_type='workspace' AND workspace_id=$1 AND revoked_at IS NULL ORDER BY is_default DESC,created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
     if (!exact && !apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential first", code: "credential_unavailable" });
+    if (!exact) {
+      const quota = await consumeAiOperationLimit(pool, user);
+      if (quota.limited) return sendAiRateLimit(reply, quota);
+    }
     const mockMode = String(process.env.DBI_RECORD_RESEARCH_MOCK_MODE || process.env.DBI_RECORD_LINKING_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     let assessment;
     try {
@@ -117,6 +122,8 @@ export function registerRecordIntelligenceRoutes(app, pool, { assertSameOrigin, 
     const stored = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type='workspace' AND workspace_id=$1 AND revoked_at IS NULL ORDER BY is_default DESC,created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
     if (!apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential first", code: "credential_unavailable" });
+    const quota = await consumeAiOperationLimit(pool, user);
+    if (quota.limited) return sendAiRateLimit(reply, quota);
     const mockMode = String(process.env.DBI_RECORD_RESEARCH_MOCK_MODE || process.env.DBI_RECORD_LINKING_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     const candidates = rankResearchCandidates(record, universe);
     let report;

@@ -1794,11 +1794,11 @@ function agentJson(data, status = 200, meta = {}, headers = {}) {
   });
 }
 
-function agentError(code, message, status = 400, requestId = crypto.randomUUID(), details = undefined) {
+function agentError(code, message, status = 400, requestId = crypto.randomUUID(), details = undefined, headers = {}) {
   return Response.json({
     apiVersion: AGENT_API_VERSION,
     error: { code, message, requestId, ...(details === undefined ? {} : { details }) },
-  }, { status, headers: { "cache-control": "no-store" } });
+  }, { status, headers: { "cache-control": "no-store", ...headers } });
 }
 
 function parsedScopes(value) {

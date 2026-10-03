@@ -3,6 +3,7 @@ import { accessCapabilities } from "../src/access-model.js";
 import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, exactRecordGroupAssessment, lifecycleTitleStem } from "../src/record-linking.js";
 import { cleanText } from "../src/security-policy.js";
 import { recordUniverse } from "./record-universe.mjs";
+import { consumeAiOperationLimit, sendAiRateLimit } from "./ai-operation-rate-limit.mjs";
 
 function publicRow(row) {
   return {
@@ -60,6 +61,10 @@ export function registerRecordGroupRoutes(app, pool, { assertSameOrigin, authent
     const stored = exact ? { rowCount: 0, rows: [] } : await pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
     if (!exact && !apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential before AI grouping", code: "credential_unavailable" });
+    if (!exact) {
+      const quota = await consumeAiOperationLimit(pool, user);
+      if (quota.limited) return sendAiRateLimit(reply, quota);
+    }
     const mockMode = String(process.env.DBI_RECORD_LINKING_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     let assessment;
     try { assessment = exact || (mockMode ? mockAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records })); }

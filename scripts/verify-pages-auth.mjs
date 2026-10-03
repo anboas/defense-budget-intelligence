@@ -922,6 +922,19 @@ async function verifyApiLifecycle(persistPath) {
     response = await apiRequest(baseUrl, "/api/v1/auth/event-ai/models?credentialScope=workspace", { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.inventory.producerModel, "gpt-5.4-mini", "Workspace model inventory must apply persisted workspace defaults");
+
+    let aiLimitResponse;
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      aiLimitResponse = await apiRequest(baseUrl, "/api/v1/agent/record-intelligence/opp_f2a64db1164b5263690b/research", {
+        method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {},
+      });
+      if (aiLimitResponse.status === 429) break;
+      assert.equal(aiLimitResponse.status, 201, "D1 record research must remain available below the AI abuse ceiling");
+    }
+    assert.equal(aiLimitResponse.status, 429, "D1 must bound paid AI operations for signed-in human sessions");
+    assert.ok(Number(aiLimitResponse.headers.get("retry-after")) >= 1, "D1 AI limits must publish Retry-After");
+    assert.equal((await aiLimitResponse.json()).error.code, "ai_rate_limited");
+
     response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${workspaceOpenAiKeyId}`, {
       method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
     });

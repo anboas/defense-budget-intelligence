@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./CaptureCalendar.css";
 import { createPortal } from "react-dom";
 import { BarChart3, Bookmark, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Link2, Maximize2, Minimize2, Network, Search, ShieldCheck, Star, Trash2, X } from "lucide-react";
@@ -31,6 +31,7 @@ import { TimelineProgressiveLoader, useProgressiveTimelineRows } from "./Timelin
 
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
+const EMPTY_TIMELINE_ITEMS = Object.freeze([]);
 const TIMELINE_FIRST_YEAR = 2023;
 const TIMELINE_LAST_YEAR = 2034;
 const TIMELINE_CURRENT_YEAR = Math.max(TIMELINE_FIRST_YEAR, Math.min(TIMELINE_LAST_YEAR, new Date().getUTCFullYear()));
@@ -853,7 +854,7 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
   );
 }
 
-function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, overlayLanes, actions, followOnActivities, onOpenFollowOn }) {
+const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, overlayLanes, actions, followOnActivities, onOpenFollowOn }) {
   const feeds = new Set(parseMultiValues(feedMode));
   const solicitationVisible = record.solicitationStart && record.solicitationEnd && record.solicitationEnd >= `${startYear}-01-01` && record.solicitationStart <= `${endYear}-12-31`;
   const solicitationLeft = solicitationVisible ? positionFor(record.solicitationStart, startYear, endYear) : 0;
@@ -962,13 +963,14 @@ function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, ov
       </i>
     );
   })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward actions in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipients`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} />] : []).concat(followOnElements);
-}
+});
 
 function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, onOpenRecord, asOf, dataAsOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity, watchedIds, onToggleWatch, mergeMode, mergeSelectedIds, onToggleMergeSelect, batchSize }) {
   const scrollerRef = useRef(null);
+  const hoverTargetRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [followOnDetail, setFollowOnDetail] = useState(null);
-  const years = Array.from({ length: endYear - startYear + 1 }, (_value, index) => startYear + index);
+  const years = useMemo(() => Array.from({ length: endYear - startYear + 1 }, (_value, index) => startYear + index), [endYear, startYear]);
   const asOfPosition = positionFor(asOf, startYear, endYear);
   const showAsOf = asOf >= `${startYear}-01-01` && asOf <= `${endYear}-12-31`;
   const dataAsOfPosition = positionFor(dataAsOf, startYear, endYear);
@@ -983,13 +985,17 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
       return map;
     }, new Map())].map(([groupLabel, groupRecords]) => ({ id: groupLabel, label: groupLabel, records: groupRecords }))
       .sort((left, right) => groupBy === "attention" ? ATTENTION_GROUP_ORDER.indexOf(left.id) - ATTENTION_GROUP_ORDER.indexOf(right.id) : left.label.localeCompare(right.label)), [asOf, groupBy, records]);
-  const progressive = useProgressiveTimelineRows(groups.flatMap((group) => group.records), selectedId, batchSize);
-  const visibleGroups = groups.map((group) => ({ ...group, visibleRecords: group.records.filter((record) => progressive.visibleIds.has(record.opportunityId)) })).filter((group) => group.visibleRecords.length);
-  const activeFields = selectedFieldIds(rowFields);
-  const activeFeeds = new Set(parseMultiValues(feedMode));
-  const categoricalFeeds = ["competition", "vehicle", "structure", "work", "provenance", "changes"].filter((feed) => activeFeeds.has(feed));
-  const overlayLanes = Object.fromEntries(categoricalFeeds.map((feed, index) => [feed, index]));
+  const orderedRecords = useMemo(() => groups.flatMap((group) => group.records), [groups]);
+  const progressive = useProgressiveTimelineRows(orderedRecords, selectedId, batchSize);
+  const visibleGroups = useMemo(() => groups.map((group) => ({ ...group, visibleRecords: group.records.filter((record) => progressive.visibleIds.has(record.opportunityId)) })).filter((group) => group.visibleRecords.length), [groups, progressive.visibleIds]);
+  const activeFields = useMemo(() => selectedFieldIds(rowFields), [rowFields]);
+  const categoricalFeeds = useMemo(() => {
+    const activeFeeds = new Set(parseMultiValues(feedMode));
+    return ["competition", "vehicle", "structure", "work", "provenance", "changes"].filter((feed) => activeFeeds.has(feed));
+  }, [feedMode]);
+  const overlayLanes = useMemo(() => Object.fromEntries(categoricalFeeds.map((feed, index) => [feed, index])), [categoricalFeeds]);
   const hasClassificationLanes = categoricalFeeds.length > 0;
+  const openFollowOn = useCallback((detail) => { hoverTargetRef.current = null; setHover(null); setFollowOnDetail(detail); }, []);
   function showHover(record, target, clientX, clientY, context = null) {
     const bounds = target.getBoundingClientRect();
     const width = Math.min(310, window.innerWidth - 16);
@@ -1001,9 +1007,12 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
     if (event.pointerType !== "mouse") return;
     const mark = event.target.closest("[data-timeline-context]");
     if (!mark) {
+      hoverTargetRef.current = null;
       setHover(null);
       return;
     }
+    if (hoverTargetRef.current === mark) return;
+    hoverTargetRef.current = mark;
     showHover(record, mark, event.clientX + 14, event.clientY + 14, { label: mark.dataset.timelineContext, detail: mark.dataset.timelineDetail });
   }
   function showFocusedContext(record, event) {
@@ -1062,11 +1071,11 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
                   <button type="button" className="capture-timeline__record-button" onClick={() => (onOpenRecord || onSelect)(actionableRecordId)} aria-label={`Open ${record.title} details`}><strong>{record.title}</strong></button>
                   <small className="capture-timeline__fields">{record.lifecycleMembers ? <span>{record.lifecycleMembers.map((member) => member.reference).filter(Boolean).join(" → ")}</span> : activeFields.map((field) => <span key={field}>{timelineFieldValue(record, field)}</span>)}</small>
                 </div>
-                <span className="capture-timeline__plot" role="button" tabIndex={0} onClick={(event) => { if (!event.target.closest("[data-followon-activity]")) onSelect(record.opportunityId); }} onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => setHover(null)} onFocusCapture={(event) => showFocusedContext(record, event)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHover(null); }} onKeyDown={(event) => activateTimelineMark(record, event)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
+                <span className="capture-timeline__plot" role="button" tabIndex={0} onClick={(event) => { if (!event.target.closest("[data-followon-activity]")) onSelect(record.opportunityId); }} onPointerEnter={(event) => showPointerContext(record, event)} onPointerMove={(event) => showPointerContext(record, event)} onPointerLeave={() => { hoverTargetRef.current = null; setHover(null); }} onFocusCapture={(event) => showFocusedContext(record, event)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) { hoverTargetRef.current = null; setHover(null); } }} onKeyDown={(event) => activateTimelineMark(record, event)} aria-label={`${record.title}: ${recordDates(record).length ? `${formatDate(firstDate(record))} to ${formatDate(finalDate(record))}` : "schedule not published"}`}>
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
                   {showDataAsOf ? <span className="capture-timeline__data-as-of" style={{ left: `${dataAsOfPosition}%` }} aria-hidden="true" /> : null}
-                  {(record.lifecycleMembers || [record]).map((member) => <TimelineBar key={member.opportunityId} record={member} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[member.opportunityId] || []} followOnActivities={followOnByOpportunity?.[member.opportunityId] || []} onOpenFollowOn={(detail) => { setHover(null); setFollowOnDetail(detail); }} />)}
+                  {(record.lifecycleMembers || [record]).map((member) => <TimelineBar key={member.opportunityId} record={member} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[member.opportunityId] || EMPTY_TIMELINE_ITEMS} followOnActivities={followOnByOpportunity?.[member.opportunityId] || EMPTY_TIMELINE_ITEMS} onOpenFollowOn={openFollowOn} />)}
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
               </div>

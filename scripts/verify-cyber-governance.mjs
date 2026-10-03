@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFile(resolve(root, path), "utf8");
 
-const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, serverIndex, securityWorkflow, releaseWorkflow, recoveryWorkflow, refreshWorkflow, governance, threatModel, releaseGovernance, recoveryRunbook, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration] = await Promise.all([
+const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compose, serverIndex, securityWorkflow, releaseWorkflow, recoveryWorkflow, refreshWorkflow, governance, threatModel, releaseGovernance, recoveryRunbook, securityPolicyDocument, codeowners, pagesAuth, postgresAuth, registrationCore, d1Registration, postgresRegistration, d1RecordIntelligence, d1RecordGroups, postgresRecordIntelligence, postgresRecordGroups, postgresAiLimit, postgresAiLimitMigration] = await Promise.all([
   read("src/security-policy.js"),
   read("public/_headers"),
   read("wrangler.toml"),
@@ -29,6 +29,12 @@ const [securityPolicy, headers, wrangler, dockerfile, postgresDockerfile, compos
   read("src/registration-core.js"),
   read("src/d1-registration.js"),
   read("server/account-registration-routes.mjs"),
+  read("src/d1-record-intelligence.js"),
+  read("src/d1-record-groups.js"),
+  read("server/record-intelligence-routes.mjs"),
+  read("server/record-group-routes.mjs"),
+  read("server/ai-operation-rate-limit.mjs"),
+  read("server/migrations/036_ai_operation_rate_limits.sql"),
 ]);
 
 for (const source of [securityPolicy, headers]) {
@@ -70,6 +76,10 @@ assert.ok((compose.match(/no-new-privileges:true/g) || []).length >= 2, "Every s
 assert.match(compose, /read_only:\s*true/, "The application filesystem must remain read-only");
 assert.match(serverIndex, /fastifyRateLimit/, "The PostgreSQL HTTP boundary must retain global API rate limiting");
 assert.match(serverIndex, /API_RATE_LIMIT_PER_MINUTE \|\| 300/, "The default API rate limit must remain explicit and bounded");
+for (const source of [d1RecordIntelligence, d1RecordGroups]) assert.match(source, /consumeD1AiOperationLimit/, "D1 model-backed record operations must enforce per-actor AI quotas");
+for (const source of [postgresRecordIntelligence, postgresRecordGroups]) assert.match(source, /consumeAiOperationLimit/, "PostgreSQL model-backed record operations must enforce per-actor AI quotas");
+assert.match(postgresAiLimit, /AI_OPERATION_LIMIT\s*=\s*12/, "PostgreSQL AI operations must retain an explicit bounded quota");
+assert.match(postgresAiLimitMigration, /PRIMARY KEY \(principal_id, workspace_id, scope, window_started_at\)/, "PostgreSQL AI quotas must be durable and actor/workspace scoped");
 
 assert.match(securityWorkflow, /npm audit --audit-level=high/, "Security CI must block high dependency vulnerabilities");
 assert.match(securityWorkflow, /npm audit signatures/, "Security CI must verify registry signatures");
