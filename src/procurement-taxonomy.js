@@ -297,6 +297,7 @@ export function automatedSamRecord(notice, asOf) {
     ingestionChannels: [{ id: "sam", label: "SAM.gov Contract Opportunities API", method: "automated" }],
     sourceSystem: "SAM.gov",
     sourceRecordId: notice.noticeId || noticeId,
+    sourceOrganizationPath: notice.organizationPath || "",
     automatedImport: true,
     placeOfPerformance: notice.placeOfPerformance || null,
     firstSeenAt: notice.firstSeenAt || null,

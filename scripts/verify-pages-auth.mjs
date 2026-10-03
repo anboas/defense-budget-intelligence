@@ -673,6 +673,36 @@ async function verifyApiLifecycle(persistPath) {
     assert.ok(body.data.some((group) => group.id === recordGroupId), "D1 must persist workspace lifecycle groups");
     response = await apiRequest(baseUrl, `/api/v1/agent/record-groups/${recordGroupId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 204, "Removing a lifecycle overlay must leave the source records intact");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-intelligence/relationships", {
+      method: "POST", cookie: viewerCookie, origin: baseUrl.slice(0, -1),
+      body: { memberIds: ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"] },
+    });
+    assert.ok([401, 403].includes(response.status), "Viewers must not create record relationships");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-intelligence/relationships", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { memberIds: ["opp_7b290da7e7906e7c2df1", "opp_f2a64db1164b5263690b"] },
+    });
+    assert.equal(response.status, 201, "Workspace writers must be able to create a reviewed record relationship");
+    body = await response.json();
+    const recordRelationshipId = body.data.id;
+    assert.equal(body.data.relationship, "successive-phase");
+    assert.equal(body.data.provenance.reviewState, "accepted");
+    assert.doesNotMatch(JSON.stringify(body), new RegExp(workspaceOpenAiKey), "Record relationship responses must never expose the OpenAI credential");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-intelligence/opp_f2a64db1164b5263690b/research", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {},
+    });
+    assert.equal(response.status, 201, "D1 must persist official-source AI research for a specific record");
+    body = await response.json();
+    assert.equal(body.data.report.opportunityId, "opp_f2a64db1164b5263690b");
+    assert.equal(body.data.report.provenance.reviewState, "needs_review");
+    assert.match(body.data.report.summary, /Official-source research/i);
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-intelligence/opp_f2a64db1164b5263690b", { cookie: ownerCookie });
+    assert.equal(response.status, 200);
+    body = await response.json();
+    assert.ok(body.data.reports.some((report) => report.opportunityId === "opp_f2a64db1164b5263690b"), "D1 must retain record research history");
+    assert.ok(body.data.relationships.some((relationship) => relationship.id === recordRelationshipId), "D1 must retain typed record relationships");
+    response = await apiRequest(baseUrl, `/api/v1/agent/record-intelligence/relationships/${recordRelationshipId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 204, "Removing a relationship must preserve both source records and the research report");
     response = await apiRequest(baseUrl, `/api/v1/auth/openai-keys/${personalOpenAiKeyId}`, {
       method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { label: "Owner rotated label" },
     });

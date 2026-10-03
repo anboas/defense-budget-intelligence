@@ -20,8 +20,9 @@ import { classifyOpportunityFit } from "./opportunity-fit.js";
 
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
+const OpportunityRecordPage = lazyWithRefresh(() => import("./OpportunityRecordPage.jsx"), "opportunity-record-page");
 
-const VIEWS = new Set(["radar", "today", "timeline", "table", "charts"]);
+const VIEWS = new Set(["radar", "today", "timeline", "table", "charts", "record"]);
 
 function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
@@ -198,7 +199,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { key: "obligations", label: "Observed", sortValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), exportValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), render: (record) => <strong>{money(record.obligatedAmount || record.fpdsObligatedAmount)}</strong> },
     { key: "end", label: "Reported end", minWidth: 140, value: (record) => record.currentEnd || record.potentialEnd || "", render: (record) => date(record.currentEnd || record.potentialEnd) },
     { key: "evidence", label: "Evidence", facet: true, minWidth: 120, value: (record) => record.evidenceTier || "unclassified" },
-    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><a href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId || record.id || record.reference || "")}`}>Open</a>{dispositions.canWrite ? dispositions.tombstonedIds.has(record.opportunityId) ? <button type="button" onClick={() => dispositions.restore(record.opportunityId)} aria-label={`Restore ${record.title}`} title="Restore to active explorer"><ArchiveRestore size={15} /></button> : <button type="button" onClick={() => dispositions.tombstone(record.opportunityId)} aria-label={`Tombstone ${record.title}`} title="Tombstone this record"><ArchiveX size={15} /></button> : null}</div> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><a href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(record.opportunityId || record.id || record.reference || "")}`}>Open</a>{dispositions.canWrite ? dispositions.tombstonedIds.has(record.opportunityId) ? <button type="button" onClick={() => dispositions.restore(record.opportunityId)} aria-label={`Restore ${record.title}`} title="Restore to active explorer"><ArchiveRestore size={15} /></button> : <button type="button" onClick={() => dispositions.tombstone(record.opportunityId)} aria-label={`Tombstone ${record.title}`} title="Tombstone this record"><ArchiveX size={15} /></button> : null}</div> },
   ];
   const sevenDaysAgo = new Date(Date.parse(discoveryIndex.metadata?.generatedAt || dailyFeed.metadata?.generatedAt || procurementDelta?.metadata?.generatedAt || dataset.metadata?.generatedAt || "1970-01-01T00:00:00.000Z") - 7 * 86_400_000).toISOString();
   const tableMetrics = [
@@ -236,7 +237,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
-  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} /></Suspense></SpendViewBoundary>;
+  if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="record workspace" />}><OpportunityRecordPage records={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} recordId={focusedRecordId} tabs={tabs} /></Suspense></SpendViewBoundary>;
+  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
   if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Spend intelligence" title="Spend Explorer" summary="Timeline, records, and charts share one public-data scope." metrics={tableMetrics} metricLabel="Spend table summary" tabs={tabs} />

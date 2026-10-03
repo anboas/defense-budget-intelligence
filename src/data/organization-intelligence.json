@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-01T11:25:50.333Z",
+    "generatedAt": "2026-10-03T01:07:56.464Z",
     "status": "current",
     "coverage": {
       "dossiers": 100,
@@ -18,7 +18,7 @@
     },
     "evidenceBoundary": "Dossiers are bounded projections of retained public evidence. Observed-current professional roles are lower-bound observations, not appointment dates. Request, authority, obligation, outlay, award value, and ceiling measures remain separate. Missing public evidence is an explicit research gap, never a negative assertion.",
     "selectionPolicy": "The 100-dossier cohort prioritizes sourced leadership and oversight organizations, reviewed mission organizations, published budget sponsors, major buyers, and major vendors. Category quotas preserve breadth while deterministic ranking preserves high-value coverage.",
-    "contentHash": "3ac637e11eb33bfd2190"
+    "contentHash": "33744e2816aa917489aa"
   },
   "dossiers": [
     {
@@ -4232,7 +4232,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -4510,7 +4510,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -4699,7 +4699,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -4820,7 +4820,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -4966,7 +4966,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -5066,7 +5066,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -5202,7 +5202,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -5285,7 +5285,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -5355,7 +5355,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -5445,7 +5445,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -5510,7 +5510,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -6222,7 +6222,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -7060,7 +7060,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -7124,7 +7124,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -7188,7 +7188,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -7255,7 +7255,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8073,7 +8073,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8282,7 +8282,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8343,7 +8343,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8405,7 +8405,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8469,7 +8469,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8524,7 +8524,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8591,7 +8591,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8644,7 +8644,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8697,7 +8697,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8772,7 +8772,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8827,7 +8827,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8880,7 +8880,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8933,7 +8933,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -8997,7 +8997,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9051,7 +9051,7 @@
         "researchGaps": 2
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9104,7 +9104,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9157,7 +9157,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9217,7 +9217,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9308,7 +9308,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9377,7 +9377,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9454,7 +9454,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9535,7 +9535,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9639,7 +9639,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9700,7 +9700,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9781,7 +9781,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9885,7 +9885,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -9953,7 +9953,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -10017,7 +10017,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -10074,7 +10074,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -10131,7 +10131,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -10186,7 +10186,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -10246,7 +10246,7 @@
         "researchGaps": 3
       },
       "freshness": {
-        "latestObservation": "2026-10-01",
+        "latestObservation": "2026-10-03",
         "reviewBy": "2026-12-29",
         "status": "current"
       },
@@ -10272,7 +10272,7 @@
       "claim": "Published budget sponsorship covers 68 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10292,7 +10292,7 @@
       "claim": "Published budget sponsorship covers 37 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10640,7 +10640,7 @@
       "claim": "Published budget sponsorship covers 785 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10650,7 +10650,7 @@
       "claim": "Published budget sponsorship covers 765 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10660,7 +10660,7 @@
       "claim": "Published budget sponsorship covers 658 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10670,7 +10670,7 @@
       "claim": "Published budget sponsorship covers 156 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10680,7 +10680,7 @@
       "claim": "Published budget sponsorship covers 57 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10690,7 +10690,7 @@
       "claim": "Published budget sponsorship covers 30 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10700,7 +10700,7 @@
       "claim": "Published budget sponsorship covers 26 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10710,7 +10710,7 @@
       "claim": "Published budget sponsorship covers 24 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10720,7 +10720,7 @@
       "claim": "Published budget sponsorship covers 15 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10730,7 +10730,7 @@
       "claim": "Published budget sponsorship covers 14 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10740,7 +10740,7 @@
       "claim": "Published budget sponsorship covers 13 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10750,7 +10750,7 @@
       "claim": "Published budget sponsorship covers 12 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10760,7 +10760,7 @@
       "claim": "Published budget sponsorship covers 11 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10770,7 +10770,7 @@
       "claim": "Published budget sponsorship covers 10 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/p1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10780,7 +10780,7 @@
       "claim": "Published budget sponsorship covers 8 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10790,7 +10790,7 @@
       "claim": "Published budget sponsorship covers 6 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10800,7 +10800,7 @@
       "claim": "Published budget sponsorship covers 5 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10810,7 +10810,7 @@
       "claim": "Published budget sponsorship covers 5 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10820,7 +10820,7 @@
       "claim": "Published budget sponsorship covers 4 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/c1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10830,7 +10830,7 @@
       "claim": "Published budget sponsorship covers 3 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     },
     {
@@ -10840,7 +10840,7 @@
       "claim": "Published budget sponsorship covers 1 retained defense program records.",
       "claimType": "published-budget-portfolio",
       "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/r1_display.xlsx",
-      "observedAt": "2026-10-01",
+      "observedAt": "2026-10-03",
       "reviewState": "deterministic"
     }
   ],
