@@ -295,13 +295,13 @@ try {
   await page.getByRole("button", { name: "Delete saved view AI watch copy" }).click();
   await page.getByRole("button", { name: "Radar", exact: true }).click();
   await page.waitForSelector("[data-opportunity-radar]");
-  assert.match(await page.locator("[data-opportunity-radar]").innerText(), /Add a SAM.gov opportunity[\s\S]*Sabre-aligned[\s\S]*Capability clusters/i, "Opportunity Radar must lead with exact notice intake, the active fit profile, and browsable work clusters");
-  assert.match(await page.locator(".opportunity-radar__intake").innerText(), /SAM API[\s\S]*OpenAI[\s\S]*SAM\.gov-only web retrieval/i, "Opportunity Radar must disclose the cited OpenAI fallback used when the exact SAM API lookup cannot resolve a valid page");
-  assert.equal(await page.locator(".opportunity-radar__clusters button").count(), 7, "Opportunity Radar must expose the all-work board plus six capability clusters");
+  assert.match(await page.locator("[data-opportunity-radar]").innerText(), /Add or find a SAM.gov opportunity[\s\S]*Sabre-aligned[\s\S]*Capability focus/i, "Opportunity Radar must lead with exact notice intake, the active fit profile, and browsable work clusters");
+  assert.match(await page.locator(".opportunity-radar__intake").innerText(), /retained records first[\s\S]*SAM\.gov[\s\S]*cited web retrieval when needed/i, "Opportunity Radar must disclose that exact retained evidence leads and cited web retrieval is a fallback");
+  assert.equal(await page.locator(".opportunity-radar__cluster-options button").count(), 7, "Opportunity Radar must expose the all-work board plus six capability clusters");
   assert.equal(await page.getByPlaceholder(/sam.gov\/opp/i).count(), 1, "Opportunity Radar must expose one direct SAM.gov link intake");
   await page.getByPlaceholder(/sam.gov\/opp/i).fill("https://attacker.example/opp/1234567890abcdef1234567890abcdef/view");
   await page.getByRole("button", { name: "Check and add" }).click();
-  assert.match(await page.locator(".opportunity-radar__intake [role=status]").innerText(), /Paste a SAM.gov opportunity link or notice ID/i, "Client intake must reject SAM.gov lookalike hosts before any source request");
+  assert.match(await page.locator(".opportunity-radar__setup [role=status]").innerText(), /Paste a SAM.gov opportunity link or notice ID/i, "Client intake must reject SAM.gov lookalike hosts before any source request");
   assert.equal(await page.locator('[data-opportunity-radar] [data-dbi-data-table="opportunity-radar"]').count(), 1, "Opportunity Radar must expose the classified working table");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Spend Explorer");
   assert.match(await page.title(), /^Spend Explorer · Defense Budget & Spend Analytics$/);
@@ -1013,6 +1013,7 @@ try {
   assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /of (?:8\d\d|9\d\d|[1-9],\d{3,}) records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
   const tombstoneButton = page.locator('[data-spend-explorer="table"] button[title="Tombstone this record"]').first();
   await tombstoneButton.click();
+  await page.locator("[data-explorer-hierarchy] > summary").click();
   await chooseControlSelect(page, "Record state", "Tombstoned (1)");
   const restoreButton = page.locator('[data-spend-explorer="table"] button[title="Restore to active explorer"]').first();
   await restoreButton.waitFor();
@@ -1593,7 +1594,7 @@ try {
   const decisionBriefButton = page.getByRole("button", { name: "Build AI decision brief", exact: true });
   assert.equal(await decisionBriefButton.count(), 1, "A specific record must expose official-source AI research from its own workspace");
   assert.equal(await decisionBriefButton.evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(90, 49, 140)", "Record research must use the shared Sabre purple AI action");
-  await page.getByRole("link", { name: "Link records in Timeline", exact: true }).click();
+  await page.getByRole("link", { name: /^(?:Review links|Find related records)$/ }).click();
   await page.waitForSelector("[data-capture-timeline]");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /spendView=timeline.*capLink=1.*capSeed=opp_f2a64db1164b5263690b/, "Record-to-Timeline handoff must seed the exact record without filtering away its candidates");
   assert.equal(await page.locator('[data-lifecycle-selection-count="1"] button').count(), 1, "The seeded record must already be visible in the lifecycle workbench selection");
@@ -2271,7 +2272,7 @@ try {
   await assertNoPageOverflow(mobile, "Mobile awards");
 
   await openSurface(mobile, "#/budget-spend/explorer?spendView=radar", "[data-opportunity-radar]");
-  assert.equal(await mobile.locator(".opportunity-radar__clusters button").count(), 7, "Mobile Opportunity Radar must retain every capability cluster");
+  assert.equal(await mobile.locator(".opportunity-radar__cluster-options button").count(), 7, "Mobile Opportunity Radar must retain every capability cluster");
   const mobileRadarGeometry = await mobile.locator("[data-opportunity-radar]").evaluate((node) => ({ width: node.getBoundingClientRect().width, viewportWidth: window.innerWidth, intakeHeight: node.querySelector(".opportunity-radar__intake")?.getBoundingClientRect().height || 0 }));
   assert.ok(mobileRadarGeometry.width <= mobileRadarGeometry.viewportWidth, `Mobile Opportunity Radar must stay within the viewport: ${JSON.stringify(mobileRadarGeometry)}`);
   assert.ok(mobileRadarGeometry.intakeHeight <= 360, `Mobile SAM.gov intake must remain compact and reachable: ${JSON.stringify(mobileRadarGeometry)}`);

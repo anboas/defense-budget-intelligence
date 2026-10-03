@@ -1,9 +1,9 @@
 .record-page { display: grid; gap: 1rem; min-width: 0; }
 .record-page__top-actions, .record-page__top-actions .if-btn { display: flex; align-items: center; gap: .4rem; }
-.record-page__hero, .record-page__lifecycle, .record-page__facts, .record-page__research { border: 1px solid var(--if-border-color, #c8d2dc); background: var(--if-surface, #fff); }
-.record-page__hero { padding: 1rem; border-top: 4px solid #173b63; }
+.record-page__lifecycle, .record-page__facts, .record-page__research { border: 1px solid var(--if-border-color, #c8d2dc); background: var(--if-surface, #fff); }
 .record-page__lifecycle > header, .record-page__facts > header, .record-page__research > header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .8rem 1rem; border-bottom: 1px solid var(--if-border-color, #c8d2dc); background: #eef4f8; }
 .record-page__lifecycle > header > div, .record-page__facts > header, .record-page__research > header { display: flex; align-items: center; gap: .55rem; }
+.record-page__facts > header, .record-page__research > header { justify-content: flex-start; }
 .record-page__lifecycle header span, .record-page__facts header span, .record-page__research header span { display: grid; gap: .1rem; }
 .record-page__lifecycle header small, .record-page__facts header small, .record-page__research header small { color: #526473; }
 .record-page__lifecycle-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .7fr) minmax(0, 1fr); gap: 1rem; padding: 1rem; }
