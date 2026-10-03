@@ -28,6 +28,7 @@ const consulted = [
   { url: ndmsDraft.sourceUrls[0], title: "SAM.gov draft RFP" },
   { url: supportV.sourceUrls[0], title: "USAspending active award" },
 ];
+const sensitiveProviderUrl = `${ndmsDraft.sourceUrls[0]}?api_key=sensitive-source-token&utm_source=provider&noticeid=retained`;
 const payload = {
   summary: "The draft RFP is a follow-on to active NDMS work.", stage: "Draft RFP", scope: "Depot Maintenance System software support.", incumbentPosture: "The active award remains separately preserved.",
   findings: [{ text: "The program identity and published codes align.", sourceUrls: consulted.map((source) => source.url) }, { text: "Unsupported claim", sourceUrls: ["https://example.com/nope"] }],
@@ -39,6 +40,14 @@ const normalized = normalizeRecordResearch(payload, ndmsDraft, candidates, { res
 assert.equal(normalized.findings.length, 1, "Unsupported citations must remove the claim");
 assert.equal(normalized.relationshipProposals.length, 1, "Relationships may target only supplied candidates");
 assert.equal(normalized.provenance.reviewState, "needs_review");
+
+const sanitized = normalizeRecordResearch({ ...payload, summary: `Sanitized official citation ${sensitiveProviderUrl}`, findings: [{ text: `Sanitized official citation ${sensitiveProviderUrl}`, sourceUrls: [sensitiveProviderUrl] }] }, ndmsDraft, candidates, {
+  responseId: "resp-sanitized",
+  consultedSources: [{ url: sensitiveProviderUrl, title: "SAM.gov result" }],
+});
+assert.equal(sanitized.findings.length, 1, "Sanitized provider citations must remain usable");
+assert.equal(sanitized.sources[0].url.includes("noticeid=retained"), true, "Non-sensitive source identity parameters may be retained");
+assert.doesNotMatch(JSON.stringify(sanitized), /api_key|utm_source|sensitive-source-token/i, "Research output must strip sensitive and tracking query parameters from source URLs");
 
 let posted;
 const researched = await researchRecordWithOpenAi({
