@@ -15,6 +15,7 @@ export const ACQUISITION_DELIVERY_SCHEMA = [
     provider TEXT NOT NULL, status TEXT NOT NULL, provider_message_id TEXT NOT NULL DEFAULT '', error_code TEXT NOT NULL DEFAULT '', attempted_at TEXT NOT NULL)`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_attempts_job ON dbi_acquisition_delivery_attempts (job_id, attempted_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_attempts_workspace ON dbi_acquisition_delivery_attempts (workspace_id, attempted_at DESC)",
+  "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_attempts_retention ON dbi_acquisition_delivery_attempts (attempted_at)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_delivery_jobs_workspace_status ON dbi_acquisition_delivery_jobs (workspace_id, status, updated_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_platform_email_provider_config (id TEXT PRIMARY KEY, provider TEXT NOT NULL UNIQUE,
     label TEXT NOT NULL, encrypted_key TEXT NOT NULL, key_iv TEXT NOT NULL, key_version INTEGER NOT NULL,

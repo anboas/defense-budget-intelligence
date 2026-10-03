@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const source = readFileSync("src/pages-auth-api.js", "utf8");
+const acquisitionSource = readFileSync("src/d1-acquisition-runtime.js", "utf8");
+const deliverySource = readFileSync("src/d1-acquisition-delivery.js", "utf8");
+const uiAuditSource = readFileSync("scripts/audit-ui-surfaces.mjs", "utf8");
 
 function sourceBetween(start, end) {
   const startIndex = source.indexOf(start);
@@ -22,6 +25,12 @@ assert.match(source, /WITH recent_jobs AS[\s\S]+LIMIT 20[\s\S]+idx_dbi_api_reque
 assert.doesNotMatch(sourceBetween("async function recordApiRequest", "function cleanDate"), /DELETE FROM dbi_api_request_log/, "API-log retention must not scan after every insert");
 assert.doesNotMatch(sourceBetween("async function recordLoginAttempt", "async function statusResponse"), /DELETE FROM dbi_login_attempts/, "Login retention must not scan after every attempt");
 assert.match(sourceBetween("async function statusResponse", "async function claimResponse"), /runD1RetentionMaintenance/, "Daily retention maintenance must be attached to the app bootstrap route");
+assert.match(acquisitionSource, /idx_dbi_acquisition_records_active[^\n]+workspace_id, removed_at, last_changed_at DESC/, "Active acquisition pagination needs a workspace/status/time index");
+assert.match(acquisitionSource, /idx_dbi_acquisition_observations_retention[^\n]+observed_at/, "Acquisition observation retention needs a cutoff index");
+assert.match(acquisitionSource, /idx_dbi_acquisition_changes_retention[^\n]+changed_at/, "Acquisition change retention needs a cutoff index");
+assert.match(deliverySource, /idx_dbi_acquisition_delivery_attempts_retention[^\n]+attempted_at/, "Acquisition delivery retention needs a cutoff index");
+assert.match(uiAuditSource, /DBI_UI_AUDIT_URL \|\| "http:\/\/127\.0\.0\.1:4173\/"/, "Full UI audits must default to the local verification server");
+assert.match(uiAuditSource, /auditRoutes\.length \* auditViewports\.length > 12/, "Production UI audits must enforce a bounded surface count");
 
 const persistPath = mkdtempSync(join(tmpdir(), "dbi-d1-plan-"));
 const database = "oip-agent-db";
@@ -74,6 +83,22 @@ try {
       attempted_at TEXT NOT NULL
     );
     CREATE INDEX idx_dbi_login_attempts_time ON dbi_login_attempts (attempted_at);
+    CREATE TABLE dbi_acquisition_records (
+      workspace_id TEXT NOT NULL,
+      source TEXT NOT NULL,
+      source_record_id TEXT NOT NULL,
+      removed_at TEXT NOT NULL DEFAULT '',
+      last_changed_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, source, source_record_id)
+    );
+    CREATE INDEX idx_dbi_acquisition_records_active
+      ON dbi_acquisition_records (workspace_id, removed_at, last_changed_at DESC);
+    CREATE TABLE dbi_acquisition_observations (id TEXT PRIMARY KEY, observed_at TEXT NOT NULL);
+    CREATE INDEX idx_dbi_acquisition_observations_retention ON dbi_acquisition_observations (observed_at);
+    CREATE TABLE dbi_acquisition_changes (id TEXT PRIMARY KEY, changed_at TEXT NOT NULL);
+    CREATE INDEX idx_dbi_acquisition_changes_retention ON dbi_acquisition_changes (changed_at);
+    CREATE TABLE dbi_acquisition_delivery_attempts (id TEXT PRIMARY KEY, attempted_at TEXT NOT NULL);
+    CREATE INDEX idx_dbi_acquisition_delivery_attempts_retention ON dbi_acquisition_delivery_attempts (attempted_at);
   `);
 
   const taskPlan = planDetails(`
@@ -95,10 +120,18 @@ try {
   assert.ok(taskPlan.some((detail) => detail.includes("idx_dbi_event_ai_jobs_workspace_user_time")), `Task seed plan must use the workspace/user/time index: ${taskPlan.join(" | ")}`);
   assert.ok(taskPlan.every((detail) => !/SCAN candidate\b/.test(detail)), `Task diagnostic plan must not scan the request log: ${taskPlan.join(" | ")}`);
 
+  const activeCountPlan = planDetails("SELECT COUNT(*) FROM dbi_acquisition_records WHERE workspace_id = 'workspace' AND removed_at = ''");
+  assert.ok(activeCountPlan.some((detail) => detail.includes("idx_dbi_acquisition_records_active")), `Active acquisition counts must use the covering index: ${activeCountPlan.join(" | ")}`);
+  const activePagePlan = planDetails("SELECT * FROM dbi_acquisition_records WHERE workspace_id = 'workspace' AND removed_at = '' ORDER BY last_changed_at DESC LIMIT 100 OFFSET 0");
+  assert.ok(activePagePlan.some((detail) => detail.includes("idx_dbi_acquisition_records_active")), `Active acquisition pages must use the covering index: ${activePagePlan.join(" | ")}`);
+
   for (const [table, column, index] of [
     ["dbi_api_request_log", "completed_at", "idx_dbi_api_request_log_completed"],
     ["dbi_event_ai_jobs", "completed_at", "idx_dbi_event_ai_jobs_completed"],
     ["dbi_login_attempts", "attempted_at", "idx_dbi_login_attempts_time"],
+    ["dbi_acquisition_observations", "observed_at", "idx_dbi_acquisition_observations_retention"],
+    ["dbi_acquisition_changes", "changed_at", "idx_dbi_acquisition_changes_retention"],
+    ["dbi_acquisition_delivery_attempts", "attempted_at", "idx_dbi_acquisition_delivery_attempts_retention"],
   ]) {
     const details = planDetails(`DELETE FROM ${table} WHERE ${column} < '2026-01-01T00:00:00.000Z'`);
     assert.ok(details.some((detail) => detail.includes(index)), `${table} retention must use ${index}: ${details.join(" | ")}`);
@@ -107,4 +140,4 @@ try {
   rmSync(persistPath, { recursive: true, force: true });
 }
 
-console.log("Verified D1 query efficiency: bounded Task Center lookup, indexed trace diagnostics, indexed daily retention, no per-write pruning.");
+console.log("Verified D1 query efficiency: bounded Task Center lookup, indexed trace diagnostics, indexed active acquisition pagination and retention, no per-write pruning.");

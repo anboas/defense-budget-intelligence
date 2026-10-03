@@ -2,13 +2,14 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright-core";
 
-const BASE_URL = process.env.DBI_UI_AUDIT_URL || "https://defense-budget-intelligence.pages.dev/";
+const BASE_URL = process.env.DBI_UI_AUDIT_URL || "http://127.0.0.1:4173/";
 const STATE_PATH = process.env.DBI_UI_AUDIT_STATE || "/home/anboas/.openclaw/test-accounts/defense-budget-intelligence/storage-state.json";
 const OUTPUT_DIR = resolve(process.env.DBI_UI_AUDIT_OUTPUT || "test-results/ui-audit");
 const SHOULD_CLAIM_OWNER = process.env.DBI_UI_AUDIT_CLAIM_OWNER === "1";
 const REQUESTED_ROUTES = new Set(String(process.env.DBI_UI_AUDIT_ROUTES || "").split(",").map((value) => value.trim()).filter(Boolean));
 const REQUESTED_VIEWPORTS = new Set(String(process.env.DBI_UI_AUDIT_VIEWPORTS || "").split(",").map((value) => value.trim()).filter(Boolean));
 const READY_TIMEOUT_MS = Number(process.env.DBI_UI_AUDIT_TIMEOUT_MS || 20_000);
+const ALLOW_FULL_PRODUCTION_AUDIT = process.env.DBI_UI_AUDIT_ALLOW_PRODUCTION_FULL === "1";
 const executablePath = [
   process.env.CHROMIUM_PATH,
   "/usr/bin/google-chrome",
@@ -60,6 +61,10 @@ const auditRoutes = REQUESTED_ROUTES.size ? ROUTES.filter(([id]) => REQUESTED_RO
 const auditViewports = REQUESTED_VIEWPORTS.size ? VIEWPORTS.filter(([id]) => REQUESTED_VIEWPORTS.has(id)) : VIEWPORTS;
 
 if (!auditRoutes.length || !auditViewports.length) throw new Error("UI audit route or viewport filters matched nothing");
+const auditHost = new URL(BASE_URL).hostname;
+if (auditHost === "defense-budget-intelligence.pages.dev" && !ALLOW_FULL_PRODUCTION_AUDIT && auditRoutes.length * auditViewports.length > 12) {
+  throw new Error("Production UI audits are limited to 12 surfaces. Set route and viewport filters, or explicitly allow a full production audit.");
+}
 
 mkdirSync(OUTPUT_DIR, { recursive: true });
 let ownerCookie = "";
