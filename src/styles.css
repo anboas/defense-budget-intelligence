@@ -6594,17 +6594,11 @@ td .dot {
   .capture-gantt-feed-status { grid-column: 1 / -1; }
 
   .capture-quickviews {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 
-  .capture-quickviews > span {
-    grid-column: 1 / -1;
-  }
-
-  .capture-quickviews button {
-    border-radius: 5px;
-  }
+  .capture-quickviews button { flex: 0 0 auto; }
 
   .capture-dashboard-grid {
     grid-template-columns: 1fr;
@@ -6824,6 +6818,16 @@ td .dot {
   .capture-gantt-commandbar button { min-height: 44px; }
 
   .capture-gantt-commandbar__actions { margin-left: 0; }
+
+  .capture-gantt-commandbar__group { display: none; }
+
+  .capture-gantt-commandbar__actions {
+    width: 100%;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .capture-gantt-commandbar__actions button { flex: 1 0 auto; }
 
   .capture-timeline__label { padding-inline: 6px; }
   .capture-timeline__badges { gap: 3px; }
