@@ -221,8 +221,10 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { id: "rfi", label: "RFIs / sources sought", value: rows.filter((record) => samNoticeTypeId(record.noticeType) === "r").length.toLocaleString(), meta: "Source-backed opportunity records" },
     { id: "coded", label: "Code-backed", value: rows.filter((record) => record.naicsCode || record.pscCode).length.toLocaleString(), meta: "Published NAICS or PSC" },
   ];
+  const hierarchyPath = ["Department of War", tableFilters.branch !== "all" ? tableFilters.branch : "All branches", tableFilters.component !== "all" ? tableFilters.component : "All services & components", tableFilters.office !== "all" ? tableFilters.office : null].filter(Boolean).join(" → ");
+  const activeScopeFilterCount = [tableFilters.technology, tableFilters.noticeType, tableFilters.branch, tableFilters.component, tableFilters.office, tableFilters.disposition].filter((value) => value && !["all", "active"].includes(value)).length;
   const savedViewRows = rows.length ? rows : (discoveryIndex.discovery || []);
-  const savedViews = <SpendSavedViews rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
+  const savedViews = <SpendSavedViews compact={view === "table"} rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
     const next = { ...tableFilters, ...(saved.filters || {}), disposition: saved.filters?.disposition === "tombstoned" ? "tombstoned" : "active", changes: "all" };
     setTableFilters(next);
     setQuery(saved.query || "");
@@ -243,21 +245,25 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Spend intelligence" title="Spend Explorer" summary="Timeline, records, and charts share one public-data scope." metrics={tableMetrics} metricLabel="Spend table summary" tabs={tabs} />
     <ControlPageBody compact>
-      {savedViews}
+      <div className="spend-explorer__support-row">
+        {savedViews}
+        <details className="spend-explorer__daily-feed" data-daily-acquisition-feed>
+          <summary><span><strong>Daily acquisition updates</strong><small>{dailyFeed.history?.[0] ? `${dailyFeed.history[0].summary.added} added · ${dailyFeed.history[0].summary.updated} updated · ${dailyFeed.history[0].summary.removed} removed` : "History begins with the next retained refresh"}</small></span><span>{dailyFeed.history?.[0]?.sources?.sam === "current" ? "SAM.gov current" : "SAM.gov unavailable"}</span></summary>
+          <div>{(dailyFeed.history || []).slice(0, 14).map((entry) => <article key={entry.date}><time dateTime={entry.date}>{date(entry.date)}</time><span><b>{entry.summary.added}</b> added</span><span><b>{entry.summary.updated}</b> updated</span><span><b>{entry.summary.removed}</b> removed</span><small>SAM.gov {entry.sources?.sam || "unknown"} · USAspending {entry.sources?.usaspending || "unknown"}</small></article>)}</div>
+        </details>
+      </div>
       {tableFilters.changes === "today" ? <div className="if-alert if-alert--info spend-explorer__change-scope" role="status"><span><strong>Complete daily update ledger</strong>Showing every retained record changed on {date(latestFeedDate)}.</span><button type="button" className="if-button if-button--secondary" onClick={() => setTableFilter("changes", "all")}>Show all records</button></div> : null}
-      <details className="spend-explorer__daily-feed" data-daily-acquisition-feed>
-        <summary><span><strong>Daily acquisition updates</strong><small>{dailyFeed.history?.[0] ? `${dailyFeed.history[0].summary.added} added · ${dailyFeed.history[0].summary.updated} updated · ${dailyFeed.history[0].summary.removed} removed` : "History begins with the next retained refresh"}</small></span><span>{dailyFeed.history?.[0]?.sources?.sam === "current" ? "SAM.gov current" : "SAM.gov unavailable"}</span></summary>
-        <div>{(dailyFeed.history || []).slice(0, 14).map((entry) => <article key={entry.date}><time dateTime={entry.date}>{date(entry.date)}</time><span><b>{entry.summary.added}</b> added</span><span><b>{entry.summary.updated}</b> updated</span><span><b>{entry.summary.removed}</b> removed</span><small>SAM.gov {entry.sources?.sam || "unknown"} · USAspending {entry.sources?.usaspending || "unknown"}</small></article>)}</div>
+      <details className="spend-explorer__hierarchy" aria-label="Explorer scope and record controls" data-explorer-hierarchy defaultOpen={activeScopeFilterCount > 0}>
+        <summary><span><small>Explorer scope</small><strong>{hierarchyPath}</strong></span><b>{activeScopeFilterCount ? `${activeScopeFilterCount} active` : "Edit scope"}</b></summary>
+        <div className="spend-explorer__hierarchy-controls">
+          <ControlSelect label="Technology area" value={tableFilters.technology} options={[{ value: "all", label: "All technology areas" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} />
+          <ControlSelect label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} />
+          <ControlSelect label="DoW branch" value={tableFilters.branch} options={[{ value: "all", label: "DoW: all branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} />
+          <ControlSelect label="Service / component" value={tableFilters.component} options={[{ value: "all", label: "All services & components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
+          <ControlSelect label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All published offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
+          <ControlSelect label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active explorer" }, { value: "tombstoned", label: `Tombstoned (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
+        </div>
       </details>
-      <section className="spend-explorer__hierarchy" aria-label="Explorer hierarchy and record controls" data-explorer-hierarchy>
-        <div><span>Explore hierarchy</span><strong>{["Department of War", tableFilters.branch !== "all" ? tableFilters.branch : "All branches", tableFilters.component !== "all" ? tableFilters.component : "All services & components", tableFilters.office !== "all" ? tableFilters.office : null].filter(Boolean).join(" → ")}</strong></div>
-        <ControlSelect label="Technology area" value={tableFilters.technology} options={[{ value: "all", label: "All technology areas" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} />
-        <ControlSelect label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} />
-        <ControlSelect label="DoW branch" value={tableFilters.branch} options={[{ value: "all", label: "DoW: all branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} />
-        <ControlSelect label="Service / component" value={tableFilters.component} options={[{ value: "all", label: "All services & components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
-        <ControlSelect label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All published offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
-        <ControlSelect label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active explorer" }, { value: "tombstoned", label: `Tombstoned (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
-      </section>
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
       <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, notice types, organizations, and references…" exportFilename="spend-explorer.csv" mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : tableFilters.noticeType !== "all" ? ["record", "noticeType", "deadline", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
     </ControlPageBody>
