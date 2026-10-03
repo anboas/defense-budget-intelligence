@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { accessCapabilities } from "../src/access-model.js";
 import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, lifecycleTitleStem } from "../src/record-linking.js";
 import { cleanText } from "../src/security-policy.js";
+import { recordUniverse } from "./record-universe.mjs";
 
 function publicRow(row) {
   return {
@@ -51,12 +52,10 @@ export function registerRecordGroupRoutes(app, pool, { assertSameOrigin, authent
     if (!accessCapabilities(user.role, user.membership_role, { isEmulating: Boolean(user.is_emulating) }).canWriteWorkspace) return reply.code(403).send({ error: "workspace write access is required" });
     const memberIds = [...new Set((Array.isArray(request.body?.memberIds) ? request.body.memberIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 8);
     if (memberIds.length < 2) return reply.code(400).send({ error: "select at least two records" });
-    const selected = await pool.query(`SELECT payload FROM capture_opportunities
-      WHERE snapshot_id = (SELECT id FROM intelligence_snapshots WHERE kind = 'capture_calendar' ORDER BY captured_at DESC, imported_at DESC LIMIT 1)
-        AND opportunity_id = ANY($1::text[])`, [memberIds]);
-    const byId = new Map(selected.rows.map((row) => [row.payload.opportunityId, row.payload]));
+    const universe = await recordUniverse(pool, user.active_workspace_id);
+    const byId = new Map(universe.map((record) => [record.opportunityId, record]));
     const records = memberIds.map((id) => byId.get(id)).filter(Boolean);
-    if (records.length !== memberIds.length) return reply.code(404).send({ error: "every selected record must exist in the active capture corpus" });
+    if (records.length !== memberIds.length) return reply.code(404).send({ error: "every selected record must exist in the active workspace corpus" });
     const stored = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
     if (!apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential before AI grouping", code: "credential_unavailable" });

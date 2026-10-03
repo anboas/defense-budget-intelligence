@@ -76,6 +76,7 @@ import { AGENT_INTELLIGENCE_RESOURCES, AGENT_INTELLIGENCE_SCOPES, D1_AGENT_INTEL
 import { D1_RESEARCH_OPERATIONS_SCHEMA, researchOperationsResponse, researchSchedulerResponse } from "./d1-research-operations.js";
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import { catalogEventByIdFromRows } from "./event-catalog.js";
+import { loadD1RecordUniverse } from "./d1-record-universe.js";
 import {
   completeEventCatalog,
   eventCatalogResponse,
@@ -2678,13 +2679,7 @@ function manualRecordPayload(body, id, version, createdAt, updatedAt) {
 }
 
 async function allAgentRecords(request, env, db, workspaceId) {
-  const source = await assetJson(request, env, "/data/agent-records.json");
-  const stored = await db.prepare("SELECT * FROM dbi_workspace_manual_records WHERE workspace_id = ? AND deleted_at = '' ORDER BY created_at").bind(workspaceId).all();
-  const manual = (stored.results || []).flatMap((row) => {
-    try { return [{ ...JSON.parse(row.payload_json), version: row.version, createdAt: row.created_at, updatedAt: row.updated_at, manual: true }]; }
-    catch { return []; }
-  });
-  return { metadata: source.metadata || {}, records: [...(source.records || []), ...manual] };
+  return loadD1RecordUniverse(db, workspaceId, assetJson(request, env, "/data/agent-records.json"));
 }
 
 function recordProjection(record) {

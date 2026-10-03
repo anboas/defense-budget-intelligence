@@ -1,26 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { accessCapabilities } from "../src/access-model.js";
-import { automatedSamRecord } from "../src/procurement-taxonomy.js";
 import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence } from "../src/record-linking.js";
 import { rankResearchCandidates, researchRecordWithOpenAi } from "../src/record-research.js";
 import { cleanText } from "../src/security-policy.js";
+import { recordUniverse } from "./record-universe.mjs";
 
 function jsonValue(value, fallback) { if (value && typeof value === "object") return value; try { return JSON.parse(value || ""); } catch { return fallback; } }
 function publicResearch(row) { return { id: row.id, opportunityId: row.opportunity_id, ...jsonValue(row.report_json, {}), createdBy: row.created_by, createdAt: row.created_at }; }
 function publicRelationship(row) { return { id: row.id, sourceId: row.source_id, targetId: row.target_id, relationship: row.relationship, confidence: row.confidence, rationale: row.rationale || "", evidence: jsonValue(row.evidence_json, []), sourceUrls: jsonValue(row.source_urls_json, []), caveats: jsonValue(row.caveats_json, []), provenance: jsonValue(row.provenance_json, {}), createdBy: row.created_by, createdAt: row.created_at, updatedAt: row.updated_at }; }
-
-async function recordUniverse(pool, workspaceId) {
-  const [capture, runtime] = await Promise.all([
-    pool.query(`SELECT payload FROM capture_opportunities WHERE snapshot_id=(SELECT id FROM intelligence_snapshots WHERE kind='capture_calendar' ORDER BY captured_at DESC, imported_at DESC LIMIT 1)`),
-    pool.query("SELECT record_json FROM app_acquisition_records WHERE workspace_id=$1 AND removed_at IS NULL", [workspaceId]),
-  ]);
-  const merged = new Map(capture.rows.map((row) => [row.payload.opportunityId, row.payload]));
-  for (const row of runtime.rows) {
-    const record = automatedSamRecord(jsonValue(row.record_json, {}), new Date().toISOString().slice(0, 10));
-    merged.set(record.opportunityId, record);
-  }
-  return [...merged.values()];
-}
 
 function mockRelationshipAssessment(records) {
   const exact = exactFollowOnEvidence(records[0], records[1]) || exactLifecycleEvidence(records[0], records[1]);

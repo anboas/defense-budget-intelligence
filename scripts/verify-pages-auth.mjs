@@ -798,6 +798,27 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.intake.status, "imported");
     assert.equal(body.intake.ai.status, "completed", "Configured AI intake must retain a bounded structured assessment");
     assert.equal(body.record.aiAssessment.provenance.reviewState, "needs_review", "AI opportunity analysis must remain reviewable derived metadata");
+    const runtimeOpportunityId = `auto_sam_${intakeNoticeId}`;
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-intelligence/relationships", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { memberIds: ["opp_f2a64db1164b5263690b", runtimeOpportunityId] },
+    });
+    assert.equal(response.status, 200, "D1 relationship review must resolve live workspace acquisition records shown in the Timeline");
+    body = await response.json();
+    assert.equal(body.meta.decision, "review", "Unrelated runtime records must remain separate after corpus validation");
+    response = await apiRequest(baseUrl, "/api/v1/agent/record-groups", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1),
+      body: { memberIds: ["opp_f2a64db1164b5263690b", runtimeOpportunityId] },
+    });
+    assert.equal(response.status, 200, "D1 lifecycle review must resolve live workspace acquisition records shown in the Timeline");
+    body = await response.json();
+    assert.equal(body.meta.decision, "review", "Unrelated runtime records must not be collapsed into one lifecycle");
+    response = await apiRequest(baseUrl, `/api/v1/agent/record-intelligence/${runtimeOpportunityId}/research`, {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {},
+    });
+    assert.equal(response.status, 201, "D1 record research must resolve a live workspace acquisition record");
+    body = await response.json();
+    assert.equal(body.data.report.opportunityId, runtimeOpportunityId);
     response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/intake", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { reference: intakeNoticeId } });
     assert.equal(response.status, 200, "Repeated SAM.gov link intake must resolve the existing workspace record without refetching");
     body = await response.json();
