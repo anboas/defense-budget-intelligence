@@ -271,6 +271,21 @@ assert.equal(body.record.noticeId, intakeNoticeId);
 assert.equal(body.intake.status, "imported");
 assert.equal(body.intake.ai.status, "completed");
 assert.equal(body.record.aiAssessment.provenance.reviewState, "needs_review");
+const runtimeOpportunityId = `auto_sam_${intakeNoticeId}`;
+response = await request("/api/v1/agent/record-intelligence/relationships", { method: "POST", cookie: ownerCookie,
+  body: { memberIds: ["opp_f2a64db1164b5263690b", runtimeOpportunityId] } });
+assert.equal(response.status, 200, "PostgreSQL relationship review must resolve live workspace acquisition records shown in the Timeline");
+body = await response.json();
+assert.equal(body.meta.decision, "review", "Unrelated PostgreSQL runtime records must remain separate after corpus validation");
+response = await request("/api/v1/agent/record-groups", { method: "POST", cookie: ownerCookie,
+  body: { memberIds: ["opp_f2a64db1164b5263690b", runtimeOpportunityId] } });
+assert.equal(response.status, 200, "PostgreSQL lifecycle review must resolve live workspace acquisition records shown in the Timeline");
+body = await response.json();
+assert.equal(body.meta.decision, "review", "Unrelated PostgreSQL runtime records must not be collapsed into one lifecycle");
+response = await request(`/api/v1/agent/record-intelligence/${runtimeOpportunityId}/research`, { method: "POST", cookie: ownerCookie, body: {} });
+assert.equal(response.status, 201, "PostgreSQL record research must resolve a live workspace acquisition record");
+body = await response.json();
+assert.equal(body.data.report.opportunityId, runtimeOpportunityId);
 response = await request("/api/v1/auth/acquisition/intake", { method: "POST", cookie: ownerCookie, body: { reference: intakeNoticeId } });
 assert.equal(response.status, 200, "PostgreSQL repeated intake must reuse the retained workspace record");
 assert.equal((await response.json()).intake.status, "already_retained");
