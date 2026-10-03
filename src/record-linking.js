@@ -113,6 +113,26 @@ export function automaticLifecycleGroups(records = []) {
   return groups;
 }
 
+export function exactRecordGroupAssessment(records = [], { allowFollowOn = true } = {}) {
+  const selected = [...new Map(records.filter((record) => record?.opportunityId).map((record) => [record.opportunityId, record])).values()];
+  if (selected.length < 2) return null;
+  const direct = selected.length === 2 ? (allowFollowOn ? exactFollowOnEvidence(selected[0], selected[1]) : null) || exactLifecycleEvidence(selected[0], selected[1]) : null;
+  const exactGroup = direct ? null : automaticLifecycleGroups(selected).find((group) => group.memberIds.length === selected.length && group.memberIds.every((id) => selected.some((record) => record.opportunityId === id)));
+  if (!direct && !exactGroup) return null;
+  const evidence = direct?.basis || exactGroup.basis;
+  return {
+    decision: "group",
+    title: direct?.title || exactGroup.title,
+    relationship: direct?.relationship || exactGroup.relationship,
+    confidence: "exact",
+    rationale: evidence.join("; "),
+    evidence,
+    caveats: ["Distinct source records remain separately inspectable."],
+    memberIds: selected.map((record) => record.opportunityId),
+    provenance: { kind: "exact-rule", reviewState: "accepted", model: null, responseId: "", createdAt: null },
+  };
+}
+
 function distinctiveAcronyms(value) {
   return [...new Set(String(value || "").match(/\b[A-Z][A-Z0-9-]{2,11}\b/g) || [])]
     .filter((value) => !GENERIC_ACRONYMS.has(value));
@@ -356,15 +376,26 @@ export function normalizeRecordGroupAiResult(payload, records, { model = RECORD_
 
 export async function analyzeRecordGroupWithOpenAi({ apiKey, records, fetchImpl = fetch, model = RECORD_LINKING_MODEL } = {}) {
   if (!apiKey) throw Object.assign(new Error("No active workspace OpenAI credential is available"), { code: "credential_unavailable", httpStatus: 409 });
-  const response = await fetchImpl("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify(buildRecordGroupAiRequest(records, { model })),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(clean(body?.error?.message || `OpenAI returned HTTP ${response.status}`, 500)), { code: clean(body?.error?.code || body?.error?.type || "provider_failed", 100), httpStatus: response.status });
-  let payload;
-  try { payload = JSON.parse(responseText(body)); }
-  catch { throw Object.assign(new Error("OpenAI returned invalid structured lifecycle data"), { code: "invalid_structured_output", httpStatus: 502 }); }
-  return normalizeRecordGroupAiResult(payload, records, { model, responseId: body.id || "" });
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetchImpl("https://api.openai.com/v1/responses", {
+        method: "POST", headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify(buildRecordGroupAiRequest(records, { model })),
+        ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(45_000) } : {}),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw Object.assign(new Error(clean(body?.error?.message || `OpenAI returned HTTP ${response.status}`, 500)), { code: clean(body?.error?.code || body?.error?.type || "provider_failed", 100), httpStatus: response.status });
+      let payload;
+      try { payload = JSON.parse(responseText(body)); }
+      catch { throw Object.assign(new Error("OpenAI returned invalid structured lifecycle data"), { code: "invalid_structured_output", httpStatus: 502 }); }
+      const result = normalizeRecordGroupAiResult(payload, records, { model, responseId: body.id || "" });
+      return { ...result, provenance: { ...result.provenance, attempts: attempt + 1 } };
+    } catch (error) {
+      lastError = error?.name === "TimeoutError" || error?.name === "AbortError" ? Object.assign(new Error("OpenAI lifecycle review timed out"), { code: "provider_timeout", httpStatus: 504 }) : error?.httpStatus ? error : Object.assign(new Error("OpenAI lifecycle review transport failed"), { code: "provider_unavailable", httpStatus: 502 });
+      const canRetry = ["invalid_structured_output", "provider_timeout", "provider_unavailable"].includes(lastError.code) || lastError.httpStatus === 408 || lastError.httpStatus === 429 || Number(lastError.httpStatus || 0) >= 500;
+      if (attempt === 0 && canRetry) continue;
+      throw lastError;
+    }
+  }
+  throw lastError;
 }

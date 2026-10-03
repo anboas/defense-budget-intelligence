@@ -1,4 +1,4 @@
-import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence } from "./record-linking.js";
+import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence, exactRecordGroupAssessment } from "./record-linking.js";
 import { rankResearchCandidates, researchRecordWithOpenAi } from "./record-research.js";
 import { cleanText } from "./security-policy.js";
 
@@ -27,7 +27,7 @@ function publicRelationship(row) {
 }
 
 function relationshipFromAssessment(records, assessment) {
-  const exact = exactFollowOnEvidence(records[0], records[1]);
+  const exact = exactFollowOnEvidence(records[0], records[1]) || exactLifecycleEvidence(records[0], records[1]);
   const ordered = [...records].sort((left, right) => String(left.start || left.solicitationStart || "9999").localeCompare(String(right.start || right.solicitationStart || "9999")));
   return {
     sourceId: exact?.sourceId || ordered[0].opportunityId,
@@ -51,6 +51,9 @@ function mockResearch(record, candidates) {
     stage: record.noticeType || record.lifecycleStatus || "Published record",
     scope: record.context || record.sourceDescription || record.title,
     incumbentPosture: exact ? "A published active-work record is linked to this acquisition as a follow-on candidate." : "No incumbent relationship was established by the mock verifier.",
+    decisionBrief: { recommendedAction: exact ? "pursue" : "research", priority: exact ? "high" : "medium", rationale: exact ? "Published lifecycle evidence supports near-term qualification." : "Additional official evidence is needed before qualification.", sourceUrls: sourceUrls.slice(0, 2) },
+    keyDates: record.solicitationEnd && sourceUrls.length ? [{ label: "Response deadline", date: record.solicitationEnd, basis: "Published acquisition response deadline.", sourceUrls: sourceUrls.slice(0, 1) }] : [],
+    nextActions: sourceUrls.length ? [{ action: "Review the latest official notice and attachments.", rationale: "Confirm scope, timing, and qualification evidence before a bid decision.", sourceUrls: sourceUrls.slice(0, 2) }] : [],
     findings: sourceUrls.length ? [{ text: "The retained public record and relationship evidence were reviewed.", sourceUrls: sourceUrls.slice(0, 2) }] : [],
     risks: [], openQuestions: ["Confirm any unpublished amendments or acquisition strategy changes."], caveats: ["Human review required."], sources: sourceUrls.map((url) => ({ url, title: "Official source" })),
     relationshipProposals: exact ? [{ targetId: exact.sourceId === record.opportunityId ? exact.targetId : exact.sourceId, relationship: exact.relationship, confidence: "high", rationale: exact.basis.join("; "), sourceUrls, caveats: [] }] : [],
@@ -120,9 +123,6 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
   }
   const universe = await allRecords(request, env, db, principal.workspaceId);
   const byId = new Map(universe.records.map((record) => [record.opportunityId, record]));
-  const credential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
-  const apiKey = credential ? await decryptSecret(credential, env) : "";
-  if (!apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
   const mockMode = String(env.DBI_RECORD_RESEARCH_MOCK_MODE || env.DBI_RECORD_LINKING_MOCK_MODE || env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
   if (request.method === "POST" && first === "relationships" && !second) {
     const body = await safeJson(request);
@@ -130,12 +130,13 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
     if (memberIds.length !== 2) return error("member_ids_required", "Select exactly two records to link", 400);
     const records = memberIds.map((id) => byId.get(id)).filter(Boolean);
     if (records.length !== 2) return error("record_not_found", "Both records must exist in the active workspace corpus", 404);
+    const exact = exactRecordGroupAssessment(records);
+    const credential = exact ? null : await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
+    const apiKey = credential ? await decryptSecret(credential, env) : "";
+    if (!exact && !apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
     let assessment;
-    try {
-      const exact = exactFollowOnEvidence(records[0], records[1]);
-      assessment = exact ? { decision: "group", relationship: exact.relationship, confidence: "exact", rationale: exact.basis.join("; "), evidence: exact.basis, caveats: [], provenance: { kind: "exact-rule", reviewState: "accepted" } }
-        : mockMode ? mockRelationshipAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records });
-    } catch (providerError) { return error(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), Number(providerError.httpStatus || 502)); }
+    try { assessment = exact || (mockMode ? mockRelationshipAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records })); }
+    catch (providerError) { return error(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), Number(providerError.httpStatus || 502)); }
     if (assessment.decision !== "group" || !["high", "exact"].includes(assessment.confidence)) return json(null, 200, { decision: assessment.decision, confidence: assessment.confidence, message: assessment.rationale, assessment });
     const saved = await saveRelationship(db, principal, relationshipFromAssessment(records, assessment), recordActivity);
     return json(saved, 201);
@@ -143,6 +144,9 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
   if (request.method === "POST" && first && second === "research") {
     const record = byId.get(first);
     if (!record) return error("record_not_found", "Record not found in the active workspace corpus", 404);
+    const credential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
+    const apiKey = credential ? await decryptSecret(credential, env) : "";
+    if (!apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
     const candidates = rankResearchCandidates(record, universe.records);
     let report;
     try { report = mockMode ? mockResearch(record, candidates) : await researchRecordWithOpenAi({ apiKey, record, candidates }); }

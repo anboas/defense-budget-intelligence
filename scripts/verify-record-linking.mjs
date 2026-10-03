@@ -9,6 +9,7 @@ import {
   collapseLifecycleRecords,
   exactLifecycleEvidence,
   exactFollowOnEvidence,
+  exactRecordGroupAssessment,
 } from "../src/record-linking.js";
 import { automatedSamRecord } from "../src/procurement-taxonomy.js";
 
@@ -54,6 +55,10 @@ assert.equal(followOn?.sourceId, supportV.opportunityId, "The active NDMS V work
 assert.equal(followOn?.targetId, ndmsDraft.opportunityId, "The draft RFP must be the follow-on target");
 assert.equal(followOn?.relationship, "follow-on");
 assert.equal(exactFollowOnEvidence(supportIVWithCodes, ndmsDraft), null, "Expired NDMS IV work must not be linked as the active predecessor");
+assert.equal(exactRecordGroupAssessment([supportVWithCodes, ndmsDraft])?.relationship, "follow-on", "Exact follow-ons must bypass the provider boundary");
+assert.equal(exactRecordGroupAssessment([supportVWithCodes, ndmsDraft], { allowFollowOn: false }), null, "Follow-ons must remain separate records rather than collapse onto one lifecycle row");
+assert.equal(exactRecordGroupAssessment([supportIV, supportV])?.confidence, "exact", "Exact lifecycle phases must bypass the provider boundary");
+assert.equal(exactRecordGroupAssessment([supportIV, supportV, aviationEnvironment]), null, "Mixed requirements must still require model or manual review");
 const relationships = automaticRecordRelationships([supportIVWithCodes, supportVWithCodes, aviationEnvironment, ndmsDraft]);
 assert.equal(relationships.length, 2, "The record graph must expose both prior lifecycle work and the future follow-on");
 assert.ok(relationships.some((relationship) => relationship.sourceId === supportIV.opportunityId && relationship.targetId === supportV.opportunityId && relationship.relationship === "successive-phase"));
@@ -110,5 +115,21 @@ assert.equal(result.decision, "group");
 assert.equal(result.provenance.reviewState, "accepted");
 assert.equal(result.provenance.responseId, "resp-test");
 assert.deepEqual(result.memberIds, [supportIV.opportunityId, supportV.opportunityId]);
+assert.equal(result.provenance.attempts, 1);
+
+let retryAttempts = 0;
+const retryResult = await analyzeRecordGroupWithOpenAi({
+  apiKey: "masked-test-key", records: [supportIV, supportV],
+  fetchImpl: async () => {
+    retryAttempts += 1;
+    if (retryAttempts === 1) return { ok: true, status: 200, json: async () => ({ output_text: "{malformed" }) };
+    return { ok: true, status: 200, json: async () => ({ id: "resp-retry", output_text: JSON.stringify({
+      decision: "group", title: "NDMS software development support", relationship: "successive-phase", confidence: "high",
+      rationale: "Same requirement and contiguous phases.", evidence: ["Shared parent award"], caveats: [],
+    }) }) };
+  },
+});
+assert.equal(retryAttempts, 2, "Malformed lifecycle output must receive one bounded retry");
+assert.equal(retryResult.provenance.attempts, 2);
 
 console.log("Record lifecycle linking contract passed");

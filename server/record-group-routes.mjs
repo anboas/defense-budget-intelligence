@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { accessCapabilities } from "../src/access-model.js";
-import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, lifecycleTitleStem } from "../src/record-linking.js";
+import { analyzeRecordGroupWithOpenAi, exactLifecycleEvidence, exactRecordGroupAssessment, lifecycleTitleStem } from "../src/record-linking.js";
 import { cleanText } from "../src/security-policy.js";
 import { recordUniverse } from "./record-universe.mjs";
 
@@ -56,14 +56,15 @@ export function registerRecordGroupRoutes(app, pool, { assertSameOrigin, authent
     const byId = new Map(universe.map((record) => [record.opportunityId, record]));
     const records = memberIds.map((id) => byId.get(id)).filter(Boolean);
     if (records.length !== memberIds.length) return reply.code(404).send({ error: "every selected record must exist in the active workspace corpus" });
-    const stored = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [user.active_workspace_id]);
+    const exact = exactRecordGroupAssessment(records, { allowFollowOn: false });
+    const stored = exact ? { rowCount: 0, rows: [] } : await pool.query("SELECT * FROM app_openai_keys WHERE scope_type = 'workspace' AND workspace_id = $1 AND revoked_at IS NULL ORDER BY is_default DESC, created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
-    if (!apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential before AI grouping", code: "credential_unavailable" });
+    if (!exact && !apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential before AI grouping", code: "credential_unavailable" });
     const mockMode = String(process.env.DBI_RECORD_LINKING_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     let assessment;
-    try { assessment = mockMode ? mockAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records }); }
+    try { assessment = exact || (mockMode ? mockAssessment(records) : await analyzeRecordGroupWithOpenAi({ apiKey, records })); }
     catch (error) { return reply.code(Number(error.httpStatus || 502)).send({ error: cleanText(error.message, 500), code: cleanText(error.code, 100) || "openai_failed" }); }
-    if (assessment.decision !== "group" || assessment.confidence !== "high") return { data: null, meta: { decision: assessment.decision, confidence: assessment.confidence, message: assessment.rationale, assessment } };
+    if (assessment.decision !== "group" || !["high", "exact"].includes(assessment.confidence)) return { data: null, meta: { decision: assessment.decision, confidence: assessment.confidence, message: assessment.rationale, assessment } };
     const conflicts = await pool.query("SELECT id FROM app_workspace_record_groups WHERE workspace_id = $1 AND member_ids_json ?| $2::text[]", [user.active_workspace_id, memberIds]);
     const client = await pool.connect();
     try {
@@ -75,7 +76,7 @@ export function registerRecordGroupRoutes(app, pool, { assertSameOrigin, authent
         randomUUID(), user.active_workspace_id, cleanText(assessment.title, 240), JSON.stringify(memberIds), cleanText(assessment.relationship, 80), assessment.confidence,
         cleanText(assessment.rationale, 1200), JSON.stringify(assessment.evidence || []), JSON.stringify(assessment.caveats || []), JSON.stringify(assessment.provenance || {}), user.actor_user_id || user.user_id,
       ]);
-      await client.query("UPDATE app_openai_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [stored.rows[0].id]);
+      if (stored.rowCount) await client.query("UPDATE app_openai_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1", [stored.rows[0].id]);
       await client.query("COMMIT");
       return reply.code(201).send({ data: publicRow(inserted.rows[0]), meta: { decision: assessment.decision, confidence: assessment.confidence } });
     } catch (error) {

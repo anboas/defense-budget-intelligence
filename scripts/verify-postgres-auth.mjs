@@ -224,6 +224,8 @@ body = await response.json();
 assert.equal(body.data.report.opportunityId, "opp_f2a64db1164b5263690b");
 assert.equal(body.data.report.provenance.reviewState, "needs_review");
 assert.match(body.data.report.summary, /Official-source research/i);
+assert.ok(["pursue", "research"].includes(body.data.report.decisionBrief.recommendedAction), "PostgreSQL research must return a decision-oriented recommendation");
+assert.ok(body.data.report.nextActions.length >= 1, "PostgreSQL research must return grounded operator next actions");
 response = await request("/api/v1/agent/record-intelligence/opp_f2a64db1164b5263690b", { cookie: ownerCookie });
 assert.equal(response.status, 200);
 body = await response.json();
