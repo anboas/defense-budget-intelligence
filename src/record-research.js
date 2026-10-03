@@ -11,11 +11,23 @@ function clean(value, limit = 500) {
 function safeOfficialUrl(value) {
   try {
     const url = new URL(String(value || ""));
-    if (url.protocol !== "https:") return "";
+    if (url.protocol !== "https:" || url.username || url.password) return "";
     if (!OFFICIAL_DOMAINS.some((domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`))) return "";
+    for (const key of [...url.searchParams.keys()]) {
+      if (/token|key|secret|password|credential|authorization/i.test(key) || /^(?:utm_.+|fbclid|gclid)$/i.test(key)) url.searchParams.delete(key);
+    }
     url.hash = "";
     return url.toString();
   } catch { return ""; }
+}
+
+function cleanResearchText(value, limit) {
+  return clean(value, limit).replace(/https:\/\/[^\s<>"']+/gi, (raw) => {
+    const trailing = raw.match(/[\])},.;:!?]+$/)?.[0] || "";
+    const candidate = trailing ? raw.slice(0, -trailing.length) : raw;
+    const url = safeOfficialUrl(candidate);
+    return url ? `${url}${trailing}` : "";
+  }).replace(/\s+/g, " ").trim();
 }
 
 function responseText(response) {
@@ -135,30 +147,34 @@ function groundedUrls(values, consulted) {
 
 export function normalizeRecordResearch(payload, record, candidates, { model = RECORD_RESEARCH_MODEL, responseId = "", createdAt = new Date().toISOString(), consultedSources = [] } = {}) {
   const candidateIds = new Set(candidates.map((candidate) => candidate.opportunityId));
+  const normalizedSources = [...new Map(consultedSources.map((source) => {
+    const url = safeOfficialUrl(source?.url);
+    return [url, { url, title: cleanResearchText(source?.title, 300) }];
+  }).filter(([url]) => url)).values()];
   const normalizeCited = (items, limit) => (Array.isArray(items) ? items : []).map((item) => ({
-    text: clean(item?.text, 900),
-    sourceUrls: groundedUrls(item?.sourceUrls, consultedSources),
+    text: cleanResearchText(item?.text, 900),
+    sourceUrls: groundedUrls(item?.sourceUrls, normalizedSources),
   })).filter((item) => item.text && item.sourceUrls.length).slice(0, limit);
   const relationships = (Array.isArray(payload?.relationshipProposals) ? payload.relationshipProposals : []).map((item) => ({
     targetId: clean(item?.targetId, 180),
     relationship: RELATIONSHIP_TYPES.has(item?.relationship) ? item.relationship : "related-workstream",
     confidence: ["high", "medium", "low"].includes(item?.confidence) ? item.confidence : "low",
-    rationale: clean(item?.rationale, 1200),
-    sourceUrls: groundedUrls(item?.sourceUrls, consultedSources),
-    caveats: (Array.isArray(item?.caveats) ? item.caveats : []).map((value) => clean(value, 500)).filter(Boolean).slice(0, 8),
+    rationale: cleanResearchText(item?.rationale, 1200),
+    sourceUrls: groundedUrls(item?.sourceUrls, normalizedSources),
+    caveats: (Array.isArray(item?.caveats) ? item.caveats : []).map((value) => cleanResearchText(value, 500)).filter(Boolean).slice(0, 8),
   })).filter((item) => candidateIds.has(item.targetId) && item.rationale && item.sourceUrls.length).slice(0, 8);
   return {
     opportunityId: record.opportunityId,
-    summary: clean(payload?.summary, 1400),
-    stage: clean(payload?.stage, 240),
-    scope: clean(payload?.scope, 1800),
-    incumbentPosture: clean(payload?.incumbentPosture, 900),
+    summary: cleanResearchText(payload?.summary, 1400),
+    stage: cleanResearchText(payload?.stage, 240),
+    scope: cleanResearchText(payload?.scope, 1800),
+    incumbentPosture: cleanResearchText(payload?.incumbentPosture, 900),
     findings: normalizeCited(payload?.findings, 12),
     risks: normalizeCited(payload?.risks, 10),
-    openQuestions: (Array.isArray(payload?.openQuestions) ? payload.openQuestions : []).map((value) => clean(value, 600)).filter(Boolean).slice(0, 12),
+    openQuestions: (Array.isArray(payload?.openQuestions) ? payload.openQuestions : []).map((value) => cleanResearchText(value, 600)).filter(Boolean).slice(0, 12),
     relationshipProposals: relationships,
-    caveats: (Array.isArray(payload?.caveats) ? payload.caveats : []).map((value) => clean(value, 600)).filter(Boolean).slice(0, 10),
-    sources: consultedSources.slice(0, 20),
+    caveats: (Array.isArray(payload?.caveats) ? payload.caveats : []).map((value) => cleanResearchText(value, 600)).filter(Boolean).slice(0, 10),
+    sources: normalizedSources.slice(0, 20),
     provenance: { kind: "openai-web-research", reviewState: "needs_review", model, responseId: clean(responseId, 180), createdAt },
   };
 }
