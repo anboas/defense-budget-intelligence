@@ -27,16 +27,15 @@ export function useProgressiveTimelineRows(records, selectedId, batchSize) {
 
 export function TimelineProgressiveLoader({ rendered, total, batchSize, hasMore, onLoadMore, onShowAll }) {
   const sentinelRef = useRef(null);
-  const sentinelVisibleRef = useRef(false);
-  useEffect(() => { sentinelVisibleRef.current = false; }, [batchSize, total]);
+  const autoLoadedRef = useRef(false);
+  useEffect(() => { autoLoadedRef.current = false; }, [batchSize, total]);
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const root = sentinel?.closest("[data-capture-timeline]");
     if (!sentinel || !root || !hasMore || typeof IntersectionObserver === "undefined") return undefined;
     const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) { sentinelVisibleRef.current = false; return; }
-      if (sentinelVisibleRef.current) return;
-      sentinelVisibleRef.current = true;
+      if (!entry.isIntersecting || autoLoadedRef.current) return;
+      autoLoadedRef.current = true;
       onLoadMore();
     }, { root, rootMargin: "320px 0px", threshold: 0.01 });
     observer.observe(sentinel);
