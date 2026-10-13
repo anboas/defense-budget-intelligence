@@ -92,6 +92,10 @@ export const ACQUISITION_SCHEMA = [
 ];
 
 function parsed(value, fallback) { try { return JSON.parse(value || ""); } catch { return fallback; } }
+function portfolioSource(value) {
+  const source = cleanText(value, 80).toLowerCase();
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(source) ? source : "navy-acquisition-intelligence";
+}
 function view(row) { const spec = parsed(row.query_json, {}); return { id: row.id, name: row.name, query: spec.query || "", filters: spec.filters || {}, alertMode: row.alert_mode, unreadCount: Number(row.unread_count || 0), latestMatchAt: row.latest_match_at || null, lastOpenedAt: row.last_opened_at, savedAt: row.created_at, updatedAt: row.updated_at }; }
 function run(row) { return row ? { id: row.id, source: row.source, status: row.status, trigger: row.trigger_type, recordsSeen: Number(row.records_seen || 0), recordsAdded: Number(row.records_added || 0), recordsUpdated: Number(row.records_updated || 0), linksAdded: Number(row.links_added || 0), errorCode: row.error_code || null, errorMessage: row.error_message || null, startedAt: row.started_at, completedAt: row.completed_at || null } : null; }
 function record(row) { return { ...parsed(row.record_json, {}), firstSeenAt: row.first_seen_at, lastSeenAt: row.last_seen_at, lastChangedAt: row.last_changed_at, removedAt: row.removed_at || null }; }
@@ -343,11 +347,11 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
       const body = await safeJson(request); const metadata = body?.metadata && typeof body.metadata === "object" ? body.metadata : {};
       const expected = Math.min(10_000, Math.max(1, Math.trunc(Number(body?.recordCount || metadata.recordCount || 0))));
       if (!Number.isFinite(expected)) return json({ error: "A valid record count is required" }, 400);
-      const id = crypto.randomUUID(); const now = new Date().toISOString(); const source = "navy-acquisition-intelligence";
+      const id = crypto.randomUUID(); const now = new Date().toISOString(); const source = portfolioSource(body?.source || metadata.source || metadata.sourceId);
       await db.batch([
         db.prepare(`INSERT INTO dbi_acquisition_portfolio_imports
           (id, workspace_id, source, filename, as_of, content_hash, metadata_json, expected_records, imported_records, status, imported_by, created_at)
-          VALUES (?,?,?,?,?,?,?,?,0,'running',?,?)`).bind(id, workspaceId, source, cleanText(body?.filename || metadata.filename || "Navy Acquisition Intelligence.html", 240), cleanText(metadata.asof, 30), cleanText(body?.contentHash, 128), JSON.stringify(metadata), expected, session.user_id, now),
+          VALUES (?,?,?,?,?,?,?,?,0,'running',?,?)`).bind(id, workspaceId, source, cleanText(body?.filename || metadata.filename || "Acquisition portfolio", 240), cleanText(metadata.asof, 30), cleanText(body?.contentHash, 128), JSON.stringify(metadata), expected, session.user_id, now),
         db.prepare(`INSERT INTO dbi_acquisition_refresh_runs
           (id, workspace_id, source, status, trigger_type, metadata_json, started_at) VALUES (?,?,?,'running','manual',?,?)`).bind(id, workspaceId, source, JSON.stringify({ filename: body?.filename || metadata.filename || "", asOf: metadata.asof || null, expectedRecords: expected }), now),
       ]);
