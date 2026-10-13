@@ -1,10 +1,13 @@
-import { automatedSamRecord } from "./procurement-taxonomy.js";
+import { automatedSamRecord, importedManualRecord } from "./procurement-taxonomy.js";
 
 function runtimeRecords(sourceRecords, rows, asOf) {
   const knownNotices = new Set(sourceRecords.flatMap((record) => [record.reference, record.noticeId, record.solicitationNumber]).map((value) => String(value || "").toUpperCase()).filter(Boolean));
   return rows.flatMap((row) => {
     try {
       const notice = JSON.parse(row.record_json || "{}");
+      if (notice.recordKind === "acquisition-portfolio") {
+        return [{ ...importedManualRecord(notice, asOf), firstSeenAt: row.first_seen_at, lastSeenAt: row.last_seen_at, lastChangedAt: row.last_changed_at }];
+      }
       const keys = [notice.noticeId, notice.solicitationNumber].map((value) => String(value || "").toUpperCase()).filter(Boolean);
       if (!keys.length || keys.some((key) => knownNotices.has(key))) return [];
       return [{ ...automatedSamRecord(notice, asOf), firstSeenAt: row.first_seen_at, lastSeenAt: row.last_seen_at, lastChangedAt: row.last_changed_at }];
