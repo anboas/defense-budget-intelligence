@@ -50,6 +50,31 @@ function ResearchReport({ report }) {
   </article>;
 }
 
+function AcquisitionPortfolioDetail({ record }) {
+  const intel = record.acquisitionIntel;
+  if (!intel) return null;
+  const factors = Object.entries(intel.factors || {}).filter(([, value]) => value && typeof value === "object");
+  return <section className="record-page__facts record-page__acquisition" data-acquisition-intelligence>
+    <header><SearchCheck size={18} /><span><strong>Acquisition intelligence</strong><small>Lossless source-row detail projected into the Defense Intelligence workspace.</small></span></header>
+    <ControlFactGrid label="Acquisition screening facts" mobileTwoColumn items={[
+      { label: "Source / edition", value: intel.sourceName || record.portfolio, meta: [intel.sourceEdition, intel.sourceDate].filter(Boolean).join(" · ") || "Edition not published", wide: true },
+      { label: "Priority / score", value: intel.priority ? `P${intel.priority}` : "Not assessed", meta: intel.score == null ? "Score not assessed" : `${intel.score}/100 rules-based screen` },
+      { label: "Set-aside / route", value: intel.setaside || "Not published", meta: intel.route || "Route not assessed" },
+      { label: "Organization / customer", value: intel.organization || "Not published", meta: intel.customer || "Customer not published", wide: true },
+      { label: "Incumbent / counterparty", value: intel.incumbent || intel.researchCounterparty || "Not established", meta: intel.contract || "Contract reference not established", wide: true },
+      { label: "Forecast timing", value: intel.rfp || "RFP not published", meta: intel.award ? `Award ${intel.award}` : "Award not published" },
+      { label: "Value / period", value: intel.value || "Not published", meta: [intel.valueKind, intel.pop].filter(Boolean).join(" · ") || "Basis not published" },
+      { label: "Timing evidence", value: intel.timingQuality || "Not assessed", meta: intel.timingStatus || "Status not assessed" },
+    ]} />
+    {factors.length ? <div className="record-page__research-report record-page__factor-grid">{factors.map(([key, factor]) => <article key={key}><small>{key}</small><strong>{factor.label || "Not assessed"}{factor.score != null ? ` · ${factor.score}/${factor.max || 40}` : ""}</strong><p>{factor.basis || "No basis published."}</p></article>)}</div> : null}
+    {intel.factors?.gate ? <p className="record-page__gate"><strong>Qualification gate:</strong> {intel.factors.gate}</p> : null}
+    {intel.nextAction ? <p><strong>Next action:</strong> {intel.nextAction}</p> : null}
+    {intel.lineage?.length ? <div className="record-page__research-report record-page__lineage"><h3>Contract lineage</h3>{intel.lineage.map((stage, index) => <article key={`${stage.stage}-${index}`}><small>{stage.stage}</small><strong>{stage.title || stage.identifier || "Unresolved stage"}</strong><span>{[stage.identifier, stage.party, stage.status].filter(Boolean).join(" · ")}</span><p>{stage.note}</p>{stage.url ? <a href={stage.url} target="_blank" rel="noreferrer">Source evidence<ExternalLink size={12} /></a> : null}</article>)}</div> : null}
+    {intel.supportingDocuments || intel.documentFindingsText ? <div className="record-page__documents"><h3>Supporting documents</h3>{intel.supportingDocuments ? <p>{intel.supportingDocuments}</p> : null}{intel.documentFindingsText ? <p>{intel.documentFindingsText}</p> : null}</div> : null}
+    {intel.flags?.length ? <p className="record-page__caveats"><strong>Evidence flags:</strong> {intel.flags.join(" · ")}</p> : null}
+  </section>;
+}
+
 export default function OpportunityRecordPage({ records = [], recordId = "", tabs = null }) {
   const record = records.find((candidate) => candidate.opportunityId === recordId);
   const management = useManagementState(records);
@@ -61,10 +86,11 @@ export default function OpportunityRecordPage({ records = [], recordId = "", tab
   const relationshipCount = past.length + future.length;
   const lifecycleLabel = String(record.lifecycleStatus || (record.active ? "active" : "published")).replaceAll("-", " ");
   const decisionDate = record.mode === "acquisition-window" ? record.solicitationEnd : record.currentEnd;
+  const importedPortfolio = record.recordKind === "acquisition-portfolio";
   const recordMetrics = [
     { id: "status", label: "Lifecycle status", value: lifecycleLabel, meta: record.mode === "acquisition-window" ? samNoticeTypeLabel(record.noticeType) : "Active contract work" },
-    { id: "date", label: record.mode === "acquisition-window" ? "Response deadline" : "Reported current end", value: date(decisionDate), meta: record.potentialEnd ? `Potential through ${date(record.potentialEnd)}` : "No later date published" },
-    { id: "value", label: "Observed value", value: money(record.obligatedAmount), meta: record.potentialAmount ? `${money(record.potentialAmount)} potential` : "No potential value published" },
+    { id: "date", label: importedPortfolio ? "Forecast award" : record.mode === "acquisition-window" ? "Response deadline" : "Reported current end", value: date(decisionDate), meta: importedPortfolio && record.solicitationStart ? `Forecast RFP ${date(record.solicitationStart)}` : record.potentialEnd ? `Potential through ${date(record.potentialEnd)}` : "No later date published" },
+    { id: "value", label: importedPortfolio ? "Notional value" : "Observed value", value: money(importedPortfolio ? record.valueHigh : record.obligatedAmount), meta: importedPortfolio ? record.acquisitionIntel?.valueKind || "Forecast value; not additive" : record.potentialAmount ? `${money(record.potentialAmount)} potential` : "No potential value published" },
     { id: "evidence", label: "Evidence", value: record.evidenceTier || "Unclassified", meta: `${record.sourceUrls?.length || 0} retained source link${record.sourceUrls?.length === 1 ? "" : "s"}` },
   ];
   const facts = [
@@ -80,6 +106,7 @@ export default function OpportunityRecordPage({ records = [], recordId = "", tab
       <header><div><Link2 size={18} /><span><strong>Acquisition lifecycle</strong><small>{relationshipCount ? `${relationshipCount} source-backed relationship${relationshipCount === 1 ? "" : "s"}; every record remains independently inspectable.` : "No predecessor or follow-on has been linked yet."}</small></span></div><a className="if-btn if-btn--secondary" href={`#/budget-spend/explorer?spendView=timeline&capLink=1&capSeed=${encodeURIComponent(recordId)}`}>{relationshipCount ? "Review links" : "Find related records"}</a></header>
       {relationshipCount ? <div className="record-page__lifecycle-grid"><section><h3>Past / incumbent</h3>{past.length ? past.map(({ relationship, related }) => <RelationshipCard key={relationship.id} relationship={relationship} related={related} direction="past" onRemove={intelligence.canWrite ? intelligence.removeRelationship : null} />) : <p>No predecessor link has been established.</p>}</section><section className="is-current"><h3>This record</h3><article><CalendarClock size={18} /><strong>{record.title}</strong><span>{record.id || record.reference}</span></article></section><section><h3>Future / follow-on</h3>{future.length ? future.map(({ relationship, related }) => <RelationshipCard key={relationship.id} relationship={relationship} related={related} direction="future" onRemove={intelligence.canWrite ? intelligence.removeRelationship : null} />) : <p>No follow-on link has been established.</p>}</section></div> : null}
     </section>
+    <AcquisitionPortfolioDetail record={record} />
     <div className="record-page__body"><section className="record-page__facts"><header><SearchCheck size={18} /><span><strong>Published record</strong><small>Fields retained from authoritative and normalized sources.</small></span></header><ControlFactGrid label="Published record facts" mobileTwoColumn items={facts} />{record.events?.length ? <div className="record-page__events"><h3>Event ledger</h3>{record.events.map((event) => <article key={event.eventId}><strong>{event.label}</strong><span>{date(event.start)}{event.end && event.end !== event.start ? ` to ${date(event.end)}` : ""}</span><small>{event.isForecast ? "Forecast" : "Reported"} · {event.status || "status not published"}</small></article>)}</div> : null}<div className="record-page__sources">{record.sourceUrls?.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Official source {index + 1}<ExternalLink size={13} /></a>)}</div></section><section className="record-page__research"><header><Sparkles size={18} /><span><strong>AI research brief</strong><small>Official-source web research with cited findings and review-required relationship proposals.</small></span></header><ResearchReport report={intelligence.reports[0]} /></section></div>
   </div>;
 }
