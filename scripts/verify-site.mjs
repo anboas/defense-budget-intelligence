@@ -1605,14 +1605,14 @@ try {
   await page.getByRole("button", { name: "Controls", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Grouping:/ }).click();
-  assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 15, "Gantt should expose decision-priority grouping alongside the fourteen factual grouping modes");
+  assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 20, "Gantt should expose decision-priority grouping alongside acquisition source, work area, route, priority, set-aside, and the existing factual modes");
   await page.getByRole("option", { name: "Decision priority" }).click();
   await page.getByRole("button", { name: /^Bar labels:/ }).click();
   assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 6, "Gantt should expose six bar-label modes");
   await page.getByRole("option", { name: "Date ranges" }).click();
   assert.equal(await page.locator("[data-capture-gantt-dialog] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
   await page.locator("[data-capture-field-picker] summary").click();
-  assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 15, "Gantt should expose fifteen configurable row fields");
+  assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 20, "Gantt should expose the existing row fields plus acquisition source, work area, route, priority/score, and set-aside");
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "FPDS action count" }).check();
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "Award / notice reference" }).check();
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "Potential / high value" }).check();

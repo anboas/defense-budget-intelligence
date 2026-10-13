@@ -335,6 +335,98 @@ export function registerAcquisitionRuntimeRoutes(app, pool, deps) {
     const result = await pool.query("DELETE FROM app_acquisition_saved_views WHERE id = $1 AND workspace_id = $2 AND user_id = $3", [request.params.id, current.workspaceId, current.user.user_id]);
     return result.rowCount ? reply.code(204).send() : reply.code(404).send({ error: "saved view not found" });
   });
+  app.get("/api/v1/auth/acquisition/portfolio-imports/current", async (request, reply) => {
+    const current = await context(request, reply); if (!current) return;
+    const result = await pool.query("SELECT * FROM app_acquisition_portfolio_imports WHERE workspace_id = $1 AND status = 'succeeded' ORDER BY completed_at DESC LIMIT 1", [current.workspaceId]);
+    const row = result.rows[0];
+    return { portfolioImport: row ? { id: row.id, source: row.source, filename: row.filename, asOf: row.as_of || null, contentHash: row.content_hash || null, metadata: row.metadata_json || {}, recordCount: Number(row.imported_records || 0), importedBy: row.imported_by, createdAt: row.created_at, completedAt: row.completed_at } : null };
+  });
+  app.post("/api/v1/auth/acquisition/portfolio-imports", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const current = await context(request, reply); if (!current) return;
+    const canWrite = !current.user.is_emulating && (current.user.role === "super_user" || ["administrator", "analyst"].includes(current.user.membership_role));
+    if (!canWrite) return reply.code(403).send({ error: "workspace analyst access is required" });
+    const metadata = request.body?.metadata && typeof request.body.metadata === "object" ? request.body.metadata : {};
+    const expected = Math.min(10_000, Math.max(1, Math.trunc(Number(request.body?.recordCount || metadata.recordCount || 0))));
+    if (!Number.isFinite(expected)) return reply.code(400).send({ error: "a valid record count is required" });
+    const id = randomUUID(); const source = "navy-acquisition-intelligence"; const filename = cleanText(request.body?.filename || metadata.filename || "Navy Acquisition Intelligence.html", 240);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`INSERT INTO app_acquisition_portfolio_imports
+        (id, workspace_id, source, filename, as_of, content_hash, metadata_json, expected_records, imported_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)`, [id, current.workspaceId, source, filename, metadata.asof || null, cleanText(request.body?.contentHash, 128) || null, JSON.stringify(metadata), expected, current.user.user_id]);
+      await client.query(`INSERT INTO app_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type, metadata_json)
+        VALUES ($1,$2,$3,'running','manual',$4::jsonb)`, [id, current.workspaceId, source, JSON.stringify({ filename, asOf: metadata.asof || null, expectedRecords: expected })]);
+      await client.query("COMMIT");
+      return reply.code(201).send({ portfolioImport: { id, source, expectedRecords: expected, importedRecords: 0, status: "running" } });
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  });
+  app.post("/api/v1/auth/acquisition/portfolio-imports/:id/records", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const current = await context(request, reply); if (!current) return;
+    const canWrite = !current.user.is_emulating && (current.user.role === "super_user" || ["administrator", "analyst"].includes(current.user.membership_role));
+    if (!canWrite) return reply.code(403).send({ error: "workspace analyst access is required" });
+    const records = Array.isArray(request.body?.records) ? request.body.records : [];
+    if (!records.length || records.length > 25) return reply.code(400).send({ error: "each import batch must contain 1 to 25 records" });
+    const active = await pool.query("SELECT * FROM app_acquisition_portfolio_imports WHERE id = $1 AND workspace_id = $2 AND status = 'running'", [request.params.id, current.workspaceId]);
+    if (!active.rowCount) return reply.code(404).send({ error: "portfolio import not found or no longer active" });
+    const ids = records.map((record) => cleanText(record?.sourceRecordId || record?.id, 180));
+    if (ids.some((id) => !id) || new Set(ids).size !== ids.length) return reply.code(400).send({ error: "every batch record requires a unique sourceRecordId" });
+    const client = await pool.connect(); let added = 0; let updated = 0;
+    try {
+      await client.query("BEGIN");
+      for (const [index, raw] of records.entries()) {
+        const sourceRecordId = ids[index]; const normalized = { ...raw, recordKind: "acquisition-portfolio", portfolioImportId: request.params.id, sourceRecordId, lastSeenAt: new Date().toISOString() };
+        const hashRecord = { ...normalized }; delete hashRecord.portfolioImportId; delete hashRecord.lastSeenAt; delete hashRecord.firstSeenAt; delete hashRecord.lastChangedAt;
+        const hash = await sha256(stableJson(hashRecord));
+        const previous = await client.query("SELECT content_hash, record_json FROM app_acquisition_records WHERE workspace_id = $1 AND source = $2 AND source_record_id = $3", [current.workspaceId, active.rows[0].source, sourceRecordId]);
+        const changed = !previous.rowCount || previous.rows[0].content_hash !== hash;
+        if (changed) {
+          if (previous.rowCount) updated += 1; else added += 1;
+          await client.query(`INSERT INTO app_acquisition_observations
+            (id, workspace_id, source, source_record_id, refresh_run_id, content_hash, record_json) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb) ON CONFLICT DO NOTHING`, [randomUUID(), current.workspaceId, active.rows[0].source, sourceRecordId, request.params.id, hash, JSON.stringify(normalized)]);
+          await client.query(`INSERT INTO app_acquisition_changes
+            (id, workspace_id, source, source_record_id, refresh_run_id, change_type, changed_fields_json) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)`, [randomUUID(), current.workspaceId, active.rows[0].source, sourceRecordId, request.params.id, previous.rowCount ? "updated" : "added", JSON.stringify(previous.rowCount ? changedFields(previous.rows[0].record_json, normalized) : [])]);
+        }
+        await client.query(`INSERT INTO app_acquisition_records
+          (workspace_id, source, source_record_id, solicitation_number, lifecycle_stage, content_hash, record_json, first_seen_at, last_seen_at, last_changed_at, removed_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,NOW(),NOW(),NOW(),NULL) ON CONFLICT (workspace_id, source, source_record_id) DO UPDATE SET
+          solicitation_number = EXCLUDED.solicitation_number, lifecycle_stage = EXCLUDED.lifecycle_stage, content_hash = EXCLUDED.content_hash,
+          record_json = EXCLUDED.record_json, last_seen_at = NOW(), last_changed_at = CASE WHEN app_acquisition_records.content_hash <> EXCLUDED.content_hash THEN NOW() ELSE app_acquisition_records.last_changed_at END, removed_at = NULL`,
+        [current.workspaceId, active.rows[0].source, sourceRecordId, normalized.solicitationNumber || null, normalized.lifecycleStage || "forecast", hash, JSON.stringify(normalized)]);
+      }
+      const count = await client.query("SELECT COUNT(*)::int AS total FROM app_acquisition_records WHERE workspace_id = $1 AND source = $2 AND record_json->>'portfolioImportId' = $3", [current.workspaceId, active.rows[0].source, request.params.id]);
+      const progress = await client.query("UPDATE app_acquisition_portfolio_imports SET imported_records = $1 WHERE id = $2 RETURNING expected_records, imported_records", [Number(count.rows[0]?.total || 0), request.params.id]);
+      await client.query("COMMIT");
+      return { portfolioImport: { id: request.params.id, expectedRecords: Number(progress.rows[0].expected_records), importedRecords: Number(progress.rows[0].imported_records), status: "running" }, batch: { added, updated } };
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  });
+  app.post("/api/v1/auth/acquisition/portfolio-imports/:id/complete", async (request, reply) => {
+    if (!assertSameOrigin(request, reply)) return;
+    const current = await context(request, reply); if (!current) return;
+    const canWrite = !current.user.is_emulating && (current.user.role === "super_user" || ["administrator", "analyst"].includes(current.user.membership_role));
+    if (!canWrite) return reply.code(403).send({ error: "workspace analyst access is required" });
+    const active = await pool.query("SELECT * FROM app_acquisition_portfolio_imports WHERE id = $1 AND workspace_id = $2 AND status = 'running'", [request.params.id, current.workspaceId]);
+    if (!active.rowCount) return reply.code(404).send({ error: "portfolio import not found or no longer active" });
+    const currentImport = active.rows[0];
+    if (Number(currentImport.imported_records) !== Number(currentImport.expected_records)) return reply.code(409).send({ error: `import is incomplete: ${currentImport.imported_records} of ${currentImport.expected_records} records received` });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const removed = await client.query(`UPDATE app_acquisition_records SET removed_at = NOW() WHERE workspace_id = $1 AND source = $2 AND removed_at IS NULL
+        AND COALESCE(record_json->>'portfolioImportId','') <> $3`, [current.workspaceId, currentImport.source, request.params.id]);
+      await client.query("UPDATE app_acquisition_portfolio_imports SET status = 'succeeded', completed_at = NOW() WHERE id = $1", [request.params.id]);
+      await client.query(`UPDATE app_acquisition_refresh_runs SET status = 'succeeded', records_seen = $1,
+        records_added = (SELECT COUNT(*) FROM app_acquisition_changes WHERE refresh_run_id = $2 AND change_type = 'added'),
+        records_updated = (SELECT COUNT(*) FROM app_acquisition_changes WHERE refresh_run_id = $2 AND change_type = 'updated'), completed_at = NOW() WHERE id = $2`, [currentImport.imported_records, request.params.id]);
+      await client.query("COMMIT");
+      return { portfolioImport: { id: request.params.id, status: "succeeded", recordCount: Number(currentImport.imported_records), removedRecords: removed.rowCount } };
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  });
   app.get("/api/v1/auth/acquisition/records", async (request, reply) => {
     const current = await context(request, reply); if (!current) return;
     const requestedLimit = Number(request.query?.limit || 500); const requestedOffset = Number(request.query?.offset || 0);

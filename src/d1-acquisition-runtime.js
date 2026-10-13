@@ -45,6 +45,11 @@ export const ACQUISITION_SCHEMA = [
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_records_workspace ON dbi_acquisition_records (workspace_id, last_changed_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_records_active ON dbi_acquisition_records (workspace_id, removed_at, last_changed_at DESC)",
   "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_records_solicitation ON dbi_acquisition_records (workspace_id, solicitation_number)",
+  `CREATE TABLE IF NOT EXISTS dbi_acquisition_portfolio_imports (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source TEXT NOT NULL,
+    filename TEXT NOT NULL, as_of TEXT NOT NULL DEFAULT '', content_hash TEXT NOT NULL DEFAULT '', metadata_json TEXT NOT NULL DEFAULT '{}',
+    expected_records INTEGER NOT NULL DEFAULT 0, imported_records INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'running',
+    imported_by TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT NOT NULL DEFAULT '')`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_acquisition_portfolio_imports_workspace ON dbi_acquisition_portfolio_imports (workspace_id, created_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_acquisition_observations (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source TEXT NOT NULL, source_record_id TEXT NOT NULL,
     refresh_run_id TEXT NOT NULL, content_hash TEXT NOT NULL, record_json TEXT NOT NULL, observed_at TEXT NOT NULL,
     UNIQUE (workspace_id, source, source_record_id, content_hash))`,
@@ -327,6 +332,82 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
   const url = new URL(request.url); const prefix = "/api/v1/auth/acquisition"; const segments = url.pathname.slice(prefix.length).split("/").filter(Boolean).map(decodeURIComponent);
   if (request.method !== "GET" && !sameOriginRequest(request)) return json({ error: "Cross-origin acquisition changes are not allowed" }, 403);
   if (request.method === "GET" && segments[0] === "status") return json(await status(db, workspaceId));
+  if (segments[0] === "portfolio-imports") {
+    const canWrite = !session.is_emulating && (session.role === "super_user" || ["administrator", "analyst"].includes(session.membership_role));
+    if (request.method === "GET" && segments[1] === "current") {
+      const row = await db.prepare("SELECT * FROM dbi_acquisition_portfolio_imports WHERE workspace_id = ? AND status = 'succeeded' ORDER BY completed_at DESC LIMIT 1").bind(workspaceId).first();
+      return json({ portfolioImport: row ? { id: row.id, source: row.source, filename: row.filename, asOf: row.as_of || null, contentHash: row.content_hash || null, metadata: parsed(row.metadata_json, {}), recordCount: Number(row.imported_records || 0), importedBy: row.imported_by, createdAt: row.created_at, completedAt: row.completed_at } : null });
+    }
+    if (!canWrite) return json({ error: "Workspace analyst access is required" }, 403);
+    if (request.method === "POST" && !segments[1]) {
+      const body = await safeJson(request); const metadata = body?.metadata && typeof body.metadata === "object" ? body.metadata : {};
+      const expected = Math.min(10_000, Math.max(1, Math.trunc(Number(body?.recordCount || metadata.recordCount || 0))));
+      if (!Number.isFinite(expected)) return json({ error: "A valid record count is required" }, 400);
+      const id = crypto.randomUUID(); const now = new Date().toISOString(); const source = "navy-acquisition-intelligence";
+      await db.batch([
+        db.prepare(`INSERT INTO dbi_acquisition_portfolio_imports
+          (id, workspace_id, source, filename, as_of, content_hash, metadata_json, expected_records, imported_records, status, imported_by, created_at)
+          VALUES (?,?,?,?,?,?,?,?,0,'running',?,?)`).bind(id, workspaceId, source, cleanText(body?.filename || metadata.filename || "Navy Acquisition Intelligence.html", 240), cleanText(metadata.asof, 30), cleanText(body?.contentHash, 128), JSON.stringify(metadata), expected, session.user_id, now),
+        db.prepare(`INSERT INTO dbi_acquisition_refresh_runs
+          (id, workspace_id, source, status, trigger_type, metadata_json, started_at) VALUES (?,?,?,'running','manual',?,?)`).bind(id, workspaceId, source, JSON.stringify({ filename: body?.filename || metadata.filename || "", asOf: metadata.asof || null, expectedRecords: expected }), now),
+      ]);
+      return json({ portfolioImport: { id, source, expectedRecords: expected, importedRecords: 0, status: "running" } }, 201);
+    }
+    if (request.method === "POST" && segments[1] && segments[2] === "records") {
+      const importId = cleanText(segments[1], 80); const body = await safeJson(request); const records = Array.isArray(body?.records) ? body.records : [];
+      if (!records.length || records.length > 25) return json({ error: "Each import batch must contain 1 to 25 records" }, 400);
+      const activeImport = await db.prepare("SELECT * FROM dbi_acquisition_portfolio_imports WHERE id = ? AND workspace_id = ? AND status = 'running'").bind(importId, workspaceId).first();
+      if (!activeImport) return json({ error: "Portfolio import not found or no longer active" }, 404);
+      const now = new Date().toISOString(); const source = activeImport.source; const ids = records.map((item) => cleanText(item?.sourceRecordId || item?.id, 180));
+      if (ids.some((id) => !id) || new Set(ids).size !== ids.length) return json({ error: "Every batch record requires a unique sourceRecordId" }, 400);
+      const placeholders = ids.map(() => "?").join(",");
+      const existing = await db.prepare(`SELECT source_record_id, content_hash, record_json FROM dbi_acquisition_records WHERE workspace_id = ? AND source = ? AND source_record_id IN (${placeholders})`).bind(workspaceId, source, ...ids).all();
+      const previous = new Map((existing.results || []).map((row) => [row.source_record_id, row])); const statements = []; let added = 0; let updated = 0;
+      for (const [index, raw] of records.entries()) {
+        const sourceRecordId = ids[index]; const normalized = { ...raw, recordKind: "acquisition-portfolio", portfolioImportId: importId, sourceRecordId, lastSeenAt: now };
+        const hashRecord = { ...normalized }; delete hashRecord.portfolioImportId; delete hashRecord.lastSeenAt; delete hashRecord.firstSeenAt; delete hashRecord.lastChangedAt;
+        const hash = await sha256(stableJson(hashRecord)); const prior = previous.get(sourceRecordId); const changed = !prior || prior.content_hash !== hash;
+        if (changed) {
+          if (prior) updated += 1; else added += 1;
+          statements.push(db.prepare(`INSERT OR IGNORE INTO dbi_acquisition_observations
+            (id, workspace_id, source, source_record_id, refresh_run_id, content_hash, record_json, observed_at) VALUES (?,?,?,?,?,?,?,?)`)
+            .bind(crypto.randomUUID(), workspaceId, source, sourceRecordId, importId, hash, JSON.stringify(normalized), now));
+          statements.push(db.prepare(`INSERT INTO dbi_acquisition_changes
+            (id, workspace_id, source, source_record_id, refresh_run_id, change_type, changed_fields_json, changed_at) VALUES (?,?,?,?,?,?,?,?)`)
+            .bind(crypto.randomUUID(), workspaceId, source, sourceRecordId, importId, prior ? "updated" : "added", JSON.stringify(prior ? changedFields(parsed(prior.record_json, {}), normalized) : []), now));
+        }
+        statements.push(db.prepare(`INSERT INTO dbi_acquisition_records
+          (workspace_id, source, source_record_id, solicitation_number, lifecycle_stage, content_hash, record_json, first_seen_at, last_seen_at, last_changed_at, removed_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?, '') ON CONFLICT(workspace_id, source, source_record_id) DO UPDATE SET
+          solicitation_number = excluded.solicitation_number, lifecycle_stage = excluded.lifecycle_stage, content_hash = excluded.content_hash,
+          record_json = excluded.record_json, last_seen_at = excluded.last_seen_at,
+          last_changed_at = CASE WHEN dbi_acquisition_records.content_hash <> excluded.content_hash THEN excluded.last_changed_at ELSE dbi_acquisition_records.last_changed_at END, removed_at = ''`)
+          .bind(workspaceId, source, sourceRecordId, cleanText(normalized.solicitationNumber, 180), cleanText(normalized.lifecycleStage || "forecast", 80), hash, JSON.stringify(normalized), normalized.firstSeenAt || now, now, now));
+      }
+      await db.batch(statements);
+      const imported = await db.prepare("SELECT COUNT(*) AS total FROM dbi_acquisition_records WHERE workspace_id = ? AND source = ? AND json_extract(record_json, '$.portfolioImportId') = ?").bind(workspaceId, source, importId).first();
+      await db.prepare("UPDATE dbi_acquisition_portfolio_imports SET imported_records = ? WHERE id = ?").bind(Number(imported?.total || 0), importId).run();
+      const progress = await db.prepare("SELECT expected_records, imported_records FROM dbi_acquisition_portfolio_imports WHERE id = ?").bind(importId).first();
+      return json({ portfolioImport: { id: importId, expectedRecords: Number(progress.expected_records), importedRecords: Number(progress.imported_records), status: "running" }, batch: { added, updated } });
+    }
+    if (request.method === "POST" && segments[1] && segments[2] === "complete") {
+      const importId = cleanText(segments[1], 80); const current = await db.prepare("SELECT * FROM dbi_acquisition_portfolio_imports WHERE id = ? AND workspace_id = ? AND status = 'running'").bind(importId, workspaceId).first();
+      if (!current) return json({ error: "Portfolio import not found or no longer active" }, 404);
+      if (Number(current.imported_records) !== Number(current.expected_records)) return json({ error: `Import is incomplete: ${current.imported_records} of ${current.expected_records} records received` }, 409);
+      const now = new Date().toISOString();
+      const result = await db.prepare(`UPDATE dbi_acquisition_records SET removed_at = ? WHERE workspace_id = ? AND source = ? AND removed_at = ''
+        AND COALESCE(json_extract(record_json, '$.portfolioImportId'), '') <> ?`).bind(now, workspaceId, current.source, importId).run();
+      await db.batch([
+        db.prepare("UPDATE dbi_acquisition_portfolio_imports SET status = 'succeeded', completed_at = ? WHERE id = ?").bind(now, importId),
+        db.prepare(`UPDATE dbi_acquisition_refresh_runs SET status = 'succeeded', records_seen = ?, records_added =
+          (SELECT COUNT(*) FROM dbi_acquisition_changes WHERE refresh_run_id = ? AND change_type = 'added'), records_updated =
+          (SELECT COUNT(*) FROM dbi_acquisition_changes WHERE refresh_run_id = ? AND change_type = 'updated'), completed_at = ? WHERE id = ?`)
+          .bind(current.imported_records, importId, importId, now, importId),
+      ]);
+      return json({ portfolioImport: { id: importId, status: "succeeded", recordCount: Number(current.imported_records), removedRecords: Number(result.meta?.changes || 0), completedAt: now } });
+    }
+    return json({ error: "Method not allowed" }, 405);
+  }
   if (segments[0] === "delivery-preferences") {
     if (request.method === "GET") return json({ preferences: await d1DeliveryPreferences(db, workspaceId, session.user_id) });
     if (request.method !== "PATCH") return json({ error: "Method not allowed" }, 405);

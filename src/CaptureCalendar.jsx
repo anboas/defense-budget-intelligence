@@ -93,6 +93,7 @@ const GROUP_BY_OPTIONS = [
   ["ingestion-source", "Ingestion provenance"],
   ["change-status", "Changed since refresh"],
   ["subaward-posture", "Subaward posture"],
+  ["acquisition-source", "Acquisition source"], ["acquisition-area", "Acquisition work area"], ["acquisition-route", "Acquisition access route"], ["acquisition-priority", "Acquisition priority"], ["set-aside", "Set-aside"],
 ];
 
 const ROW_FIELD_OPTIONS = [
@@ -111,6 +112,7 @@ const ROW_FIELD_OPTIONS = [
   ["ingestion-source", "Ingestion provenance"],
   ["change-status", "Change status"],
   ["subawards", "Subaward count / value"],
+  ["acquisition-source", "Acquisition source"], ["acquisition-area", "Acquisition work area"], ["acquisition-route", "Acquisition access route"], ["acquisition-score", "Acquisition priority / score"], ["set-aside", "Set-aside"],
 ];
 
 const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
@@ -732,6 +734,9 @@ function timelineGroupValue(record, groupBy, asOf) {
   if (groupBy === "ingestion-source") return record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || "Provenance not published";
   if (groupBy === "change-status") return record.changeStatus === "unchanged" ? "Unchanged in latest comparison" : `${label(record.changeStatus)} in latest comparison`;
   if (groupBy === "subaward-posture") return record.subawardSummary?.reportedCount ? "Has reported subawards" : "No reported subawards in current snapshot";
+  if (groupBy === "acquisition-source") return record.recordKind === "acquisition-portfolio" ? record.portfolio : "Other Defense Intelligence source";
+  if (groupBy === "acquisition-area") return record.acquisitionArea || "Acquisition work area not assessed"; if (groupBy === "acquisition-route") return record.acquisitionRoute || "Acquisition access route not assessed";
+  if (groupBy === "acquisition-priority") return record.acquisitionPriority ? `P${record.acquisitionPriority}` : "Acquisition priority not assessed"; if (groupBy === "set-aside") return record.setAside || "Set-aside not published";
   if (groupBy === "end-year") {
     const reportedEnd = record.currentEnd || (finalDate(record) === "0000-01-01" ? "" : finalDate(record));
     return reportedEnd ? reportedEnd.slice(0, 4) : "End year not published";
@@ -755,6 +760,9 @@ function timelineFieldValue(record, field) {
   if (field === "ingestion-source") return record.ingestionLabel || INGESTION_METHOD_BY_ID.get(record.ingestionMethod)?.label || "Provenance not published";
   if (field === "change-status") return record.changeStatus === "unchanged" ? "No detected change" : `${label(record.changeStatus)} · ${record.changeSourceSystem}`;
   if (field === "subawards") return record.subawardSummary?.reportedCount ? `${record.subawardSummary.reportedCount.toLocaleString()} subawards · ${formatMoney(record.subawardSummary.sampledAmount)} sampled` : "No reported subawards";
+  if (field === "acquisition-source") return record.recordKind === "acquisition-portfolio" ? record.portfolio : "Other Defense Intelligence source";
+  if (field === "acquisition-area") return record.acquisitionArea || "Work area not assessed"; if (field === "acquisition-route") return record.acquisitionRoute || "Access route not assessed";
+  if (field === "acquisition-score") return record.acquisitionPriority ? `P${record.acquisitionPriority} · ${record.acquisitionScore ?? "—"}/100` : "Priority not assessed"; if (field === "set-aside") return record.setAside || "Set-aside not published";
   return null;
 }
 

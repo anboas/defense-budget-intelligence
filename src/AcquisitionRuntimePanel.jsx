@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Database, RefreshCw, Settings2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Database, FileUp, RefreshCw, Settings2 } from "lucide-react";
 import { ControlAsyncState, ControlDialog } from "control-surface-ui/react";
 import { useAuth } from "./AuthContext.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { parseAcquisitionPortfolioHtml } from "./acquisition-portfolio-import.js";
 
 const NOTICE_TYPES = [
   ["p", "Pre-solicitation"], ["a", "Award"], ["r", "Sources sought"], ["s", "Special notice"], ["o", "Solicitation"],
@@ -14,9 +15,13 @@ function when(value) { const date = new Date(value || ""); return Number.isNaN(d
 
 export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
   const auth = useAuth(); const available = Boolean(auth?.enabled && auth?.user && !auth?.staticHost); const canManage = Boolean(auth?.user?.canManageWorkspace);
-  const workspaceId = auth?.user?.activeWorkspace?.id || "workspace"; const dialogRef = useRef(null);
-  const [status, setStatus] = useState(null); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [configOpen, setConfigOpen] = useState(false); const [draft, setDraft] = useState(null);
-  const load = useCallback(async () => { if (!available) return; setStatus(await auth.getAcquisitionStatus()); setError(""); }, [auth, available]);
+  const workspaceId = auth?.user?.activeWorkspace?.id || "workspace"; const dialogRef = useRef(null); const importInputRef = useRef(null);
+  const [status, setStatus] = useState(null); const [portfolioImport, setPortfolioImport] = useState(null); const [importProgress, setImportProgress] = useState(null); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [configOpen, setConfigOpen] = useState(false); const [draft, setDraft] = useState(null);
+  const load = useCallback(async () => {
+    if (!available) return;
+    const [nextStatus, imported] = await Promise.all([auth.getAcquisitionStatus(), auth.getCurrentAcquisitionPortfolioImport()]);
+    setStatus(nextStatus); setPortfolioImport(imported.portfolioImport || null); setError("");
+  }, [auth, available]);
   const refresh = useCallback(async (trigger = "manual") => {
     setBusy(true); setError("");
     try { const result = await auth.refreshAcquisitionSource(trigger); await load(); await onRefreshComplete?.(result); }
@@ -52,6 +57,28 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
     catch (requestError) { setError(requestError.message); }
     finally { setBusy(false); }
   };
+  const importPortfolio = async (event) => {
+    const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
+    setBusy(true); setError(""); setImportProgress({ imported: 0, total: 0, label: "Reading portfolio" });
+    try {
+      const text = await file.text();
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      const contentHash = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+      const parsed = parseAcquisitionPortfolioHtml(text, { filename: file.name });
+      setImportProgress({ imported: 0, total: parsed.records.length, label: "Importing records" });
+      const started = await auth.startAcquisitionPortfolioImport({ filename: file.name, contentHash, recordCount: parsed.records.length, metadata: parsed.metadata });
+      const id = started.portfolioImport.id;
+      for (let index = 0; index < parsed.records.length; index += 25) {
+        const batch = parsed.records.slice(index, index + 25);
+        await auth.uploadAcquisitionPortfolioRecords(id, batch);
+        setImportProgress({ imported: Math.min(index + batch.length, parsed.records.length), total: parsed.records.length, label: "Importing records" });
+      }
+      await auth.completeAcquisitionPortfolioImport(id);
+      setImportProgress({ imported: parsed.records.length, total: parsed.records.length, label: "Import complete" });
+      await load(); await onRefreshComplete?.({ portfolioImport: { id, recordCount: parsed.records.length } });
+    } catch (requestError) { setError(requestError.message); }
+    finally { setBusy(false); }
+  };
   const numberField = (key, label, hint, min, max, step = 1) => <label className="if-field"><span className="if-field__label">{label}</span><input className="if-input" type="number" min={min} max={max} step={step} value={draft?.[key] ?? ""} onChange={(event) => setDraft((current) => ({ ...current, [key]: Number(event.target.value) }))} /><small className="if-field__hint">{hint}</small></label>;
   return <>
     <details className="acquisition-runtime" data-acquisition-runtime>
@@ -61,8 +88,11 @@ export default function AcquisitionRuntimePanel({ onRefreshComplete }) {
         <div className="acquisition-runtime__status">
           <span><strong>SAM.gov</strong><small>{status?.credential?.configured ? `Workspace credential ••••${status.credential.lastFour}` : "No key. Scheduler skips this workspace before creating a run."}</small></span>
           <span><strong>{config.enabled ? status?.refresh?.schedule : "Automation paused"}</strong><small>{latest ? `Last ${latest.status} · ${when(latest.completedAt || latest.startedAt)}` : "No retained run yet"}{status?.refresh?.nextDueAt ? ` · next ${when(status.refresh.nextDueAt)}` : ""}</small></span>
-          {canManage ? <span className="if-action-row__actions"><button type="button" className="if-btn if-btn--secondary" onClick={openConfig}><Settings2 size={15} />Configure</button><button type="button" className="if-btn if-btn--secondary" disabled={busy || !status?.credential?.configured} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? "is-spinning" : ""} />{busy ? "Refreshing…" : "Refresh now"}</button></span> : null}
+          {canManage ? <span className="if-action-row__actions"><input ref={importInputRef} type="file" accept=".html,text/html" hidden onChange={importPortfolio} /><button type="button" className="if-btn if-btn--secondary" disabled={busy} onClick={() => importInputRef.current?.click()}><FileUp size={15} />Import portfolio</button><button type="button" className="if-btn if-btn--secondary" onClick={openConfig}><Settings2 size={15} />Configure</button><button type="button" className="if-btn if-btn--secondary" disabled={busy || !status?.credential?.configured} onClick={() => void refresh()}><RefreshCw size={15} className={busy ? "is-spinning" : ""} />{busy ? "Working…" : "Refresh now"}</button></span> : null}
         </div>
+        {portfolioImport ? <p className="if-alert if-alert--info" data-acquisition-portfolio-status><strong>Navy portfolio:</strong> {count(portfolioImport.recordCount)} records as of {portfolioImport.asOf || "an unpublished date"} from {portfolioImport.filename}. Source definitions, document metadata, deduplication notes, and every original row are retained in the authenticated workspace.</p> : null}
+        {portfolioImport?.metadata?.sources?.length ? <details className="acquisition-runtime__portfolio-sources"><summary><strong>Portfolio sources & documents</strong><small>{count(portfolioImport.metadata.sources.length)} forecast sources · {count(portfolioImport.metadata.supportingDocuments?.length)} supporting documents · {count(portfolioImport.metadata.dedup?.length)} reconciled duplicates</small></summary><div>{portfolioImport.metadata.sources.map((source) => <article key={source.id}><span><strong>{source.name}</strong><small>{source.edition} · {count(source.rows)} source rows · checked {source.checked || "date not published"}</small></span>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">Official source</a> : null}</article>)}</div></details> : null}
+        {importProgress ? <p className="if-alert if-alert--info" role="status" data-acquisition-import-progress>{importProgress.label}: {count(importProgress.imported)} of {count(importProgress.total)} records.</p> : null}
         <div className="acquisition-runtime__quality"><strong>Data-quality queue</strong><span>{count(quality.missing_identifier)} missing identifiers</span><span>{count(quality.missing_office)} missing offices</span><span>{count(quality.missing_naics)} missing NAICS</span></div>
         {status?.credential?.configured && !hasVerifiedCoverage ? <p className="if-alert if-alert--warning" role="status" data-sam-zero-coverage>{coverageSummary}. Spend Explorer will not claim live SAM.gov coverage until a successful refresh retains at least one official notice.</p> : null}
         <p><strong>Archive health:</strong> {count(archives.observations)} observations, {count(archives.changes)} field-change records, and {count(archives.deliveryAttempts)} delivery attempts retained outside the hot tables. Hot observation history is kept for {count(archives.observationRetentionDays || 365)} days; delivery attempts for {count(archives.deliveryRetentionDays || 180)} days.</p>

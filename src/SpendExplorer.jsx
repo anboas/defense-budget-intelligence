@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox, Radar as RadarIcon } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Download, FileSpreadsheet, Inbox, Radar as RadarIcon } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -23,6 +23,16 @@ const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytic
 const OpportunityRecordPage = lazyWithRefresh(() => import("./OpportunityRecordPage.jsx"), "opportunity-record-page");
 
 const VIEWS = new Set(["radar", "today", "timeline", "table", "charts", "record"]);
+
+function exportAcquisitionRegister(records) {
+  const rows = records.map((record) => record.acquisitionIntel).filter(Boolean);
+  if (!rows.length) return;
+  const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+  const quote = (value) => `"${String(value == null ? "" : typeof value === "object" ? JSON.stringify(value) : value).replaceAll('"', '""')}"`;
+  const csv = [keys.map(quote).join(","), ...rows.map((row) => keys.map((key) => quote(row[key])).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a"); anchor.href = url; anchor.download = "navy-acquisition-intelligence-filtered.csv"; anchor.click(); URL.revokeObjectURL(url);
+}
 
 function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
@@ -132,16 +142,21 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     return () => { active = false; window.clearTimeout(timer); };
   }, [loadRuntimeRecords]);
   const effectiveSamOpportunities = useMemo(() => {
-    if (!runtimeSamRecords.length) return samOpportunities;
+    const samRuntime = runtimeSamRecords.filter((record) => record.recordKind !== "acquisition-portfolio");
+    if (!samRuntime.length) return samOpportunities;
     const merged = new Map();
     for (const record of samOpportunities?.records || []) merged.set(record.sourceRecordId || record.noticeId, record);
-    for (const record of runtimeSamRecords) merged.set(record.sourceRecordId || record.noticeId, record);
+    for (const record of samRuntime) merged.set(record.sourceRecordId || record.noticeId, record);
     return {
       ...(samOpportunities || {}),
-      metadata: { ...(samOpportunities?.metadata || {}), status: "workspace-runtime", runtimeRecordCount: runtimeSamRecords.length },
+      metadata: { ...(samOpportunities?.metadata || {}), status: "workspace-runtime", runtimeRecordCount: samRuntime.length },
       records: [...merged.values()],
     };
   }, [runtimeSamRecords, samOpportunities]);
+  const effectiveManualProcurement = useMemo(() => {
+    const imported = runtimeSamRecords.filter((record) => record.recordKind === "acquisition-portfolio");
+    return { ...(manualProcurement || {}), metadata: { ...(manualProcurement?.metadata || {}), runtimePortfolioRecords: imported.length }, records: [...(manualProcurement?.records || []), ...imported] };
+  }, [manualProcurement, runtimeSamRecords]);
   const select = (next) => {
     setView(next);
     if (next === "timeline") {
@@ -158,8 +173,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <button type="button" className={`if-tab${view === "charts" ? " is-active" : ""}`} aria-pressed={view === "charts"} onClick={() => select("charts")}><BarChart3 size={15} />Charts</button>
   </nav>;
   const rows = useMemo(
-    () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], manualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
-    [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveSamOpportunities?.records, manualProcurement?.records, procurementDelta?.records, subawardSnapshot],
+    () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], effectiveManualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
+    [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveManualProcurement?.records, effectiveSamOpportunities?.records, procurementDelta?.records, subawardSnapshot],
   );
   const technologyOptions = useMemo(() => [...new Set(rows.flatMap((record) => record.technologyAreas || []))].sort((left, right) => (TECHNOLOGY_AREA_BY_ID.get(left)?.label || left).localeCompare(TECHNOLOGY_AREA_BY_ID.get(right)?.label || right)), [rows]);
   const noticeTypeOptions = useMemo(() => SAM_NOTICE_TYPE_OPTIONS.filter((option) => rows.some((record) => samNoticeTypeId(record.noticeType) === option.id)), [rows]);
@@ -199,6 +214,12 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { key: "obligations", label: "Observed", sortValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), exportValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), render: (record) => <strong>{money(record.obligatedAmount || record.fpdsObligatedAmount)}</strong> },
     { key: "end", label: "Reported end", minWidth: 140, value: (record) => record.currentEnd || record.potentialEnd || "", render: (record) => date(record.currentEnd || record.potentialEnd) },
     { key: "evidence", label: "Evidence", facet: true, minWidth: 120, value: (record) => record.evidenceTier || "unclassified" },
+    { key: "acquisitionSource", label: "Acquisition source", facet: true, minWidth: 190, value: (record) => record.recordKind === "acquisition-portfolio" ? record.portfolio : "Other Defense Intelligence source" },
+    { key: "setAside", label: "Set-aside", facet: true, minWidth: 170, value: (record) => record.setAside || "Not published" },
+    { key: "acquisitionArea", label: "Acquisition work area", facet: true, minWidth: 210, value: (record) => record.acquisitionArea || "Not assessed" },
+    { key: "acquisitionRoute", label: "Access route", facet: true, minWidth: 190, value: (record) => record.acquisitionRoute || "Not assessed" },
+    { key: "acquisitionPriority", label: "Priority", facet: true, minWidth: 110, sortValue: (record) => Number(record.acquisitionPriority || 99), value: (record) => record.acquisitionPriority ? `P${record.acquisitionPriority}` : "Not assessed" },
+    { key: "acquisitionScore", label: "Screening", minWidth: 120, sortValue: (record) => Number(record.acquisitionScore || 0), value: (record) => record.acquisitionScore == null ? "Not assessed" : `${record.acquisitionScore}/100` },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><a href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(record.opportunityId || record.id || record.reference || "")}`}>Open</a>{dispositions.canWrite ? dispositions.tombstonedIds.has(record.opportunityId) ? <button type="button" onClick={() => dispositions.restore(record.opportunityId)} aria-label={`Restore ${record.title}`} title="Restore to active explorer"><ArchiveRestore size={15} /></button> : <button type="button" onClick={() => dispositions.tombstone(record.opportunityId)} aria-label={`Tombstone ${record.title}`} title="Tombstone this record"><ArchiveX size={15} /></button> : null}</div> },
   ];
   const sevenDaysAgo = new Date(Date.parse(discoveryIndex.metadata?.generatedAt || dailyFeed.metadata?.generatedAt || procurementDelta?.metadata?.generatedAt || dataset.metadata?.generatedAt || "1970-01-01T00:00:00.000Z") - 7 * 86_400_000).toISOString();
@@ -240,8 +261,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
   if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="record workspace" />}><OpportunityRecordPage records={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} recordId={focusedRecordId} tabs={tabs} /></Suspense></SpendViewBoundary>;
-  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
-  if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
+  if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
+  if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Spend intelligence" title="Spend Explorer" summary="Timeline, records, and charts share one public-data scope." metrics={tableMetrics} metricLabel="Spend table summary" tabs={tabs} />
     <ControlPageBody compact>
@@ -265,7 +286,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
         </div>
       </details>
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
-      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, notice types, organizations, and references…" exportFilename="spend-explorer.csv" mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : tableFilters.noticeType !== "all" ? ["record", "noticeType", "deadline", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
+      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, notice types, organizations, and references…" exportFilename="spend-explorer.csv" toolbarActions={tableRows.some((record) => record.acquisitionIntel) ? <button type="button" className="if-btn if-btn--secondary" onClick={() => exportAcquisitionRegister(tableRows)}><Download size={15} />Export acquisition register</button> : null} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : tableFilters.noticeType !== "all" ? ["record", "noticeType", "deadline", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
     </ControlPageBody>
   </section>;
 }
