@@ -21,7 +21,7 @@ const request = buildRecordResearchRequest(ndmsDraft, candidates);
 assert.equal(request.store, false);
 assert.equal(request.tool_choice, "required");
 assert.equal(request.text.format.strict, true);
-assert.deepEqual(request.tools[0].filters.allowed_domains, ["sam.gov", "usaspending.gov", "fpds.gov", "navy.mil", "navair.navy.mil", "gsa.gov"]);
+assert.equal(request.tools[0].filters, undefined, "Research discovery must search broadly before the official .gov/.mil evidence gate");
 assert.ok(!JSON.stringify(request).includes("masked-test-key"));
 
 const consulted = [
@@ -30,9 +30,11 @@ const consulted = [
 ];
 const sensitiveProviderUrl = `${ndmsDraft.sourceUrls[0]}?api_key=sensitive-source-token&utm_source=provider&noticeid=retained`;
 const payload = {
+  researchDisposition: "verified",
   summary: "The draft RFP is a follow-on to active NDMS work.", stage: "Draft RFP", scope: "Depot Maintenance System software support.", incumbentPosture: "The active award remains separately preserved.",
   decisionBrief: { recommendedAction: "pursue", priority: "high", rationale: "The published draft and active predecessor support immediate qualification.", sourceUrls: consulted.map((source) => source.url) },
-  keyDates: [{ label: "Response deadline", date: "2026-10-05", basis: "Published SAM.gov response deadline.", sourceUrls: [consulted[0].url] }],
+  keyDates: [{ eventType: "proposal-deadline", label: "Response deadline", date: "2026-10-05", basis: "Published SAM.gov response deadline.", confidence: "high", sourceUrls: [consulted[0].url] }],
+  timelineAssessment: { status: "corroborated", rationale: "The SAM.gov response deadline corroborates the retained date.", sourceUrls: [consulted[0].url] },
   nextActions: [{ action: "Review the draft RFP attachments.", rationale: "Confirm scope and qualification requirements before shaping.", sourceUrls: [consulted[0].url] }],
   findings: [{ text: "The program identity and published codes align.", sourceUrls: consulted.map((source) => source.url) }, { text: "Unsupported claim", sourceUrls: ["https://example.com/nope"] }],
   risks: [], openQuestions: ["Confirm the final RFP schedule."],
@@ -44,6 +46,7 @@ assert.equal(normalized.findings.length, 1, "Unsupported citations must remove t
 assert.equal(normalized.relationshipProposals.length, 1, "Relationships may target only supplied candidates");
 assert.equal(normalized.decisionBrief.recommendedAction, "pursue", "Research must produce a grounded operator recommendation");
 assert.equal(normalized.keyDates[0].date, "2026-10-05", "Published decision dates must remain structured");
+assert.equal(normalized.timelineAssessment.status, "corroborated", "Timeline validation must survive normalization");
 assert.equal(normalized.nextActions.length, 1, "Grounded next actions must survive normalization");
 assert.equal(normalized.provenance.reviewState, "needs_review");
 

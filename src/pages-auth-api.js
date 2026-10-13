@@ -38,6 +38,7 @@ import {
   validSalt,
 } from "./security-policy.js";
 import { ACQUISITION_SCHEMA, acquisitionRuntimeResponse, acquisitionSchedulerResponse } from "./d1-acquisition-runtime.js";
+import { ACQUISITION_EVIDENCE_SCHEMA } from "./d1-acquisition-evidence.js";
 import {
   activeEventAttendeeIds,
   activeEventCategoryIds,
@@ -136,6 +137,7 @@ function defaultEventCategoryStatements(db, workspaceId, now) {
 const SCHEMA = Object.freeze([
   ...D1_AGENT_INTELLIGENCE_SCHEMA,
   ...D1_RESEARCH_OPERATIONS_SCHEMA,
+  ...ACQUISITION_EVIDENCE_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_super_user (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
     user_id TEXT NOT NULL UNIQUE,
