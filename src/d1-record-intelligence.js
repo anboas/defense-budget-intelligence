@@ -48,12 +48,14 @@ function mockResearch(record, candidates) {
   const sourceUrls = [...new Set([...(record.sourceUrls || []), ...candidates.flatMap((candidate) => candidate.sourceUrls || [])])].filter((url) => /^https:\/\//i.test(url)).slice(0, 8);
   return {
     opportunityId: record.opportunityId,
+    researchDisposition: sourceUrls.length ? "partial" : "no-public-evidence",
     summary: `Official-source research for ${record.title}`,
     stage: record.noticeType || record.lifecycleStatus || "Published record",
     scope: record.context || record.sourceDescription || record.title,
     incumbentPosture: exact ? "A published active-work record is linked to this acquisition as a follow-on candidate." : "No incumbent relationship was established by the mock verifier.",
     decisionBrief: { recommendedAction: exact ? "pursue" : "research", priority: exact ? "high" : "medium", rationale: exact ? "Published lifecycle evidence supports near-term qualification." : "Additional official evidence is needed before qualification.", sourceUrls: sourceUrls.slice(0, 2) },
-    keyDates: record.solicitationEnd && sourceUrls.length ? [{ label: "Response deadline", date: record.solicitationEnd, basis: "Published acquisition response deadline.", sourceUrls: sourceUrls.slice(0, 1) }] : [],
+    keyDates: record.solicitationEnd && sourceUrls.length ? [{ eventType: "proposal-deadline", label: "Response deadline", date: record.solicitationEnd, basis: "Published acquisition response deadline.", confidence: "high", sourceUrls: sourceUrls.slice(0, 1) }] : [],
+    timelineAssessment: { status: record.solicitationEnd && sourceUrls.length ? "corroborated" : "unverified", rationale: record.solicitationEnd && sourceUrls.length ? "The published source provides the retained response deadline." : "No official source date was retained by the mock verifier.", sourceUrls: sourceUrls.slice(0, 1) },
     nextActions: sourceUrls.length ? [{ action: "Review the latest official notice and attachments.", rationale: "Confirm scope, timing, and qualification evidence before a bid decision.", sourceUrls: sourceUrls.slice(0, 2) }] : [],
     findings: sourceUrls.length ? [{ text: "The retained public record and relationship evidence were reviewed.", sourceUrls: sourceUrls.slice(0, 2) }] : [],
     risks: [], openQuestions: ["Confirm any unpublished amendments or acquisition strategy changes."], caveats: ["Human review required."], sources: sourceUrls.map((url) => ({ url, title: "Official source" })),

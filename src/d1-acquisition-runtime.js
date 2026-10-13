@@ -15,6 +15,7 @@ import {
   stableJson,
 } from "./acquisition-runtime-core.js";
 import { analyzeOpportunityWithOpenAi, normalizeOpportunityAiAssessment, resolveOpportunityForIntake } from "./opportunity-ai-runtime.js";
+import { acquisitionEvidenceCampaignResponse } from "./d1-acquisition-evidence.js";
 import { deliveryJobSchedule } from "./acquisition-delivery-core.js";
 import {
   ACQUISITION_DELIVERY_SCHEMA,
@@ -336,6 +337,7 @@ export async function acquisitionRuntimeResponse(request, db, env, deps) {
   const url = new URL(request.url); const prefix = "/api/v1/auth/acquisition"; const segments = url.pathname.slice(prefix.length).split("/").filter(Boolean).map(decodeURIComponent);
   if (request.method !== "GET" && !sameOriginRequest(request)) return json({ error: "Cross-origin acquisition changes are not allowed" }, 403);
   if (request.method === "GET" && segments[0] === "status") return json(await status(db, workspaceId));
+  if (segments[0] === "evidence-campaigns") return acquisitionEvidenceCampaignResponse(request, db, env, session, segments, deps);
   if (segments[0] === "portfolio-imports") {
     const canWrite = !session.is_emulating && (session.role === "super_user" || ["administrator", "analyst"].includes(session.membership_role));
     if (request.method === "GET" && segments[1] === "current") {

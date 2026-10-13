@@ -860,6 +860,49 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.records.length, 1);
     assert.equal(body.records[0].noticeId, intakeNoticeId);
     assert.deepEqual(body.pagination, { offset: 0, limit: 10, total: 1, hasMore: false });
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/portfolio-imports", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {
+        source: "campaign-fixture", filename: "campaign-fixture.json", recordCount: 2,
+        metadata: { asof: "2026-10-13", source: "campaign-fixture", recordCount: 2 },
+      },
+    });
+    assert.equal(response.status, 201, "Workspace managers must create a bounded evidence-campaign fixture import");
+    body = await response.json();
+    const campaignImportId = body.portfolioImport.id;
+    response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/portfolio-imports/${campaignImportId}/records`, {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { records: [
+        { sourceRecordId: "EM-TEST", opportunityId: "campaign-fixture_EM-TEST", id: "EM-TEST", title: "Test placeholder", lifecycleStage: "Qualify", sourceChannel: "campaign-fixture", sourceUrls: [], events: [], recordKind: "acquisition-portfolio" },
+        { sourceRecordId: "EM-LIVE", opportunityId: "campaign-fixture_EM-LIVE", id: "EM-LIVE", title: "Verified campaign requirement", lifecycleStage: "Pursue", solicitationStart: "2027-04-05", sourceChannel: "campaign-fixture", sourceUrls: [], events: [], recordKind: "acquisition-portfolio" },
+      ] },
+    });
+    assert.equal(response.status, 200, "Evidence fixtures must enter through the lossless portfolio importer");
+    response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/portfolio-imports/${campaignImportId}/complete`, { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: {} });
+    assert.equal(response.status, 200);
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/evidence-campaigns", {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { source: "campaign-fixture", model: "gpt-5.4-mini" },
+    });
+    assert.equal(response.status, 201, "Managers must be able to create a durable portfolio evidence campaign");
+    body = await response.json();
+    const evidenceCampaignId = body.campaign.id;
+    assert.equal(body.campaign.totalTargets, 2);
+    response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/evidence-campaigns/${evidenceCampaignId}/advance`, {
+      method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { batchSize: 2 },
+    });
+    assert.equal(response.status, 200, "A campaign must research and apply one bounded batch");
+    body = await response.json();
+    assert.equal(body.campaign.status, "succeeded");
+    assert.equal(body.campaign.completedTargets, 2);
+    assert.equal(body.campaign.evidencedTargets, 1);
+    assert.equal(body.campaign.gapTargets, 1);
+    assert.equal(body.campaign.eventsAdded, 1, "Only the high-confidence sourced date may become a native event");
+    response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/evidence-campaigns/${evidenceCampaignId}`, { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.targets.filter((target) => target.status === "succeeded").length, 2);
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/records?limit=10", { cookie: ownerCookie });
+    body = await response.json();
+    const enrichedCampaignRecord = body.records.find((record) => record.sourceRecordId === "EM-LIVE");
+    assert.equal(enrichedCampaignRecord.evidenceCampaign.campaignId, evidenceCampaignId);
+    assert.equal(enrichedCampaignRecord.events.filter((event) => event.reviewState === "accepted").length, 1);
     response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { name: "Fourth Estate AI RFIs", query: "artificial intelligence", filters: { branch: "Fourth Estate", noticeType: "r", untrustedField: "discard me" }, alertMode: "daily", credential: "discard me" } });
     assert.equal(response.status, 201, "D1 must persist cross-device acquisition views");
     body = await response.json();
