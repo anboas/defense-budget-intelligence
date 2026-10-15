@@ -6,12 +6,30 @@ const legislation = JSON.parse(readFileSync("src/data/legislative-traceability.j
 const strategic = JSON.parse(readFileSync("src/data/strategic-intelligence.json", "utf8"));
 
 assert.ok(actions.metadata?.coverage?.selectedAwards >= 100, "Priority award selection regressed");
-assert.equal(actions.metadata?.coverage?.failures, 0, "Priority award action collection has unresolved failures");
+assert.equal(actions.metadata?.coverage?.resolvedAwards + actions.metadata?.coverage?.failures, actions.metadata?.coverage?.selectedAwards, "Every selected priority award must resolve or disclose a failed refresh");
+assert.equal(actions.metadata?.coverage?.failures, (actions.failures || []).length, "Priority award failure metadata must match the retained diagnostics");
+assert.ok(["current", "partial", "stale"].includes(actions.metadata?.status || "current"), "Priority award source status must remain explicit");
 assert.ok((actions.actions || []).length >= 2_500, "Priority award action depth regressed");
 assert.ok(new Set((actions.actions || []).map((row) => row.id)).size === actions.actions.length, "Award action IDs must be unique");
 for (const row of actions.actions || []) {
   assert.match(row.id, /^award-action:usaspending:/);
   assert.ok(row.awardId && row.transactionId && row.sourceUrl, "Award actions require exact award, transaction, and source identity");
+}
+if (actions.metadata?.coverage?.failures > 0) {
+  const expectedStatus = actions.metadata.coverage.resolvedAwards > 0 ? "partial" : "stale";
+  assert.equal(actions.metadata.status, expectedStatus, "Priority award status must distinguish partial refreshes from fully stale preservation");
+  assert.ok(Number.isFinite(Date.parse(actions.metadata.generatedAt)), "A degraded priority award snapshot must retain a successful generation time");
+  assert.ok(Number.isFinite(Date.parse(actions.metadata.lastAttemptAt)), "A degraded priority award snapshot must disclose the failed attempt time");
+  const actionAwards = new Set((actions.actions || []).map((row) => row.awardId));
+  const summaryByAward = new Map((actions.awardSummaries || []).map((row) => [row.awardId, row]));
+  for (const failure of actions.failures || []) {
+    assert.ok(failure.awardId && failure.error, "Every failed priority award must retain a safe diagnostic");
+    assert.ok(actionAwards.has(failure.awardId), `Failed priority award ${failure.awardId} must retain its prior verified actions`);
+    assert.equal(summaryByAward.get(failure.awardId)?.status, "stale", `Failed priority award ${failure.awardId} must be marked stale`);
+    assert.ok(Number.isFinite(Date.parse(summaryByAward.get(failure.awardId)?.lastAttemptAt)), `Failed priority award ${failure.awardId} must disclose its last attempt`);
+  }
+} else {
+  assert.equal(actions.metadata?.status || "current", "current", "A failure-free priority award refresh must be current");
 }
 
 assert.ok((legislation.measures || []).length >= 8, "Defense legislative measure coverage regressed");
