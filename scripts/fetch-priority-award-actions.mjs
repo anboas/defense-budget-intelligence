@@ -89,14 +89,32 @@ async function main() {
   const previous = (() => { try { return JSON.parse(readFileSync(OUT, "utf8")); } catch { return null; } })();
   const previousByAward = new Map((previous?.actions || []).map((row) => [row.awardId, []]));
   for (const row of previous?.actions || []) previousByAward.get(row.awardId).push(row);
+  const previousSummaryByAward = new Map((previous?.awardSummaries || []).map((row) => [row.awardId, row]));
   const failed = new Set(failures.map((row) => row.awardId));
-  for (const awardId of failed) actions.push(...(previousByAward.get(awardId) || []));
+  const failureByAward = new Map(failures.map((row) => [row.awardId, row]));
+  const attemptedAt = new Date().toISOString();
+  for (const awardId of failed) {
+    const retained = previousByAward.get(awardId) || [];
+    actions.push(...retained);
+    const priorSummary = previousSummaryByAward.get(awardId);
+    awardSummaries.push({
+      awardId,
+      observedActionCount: priorSummary?.observedActionCount ?? retained.length,
+      retainedActionCount: retained.length,
+      status: retained.length ? "stale" : "unavailable",
+      lastAttemptAt: attemptedAt,
+      diagnostic: failureByAward.get(awardId)?.error || "USAspending transaction collection failed",
+    });
+  }
   const unique = [...new Map(actions.map((row) => [row.id, row])).values()].sort((a, b) => String(a.actionDate || "").localeCompare(String(b.actionDate || "")) || a.id.localeCompare(b.id));
   const coveredAwards = new Set(unique.map((row) => row.awardId));
+  const status = failures.length === 0 ? "current" : failures.length === selected.length ? "stale" : "partial";
   const payload = {
     metadata: {
       schemaVersion: "1.0.0",
-      generatedAt: new Date().toISOString(),
+      generatedAt: status === "stale" ? previous?.metadata?.generatedAt || attemptedAt : attemptedAt,
+      lastAttemptAt: attemptedAt,
+      status,
       source: API,
       sourceAuthority: "official_primary",
       selectionPolicy: "Priority DoD awards are stratified toward exact account-linked awards, then ranked by published award amount. Collection is bounded to 12 pages per award; the artifact retains the first 5, latest 15, and 10 largest absolute obligation actions per award with exact observed totals.",
