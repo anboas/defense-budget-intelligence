@@ -2,9 +2,11 @@ import { createHash } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 
 const OUT = "src/data/strategic-intelligence.json";
-const calendar = JSON.parse(readFileSync("public/data/capture-calendar.json", "utf8"));
-const locations = JSON.parse(readFileSync("public/data/opportunity-map-data.json", "utf8"));
-const metadata = JSON.parse(readFileSync("public/data/opportunity-map-location-metadata.json", "utf8"));
+// Read canonical source snapshots. public/data is generated during the later
+// runtime build and is intentionally absent from a fresh CI checkout.
+const calendar = JSON.parse(readFileSync("src/data/capture-calendar.json", "utf8"));
+const locations = JSON.parse(readFileSync("src/data/opportunity-map-locations.json", "utf8"));
+const metadata = JSON.parse(readFileSync("src/data/opportunity-map-location-metadata.json", "utf8"));
 const coverage = JSON.parse(readFileSync("src/data/usaspending-coverage.json", "utf8"));
 const accounts = JSON.parse(readFileSync("src/data/account-spine.json", "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
