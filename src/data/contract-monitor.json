@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T14:20:39.891Z",
+    "generatedAt": "2026-10-15T15:40:06.058Z",
     "asOf": "2026-10-15",
     "status": "gaps-disclosed",
     "sourceSystem": "USAspending award detail plus SAM.gov opportunity batch",
@@ -17,8 +17,8 @@
     "targetLimit": 2000,
     "exactTargetCount": 428,
     "coveredCount": 428,
-    "currentCount": 428,
-    "staleCount": 0,
+    "currentCount": 419,
+    "staleCount": 9,
     "unavailableCount": 0,
     "gapCount": 57,
     "coveragePercent": 88.2,
@@ -30,9 +30,9 @@
       "unresolved-schedule": 19
     },
     "byStatus": {
-      "current": 428,
+      "current": 419,
       "batch-current": 0,
-      "stale": 0,
+      "stale": 9,
       "unavailable": 0,
       "coverage-gap": 57
     }
@@ -48,7 +48,7 @@
       "generatedAwardId": "CONT_AWD_47QFRA24F0005_4732_47QTCK18D0009_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.549Z",
+      "checkedAt": "2026-10-15T15:40:00.516Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFRA24F0005_4732_47QTCK18D0009_4732",
         "piid": "47QFRA24F0005",
@@ -92,7 +92,7 @@
       "generatedAwardId": "CONT_AWD_W9128Z26FA001_9700_W519TC25D0039_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.539Z",
+      "checkedAt": "2026-10-15T15:40:00.518Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9128Z26FA001_9700_W519TC25D0039_9700",
         "piid": "W9128Z26FA001",
@@ -136,7 +136,7 @@
       "generatedAwardId": "CONT_AWD_FA807522F0030_9700_FA807518D0006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.544Z",
+      "checkedAt": "2026-10-15T15:40:00.520Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA807522F0030_9700_FA807518D0006_9700",
         "piid": "FA807522F0030",
@@ -180,7 +180,7 @@
       "generatedAwardId": "CONT_AWD_FA872124F0001_9700_GS00Q14OADS742_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.535Z",
+      "checkedAt": "2026-10-15T15:40:00.522Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872124F0001_9700_GS00Q14OADS742_4732",
         "piid": "FA872124F0001",
@@ -224,7 +224,7 @@
       "generatedAwardId": "CONT_AWD_FA875023F0080_9700_GS00Q14OADU309_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.541Z",
+      "checkedAt": "2026-10-15T15:40:00.524Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875023F0080_9700_GS00Q14OADU309_4732",
         "piid": "FA875023F0080",
@@ -268,7 +268,7 @@
       "generatedAwardId": "CONT_AWD_N6134017C0007_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.548Z",
+      "checkedAt": "2026-10-15T15:40:00.519Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6134017C0007_9700_-NONE-_-NONE-",
         "piid": "N6134017C0007",
@@ -312,7 +312,7 @@
       "generatedAwardId": "CONT_AWD_FA873022F0071_9700_47QTCK18D0001_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.545Z",
+      "checkedAt": "2026-10-15T15:40:00.523Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873022F0071_9700_47QTCK18D0001_4732",
         "piid": "FA873022F0071",
@@ -356,7 +356,7 @@
       "generatedAwardId": "CONT_AWD_HQ085224F0005_9700_HQ085224D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.547Z",
+      "checkedAt": "2026-10-15T15:40:00.512Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085224F0005_9700_HQ085224D0003_9700",
         "piid": "HQ085224F0005",
@@ -400,7 +400,7 @@
       "generatedAwardId": "CONT_IDV_N6852026D1038_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.712Z",
+      "checkedAt": "2026-10-15T15:40:00.758Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N6852026D1038_9700",
         "piid": "N6852026D1038",
@@ -444,7 +444,7 @@
       "generatedAwardId": "CONT_AWD_HQ085224F0007_9700_HQ085224D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.712Z",
+      "checkedAt": "2026-10-15T15:40:00.752Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085224F0007_9700_HQ085224D0003_9700",
         "piid": "HQ085224F0007",
@@ -488,7 +488,7 @@
       "generatedAwardId": "CONT_AWD_FA862222F8449_9700_GS00Q14OADS732_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.716Z",
+      "checkedAt": "2026-10-15T15:40:00.596Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA862222F8449_9700_GS00Q14OADS732_4732",
         "piid": "FA862222F8449",
@@ -532,7 +532,7 @@
       "generatedAwardId": "CONT_IDV_N0042125D0087_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.715Z",
+      "checkedAt": "2026-10-15T15:40:00.598Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N0042125D0087_9700",
         "piid": "N0042125D0087",
@@ -576,7 +576,7 @@
       "generatedAwardId": "CONT_AWD_HQ085823C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.717Z",
+      "checkedAt": "2026-10-15T15:40:00.758Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085823C0001_9700_-NONE-_-NONE-",
         "piid": "HQ085823C0001",
@@ -620,7 +620,7 @@
       "generatedAwardId": "CONT_AWD_FA861222FB002_9700_FA861220D0016_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.603Z",
+      "checkedAt": "2026-10-15T15:40:00.764Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861222FB002_9700_FA861220D0016_9700",
         "piid": "FA861222FB002",
@@ -664,7 +664,7 @@
       "generatedAwardId": "CONT_AWD_FA800325F0008_9700_47QTCK18D0004_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.605Z",
+      "checkedAt": "2026-10-15T15:40:00.599Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA800325F0008_9700_47QTCK18D0004_4732",
         "piid": "FA800325F0008",
@@ -708,7 +708,7 @@
       "generatedAwardId": "CONT_AWD_FA807524F0050_9700_FA807518D0015_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.602Z",
+      "checkedAt": "2026-10-15T15:40:00.599Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA807524F0050_9700_FA807518D0015_9700",
         "piid": "FA807524F0050",
@@ -752,7 +752,7 @@
       "generatedAwardId": "CONT_IDV_N6600125D0029_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.657Z",
+      "checkedAt": "2026-10-15T15:40:00.671Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N6600125D0029_9700",
         "piid": "N6600125D0029",
@@ -796,7 +796,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T21F0110_9700_W15P7T17D0155_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.656Z",
+      "checkedAt": "2026-10-15T15:40:00.672Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T21F0110_9700_W15P7T17D0155_9700",
         "piid": "W15P7T21F0110",
@@ -840,7 +840,7 @@
       "generatedAwardId": "CONT_AWD_FA880625FB002_9700_47QRAD20DU147_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.658Z",
+      "checkedAt": "2026-10-15T15:40:00.676Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA880625FB002_9700_47QRAD20DU147_4732",
         "piid": "FA880625FB002",
@@ -884,7 +884,7 @@
       "generatedAwardId": "CONT_AWD_47QFDA22F0031_4732_GS00Q14OADU131_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.707Z",
+      "checkedAt": "2026-10-15T15:40:00.673Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFDA22F0031_4732_GS00Q14OADU131_4732",
         "piid": "47QFDA22F0031",
@@ -928,7 +928,7 @@
       "generatedAwardId": "CONT_AWD_47QFLA22F0176_4732_47QFLA21D0008_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.711Z",
+      "checkedAt": "2026-10-15T15:40:00.748Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFLA22F0176_4732_47QFLA21D0008_4732",
         "piid": "47QFLA22F0176",
@@ -972,7 +972,7 @@
       "generatedAwardId": "CONT_AWD_N0042123F3002_9700_N0017819D8792_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.709Z",
+      "checkedAt": "2026-10-15T15:40:00.746Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042123F3002_9700_N0017819D8792_9700",
         "piid": "N0042123F3002",
@@ -1016,7 +1016,7 @@
       "generatedAwardId": "CONT_AWD_HQ085724F5900_9700_HQ079617D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.759Z",
+      "checkedAt": "2026-10-15T15:40:00.748Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085724F5900_9700_HQ079617D0001_9700",
         "piid": "HQ085724F5900",
@@ -1060,7 +1060,7 @@
       "generatedAwardId": "CONT_AWD_N6523625F3024_9700_N0017819D7193_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.761Z",
+      "checkedAt": "2026-10-15T15:40:00.750Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6523625F3024_9700_N0017819D7193_9700",
         "piid": "N6523625F3024",
@@ -1104,7 +1104,7 @@
       "generatedAwardId": "CONT_AWD_47QFCA24F0008_4732_47QFCA22D0337_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.765Z",
+      "checkedAt": "2026-10-15T15:40:00.824Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFCA24F0008_4732_47QFCA22D0337_4732",
         "piid": "47QFCA24F0008",
@@ -1148,7 +1148,7 @@
       "generatedAwardId": "CONT_AWD_FA489024C0035_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.764Z",
+      "checkedAt": "2026-10-15T15:40:00.825Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA489024C0035_9700_-NONE-_-NONE-",
         "piid": "FA489024C0035",
@@ -1192,7 +1192,7 @@
       "generatedAwardId": "CONT_AWD_FA861222FB006_9700_FA861220D0018_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.763Z",
+      "checkedAt": "2026-10-15T15:40:00.828Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861222FB006_9700_FA861220D0018_9700",
         "piid": "FA861222FB006",
@@ -1236,7 +1236,7 @@
       "generatedAwardId": "CONT_AWD_FA861222FB005_9700_FA861220D0022_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.767Z",
+      "checkedAt": "2026-10-15T15:40:00.823Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861222FB005_9700_FA861220D0022_9700",
         "piid": "FA861222FB005",
@@ -1280,7 +1280,7 @@
       "generatedAwardId": "CONT_AWD_HQ085822C0008_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.767Z",
+      "checkedAt": "2026-10-15T15:40:00.827Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085822C0008_9700_-NONE-_-NONE-",
         "piid": "HQ085822C0008",
@@ -1324,7 +1324,7 @@
       "generatedAwardId": "CONT_AWD_FA861222FB003_9700_FA861220D0035_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.768Z",
+      "checkedAt": "2026-10-15T15:40:00.836Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861222FB003_9700_FA861220D0035_9700",
         "piid": "FA861222FB003",
@@ -1368,7 +1368,7 @@
       "generatedAwardId": "CONT_AWD_N6426724F3000_9700_N0017819D7504_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.811Z",
+      "checkedAt": "2026-10-15T15:40:00.834Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6426724F3000_9700_N0017819D7504_9700",
         "piid": "N6426724F3000",
@@ -1412,7 +1412,7 @@
       "generatedAwardId": "CONT_AWD_FA489023F0025_9700_47QTCB22D0268_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.812Z",
+      "checkedAt": "2026-10-15T15:40:00.838Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA489023F0025_9700_47QTCB22D0268_4732",
         "piid": "FA489023F0025",
@@ -1456,7 +1456,7 @@
       "generatedAwardId": "CONT_AWD_FA861222FB004_9700_FA861220D0043_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.814Z",
+      "checkedAt": "2026-10-15T15:40:00.900Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861222FB004_9700_FA861220D0043_9700",
         "piid": "FA861222FB004",
@@ -1500,7 +1500,7 @@
       "generatedAwardId": "CONT_AWD_N0017422F3005_9700_N0017819D8356_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.816Z",
+      "checkedAt": "2026-10-15T15:40:00.904Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0017422F3005_9700_N0017819D8356_9700",
         "piid": "N0017422F3005",
@@ -1544,7 +1544,7 @@
       "generatedAwardId": "CONT_AWD_W900KK24F0012_9700_W900KK21D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.817Z",
+      "checkedAt": "2026-10-15T15:40:00.910Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK24F0012_9700_W900KK21D0007_9700",
         "piid": "W900KK24F0012",
@@ -1588,7 +1588,7 @@
       "generatedAwardId": "CONT_AWD_47QFCA26F0023_4732_47QTCK18D0036_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.818Z",
+      "checkedAt": "2026-10-15T15:40:00.905Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFCA26F0023_4732_47QTCK18D0036_4732",
         "piid": "47QFCA26F0023",
@@ -1632,7 +1632,7 @@
       "generatedAwardId": "CONT_AWD_47QFLA24F0117_4732_47QFLA20D0014_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.819Z",
+      "checkedAt": "2026-10-15T15:40:00.905Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFLA24F0117_4732_47QFLA20D0014_4732",
         "piid": "47QFLA24F0117",
@@ -1676,7 +1676,7 @@
       "generatedAwardId": "CONT_AWD_W519TC25F0241_9700_W52P1J22G0174_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.821Z",
+      "checkedAt": "2026-10-15T15:40:00.909Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC25F0241_9700_W52P1J22G0174_9700",
         "piid": "W519TC25F0241",
@@ -1720,7 +1720,7 @@
       "generatedAwardId": "CONT_AWD_FA872626FB002_9700_47QTCA25D008B_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.863Z",
+      "checkedAt": "2026-10-15T15:40:00.909Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872626FB002_9700_47QTCA25D008B_4732",
         "piid": "FA872626FB002",
@@ -1764,7 +1764,7 @@
       "generatedAwardId": "CONT_AWD_FA873025FB003_9700_FA830721G0020_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.862Z",
+      "checkedAt": "2026-10-15T15:40:00.914Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873025FB003_9700_FA830721G0020_9700",
         "piid": "FA873025FB003",
@@ -1808,7 +1808,7 @@
       "generatedAwardId": "CONT_AWD_FA237724CB014_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.866Z",
+      "checkedAt": "2026-10-15T15:40:00.974Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA237724CB014_9700_-NONE-_-NONE-",
         "piid": "FA237724CB014",
@@ -1852,7 +1852,7 @@
       "generatedAwardId": "CONT_AWD_N6852023F3001_9700_N0017819D8547_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.867Z",
+      "checkedAt": "2026-10-15T15:40:00.980Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852023F3001_9700_N0017819D8547_9700",
         "piid": "N6852023F3001",
@@ -1896,7 +1896,7 @@
       "generatedAwardId": "CONT_AWD_HQ085220C7001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.868Z",
+      "checkedAt": "2026-10-15T15:40:00.978Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085220C7001_9700_-NONE-_-NONE-",
         "piid": "HQ085220C7001",
@@ -1940,7 +1940,7 @@
       "generatedAwardId": "CONT_AWD_FA861223CB002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.870Z",
+      "checkedAt": "2026-10-15T15:40:00.979Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861223CB002_9700_-NONE-_-NONE-",
         "piid": "FA861223CB002",
@@ -1984,7 +1984,7 @@
       "generatedAwardId": "CONT_AWD_W900KK23F0027_9700_W900KK21D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.869Z",
+      "checkedAt": "2026-10-15T15:40:00.983Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK23F0027_9700_W900KK21D0007_9700",
         "piid": "W900KK23F0027",
@@ -2028,7 +2028,7 @@
       "generatedAwardId": "CONT_AWD_H9240823C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.873Z",
+      "checkedAt": "2026-10-15T15:40:00.983Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_H9240823C0003_9700_-NONE-_-NONE-",
         "piid": "H9240823C0003",
@@ -2072,7 +2072,7 @@
       "generatedAwardId": "CONT_AWD_FA872625FB041_9700_47QREA21D0001_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.914Z",
+      "checkedAt": "2026-10-15T15:40:00.985Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872625FB041_9700_47QREA21D0001_4732",
         "piid": "FA872625FB041",
@@ -2116,7 +2116,7 @@
       "generatedAwardId": "CONT_AWD_W900KK23F0070_9700_W900KK21D0006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.915Z",
+      "checkedAt": "2026-10-15T15:40:00.991Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK23F0070_9700_W900KK21D0006_9700",
         "piid": "W900KK23F0070",
@@ -2160,7 +2160,7 @@
       "generatedAwardId": "CONT_AWD_N6600123F3509_9700_N0017821D9078_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.917Z",
+      "checkedAt": "2026-10-15T15:40:01.052Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6600123F3509_9700_N0017821D9078_9700",
         "piid": "N6600123F3509",
@@ -2204,7 +2204,7 @@
       "generatedAwardId": "CONT_AWD_SP470124C0014_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.916Z",
+      "checkedAt": "2026-10-15T15:40:01.055Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_SP470124C0014_9700_-NONE-_-NONE-",
         "piid": "SP470124C0014",
@@ -2248,7 +2248,7 @@
       "generatedAwardId": "CONT_AWD_70Z0G326FESD30002_7008_75N98120D00084_7529",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.918Z",
+      "checkedAt": "2026-10-15T15:40:01.053Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_70Z0G326FESD30002_7008_75N98120D00084_7529",
         "piid": "70Z0G326FESD30002",
@@ -2292,7 +2292,7 @@
       "generatedAwardId": "CONT_AWD_47QFAA25F0006_4732_47QFAA21A0002_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.919Z",
+      "checkedAt": "2026-10-15T15:40:01.054Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFAA25F0006_4732_47QFAA21A0002_4732",
         "piid": "47QFAA25F0006",
@@ -2336,7 +2336,7 @@
       "generatedAwardId": "CONT_AWD_47QFSA24F0091_4732_47QTCA21A0001_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.920Z",
+      "checkedAt": "2026-10-15T15:40:01.058Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_47QFSA24F0091_4732_47QTCA21A0001_4732",
         "piid": "47QFSA24F0091",
@@ -2380,7 +2380,7 @@
       "generatedAwardId": "CONT_AWD_W91CRB26FA041_9700_W91CRB22D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.926Z",
+      "checkedAt": "2026-10-15T15:40:01.059Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W91CRB26FA041_9700_W91CRB22D0002_9700",
         "piid": "W91CRB26FA041",
@@ -2424,7 +2424,7 @@
       "generatedAwardId": "CONT_AWD_N0042124F3012_9700_N0017819D7266_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.968Z",
+      "checkedAt": "2026-10-15T15:40:01.060Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042124F3012_9700_N0017819D7266_9700",
         "piid": "N0042124F3012",
@@ -2468,7 +2468,7 @@
       "generatedAwardId": "CONT_AWD_N0042125F3002_9700_N0017819D8575_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.969Z",
+      "checkedAt": "2026-10-15T15:40:01.066Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042125F3002_9700_N0017819D8575_9700",
         "piid": "N0042125F3002",
@@ -2512,7 +2512,7 @@
       "generatedAwardId": "CONT_AWD_FA830725FB089_9700_GS35F685GA_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.967Z",
+      "checkedAt": "2026-10-15T15:40:01.131Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830725FB089_9700_GS35F685GA_4732",
         "piid": "FA830725FB089",
@@ -2556,7 +2556,7 @@
       "generatedAwardId": "CONT_AWD_HQ003425FE020_9700_HQ003425G0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.969Z",
+      "checkedAt": "2026-10-15T15:40:01.130Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ003425FE020_9700_HQ003425G0001_9700",
         "piid": "HQ003425FE020",
@@ -2600,7 +2600,7 @@
       "generatedAwardId": "CONT_AWD_W900KK24F0081_9700_W900KK21D0009_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.970Z",
+      "checkedAt": "2026-10-15T15:40:01.130Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK24F0081_9700_W900KK21D0009_9700",
         "piid": "W900KK24F0081",
@@ -2644,7 +2644,7 @@
       "generatedAwardId": "CONT_AWD_70Z04425FCAD20001_7008_70Z04425DESD40001_7008",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.973Z",
+      "checkedAt": "2026-10-15T15:40:01.129Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_70Z04425FCAD20001_7008_70Z04425DESD40001_7008",
         "piid": "70Z04425FCAD20001",
@@ -2688,7 +2688,7 @@
       "generatedAwardId": "CONT_AWD_N6852021F0078_9700_N0042120D0013_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.971Z",
+      "checkedAt": "2026-10-15T15:40:01.132Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852021F0078_9700_N0042120D0013_9700",
         "piid": "N6852021F0078",
@@ -2732,7 +2732,7 @@
       "generatedAwardId": "CONT_AWD_SP470924F0057_9700_SP470917D0023_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:35.990Z",
+      "checkedAt": "2026-10-15T15:40:01.134Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_SP470924F0057_9700_SP470917D0023_9700",
         "piid": "SP470924F0057",
@@ -2776,7 +2776,7 @@
       "generatedAwardId": "CONT_AWD_FA489025F0073_9700_47QTCA23D005G_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.024Z",
+      "checkedAt": "2026-10-15T15:40:01.145Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA489025F0073_9700_47QTCA23D005G_4732",
         "piid": "FA489025F0073",
@@ -2820,7 +2820,7 @@
       "generatedAwardId": "CONT_AWD_FA830724FB094_9700_FA830721G0005_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.021Z",
+      "checkedAt": "2026-10-15T15:40:01.141Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830724FB094_9700_FA830721G0005_9700",
         "piid": "FA830724FB094",
@@ -2864,7 +2864,7 @@
       "generatedAwardId": "CONT_AWD_FA830724FB096_9700_FA830721G0020_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.019Z",
+      "checkedAt": "2026-10-15T15:40:01.205Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830724FB096_9700_FA830721G0020_9700",
         "piid": "FA830724FB096",
@@ -2908,7 +2908,7 @@
       "generatedAwardId": "CONT_AWD_FA830724FB068_9700_GS35F425BA_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.024Z",
+      "checkedAt": "2026-10-15T15:40:01.205Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830724FB068_9700_GS35F425BA_4732",
         "piid": "FA830724FB068",
@@ -2952,7 +2952,7 @@
       "generatedAwardId": "CONT_AWD_N0042125F3007_9700_N0017819D8575_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.023Z",
+      "checkedAt": "2026-10-15T15:40:01.204Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042125F3007_9700_N0017819D8575_9700",
         "piid": "N0042125F3007",
@@ -2996,7 +2996,7 @@
       "generatedAwardId": "CONT_AWD_FA830724FB033_9700_GS35F122DA_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.025Z",
+      "checkedAt": "2026-10-15T15:40:01.208Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830724FB033_9700_GS35F122DA_4732",
         "piid": "FA830724FB033",
@@ -3040,7 +3040,7 @@
       "generatedAwardId": "CONT_AWD_N0042123F0332_9700_N0042121D0035_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.025Z",
+      "checkedAt": "2026-10-15T15:40:01.210Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042123F0332_9700_N0042121D0035_9700",
         "piid": "N0042123F0332",
@@ -3084,7 +3084,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C5113_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.044Z",
+      "checkedAt": "2026-10-15T15:40:01.209Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C5113_9700_-NONE-_-NONE-",
         "piid": "N0002424C5113",
@@ -3128,7 +3128,7 @@
       "generatedAwardId": "CONT_AWD_FA830724FB028_9700_GS35F687GA_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.071Z",
+      "checkedAt": "2026-10-15T15:40:01.213Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830724FB028_9700_GS35F687GA_4732",
         "piid": "FA830724FB028",
@@ -3172,7 +3172,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C6301_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.073Z",
+      "checkedAt": "2026-10-15T15:40:01.219Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C6301_9700_-NONE-_-NONE-",
         "piid": "N0002424C6301",
@@ -3216,7 +3216,7 @@
       "generatedAwardId": "CONT_AWD_N6600124F0572_9700_N6600121D0084_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.072Z",
+      "checkedAt": "2026-10-15T15:40:01.279Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6600124F0572_9700_N6600121D0084_9700",
         "piid": "N6600124F0572",
@@ -3260,7 +3260,7 @@
       "generatedAwardId": "CONT_AWD_FA873026FB001_9700_75N98120D00133_7529",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.078Z",
+      "checkedAt": "2026-10-15T15:40:01.280Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873026FB001_9700_75N98120D00133_7529",
         "piid": "FA873026FB001",
@@ -3304,7 +3304,7 @@
       "generatedAwardId": "CONT_AWD_W900KK25FA047_9700_W900KK21D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.077Z",
+      "checkedAt": "2026-10-15T15:40:01.280Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK25FA047_9700_W900KK21D0007_9700",
         "piid": "W900KK25FA047",
@@ -3348,7 +3348,7 @@
       "generatedAwardId": "CONT_AWD_W519TC26CA019_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.074Z",
+      "checkedAt": "2026-10-15T15:40:01.282Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC26CA019_9700_-NONE-_-NONE-",
         "piid": "W519TC26CA019",
@@ -3392,7 +3392,7 @@
       "generatedAwardId": "CONT_AWD_FA830725FB153_9700_47QTCK18D0044_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.078Z",
+      "checkedAt": "2026-10-15T15:40:01.285Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830725FB153_9700_47QTCK18D0044_4732",
         "piid": "FA830725FB153",
@@ -3436,7 +3436,7 @@
       "generatedAwardId": "CONT_AWD_SP470924F0056_9700_SP470917D0106_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.097Z",
+      "checkedAt": "2026-10-15T15:40:01.283Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_SP470924F0056_9700_SP470917D0106_9700",
         "piid": "SP470924F0056",
@@ -3480,7 +3480,7 @@
       "generatedAwardId": "CONT_AWD_N0042125F0822_9700_N0042125D0004_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.121Z",
+      "checkedAt": "2026-10-15T15:40:01.291Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042125F0822_9700_N0042125D0004_9700",
         "piid": "N0042125F0822",
@@ -3524,7 +3524,7 @@
       "generatedAwardId": "CONT_AWD_N0042123F0406_9700_N0042122D0086_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.124Z",
+      "checkedAt": "2026-10-15T15:40:01.292Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042123F0406_9700_N0042122D0086_9700",
         "piid": "N0042123F0406",
@@ -3568,7 +3568,7 @@
       "generatedAwardId": "CONT_AWD_N0002425F8170_9700_N0002422D6404_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.124Z",
+      "checkedAt": "2026-10-15T15:40:01.354Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002425F8170_9700_N0002422D6404_9700",
         "piid": "N0002425F8170",
@@ -3612,7 +3612,7 @@
       "generatedAwardId": "CONT_AWD_N0042125F7066_9700_N0042125D0004_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.126Z",
+      "checkedAt": "2026-10-15T15:40:01.355Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042125F7066_9700_N0042125D0004_9700",
         "piid": "N0042125F7066",
@@ -3656,7 +3656,7 @@
       "generatedAwardId": "CONT_AWD_W900KK26FA028_9700_W900KK24D0030_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.137Z",
+      "checkedAt": "2026-10-15T15:40:01.355Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK26FA028_9700_W900KK24D0030_9700",
         "piid": "W900KK26FA028",
@@ -3700,7 +3700,7 @@
       "generatedAwardId": "CONT_AWD_N0042126F0382_9700_N0042120D0123_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.131Z",
+      "checkedAt": "2026-10-15T15:40:01.356Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042126F0382_9700_N0042120D0123_9700",
         "piid": "N0042126F0382",
@@ -3744,7 +3744,7 @@
       "generatedAwardId": "CONT_AWD_W900KK25FA067_9700_W900KK24D0030_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.128Z",
+      "checkedAt": "2026-10-15T15:40:01.359Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK25FA067_9700_W900KK24D0030_9700",
         "piid": "W900KK25FA067",
@@ -3788,7 +3788,7 @@
       "generatedAwardId": "CONT_AWD_FA301024F0019_9700_FA877120D0012_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.149Z",
+      "checkedAt": "2026-10-15T15:40:01.359Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA301024F0019_9700_FA877120D0012_9700",
         "piid": "FA301024F0019",
@@ -3832,7 +3832,7 @@
       "generatedAwardId": "CONT_AWD_FA704621F0013_9700_FA704618D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.171Z",
+      "checkedAt": "2026-10-15T15:40:01.368Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA704621F0013_9700_FA704618D0002_9700",
         "piid": "FA704621F0013",
@@ -3876,7 +3876,7 @@
       "generatedAwardId": "CONT_AWD_FA860424FB378_9700_FA860422DB009_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.175Z",
+      "checkedAt": "2026-10-15T15:40:01.369Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA860424FB378_9700_FA860422DB009_9700",
         "piid": "FA860424FB378",
@@ -3920,7 +3920,7 @@
       "generatedAwardId": "CONT_AWD_N0042125F0827_9700_N0042125D0004_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.178Z",
+      "checkedAt": "2026-10-15T15:40:01.428Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042125F0827_9700_N0042125D0004_9700",
         "piid": "N0042125F0827",
@@ -3964,7 +3964,7 @@
       "generatedAwardId": "CONT_AWD_W900KK25FA110_9700_W900KK24D0030_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.177Z",
+      "checkedAt": "2026-10-15T15:40:01.430Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK25FA110_9700_W900KK24D0030_9700",
         "piid": "W900KK25FA110",
@@ -4008,7 +4008,7 @@
       "generatedAwardId": "CONT_AWD_W900KK26FA009_9700_W900KK24D0030_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.180Z",
+      "checkedAt": "2026-10-15T15:40:01.432Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK26FA009_9700_W900KK24D0030_9700",
         "piid": "W900KK26FA009",
@@ -4052,7 +4052,7 @@
       "generatedAwardId": "CONT_AWD_N6852026F1033_9700_N6852026D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.184Z",
+      "checkedAt": "2026-10-15T15:40:01.429Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852026F1033_9700_N6852026D0001_9700",
         "piid": "N6852026F1033",
@@ -4096,7 +4096,7 @@
       "generatedAwardId": "CONT_AWD_HQ003425FE146_9700_GS35F271CA_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.187Z",
+      "checkedAt": "2026-10-15T15:40:01.433Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ003425FE146_9700_GS35F271CA_4732",
         "piid": "HQ003425FE146",
@@ -4140,7 +4140,7 @@
       "generatedAwardId": "CONT_AWD_N6852026F1012_9700_NNG15SC82B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.201Z",
+      "checkedAt": "2026-10-15T15:40:01.434Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852026F1012_9700_NNG15SC82B_8000",
         "piid": "N6852026F1012",
@@ -4184,7 +4184,7 @@
       "generatedAwardId": "CONT_AWD_N6852026F1010_9700_N6600119A0010_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.222Z",
+      "checkedAt": "2026-10-15T15:40:01.447Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852026F1010_9700_N6600119A0010_9700",
         "piid": "N6852026F1010",
@@ -4228,7 +4228,7 @@
       "generatedAwardId": "CONT_AWD_N6852026F1027_9700_NNG15SD42B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.227Z",
+      "checkedAt": "2026-10-15T15:40:01.446Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852026F1027_9700_NNG15SD42B_8000",
         "piid": "N6852026F1027",
@@ -4272,7 +4272,7 @@
       "generatedAwardId": "CONT_AWD_FA481426FB003_9700_NNG15SD11B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.228Z",
+      "checkedAt": "2026-10-15T15:40:01.511Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA481426FB003_9700_NNG15SD11B_8000",
         "piid": "FA481426FB003",
@@ -4316,7 +4316,7 @@
       "generatedAwardId": "CONT_AWD_FA873026FB004_9700_FA873023DB004_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.231Z",
+      "checkedAt": "2026-10-15T15:40:01.503Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873026FB004_9700_FA873023DB004_9700",
         "piid": "FA873026FB004",
@@ -4462,7 +4462,7 @@
       "generatedAwardId": "CONT_IDV_70Z07923AISD20001_7008",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.234Z",
+      "checkedAt": "2026-10-15T15:40:01.507Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_70Z07923AISD20001_7008",
         "piid": "70Z07923AISD20001",
@@ -4608,7 +4608,7 @@
       "generatedAwardId": "CONT_IDV_N0017819D7206_9700",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.302Z",
+      "checkedAt": "2026-10-15T15:40:01.511Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N0017819D7206_9700",
         "piid": "N0017819D7206",
@@ -4839,7 +4839,7 @@
       "generatedAwardId": "CONT_IDV_N0017819D8547_9700",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.311Z",
+      "checkedAt": "2026-10-15T15:40:01.510Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N0017819D8547_9700",
         "piid": "N0017819D8547",
@@ -5036,7 +5036,7 @@
       "generatedAwardId": "CONT_IDV_H9240421D0001_9700",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.272Z",
+      "checkedAt": "2026-10-15T15:40:03.485Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_H9240421D0001_9700",
         "piid": "H9240421D0001",
@@ -5114,7 +5114,7 @@
       "generatedAwardId": "CONT_IDV_N0042123D0005_9700",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.354Z",
+      "checkedAt": "2026-10-15T15:40:01.578Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N0042123D0005_9700",
         "piid": "N0042123D0005",
@@ -5192,7 +5192,7 @@
       "generatedAwardId": "CONT_IDV_N0042122D0004_9700",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.281Z",
+      "checkedAt": "2026-10-15T15:40:01.580Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N0042122D0004_9700",
         "piid": "N0042122D0004",
@@ -5287,7 +5287,7 @@
       "generatedAwardId": "CONT_IDV_N0042121D0015_9700",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.327Z",
+      "checkedAt": "2026-10-15T15:40:01.585Z",
       "observation": {
         "generatedAwardId": "CONT_IDV_N0042121D0015_9700",
         "piid": "N0042121D0015",
@@ -5331,7 +5331,7 @@
       "generatedAwardId": "CONT_AWD_H9240823C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.331Z",
+      "checkedAt": "2026-10-15T15:40:01.584Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_H9240823C0004_9700_-NONE-_-NONE-",
         "piid": "H9240823C0004",
@@ -5460,7 +5460,7 @@
       "generatedAwardId": "CONT_AWD_N0042120C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.355Z",
+      "checkedAt": "2026-10-15T15:40:01.658Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042120C0003_9700_-NONE-_-NONE-",
         "piid": "N0042120C0003",
@@ -5504,7 +5504,7 @@
       "generatedAwardId": "CONT_AWD_H9240823C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-piid-resolution",
-      "checkedAt": "2026-10-15T14:20:36.361Z",
+      "checkedAt": "2026-10-15T15:40:01.660Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_H9240823C0003_9700_-NONE-_-NONE-",
         "piid": "H9240823C0003",
@@ -5769,7 +5769,7 @@
       "generatedAwardId": "CONT_AWD_N0001917C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.411Z",
+      "checkedAt": "2026-10-15T15:40:01.736Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001917C0001_9700_-NONE-_-NONE-",
         "piid": "N0001917C0001",
@@ -5813,7 +5813,7 @@
       "generatedAwardId": "CONT_AWD_N0002417C2100_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.412Z",
+      "checkedAt": "2026-10-15T15:40:01.764Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002417C2100_9700_-NONE-_-NONE-",
         "piid": "N0002417C2100",
@@ -5857,7 +5857,7 @@
       "generatedAwardId": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.422Z",
+      "checkedAt": "2026-10-15T15:40:01.812Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
         "piid": "FA862511C6600",
@@ -5901,7 +5901,7 @@
       "generatedAwardId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.464Z",
+      "checkedAt": "2026-10-15T15:40:01.844Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
         "piid": "N0002417C2117",
@@ -5945,7 +5945,7 @@
       "generatedAwardId": "CONT_AWD_N0001920C0009_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.463Z",
+      "checkedAt": "2026-10-15T15:40:01.843Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001920C0009_9700_-NONE-_-NONE-",
         "piid": "N0001920C0009",
@@ -5989,7 +5989,7 @@
       "generatedAwardId": "CONT_AWD_N0001923C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.475Z",
+      "checkedAt": "2026-10-15T15:40:01.853Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001923C0003_9700_-NONE-_-NONE-",
         "piid": "N0001923C0003",
@@ -6033,7 +6033,7 @@
       "generatedAwardId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.498Z",
+      "checkedAt": "2026-10-15T15:40:01.889Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
         "piid": "N0002412C2115",
@@ -6077,7 +6077,7 @@
       "generatedAwardId": "CONT_AWD_N0001914C0067_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.523Z",
+      "checkedAt": "2026-10-15T15:40:01.890Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001914C0067_9700_-NONE-_-NONE-",
         "piid": "N0001914C0067",
@@ -6121,7 +6121,7 @@
       "generatedAwardId": "CONT_AWD_FA821920C0006_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.516Z",
+      "checkedAt": "2026-10-15T15:40:01.905Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA821920C0006_9700_-NONE-_-NONE-",
         "piid": "FA821920C0006",
@@ -6165,7 +6165,7 @@
       "generatedAwardId": "CONT_AWD_N0002416C2116_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.514Z",
+      "checkedAt": "2026-10-15T15:40:01.919Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002416C2116_9700_-NONE-_-NONE-",
         "piid": "N0002416C2116",
@@ -6209,7 +6209,7 @@
       "generatedAwardId": "CONT_AWD_N0001916C0033_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.535Z",
+      "checkedAt": "2026-10-15T15:40:01.917Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001916C0033_9700_-NONE-_-NONE-",
         "piid": "N0001916C0033",
@@ -6253,7 +6253,7 @@
       "generatedAwardId": "CONT_AWD_N0001915C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.535Z",
+      "checkedAt": "2026-10-15T15:40:01.933Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001915C0003_9700_-NONE-_-NONE-",
         "piid": "N0001915C0003",
@@ -6297,7 +6297,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.548Z",
+      "checkedAt": "2026-10-15T15:40:01.928Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
         "piid": "W31P4Q20C0023",
@@ -6341,7 +6341,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q24C0022_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.566Z",
+      "checkedAt": "2026-10-15T15:40:01.962Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q24C0022_9700_-NONE-_-NONE-",
         "piid": "W31P4Q24C0022",
@@ -6385,7 +6385,7 @@
       "generatedAwardId": "CONT_AWD_HQ014717C0032_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.569Z",
+      "checkedAt": "2026-10-15T15:40:01.967Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ014717C0032_9700_-NONE-_-NONE-",
         "piid": "HQ014717C0032",
@@ -6429,7 +6429,7 @@
       "generatedAwardId": "CONT_AWD_N0001918C1037_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.573Z",
+      "checkedAt": "2026-10-15T15:40:01.979Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001918C1037_9700_-NONE-_-NONE-",
         "piid": "N0001918C1037",
@@ -6473,7 +6473,7 @@
       "generatedAwardId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.586Z",
+      "checkedAt": "2026-10-15T15:40:01.992Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
         "piid": "N0002423C2307",
@@ -6517,7 +6517,7 @@
       "generatedAwardId": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.586Z",
+      "checkedAt": "2026-10-15T15:40:01.994Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
         "piid": "N0001921C0020",
@@ -6561,7 +6561,7 @@
       "generatedAwardId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.601Z",
+      "checkedAt": "2026-10-15T15:40:02.006Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
         "piid": "N0001924C0039",
@@ -6605,7 +6605,7 @@
       "generatedAwardId": "CONT_AWD_N0001920C0011_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.611Z",
+      "checkedAt": "2026-10-15T15:40:02.010Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001920C0011_9700_-NONE-_-NONE-",
         "piid": "N0001920C0011",
@@ -6649,7 +6649,7 @@
       "generatedAwardId": "CONT_AWD_FA881018C0005_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.616Z",
+      "checkedAt": "2026-10-15T15:40:02.051Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA881018C0005_9700_-NONE-_-NONE-",
         "piid": "FA881018C0005",
@@ -6693,7 +6693,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ16C0023_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.617Z",
+      "checkedAt": "2026-10-15T15:40:02.050Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ16C0023_9700_-NONE-_-NONE-",
         "piid": "W58RGZ16C0023",
@@ -6737,7 +6737,7 @@
       "generatedAwardId": "CONT_AWD_FA868224CB001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.619Z",
+      "checkedAt": "2026-10-15T15:40:02.056Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868224CB001_9700_-NONE-_-NONE-",
         "piid": "FA868224CB001",
@@ -6781,7 +6781,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.623Z",
+      "checkedAt": "2026-10-15T15:40:02.068Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
         "piid": "N0002424C2110",
@@ -6825,7 +6825,7 @@
       "generatedAwardId": "CONT_AWD_N0001917C0015_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.636Z",
+      "checkedAt": "2026-10-15T15:40:02.070Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001917C0015_9700_-NONE-_-NONE-",
         "piid": "N0001917C0015",
@@ -6869,7 +6869,7 @@
       "generatedAwardId": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.638Z",
+      "checkedAt": "2026-10-15T15:40:02.080Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
         "piid": "FA863418C2701",
@@ -6913,7 +6913,7 @@
       "generatedAwardId": "CONT_AWD_N0002418C2307_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.651Z",
+      "checkedAt": "2026-10-15T15:40:02.085Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002418C2307_9700_-NONE-_-NONE-",
         "piid": "N0002418C2307",
@@ -6957,7 +6957,7 @@
       "generatedAwardId": "CONT_AWD_N0002423C2305_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.662Z",
+      "checkedAt": "2026-10-15T15:40:02.126Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002423C2305_9700_-NONE-_-NONE-",
         "piid": "N0002423C2305",
@@ -7001,7 +7001,7 @@
       "generatedAwardId": "CONT_AWD_N0001913C0008_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.667Z",
+      "checkedAt": "2026-10-15T15:40:02.133Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001913C0008_9700_-NONE-_-NONE-",
         "piid": "N0001913C0008",
@@ -7045,7 +7045,7 @@
       "generatedAwardId": "CONT_AWD_FA862914C2403_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.668Z",
+      "checkedAt": "2026-10-15T15:40:02.135Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA862914C2403_9700_-NONE-_-NONE-",
         "piid": "FA862914C2403",
@@ -7089,7 +7089,7 @@
       "generatedAwardId": "CONT_AWD_N0002416C2229_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.671Z",
+      "checkedAt": "2026-10-15T15:40:02.153Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002416C2229_9700_-NONE-_-NONE-",
         "piid": "N0002416C2229",
@@ -7133,7 +7133,7 @@
       "generatedAwardId": "CONT_AWD_N0001924C0025_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.674Z",
+      "checkedAt": "2026-10-15T15:40:02.154Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001924C0025_9700_-NONE-_-NONE-",
         "piid": "N0001924C0025",
@@ -7177,7 +7177,7 @@
       "generatedAwardId": "CONT_AWD_N0001918C1046_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.686Z",
+      "checkedAt": "2026-10-15T15:40:02.156Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001918C1046_9700_-NONE-_-NONE-",
         "piid": "N0001918C1046",
@@ -7221,7 +7221,7 @@
       "generatedAwardId": "CONT_AWD_N0002418C2305_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.690Z",
+      "checkedAt": "2026-10-15T15:40:02.158Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002418C2305_9700_-NONE-_-NONE-",
         "piid": "N0002418C2305",
@@ -7265,7 +7265,7 @@
       "generatedAwardId": "CONT_AWD_N0001913C9999_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.700Z",
+      "checkedAt": "2026-10-15T15:40:02.202Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001913C9999_9700_-NONE-_-NONE-",
         "piid": "N0001913C9999",
@@ -7309,7 +7309,7 @@
       "generatedAwardId": "CONT_AWD_FA861520F0001_9700_FA861520D6052_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.712Z",
+      "checkedAt": "2026-10-15T15:40:02.209Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861520F0001_9700_FA861520D6052_9700",
         "piid": "FA861520F0001",
@@ -7353,7 +7353,7 @@
       "generatedAwardId": "CONT_AWD_N0002420C2120_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.717Z",
+      "checkedAt": "2026-10-15T15:40:02.221Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002420C2120_9700_-NONE-_-NONE-",
         "piid": "N0002420C2120",
@@ -7397,7 +7397,7 @@
       "generatedAwardId": "CONT_AWD_N0002413C2305_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.718Z",
+      "checkedAt": "2026-10-15T15:40:02.233Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002413C2305_9700_-NONE-_-NONE-",
         "piid": "N0002413C2305",
@@ -7441,7 +7441,7 @@
       "generatedAwardId": "CONT_AWD_N0002411C2300_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.723Z",
+      "checkedAt": "2026-10-15T15:40:02.228Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002411C2300_9700_-NONE-_-NONE-",
         "piid": "N0002411C2300",
@@ -7485,7 +7485,7 @@
       "generatedAwardId": "CONT_AWD_N0001921C0011_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.727Z",
+      "checkedAt": "2026-10-15T15:40:02.231Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001921C0011_9700_-NONE-_-NONE-",
         "piid": "N0001921C0011",
@@ -7529,7 +7529,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q26C0013_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.738Z",
+      "checkedAt": "2026-10-15T15:40:02.235Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q26C0013_9700_-NONE-_-NONE-",
         "piid": "W31P4Q26C0013",
@@ -7573,7 +7573,7 @@
       "generatedAwardId": "CONT_AWD_N0002418C2406_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.740Z",
+      "checkedAt": "2026-10-15T15:40:02.290Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002418C2406_9700_-NONE-_-NONE-",
         "piid": "N0002418C2406",
@@ -7617,7 +7617,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ22C0010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.750Z",
+      "checkedAt": "2026-10-15T15:40:02.286Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ22C0010_9700_-NONE-_-NONE-",
         "piid": "W58RGZ22C0010",
@@ -7661,7 +7661,7 @@
       "generatedAwardId": "CONT_AWD_N0001919C0010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.768Z",
+      "checkedAt": "2026-10-15T15:40:02.297Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001919C0010_9700_-NONE-_-NONE-",
         "piid": "N0001919C0010",
@@ -7705,7 +7705,7 @@
       "generatedAwardId": "CONT_AWD_FA880718C0009_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.767Z",
+      "checkedAt": "2026-10-15T15:40:02.302Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA880718C0009_9700_-NONE-_-NONE-",
         "piid": "FA880718C0009",
@@ -7749,7 +7749,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q19C0011_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.770Z",
+      "checkedAt": "2026-10-15T15:40:02.308Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q19C0011_9700_-NONE-_-NONE-",
         "piid": "W31P4Q19C0011",
@@ -7793,7 +7793,7 @@
       "generatedAwardId": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.775Z",
+      "checkedAt": "2026-10-15T15:40:02.309Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
         "piid": "W9124G17C0104",
@@ -7837,7 +7837,7 @@
       "generatedAwardId": "CONT_AWD_FA880708C0010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.783Z",
+      "checkedAt": "2026-10-15T15:40:02.312Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA880708C0010_9700_-NONE-_-NONE-",
         "piid": "FA880708C0010",
@@ -7881,7 +7881,7 @@
       "generatedAwardId": "CONT_AWD_N0001925C0070_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.792Z",
+      "checkedAt": "2026-10-15T15:40:02.364Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001925C0070_9700_-NONE-_-NONE-",
         "piid": "N0001925C0070",
@@ -7925,7 +7925,7 @@
       "generatedAwardId": "CONT_AWD_FA880710C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.797Z",
+      "checkedAt": "2026-10-15T15:40:02.365Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA880710C0001_9700_-NONE-_-NONE-",
         "piid": "FA880710C0001",
@@ -7969,7 +7969,7 @@
       "generatedAwardId": "CONT_AWD_HQ014719C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.801Z",
+      "checkedAt": "2026-10-15T15:40:02.373Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ014719C0004_9700_-NONE-_-NONE-",
         "piid": "HQ014719C0004",
@@ -8013,7 +8013,7 @@
       "generatedAwardId": "CONT_AWD_FA862516C6599_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.819Z",
+      "checkedAt": "2026-10-15T15:40:02.380Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA862516C6599_9700_-NONE-_-NONE-",
         "piid": "FA862516C6599",
@@ -8057,7 +8057,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ23C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.819Z",
+      "checkedAt": "2026-10-15T15:40:02.382Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ23C0001_9700_-NONE-_-NONE-",
         "piid": "W58RGZ23C0001",
@@ -8101,7 +8101,7 @@
       "generatedAwardId": "CONT_AWD_FA863423F0048_9700_FA863420D2704_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.823Z",
+      "checkedAt": "2026-10-15T15:40:02.385Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA863423F0048_9700_FA863420D2704_9700",
         "piid": "FA863423F0048",
@@ -8145,7 +8145,7 @@
       "generatedAwardId": "CONT_AWD_N0001924C0009_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.829Z",
+      "checkedAt": "2026-10-15T15:40:02.387Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001924C0009_9700_-NONE-_-NONE-",
         "piid": "N0001924C0009",
@@ -8189,7 +8189,7 @@
       "generatedAwardId": "CONT_AWD_FA881018C0006_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.835Z",
+      "checkedAt": "2026-10-15T15:40:02.443Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA881018C0006_9700_-NONE-_-NONE-",
         "piid": "FA881018C0006",
@@ -8233,7 +8233,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ21C0015_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.842Z",
+      "checkedAt": "2026-10-15T15:40:02.442Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ21C0015_9700_-NONE-_-NONE-",
         "piid": "W58RGZ21C0015",
@@ -8277,7 +8277,7 @@
       "generatedAwardId": "CONT_AWD_N0001922C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.849Z",
+      "checkedAt": "2026-10-15T15:40:02.447Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001922C0004_9700_-NONE-_-NONE-",
         "piid": "N0001922C0004",
@@ -8321,7 +8321,7 @@
       "generatedAwardId": "CONT_AWD_FA283424CB002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.850Z",
+      "checkedAt": "2026-10-15T15:40:02.453Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA283424CB002_9700_-NONE-_-NONE-",
         "piid": "FA283424CB002",
@@ -8365,7 +8365,7 @@
       "generatedAwardId": "CONT_AWD_FA865925CB003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.869Z",
+      "checkedAt": "2026-10-15T15:40:02.457Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA865925CB003_9700_-NONE-_-NONE-",
         "piid": "FA865925CB003",
@@ -8409,7 +8409,7 @@
       "generatedAwardId": "CONT_AWD_N0002416C2427_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.873Z",
+      "checkedAt": "2026-10-15T15:40:02.458Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002416C2427_9700_-NONE-_-NONE-",
         "piid": "N0002416C2427",
@@ -8453,7 +8453,7 @@
       "generatedAwardId": "CONT_AWD_N0002418C2301_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.874Z",
+      "checkedAt": "2026-10-15T15:40:02.461Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002418C2301_9700_-NONE-_-NONE-",
         "piid": "N0002418C2301",
@@ -8497,7 +8497,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2301_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.879Z",
+      "checkedAt": "2026-10-15T15:40:02.517Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2301_9700_-NONE-_-NONE-",
         "piid": "N0002424C2301",
@@ -8541,7 +8541,7 @@
       "generatedAwardId": "CONT_AWD_N0002413C2307_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.888Z",
+      "checkedAt": "2026-10-15T15:40:02.519Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002413C2307_9700_-NONE-_-NONE-",
         "piid": "N0002413C2307",
@@ -8585,7 +8585,7 @@
       "generatedAwardId": "CONT_AWD_HQ085124C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.892Z",
+      "checkedAt": "2026-10-15T15:40:02.528Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085124C0001_9700_-NONE-_-NONE-",
         "piid": "HQ085124C0001",
@@ -8629,7 +8629,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q18C0130_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.901Z",
+      "checkedAt": "2026-10-15T15:40:02.528Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q18C0130_9700_-NONE-_-NONE-",
         "piid": "W31P4Q18C0130",
@@ -8673,7 +8673,7 @@
       "generatedAwardId": "CONT_AWD_N0002420C2437_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.901Z",
+      "checkedAt": "2026-10-15T15:40:02.531Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002420C2437_9700_-NONE-_-NONE-",
         "piid": "N0002420C2437",
@@ -8717,7 +8717,7 @@
       "generatedAwardId": "CONT_AWD_FA820523F0501_9700_FA820518D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.666Z",
+      "checkedAt": "2026-10-15T15:40:02.533Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA820523F0501_9700_FA820518D0001_9700",
         "piid": "FA820523F0501",
@@ -8761,7 +8761,7 @@
       "generatedAwardId": "CONT_AWD_N6274223F4007_9700_N6274222D1311_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.927Z",
+      "checkedAt": "2026-10-15T15:40:02.539Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6274223F4007_9700_N6274222D1311_9700",
         "piid": "N6274223F4007",
@@ -8805,7 +8805,7 @@
       "generatedAwardId": "CONT_AWD_N0001914C0050_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.924Z",
+      "checkedAt": "2026-10-15T15:40:02.600Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001914C0050_9700_-NONE-_-NONE-",
         "piid": "N0001914C0050",
@@ -8849,7 +8849,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q25F0080_9700_W31P4Q23D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.929Z",
+      "checkedAt": "2026-10-15T15:40:02.596Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q25F0080_9700_W31P4Q23D0003_9700",
         "piid": "W31P4Q25F0080",
@@ -8893,7 +8893,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2115_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.938Z",
+      "checkedAt": "2026-10-15T15:40:02.604Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2115_9700_-NONE-_-NONE-",
         "piid": "N0002424C2115",
@@ -8937,7 +8937,7 @@
       "generatedAwardId": "CONT_AWD_N0003024C0100_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.942Z",
+      "checkedAt": "2026-10-15T15:40:02.603Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0003024C0100_9700_-NONE-_-NONE-",
         "piid": "N0003024C0100",
@@ -8981,7 +8981,7 @@
       "generatedAwardId": "CONT_AWD_N0002420C2300_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.951Z",
+      "checkedAt": "2026-10-15T15:40:02.610Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002420C2300_9700_-NONE-_-NONE-",
         "piid": "N0002420C2300",
@@ -9025,7 +9025,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q24C0024_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.954Z",
+      "checkedAt": "2026-10-15T15:40:02.606Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q24C0024_9700_-NONE-_-NONE-",
         "piid": "W31P4Q24C0024",
@@ -9069,7 +9069,7 @@
       "generatedAwardId": "CONT_AWD_FA861512C6016_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.975Z",
+      "checkedAt": "2026-10-15T15:40:02.613Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA861512C6016_9700_-NONE-_-NONE-",
         "piid": "FA861512C6016",
@@ -9113,7 +9113,7 @@
       "generatedAwardId": "CONT_AWD_N0001923C0030_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.979Z",
+      "checkedAt": "2026-10-15T15:40:02.672Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001923C0030_9700_-NONE-_-NONE-",
         "piid": "N0001923C0030",
@@ -9157,7 +9157,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q24F0165_9700_W31P4Q23D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.980Z",
+      "checkedAt": "2026-10-15T15:40:02.673Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q24F0165_9700_W31P4Q23D0003_9700",
         "piid": "W31P4Q24F0165",
@@ -9201,7 +9201,7 @@
       "generatedAwardId": "CONT_AWD_N0002417C2301_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.989Z",
+      "checkedAt": "2026-10-15T15:40:02.679Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002417C2301_9700_-NONE-_-NONE-",
         "piid": "N0002417C2301",
@@ -9245,7 +9245,7 @@
       "generatedAwardId": "CONT_AWD_FA873023C0025_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:36.992Z",
+      "checkedAt": "2026-10-15T15:40:02.685Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873023C0025_9700_-NONE-_-NONE-",
         "piid": "FA873023C0025",
@@ -9289,7 +9289,7 @@
       "generatedAwardId": "CONT_AWD_N0001916C0048_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.003Z",
+      "checkedAt": "2026-10-15T15:40:02.683Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001916C0048_9700_-NONE-_-NONE-",
         "piid": "N0001916C0048",
@@ -9333,7 +9333,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2114_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.006Z",
+      "checkedAt": "2026-10-15T15:40:02.683Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2114_9700_-NONE-_-NONE-",
         "piid": "N0002424C2114",
@@ -9377,7 +9377,7 @@
       "generatedAwardId": "CONT_AWD_FA867523C0037_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.027Z",
+      "checkedAt": "2026-10-15T15:40:02.691Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA867523C0037_9700_-NONE-_-NONE-",
         "piid": "FA867523C0037",
@@ -9421,7 +9421,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q23F0024_9700_W31P4Q23D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.030Z",
+      "checkedAt": "2026-10-15T15:40:02.749Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q23F0024_9700_W31P4Q23D0003_9700",
         "piid": "W31P4Q23F0024",
@@ -9465,7 +9465,7 @@
       "generatedAwardId": "CONT_AWD_W56HZV23C0024_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.030Z",
+      "checkedAt": "2026-10-15T15:40:02.749Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56HZV23C0024_9700_-NONE-_-NONE-",
         "piid": "W56HZV23C0024",
@@ -9509,7 +9509,7 @@
       "generatedAwardId": "CONT_AWD_N0001919C0013_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.040Z",
+      "checkedAt": "2026-10-15T15:40:02.753Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001919C0013_9700_-NONE-_-NONE-",
         "piid": "N0001919C0013",
@@ -9553,7 +9553,7 @@
       "generatedAwardId": "CONT_AWD_DAAA0998E0006_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.043Z",
+      "checkedAt": "2026-10-15T15:40:02.759Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_DAAA0998E0006_9700_-NONE-_-NONE-",
         "piid": "DAAA0998E0006",
@@ -9597,7 +9597,7 @@
       "generatedAwardId": "CONT_AWD_FA821413C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.052Z",
+      "checkedAt": "2026-10-15T15:40:02.759Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA821413C0001_9700_-NONE-_-NONE-",
         "piid": "FA821413C0001",
@@ -9641,7 +9641,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q23C0005_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.056Z",
+      "checkedAt": "2026-10-15T15:40:02.766Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q23C0005_9700_-NONE-_-NONE-",
         "piid": "W31P4Q23C0005",
@@ -9685,7 +9685,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C5408_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.084Z",
+      "checkedAt": "2026-10-15T15:40:02.766Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C5408_9700_-NONE-_-NONE-",
         "piid": "N0002424C5408",
@@ -9729,7 +9729,7 @@
       "generatedAwardId": "CONT_AWD_FA867521C0034_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.087Z",
+      "checkedAt": "2026-10-15T15:40:02.828Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA867521C0034_9700_-NONE-_-NONE-",
         "piid": "FA867521C0034",
@@ -9773,7 +9773,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2473_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.086Z",
+      "checkedAt": "2026-10-15T15:40:02.948Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2473_9700_-NONE-_-NONE-",
         "piid": "N0002424C2473",
@@ -9817,7 +9817,7 @@
       "generatedAwardId": "CONT_AWD_HQ085120C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.092Z",
+      "checkedAt": "2026-10-15T15:40:02.828Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085120C0002_9700_-NONE-_-NONE-",
         "piid": "HQ085120C0002",
@@ -9861,7 +9861,7 @@
       "generatedAwardId": "CONT_AWD_N0001920C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.094Z",
+      "checkedAt": "2026-10-15T15:40:02.832Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001920C0003_9700_-NONE-_-NONE-",
         "piid": "N0001920C0003",
@@ -9905,7 +9905,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.103Z",
+      "checkedAt": "2026-10-15T15:40:02.834Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
         "piid": "W31P4Q23C0036",
@@ -9949,7 +9949,7 @@
       "generatedAwardId": "CONT_AWD_N0001924C0032_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.106Z",
+      "checkedAt": "2026-10-15T15:40:02.842Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001924C0032_9700_-NONE-_-NONE-",
         "piid": "N0001924C0032",
@@ -9993,7 +9993,7 @@
       "generatedAwardId": "CONT_AWD_N0002419C2210_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.138Z",
+      "checkedAt": "2026-10-15T15:40:02.840Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002419C2210_9700_-NONE-_-NONE-",
         "piid": "N0002419C2210",
@@ -10037,7 +10037,7 @@
       "generatedAwardId": "CONT_AWD_N0002419C2235_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.137Z",
+      "checkedAt": "2026-10-15T15:40:02.902Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002419C2235_9700_-NONE-_-NONE-",
         "piid": "N0002419C2235",
@@ -10081,7 +10081,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ19C0027_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.138Z",
+      "checkedAt": "2026-10-15T15:40:02.906Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ19C0027_9700_-NONE-_-NONE-",
         "piid": "W58RGZ19C0027",
@@ -10125,7 +10125,7 @@
       "generatedAwardId": "CONT_AWD_N0001922C0041_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.145Z",
+      "checkedAt": "2026-10-15T15:40:02.926Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001922C0041_9700_-NONE-_-NONE-",
         "piid": "N0001922C0041",
@@ -10169,7 +10169,7 @@
       "generatedAwardId": "CONT_AWD_N4008521C0077_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.146Z",
+      "checkedAt": "2026-10-15T15:40:02.906Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N4008521C0077_9700_-NONE-_-NONE-",
         "piid": "N4008521C0077",
@@ -10213,7 +10213,7 @@
       "generatedAwardId": "CONT_AWD_N0001919C0008_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.153Z",
+      "checkedAt": "2026-10-15T15:40:02.914Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001919C0008_9700_-NONE-_-NONE-",
         "piid": "N0001919C0008",
@@ -10257,7 +10257,7 @@
       "generatedAwardId": "CONT_AWD_FA867515C0022_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.156Z",
+      "checkedAt": "2026-10-15T15:40:02.917Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA867515C0022_9700_-NONE-_-NONE-",
         "piid": "FA867515C0022",
@@ -10301,7 +10301,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q19C0076_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.191Z",
+      "checkedAt": "2026-10-15T15:40:02.979Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q19C0076_9700_-NONE-_-NONE-",
         "piid": "W31P4Q19C0076",
@@ -10345,7 +10345,7 @@
       "generatedAwardId": "CONT_AWD_N6852022F7005_9700_N6134019D1010_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.192Z",
+      "checkedAt": "2026-10-15T15:40:02.983Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6852022F7005_9700_N6134019D1010_9700",
         "piid": "N6852022F7005",
@@ -10389,7 +10389,7 @@
       "generatedAwardId": "CONT_AWD_N0002418C2300_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.191Z",
+      "checkedAt": "2026-10-15T15:40:02.980Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002418C2300_9700_-NONE-_-NONE-",
         "piid": "N0002418C2300",
@@ -10433,7 +10433,7 @@
       "generatedAwardId": "CONT_AWD_N0002415C4301_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.196Z",
+      "checkedAt": "2026-10-15T15:40:02.995Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002415C4301_9700_-NONE-_-NONE-",
         "piid": "N0002415C4301",
@@ -10477,7 +10477,7 @@
       "generatedAwardId": "CONT_AWD_N0001922F0030_9700_N0001921G0006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.198Z",
+      "checkedAt": "2026-10-15T15:40:02.990Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001922F0030_9700_N0001921G0006_9700",
         "piid": "N0001922F0030",
@@ -10521,7 +10521,7 @@
       "generatedAwardId": "CONT_AWD_FA882321C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.203Z",
+      "checkedAt": "2026-10-15T15:40:03.002Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA882321C0001_9700_-NONE-_-NONE-",
         "piid": "FA882321C0001",
@@ -10565,7 +10565,7 @@
       "generatedAwardId": "CONT_AWD_N0002423C5403_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.206Z",
+      "checkedAt": "2026-10-15T15:40:03.025Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002423C5403_9700_-NONE-_-NONE-",
         "piid": "N0002423C5403",
@@ -10609,7 +10609,7 @@
       "generatedAwardId": "CONT_AWD_N0002423C2452_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.254Z",
+      "checkedAt": "2026-10-15T15:40:03.056Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002423C2452_9700_-NONE-_-NONE-",
         "piid": "N0002423C2452",
@@ -10653,7 +10653,7 @@
       "generatedAwardId": "CONT_AWD_N0002420C5405_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.253Z",
+      "checkedAt": "2026-10-15T15:40:03.056Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002420C5405_9700_-NONE-_-NONE-",
         "piid": "N0002420C5405",
@@ -10697,7 +10697,7 @@
       "generatedAwardId": "CONT_AWD_N0002421C5408_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.249Z",
+      "checkedAt": "2026-10-15T15:40:03.057Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002421C5408_9700_-NONE-_-NONE-",
         "piid": "N0002421C5408",
@@ -10741,7 +10741,7 @@
       "generatedAwardId": "CONT_AWD_N0002420C4312_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.255Z",
+      "checkedAt": "2026-10-15T15:40:03.063Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002420C4312_9700_-NONE-_-NONE-",
         "piid": "N0002420C4312",
@@ -10785,7 +10785,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ22C0022_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.255Z",
+      "checkedAt": "2026-10-15T15:40:03.069Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ22C0022_9700_-NONE-_-NONE-",
         "piid": "W58RGZ22C0022",
@@ -10829,7 +10829,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2106_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.256Z",
+      "checkedAt": "2026-10-15T15:40:03.079Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2106_9700_-NONE-_-NONE-",
         "piid": "N0002424C2106",
@@ -10873,7 +10873,7 @@
       "generatedAwardId": "CONT_AWD_HQ085126FE029_9700_HQ085926DE008_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.256Z",
+      "checkedAt": "2026-10-15T15:40:03.099Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085126FE029_9700_HQ085926DE008_9700",
         "piid": "HQ085126FE029",
@@ -10917,7 +10917,7 @@
       "generatedAwardId": "CONT_AWD_N0002419C2125_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.306Z",
+      "checkedAt": "2026-10-15T15:40:03.132Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002419C2125_9700_-NONE-_-NONE-",
         "piid": "N0002419C2125",
@@ -10961,7 +10961,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2135_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.304Z",
+      "checkedAt": "2026-10-15T15:40:03.128Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2135_9700_-NONE-_-NONE-",
         "piid": "N0002424C2135",
@@ -11005,7 +11005,7 @@
       "generatedAwardId": "CONT_AWD_N0001925C0071_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.307Z",
+      "checkedAt": "2026-10-15T15:40:03.133Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001925C0071_9700_-NONE-_-NONE-",
         "piid": "N0001925C0071",
@@ -11049,7 +11049,7 @@
       "generatedAwardId": "CONT_AWD_FA882320C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.314Z",
+      "checkedAt": "2026-10-15T15:40:03.136Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA882320C0004_9700_-NONE-_-NONE-",
         "piid": "FA882320C0004",
@@ -11093,7 +11093,7 @@
       "generatedAwardId": "CONT_AWD_HQ014712C0006_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.307Z",
+      "checkedAt": "2026-10-15T15:40:03.144Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ014712C0006_9700_-NONE-_-NONE-",
         "piid": "HQ014712C0006",
@@ -11137,7 +11137,7 @@
       "generatedAwardId": "CONT_AWD_N0003025C0100_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.314Z",
+      "checkedAt": "2026-10-15T15:40:03.153Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0003025C0100_9700_-NONE-_-NONE-",
         "piid": "N0003025C0100",
@@ -11181,7 +11181,7 @@
       "generatedAwardId": "CONT_AWD_N0003023C0100_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.315Z",
+      "checkedAt": "2026-10-15T15:40:03.180Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0003023C0100_9700_-NONE-_-NONE-",
         "piid": "N0003023C0100",
@@ -11225,7 +11225,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q19C0092_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.354Z",
+      "checkedAt": "2026-10-15T15:40:03.205Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q19C0092_9700_-NONE-_-NONE-",
         "piid": "W31P4Q19C0092",
@@ -11269,7 +11269,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q23F0177_9700_W31P4Q23D0014_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.358Z",
+      "checkedAt": "2026-10-15T15:40:03.207Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q23F0177_9700_W31P4Q23D0014_9700",
         "piid": "W31P4Q23F0177",
@@ -11313,7 +11313,7 @@
       "generatedAwardId": "CONT_AWD_N0002419C2227_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.357Z",
+      "checkedAt": "2026-10-15T15:40:03.213Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002419C2227_9700_-NONE-_-NONE-",
         "piid": "N0002419C2227",
@@ -11357,7 +11357,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q23C0021_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.366Z",
+      "checkedAt": "2026-10-15T15:40:03.212Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q23C0021_9700_-NONE-_-NONE-",
         "piid": "W31P4Q23C0021",
@@ -11401,7 +11401,7 @@
       "generatedAwardId": "CONT_AWD_N0002418C4314_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.365Z",
+      "checkedAt": "2026-10-15T15:40:03.218Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002418C4314_9700_-NONE-_-NONE-",
         "piid": "N0002418C4314",
@@ -11445,7 +11445,7 @@
       "generatedAwardId": "CONT_AWD_W56HZV22C0012_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.367Z",
+      "checkedAt": "2026-10-15T15:40:03.227Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56HZV22C0012_9700_-NONE-_-NONE-",
         "piid": "W56HZV22C0012",
@@ -11489,7 +11489,7 @@
       "generatedAwardId": "CONT_AWD_N0002407C2102_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.371Z",
+      "checkedAt": "2026-10-15T15:40:03.258Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002407C2102_9700_-NONE-_-NONE-",
         "piid": "N0002407C2102",
@@ -11533,7 +11533,7 @@
       "generatedAwardId": "CONT_AWD_FA868223CB001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.406Z",
+      "checkedAt": "2026-10-15T15:40:05.022Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868223CB001_9700_-NONE-_-NONE-",
         "piid": "FA868223CB001",
@@ -11577,7 +11577,7 @@
       "generatedAwardId": "CONT_AWD_HQ014719C0007_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.409Z",
+      "checkedAt": "2026-10-15T15:40:03.282Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ014719C0007_9700_-NONE-_-NONE-",
         "piid": "HQ014719C0007",
@@ -11621,7 +11621,7 @@
       "generatedAwardId": "CONT_AWD_N0002417C6259_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.408Z",
+      "checkedAt": "2026-10-15T15:40:03.287Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002417C6259_9700_-NONE-_-NONE-",
         "piid": "N0002417C6259",
@@ -11665,7 +11665,7 @@
       "generatedAwardId": "CONT_AWD_FA812425F1025_9700_FA861118D2850_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.417Z",
+      "checkedAt": "2026-10-15T15:40:03.291Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA812425F1025_9700_FA861118D2850_9700",
         "piid": "FA812425F1025",
@@ -11709,7 +11709,7 @@
       "generatedAwardId": "CONT_AWD_N6134020F0040_9700_N6134019D1006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.416Z",
+      "checkedAt": "2026-10-15T15:40:03.293Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6134020F0040_9700_N6134019D1006_9700",
         "piid": "N6134020F0040",
@@ -11753,7 +11753,7 @@
       "generatedAwardId": "CONT_AWD_N0002417C2480_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.418Z",
+      "checkedAt": "2026-10-15T15:40:03.301Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002417C2480_9700_-NONE-_-NONE-",
         "piid": "N0002417C2480",
@@ -11797,7 +11797,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ19C0025_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.422Z",
+      "checkedAt": "2026-10-15T15:40:03.332Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ19C0025_9700_-NONE-_-NONE-",
         "piid": "W58RGZ19C0025",
@@ -11841,7 +11841,7 @@
       "generatedAwardId": "CONT_AWD_FA852626FB002_9700_FA852621D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.456Z",
+      "checkedAt": "2026-10-15T15:40:03.358Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA852626FB002_9700_FA852621D0001_9700",
         "piid": "FA852626FB002",
@@ -11885,7 +11885,7 @@
       "generatedAwardId": "CONT_AWD_N0002414C2104_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.460Z",
+      "checkedAt": "2026-10-15T15:40:03.362Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002414C2104_9700_-NONE-_-NONE-",
         "piid": "N0002414C2104",
@@ -11929,7 +11929,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2124_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.459Z",
+      "checkedAt": "2026-10-15T15:40:03.365Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2124_9700_-NONE-_-NONE-",
         "piid": "N0002424C2124",
@@ -11973,7 +11973,7 @@
       "generatedAwardId": "CONT_AWD_N0002424C2467_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.469Z",
+      "checkedAt": "2026-10-15T15:40:03.368Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002424C2467_9700_-NONE-_-NONE-",
         "piid": "N0002424C2467",
@@ -12017,7 +12017,7 @@
       "generatedAwardId": "CONT_AWD_N0001926C0112_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.468Z",
+      "checkedAt": "2026-10-15T15:40:03.376Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001926C0112_9700_-NONE-_-NONE-",
         "piid": "N0001926C0112",
@@ -12061,7 +12061,7 @@
       "generatedAwardId": "CONT_AWD_HQ014719C5001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.469Z",
+      "checkedAt": "2026-10-15T15:40:03.406Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ014719C5001_9700_-NONE-_-NONE-",
         "piid": "HQ014719C5001",
@@ -12105,7 +12105,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ24C0031_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.473Z",
+      "checkedAt": "2026-10-15T15:40:03.433Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ24C0031_9700_-NONE-_-NONE-",
         "piid": "W58RGZ24C0031",
@@ -12149,7 +12149,7 @@
       "generatedAwardId": "CONT_AWD_FA862118F6251_9700_FA862115D6276_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.507Z",
+      "checkedAt": "2026-10-15T15:40:03.436Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA862118F6251_9700_FA862115D6276_9700",
         "piid": "FA862118F6251",
@@ -12193,7 +12193,7 @@
       "generatedAwardId": "CONT_AWD_N6274226F9920_9700_N6274223D1320_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.508Z",
+      "checkedAt": "2026-10-15T15:40:03.443Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6274226F9920_9700_N6274223D1320_9700",
         "piid": "N6274226F9920",
@@ -12237,7 +12237,7 @@
       "generatedAwardId": "CONT_AWD_W519TC25C0032_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.510Z",
+      "checkedAt": "2026-10-15T15:40:03.444Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC25C0032_9700_-NONE-_-NONE-",
         "piid": "W519TC25C0032",
@@ -12281,7 +12281,7 @@
       "generatedAwardId": "CONT_AWD_W56HZV15C0099_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.520Z",
+      "checkedAt": "2026-10-15T15:40:03.451Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56HZV15C0099_9700_-NONE-_-NONE-",
         "piid": "W56HZV15C0099",
@@ -12325,7 +12325,7 @@
       "generatedAwardId": "CONT_AWD_W56KGY25F0139_9700_W56KGY25D0008_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.520Z",
+      "checkedAt": "2026-10-15T15:40:03.481Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56KGY25F0139_9700_W56KGY25D0008_9700",
         "piid": "W56KGY25F0139",
@@ -12369,7 +12369,7 @@
       "generatedAwardId": "CONT_AWD_N0002422C5522_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.522Z",
+      "checkedAt": "2026-10-15T15:40:03.508Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002422C5522_9700_-NONE-_-NONE-",
         "piid": "N0002422C5522",
@@ -12413,7 +12413,7 @@
       "generatedAwardId": "CONT_AWD_W91RUS21C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.533Z",
+      "checkedAt": "2026-10-15T15:40:03.510Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W91RUS21C0001_9700_-NONE-_-NONE-",
         "piid": "W91RUS21C0001",
@@ -12457,7 +12457,7 @@
       "generatedAwardId": "CONT_AWD_W9126G26CA011_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.559Z",
+      "checkedAt": "2026-10-15T15:40:03.518Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9126G26CA011_9700_-NONE-_-NONE-",
         "piid": "W9126G26CA011",
@@ -12501,7 +12501,7 @@
       "generatedAwardId": "CONT_AWD_W519TC24F0083_9700_W52P1J19D0085_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.561Z",
+      "checkedAt": "2026-10-15T15:40:03.525Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC24F0083_9700_W52P1J19D0085_9700",
         "piid": "W519TC24F0083",
@@ -12545,7 +12545,7 @@
       "generatedAwardId": "CONT_AWD_FA867210C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.561Z",
+      "checkedAt": "2026-10-15T15:40:03.526Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA867210C0002_9700_-NONE-_-NONE-",
         "piid": "FA867210C0002",
@@ -12589,7 +12589,7 @@
       "generatedAwardId": "CONT_AWD_HQ085622F0001_9700_HQ085622D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.570Z",
+      "checkedAt": "2026-10-15T15:40:03.558Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085622F0001_9700_HQ085622D0001_9700",
         "piid": "HQ085622F0001",
@@ -12633,7 +12633,7 @@
       "generatedAwardId": "CONT_AWD_HQ086220C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.572Z",
+      "checkedAt": "2026-10-15T15:40:03.567Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ086220C0001_9700_-NONE-_-NONE-",
         "piid": "HQ086220C0001",
@@ -12677,7 +12677,7 @@
       "generatedAwardId": "CONT_AWD_HQ085625FE001_9700_HQ085622D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.573Z",
+      "checkedAt": "2026-10-15T15:40:03.582Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085625FE001_9700_HQ085622D0001_9700",
         "piid": "HQ085625FE001",
@@ -12721,7 +12721,7 @@
       "generatedAwardId": "CONT_AWD_FA870513C0005_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.584Z",
+      "checkedAt": "2026-10-15T15:40:03.584Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA870513C0005_9700_-NONE-_-NONE-",
         "piid": "FA870513C0005",
@@ -12765,7 +12765,7 @@
       "generatedAwardId": "CONT_AWD_FA812426FB003_9700_FA812418D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.610Z",
+      "checkedAt": "2026-10-15T15:40:03.590Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA812426FB003_9700_FA812418D0001_9700",
         "piid": "FA812426FB003",
@@ -12809,7 +12809,7 @@
       "generatedAwardId": "CONT_AWD_FA868923C2018_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.612Z",
+      "checkedAt": "2026-10-15T15:40:03.600Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868923C2018_9700_-NONE-_-NONE-",
         "piid": "FA868923C2018",
@@ -12853,7 +12853,7 @@
       "generatedAwardId": "CONT_AWD_HQ086221F0008_9700_HQ014718D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.612Z",
+      "checkedAt": "2026-10-15T15:40:03.599Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ086221F0008_9700_HQ014718D0001_9700",
         "piid": "HQ086221F0008",
@@ -12897,7 +12897,7 @@
       "generatedAwardId": "CONT_AWD_N0003925F2163_9700_N0003925D2002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.621Z",
+      "checkedAt": "2026-10-15T15:40:03.633Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0003925F2163_9700_N0003925D2002_9700",
         "piid": "N0003925F2163",
@@ -12941,7 +12941,7 @@
       "generatedAwardId": "CONT_AWD_N0002419C5102_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.622Z",
+      "checkedAt": "2026-10-15T15:40:03.643Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002419C5102_9700_-NONE-_-NONE-",
         "piid": "N0002419C5102",
@@ -12985,7 +12985,7 @@
       "generatedAwardId": "CONT_AWD_FA872625FB025_9700_47QTCA21A0001_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.626Z",
+      "checkedAt": "2026-10-15T15:40:03.659Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872625FB025_9700_47QTCA21A0001_4732",
         "piid": "FA872625FB025",
@@ -13029,7 +13029,7 @@
       "generatedAwardId": "CONT_AWD_N3220522C3101_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.636Z",
+      "checkedAt": "2026-10-15T15:40:03.658Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N3220522C3101_9700_-NONE-_-NONE-",
         "piid": "N3220522C3101",
@@ -13073,7 +13073,7 @@
       "generatedAwardId": "CONT_AWD_W56HZV16C0028_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.661Z",
+      "checkedAt": "2026-10-15T15:40:03.662Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56HZV16C0028_9700_-NONE-_-NONE-",
         "piid": "W56HZV16C0028",
@@ -13117,7 +13117,7 @@
       "generatedAwardId": "CONT_AWD_FA873022C0011_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.663Z",
+      "checkedAt": "2026-10-15T15:40:03.673Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873022C0011_9700_-NONE-_-NONE-",
         "piid": "FA873022C0011",
@@ -13161,7 +13161,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q21F0052_9700_GS00Q14OADS621_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.664Z",
+      "checkedAt": "2026-10-15T15:40:05.506Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q21F0052_9700_GS00Q14OADS621_4732",
         "piid": "W31P4Q21F0052",
@@ -13205,7 +13205,7 @@
       "generatedAwardId": "CONT_AWD_FA870220F0001_9700_FA870215D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.672Z",
+      "checkedAt": "2026-10-15T15:40:03.709Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA870220F0001_9700_FA870215D0002_9700",
         "piid": "FA870220F0001",
@@ -13249,7 +13249,7 @@
       "generatedAwardId": "CONT_AWD_W912ER23C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.673Z",
+      "checkedAt": "2026-10-15T15:40:03.718Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912ER23C0002_9700_-NONE-_-NONE-",
         "piid": "W912ER23C0002",
@@ -13293,7 +13293,7 @@
       "generatedAwardId": "CONT_AWD_W9128F23C0023_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.676Z",
+      "checkedAt": "2026-10-15T15:40:03.734Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9128F23C0023_9700_-NONE-_-NONE-",
         "piid": "W9128F23C0023",
@@ -13337,7 +13337,7 @@
       "generatedAwardId": "CONT_AWD_W912DW23C0012_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.688Z",
+      "checkedAt": "2026-10-15T15:40:03.733Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912DW23C0012_9700_-NONE-_-NONE-",
         "piid": "W912DW23C0012",
@@ -13381,7 +13381,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ24C0021_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.714Z",
+      "checkedAt": "2026-10-15T15:40:03.737Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ24C0021_9700_-NONE-_-NONE-",
         "piid": "W58RGZ24C0021",
@@ -13425,7 +13425,7 @@
       "generatedAwardId": "CONT_AWD_N6134021C0017_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.713Z",
+      "checkedAt": "2026-10-15T15:40:03.748Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6134021C0017_9700_-NONE-_-NONE-",
         "piid": "N6134021C0017",
@@ -13469,7 +13469,7 @@
       "generatedAwardId": "CONT_AWD_W912DW25C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.714Z",
+      "checkedAt": "2026-10-15T15:40:03.783Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912DW25C0001_9700_-NONE-_-NONE-",
         "piid": "W912DW25C0001",
@@ -13513,7 +13513,7 @@
       "generatedAwardId": "CONT_AWD_FA867810C0100_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.722Z",
+      "checkedAt": "2026-10-15T15:40:03.792Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA867810C0100_9700_-NONE-_-NONE-",
         "piid": "FA867810C0100",
@@ -13557,7 +13557,7 @@
       "generatedAwardId": "CONT_AWD_W56JSR23F0062_9700_47QTCK18D0029_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:39.511Z",
+      "checkedAt": "2026-10-15T15:40:03.809Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56JSR23F0062_9700_47QTCK18D0029_4732",
         "piid": "W56JSR23F0062",
@@ -13601,7 +13601,7 @@
       "generatedAwardId": "CONT_AWD_FA811023F0003_9700_FA861614D6060_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.726Z",
+      "checkedAt": "2026-10-15T15:40:03.807Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA811023F0003_9700_FA861614D6060_9700",
         "piid": "FA811023F0003",
@@ -13645,7 +13645,7 @@
       "generatedAwardId": "CONT_AWD_HQ085622F0003_9700_HQ085622D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.738Z",
+      "checkedAt": "2026-10-15T15:40:03.815Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085622F0003_9700_HQ085622D0001_9700",
         "piid": "HQ085622F0003",
@@ -13689,7 +13689,7 @@
       "generatedAwardId": "CONT_AWD_FA862018C2009_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.764Z",
+      "checkedAt": "2026-10-15T15:40:03.823Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA862018C2009_9700_-NONE-_-NONE-",
         "piid": "FA862018C2009",
@@ -13733,7 +13733,7 @@
       "generatedAwardId": "CONT_AWD_W912EP22C0008_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.764Z",
+      "checkedAt": "2026-10-15T15:40:03.858Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912EP22C0008_9700_-NONE-_-NONE-",
         "piid": "W912EP22C0008",
@@ -13777,7 +13777,7 @@
       "generatedAwardId": "CONT_AWD_W912WJ22C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.765Z",
+      "checkedAt": "2026-10-15T15:40:03.865Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912WJ22C0002_9700_-NONE-_-NONE-",
         "piid": "W912WJ22C0002",
@@ -13821,7 +13821,7 @@
       "generatedAwardId": "CONT_AWD_SP330020F1300_9700_SP330020D0021_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.774Z",
+      "checkedAt": "2026-10-15T15:40:03.882Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_SP330020F1300_9700_SP330020D0021_9700",
         "piid": "SP330020F1300",
@@ -13865,7 +13865,7 @@
       "generatedAwardId": "CONT_AWD_N0016423F3004_9700_N0017819D7264_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.776Z",
+      "checkedAt": "2026-10-15T15:40:03.886Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0016423F3004_9700_N0017819D7264_9700",
         "piid": "N0016423F3004",
@@ -13909,7 +13909,7 @@
       "generatedAwardId": "CONT_AWD_W912BV25C0016_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.788Z",
+      "checkedAt": "2026-10-15T15:40:03.890Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912BV25C0016_9700_-NONE-_-NONE-",
         "piid": "W912BV25C0016",
@@ -13953,7 +13953,7 @@
       "generatedAwardId": "CONT_AWD_N0018923FR338_9700_NNG15SC98B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.815Z",
+      "checkedAt": "2026-10-15T15:40:03.899Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0018923FR338_9700_NNG15SC98B_8000",
         "piid": "N0018923FR338",
@@ -13997,7 +13997,7 @@
       "generatedAwardId": "CONT_AWD_HQ085223C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.816Z",
+      "checkedAt": "2026-10-15T15:40:03.933Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085223C0002_9700_-NONE-_-NONE-",
         "piid": "HQ085223C0002",
@@ -14041,7 +14041,7 @@
       "generatedAwardId": "CONT_AWD_FA860923F0006_9700_FA860919D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.816Z",
+      "checkedAt": "2026-10-15T15:40:03.938Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA860923F0006_9700_FA860919D0007_9700",
         "piid": "FA860923F0006",
@@ -14085,7 +14085,7 @@
       "generatedAwardId": "CONT_AWD_W52P1J20C0014_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.825Z",
+      "checkedAt": "2026-10-15T15:40:03.956Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W52P1J20C0014_9700_-NONE-_-NONE-",
         "piid": "W52P1J20C0014",
@@ -14129,7 +14129,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T24F0061_9700_W15P7T16D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.826Z",
+      "checkedAt": "2026-10-15T15:40:03.959Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T24F0061_9700_W15P7T16D0002_9700",
         "piid": "W15P7T24F0061",
@@ -14173,7 +14173,7 @@
       "generatedAwardId": "CONT_AWD_FA873018C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.839Z",
+      "checkedAt": "2026-10-15T15:40:06.053Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873018C0001_9700_-NONE-_-NONE-",
         "piid": "FA873018C0001",
@@ -14217,7 +14217,7 @@
       "generatedAwardId": "CONT_AWD_DABK3503C0005_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.867Z",
+      "checkedAt": "2026-10-15T15:40:03.976Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_DABK3503C0005_9700_-NONE-_-NONE-",
         "piid": "DABK3503C0005",
@@ -14261,7 +14261,7 @@
       "generatedAwardId": "CONT_AWD_N0001923C0021_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.866Z",
+      "checkedAt": "2026-10-15T15:40:04.010Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001923C0021_9700_-NONE-_-NONE-",
         "piid": "N0001923C0021",
@@ -14305,7 +14305,7 @@
       "generatedAwardId": "CONT_AWD_W91RUS19F0174_9700_47QTCK18D0003_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.866Z",
+      "checkedAt": "2026-10-15T15:40:04.011Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W91RUS19F0174_9700_47QTCK18D0003_4732",
         "piid": "W91RUS19F0174",
@@ -14349,7 +14349,7 @@
       "generatedAwardId": "CONT_AWD_FA890324F0055_9700_FA890317D0040_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.876Z",
+      "checkedAt": "2026-10-15T15:40:04.030Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA890324F0055_9700_FA890317D0040_9700",
         "piid": "FA890324F0055",
@@ -14393,7 +14393,7 @@
       "generatedAwardId": "CONT_AWD_H9241524F0022_9700_N6600121A0083_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.876Z",
+      "checkedAt": "2026-10-15T15:40:04.034Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_H9241524F0022_9700_N6600121A0083_9700",
         "piid": "H9241524F0022",
@@ -14437,7 +14437,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q19C0018_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.890Z",
+      "checkedAt": "2026-10-15T15:40:04.052Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q19C0018_9700_-NONE-_-NONE-",
         "piid": "W31P4Q19C0018",
@@ -14481,7 +14481,7 @@
       "generatedAwardId": "CONT_AWD_N0001923F0041_9700_N0001920G0005_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.919Z",
+      "checkedAt": "2026-10-15T15:40:04.088Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001923F0041_9700_N0001920G0005_9700",
         "piid": "N0001923F0041",
@@ -14525,7 +14525,7 @@
       "generatedAwardId": "CONT_AWD_HC108426F0287_9700_N6600126A0051_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.918Z",
+      "checkedAt": "2026-10-15T15:40:04.087Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426F0287_9700_N6600126A0051_9700",
         "piid": "HC108426F0287",
@@ -14569,7 +14569,7 @@
       "generatedAwardId": "CONT_AWD_HQ072724F1610_9700_HQ072716D0006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.917Z",
+      "checkedAt": "2026-10-15T15:40:04.106Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ072724F1610_9700_HQ072716D0006_9700",
         "piid": "HQ072724F1610",
@@ -14613,7 +14613,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q21FB004_9700_GS00F008DA_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.927Z",
+      "checkedAt": "2026-10-15T15:40:04.108Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q21FB004_9700_GS00F008DA_4732",
         "piid": "W31P4Q21FB004",
@@ -14657,7 +14657,7 @@
       "generatedAwardId": "CONT_AWD_FA868925FB010_9700_FA868925DB001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.927Z",
+      "checkedAt": "2026-10-15T15:40:04.125Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868925FB010_9700_FA868925DB001_9700",
         "piid": "FA868925FB010",
@@ -14701,7 +14701,7 @@
       "generatedAwardId": "CONT_AWD_W912DR21C0023_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.940Z",
+      "checkedAt": "2026-10-15T15:40:04.163Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912DR21C0023_9700_-NONE-_-NONE-",
         "piid": "W912DR21C0023",
@@ -14745,7 +14745,7 @@
       "generatedAwardId": "CONT_AWD_W9128F24C0005_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.970Z",
+      "checkedAt": "2026-10-15T15:40:04.164Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9128F24C0005_9700_-NONE-_-NONE-",
         "piid": "W9128F24C0005",
@@ -14789,7 +14789,7 @@
       "generatedAwardId": "CONT_AWD_W9126022FD508_9700_W9113M17D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.968Z",
+      "checkedAt": "2026-10-15T15:40:04.182Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9126022FD508_9700_W9113M17D0007_9700",
         "piid": "W9126022FD508",
@@ -14833,7 +14833,7 @@
       "generatedAwardId": "CONT_AWD_N0002422C5231_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.969Z",
+      "checkedAt": "2026-10-15T15:40:04.183Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002422C5231_9700_-NONE-_-NONE-",
         "piid": "N0002422C5231",
@@ -14877,7 +14877,7 @@
       "generatedAwardId": "CONT_AWD_N6247025C9002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.985Z",
+      "checkedAt": "2026-10-15T15:40:04.199Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6247025C9002_9700_-NONE-_-NONE-",
         "piid": "N6247025C9002",
@@ -14921,7 +14921,7 @@
       "generatedAwardId": "CONT_AWD_N6134023F0254_9700_N6134019G0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.979Z",
+      "checkedAt": "2026-10-15T15:40:04.237Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6134023F0254_9700_N6134019G0002_9700",
         "piid": "N6134023F0254",
@@ -14965,7 +14965,7 @@
       "generatedAwardId": "CONT_AWD_W56KGU20F0012_9700_W15P7T19D0157_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:37.990Z",
+      "checkedAt": "2026-10-15T15:40:04.240Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56KGU20F0012_9700_W15P7T19D0157_9700",
         "piid": "W56KGU20F0012",
@@ -15009,7 +15009,7 @@
       "generatedAwardId": "CONT_AWD_HC102826F0010_9700_HC102820D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.019Z",
+      "checkedAt": "2026-10-15T15:40:04.259Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC102826F0010_9700_HC102820D0001_9700",
         "piid": "HC102826F0010",
@@ -15053,7 +15053,7 @@
       "generatedAwardId": "CONT_AWD_N6945024C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.022Z",
+      "checkedAt": "2026-10-15T15:40:04.258Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6945024C0004_9700_-NONE-_-NONE-",
         "piid": "N6945024C0004",
@@ -15097,7 +15097,7 @@
       "generatedAwardId": "CONT_AWD_FA872623F0005_9700_NNG15SC41B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.029Z",
+      "checkedAt": "2026-10-15T15:40:04.275Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872623F0005_9700_NNG15SC41B_8000",
         "piid": "FA872623F0005",
@@ -15141,7 +15141,7 @@
       "generatedAwardId": "CONT_AWD_FA807522F0010_9700_FA807518D0014_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:39.890Z",
+      "checkedAt": "2026-10-15T15:40:04.311Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA807522F0010_9700_FA807518D0014_9700",
         "piid": "FA807522F0010",
@@ -15185,7 +15185,7 @@
       "generatedAwardId": "CONT_AWD_W31P4Q26C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.037Z",
+      "checkedAt": "2026-10-15T15:40:04.314Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W31P4Q26C0001_9700_-NONE-_-NONE-",
         "piid": "W31P4Q26C0001",
@@ -15229,7 +15229,7 @@
       "generatedAwardId": "CONT_AWD_HQ085825FE004_9700_HQ079617D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.042Z",
+      "checkedAt": "2026-10-15T15:40:04.332Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085825FE004_9700_HQ079617D0001_9700",
         "piid": "HQ085825FE004",
@@ -15273,7 +15273,7 @@
       "generatedAwardId": "CONT_AWD_N0002423C5530_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.069Z",
+      "checkedAt": "2026-10-15T15:40:04.334Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002423C5530_9700_-NONE-_-NONE-",
         "piid": "N0002423C5530",
@@ -15317,7 +15317,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T21F0082_9700_W15P7T16D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.074Z",
+      "checkedAt": "2026-10-15T15:40:04.350Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T21F0082_9700_W15P7T16D0002_9700",
         "piid": "W15P7T21F0082",
@@ -15361,7 +15361,7 @@
       "generatedAwardId": "CONT_AWD_W9127826CA004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.082Z",
+      "checkedAt": "2026-10-15T15:40:04.386Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9127826CA004_9700_-NONE-_-NONE-",
         "piid": "W9127826CA004",
@@ -15405,7 +15405,7 @@
       "generatedAwardId": "CONT_AWD_N0018922FR009_9700_NNG15SC98B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.087Z",
+      "checkedAt": "2026-10-15T15:40:04.387Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0018922FR009_9700_NNG15SC98B_8000",
         "piid": "N0018922FR009",
@@ -15449,7 +15449,7 @@
       "generatedAwardId": "CONT_AWD_W9123623C4007_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.094Z",
+      "checkedAt": "2026-10-15T15:40:04.405Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9123623C4007_9700_-NONE-_-NONE-",
         "piid": "W9123623C4007",
@@ -15493,7 +15493,7 @@
       "generatedAwardId": "CONT_AWD_N6945026C0010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.120Z",
+      "checkedAt": "2026-10-15T15:40:04.408Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6945026C0010_9700_-NONE-_-NONE-",
         "piid": "N6945026C0010",
@@ -15537,7 +15537,7 @@
       "generatedAwardId": "CONT_AWD_W912HN25C4002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.124Z",
+      "checkedAt": "2026-10-15T15:40:04.426Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912HN25C4002_9700_-NONE-_-NONE-",
         "piid": "W912HN25C4002",
@@ -15581,7 +15581,7 @@
       "generatedAwardId": "CONT_AWD_N0001921F0064_9700_N0001920G0005_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.135Z",
+      "checkedAt": "2026-10-15T15:40:04.463Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001921F0064_9700_N0001920G0005_9700",
         "piid": "N0001921F0064",
@@ -15625,7 +15625,7 @@
       "generatedAwardId": "CONT_AWD_N0002423C6308_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.139Z",
+      "checkedAt": "2026-10-15T15:40:04.462Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0002423C6308_9700_-NONE-_-NONE-",
         "piid": "N0002423C6308",
@@ -15669,7 +15669,7 @@
       "generatedAwardId": "CONT_AWD_N0001924F0066_9700_N6134019D1006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.145Z",
+      "checkedAt": "2026-10-15T15:40:04.480Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0001924F0066_9700_N6134019D1006_9700",
         "piid": "N0001924F0066",
@@ -15713,7 +15713,7 @@
       "generatedAwardId": "CONT_AWD_W519TC26F0012_9700_W519TC25D0039_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.172Z",
+      "checkedAt": "2026-10-15T15:40:04.482Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC26F0012_9700_W519TC25D0039_9700",
         "piid": "W519TC26F0012",
@@ -15757,7 +15757,7 @@
       "generatedAwardId": "CONT_AWD_W519TC25FA004_9700_HC105023D0005_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.175Z",
+      "checkedAt": "2026-10-15T15:40:04.500Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC25FA004_9700_HC105023D0005_9700",
         "piid": "W519TC25FA004",
@@ -15801,7 +15801,7 @@
       "generatedAwardId": "CONT_AWD_W58RGZ22C0014_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.187Z",
+      "checkedAt": "2026-10-15T15:40:04.538Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W58RGZ22C0014_9700_-NONE-_-NONE-",
         "piid": "W58RGZ22C0014",
@@ -15845,7 +15845,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T26F0089_9700_W15P7T23D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.189Z",
+      "checkedAt": "2026-10-15T15:40:04.539Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T26F0089_9700_W15P7T23D0003_9700",
         "piid": "W15P7T26F0089",
@@ -15889,7 +15889,7 @@
       "generatedAwardId": "CONT_AWD_FA868923F2650_9700_FA868920D2020_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.195Z",
+      "checkedAt": "2026-10-15T15:40:04.556Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868923F2650_9700_FA868920D2020_9700",
         "piid": "FA868923F2650",
@@ -15933,7 +15933,7 @@
       "generatedAwardId": "CONT_AWD_FA489025C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.223Z",
+      "checkedAt": "2026-10-15T15:40:04.555Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA489025C0001_9700_-NONE-_-NONE-",
         "piid": "FA489025C0001",
@@ -15977,7 +15977,7 @@
       "generatedAwardId": "CONT_AWD_W911QX20C0023_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.226Z",
+      "checkedAt": "2026-10-15T15:40:04.577Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX20C0023_9700_-NONE-_-NONE-",
         "piid": "W911QX20C0023",
@@ -16021,7 +16021,7 @@
       "generatedAwardId": "CONT_AWD_FA875020C0555_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.240Z",
+      "checkedAt": "2026-10-15T15:40:04.613Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875020C0555_9700_-NONE-_-NONE-",
         "piid": "FA875020C0555",
@@ -16065,7 +16065,7 @@
       "generatedAwardId": "CONT_AWD_HQ072726FE016_9700_HQ072716D0006_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.241Z",
+      "checkedAt": "2026-10-15T15:40:04.615Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ072726FE016_9700_HQ072716D0006_9700",
         "piid": "HQ072726FE016",
@@ -16109,7 +16109,7 @@
       "generatedAwardId": "CONT_AWD_FA868924C2020_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.246Z",
+      "checkedAt": "2026-10-15T15:40:04.632Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868924C2020_9700_-NONE-_-NONE-",
         "piid": "FA868924C2020",
@@ -16153,7 +16153,7 @@
       "generatedAwardId": "CONT_AWD_HR001123C0087_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.273Z",
+      "checkedAt": "2026-10-15T15:40:04.632Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HR001123C0087_9700_-NONE-_-NONE-",
         "piid": "HR001123C0087",
@@ -16197,7 +16197,7 @@
       "generatedAwardId": "CONT_AWD_W56JSR24F0004_9700_W15P7T19D0174_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.279Z",
+      "checkedAt": "2026-10-15T15:40:04.652Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56JSR24F0004_9700_W15P7T19D0174_9700",
         "piid": "W56JSR24F0004",
@@ -16241,7 +16241,7 @@
       "generatedAwardId": "CONT_AWD_FA807522F0011_9700_FA807518D0011_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.291Z",
+      "checkedAt": "2026-10-15T15:40:04.690Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA807522F0011_9700_FA807518D0011_9700",
         "piid": "FA807522F0011",
@@ -16285,7 +16285,7 @@
       "generatedAwardId": "CONT_AWD_N0016422F3001_9700_N0017819D8739_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.293Z",
+      "checkedAt": "2026-10-15T15:40:04.690Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0016422F3001_9700_N0017819D8739_9700",
         "piid": "N0016422F3001",
@@ -16329,7 +16329,7 @@
       "generatedAwardId": "CONT_AWD_FA880625FB009_9700_FA880623D0015_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.296Z",
+      "checkedAt": "2026-10-15T15:40:04.706Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA880625FB009_9700_FA880623D0015_9700",
         "piid": "FA880625FB009",
@@ -16373,7 +16373,7 @@
       "generatedAwardId": "CONT_AWD_FA805124F0013_9700_47QTCK18D0003_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.323Z",
+      "checkedAt": "2026-10-15T15:40:04.707Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA805124F0013_9700_47QTCK18D0003_4732",
         "piid": "FA805124F0013",
@@ -16417,7 +16417,7 @@
       "generatedAwardId": "CONT_AWD_FA800325C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.328Z",
+      "checkedAt": "2026-10-15T15:40:04.729Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA800325C0002_9700_-NONE-_-NONE-",
         "piid": "FA800325C0002",
@@ -16461,7 +16461,7 @@
       "generatedAwardId": "CONT_AWD_FA807524F0001_9700_FA807518D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.342Z",
+      "checkedAt": "2026-10-15T15:40:04.767Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA807524F0001_9700_FA807518D0007_9700",
         "piid": "FA807524F0001",
@@ -16505,7 +16505,7 @@
       "generatedAwardId": "CONT_AWD_FA868924F2451_9700_FA868920D2020_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.344Z",
+      "checkedAt": "2026-10-15T15:40:04.763Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868924F2451_9700_FA868920D2020_9700",
         "piid": "FA868924F2451",
@@ -16549,7 +16549,7 @@
       "generatedAwardId": "CONT_AWD_N0016425CJR94_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.347Z",
+      "checkedAt": "2026-10-15T15:40:04.782Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0016425CJR94_9700_-NONE-_-NONE-",
         "piid": "N0016425CJR94",
@@ -16593,7 +16593,7 @@
       "generatedAwardId": "CONT_AWD_FA868923F2452_9700_FA868920D2020_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.374Z",
+      "checkedAt": "2026-10-15T15:40:04.781Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA868923F2452_9700_FA868920D2020_9700",
         "piid": "FA868923F2452",
@@ -16637,7 +16637,7 @@
       "generatedAwardId": "CONT_AWD_SP470124F0084_9700_GS35F0926R_4730",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.378Z",
+      "checkedAt": "2026-10-15T15:40:04.806Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_SP470124F0084_9700_GS35F0926R_4730",
         "piid": "SP470124F0084",
@@ -16681,7 +16681,7 @@
       "generatedAwardId": "CONT_AWD_HC104723F0033_9700_HC104718D2012_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.393Z",
+      "checkedAt": "2026-10-15T15:40:04.839Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC104723F0033_9700_HC104718D2012_9700",
         "piid": "HC104723F0033",
@@ -16725,7 +16725,7 @@
       "generatedAwardId": "CONT_AWD_W56KGU23F0014_9700_W15P7T19D0157_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.394Z",
+      "checkedAt": "2026-10-15T15:40:04.842Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56KGU23F0014_9700_W15P7T19D0157_9700",
         "piid": "W56KGU23F0014",
@@ -16769,7 +16769,7 @@
       "generatedAwardId": "CONT_AWD_FA251821F0030_9700_47QRAD20DU344_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.400Z",
+      "checkedAt": "2026-10-15T15:40:04.854Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA251821F0030_9700_47QRAD20DU344_4732",
         "piid": "FA251821F0030",
@@ -16813,7 +16813,7 @@
       "generatedAwardId": "CONT_AWD_W900KK22F0020_9700_W900KK22D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.425Z",
+      "checkedAt": "2026-10-15T15:40:04.854Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W900KK22F0020_9700_W900KK22D0002_9700",
         "piid": "W900KK22F0020",
@@ -16857,7 +16857,7 @@
       "generatedAwardId": "CONT_AWD_FA880625FB011_9700_FA880623D0015_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.430Z",
+      "checkedAt": "2026-10-15T15:40:04.882Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA880625FB011_9700_FA880623D0015_9700",
         "piid": "FA880625FB011",
@@ -16901,7 +16901,7 @@
       "generatedAwardId": "CONT_AWD_N6523624F3022_9700_N0017819D8496_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.446Z",
+      "checkedAt": "2026-10-15T15:40:04.915Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6523624F3022_9700_N0017819D8496_9700",
         "piid": "N6523624F3022",
@@ -16945,7 +16945,7 @@
       "generatedAwardId": "CONT_AWD_W519TC25FA005_9700_HC105023D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.445Z",
+      "checkedAt": "2026-10-15T15:40:04.916Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC25FA005_9700_HC105023D0003_9700",
         "piid": "W519TC25FA005",
@@ -16989,7 +16989,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T24F0004_9700_W15P7T17D0142_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.450Z",
+      "checkedAt": "2026-10-15T15:40:04.928Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T24F0004_9700_W15P7T17D0142_9700",
         "piid": "W15P7T24F0004",
@@ -17033,7 +17033,7 @@
       "generatedAwardId": "CONT_AWD_W911QX25C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.477Z",
+      "checkedAt": "2026-10-15T15:40:04.929Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX25C0002_9700_-NONE-_-NONE-",
         "piid": "W911QX25C0002",
@@ -17077,7 +17077,7 @@
       "generatedAwardId": "CONT_AWD_FA872626FB004_9700_HC105023D0005_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.481Z",
+      "checkedAt": "2026-10-15T15:40:04.958Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872626FB004_9700_HC105023D0005_9700",
         "piid": "FA872626FB004",
@@ -17121,7 +17121,7 @@
       "generatedAwardId": "CONT_AWD_FA882025CB002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.496Z",
+      "checkedAt": "2026-10-15T15:40:04.992Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA882025CB002_9700_-NONE-_-NONE-",
         "piid": "FA882025CB002",
@@ -17165,7 +17165,7 @@
       "generatedAwardId": "CONT_AWD_FA830722C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.498Z",
+      "checkedAt": "2026-10-15T15:40:04.991Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA830722C0001_9700_-NONE-_-NONE-",
         "piid": "FA830722C0001",
@@ -17209,7 +17209,7 @@
       "generatedAwardId": "CONT_AWD_N6523625F3008_9700_N0017819D8789_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.502Z",
+      "checkedAt": "2026-10-15T15:40:05.002Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6523625F3008_9700_N0017819D8789_9700",
         "piid": "N6523625F3008",
@@ -17253,7 +17253,7 @@
       "generatedAwardId": "CONT_AWD_FA877123F0072_9700_NNG15SC98B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.528Z",
+      "checkedAt": "2026-10-15T15:40:05.001Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA877123F0072_9700_NNG15SC98B_8000",
         "piid": "FA877123F0072",
@@ -17297,7 +17297,7 @@
       "generatedAwardId": "CONT_AWD_HC105023F0004_9700_HQ003423D0020_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.532Z",
+      "checkedAt": "2026-10-15T15:40:05.032Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC105023F0004_9700_HQ003423D0020_9700",
         "piid": "HC105023F0004",
@@ -17341,7 +17341,7 @@
       "generatedAwardId": "CONT_AWD_W519TC24F0049_9700_47QTCK18D0036_4732",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.548Z",
+      "checkedAt": "2026-10-15T15:40:05.076Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W519TC24F0049_9700_47QTCK18D0036_4732",
         "piid": "W519TC24F0049",
@@ -17385,7 +17385,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T24F0049_9700_W15P7T19D0207_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.553Z",
+      "checkedAt": "2026-10-15T15:40:05.066Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T24F0049_9700_W15P7T19D0207_9700",
         "piid": "W15P7T24F0049",
@@ -17429,7 +17429,7 @@
       "generatedAwardId": "CONT_AWD_W909MY26F0009_9700_W909MY26D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.552Z",
+      "checkedAt": "2026-10-15T15:40:05.077Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W909MY26F0009_9700_W909MY26D0002_9700",
         "piid": "W909MY26F0009",
@@ -17473,7 +17473,7 @@
       "generatedAwardId": "CONT_AWD_HT003825F0009_9700_HT003825D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.578Z",
+      "checkedAt": "2026-10-15T15:40:05.076Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HT003825F0009_9700_HT003825D0001_9700",
         "piid": "HT003825F0009",
@@ -17517,7 +17517,7 @@
       "generatedAwardId": "CONT_AWD_HC105023F0003_9700_HQ003423D0018_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.582Z",
+      "checkedAt": "2026-10-15T15:40:05.097Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC105023F0003_9700_HQ003423D0018_9700",
         "piid": "HC105023F0003",
@@ -17561,7 +17561,7 @@
       "generatedAwardId": "CONT_AWD_HC108426C0003_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.598Z",
+      "checkedAt": "2026-10-15T15:40:05.110Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426C0003_9700_-NONE-_-NONE-",
         "piid": "HC108426C0003",
@@ -17605,7 +17605,7 @@
       "generatedAwardId": "CONT_AWD_W9128Z25FA001_9700_W52P1J18DA032_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.603Z",
+      "checkedAt": "2026-10-15T15:40:05.140Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W9128Z25FA001_9700_W52P1J18DA032_9700",
         "piid": "W9128Z25FA001",
@@ -17649,7 +17649,7 @@
       "generatedAwardId": "CONT_AWD_N6523621F3031_9700_N0017819D8183_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.603Z",
+      "checkedAt": "2026-10-15T15:40:05.149Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N6523621F3031_9700_N0017819D8183_9700",
         "piid": "N6523621F3031",
@@ -17693,7 +17693,7 @@
       "generatedAwardId": "CONT_AWD_HQ085222C0001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.630Z",
+      "checkedAt": "2026-10-15T15:40:05.151Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085222C0001_9700_-NONE-_-NONE-",
         "piid": "HQ085222C0001",
@@ -17737,7 +17737,7 @@
       "generatedAwardId": "CONT_AWD_HT001125C0073_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.633Z",
+      "checkedAt": "2026-10-15T15:40:05.148Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HT001125C0073_9700_-NONE-_-NONE-",
         "piid": "HT001125C0073",
@@ -17781,7 +17781,7 @@
       "generatedAwardId": "CONT_AWD_HC105024F0009_9700_HC105023D0004_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.649Z",
+      "checkedAt": "2026-10-15T15:40:05.174Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC105024F0009_9700_HC105023D0004_9700",
         "piid": "HC105024F0009",
@@ -17825,7 +17825,7 @@
       "generatedAwardId": "CONT_AWD_W15P7T24F0158_9700_W15P7T19D0072_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.654Z",
+      "checkedAt": "2026-10-15T15:40:05.186Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15P7T24F0158_9700_W15P7T19D0072_9700",
         "piid": "W15P7T24F0158",
@@ -17869,7 +17869,7 @@
       "generatedAwardId": "CONT_AWD_W56KGU25C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.653Z",
+      "checkedAt": "2026-10-15T15:40:05.216Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56KGU25C0004_9700_-NONE-_-NONE-",
         "piid": "W56KGU25C0004",
@@ -17913,7 +17913,7 @@
       "generatedAwardId": "CONT_AWD_FA873023CB027_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.681Z",
+      "checkedAt": "2026-10-15T15:40:05.221Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA873023CB027_9700_-NONE-_-NONE-",
         "piid": "FA873023CB027",
@@ -17957,7 +17957,7 @@
       "generatedAwardId": "CONT_AWD_HC105024F0018_9700_HC105023D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.682Z",
+      "checkedAt": "2026-10-15T15:40:05.224Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC105024F0018_9700_HC105023D0003_9700",
         "piid": "HC105024F0018",
@@ -18001,7 +18001,7 @@
       "generatedAwardId": "CONT_AWD_FA877024FB002_9700_NNG15SC59B_8000",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.700Z",
+      "checkedAt": "2026-10-15T15:40:05.227Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA877024FB002_9700_NNG15SC59B_8000",
         "piid": "FA877024FB002",
@@ -18045,7 +18045,7 @@
       "generatedAwardId": "CONT_AWD_FA872626FB007_9700_HC105023D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.705Z",
+      "checkedAt": "2026-10-15T15:40:05.247Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA872626FB007_9700_HC105023D0003_9700",
         "piid": "FA872626FB007",
@@ -18089,7 +18089,7 @@
       "generatedAwardId": "CONT_AWD_FA822426C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.705Z",
+      "checkedAt": "2026-10-15T15:40:05.264Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA822426C0002_9700_-NONE-_-NONE-",
         "piid": "FA822426C0002",
@@ -18133,7 +18133,7 @@
       "generatedAwardId": "CONT_AWD_W911QX24C0009_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.719Z",
+      "checkedAt": "2026-10-15T15:40:05.291Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX24C0009_9700_-NONE-_-NONE-",
         "piid": "W911QX24C0009",
@@ -18177,7 +18177,7 @@
       "generatedAwardId": "CONT_AWD_W911QX25C0005_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.731Z",
+      "checkedAt": "2026-10-15T15:40:05.299Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX25C0005_9700_-NONE-_-NONE-",
         "piid": "W911QX25C0005",
@@ -18221,7 +18221,7 @@
       "generatedAwardId": "CONT_AWD_HR001124C0310_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.733Z",
+      "checkedAt": "2026-10-15T15:40:05.299Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HR001124C0310_9700_-NONE-_-NONE-",
         "piid": "HR001124C0310",
@@ -18265,7 +18265,7 @@
       "generatedAwardId": "CONT_AWD_FA239125CB010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.751Z",
+      "checkedAt": "2026-10-15T15:40:05.306Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA239125CB010_9700_-NONE-_-NONE-",
         "piid": "FA239125CB010",
@@ -18309,7 +18309,7 @@
       "generatedAwardId": "CONT_AWD_W911QX25F0024_9700_W911QX25D0007_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.756Z",
+      "checkedAt": "2026-10-15T15:40:05.320Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX25F0024_9700_W911QX25D0007_9700",
         "piid": "W911QX25F0024",
@@ -18353,7 +18353,7 @@
       "generatedAwardId": "CONT_AWD_HQ086026FE001_9700_HQ086024D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.756Z",
+      "checkedAt": "2026-10-15T15:40:05.339Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ086026FE001_9700_HQ086024D0001_9700",
         "piid": "HQ086026FE001",
@@ -18397,7 +18397,7 @@
       "generatedAwardId": "CONT_AWD_FA865023C7318_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.770Z",
+      "checkedAt": "2026-10-15T15:40:05.367Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA865023C7318_9700_-NONE-_-NONE-",
         "piid": "FA865023C7318",
@@ -18441,7 +18441,7 @@
       "generatedAwardId": "CONT_AWD_FA703726F0033_9700_FA703726D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.783Z",
+      "checkedAt": "2026-10-15T15:40:05.375Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA703726F0033_9700_FA703726D0002_9700",
         "piid": "FA703726F0033",
@@ -18485,7 +18485,7 @@
       "generatedAwardId": "CONT_AWD_W15QKN24C0004_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.785Z",
+      "checkedAt": "2026-10-15T15:40:05.373Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W15QKN24C0004_9700_-NONE-_-NONE-",
         "piid": "W15QKN24C0004",
@@ -18529,7 +18529,7 @@
       "generatedAwardId": "CONT_AWD_HR001124C0309_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.802Z",
+      "checkedAt": "2026-10-15T15:40:05.384Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HR001124C0309_9700_-NONE-_-NONE-",
         "piid": "HR001124C0309",
@@ -18573,7 +18573,7 @@
       "generatedAwardId": "CONT_AWD_FA875024CB040_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.806Z",
+      "checkedAt": "2026-10-15T15:40:05.395Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875024CB040_9700_-NONE-_-NONE-",
         "piid": "FA875024CB040",
@@ -18617,7 +18617,7 @@
       "generatedAwardId": "CONT_AWD_W912QR26CA010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.808Z",
+      "checkedAt": "2026-10-15T15:40:05.414Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912QR26CA010_9700_-NONE-_-NONE-",
         "piid": "W912QR26CA010",
@@ -18661,7 +18661,7 @@
       "generatedAwardId": "CONT_AWD_HQ085426PE001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.822Z",
+      "checkedAt": "2026-10-15T15:40:05.443Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ085426PE001_9700_-NONE-_-NONE-",
         "piid": "HQ085426PE001",
@@ -18705,7 +18705,7 @@
       "generatedAwardId": "CONT_AWD_FA875026FB010_9700_FA875023D1000_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.834Z",
+      "checkedAt": "2026-10-15T15:40:05.449Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875026FB010_9700_FA875023D1000_9700",
         "piid": "FA875026FB010",
@@ -18749,7 +18749,7 @@
       "generatedAwardId": "CONT_AWD_HT942524C0036_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.835Z",
+      "checkedAt": "2026-10-15T15:40:05.448Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HT942524C0036_9700_-NONE-_-NONE-",
         "piid": "HT942524C0036",
@@ -18793,7 +18793,7 @@
       "generatedAwardId": "CONT_AWD_N0003926CA001_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.855Z",
+      "checkedAt": "2026-10-15T15:40:05.458Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0003926CA001_9700_-NONE-_-NONE-",
         "piid": "N0003926CA001",
@@ -18837,7 +18837,7 @@
       "generatedAwardId": "CONT_AWD_W911QX24C0010_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.858Z",
+      "checkedAt": "2026-10-15T15:40:05.471Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX24C0010_9700_-NONE-_-NONE-",
         "piid": "W911QX24C0010",
@@ -18881,7 +18881,7 @@
       "generatedAwardId": "CONT_AWD_W56KGU24C0026_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.858Z",
+      "checkedAt": "2026-10-15T15:40:06.058Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W56KGU24C0026_9700_-NONE-_-NONE-",
         "piid": "W56KGU24C0026",
@@ -18923,9 +18923,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_N0042126F1042_9700_N0042125D0303_9700",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.872Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.510Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_N0042126F1042_9700_N0042125D0303_9700",
         "piid": "N0042126F1042",
@@ -18957,7 +18958,10 @@
         "parentPiid": "N0042125D0303",
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_N0042126F1042_9700_N0042125D0303_9700/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA714624C0019_9700__NONE___NONE_",
@@ -18969,7 +18973,7 @@
       "generatedAwardId": "CONT_AWD_FA714624C0019_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.886Z",
+      "checkedAt": "2026-10-15T15:40:05.523Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA714624C0019_9700_-NONE-_-NONE-",
         "piid": "FA714624C0019",
@@ -19011,9 +19015,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_W911QX26CA003_9700_-NONE-_-NONE-",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.886Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.516Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W911QX26CA003_9700_-NONE-_-NONE-",
         "piid": "W911QX26CA003",
@@ -19045,7 +19050,10 @@
         "parentPiid": null,
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_W911QX26CA003_9700_-NONE-_-NONE-/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA489026C0006_9700__NONE___NONE_",
@@ -19055,9 +19063,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_FA489026C0006_9700_-NONE-_-NONE-",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.906Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.529Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA489026C0006_9700_-NONE-_-NONE-",
         "piid": "FA489026C0006",
@@ -19089,7 +19098,10 @@
         "parentPiid": null,
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_FA489026C0006_9700_-NONE-_-NONE-/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA865020C1140_9700__NONE___NONE_",
@@ -19101,7 +19113,7 @@
       "generatedAwardId": "CONT_AWD_FA865020C1140_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.909Z",
+      "checkedAt": "2026-10-15T15:40:05.548Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA865020C1140_9700_-NONE-_-NONE-",
         "piid": "FA865020C1140",
@@ -19143,9 +19155,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_FA237726CB019_9700_-NONE-_-NONE-",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.910Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.585Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA237726CB019_9700_-NONE-_-NONE-",
         "piid": "FA237726CB019",
@@ -19177,7 +19190,10 @@
         "parentPiid": null,
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_FA237726CB019_9700_-NONE-_-NONE-/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA875126C0001_9700__NONE___NONE_",
@@ -19187,9 +19203,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_FA875126C0001_9700_-NONE-_-NONE-",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.926Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.579Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875126C0001_9700_-NONE-_-NONE-",
         "piid": "FA875126C0001",
@@ -19221,7 +19238,10 @@
         "parentPiid": null,
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_FA875126C0001_9700_-NONE-_-NONE-/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA865022F6403_9700_FA865022D6401_9700",
@@ -19231,9 +19251,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_FA865022F6403_9700_FA865022D6401_9700",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.936Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.784Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA865022F6403_9700_FA865022D6401_9700",
         "piid": "FA865022F6403",
@@ -19265,7 +19286,10 @@
         "parentPiid": "FA865022D6401",
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_FA865022F6403_9700_FA865022D6401_9700/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA875021C1509_9700__NONE___NONE_",
@@ -19275,9 +19299,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_FA875021C1509_9700_-NONE-_-NONE-",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:38.937Z",
+      "lastAttemptAt": "2026-10-15T15:40:05.790Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875021C1509_9700_-NONE-_-NONE-",
         "piid": "FA875021C1509",
@@ -19309,7 +19334,10 @@
         "parentPiid": null,
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_FA875021C1509_9700_-NONE-_-NONE-/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_FA864923P1087_9700__NONE___NONE_",
@@ -19321,7 +19349,7 @@
       "generatedAwardId": "CONT_AWD_FA864923P1087_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.957Z",
+      "checkedAt": "2026-10-15T15:40:05.791Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA864923P1087_9700_-NONE-_-NONE-",
         "piid": "FA864923P1087",
@@ -19365,7 +19393,7 @@
       "generatedAwardId": "CONT_AWD_W912CG24C0002_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.959Z",
+      "checkedAt": "2026-10-15T15:40:05.624Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_W912CG24C0002_9700_-NONE-_-NONE-",
         "piid": "W912CG24C0002",
@@ -19409,7 +19437,7 @@
       "generatedAwardId": "CONT_AWD_HQ003425FE453_9700_HQ003424D0003_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.961Z",
+      "checkedAt": "2026-10-15T15:40:05.824Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HQ003425FE453_9700_HQ003424D0003_9700",
         "piid": "HQ003425FE453",
@@ -19453,7 +19481,7 @@
       "generatedAwardId": "CONT_AWD_FA875024CB082_9700_-NONE-_-NONE-",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.977Z",
+      "checkedAt": "2026-10-15T15:40:05.822Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_FA875024CB082_9700_-NONE-_-NONE-",
         "piid": "FA875024CB082",
@@ -19497,7 +19525,7 @@
       "generatedAwardId": "CONT_AWD_HC101324FD498_9700_HC101321D0001_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.987Z",
+      "checkedAt": "2026-10-15T15:40:05.699Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC101324FD498_9700_HC101321D0001_9700",
         "piid": "HC101324FD498",
@@ -19541,7 +19569,7 @@
       "generatedAwardId": "CONT_AWD_HC108426FB249_9700_HC108424D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:38.987Z",
+      "checkedAt": "2026-10-15T15:40:05.776Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB249_9700_HC108424D0002_9700",
         "piid": "HC108426FB249",
@@ -19585,7 +19613,7 @@
       "generatedAwardId": "CONT_AWD_HC108426FB306_9700_HC108424D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:39.008Z",
+      "checkedAt": "2026-10-15T15:40:05.852Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB306_9700_HC108424D0002_9700",
         "piid": "HC108426FB306",
@@ -19627,9 +19655,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:39.011Z",
+      "lastAttemptAt": "2026-10-15T15:40:06.007Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
         "piid": "HC108426FB288",
@@ -19661,7 +19690,10 @@
         "parentPiid": "HC108424D0002",
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_HC108426FB288_9700_HC108424D0002_9700/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB216_9700_HC108424D0002_9700",
@@ -19673,7 +19705,7 @@
       "generatedAwardId": "CONT_AWD_HC108426FB216_9700_HC108424D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:39.011Z",
+      "checkedAt": "2026-10-15T15:40:05.867Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB216_9700_HC108424D0002_9700",
         "piid": "HC108426FB216",
@@ -19715,9 +19747,10 @@
       "sourceSystem": "USAspending",
       "automatedImport": true,
       "generatedAwardId": "CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
-      "status": "current",
+      "status": "stale",
       "method": "usaspending-award-detail",
       "checkedAt": "2026-10-15T14:20:39.029Z",
+      "lastAttemptAt": "2026-10-15T15:40:06.021Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
         "piid": "HC108426FB303",
@@ -19749,7 +19782,10 @@
         "parentPiid": "HC108424D0002",
         "sourceUrl": "https://api.usaspending.gov/api/v2/awards/CONT_AWD_HC108426FB303_9700_HC108424D0002_9700/"
       },
-      "diagnostic": null
+      "diagnostic": {
+        "code": "refresh_failed",
+        "message": "fetch failed"
+      }
     },
     {
       "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB291_9700_HC108424D0002_9700",
@@ -19761,7 +19797,7 @@
       "generatedAwardId": "CONT_AWD_HC108426FB291_9700_HC108424D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:39.039Z",
+      "checkedAt": "2026-10-15T15:40:05.894Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB291_9700_HC108424D0002_9700",
         "piid": "HC108426FB291",
@@ -19805,7 +19841,7 @@
       "generatedAwardId": "CONT_AWD_HC108426FB296_9700_HC108424D0002_9700",
       "status": "current",
       "method": "usaspending-award-detail",
-      "checkedAt": "2026-10-15T14:20:39.039Z",
+      "checkedAt": "2026-10-15T15:40:05.898Z",
       "observation": {
         "generatedAwardId": "CONT_AWD_HC108426FB296_9700_HC108424D0002_9700",
         "piid": "HC108426FB296",
