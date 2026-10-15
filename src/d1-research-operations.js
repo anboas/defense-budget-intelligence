@@ -626,10 +626,9 @@ export async function researchOperationsResponse(request, db, env, _context, dep
     return deps.json({ config });
   }
   if (segments[0] === "run" && request.method === "POST") {
-    const executionConfig = boundedExecutionConfig(config);
-    const queued = await queueRun({ db, workspaceId, trigger: "manual", config: executionConfig });
+    const queued = await queueRun({ db, workspaceId, trigger: "manual", config });
     if (queued.active) return deps.json({ error: "A research run is already active", run: runView(queued.active) }, 409);
-    const result = await executeResearchRun({ db, env, request, runId: queued.id, workspaceId, config: executionConfig, decryptSecret: deps.decryptSecret, assetJson: deps.assetJson, deps });
+    const result = await executeResearchRun({ db, env, request, runId: queued.id, workspaceId, config, decryptSecret: deps.decryptSecret, assetJson: deps.assetJson, deps });
     return deps.json({ run: { id: queued.id, status: result.status, stage: "completed", model: config.model, reasoningEffort: config.reasoningEffort, totals: result.totals || null } }, 200);
   }
   return deps.json({ error: "Method not allowed" }, 405);
