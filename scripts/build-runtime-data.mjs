@@ -37,6 +37,7 @@ const source = JSON.parse(readFileSync(SOURCE_FILE, "utf8"));
 const captureCalendar = JSON.parse(readFileSync(CAPTURE_CALENDAR_FILE, "utf8"));
 const captureTransactions = JSON.parse(readFileSync(CAPTURE_TRANSACTIONS_FILE, "utf8"));
 const subawards = JSON.parse(readFileSync(SUBAWARDS_FILE, "utf8"));
+const spendingCoverage = JSON.parse(readFileSync(USASPENDING_COVERAGE_FILE, "utf8"));
 const contractMonitor = JSON.parse(readFileSync(CONTRACT_MONITOR_FILE, "utf8"));
 const mapLocationSnapshot = JSON.parse(readFileSync(MAP_LOCATIONS_FILE, "utf8"));
 const mapLocations = validateOpportunityMapLocations(mapLocationSnapshot);
@@ -65,11 +66,14 @@ if (new Set(contractMonitor.records.map((record) => record.opportunityId)).size 
   throw new Error("Contract monitor records must retain unique stable opportunity IDs");
 }
 const subawardPrimeIds = new Set((subawards.primes || []).map((prime) => prime.primeAwardId));
-const currentAwardIds = new Set(source.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards?.map((award) => award.id) || []);
-if (subawards.metadata?.checkedPrimeCount < Math.min(currentAwardIds.size, 500) || !subawardPrimeIds.size) {
+const indexedAwardIds = new Set([
+  ...(source.metadata?.dataInventory?.strategyAnalytics?.executionAnalytics?.awardDrilldown?.awards?.map((award) => award.id) || []),
+  ...(spendingCoverage.awards || []).map((award) => award.generatedAwardId).filter(Boolean),
+]);
+if (subawards.metadata?.checkedPrimeCount < Math.min(indexedAwardIds.size, 500) || !subawardPrimeIds.size) {
   throw new Error("Subaward snapshot must cover a disclosed bounded set of indexed USAspending prime awards");
 }
-if ([...subawardPrimeIds].some((primeAwardId) => !currentAwardIds.has(primeAwardId))) {
+if ([...subawardPrimeIds].some((primeAwardId) => !indexedAwardIds.has(primeAwardId))) {
   throw new Error("Subaward snapshot contains an unknown prime-award identifier");
 }
 if (captureCalendar.records.some((record) => "statusLabel" in record || "note" in record || "visibility" in record || "targetIds" in record || "captureMotion" in record)) {
