@@ -206,7 +206,7 @@ const compactChanges = records.slice(0, 100).map((record) => ({
   opportunityId: record.opportunityId || null,
   change: record.change,
   title: record.current?.title || record.previous?.title || null,
-  fields: (record.fields || []).slice(0, 12),
+  fields: (record.fields || []).slice(0, 12).map(({ field, label }) => ({ field, label })),
   fieldCount: (record.fields || []).length,
 }));
 const historyEntry = {
