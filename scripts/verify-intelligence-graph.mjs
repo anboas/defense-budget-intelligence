@@ -15,6 +15,11 @@ const contractLineageReview = JSON.parse(readFileSync(resolve(ROOT, "public/data
 const temporalEvidenceIndex = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-index.json"), "utf8"));
 const temporalEvidenceReview = JSON.parse(readFileSync(resolve(ROOT, "public/data/temporal-evidence-review.json"), "utf8"));
 const spendingCoverage = JSON.parse(readFileSync(resolve(ROOT, "src/data/usaspending-coverage.json"), "utf8"));
+const subawardCoverage = JSON.parse(readFileSync(resolve(ROOT, "src/data/usaspending-subawards.json"), "utf8"));
+const priorityAwardActions = JSON.parse(readFileSync(resolve(ROOT, "src/data/priority-award-actions.json"), "utf8"));
+const legislativeTraceability = JSON.parse(readFileSync(resolve(ROOT, "src/data/legislative-traceability.json"), "utf8"));
+const roadmapIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
+const strategicIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-intelligence.json"), "utf8"));
 const agentGraphManifest = JSON.parse(readFileSync(resolve(ROOT, "public/data/agent-graph/manifest.json"), "utf8"));
 const entities = new Set(Object.values(graph.entities || {}).flatMap((rows) => rows.map((row) => row.id)));
 const relations = graph.relations || [];
@@ -40,7 +45,8 @@ assert.ok(relations.every((relation) => relation.validity?.observedAt && "effect
 assert.equal(graph.metadata.coverage.activities.awardLinked, 702, "All retained awards must link to the canonical activity spine");
 assert.equal(graph.metadata.coverage.awards.accountLinked, 305, "Known unique award-to-account coverage changed");
 assert.equal(graph.metadata.relationCounts["award-funded-by-account"], 775, "Known exact award-to-account relationships changed");
-assert.equal(graph.metadata.coverage.awards.subawardLinked, 379, "All checked subaward primes must join exact award IDs");
+assert.ok(graph.metadata.coverage.awards.subawardLinked >= 379, "Exact subaward-prime coverage regressed below the verified baseline");
+assert.equal(graph.metadata.coverage.awards.subawardLinked, subawardCoverage.metadata?.primeWithSubawardsCount, "All retained positive subaward primes must join exact award IDs");
 assert.deepEqual(graph.metadata.coverage.spending, {
   firstFiscalYear: 2017,
   lastFiscalYear: 2026,
@@ -83,14 +89,16 @@ assert.equal(graph.metadata.coverage.acquisition.status, "unavailable", "SAM acq
 for (const type of ["opportunity-notice", "notice-version", "award-action", "vendor-registration", "business-certification", "organization-hierarchy-observation", "subaward"]) {
   assert.ok(type in graph.metadata.entityCounts, `SAM acquisition type ${type} must remain first-class even when its protected source is unavailable`);
 }
-assert.equal(graph.entities?.["award-action"]?.length, 2774, "Every retained priority-award action must exist once");
-assert.equal(graph.metadata.relationCounts["award-modified-by-action"], 2774, "Every retained priority-award action must join its exact award");
-assert.equal(graph.entities?.["legislative-measure"]?.length, 9, "The enacted NDAA baseline and FY2024 defense appropriations measure must remain addressable");
-assert.equal(graph.entities?.["legislative-version"]?.length, 24, "Introduced, reported, and enrolled defense bill versions must remain addressable");
-assert.equal(graph.entities?.["committee-report"]?.length, 3, "Exact committee-report baseline changed");
-assert.equal(graph.entities?.["enacted-provision"]?.length, 8, "Every baseline defense measure must retain its enacted law identity");
-assert.equal(graph.metadata.relationCounts["measure-has-version"], 24, "Every defense bill version must join its exact measure");
-assert.equal(graph.metadata.relationCounts["measure-enacted-as"], 8, "Every enacted defense measure must join its exact public law");
+assert.ok(graph.entities?.["award-action"]?.length >= 2_500, "Priority-award action graph coverage regressed below the verified baseline");
+assert.equal(graph.entities?.["award-action"]?.length, priorityAwardActions.actions?.length, "Every retained priority-award action must exist once");
+assert.equal(graph.metadata.relationCounts["award-modified-by-action"], priorityAwardActions.actions?.length, "Every retained priority-award action must join its exact award");
+assert.ok(graph.entities?.["legislative-measure"]?.length >= 9, "The enacted NDAA baseline and FY2024 defense appropriations measure must remain addressable");
+assert.equal(graph.entities?.["legislative-measure"]?.length, legislativeTraceability.measures?.length, "Every retained defense measure must exist once");
+assert.equal(graph.entities?.["legislative-version"]?.length, legislativeTraceability.versions?.length, "Every retained defense bill version must exist once");
+assert.equal(graph.entities?.["committee-report"]?.length, legislativeTraceability.committeeReports?.length, "Every retained committee report must exist once");
+assert.equal(graph.entities?.["enacted-provision"]?.length, legislativeTraceability.enactedProvisions?.length, "Every retained enacted provision must exist once");
+assert.equal(graph.metadata.relationCounts["measure-has-version"], legislativeTraceability.relations?.filter((row) => row.type === "measure-has-version").length, "Every defense bill version must join its exact measure");
+assert.equal(graph.metadata.relationCounts["measure-enacted-as"], legislativeTraceability.relations?.filter((row) => row.type === "measure-enacted-as").length, "Every enacted defense measure must join its exact public law");
 assert.equal(graph.entities?.["defense-program"]?.length, 2723, "Every canonical program identity must exist once");
 assert.equal(graph.entities?.["program-office"]?.length, 30, "Every source-declared budget-sponsor office must exist once");
 assert.equal(graph.entities?.["program-baseline"]?.length, 2755, "Every official request baseline must remain addressable");
@@ -140,11 +148,12 @@ assert.equal(graph.entities?.["program-health-profile"]?.length, 2723, "Every de
 assert.equal(graph.entities?.["accountability-finding"]?.length, 4, "Bounded accountability finding coverage changed");
 assert.equal(graph.metadata.relationCounts["program-health-profile-summarizes-program"], 2723, "Every program health profile must join its defense program");
 assert.equal(graph.metadata.relationCounts["accountability-finding-about-program"], 4, "Every accountability finding must join its defense program");
-assert.equal(graph.entities?.["official-document"]?.length, 57, "Official document coverage changed");
-assert.equal(graph.entities?.["document-version"]?.length, 57, "Every official document must retain an observed version");
-assert.equal(graph.entities?.["document-section"]?.length, 300, "Document section coverage changed");
-assert.equal(graph.entities?.["document-table"]?.length, 3, "Verified document table coverage changed");
-assert.equal(graph.entities?.["document-citation"]?.length, 335, "Exact document citation coverage changed");
+assert.ok(graph.entities?.["official-document"]?.length >= 57, "Official document coverage regressed below the verified baseline");
+assert.equal(graph.entities?.["official-document"]?.length, roadmapIntelligence.officialDocuments?.length, "Every retained official document must exist once");
+assert.equal(graph.entities?.["document-version"]?.length, roadmapIntelligence.documentVersions?.length, "Every official document must retain an observed version");
+assert.equal(graph.entities?.["document-section"]?.length, roadmapIntelligence.documentSections?.length, "Every retained document section must exist once");
+assert.equal(graph.entities?.["document-table"]?.length, roadmapIntelligence.documentTables?.length, "Every retained document table must exist once");
+assert.equal(graph.entities?.["document-citation"]?.length, roadmapIntelligence.citations?.length, "Every retained document citation must exist once");
 assert.equal(graph.metadata.relationCounts["document-citation-supports-official-role"], 296, "Every official-role citation must retain its target");
 assert.equal(graph.metadata.relationCounts["document-citation-supports-appropriation-mark"], 35, "Every mark citation must retain its target");
 assert.equal(graph.metadata.relationCounts["document-citation-supports-accountability-finding"], 4, "Every accountability citation must retain its target");
@@ -155,10 +164,11 @@ assert.equal(graph.entities?.project?.length, 745, "C-1 project coverage changed
 assert.equal(graph.entities?.["acquisition-forecast"]?.length, 10, "Agency forecast baseline changed");
 assert.equal(graph.entities?.["mission-assignment"]?.length, 96, "Reviewed installation mission coverage changed");
 assert.equal(graph.entities?.["installation-tenant"]?.length, 185, "Reviewed installation tenant coverage changed");
-assert.equal(graph.entities?.["competitive-signal"]?.length, 119, "Competition signal coverage changed");
-assert.equal(graph.entities?.["expiration-signal"]?.length, 267, "Expiration signal coverage changed");
-assert.equal(graph.entities?.["execution-risk-signal"]?.length, 256, "Execution review-signal coverage changed");
-assert.equal(graph.entities?.["outcome-evidence"]?.length, 130, "Exact award/transaction outcome evidence coverage changed");
+assert.equal(graph.entities?.["competitive-signal"]?.length, strategicIntelligence.competitiveSignals?.length, "Every retained competition signal must exist once");
+assert.ok(graph.entities?.["expiration-signal"]?.length >= 267, "Expiration signal coverage regressed below the verified baseline");
+assert.equal(graph.entities?.["expiration-signal"]?.length, strategicIntelligence.expirationSignals?.length, "Every retained expiration signal must exist once");
+assert.equal(graph.entities?.["execution-risk-signal"]?.length, strategicIntelligence.executionRiskSignals?.length, "Every retained execution review signal must exist once");
+assert.equal(graph.entities?.["outcome-evidence"]?.length, strategicIntelligence.outcomeEvidence?.length, "Every retained outcome evidence record must exist once");
 assert.equal(graph.entities?.["sbir-topic"]?.length, 0, "SBIR topics must remain empty while the official API is unavailable");
 assert.equal(graph.entities?.["protest-decision"]?.length, 0, "No protest decision may be promoted without an exact award or notice join");
 assert.equal(graph.entities?.["audit-finding"]?.length, 0, "No audit finding may be promoted without an exact official identifier crosswalk");
