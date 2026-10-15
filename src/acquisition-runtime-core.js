@@ -315,7 +315,8 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
         const payload = await response.json();
         const rows = Array.isArray(payload.opportunitiesData) ? payload.opportunitiesData : [];
         scopeTotal = Number(payload.totalRecords || scopeTotal || 0);
-        if (scopePages === 0 && scopeTotal > config.maxPages * limit) {
+        const observedPageSize = Math.max(1, rows.length);
+        if (scopePages === 0 && scopeTotal > config.maxPages * observedPageSize) {
           const childScopes = splitSamQueryScope(dateScope);
           if (childScopes.length) {
             pendingScopes.unshift(...childScopes);
