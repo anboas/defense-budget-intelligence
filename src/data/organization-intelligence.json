@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:06:33.536Z",
+    "generatedAt": "2026-10-15T19:43:50.781Z",
     "status": "current",
     "coverage": {
       "dossiers": 100,
@@ -18,7 +18,7 @@
     },
     "evidenceBoundary": "Dossiers are bounded projections of retained public evidence. Observed-current professional roles are lower-bound observations, not appointment dates. Request, authority, obligation, outlay, award value, and ceiling measures remain separate. Missing public evidence is an explicit research gap, never a negative assertion.",
     "selectionPolicy": "The 100-dossier cohort prioritizes sourced leadership and oversight organizations, reviewed mission organizations, published budget sponsors, major buyers, and major vendors. Category quotas preserve breadth while deterministic ranking preserves high-value coverage.",
-    "contentHash": "aa9ef96edebf7fb4ce47"
+    "contentHash": "01e090fc75f391977c18"
   },
   "dossiers": [
     {
@@ -22742,7 +22742,7 @@
       "publisher": "House Committee on Armed Services",
       "url": "https://armedservices.house.gov/about/members.htm",
       "observedAt": "2026-10-15",
-      "contentHash": "59333068b2ddfbd14a8be2cac6ae762553e33d800935616a6afd93958533b2d8"
+      "contentHash": "03738ff7949efa81d65b65d6ac4c89e9b4dde285836c12894e4ea40156c8997f"
     },
     {
       "id": "hasc-cyber",
@@ -22814,7 +22814,7 @@
       "publisher": "Senate Committee on Appropriations",
       "url": "https://www.appropriations.senate.gov/subcommittees/defense",
       "observedAt": "2026-10-15",
-      "contentHash": "42ca7ded6104842c7171c69917273980f29d5de643715c679b89553af8ea1838"
+      "contentHash": "d55363371f49d0809325542d7daa03221075b439906d39ab85394622cda81d11"
     }
   ],
   "programLabels": {
