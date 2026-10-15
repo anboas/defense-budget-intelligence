@@ -134,6 +134,17 @@ try {
   assert.ok(adaptive.metadata.adaptiveSplits > 0, "Oversized SAM date scopes must split adaptively");
   assert.ok(adaptive.records.every((record) => record.sourceRecordId !== "discarded-parent-probe"), "Parent-scope probe rows must not leak into an adaptive refresh");
   assert.ok(adaptiveUrls.some((url) => url.searchParams.get("postedFrom") === url.searchParams.get("postedTo")), "Adaptive splitting must reach daily scopes when required");
+  const responseBoundedUrls = [];
+  const responseBounded = await fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { initialLookbackDays: 2, maxPages: 1, pageSize: 1000, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async (url) => {
+    const parsedUrl = new URL(url); responseBoundedUrls.push(parsedUrl);
+    const sameDay = parsedUrl.searchParams.get("postedFrom") === parsedUrl.searchParams.get("postedTo");
+    return new Response(JSON.stringify(sameDay
+      ? { totalRecords: 1, opportunitiesData: [{ noticeId: `response-bounded-${parsedUrl.searchParams.get("postedFrom")}`, title: "Complete daily row" }] }
+      : { totalRecords: 5, opportunitiesData: [{ noticeId: "discarded-response-bounded-parent", title: "Incomplete parent page" }] }), { status: 200, headers: { "content-type": "application/json" } });
+  } });
+  assert.ok(responseBounded.metadata.adaptiveSplits > 0, "SAM scopes must split when the source returns fewer rows than its reported total within the page budget");
+  assert.ok(responseBounded.records.every((record) => record.sourceRecordId !== "discarded-response-bounded-parent"), "Incomplete parent-scope rows must not leak into an adaptive refresh");
+  assert.ok(responseBoundedUrls.some((url) => url.searchParams.get("postedFrom") === url.searchParams.get("postedTo")), "Response-bounded splitting must reach complete daily scopes");
   await assert.rejects(() => fetchSamOpportunities({ apiKey: "sam_runtime_contract_key_0001", config: { initialLookbackDays: 1, maxPages: 1, pageSize: 1000, requestIntervalMs: 250 }, sleep: async () => {}, fetchImpl: async () => new Response(JSON.stringify({ totalRecords: 2000, opportunitiesData: [{ noticeId: "truncated-1", title: "Partial" }] }), { status: 200, headers: { "content-type": "application/json" } }) }), (error) => error.code === "source_truncated", "A bounded partial SAM response must fail closed");
   const links = exactLifecycleLinks([{ sourceRecordId: "notice-a", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-01", lifecycleStage: "opportunity" }, { sourceRecordId: "notice-b", solicitationNumber: "W15P7T-26-R-0001", postedDate: "2026-09-19", lifecycleStage: "award" }]);
   assert.deepEqual(links.map((link) => [link.fromId, link.toId, link.relationship, link.basis]), [["notice-a", "notice-b", "resulted_in_award", "solicitation_number"]], "Lifecycle links must require an exact disclosed identifier");
