@@ -280,6 +280,7 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
     const pendingScopes = [...dateScopes];
     while (pendingScopes.length) {
       const dateScope = pendingScopes.shift();
+      const scopeRecordStart = records.length;
       let offset = 0;
       let scopePages = 0;
       let scopeTotal = null;
@@ -332,7 +333,17 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
       if (splitScheduled) continue;
       if (scopeTotal === null) throw Object.assign(new Error(`SAM.gov notice-type/date scope exceeded the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
       totalRecords += Number(scopeTotal || 0);
-      if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned ${scopeTotal} records for ${dateScope.postedFrom}-${dateScope.postedTo}${noticeType ? ` / ${noticeType}` : ""}, beyond the bounded ${config.maxPages * limit} record window; no partial refresh was applied`), { code: "source_truncated" });
+      if (offset < scopeTotal) {
+        const childScopes = splitSamQueryScope(dateScope);
+        if (childScopes.length) {
+          records.splice(scopeRecordStart);
+          pendingScopes.unshift(...childScopes);
+          adaptiveSplits += 1;
+          totalRecords -= Number(scopeTotal || 0);
+          continue;
+        }
+        throw Object.assign(new Error(`SAM.gov reported ${scopeTotal} records for ${dateScope.postedFrom}-${dateScope.postedTo}${noticeType ? ` / ${noticeType}` : ""}, but returned ${offset} within the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
+      }
       completedScopes.push({ ...dateScope, noticeType: noticeType || null, noticeId: noticeId || null, totalRecords: Number(scopeTotal || 0) });
     }
   }
