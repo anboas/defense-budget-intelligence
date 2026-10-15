@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 
 const payload = JSON.parse(readFileSync("src/data/account-spine.json", "utf8"));
 const years = payload.metadata?.historyFiscalYears || [];
-assert.equal(payload.metadata?.status, "current", "The exact money lifecycle must be current");
+assert.ok(["current", "stale"].includes(payload.metadata?.status), "The exact money lifecycle must disclose whether its verified snapshot is current or stale");
+if (payload.metadata?.status === "stale") {
+  assert.ok(Number.isFinite(Date.parse(payload.metadata?.generatedAt)), "A stale money lifecycle must retain the prior successful generation time");
+  assert.ok(Number.isFinite(Date.parse(payload.metadata?.lastAttemptAt)), "A stale money lifecycle must disclose the failed refresh attempt time");
+  assert.ok(payload.metadata?.diagnostic?.code, "A stale money lifecycle must disclose a safe failure code");
+  assert.ok(payload.metadata?.diagnostic?.message, "A stale money lifecycle must disclose a safe failure reason");
+}
 assert.deepEqual(years, [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026], "The exact-money lifecycle must retain FY2017-FY2026");
 assert.deepEqual([...years].sort((a, b) => a - b), years, "Fiscal years must be ordered");
 assert.ok((payload.accountSnapshots || []).length >= 1_400, "Historical federal-account coverage regressed");

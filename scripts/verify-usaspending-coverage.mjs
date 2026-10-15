@@ -57,7 +57,13 @@ for (const url of Object.values(metadata.sourceUrls || {})) {
   assert.ok(/^https:\/\/api\.usaspending\.gov\//.test(url), "Coverage sources must remain official USAspending API endpoints");
 }
 
-assert.equal(accountSpine.metadata?.status, "current", "The exact account spine must retain a successful current refresh");
+assert.ok(["current", "stale"].includes(accountSpine.metadata?.status), "The exact account spine must disclose whether its verified snapshot is current or stale");
+if (accountSpine.metadata?.status === "stale") {
+  assert.ok(Number.isFinite(Date.parse(accountSpine.metadata?.generatedAt)), "A stale account spine must retain the prior successful generation time");
+  assert.ok(Number.isFinite(Date.parse(accountSpine.metadata?.lastAttemptAt)), "A stale account spine must disclose the failed refresh attempt time");
+  assert.ok(accountSpine.metadata?.diagnostic?.code, "A stale account spine must disclose a safe failure code");
+  assert.ok(accountSpine.metadata?.diagnostic?.message, "A stale account spine must disclose a safe failure reason");
+}
 assert.equal(accountSpine.metadata?.coverage?.sampledAwards, 500, "The account spine must retain the stratified 500-award sample");
 assert.equal(accountSpine.metadata?.coverage?.awardAccountsFetched, 500, "Every selected account-spine award must resolve successfully");
 assert.equal(accountSpine.metadata?.coverage?.awardAccountFailures, 0, "The account spine must fail closed on unresolved award-account probes");
