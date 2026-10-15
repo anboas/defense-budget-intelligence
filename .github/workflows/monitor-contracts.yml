@@ -46,7 +46,9 @@ jobs:
         run: npm run source:sam && npm run source:contracts && npm run data:procurement-delta
       - name: Verify generated runtime and UI contracts
         run: npm run lint && npm run verify:ui-conformance && npm run verify:cyber && npm run build
-      - name: Commit changed contract observations
+      - name: Open protected contract-observation pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json; then
             echo "No contract-monitor changes."
@@ -54,6 +56,12 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C automation/daily-acquisition
           git add src/data/sam-opportunities.json src/data/contract-monitor.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json
           git commit -m "chore(data): refresh daily acquisition feed"
-          git push origin HEAD:main
+          git push --force-with-lease origin HEAD:automation/daily-acquisition
+          existing="$(gh pr list --head automation/daily-acquisition --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            gh pr create --base main --head automation/daily-acquisition --title "chore(data): refresh daily acquisition feed" --body "Automated contract-monitor refresh. Merge is gated by the same release, security, and recovery contracts as application changes."
+          fi
+          gh pr merge automation/daily-acquisition --auto --squash

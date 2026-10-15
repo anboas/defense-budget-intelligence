@@ -46,7 +46,33 @@ jobs:
           SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
           PREVIOUS_ROLE_DIRECTORY_FILE: ${{ runner.temp }}/previous-official-role-directory-snapshot.json
           PREVIOUS_ORGANIZATION_INTELLIGENCE_FILE: ${{ runner.temp }}/previous-organization-intelligence.json
-        run: npm run source:refresh
+        run: |
+          budget_inputs_ready=1
+          if ! npm run source:workbooks; then
+            budget_inputs_ready=0
+            echo "::warning::Official Comptroller workbook download is unavailable; preserving the last verified budget snapshot."
+          fi
+          if ! npm run source:justifications; then
+            budget_inputs_ready=0
+            echo "::warning::Official justification download is unavailable; preserving the last verified budget snapshot."
+          fi
+          npm run source:usaspending
+          npm run source:usaspending-coverage
+          if [ "$budget_inputs_ready" -eq 1 ]; then
+            npm run data:build
+          fi
+          npm run source:account-spine
+          npm run source:priority-award-actions
+          npm run source:legislation
+          npm run source:strategic-intelligence
+          npm run source:program-intelligence
+          npm run source:subawards
+          npm run source:official-roles
+          npm run source:roadmap-intelligence
+          npm run source:organization-intelligence
+          npm run source:organization-monitor
+          npm run source:sam
+          npm run source:health
       - name: Build refresh delta
         env:
           PREVIOUS_BUDGET_FILE: ${{ runner.temp }}/previous-budget-intelligence.json
