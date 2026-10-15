@@ -289,7 +289,7 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
         const url = new URL("https://api.sam.gov/opportunities/v2/search");
         url.searchParams.set("postedFrom", dateScope.postedFrom);
         url.searchParams.set("postedTo", dateScope.postedTo);
-        if (config.organizationName && !noticeId) url.searchParams.set("organizationName", config.organizationName);
+        if (config.organizationName && !noticeId) url.searchParams.set("deptname", config.organizationName);
         if (noticeId) url.searchParams.set("noticeid", noticeId);
         if (noticeType) url.searchParams.set("ptype", noticeType);
         url.searchParams.set("limit", String(limit));

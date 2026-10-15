@@ -13,6 +13,7 @@ const DEFAULT_CONFIG = Object.freeze({
 
 const MODELS = new Set(["gpt-5-nano", "gpt-5.4-nano", "gpt-5.4-mini"]);
 const REASONING = new Set(["low", "medium"]);
+const STALE_RUN_MINUTES = 30;
 const CLAIM_TYPES = new Set(["leadership", "mission", "finance", "hierarchy", "program", "location", "identifier"]);
 const FIELD_PATHS = Object.freeze({
   leadership: "autonomousResearch.leadership",
@@ -204,16 +205,40 @@ const researchSchema = {
 };
 
 function responseText(response) {
-  if (typeof response?.output_text === "string") return response.output_text;
-  for (const output of response?.output || []) for (const item of output?.content || []) if (item?.type === "output_text" && item.text) return item.text;
-  return "";
+  if (typeof response?.output_text === "string" && response.output_text.trim()) return response.output_text;
+  return (response?.output || []).flatMap((output) => output?.content || [])
+    .filter((item) => item?.type === "output_text" && typeof item.text === "string")
+    .map((item) => item.text).join("");
+}
+
+function structuredPayload(response) {
+  const raw = responseText(response).trim();
+  const fenced = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1];
+  const bounded = raw.includes("{") && raw.includes("}") ? raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1) : "";
+  for (const candidate of [raw, fenced, bounded]) {
+    if (!candidate) continue;
+    try { return JSON.parse(candidate); } catch { /* Try the next bounded representation. */ }
+  }
+  const error = new Error(response?.incomplete_details?.reason === "max_output_tokens"
+    ? "OpenAI exhausted its output budget before completing structured research"
+    : "OpenAI returned invalid structured output");
+  error.code = response?.incomplete_details?.reason === "max_output_tokens" ? "incomplete_output" : "invalid_structured_output";
+  error.httpStatus = 502;
+  throw error;
 }
 
 function consultedSources(response) {
   const urls = [];
   for (const output of response?.output || []) {
-    if (output?.type !== "web_search_call") continue;
-    for (const source of output?.action?.sources || []) if (source?.url) urls.push(normalizedUrl(source.url));
+    if (output?.type === "web_search_call") {
+      for (const source of output?.action?.sources || []) if (source?.url) urls.push(normalizedUrl(source.url));
+    }
+    for (const item of output?.content || []) {
+      for (const annotation of item?.annotations || []) {
+        const url = annotation?.url || annotation?.url_citation?.url;
+        if (url) urls.push(normalizedUrl(url));
+      }
+    }
   }
   return new Set(urls.filter(Boolean));
 }
@@ -238,15 +263,15 @@ function normalizeResearch(payload, providerSources, config) {
   return { claims, caveats: (Array.isArray(payload?.caveats) ? payload.caveats : []).map((item) => text(item, 500)).filter(Boolean).slice(0, 12) };
 }
 
-function researchRequest(target, config) {
+function researchRequest(target, config, degraded = false) {
   return {
     model: config.model,
     store: false,
-    reasoning: { effort: config.reasoningEffort },
+    reasoning: { effort: degraded ? "low" : config.reasoningEffort },
     tools: [{ type: "web_search", search_context_size: "low" }],
     tool_choice: "required",
     include: ["web_search_call.action.sources"],
-    max_output_tokens: 2600,
+    max_output_tokens: degraded ? 4200 : 3200,
     text: { format: { type: "json_schema", name: "organization_discovery", strict: true, schema: researchSchema } },
     instructions: [
       "Research one public organization intelligence gap for Defense Budget Intelligence.",
@@ -269,19 +294,35 @@ async function openAiResearch(apiKey, target, config, env) {
     return { response: { id: `mock-${crypto.randomUUID()}`, usage: { input_tokens: 120, output_tokens: 80 }, output: [{ type: "web_search_call", action: { sources: [{ url: source }] } }] }, payload: { claims: [{ claimType: leadership ? "leadership" : target.gapType === "mission" ? "mission" : "hierarchy", label: `${target.dossierLabel} verified fact`, value: `Official evidence for ${target.dossierLabel}`, numericValue: 0, unit: "", measureType: "", personName: leadership ? `Verification Leader ${target.dossierLabel}` : "", roleTitle: leadership ? "Director" : "", effectiveFrom: "", effectiveTo: "", confidence: "exact", exact: true, sources: [{ url: source, title: "Official source", publisher: "U.S. Government", quote: `Official evidence for ${target.dossierLabel}` }] }], caveats: [] }, latencyMs: 0, requestId: "mock-request" };
   }
   const started = Date.now();
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST", headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify(researchRequest(target, config)),
-  });
-  const requestId = response.headers.get("x-request-id") || response.headers.get("openai-request-id") || "";
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(text(body?.error?.message || `OpenAI returned HTTP ${response.status}`, 500));
-    error.code = text(body?.error?.code || body?.error?.type || "provider_failed", 100); error.httpStatus = response.status; error.requestId = requestId; error.latencyMs = Date.now() - started;
-    throw error;
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify(researchRequest(target, config, attempt > 0)),
+      ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(attempt ? 60_000 : 90_000) } : {}),
+    });
+    const requestId = response.headers.get("x-request-id") || response.headers.get("openai-request-id") || "";
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(text(body?.error?.message || `OpenAI returned HTTP ${response.status}`, 500));
+      error.code = text(body?.error?.code || body?.error?.type || "provider_failed", 100);
+      error.httpStatus = response.status;
+      error.requestId = requestId;
+      error.latencyMs = Date.now() - started;
+      throw error;
+    }
+    try {
+      return { response: body, payload: structuredPayload(body), latencyMs: Date.now() - started, requestId, attempts: attempt + 1 };
+    } catch (error) {
+      lastError = error;
+      lastError.requestId = requestId;
+      lastError.latencyMs = Date.now() - started;
+      if (attempt === 0 && ["invalid_structured_output", "incomplete_output"].includes(error.code)) continue;
+      throw lastError;
+    }
   }
-  const raw = responseText(body);
-  let payload; try { payload = JSON.parse(raw); } catch { const error = new Error("OpenAI returned invalid structured output"); error.code = "invalid_structured_output"; throw error; }
-  return { response: body, payload, latencyMs: Date.now() - started, requestId };
+  throw lastError;
 }
 
 async function ensureConfig(db, workspaceId, updatedBy = "system") {
@@ -468,7 +509,20 @@ export async function executeResearchRun({ db, env, request, runId, workspaceId,
 }
 
 async function activeRun(db, workspaceId) {
-  return db.prepare("SELECT * FROM dbi_research_runs WHERE workspace_id=? AND status IN ('queued','running') ORDER BY started_at DESC LIMIT 1").bind(workspaceId).first();
+  const active = await db.prepare("SELECT * FROM dbi_research_runs WHERE workspace_id=? AND status IN ('queued','running') ORDER BY started_at DESC LIMIT 1").bind(workspaceId).first();
+  if (!active) return null;
+  const startedAt = Date.parse(active.started_at || "");
+  if (!Number.isFinite(startedAt) || Date.now() - startedAt <= STALE_RUN_MINUTES * 60_000) return active;
+  const completedAt = iso();
+  await db.batch([
+    db.prepare(`UPDATE dbi_research_run_targets SET status='failed', error_code='stale_run',
+      error_message='The parent research run exceeded the execution window', completed_at=?
+      WHERE run_id=? AND status='running'`).bind(completedAt, active.id),
+    db.prepare(`UPDATE dbi_research_runs SET status='failed', stage='failed', error_code='stale_run',
+      error_message='The research run exceeded the 30-minute execution window', completed_at=?
+      WHERE id=? AND status IN ('queued','running')`).bind(completedAt, active.id),
+  ]);
+  return null;
 }
 
 async function queueRun({ db, workspaceId, trigger, config }) {
@@ -477,6 +531,10 @@ async function queueRun({ db, workspaceId, trigger, config }) {
   await db.prepare(`INSERT INTO dbi_research_runs (id, workspace_id, trigger_type, status, stage, model, reasoning_effort, config_json, started_at)
     VALUES (?,?,?,'queued','queued',?,?,?,?)`).bind(id, workspaceId, trigger, config.model, config.reasoningEffort, JSON.stringify(config), now).run();
   return { id };
+}
+
+function boundedExecutionConfig(config) {
+  return { ...config, batchSize: Math.min(config.batchSize, config.concurrency) };
 }
 
 function runView(row) { return row ? {
@@ -538,10 +596,11 @@ export async function researchSchedulerResponse(request, db, env, _context, deps
     const latest = await db.prepare("SELECT completed_at, started_at FROM dbi_research_runs WHERE workspace_id=? ORDER BY started_at DESC LIMIT 1").bind(row.workspace_id).first();
     const last = Date.parse(latest?.completed_at || latest?.started_at || "");
     if (Number.isFinite(last) && Date.now() - last < config.cadenceMinutes * 60_000) continue;
-    const queued = await queueRun({ db, workspaceId: row.workspace_id, trigger: "scheduled", config });
+    const scheduledConfig = boundedExecutionConfig(config);
+    const queued = await queueRun({ db, workspaceId: row.workspace_id, trigger: "scheduled", config: scheduledConfig });
     if (!queued.id) continue;
     scheduled.push(queued.id);
-    await executeResearchRun({ db, env, request, runId: queued.id, workspaceId: row.workspace_id, config, decryptSecret: deps.decryptSecret, assetJson: deps.assetJson, deps });
+    await executeResearchRun({ db, env, request, runId: queued.id, workspaceId: row.workspace_id, config: scheduledConfig, decryptSecret: deps.decryptSecret, assetJson: deps.assetJson, deps });
   }
   return deps.json({ eligibleWorkspaces: (workspaces.results || []).length, scheduled: scheduled.length, runIds: scheduled }, 202);
 }

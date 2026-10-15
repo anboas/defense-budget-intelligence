@@ -28,7 +28,11 @@ const RETRIES = Math.max(1, Number(process.env.USASPENDING_RETRIES || 5));
 const AREA_PASSES = Math.max(1, Number(process.env.USASPENDING_AREA_PASSES || 10));
 const AREA_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.USASPENDING_AREA_CONCURRENCY || 2)));
 const TREND_LIMIT = Number(process.env.USASPENDING_TREND_LIMIT || 8);
-const AWARD_TYPE_CODES = Object.freeze(["A", "B", "C", "D", "IDV_A", "IDV_B", "IDV_B_A", "IDV_B_B", "IDV_B_C", "IDV_C", "IDV_D", "IDV_E"]);
+const AWARD_TYPE_GROUPS = Object.freeze([
+  Object.freeze({ id: "contracts", codes: Object.freeze(["A", "B", "C", "D"]) }),
+  Object.freeze({ id: "idvs", codes: Object.freeze(["IDV_A", "IDV_B", "IDV_B_A", "IDV_B_B", "IDV_B_C", "IDV_C", "IDV_D", "IDV_E"]) }),
+]);
+const AWARD_TYPE_CODES = Object.freeze(AWARD_TYPE_GROUPS.flatMap((group) => group.codes));
 
 const ALL_TECHNOLOGY_QUERIES = [
   {
@@ -90,7 +94,14 @@ const ALL_TECHNOLOGY_QUERIES = [
 const requestedAreaIds = new Set(String(process.env.USASPENDING_AREA_IDS || "").split(",").map((value) => value.trim()).filter(Boolean));
 const TECHNOLOGY_QUERIES = requestedAreaIds.size ? ALL_TECHNOLOGY_QUERIES.filter((area) => requestedAreaIds.has(area.id)) : ALL_TECHNOLOGY_QUERIES;
 if (!TECHNOLOGY_QUERIES.length) throw new Error("USASPENDING_AREA_IDS did not match any configured technology area.");
-const CHECKPOINT_FINGERPRINT = JSON.stringify({ refreshStartDate: REFRESH_START_DATE, endDate: END_DATE, pageSize: PAGE_SIZE, maxPages: MAX_PAGES || null, dateWindowDays: DATE_WINDOW_DAYS });
+const CHECKPOINT_FINGERPRINT = JSON.stringify({
+  refreshStartDate: REFRESH_START_DATE,
+  endDate: END_DATE,
+  pageSize: PAGE_SIZE,
+  maxPages: MAX_PAGES || null,
+  dateWindowDays: DATE_WINDOW_DAYS,
+  awardTypeGroups: AWARD_TYPE_GROUPS,
+});
 
 const FIELDS = [
   "Award ID",
@@ -173,10 +184,10 @@ async function fetchJson(url, options, label) {
 
 async function fetchArea(area) {
   const windows = dateWindows(REFRESH_START_DATE, END_DATE);
+  const queryScopes = windows.flatMap((window) => AWARD_TYPE_GROUPS.map((awardTypeGroup) => ({ window, awardTypeGroup })));
   const payload = {
     filters: {
       agencies: [{ type: "awarding", tier: "toptier", name: "Department of Defense" }],
-      award_type_codes: AWARD_TYPE_CODES,
       keywords: area.keywords,
     },
     fields: FIELDS,
@@ -192,20 +203,20 @@ async function fetchArea(area) {
   let results = retained?.results || [];
   let messages = retained?.messages || [];
   let page = Number(retained?.nextPage || 1);
-  let windowIndex = Number(retained?.nextWindowIndex || 0);
+  let scopeIndex = Number(retained?.nextScopeIndex || 0);
   let pagesFetched = Number(retained?.pagesFetched || 0);
   let pageMetadata;
   let truncated = Boolean(retained?.truncated);
-  while (windowIndex < windows.length) {
-    const window = windows[windowIndex];
+  while (scopeIndex < queryScopes.length) {
+    const { window, awardTypeGroup } = queryScopes[scopeIndex];
     const body = await fetchJson(API_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
         "user-agent": "defense-budget-intelligence-usaspending-fetch/2.0",
       },
-      body: JSON.stringify({ ...payload, filters: { ...payload.filters, time_period: [window] }, page }),
-    }, `${area.label} ${window.start_date}–${window.end_date} page ${page}`);
+      body: JSON.stringify({ ...payload, filters: { ...payload.filters, award_type_codes: awardTypeGroup.codes, time_period: [window] }, page }),
+    }, `${area.label} ${awardTypeGroup.id} ${window.start_date}–${window.end_date} page ${page}`);
     results.push(...(body.results || []));
     messages.push(...(body.messages || []));
     pageMetadata = body.page_metadata || { page, hasNext: false };
@@ -213,7 +224,7 @@ async function fetchArea(area) {
     results = [...new Map(results.map((row) => [row.generated_internal_id || row.internal_id || row["Award ID"], row])).values()];
     messages = [...new Set(messages)];
     if (page >= 100 && (body.results || []).length >= PAGE_SIZE) {
-      throw new Error(`${area.label} ${window.start_date}–${window.end_date} reached the USAspending 10,000-row query ceiling; reduce USASPENDING_DATE_WINDOW_DAYS before publishing.`);
+      throw new Error(`${area.label} ${awardTypeGroup.id} ${window.start_date}–${window.end_date} reached the USAspending 10,000-row query ceiling; reduce USASPENDING_DATE_WINDOW_DAYS before publishing.`);
     }
     if (MAX_PAGES && pagesFetched >= MAX_PAGES) {
       truncated = true;
@@ -221,16 +232,24 @@ async function fetchArea(area) {
     }
     if (pageMetadata.hasNext) page += 1;
     else {
-      windowIndex += 1;
+      scopeIndex += 1;
       page = 1;
     }
-    if (windowIndex < windows.length) writeCheckpoint(area, { results, messages, nextPage: page, nextWindowIndex: windowIndex, pagesFetched, pageMetadata, truncated: false, complete: false });
+    if (scopeIndex < queryScopes.length) writeCheckpoint(area, { results, messages, nextPage: page, nextScopeIndex: scopeIndex, pagesFetched, pageMetadata, truncated: false, complete: false });
     if (REQUEST_DELAY_MS) await wait(REQUEST_DELAY_MS);
   }
   const value = {
     area,
-    payload: { ...payload, dateWindows: windows },
-    pageMetadata: { ...pageMetadata, pagesFetched, windowsFetched: Math.min(windowIndex + (truncated ? 1 : 0), windows.length), windowCount: windows.length, resultCount: results.length, truncated },
+    payload: { ...payload, awardTypeGroups: AWARD_TYPE_GROUPS, dateWindows: windows },
+    pageMetadata: {
+      ...pageMetadata,
+      pagesFetched,
+      queryScopesFetched: Math.min(scopeIndex + (truncated ? 1 : 0), queryScopes.length),
+      queryScopeCount: queryScopes.length,
+      windowCount: windows.length,
+      resultCount: results.length,
+      truncated,
+    },
     messages,
     results,
   };

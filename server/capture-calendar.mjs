@@ -193,7 +193,7 @@ export async function registerCaptureCalendarRoutes(app, pool) {
          (SELECT COUNT(DISTINCT piid) FROM capture_fpds_actions WHERE snapshot_id = $1)::INTEGER AS instruments,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND automated_import)::INTEGER AS automated_imports,
          (SELECT COUNT(*) FROM capture_opportunity_sources WHERE snapshot_id = $1)::INTEGER AS source_channels,
-         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload ? 'automationCoverage')::INTEGER AS monitored_contracts,
+         (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->>'automationCoverage' IS NOT NULL)::INTEGER AS monitored_contracts,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->'automationCoverage'->>'status' IN ('current', 'batch-current'))::INTEGER AS current_monitor_observations,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->'automationCoverage'->>'status' = 'stale')::INTEGER AS stale_monitor_observations,
          (SELECT COUNT(*) FROM capture_opportunities WHERE snapshot_id = $1 AND payload->'automationCoverage'->>'status' = 'coverage-gap')::INTEGER AS monitor_gaps,

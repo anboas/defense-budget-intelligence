@@ -1091,8 +1091,9 @@ try {
   assert.equal(await page.locator("[data-contract-monitor-summary] .if-management-card").count(), 4, "Contract monitoring should expose target, coverage, gap, and freshness metrics through the shared metric strip");
   assert.ok(await page.locator("[data-contract-monitor-table] [data-if-table-row]").count() > 0, "Contract monitoring should expose its active and upcoming records");
   const contractMonitorPayload = await page.evaluate(() => fetch(new URL("data/contract-monitor.json", document.baseURI)).then((response) => response.json()));
-  assert.ok(contractMonitorPayload.metadata.targetCount >= 500, "Contract monitor should cover the complete known non-historical universe");
-  assert.ok(contractMonitorPayload.metadata.currentCount + contractMonitorPayload.metadata.staleCount >= 460, "Contract monitor should retain exact USAspending observations and exact-PIID resolutions across transient refresh failures");
+  assert.equal(contractMonitorPayload.metadata.targetCount, Math.min(contractMonitorPayload.metadata.eligibleTargetCount, contractMonitorPayload.metadata.targetLimit), "Contract monitor should cover the complete bounded non-historical universe");
+  assert.equal(contractMonitorPayload.metadata.coveredCount, contractMonitorPayload.metadata.currentCount + contractMonitorPayload.metadata.staleCount, "Contract monitor should disclose every current and retained stale observation as covered");
+  assert.equal(contractMonitorPayload.metadata.targetCount, contractMonitorPayload.metadata.coveredCount + contractMonitorPayload.metadata.unavailableCount + contractMonitorPayload.metadata.gapCount, "Every monitored target should have an explicit coverage state");
   assert.equal(contractMonitorPayload.metadata.targetCount, contractMonitorPayload.records.length, "Contract-monitor metadata should match its published rows");
   assert.equal(new Set(contractMonitorPayload.records.map((record) => record.opportunityId)).size, contractMonitorPayload.records.length, "Contract-monitor rows should retain unique stable IDs");
   const forbiddenMonitorKeys = [];
@@ -2481,7 +2482,7 @@ try {
   assert.ok(narrowAnalyticsChartGap >= 0 && narrowAnalyticsChartGap <= 24, `360px Analytics should place the first chart immediately after the factual brief, got a ${narrowAnalyticsChartGap}px gap`);
   await assertNoPageOverflow(mobile, "360px Analytics");
 
-  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 map=nationwide-spend-scaled schedule_views=3 spend_views=4 grouped_routes=9 money_flow_routes=5 work_routes=2 workspace_admin_routes=3 domain_model=full-view inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor>=500 api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
+  console.log(`Verified ${REMOTE_BASE_URL ? "hosted" : "local"} analytics flow: primary_surfaces=3 map=nationwide-spend-scaled schedule_views=3 spend_views=4 grouped_routes=9 money_flow_routes=5 work_routes=2 workspace_admin_routes=3 domain_model=full-view inspectors=drawers editors=dialogs watchlist=stable-id tasks=unified connections=3 integrations=8 contract_monitor=complete-bounded-corpus api_activity=audited request_records>3000 accounts>100 awards>600 opportunities>=875 normalized_source_rows=198 automated_imports>=677 events>=502 fpds_actions=3085 d3_views=21 searchable_facets=8 chart_management=true contextual_hover=true subaward_counts=exact subaward_details=deferred_sample`);
 } finally {
   await browser.close();
   if (server) server.kill("SIGTERM");

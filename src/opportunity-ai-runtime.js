@@ -235,7 +235,7 @@ export async function resolveOpportunityForIntake({ noticeId, reference, samApiK
   let openAiUsed = false;
   if (samApiKey) {
     try {
-      result = await fetchSam({ apiKey: samApiKey, config: { initialLookbackDays: 365, noticeIds: [noticeId], pageSize: 10, maxPages: 1, requestIntervalMs: 250, maxRetries: 2, organizationName: "" } });
+      result = await fetchSam({ apiKey: samApiKey, config: { initialLookbackDays: 364, noticeIds: [noticeId], pageSize: 10, maxPages: 1, requestIntervalMs: 250, maxRetries: 2, organizationName: "" } });
       opportunity = result.records.find((item) => item.sourceRecordId.toLowerCase() === String(noticeId || "").toLowerCase()) || null;
       source = opportunity ? "sam_gov_exact" : "";
       if (!opportunity) samError = Object.assign(new Error("SAM.gov did not return this notice identifier in the bounded exact lookup"), { code: "notice_not_found", httpStatus: 404 });
