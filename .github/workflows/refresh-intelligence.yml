@@ -118,14 +118,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if git diff --quiet -- src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-coverage.json src/data/usaspending-subawards.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json src/data/contract-monitor.json src/data/official-role-directory-snapshot.json src/data/roadmap-intelligence.json src/data/organization-intelligence.json src/data/organization-change-monitor.json; then
+          # Every source refresh and derived snapshot writes beneath src/data.
+          # Keep the protected PR complete and reproducible as new adapters are added.
+          if git diff --quiet -- src/data; then
             echo "No snapshot changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -C automation/daily-intelligence
-          git add src/data/budget-intelligence.json src/data/source-health.json src/data/refresh-delta.json src/data/account-spine.json src/data/sam-opportunities.json src/data/usaspending-coverage.json src/data/usaspending-subawards.json src/data/procurement-delta.json src/data/procurement-discovery.json src/data/procurement-feed.json src/data/contract-monitor.json src/data/official-role-directory-snapshot.json src/data/roadmap-intelligence.json src/data/organization-intelligence.json src/data/organization-change-monitor.json
+          git add -- src/data
           git commit -m "chore(data): refresh budget intelligence snapshots"
           git push --force-with-lease origin HEAD:automation/daily-intelligence
           existing="$(gh pr list --head automation/daily-intelligence --base main --state open --json number --jq '.[0].number // empty')"
