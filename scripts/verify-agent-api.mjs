@@ -220,7 +220,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=spending-observation&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 7071);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.spending.observations);
   const spendingObservationId = result.payload.data[0].id;
   assert.match(spendingObservationId, /^spending-observation:/);
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(spendingObservationId)}/relations?limit=10`, { token: researchToken }));
@@ -230,7 +230,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=execution-balance&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 7986);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.money.executionBalances);
   const executionBalanceId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(executionBalanceId)}/relations?limit=20`, { token: researchToken }));
   assert.equal(result.response.status, 200);
@@ -239,7 +239,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=apportionment-revision&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 6105);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.money.apportionmentRevisions);
   const apportionmentId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(apportionmentId)}/relations?limit=20`, { token: researchToken }));
   assert.equal(result.response.status, 200);
@@ -247,23 +247,30 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=award-action&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 2774);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.acquisition.awardActions);
   const awardActionId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(awardActionId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "award-modified-by-action"), "Priority award actions must traverse to their exact award");
   assert.ok(result.payload.data.some((relation) => relation.type === "supported-by-source"), "Priority award actions must traverse to official transaction evidence");
 
-  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=legislative-measure&limit=1", { token: researchToken }));
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=legislative-measure&limit=100", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 9);
-  const measureId = result.payload.data[0].id;
-  result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(measureId)}/relations?limit=20`, { token: researchToken }));
-  assert.ok(result.payload.data.some((relation) => relation.type === "measure-has-version"), "Defense measures must traverse to exact official text versions");
-  assert.ok(result.payload.data.some((relation) => relation.type === "measure-enacted-as"), "Enacted defense measures must traverse to exact public-law identity");
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.legislation.measures);
+  let measureWithVersion = false;
+  let enactedMeasure = false;
+  for (const measure of result.payload.data) {
+    const relations = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(measure.id)}/relations?limit=100`, { token: researchToken }));
+    assert.equal(relations.response.status, 200);
+    measureWithVersion ||= relations.payload.data.some((relation) => relation.type === "measure-has-version");
+    enactedMeasure ||= relations.payload.data.some((relation) => relation.type === "measure-enacted-as");
+    if (measureWithVersion && enactedMeasure) break;
+  }
+  assert.ok(measureWithVersion, "Defense measures must traverse to exact official text versions");
+  assert.ok(enactedMeasure, "Enacted defense measures must traverse to exact public-law identity");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=defense-program&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 2723);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.programs.defensePrograms);
   const programId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(programId)}/relations?limit=50`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "defense-program-represented-by-budget-line"), "Defense programs must traverse to official budget lines");
@@ -271,11 +278,11 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=program-baseline&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 2755);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.programs.requestBaselines);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=appropriation-mark&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 35);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.legislation.appropriationMarks);
   const markId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(markId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "appropriation-mark-affects-defense-program"), "House marks must traverse to their exact defense program");
@@ -284,7 +291,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-role&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 294);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.people.officialRoles);
   const officialRoleId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialRoleId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "person-holds-official-role"), "Official roles must traverse to public professional identities");
@@ -293,7 +300,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=organization-source-monitor&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 10);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.organizationIntelligence.monitoredSources);
   const organizationMonitorId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(organizationMonitorId)}/relations?limit=30`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "organization-source-monitor-has-observation"), "Organization source monitors must traverse to their content-hash observations");
@@ -301,7 +308,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=organization-dossier&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 100);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.organizationIntelligence.dossiers);
   const dossierId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(dossierId)}/relations?type=organization-dossier-for-organization&limit=10`, { token: researchToken }));
   assert.equal(result.response.status, 200);
@@ -315,7 +322,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=supplier-relationship&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 1000);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.industrialBase.supplierRelationships);
   const supplierRelationshipId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(supplierRelationshipId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "supplier-relationship-prime"), "Supplier relationships must traverse to prime organizations");
@@ -323,14 +330,14 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=official-document&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 57);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.documents.officialDocuments);
   const officialDocumentId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(officialDocumentId)}/relations?limit=50`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-version"), "Official documents must traverse to observed versions");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=document-citation&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 335);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.documents.citations);
   const documentCitationId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(documentCitationId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "official-document-has-citation"), "Document citations must traverse to their official document");
@@ -338,11 +345,11 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=saved-query-template&limit=20", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 8);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.operations.savedQueryTemplates);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/entities?type=mission-assignment&limit=1", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 96);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.market.reviewedMissionAssignments);
   const missionId = result.payload.data[0].id;
   result = await body(await request(instance.baseUrl, `/api/v1/agent/entities/${encodeURIComponent(missionId)}/relations?limit=20`, { token: researchToken }));
   assert.ok(result.payload.data.some((relation) => relation.type === "mission-assignment-at-location"), "Reviewed missions must traverse to their installation");
