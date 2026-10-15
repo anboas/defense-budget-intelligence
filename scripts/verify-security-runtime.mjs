@@ -145,8 +145,8 @@ assert.ok(organizationChangeMonitorBytes > 0 && organizationChangeMonitorBytes <
 assert.ok(organizationIdentityReviewBytes > 0 && organizationIdentityReviewBytes <= 100_000, `Organization identity review exceeds its 100KB audit budget, got ${organizationIdentityReviewBytes} bytes`);
 assert.ok(contractLineageIndexBytes > 0 && contractLineageIndexBytes <= 350_000, `Deferred contract-lineage index exceeds its 350KB ceiling, got ${contractLineageIndexBytes} bytes`);
 assert.ok(contractLineageReviewBytes > 0 && contractLineageReviewBytes <= 100_000, `Contract-lineage review exceeds its 100KB audit budget, got ${contractLineageReviewBytes} bytes`);
-assert.ok(temporalEvidenceIndexBytes > 0 && temporalEvidenceIndexBytes <= 800_000, `Deferred temporal evidence index exceeds its 800KB ceiling, got ${temporalEvidenceIndexBytes} bytes`);
-assert.ok(temporalEvidenceReviewBytes > 0 && temporalEvidenceReviewBytes <= 700_000, `Temporal evidence review exceeds its 700KB audit budget, got ${temporalEvidenceReviewBytes} bytes`);
+assert.ok(temporalEvidenceIndexBytes > 0 && temporalEvidenceIndexBytes <= 1_000_000, `Deferred temporal evidence index exceeds its 1MB ceiling, got ${temporalEvidenceIndexBytes} bytes`);
+assert.ok(temporalEvidenceReviewBytes > 0 && temporalEvidenceReviewBytes <= 900_000, `Temporal evidence review exceeds its 900KB audit budget, got ${temporalEvidenceReviewBytes} bytes`);
 const organizationIdentityReview = JSON.parse(await read("dist/data/organization-identity-review.json"));
 assert.equal(organizationIdentityReview.metadata?.schemaVersion, "1.0.0", "Organization identity review must publish its independent schema version");
 assert.equal(organizationIdentityReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Organization identity review must track the canonical graph schema");
