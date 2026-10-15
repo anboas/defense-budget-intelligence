@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:03:17.485Z",
+    "generatedAt": "2026-10-15T19:40:23.325Z",
     "status": "compared",
     "discoveryCount": 888,
     "historyDays": 2,
@@ -28,7 +28,7 @@
         "sam": {
           "status": "unavailable",
           "generatedAt": null,
-          "lastAttemptAt": "2026-10-15T19:03:16.128Z"
+          "lastAttemptAt": "2026-10-15T19:40:21.851Z"
         },
         "usaspending": {
           "status": "current",
@@ -45,7 +45,7 @@
   "history": [
     {
       "date": "2026-10-15",
-      "generatedAt": "2026-10-15T19:03:17.485Z",
+      "generatedAt": "2026-10-15T19:40:23.325Z",
       "summary": {
         "added": 0,
         "updated": 0,

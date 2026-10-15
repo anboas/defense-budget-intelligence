@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:33:05.287Z",
+    "generatedAt": "2026-10-15T19:59:14.214Z",
     "observedAt": "2026-10-15",
     "status": "current",
     "coverage": {
@@ -17,7 +17,7 @@
       "absentRoles": 0
     },
     "evidenceBoundary": "Source changes create review proposals only. A missing directory entry never closes a tenure, and changed page content never overwrites a dossier without explicit review.",
-    "contentHash": "8c6f75ed9012519a9ae8"
+    "contentHash": "70354d71ef8387e2a59e"
   },
   "sources": [
     {
@@ -33,8 +33,8 @@
       "cadence": "daily",
       "priority": "high",
       "observedAt": "2026-10-15",
-      "contentHash": "59333068b2ddfbd14a8be2cac6ae762553e33d800935616a6afd93958533b2d8",
-      "previousContentHash": "59333068b2ddfbd14a8be2cac6ae762553e33d800935616a6afd93958533b2d8",
+      "contentHash": "03738ff7949efa81d65b65d6ac4c89e9b4dde285836c12894e4ea40156c8997f",
+      "previousContentHash": "03738ff7949efa81d65b65d6ac4c89e9b4dde285836c12894e4ea40156c8997f",
       "changeState": "unchanged",
       "linkedDossierIds": [
         "organization-dossier:1d81e11d7fca60b00311"
@@ -229,8 +229,8 @@
       "cadence": "daily",
       "priority": "high",
       "observedAt": "2026-10-15",
-      "contentHash": "42ca7ded6104842c7171c69917273980f29d5de643715c679b89553af8ea1838",
-      "previousContentHash": "42ca7ded6104842c7171c69917273980f29d5de643715c679b89553af8ea1838",
+      "contentHash": "d55363371f49d0809325542d7daa03221075b439906d39ab85394622cda81d11",
+      "previousContentHash": "d55363371f49d0809325542d7daa03221075b439906d39ab85394622cda81d11",
       "changeState": "unchanged",
       "linkedDossierIds": [
         "organization-dossier:f6df3ce0bec32a5ffed9"
@@ -240,11 +240,11 @@
   ],
   "sourceObservations": [
     {
-      "id": "organization-source-observation:56d78773002887dab8de",
+      "id": "organization-source-observation:0fc838dcb48622d8e9e2",
       "monitorId": "organization-source-monitor:hasc-members",
       "sourceId": "hasc-members",
       "observedAt": "2026-10-15",
-      "contentHash": "59333068b2ddfbd14a8be2cac6ae762553e33d800935616a6afd93958533b2d8",
+      "contentHash": "03738ff7949efa81d65b65d6ac4c89e9b4dde285836c12894e4ea40156c8997f",
       "changeState": "unchanged",
       "linkedDossierIds": [
         "organization-dossier:1d81e11d7fca60b00311"
@@ -355,11 +355,11 @@
       "reviewState": "source_snapshot"
     },
     {
-      "id": "organization-source-observation:a94a0a084b78f9cabf29",
+      "id": "organization-source-observation:71c0af065122422c558d",
       "monitorId": "organization-source-monitor:senate-appropriations-defense-directory",
       "sourceId": "senate-appropriations-defense-directory",
       "observedAt": "2026-10-15",
-      "contentHash": "42ca7ded6104842c7171c69917273980f29d5de643715c679b89553af8ea1838",
+      "contentHash": "d55363371f49d0809325542d7daa03221075b439906d39ab85394622cda81d11",
       "changeState": "unchanged",
       "linkedDossierIds": [
         "organization-dossier:f6df3ce0bec32a5ffed9"
