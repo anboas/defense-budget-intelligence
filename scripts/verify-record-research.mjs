@@ -64,7 +64,7 @@ const researched = await researchRecordWithOpenAi({
   apiKey: "masked-test-key", record: ndmsDraft, candidates,
   fetchImpl: async (_url, options) => {
     posted = JSON.parse(options.body);
-    return { ok: true, status: 200, headers: { get: () => "req-test" }, json: async () => ({ id: "resp-test", output_text: JSON.stringify(payload), output: [
+    return { ok: true, status: 200, headers: { get: () => "req-test" }, json: async () => ({ id: "resp-test", output_text: `\`\`\`json\n${JSON.stringify(payload)}\n\`\`\``, output: [
       { type: "web_search_call", action: { sources: consulted } },
       { type: "message", content: [{ type: "output_text", text: JSON.stringify(payload), annotations: consulted.map((source) => ({ type: "url_citation", url: source.url, title: source.title })) }] },
     ] }) };
@@ -91,5 +91,20 @@ assert.equal(attempts, 2, "Malformed structured output must receive one bounded 
 assert.equal(posted.reasoning.effort, "low", "The retry must reduce reasoning latency");
 assert.equal(posted.tools[0].search_context_size, "low", "The retry must use a smaller search context");
 assert.equal(retried.provenance.degradedRetry, true);
+
+attempts = 0;
+const completedAfterTruncation = await researchRecordWithOpenAi({
+  apiKey: "masked-test-key", record: ndmsDraft, candidates,
+  fetchImpl: async () => {
+    attempts += 1;
+    if (attempts === 1) return { ok: true, status: 200, json: async () => ({ id: "resp-truncated", status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output_text: "{\"summary\":" }) };
+    return { ok: true, status: 200, json: async () => ({ id: "resp-complete", output_text: JSON.stringify(payload), output: [
+      { type: "web_search_call", action: { sources: consulted } },
+      { type: "message", content: [{ type: "output_text", text: JSON.stringify(payload), annotations: consulted.map((source) => ({ type: "url_citation", url: source.url, title: source.title })) }] },
+    ] }) };
+  },
+});
+assert.equal(attempts, 2, "A max-output truncation must receive one larger bounded retry");
+assert.equal(completedAfterTruncation.provenance.degradedRetry, true);
 
 console.log("Record research contract passed");

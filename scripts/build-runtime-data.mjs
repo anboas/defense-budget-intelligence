@@ -56,7 +56,9 @@ if (captureCalendar.metadata?.coverage?.normalizedEvents !== 502 || captureCalen
 if (captureTransactions.metadata?.actionCount !== 3085) {
   throw new Error("Capture transaction payload must contain 3,085 exact FPDS actions");
 }
-if (contractMonitor.metadata?.targetCount !== contractMonitor.records?.length || contractMonitor.metadata?.targetCount < 500) {
+const expectedMonitorTargets = Math.min(Number(contractMonitor.metadata?.eligibleTargetCount || 0), Number(contractMonitor.metadata?.targetLimit || 0));
+if (!expectedMonitorTargets || contractMonitor.metadata?.targetCount !== contractMonitor.records?.length || contractMonitor.metadata?.targetCount !== expectedMonitorTargets
+  || contractMonitor.metadata?.excludedTargetCount !== Math.max(0, Number(contractMonitor.metadata?.eligibleTargetCount || 0) - contractMonitor.records.length)) {
   throw new Error("Contract monitor must cover the complete known active, upcoming, option-horizon, and unresolved-schedule universe");
 }
 if (new Set(contractMonitor.records.map((record) => record.opportunityId)).size !== contractMonitor.records.length) {

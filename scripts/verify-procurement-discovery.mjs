@@ -90,7 +90,7 @@ try {
     return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "notice-runtime-1", solicitationNumber: "W15P7T-26-R-0001", title: "Runtime notice", type: "Solicitation", postedDate: "2026-09-19", active: "Yes" }] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.equal(fetched.records.length, 1);
-  assert.match(requestedUrl, /organizationName=DEPT\+OF\+DEFENSE/);
+  assert.match(requestedUrl, /deptname=DEPT\+OF\+DEFENSE/);
   assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must use SAM.gov's documented api_key query parameter");
   assert.equal(requestedHeaderKey, "", "The workspace key must not be sent in an unsupported x-api-key header");
   let priorityUrl = ""; let priorityRequests = 0;
@@ -100,7 +100,7 @@ try {
     return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "priority-notice-1", title: "Priority notice" }] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.equal(new URL(priorityUrl).searchParams.get("noticeid"), "priority-notice-1", "Priority notices must use SAM.gov's exact noticeid filter");
-  assert.equal(new URL(priorityUrl).searchParams.has("organizationName"), false, "Exact notice probes must not depend on SAM.gov organization taxonomy");
+  assert.equal(new URL(priorityUrl).searchParams.has("deptname"), false, "Exact notice probes must not depend on SAM.gov organization taxonomy");
   assert.equal(priorityRequests, 1, "An exact priority notice must use one bounded request instead of broad-search date partitioning");
   assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
     enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
@@ -203,9 +203,11 @@ try {
   assert.equal(retrieved.retrievalProvenance.kind, "openai-web-search");
   assert.equal(retrieved.retrievalProvenance.reviewState, "needs_review");
   assert.deepEqual(retrieved.retrievalProvenance.sourceUrls, [retrievalSourceUrl], "Only provider-grounded official sources may enter retrieval provenance");
+  let exactIntakeConfig;
   const fallback = await resolveOpportunityForIntake({ noticeId: retrievalNoticeId, reference: retrievalSourceUrl, samApiKey: "sam_key", openAiApiKey: "openai_key",
-    fetchSam: async () => { throw Object.assign(new Error("SAM unavailable"), { code: "source_unavailable" }); },
+    fetchSam: async ({ config }) => { exactIntakeConfig = config; throw Object.assign(new Error("SAM unavailable"), { code: "source_unavailable" }); },
     retrieveWithOpenAi: async () => retrieved });
+  assert.equal(exactIntakeConfig.initialLookbackDays, 364, "Exact intake must remain within SAM.gov's inclusive one-year date-range limit");
   assert.equal(fallback.source, "openai_web_search", "A failed exact SAM API lookup must fall back to OpenAI web retrieval");
   assert.equal(fallback.openAiUsed, true);
   assert.equal(fallback.result.metadata.retrieval.samStatus, "source_unavailable");

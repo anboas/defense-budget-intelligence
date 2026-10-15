@@ -31,11 +31,24 @@ function cleanResearchText(value, limit) {
 }
 
 function responseText(response) {
-  if (typeof response?.output_text === "string") return response.output_text;
-  for (const item of Array.isArray(response?.output) ? response.output : []) {
-    for (const content of Array.isArray(item?.content) ? item.content : []) if (content?.type === "output_text" && typeof content.text === "string") return content.text;
+  if (typeof response?.output_text === "string" && response.output_text.trim()) return response.output_text;
+  return (Array.isArray(response?.output) ? response.output : []).flatMap((item) => Array.isArray(item?.content) ? item.content : [])
+    .filter((content) => content?.type === "output_text" && typeof content.text === "string")
+    .map((content) => content.text).join("");
+}
+
+function structuredPayload(response) {
+  const raw = responseText(response).trim();
+  const fenced = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1];
+  const bounded = raw.includes("{") && raw.includes("}") ? raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1) : "";
+  for (const candidate of [raw, fenced, bounded]) {
+    if (!candidate) continue;
+    try { return JSON.parse(candidate); } catch { /* Try the next bounded representation. */ }
   }
-  return "";
+  const incomplete = response?.incomplete_details?.reason === "max_output_tokens";
+  throw Object.assign(new Error(incomplete
+    ? "OpenAI exhausted its output budget before completing structured record research"
+    : "OpenAI returned invalid structured record research"), { code: incomplete ? "incomplete_output" : "invalid_structured_output", httpStatus: 502 });
 }
 
 export function providerOfficialSources(response) {
@@ -176,7 +189,7 @@ export function buildRecordResearchRequest(record, candidates = [], { model = RE
     model,
     store: false,
     reasoning: { effort: degraded ? "low" : "medium" },
-    max_output_tokens: degraded ? 3600 : 5000,
+    max_output_tokens: degraded ? 7200 : 5600,
     tools: [{ type: "web_search", search_context_size: degraded ? "low" : "medium" }],
     tool_choice: "required",
     include: ["web_search_call.action.sources"],
@@ -267,7 +280,7 @@ function providerError(body, status) {
 }
 
 function retryable(error) {
-  return ["invalid_structured_output", "missing_citations", "provider_timeout", "provider_unavailable"].includes(error?.code) || error?.httpStatus === 408 || error?.httpStatus === 429 || Number(error?.httpStatus || 0) >= 500;
+  return ["invalid_structured_output", "incomplete_output", "missing_citations", "provider_timeout", "provider_unavailable"].includes(error?.code) || error?.httpStatus === 408 || error?.httpStatus === 429 || Number(error?.httpStatus || 0) >= 500;
 }
 
 export async function researchRecordWithOpenAi({ apiKey, record, candidates = [], fetchImpl = fetch, model = RECORD_RESEARCH_MODEL } = {}) {
@@ -283,9 +296,7 @@ export async function researchRecordWithOpenAi({ apiKey, record, candidates = []
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw providerError(body, response.status);
-      let payload;
-      try { payload = JSON.parse(responseText(body)); }
-      catch { throw Object.assign(new Error("OpenAI returned invalid structured record research"), { code: "invalid_structured_output", httpStatus: 502 }); }
+      const payload = structuredPayload(body);
       const normalized = normalizeRecordResearch(payload, record, candidates, { model, responseId: body.id || "", consultedSources: providerOfficialSources(body) });
       const explicitGap = ["no-public-evidence", "test-or-placeholder"].includes(normalized.researchDisposition) && normalized.caveats.length;
       if ((!normalized.sources.length || !(normalized.findings.length || normalized.risks.length || normalized.decisionBrief)) && !explicitGap) throw Object.assign(new Error("OpenAI research did not return grounded official-source citations or an explicit evidence-gap disposition"), { code: "missing_citations", httpStatus: 502 });
