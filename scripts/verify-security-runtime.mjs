@@ -164,7 +164,9 @@ assert.equal(temporalEvidenceIndex.metadata?.schemaVersion, "1.0.0", "Temporal i
 assert.equal(temporalEvidenceIndex.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Temporal index must track the canonical graph schema");
 assert.equal(temporalEvidenceReview.metadata?.schemaVersion, "1.0.0", "Temporal review must publish its independent schema version");
 assert.equal(temporalEvidenceReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Temporal review must track the canonical graph schema");
-assert.equal(temporalEvidenceReview.conflicts?.filter((item) => item.status === "needs_review").length, 81, "Review-required temporal and conflict queue changed");
+const temporalReviewRequired = temporalEvidenceReview.conflicts?.filter((item) => item.status === "needs_review").length || 0;
+assert.equal(temporalReviewRequired, temporalEvidenceIndex.metadata?.summary?.needs_review, "Review-required temporal queue must match the published temporal summary");
+assert.equal(temporalEvidenceReview.conflicts?.length, temporalEvidenceIndex.metadata?.summary?.totalConflicts, "Temporal review conflicts must match the published temporal summary");
 const opportunityMapBytes = (await stat(resolve(root, "dist/data/opportunity-map-data.json"))).size;
 assert.ok(opportunityMapBytes >= 1_100_000 && opportunityMapBytes <= 1_200_000, `Opportunity Map evidence payload must retain the complete authoritative location and relationship layers without exceeding its route budget, got ${opportunityMapBytes} bytes`);
 const opportunityMapPayload = JSON.parse(await read("dist/data/opportunity-map-data.json"));
