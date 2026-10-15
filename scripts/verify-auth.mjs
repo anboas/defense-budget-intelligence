@@ -1572,7 +1572,9 @@ try {
   await page.screenshot({ path: "test-results/saas-control-plane-mobile.png", fullPage: true });
   const platformSections = page.locator('[aria-label="Platform customer sections"]');
   await platformSections.getByRole("button", { name: "Workspaces", exact: true }).click();
-  assert.ok(await page.locator("[data-workspace]").count() >= 1, "Platform workspace inventory must remain directly available without stacking beneath customer organizations");
+  const platformWorkspaceRows = page.locator("[data-workspace]");
+  await platformWorkspaceRows.first().waitFor();
+  assert.ok(await platformWorkspaceRows.count() >= 1, "Platform workspace inventory must remain directly available without stacking beneath customer organizations");
   assert.equal(await commercialControlPlane.count(), 0, "Customer organizations and workspace inventory must render as distinct platform surfaces");
 
   await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
