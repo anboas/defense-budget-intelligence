@@ -289,10 +289,7 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
         const url = new URL("https://api.sam.gov/opportunities/v2/search");
         url.searchParams.set("postedFrom", dateScope.postedFrom);
         url.searchParams.set("postedTo", dateScope.postedTo);
-        if (config.organizationName && !noticeId) {
-          if (config.organizationName.toUpperCase() === "DEPT OF DEFENSE") url.searchParams.set("organizationCode", "9700");
-          else url.searchParams.set("organizationName", config.organizationName);
-        }
+        if (config.organizationName && !noticeId) url.searchParams.set("organizationName", config.organizationName);
         if (noticeId) url.searchParams.set("noticeid", noticeId);
         if (noticeType) url.searchParams.set("ptype", noticeType);
         url.searchParams.set("limit", String(limit));
@@ -335,7 +332,7 @@ export async function fetchSamOpportunities({ apiKey, lastCompletedAt, fetchImpl
       if (splitScheduled) continue;
       if (scopeTotal === null) throw Object.assign(new Error(`SAM.gov notice-type/date scope exceeded the bounded ${config.maxPages}-page request budget; no partial refresh was applied`), { code: "source_truncated" });
       totalRecords += Number(scopeTotal || 0);
-      if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned more than the bounded ${config.maxPages * limit} record window for one notice-type/date scope; no partial refresh was applied`), { code: "source_truncated" });
+      if (scopeTotal !== null && offset < scopeTotal) throw Object.assign(new Error(`SAM.gov returned ${scopeTotal} records for ${dateScope.postedFrom}-${dateScope.postedTo}${noticeType ? ` / ${noticeType}` : ""}, beyond the bounded ${config.maxPages * limit} record window; no partial refresh was applied`), { code: "source_truncated" });
       completedScopes.push({ ...dateScope, noticeType: noticeType || null, noticeId: noticeId || null, totalRecords: Number(scopeTotal || 0) });
     }
   }

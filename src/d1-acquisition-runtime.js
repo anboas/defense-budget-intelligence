@@ -235,6 +235,10 @@ export async function runD1AcquisitionRefresh({ db, env, workspaceId, trigger = 
   await db.prepare("INSERT INTO dbi_acquisition_refresh_runs (id, workspace_id, source, status, trigger_type, started_at) VALUES (?,?,?,'running',?,?)").bind(id, workspaceId, ACQUISITION_SOURCE, trigger, started).run();
   try {
     const result = await fetchSamOpportunities({ apiKey, lastCompletedAt: backfillDue ? null : latest?.completed_at, config });
+    if (!result.records.length && !config.noticeIds.length) {
+      const retained = await db.prepare("SELECT COUNT(*) AS total FROM dbi_acquisition_records WHERE workspace_id = ? AND source = ? AND removed_at = ''").bind(workspaceId, ACQUISITION_SOURCE).first();
+      if (Number(retained?.total || 0) > 0) throw Object.assign(new Error("SAM.gov returned no records for a broad refresh while the workspace retains prior source coverage; the prior snapshot was preserved"), { code: "source_empty" });
+    }
     const counts = await persist(db, env, workspaceId, id, result.records, result.metadata); const completed = new Date().toISOString();
     await db.prepare("UPDATE dbi_workspace_provider_credentials SET last_used_at = ?, updated_at = ? WHERE id = ?").bind(completed, completed, credential.id).run();
     return { skipped: false, run: { id, status: "succeeded", recordsSeen: result.records.length, recordsAdded: counts.added, recordsUpdated: counts.updated, linksAdded: counts.linksAdded }, metadata: result.metadata };
