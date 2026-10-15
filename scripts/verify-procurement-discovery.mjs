@@ -55,6 +55,7 @@ try {
   });
   const delta = JSON.parse(readFileSync(deltaOutput, "utf8"));
   const discovery = JSON.parse(readFileSync(discoveryOutput, "utf8"));
+  const feed = JSON.parse(readFileSync(feedOutput, "utf8"));
   const awardChange = delta.records.find((record) => record.sourceSystem === "USAspending");
   const samChange = delta.records.find((record) => record.sourceSystem === "SAM.gov");
   const monitorChange = delta.records.find((record) => record.sourceSystem === "Contract monitor");
@@ -63,6 +64,7 @@ try {
   assert.deepEqual(samChange.fields.map((field) => field.label), ["Response deadline"], "SAM updates should retain the changed response deadline");
   assert.deepEqual(monitorChange.fields.map((field) => field.label), ["Monitor status"], "Monitor updates should retain the changed monitor status");
   assert.equal(discovery.history[0].changes.find((record) => record.sourceSystem === "USAspending").fieldCount, 2, "Daily history should retain the award field-change count");
+  assert.ok(feed.history.flatMap((entry) => entry.changes).flatMap((change) => change.fields).every((field) => Object.keys(field).sort().join(",") === "field,label"), "The compact Today feed must retain field identity and labels without embedding full before/after source records");
   assert.equal(discovery.metadata.coverage.contractMonitor.coveragePct, 100, "Coverage metadata should retain the disclosed monitor percentage");
   assert.equal(discovery.metadata.coverage.contractMonitor.excludedTargetCount, 2, "Coverage metadata should distinguish eligible records outside the exact-detail monitor limit");
   assert.equal(discovery.metadata.coverage.contractMonitor.corpusCoveragePct, 33.3, "Coverage metadata should distinguish checked-record coverage from eligible-corpus coverage");
