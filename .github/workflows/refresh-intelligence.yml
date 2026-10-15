@@ -67,6 +67,9 @@ jobs:
           npm run source:account-spine
           npm run source:priority-award-actions
           npm run source:legislation
+          # Seed generated runtime inputs needed by downstream intelligence
+          # builders. public/data is intentionally absent in a fresh checkout.
+          npm run data:runtime-base
           npm run source:strategic-intelligence
           npm run source:program-intelligence
           npm run source:subawards
