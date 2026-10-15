@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T15:40:06.173Z",
+    "generatedAt": "2026-10-15T19:03:17.485Z",
     "status": "compared",
     "discoveryCount": 888,
     "historyDays": 2,
@@ -28,7 +28,7 @@
         "sam": {
           "status": "unavailable",
           "generatedAt": null,
-          "lastAttemptAt": "2026-10-15T15:39:59.899Z"
+          "lastAttemptAt": "2026-10-15T19:03:16.128Z"
         },
         "usaspending": {
           "status": "current",
@@ -45,10 +45,10 @@
   "history": [
     {
       "date": "2026-10-15",
-      "generatedAt": "2026-10-15T15:40:06.173Z",
+      "generatedAt": "2026-10-15T19:03:17.485Z",
       "summary": {
         "added": 0,
-        "updated": 9,
+        "updated": 0,
         "removed": 0
       },
       "sources": {
@@ -56,170 +56,7 @@
         "usaspending": "current",
         "contractMonitor": "gaps-disclosed"
       },
-      "changes": [
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_N0042126F1042_9700_N0042125D0303_9700",
-          "opportunityId": "auto_usaspending_CONT_AWD_N0042126F1042_9700_N0042125D0303_9700",
-          "change": "updated",
-          "title": "DELIVERY ORDER FOR F35 - AI/ML ANALYTICS AND DEBRIEF APPLICATION",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_W911QX26CA003_9700_-NONE-_-NONE-",
-          "opportunityId": "auto_usaspending_CONT_AWD_W911QX26CA003_9700__NONE___NONE_",
-          "change": "updated",
-          "title": "BROAD AGENCY ANNOUNCEMENT NAUTILUS ARTIFICIAL INTELLIGENCE RESEARCH AND DEVELOPMENT",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_FA489026C0006_9700_-NONE-_-NONE-",
-          "opportunityId": "auto_usaspending_CONT_AWD_FA489026C0006_9700__NONE___NONE_",
-          "change": "updated",
-          "title": "THIS REQUIREMENT PROVIDES ENTERPRISE-LEVEL SERVICES TO ACCELERATE THE ADOPTION, TRAINING, GOVERNANCE, AND OPERATIONAL INTEGRATION OF ARTIFICIAL INTELLIGENCE (AI) AND ROBOTIC PROCESS AUTOMATION (RPA) CAPABILITIES ACROSS ACC.",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_FA237726CB019_9700_-NONE-_-NONE-",
-          "opportunityId": "auto_usaspending_CONT_AWD_FA237726CB019_9700__NONE___NONE_",
-          "change": "updated",
-          "title": "GEOSPATIAL AUTOMATION USING MACHINE LEARNING FOR ELECTRO-OPTICAL AND SYNTHETIC APERTURE RADAR (GAMES)",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_FA875126C0001_9700_-NONE-_-NONE-",
-          "opportunityId": "auto_usaspending_CONT_AWD_FA875126C0001_9700__NONE___NONE_",
-          "change": "updated",
-          "title": "AGENTIC ARTIFICIAL INTELLIGENCE FOR THE E-4C/SURVIVABLE AIRBORNE OPERATIONS CENTER (SAOC) PROGRAM",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_FA865022F6403_9700_FA865022D6401_9700",
-          "opportunityId": "auto_usaspending_CONT_AWD_FA865022F6403_9700_FA865022D6401_9700",
-          "change": "updated",
-          "title": "MACHINE LEARNING ANALYTICS",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_FA875021C1509_9700_-NONE-_-NONE-",
-          "opportunityId": "auto_usaspending_CONT_AWD_FA875021C1509_9700__NONE___NONE_",
-          "change": "updated",
-          "title": "ARTIFICIAL INTELLIGENCE/MACHINE LEARNING-ENABLED AUTONOMOUS",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
-          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB288_9700_HC108424D0002_9700",
-          "change": "updated",
-          "title": "DMOB002226EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF TREASURY OFFICE OF THE CHIEF INFORMATION OFFICER (OCIO)",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        },
-        {
-          "sourceSystem": "Contract monitor",
-          "sourceRecordId": "CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
-          "opportunityId": "auto_usaspending_CONT_AWD_HC108426FB303_9700_HC108424D0002_9700",
-          "change": "updated",
-          "title": "DMOB002241EBM PROCURE DEPARTMENT OF DEFENSE MOBILITY CLASSIFIED CAPABILITY DEVICES AND SERVICES IN SUPPORT OF THE DEPARTMENT OF HOMELAND SECURITY (DHS) - UNITED STATES COAST USCG TELECOMMUNICATION AND INFORMATION SYSTEMS COMMAND.",
-          "fields": [
-            {
-              "field": "status",
-              "label": "Monitor status"
-            },
-            {
-              "field": "diagnostic",
-              "label": "Monitor diagnostic"
-            }
-          ],
-          "fieldCount": 2
-        }
-      ],
+      "changes": [],
       "truncated": false
     },
     {

@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "generatedAt": "2026-09-12T19:15:47.490Z",
-    "previousSnapshotAt": "2026-09-12T13:53:54.667Z",
-    "currentSnapshotAt": "2026-09-12T19:15:12.279Z",
+    "generatedAt": "2026-10-15T19:03:17.309Z",
+    "previousSnapshotAt": "2026-08-22T19:43:12.357Z",
+    "currentSnapshotAt": "2026-08-22T19:43:12.357Z",
     "methodology": "Deterministic comparison of consecutive committed budget, award, queue, and source-health snapshots. Missing prior snapshots produce an explicit baseline rather than inferred changes.",
     "displayLimits": {
       "budgetChanges": 100,
@@ -13,10 +13,18 @@
     "budgetChanges": 0,
     "awardChanges": 0,
     "queueChanges": 0,
-    "sourceChanges": 0
+    "sourceChanges": 1
   },
   "budgetChanges": [],
   "awardChanges": [],
   "queueChanges": [],
-  "sourceChanges": []
+  "sourceChanges": [
+    {
+      "id": "usaspending-awards",
+      "label": "USAspending Award Search",
+      "before": "Online",
+      "after": "Unavailable",
+      "status": 0
+    }
+  ]
 }
