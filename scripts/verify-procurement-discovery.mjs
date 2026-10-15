@@ -90,7 +90,7 @@ try {
     return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "notice-runtime-1", solicitationNumber: "W15P7T-26-R-0001", title: "Runtime notice", type: "Solicitation", postedDate: "2026-09-19", active: "Yes" }] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.equal(fetched.records.length, 1);
-  assert.equal(new URL(requestedUrl).searchParams.get("organizationCode"), "9700", "Broad DoD refreshes must use SAM.gov's current exact organization-code filter");
+  assert.equal(new URL(requestedUrl).searchParams.get("organizationName"), "DEPT OF DEFENSE", "Broad DoD refreshes must use SAM.gov's current department/subtier organization-name filter");
   assert.equal(requestedKey, "sam_runtime_contract_key_0001", "The workspace key must use SAM.gov's documented api_key query parameter");
   assert.equal(requestedHeaderKey, "", "The workspace key must not be sent in an unsupported x-api-key header");
   let priorityUrl = ""; let priorityRequests = 0;
@@ -100,7 +100,7 @@ try {
     return new Response(JSON.stringify({ totalRecords: 1, opportunitiesData: [{ noticeId: "priority-notice-1", title: "Priority notice" }] }), { status: 200, headers: { "content-type": "application/json" } });
   } });
   assert.equal(new URL(priorityUrl).searchParams.get("noticeid"), "priority-notice-1", "Priority notices must use SAM.gov's exact noticeid filter");
-  assert.equal(new URL(priorityUrl).searchParams.has("organizationCode"), false, "Exact notice probes must not depend on SAM.gov organization taxonomy");
+  assert.equal(new URL(priorityUrl).searchParams.has("organizationName"), false, "Exact notice probes must not depend on SAM.gov organization taxonomy");
   assert.equal(priorityRequests, 1, "An exact priority notice must use one bounded request instead of broad-search date partitioning");
   assert.deepEqual(normalizeAcquisitionConfig({ cadenceHours: 1, pageSize: 5000, maxPages: 99, requestIntervalMs: 1, maxRetries: 99, noticeTypes: ["p", "x", "p"] }), {
     enabled: true, cadenceHours: 6, initialLookbackDays: 14, incrementalLookbackDays: 3, pageSize: 1000,
