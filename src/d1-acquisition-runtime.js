@@ -15,7 +15,7 @@ import {
   stableJson,
 } from "./acquisition-runtime-core.js";
 import { analyzeOpportunityWithOpenAi, normalizeOpportunityAiAssessment, resolveOpportunityForIntake } from "./opportunity-ai-runtime.js";
-import { acquisitionEvidenceCampaignResponse } from "./d1-acquisition-evidence.js";
+import { acquisitionEvidenceCampaignResponse, runScheduledAcquisitionEvidence } from "./d1-acquisition-evidence.js";
 import { deliveryJobSchedule } from "./acquisition-delivery-core.js";
 import {
   ACQUISITION_DELIVERY_SCHEMA,
@@ -328,10 +328,11 @@ export async function acquisitionSchedulerResponse(request, db, env, deps) {
   if (request.method !== "POST") return deps.json({ error: "Method not allowed" }, 405);
   if (!await schedulerAuthorized(request, env)) return deps.json({ error: "Unauthorized" }, 401);
   const acquisition = await runScheduledAcquisitionSweep(db, env, { decryptSecret: deps.decryptSecret, maxWorkspaces: 1 });
+  const evidence = await runScheduledAcquisitionEvidence(db, env, deps.decryptSecret, 8);
   const delivery = await processD1AcquisitionDeliveryQueue(db, env, { limit: 100, decryptSecret: deps.decryptSecret });
   const incidents = await reconcileD1OperationalIncidents(db, env, { decryptSecret: deps.decryptSecret });
   const archives = await archiveD1AcquisitionHistory(db);
-  return deps.json({ ...acquisition, delivery, incidents, archives });
+  return deps.json({ ...acquisition, evidence, delivery, incidents, archives });
 }
 
 export async function acquisitionRuntimeResponse(request, db, env, deps) {

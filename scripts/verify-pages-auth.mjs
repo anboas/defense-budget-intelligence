@@ -848,6 +848,7 @@ async function verifyApiLifecycle(persistPath) {
     body = await response.json();
     assert.equal(body.executed, 0, "The scheduler must not create a task after the workspace SAM.gov key is revoked");
     assert.equal(body.keyedWorkspaces, 0, "No-key workspaces must be filtered before scheduler execution");
+    assert.equal(body.evidence.scheduled, 0, "The scheduler must report an empty evidence queue explicitly");
     response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/status", { cookie: ownerCookie });
     body = await response.json();
     assert.equal(body.refresh.latest.trigger, "link_intake", "A no-key scheduler sweep must not replace the prior exact-intake run with a scheduled run");

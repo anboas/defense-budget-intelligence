@@ -23,6 +23,8 @@ async function run(env) {
     keyedWorkspaces: Number(result.keyedWorkspaces || 0),
     dueWorkspaces: Number(result.dueWorkspaces || 0),
     executed: Number(result.executed || 0),
+    evidenceCampaignsScheduled: Number(result.evidence?.scheduled || 0),
+    evidenceTargetsCompleted: Number(result.evidence?.campaign?.completedTargets || 0),
     eventSourcesAttempted: Number(eventDiscovery.sourcesAttempted || 0),
     eventSourcesSucceeded: Number(eventDiscovery.succeeded || 0),
     researchRunsScheduled: Number(researchDiscovery.scheduled || 0),
