@@ -356,7 +356,7 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/reviews?queue=temporal&limit=2", { token: researchToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.meta.total, 489);
+  assert.equal(result.payload.meta.total, publishedGraphSummary.metadata.coverage.temporal.totalConflicts);
   assert.equal(result.payload.data.length, 2);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/enrichment/proposals", {
