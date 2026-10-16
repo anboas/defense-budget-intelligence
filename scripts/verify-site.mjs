@@ -1011,28 +1011,41 @@ try {
   await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("procurement-discovery.json")));
   assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Spend Explorer views should share one deferred discovery request");
   assert.equal(await page.locator("[data-daily-acquisition-feed]").count(), 1, "Spend Explorer Table should expose a compact daily acquisition ledger");
-  assert.equal(await page.locator("[data-explorer-hierarchy]").count(), 1, "Spend Explorer Table should expose one technology and DoW hierarchy rail");
-  assert.equal(await page.getByText("Notice type", { exact: true }).count() > 0, true, "Spend Explorer Table should expose a first-class notice-type facet");
-  for (const label of ["Notice type", "Posted date", "Response deadline"]) assert.equal(await page.getByRole("columnheader", { name: new RegExp(label, "i") }).count(), 1, `Spend Explorer Table should expose sortable ${label}`);
-  await page.getByRole("columnheader", { name: /Response deadline/i }).getByRole("button", { name: /^Response deadline [↕↑↓]$/ }).click();
-  assert.equal(await page.getByRole("columnheader", { name: /Response deadline/i }).getAttribute("aria-sort"), "ascending", "Response deadline should sort directly in the table");
+  assert.equal(await page.locator("[data-opportunity-workbench-scope]").count(), 1, "Opportunity Workbench should expose one compact operating-scope rail");
+  assert.match(await page.locator('[data-spend-explorer="table"] .if-workbench-header h2').innerText(), /Opportunity Workbench/i, "The table route should present the opportunity operating queue as the primary product surface");
+  for (const label of ["Technology", "Notice type", "Branch", "Component", "Buying office", "Record state"]) assert.equal(await page.getByRole("button", { name: new RegExp(`^${label}:`, "i"), includeHidden: true }).count(), 1, `Opportunity Workbench should expose the ${label} filter exactly once`);
+  for (const [key, label] of [["record", "Opportunity"], ["customer", "Customer"], ["stage", "Stage"], ["fit", "Fit"], ["trust", "Trust"], ["deadline", "Due"], ["obligations", "Value"], ["change", "Last change"], ["source", "Source"]]) assert.equal(await page.locator(`[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="${key}"]`).count(), 1, `Opportunity Workbench should expose the ${label} operating column by default`);
+  const workbenchGeometry = await page.evaluate(() => ({
+    scopeHeight: document.querySelector("[data-opportunity-workbench-scope]")?.getBoundingClientRect().height || 0,
+    firstRowTop: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]')?.getBoundingClientRect().top || 0,
+  }));
+  assert.ok(workbenchGeometry.scopeHeight <= 116, `Desktop opportunity filters should remain compact, got ${workbenchGeometry.scopeHeight}px`);
+  assert.ok(workbenchGeometry.firstRowTop <= 760, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
+  const dueHeader = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="deadline"]');
+  await dueHeader.locator(".if-table__sort").click();
+  assert.equal(await dueHeader.getAttribute("aria-sort"), "ascending", "Response deadline should sort directly in the opportunity queue");
   await page.evaluate(() => { window.location.hash = "#/budget-spend/explorer?spendView=table&changes=today"; });
   await page.waitForSelector(".spend-explorer__change-scope");
   assert.match(await page.locator(".spend-explorer__change-scope").innerText(), /Complete daily update ledger/i, "Large daily refreshes should have a complete deferred-ledger route");
-  assert.equal(await page.getByRole("columnheader", { name: /Latest change/i }).count(), 1, "The complete daily ledger should expose field-level change summaries");
+  assert.equal(await page.getByRole("columnheader", { name: /Last change/i }).count(), 1, "The complete daily ledger should expose field-level change summaries");
   await page.getByRole("button", { name: "Show all records" }).click();
   assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /of (?:8\d\d|9\d\d|[1-9],\d{3,}) records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
   const tombstoneButton = page.locator('[data-spend-explorer="table"] button[title="Tombstone this record"]').first();
   await tombstoneButton.click();
-  await page.locator("[data-explorer-hierarchy] > summary").click();
-  await chooseControlSelect(page, "Record state", "Tombstoned (1)");
+  await chooseControlSelect(page, "Record state", "Hidden (1)");
   const restoreButton = page.locator('[data-spend-explorer="table"] button[title="Restore to active explorer"]').first();
   await restoreButton.waitFor();
   assert.equal(await restoreButton.count(), 1, "Tombstoned records should remain recoverable from their own workspace view");
   await restoreButton.click();
-  await chooseControlSelect(page, "Record state", "Active explorer");
+  await chooseControlSelect(page, "Record state", "Active");
   await page.locator('[data-spend-explorer="table"] input[type="search"]').fill("Application Arsenal");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capQuery=Application\+Arsenal|capQuery=Application%20Arsenal/i, "Spend Explorer search should remain shareable across views");
+  await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().click();
+  await page.waitForSelector("[data-opportunity-workbench-detail]");
+  await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-evidence-state="ready"]');
+  assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*Connected intelligence/i, "Opportunity rows should expand into qualification, source scope, and bounded graph evidence");
+  assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Opportunity Workbench details must not load the complete integrity graph into the browser");
+  await page.screenshot({ path: `${OUT_DIR}/opportunity-workbench-desktop.png` });
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
   await page.waitForSelector("[data-capture-timeline]");
   assert.match(await page.getByPlaceholder("Program, company, reference, buyer").inputValue(), /Application Arsenal/i, "Spend Explorer Timeline should inherit the shared table search state");
@@ -2193,6 +2206,21 @@ try {
   await assertButtonIntegrity(mobile, "Mobile Decision Brief", '[data-spend-explorer="today"]');
   await assertNoPageOverflow(mobile, "Mobile Decision Brief");
   await mobile.screenshot({ path: `${OUT_DIR}/decision-brief-mobile.png`, fullPage: true });
+  await mobile.getByRole("button", { name: "Table", exact: true }).click();
+  await mobile.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
+  assert.equal(await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"]').getAttribute("data-table-layout"), "cards", "Mobile Opportunity Workbench should use readable record cards");
+  const mobileWorkbenchGeometry = await mobile.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    shellWidth: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"]')?.getBoundingClientRect().width || 0,
+    filterHeight: document.querySelector("[data-opportunity-workbench-scope]")?.getBoundingClientRect().height || 0,
+    visibleCards: document.querySelectorAll('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').length,
+  }));
+  assert.ok(mobileWorkbenchGeometry.shellWidth <= mobileWorkbenchGeometry.viewportWidth, `Mobile Opportunity Workbench must stay within the viewport: ${JSON.stringify(mobileWorkbenchGeometry)}`);
+  assert.ok(mobileWorkbenchGeometry.filterHeight <= 210, `Mobile opportunity filters should remain a bounded two-control rail, got ${mobileWorkbenchGeometry.filterHeight}px`);
+  assert.ok(mobileWorkbenchGeometry.visibleCards > 0, "Mobile Opportunity Workbench should render actionable opportunity cards");
+  await assertButtonIntegrity(mobile, "Mobile Opportunity Workbench", '[data-spend-explorer="table"]');
+  await assertNoPageOverflow(mobile, "Mobile Opportunity Workbench");
+  await mobile.screenshot({ path: `${OUT_DIR}/opportunity-workbench-mobile.png`, fullPage: true });
   const mobileShellHeights = await mobile.locator("[data-mobile-more-menu-button], [data-notification-center-button], [data-profile-menu-trigger]").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileShellHeights.every((height) => height >= 43.5), `Mobile shell controls should preserve 44px touch targets: ${mobileShellHeights.join(", ")}`);
   assert.ok(await mobile.locator(".if-product-header__brand").evaluate((node) => node.getBoundingClientRect().height) >= 43.5, "Mobile product branding should preserve a 44px interaction target");

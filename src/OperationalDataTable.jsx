@@ -74,6 +74,8 @@ export default function OperationalDataTable({
   columns,
   rowKey = (row) => row.id,
   defaultSort,
+  defaultVisibleColumns = null,
+  defaultDensity = "compact",
   defaultPageSize = 25,
   defaultMobilePageSize = 5,
   pageSizeOptions = [5, 10, 25, 50, 100],
@@ -103,13 +105,15 @@ export default function OperationalDataTable({
   const compactTable = useCompactTable(recordListAt, tableRef);
   const columnKeys = useMemo(() => columns.map((column) => column.key), [columns]);
   const defaults = useMemo(() => ({
-    density: "compact",
-    visible: columnKeys,
+    density: DENSITIES[defaultDensity] ? defaultDensity : "compact",
+    visible: Array.isArray(defaultVisibleColumns) && defaultVisibleColumns.length
+      ? defaultVisibleColumns.filter((key) => columnKeys.includes(key))
+      : columnKeys,
     order: columnKeys,
     widths: {},
     pageSize: defaultPageSize,
     mobilePageSize: defaultMobilePageSize,
-  }), [columnKeys, defaultMobilePageSize, defaultPageSize]);
+  }), [columnKeys, defaultDensity, defaultMobilePageSize, defaultPageSize, defaultVisibleColumns]);
   const [preferences, setPreferences] = useState(() => readPreferences(id, defaults));
   const [internalQuery, setInternalQuery] = useState("");
   const [internalFilters, setInternalFilters] = useState({});
