@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Download, FileSpreadsheet, Inbox, Radar as RadarIcon } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Download, FileSpreadsheet, Inbox, Radar as RadarIcon, RefreshCw, RotateCcw } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -17,6 +17,7 @@ import { SAM_NOTICE_TYPE_OPTIONS, samNoticeTypeId, samNoticeTypeLabel } from "./
 import { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 import OpportunityRadar from "./OpportunityRadar.jsx";
 import { classifyOpportunityFit } from "./opportunity-fit.js";
+import OpportunityWorkbenchDetail, { OpportunityFitBadge } from "./OpportunityWorkbenchDetail.jsx";
 
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
@@ -69,6 +70,11 @@ function date(value) {
   return Number.isNaN(parsed.getTime()) ? "Not published" : parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
+function customer(record) {
+  return [record.organization?.office, record.organization?.component, record.organization?.branch, record.party, record.recipient]
+    .find((value) => value && !/not published/i.test(value)) || "Customer not published";
+}
+
 function RouteLoading({ label }) {
   return <ControlAsyncState compact state="loading" title={`Loading ${label}`} message="Preparing the selected spend view." />;
 }
@@ -87,6 +93,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return { technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" };
   });
+  const [scopeExpanded, setScopeExpanded] = useState(false);
   const dispositions = useRecordDispositions();
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [dailyFeed, setDailyFeed] = useState(emptyProcurementFeed);
@@ -192,7 +199,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       && (tableFilters.component === "all" || record.organization?.component === tableFilters.component)
       && (tableFilters.office === "all" || record.organization?.office === tableFilters.office)
       && (tableFilters.changes !== "today" || !latestFeedDate || String(record.lastChangedAt || record.firstSeenAt || "").slice(0, 10) === latestFeedDate);
-  }), [dispositions.tombstonedIds, latestFeedDate, rows, tableFilters]);
+  }).map((record) => ({ ...record, fitAssessment: classifyOpportunityFit(record) })), [dispositions.tombstonedIds, latestFeedDate, rows, tableFilters]);
   const setTableFilter = (key, value) => {
     const next = { ...tableFilters, [key]: value };
     if (key === "branch") { next.component = "all"; next.office = "all"; }
@@ -201,19 +208,24 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     updateRoute(view === "today" ? "today" : "table", { technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
   };
   const tableColumns = [
-    { key: "record", label: "Record", required: true, sticky: true, minWidth: 300, value: (record) => `${record.id || record.reference || "Unidentified"} ${record.title || "Untitled"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title].filter(Boolean).join(" "), render: (record) => <><strong>{record.id || record.reference || "Unidentified"}</strong><small>{record.title || "Untitled public record"}</small></> },
+    { key: "record", label: "Opportunity", required: true, sticky: true, minWidth: 320, mobilePrimary: true, value: (record) => `${record.title || "Untitled"} ${record.id || record.reference || "Unidentified"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title, record.description].filter(Boolean).join(" "), render: (record) => <><strong>{record.title || "Untitled public record"}</strong><small>{record.id || record.reference || record.sourceRecordId || "Unidentified"}</small></> },
+    { key: "customer", label: "Customer", facet: true, minWidth: 210, value: customer, render: (record) => <><strong>{customer(record)}</strong><small>{[record.organization?.branch, record.organization?.component, record.party, record.recipient].find((value) => value && value !== customer(record) && !/not published/i.test(value)) || ""}</small></> },
+    { key: "stage", label: "Stage", facet: true, minWidth: 160, value: (record) => samNoticeTypeLabel(record.noticeType) },
+    { key: "fit", label: "Fit", minWidth: 145, sortValue: (record) => record.fitAssessment.score, value: (record) => `${record.fitAssessment.score} ${record.fitAssessment.level}`, render: (record) => <OpportunityFitBadge assessment={record.fitAssessment} /> },
+    { key: "trust", label: "Trust", facet: true, minWidth: 135, value: (record) => record.evidenceTier || "unclassified", render: (record) => <span className={`opportunity-trust opportunity-trust--${record.evidenceTier || "unclassified"}`}><strong>{String(record.evidenceTier || "unclassified").replaceAll("-", " ")}</strong><small>{record.sourceRoleCount ? `${record.sourceRoleCount} source roles` : "Source backed"}</small></span> },
+    { key: "deadline", label: "Due", minWidth: 145, value: (record) => record.solicitationEnd || "", sortValue: (record) => record.solicitationEnd || "9999-12-31", render: (record) => date(record.solicitationEnd) },
+    { key: "obligations", label: "Value", minWidth: 110, sortValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), exportValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), render: (record) => <strong>{money(record.obligatedAmount || record.fpdsObligatedAmount)}</strong> },
+    { key: "change", label: "Last change", minWidth: 190, value: (record) => [record.lastChangeType, ...(record.changedFields || []).map((field) => field.label)].filter(Boolean).join(" "), render: (record) => <><strong>{record.lastChangeType === "added" ? "Added" : record.lastChangeType === "removed" ? "Removed" : record.lastChangeType === "updated" ? "Updated" : "No retained change"}</strong>{record.changedFields?.length ? <small>{record.changedFields.slice(0, 2).map((field) => field.label).join(" · ")}{record.changedFields.length > 2 ? ` +${record.changedFields.length - 2}` : ""}</small> : null}</> },
+    { key: "source", label: "Source", facet: true, minWidth: 170, value: (record) => record.recordKind === "acquisition-portfolio" ? record.portfolio : record.sourceSystem || record.evidenceTier || "Defense intelligence", render: (record) => <><strong>{record.recordKind === "acquisition-portfolio" ? record.portfolio : record.sourceSystem || "Official source"}</strong><small>{record.sourcePublishedAt ? `Published ${date(record.sourcePublishedAt)}` : "Retained evidence"}</small></> },
     { key: "recipient", label: "Recipient / sponsor", facet: true, minWidth: 190, value: (record) => record.party || record.recipient || "Not published" },
     { key: "portfolio", label: "Portfolio", facet: true, minWidth: 150, value: (record) => record.portfolio || "Unclassified" },
     { key: "technology", label: "Technology area", minWidth: 190, value: (record) => (record.technologyAreas || []).map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area).join(" · ") || "Not classified" },
-    { key: "noticeType", label: "Notice type", facet: true, minWidth: 170, value: (record) => samNoticeTypeLabel(record.noticeType) },
+    { key: "noticeType", label: "Notice type", minWidth: 170, value: (record) => samNoticeTypeLabel(record.noticeType) },
     { key: "organization", label: "DoW hierarchy", minWidth: 220, value: (record) => record.organization?.path?.slice(1, 4).join(" → ") || "Not published", render: (record) => <><strong>{record.organization?.component || "Component not published"}</strong><small>{[record.organization?.branch, record.organization?.office].filter(Boolean).join(" · ")}</small></> },
     { key: "dateAdded", label: "Date added", minWidth: 140, value: (record) => record.firstSeenAt || "", sortValue: (record) => record.firstSeenAt || "", render: (record) => <><strong>{date(record.firstSeenAt)}</strong>{record.sourcePublishedAt ? <small>Source posted {date(record.sourcePublishedAt)}</small> : null}</> },
     { key: "posted", label: "Posted date", minWidth: 140, value: (record) => record.sourcePublishedAt || record.solicitationStart || "", sortValue: (record) => record.sourcePublishedAt || record.solicitationStart || "0000-00-00", render: (record) => date(record.sourcePublishedAt || record.solicitationStart) },
-    { key: "deadline", label: "Response deadline", minWidth: 155, value: (record) => record.solicitationEnd || "", sortValue: (record) => record.solicitationEnd || "9999-12-31", render: (record) => date(record.solicitationEnd) },
-    { key: "change", label: "Latest change", minWidth: 210, value: (record) => [record.lastChangeType, ...(record.changedFields || []).map((field) => field.label)].filter(Boolean).join(" "), render: (record) => <><strong>{record.lastChangeType === "added" ? "Added" : record.lastChangeType === "removed" ? "Removed" : record.lastChangeType === "updated" ? "Updated" : "No retained change"}</strong>{record.changedFields?.length ? <small>{record.changedFields.slice(0, 3).map((field) => field.label).join(" · ")}{record.changedFields.length > 3 ? ` +${record.changedFields.length - 3}` : ""}</small> : null}</> },
-    { key: "obligations", label: "Observed", sortValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), exportValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), render: (record) => <strong>{money(record.obligatedAmount || record.fpdsObligatedAmount)}</strong> },
     { key: "end", label: "Reported end", minWidth: 140, value: (record) => record.currentEnd || record.potentialEnd || "", render: (record) => date(record.currentEnd || record.potentialEnd) },
-    { key: "evidence", label: "Evidence", facet: true, minWidth: 120, value: (record) => record.evidenceTier || "unclassified" },
+    { key: "evidence", label: "Evidence", minWidth: 120, value: (record) => record.evidenceTier || "unclassified" },
     { key: "acquisitionSource", label: "Acquisition source", facet: true, minWidth: 190, value: (record) => record.recordKind === "acquisition-portfolio" ? record.portfolio : "Other Defense Intelligence source" },
     { key: "setAside", label: "Set-aside", facet: true, minWidth: 170, value: (record) => record.setAside || "Not published" },
     { key: "acquisitionArea", label: "Acquisition work area", facet: true, minWidth: 210, value: (record) => record.acquisitionArea || "Not assessed" },
@@ -242,7 +254,6 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { id: "rfi", label: "RFIs / sources sought", value: rows.filter((record) => samNoticeTypeId(record.noticeType) === "r").length.toLocaleString(), meta: "Source-backed opportunity records" },
     { id: "coded", label: "Code-backed", value: rows.filter((record) => record.naicsCode || record.pscCode).length.toLocaleString(), meta: "Published NAICS or PSC" },
   ];
-  const hierarchyPath = ["Department of War", tableFilters.branch !== "all" ? tableFilters.branch : "All branches", tableFilters.component !== "all" ? tableFilters.component : "All services & components", tableFilters.office !== "all" ? tableFilters.office : null].filter(Boolean).join(" → ");
   const activeScopeFilterCount = [tableFilters.technology, tableFilters.noticeType, tableFilters.branch, tableFilters.component, tableFilters.office, tableFilters.disposition].filter((value) => value && !["all", "active"].includes(value)).length;
   const savedViewRows = rows.length ? rows : (discoveryIndex.discovery || []);
   const savedViews = <SpendSavedViews compact={view === "table"} rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
@@ -264,29 +275,25 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
   if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
-    <ControlWorkbenchHeader eyebrow="Spend intelligence" title="Spend Explorer" summary="Timeline, records, and charts share one public-data scope." metrics={tableMetrics} metricLabel="Spend table summary" tabs={tabs} />
+    <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Workbench" summary="Search, qualify, triage, and investigate source-backed opportunities from one operating queue." metrics={tableMetrics} metricLabel="Opportunity workbench summary" tabs={tabs} />
     <ControlPageBody compact>
-      <div className="spend-explorer__support-row">
-        {savedViews}
-        <details className="spend-explorer__daily-feed" data-daily-acquisition-feed>
-          <summary><span><strong>Daily acquisition updates</strong><small>{dailyFeed.history?.[0] ? `${dailyFeed.history[0].summary.added} added · ${dailyFeed.history[0].summary.updated} updated · ${dailyFeed.history[0].summary.removed} removed` : "History begins with the next retained refresh"}</small></span><span>{dailyFeed.history?.[0]?.sources?.sam === "current" ? "SAM.gov current" : "SAM.gov unavailable"}</span></summary>
-          <div>{(dailyFeed.history || []).slice(0, 14).map((entry) => <article key={entry.date}><time dateTime={entry.date}>{date(entry.date)}</time><span><b>{entry.summary.added}</b> added</span><span><b>{entry.summary.updated}</b> updated</span><span><b>{entry.summary.removed}</b> removed</span><small>SAM.gov {entry.sources?.sam || "unknown"} · USAspending {entry.sources?.usaspending || "unknown"}</small></article>)}</div>
-        </details>
-      </div>
       {tableFilters.changes === "today" ? <div className="if-alert if-alert--info spend-explorer__change-scope" role="status"><span><strong>Complete daily update ledger</strong>Showing every retained record changed on {date(latestFeedDate)}.</span><button type="button" className="if-button if-button--secondary" onClick={() => setTableFilter("changes", "all")}>Show all records</button></div> : null}
-      <details className="spend-explorer__hierarchy" aria-label="Explorer scope and record controls" data-explorer-hierarchy defaultOpen={activeScopeFilterCount > 0}>
-        <summary><span><small>Explorer scope</small><strong>{hierarchyPath}</strong></span><b>{activeScopeFilterCount ? `${activeScopeFilterCount} active` : "Edit scope"}</b></summary>
-        <div className="spend-explorer__hierarchy-controls">
-          <ControlSelect label="Technology area" value={tableFilters.technology} options={[{ value: "all", label: "All technology areas" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} />
-          <ControlSelect label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} />
-          <ControlSelect label="DoW branch" value={tableFilters.branch} options={[{ value: "all", label: "DoW: all branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} />
-          <ControlSelect label="Service / component" value={tableFilters.component} options={[{ value: "all", label: "All services & components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
-          <ControlSelect label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All published offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
-          <ControlSelect label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active explorer" }, { value: "tombstoned", label: `Tombstoned (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
-        </div>
-      </details>
+      <section className={`capture-filters${scopeExpanded ? " is-expanded" : ""}`} aria-label="Opportunity workbench filters" data-opportunity-workbench-scope>
+        <div className="capture-filters__heading"><strong>Filters</strong><span>{tableRows.length.toLocaleString()} opportunities{activeScopeFilterCount ? ` · ${activeScopeFilterCount} active` : ""}</span><button type="button" className="capture-filter-toggle" aria-expanded={scopeExpanded} onClick={() => setScopeExpanded((value) => !value)}>{scopeExpanded ? "Fewer filters" : "More filters"}</button>{activeScopeFilterCount ? <button type="button" onClick={() => { setTableFilters({ technology: "all", noticeType: "all", branch: "all", component: "all", office: "all", disposition: "active", changes: "all" }); updateRoute("table", { technology: "", noticeType: "", orgBranch: "", orgComponent: "", orgOffice: "", records: "", changes: "" }); }}><RotateCcw size={14} />Reset ({activeScopeFilterCount})</button> : null}</div>
+        <div className="capture-filter"><ControlSelect compact label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} /></div>
+        <div className="capture-filter capture-filter--core-secondary"><ControlSelect compact label="Branch" value={tableFilters.branch} options={[{ value: "all", label: "All branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} /></div>
+        <div className="capture-filter"><ControlSelect compact label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active" }, { value: "tombstoned", label: `Hidden (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} /></div>
+        <div className="capture-filter capture-filter--advanced"><ControlSelect compact label="Technology" value={tableFilters.technology} options={[{ value: "all", label: "All technology" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} /></div>
+        <div className="capture-filter capture-filter--advanced"><ControlSelect compact label="Component" value={tableFilters.component} options={[{ value: "all", label: "All components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} /></div>
+        <div className="capture-filter capture-filter--advanced"><ControlSelect compact label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} /></div>
+      </section>
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
-      <OperationalDataTable id="spend-records" label="Spend and transaction records" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "dateAdded", direction: "desc" }} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search records, recipients, notice types, organizations, and references…" exportFilename="spend-explorer.csv" toolbarActions={tableRows.some((record) => record.acquisitionIntel) ? <button type="button" className="if-btn if-btn--secondary" onClick={() => exportAcquisitionRegister(tableRows)}><Download size={15} />Export acquisition register</button> : null} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "dateAdded", "actions"] : tableFilters.noticeType !== "all" ? ["record", "noticeType", "deadline", "actions"] : ["record", "technology", "dateAdded", "actions"]} highlightedRowId={focusedRecordId} empty={tableFilters.disposition === "tombstoned" ? "No tombstoned records. Records you intentionally suppress will remain recoverable here." : "No active records match the current hierarchy and table controls."} />
+      <OperationalDataTable id="opportunity-workbench-v1" label="Opportunity workbench" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "fit", direction: "desc" }} defaultVisibleColumns={["record", "customer", "stage", "fit", "trust", "deadline", "obligations", "change", "source", "actions"]} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search opportunities, scope, customers, codes, and references…" exportFilename="opportunity-workbench.csv" toolbarActions={<>
+        {savedViews}
+        <a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=today" data-daily-acquisition-feed><Inbox size={15} />Updates{dailyFeed.history?.[0] ? ` · ${dailyFeed.history[0].summary.added + dailyFeed.history[0].summary.updated}` : ""}</a>
+        <button type="button" className="if-btn if-btn--secondary" onClick={() => void loadRuntimeRecords()}><RefreshCw size={15} />Refresh</button>
+        {tableRows.some((record) => record.acquisitionIntel) ? <button type="button" className="if-btn if-btn--secondary opportunity-workbench__register-export" onClick={() => exportAcquisitionRegister(tableRows)}><Download size={15} />Register</button> : null}
+      </>} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "fit", "actions"] : ["record", "customer", "fit", "deadline", "actions"]} highlightedRowId={focusedRecordId} initialExpandedId={focusedRecordId || null} renderDetail={(record) => <OpportunityWorkbenchDetail record={record} />} bulkActions={dispositions.canWrite ? (selectedRows, clear) => <button type="button" className="if-btn if-btn--secondary" onClick={() => { selectedRows.forEach((record) => tableFilters.disposition === "tombstoned" ? dispositions.restore(record.opportunityId) : dispositions.tombstone(record.opportunityId)); clear(); }}>{tableFilters.disposition === "tombstoned" ? <ArchiveRestore size={15} /> : <ArchiveX size={15} />}{tableFilters.disposition === "tombstoned" ? "Restore selected" : "Hide selected"}</button> : null} empty={tableFilters.disposition === "tombstoned" ? "No hidden records. Records you remove from the active queue remain recoverable here." : "No active opportunities match the current workbench controls."} />
     </ControlPageBody>
   </section>;
 }
