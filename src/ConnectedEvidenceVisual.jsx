@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./ConnectedEvidenceVisual.css";
 
 const TYPE_LABEL = {
@@ -13,6 +13,26 @@ const TYPE_LABEL = {
   successor: "Successor",
   conflict: "Evidence conflict",
 };
+
+const VIEWS = new Set(["connections", "timeline"]);
+
+function routeSelection() {
+  if (typeof window === "undefined") return { view: "connections", item: "" };
+  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const view = params.get("capVisual");
+  return { view: VIEWS.has(view) ? view : "connections", item: params.get("capVisualItem") || "" };
+}
+
+function updateRouteSelection(view, item = "") {
+  const [path, search = ""] = window.location.hash.split("?");
+  const params = new URLSearchParams(search);
+  if (view === "connections") params.delete("capVisual");
+  else params.set("capVisual", view);
+  if (item) params.set("capVisualItem", item);
+  else params.delete("capVisualItem");
+  const next = `${path}?${params}`;
+  window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${next}`);
+}
 
 function compact(value, fallback = "Not published") {
   return String(value || fallback).replaceAll("_", " ");
@@ -100,15 +120,32 @@ function TimelineView({ events, selected, onSelect }) {
 export default function ConnectedEvidenceVisual({ connection, lineage, temporal, record, researchReport, opportunityId }) {
   const nodes = useMemo(() => graphNodes(connection, lineage, temporal, record, opportunityId), [connection, lineage, opportunityId, record, temporal]);
   const events = useMemo(() => timelineEvents(record, researchReport, temporal, lineage, opportunityId), [lineage, opportunityId, record, researchReport, temporal]);
-  const [view, setView] = useState("connections");
-  const [selectedId, setSelectedId] = useState("");
+  const initial = routeSelection();
+  const [view, setView] = useState(initial.view);
+  const [selectedId, setSelectedId] = useState(initial.item);
   const visibleItems = view === "connections" ? nodes : events;
   const selected = visibleItems.find((item) => item.id === selectedId) || visibleItems[0] || nodes[0];
-  const selectView = (next) => { setView(next); setSelectedId(""); };
-  return <section className="connected-visual" data-connected-visual-analysis data-connected-visual-view={view}>
-    <header><div><span>Visual analysis</span> · <strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : `${events.length} dated signals`}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button></nav></header>
-    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={(item) => setSelectedId(item.id)} /> : <TimelineView events={events} selected={selected} onSelect={(item) => setSelectedId(item.id)} />}
+  const selectView = (next) => { setView(next); setSelectedId(""); updateRouteSelection(next); };
+  const selectItem = (item) => { setSelectedId(item.id); updateRouteSelection(view, item.id); };
+  const reset = () => { setSelectedId(""); updateRouteSelection(view); };
+  useEffect(() => {
+    const sync = () => { const next = routeSelection(); setView(next.view); setSelectedId(next.item); };
+    const clearOnEscape = (event) => {
+      const current = routeSelection();
+      if (event.key === "Escape" && current.item) {
+        setSelectedId("");
+        updateRouteSelection(current.view);
+      }
+    };
+    window.addEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    window.addEventListener("keydown", clearOnEscape);
+    return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); window.removeEventListener("keydown", clearOnEscape); };
+  }, []);
+  return <section className="connected-visual" data-connected-visual-analysis data-connected-visual-view={view} data-connected-visual-selected={selected?.id || ""} onKeyDown={(event) => { if (event.key === "Escape" && selectedId) { event.preventDefault(); reset(); } }}>
+    <header><div><span>Visual analysis</span> · <strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : `${events.length} dated signals`}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button></nav><button type="button" style={{ minHeight: "2.75rem" }} disabled={!selectedId} onClick={reset}>Reset</button></header>
+    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={selectItem} /> : <TimelineView events={events} selected={selected} onSelect={selectItem} />}
     <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.detail}</span></div><p>{selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`}</p>{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}</article>
-    <footer><span>Click or tap a node or marker to inspect it.</span> · <span>Bounded indexes only · full graph never loaded</span></footer>
+    <footer aria-live="polite"><span>Click, tap, or tab to inspect. Escape resets selection.</span> · <span>Bounded indexes only · full graph never loaded</span></footer>
   </section>;
 }

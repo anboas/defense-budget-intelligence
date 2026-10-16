@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./AuthContext.jsx";
 import { eventCatalog as readCuratedEventCatalog } from "./event-catalog.js";
 import { normalizeEventDate } from "./event-date-input.js";
+import { decodePursuitNote, encodePursuitNote, normalizePursuit } from "./pursuit-metadata.js";
 
 export const WATCHLIST_STORAGE_KEY = "dbi:watchlist:v1";
 export const MANAGEMENT_EVENTS_STORAGE_KEY = "dbi:management-events:v1";
@@ -67,14 +68,18 @@ function storedArray(key) {
 function normalizeWatch(entry = {}) {
   const recordId = cleanText(entry.recordId, 180);
   if (!recordId) return null;
+  const decoded = decodePursuitNote(entry.note);
+  const pursuit = normalizePursuit({ ...decoded.pursuit, ...entry.pursuit });
   const starredAt = cleanDate(entry.starredAt) || new Date().toISOString();
   return {
     recordId,
     starredAt,
     updatedAt: cleanDate(entry.updatedAt) || starredAt,
     reviewAt: cleanDate(entry.reviewAt),
-    note: cleanText(entry.note, 1200),
+    note: cleanText(decoded.note, 1200),
+    pursuit,
     wallboard: entry.wallboard !== false,
+    version: Number(entry.version || 0),
   };
 }
 
@@ -280,8 +285,10 @@ function remoteActivity(entry = {}) {
 export function useManagementState(records = []) {
   const auth = useAuth();
   const remote = Boolean(auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
+  const canWrite = Boolean(!remote || auth?.user?.canWriteWorkspace);
   const validIds = useMemo(() => records.map((record) => record.opportunityId), [records]);
   const [watchlist, setWatchlist] = useState(() => readWatchlist(validIds));
+  const watchlistRef = useRef(watchlist);
   const [events, setEvents] = useState(() => readManagementEvents(validIds));
   const [eventCategories, setEventCategories] = useState(() => readEventCategories());
   const [eventCatalog, setEventCatalog] = useState(() => readCuratedEventCatalog());
@@ -294,6 +301,7 @@ export function useManagementState(records = []) {
   const [loading, setLoading] = useState(remote);
   const [error, setError] = useState("");
   const [lastRefreshedAt, setLastRefreshedAt] = useState("");
+  useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
 
   const sync = useCallback(() => {
     setWatchlist(readWatchlist(validIds));
@@ -382,7 +390,7 @@ export function useManagementState(records = []) {
       void workspaceRequest(`/tracking/${encodeURIComponent(recordId)}`, {
         method: "PUT",
         headers: existing.version ? { "if-match": String(existing.version) } : {},
-        body: JSON.stringify({ note: next.note, reviewAt: next.reviewAt, wallboard: next.wallboard }),
+        body: JSON.stringify({ note: encodePursuitNote(next.note, next.pursuit), reviewAt: next.reviewAt, wallboard: next.wallboard }),
       }).then(() => syncRemote()).catch((requestError) => { setError(requestError.message); void syncRemote(); });
       return;
     }
@@ -395,6 +403,49 @@ export function useManagementState(records = []) {
     setWatchlist(next);
     setActivity((items) => appendActivity({ type: "watch_updated", recordId, detail: cleanText(patch.note ? "Updated note" : patch.reviewAt !== undefined ? "Updated review date" : "Updated wallboard visibility") }, items));
   }, [remote, syncRemote, validIds, watchlist]);
+
+  const savePursuit = useCallback(async (recordId, patch) => {
+    if (!canWrite) throw new Error("Workspace write access is required.");
+    const existing = watchlistRef.current.find((entry) => entry.recordId === recordId);
+    const now = new Date().toISOString();
+    const next = normalizeWatch({
+      ...existing,
+      recordId,
+      starredAt: existing?.starredAt || now,
+      updatedAt: now,
+      reviewAt: patch.reviewAt ?? existing?.reviewAt ?? "",
+      note: existing?.note || "",
+      pursuit: { ...(existing?.pursuit || {}), ...patch },
+      wallboard: existing?.wallboard !== false,
+    });
+    watchlistRef.current = [next, ...watchlistRef.current.filter((entry) => entry.recordId !== recordId)];
+    setWatchlist(watchlistRef.current);
+    try {
+      if (remote) {
+        const saved = await workspaceRequest(`/tracking/${encodeURIComponent(recordId)}`, {
+          method: "PUT",
+          headers: existing?.version ? { "if-match": String(existing.version) } : {},
+          body: JSON.stringify({ note: encodePursuitNote(next.note, next.pursuit), reviewAt: next.reviewAt, wallboard: next.wallboard }),
+        });
+        const normalized = normalizeWatch(saved?.data || saved);
+        if (normalized) {
+          watchlistRef.current = [normalized, ...watchlistRef.current.filter((entry) => entry.recordId !== recordId)];
+          setWatchlist(watchlistRef.current);
+        }
+      } else {
+        const current = readWatchlist(validIds);
+        write(WATCHLIST_STORAGE_KEY, [next, ...current.filter((entry) => entry.recordId !== recordId)]);
+      }
+      setError("");
+      setActivity((items) => appendActivity({ type: "pursuit_updated", recordId, detail: `Pursuit moved to ${next.pursuit.stage}` }, items));
+      return next;
+    } catch (requestError) {
+      setError(requestError.message);
+      if (remote) await syncRemote().catch(() => {});
+      else sync();
+      throw requestError;
+    }
+  }, [canWrite, remote, sync, syncRemote, validIds]);
 
   const saveEvent = useCallback(async (candidate) => {
     const normalized = normalizeEvent(candidate);
@@ -522,12 +573,14 @@ export function useManagementState(records = []) {
     apiRequestSummary,
     toggleWatch,
     updateWatch,
+    savePursuit,
     saveEvent,
     createEvent,
     deleteEvent,
     saveEventCategory,
     deleteEventCategory,
     remote,
+    canWrite,
     loading,
     error,
     lastRefreshedAt,

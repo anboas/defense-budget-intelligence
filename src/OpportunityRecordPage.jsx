@@ -1,7 +1,8 @@
-import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Link2, SearchCheck, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Link2, SearchCheck, Sparkles } from "lucide-react";
 import { ControlAsyncState, ControlFactGrid } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
+import OpportunityCommandRail from "./OpportunityCommandRail.jsx";
 import { useManagementState } from "./management-state.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import { samNoticeTypeLabel } from "./sam-notice-types.js";
@@ -95,7 +96,7 @@ export default function OpportunityRecordPage({ records = [], recordId = "", tab
   const lifecycleLabel = String(record.lifecycleStatus || (record.active ? "active" : "published")).replaceAll("-", " ");
   const decisionDate = record.mode === "acquisition-window" ? record.solicitationEnd : record.currentEnd;
   const importedPortfolio = record.recordKind === "acquisition-portfolio";
-  const researchBusy = Boolean(intelligence.activeJob || ["queued", "in_progress", "researching"].includes(intelligence.state));
+  const watch = management.watchlist.find((entry) => entry.recordId === recordId) || null;
   const recordMetrics = [
     { id: "status", label: "Lifecycle status", value: lifecycleLabel, meta: record.mode === "acquisition-window" ? samNoticeTypeLabel(record.noticeType) : "Active contract work" },
     { id: "date", label: importedPortfolio ? "Forecast award" : record.mode === "acquisition-window" ? "Response deadline" : "Reported current end", value: date(decisionDate), meta: importedPortfolio && record.solicitationStart ? `Forecast RFP ${date(record.solicitationStart)}` : record.potentialEnd ? `Potential through ${date(record.potentialEnd)}` : "No later date published" },
@@ -109,8 +110,8 @@ export default function OpportunityRecordPage({ records = [], recordId = "", tab
     { label: "Public source", value: record.sourceSystem || record.ingestionLabel || "Published record", meta: `${record.sourceUrls?.length || 0} retained source link${record.sourceUrls?.length === 1 ? "" : "s"}` },
   ];
   return <div className="record-page" data-opportunity-record-page data-record-id={recordId}>
-    <ControlWorkbenchHeader eyebrow="Opportunity record" title={record.title} summary={`${record.id || record.reference} · ${record.party || "Sponsor not published"} · ${record.owner || record.contractingOffice || "Organization not published"}`} metrics={recordMetrics} metricLabel="Record decision summary" sectionNav={tabs} actions={<div className="record-page__top-actions"><a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=timeline"><ArrowLeft size={15} />Timeline</a><button type="button" className={management.watchedIds.has(recordId) ? "if-btn if-btn--secondary is-active" : "if-btn if-btn--secondary"} onClick={() => management.toggleWatch(recordId)}><Star size={15} fill={management.watchedIds.has(recordId) ? "currentColor" : "none"} />{management.watchedIds.has(recordId) ? "Tracked" : "Track"}</button><button type="button" className="if-btn if-btn--ai" disabled={!intelligence.canWrite || researchBusy} aria-busy={researchBusy} onClick={() => { void intelligence.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? intelligence.activeJob?.attempt > 1 ? "Recovering research…" : "Research running…" : "Build AI decision brief"}</button></div>} />
-    {intelligence.notice ? <p className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status">{intelligence.notice}</p> : null}
+    <ControlWorkbenchHeader eyebrow="Opportunity record" title={record.title} summary={`${record.id || record.reference} · ${record.party || "Sponsor not published"} · ${record.owner || record.contractingOffice || "Organization not published"}`} metrics={recordMetrics} metricLabel="Record decision summary" sectionNav={tabs} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=table"><ArrowLeft size={15} />Workbench</a>} />
+    <OpportunityCommandRail record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} showRecordLink={false} />
     <section className="record-page__lifecycle" data-record-lifecycle>
       <header><div><Link2 size={18} /><span><strong>Acquisition lifecycle</strong><small>{relationshipCount ? `${relationshipCount} source-backed relationship${relationshipCount === 1 ? "" : "s"}; every record remains independently inspectable.` : "No predecessor or follow-on has been linked yet."}</small></span></div><a className="if-btn if-btn--secondary" href={`#/budget-spend/explorer?spendView=timeline&capLink=1&capSeed=${encodeURIComponent(recordId)}`}>{relationshipCount ? "Review links" : "Find related records"}</a></header>
       {relationshipCount ? <div className="record-page__lifecycle-grid"><section><h3>Past / incumbent</h3>{past.length ? past.map(({ relationship, related }) => <RelationshipCard key={relationship.id} relationship={relationship} related={related} direction="past" onRemove={intelligence.canWrite ? intelligence.removeRelationship : null} />) : <p>No predecessor link has been established.</p>}</section><section className="is-current"><h3>This record</h3><article><CalendarClock size={18} /><strong>{record.title}</strong><span>{record.id || record.reference}</span></article></section><section><h3>Future / follow-on</h3>{future.length ? future.map(({ relationship, related }) => <RelationshipCard key={relationship.id} relationship={relationship} related={related} direction="future" onRemove={intelligence.canWrite ? intelligence.removeRelationship : null} />) : <p>No follow-on link has been established.</p>}</section></div> : null}
