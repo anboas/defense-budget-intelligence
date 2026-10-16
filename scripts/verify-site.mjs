@@ -2207,17 +2207,21 @@ try {
   await moneyVisual.getByRole("button", { name: "Money Path", exact: true }).click();
   await moneyPathReady;
   await moneyVisual.locator("[data-money-path]").waitFor();
-  const moneyPathGeometry = await moneyVisual.locator("[data-money-path]").evaluate((node) => ({ nodes: Number(node.dataset.moneyPathNodes), links: Number(node.dataset.moneyPathLinks), year: Number(node.dataset.moneyPathYear) }));
+  const moneyPathGeometry = await moneyVisual.locator("[data-money-path]").evaluate((node) => ({ nodes: Number(node.dataset.moneyPathNodes), links: Number(node.dataset.moneyPathLinks), year: Number(node.dataset.moneyPathYear), engine: node.dataset.moneyPathEngine }));
   assert.ok(moneyPathGeometry.nodes > 0 && moneyPathGeometry.nodes <= 28, `Money Path should remain within its 28-node bound: ${JSON.stringify(moneyPathGeometry)}`);
   assert.ok(moneyPathGeometry.links > 0 && moneyPathGeometry.links <= 36, `Money Path should remain within its 36-link bound: ${JSON.stringify(moneyPathGeometry)}`);
   assert.equal(moneyPathGeometry.year, 2027, "Money Path should open on the current request year");
+  assert.equal(moneyPathGeometry.engine, "d3-sankey", "Money Path should use the benchmark-selected d3-sankey layout engine");
   assert.ok(await moneyVisual.locator('[data-money-path-link="obligation"]').count() > 0, "Money Path should render exact account obligations");
   assert.ok(await moneyVisual.locator('[data-money-path-link="subaward"]').count() > 0, "Money Path should render retained supplier samples when published");
+  const moneyLinkWidths = await moneyVisual.locator("[data-money-path-link-width]").evaluateAll((nodes) => nodes.map((node) => Number(node.dataset.moneyPathLinkWidth)));
+  assert.ok(new Set(moneyLinkWidths.map((width) => width.toFixed(1))).size > 2, `Money Path should preserve value-proportional flow variation: ${moneyLinkWidths.join(", ")}`);
   assert.match(await moneyVisual.innerText(), /Widths compare within each measure class; classes are never added together/i, "Money Path must keep unlike funding measures visually and textually separate");
+  await moneyVisual.screenshot({ path: `${OUT_DIR}/money-path-desktop.png` });
   await moneyVisual.locator('[data-money-path-link="obligation"]').first().click();
   assert.match(await moneyVisual.locator("[data-evidence-visual-inspector]").innerText(), /Exact obligation flow[\s\S]*exact/i, "Selecting a funding flow should open its evidence inspector");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisual=money.*capVisualItem=/, "Money Path mode and exact selection should persist in the shareable route");
-  await moneyVisual.screenshot({ path: `${OUT_DIR}/money-path-desktop.png` });
+  await moneyVisual.screenshot({ path: `${OUT_DIR}/money-path-focused-desktop.png` });
   assert.equal(await resourceCount(page, "money-path-index.json"), 1, "Money Path should load its bounded deferred index exactly once");
   assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Money Path must never load the full integrity graph");
 
