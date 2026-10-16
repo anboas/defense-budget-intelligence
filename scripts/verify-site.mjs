@@ -11,6 +11,9 @@ const FORBIDDEN_SURFACE_TEXT = /Decision Briefs|Portfolio Strategy|Pursuit Cockp
 mkdirSync(OUT_DIR, { recursive: true });
 const compiledScripts = readdirSync("dist/assets").filter((name) => name.endsWith(".js")).map((name) => readFileSync(`dist/assets/${name}`, "utf8")).join("\n");
 const intelligenceGraphSummary = JSON.parse(readFileSync("dist/data/intelligence-graph-summary.json", "utf8"));
+const moneyPathIndex = JSON.parse(readFileSync("dist/data/money-path-index.json", "utf8"));
+const moneyPathOpportunityId = Object.entries(moneyPathIndex.indices?.byActivity || {}).find(([, path]) => path.links?.some((link) => link.type === "request") && path.links?.some((link) => link.type === "obligation") && path.links?.some((link) => link.type === "subaward"))?.[0];
+assert.ok(moneyPathOpportunityId, "Money Path browser proof requires one bounded request-to-supplier chain");
 const roadmapIntelligence = JSON.parse(readFileSync("dist/data/roadmap-intelligence.json", "utf8"));
 const organizationIntelligence = JSON.parse(readFileSync("dist/data/organization-intelligence.json", "utf8"));
 const graphCounts = intelligenceGraphSummary.metadata?.entityCounts || {};
@@ -46,6 +49,7 @@ assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).l
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidenceVisual-.*\.js$/.test(name)).length, 1, "Record visual analysis should ship behind its own nested lazy boundary");
+assert.equal(builtAssets.filter((name) => /^MoneyPath-.*\.js$/.test(name)).length, 1, "Money Path should ship behind its own nested lazy boundary");
 assert.equal(builtAssets.filter((name) => /^DomainModelPage-.*\.js$/.test(name)).length, 1, "Domain Model should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^ResearchDiscoveryDashboard-.*\.js$/.test(name)).length, 1, "Discovery Operations should ship behind its own deferred administration boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
@@ -2195,6 +2199,28 @@ try {
   assert.equal(await resourceCount(page, "temporal-evidence-index.json"), 1, "Full-page evidence should reuse the session-cached temporal index");
   await assertActiveGroupState(page, "workspace-admin", "Domain Model");
 
+  assert.equal(await resourceCount(page, "money-path-index.json"), 0, "Money Path must remain deferred until an operator selects the visualization");
+  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(moneyPathOpportunityId)}`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-opportunity-record-page] [data-connected-visual-analysis]");
+  const moneyPathReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/money-path-index.json") && response.ok());
+  const moneyVisual = page.locator("[data-opportunity-record-page] [data-connected-visual-analysis]");
+  await moneyVisual.getByRole("button", { name: "Money Path", exact: true }).click();
+  await moneyPathReady;
+  await moneyVisual.locator("[data-money-path]").waitFor();
+  const moneyPathGeometry = await moneyVisual.locator("[data-money-path]").evaluate((node) => ({ nodes: Number(node.dataset.moneyPathNodes), links: Number(node.dataset.moneyPathLinks), year: Number(node.dataset.moneyPathYear) }));
+  assert.ok(moneyPathGeometry.nodes > 0 && moneyPathGeometry.nodes <= 28, `Money Path should remain within its 28-node bound: ${JSON.stringify(moneyPathGeometry)}`);
+  assert.ok(moneyPathGeometry.links > 0 && moneyPathGeometry.links <= 36, `Money Path should remain within its 36-link bound: ${JSON.stringify(moneyPathGeometry)}`);
+  assert.equal(moneyPathGeometry.year, 2027, "Money Path should open on the current request year");
+  assert.ok(await moneyVisual.locator('[data-money-path-link="obligation"]').count() > 0, "Money Path should render exact account obligations");
+  assert.ok(await moneyVisual.locator('[data-money-path-link="subaward"]').count() > 0, "Money Path should render retained supplier samples when published");
+  assert.match(await moneyVisual.innerText(), /Widths compare within each measure class; classes are never added together/i, "Money Path must keep unlike funding measures visually and textually separate");
+  await moneyVisual.locator('[data-money-path-link="obligation"]').first().click();
+  assert.match(await moneyVisual.locator("[data-evidence-visual-inspector]").innerText(), /Exact obligation flow[\s\S]*exact/i, "Selecting a funding flow should open its evidence inspector");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisual=money.*capVisualItem=/, "Money Path mode and exact selection should persist in the shareable route");
+  await moneyVisual.screenshot({ path: `${OUT_DIR}/money-path-desktop.png` });
+  assert.equal(await resourceCount(page, "money-path-index.json"), 1, "Money Path should load its bounded deferred index exactly once");
+  assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Money Path must never load the full integrity graph");
+
   await page.goto(`${BASE_URL}#/budget-spend/strategy`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-pdb-request-page]");
   assert.equal(new URL(page.url()).hash, "#/budget-spend", "Legacy strategy URLs should canonicalize to the request analytics surface");
@@ -2585,6 +2611,16 @@ try {
   assert.equal(await mobile.locator("[data-organization-monitor-source]").count(), 10, "Mobile Organization Watch should retain every monitored official source");
   await assertNoPageOverflow(mobile, "Mobile Intelligence Operations");
   await mobile.screenshot({ path: `${OUT_DIR}/intelligence-operations-mobile.png`, fullPage: true });
+
+  await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(moneyPathOpportunityId)}&capVisual=money`, { waitUntil: "domcontentloaded" });
+  await mobile.waitForSelector("[data-opportunity-record-page] [data-money-path]");
+  const mobileMoneyVisual = mobile.locator("[data-opportunity-record-page] [data-connected-visual-analysis]");
+  const mobileMoneyGeometry = await mobileMoneyVisual.locator(".connected-visual__scroller").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
+  assert.ok(mobileMoneyGeometry.scrollWidth > mobileMoneyGeometry.clientWidth, `Mobile Money Path should use its bounded internal scroller: ${JSON.stringify(mobileMoneyGeometry)}`);
+  const mobileMoneyControls = await mobileMoneyVisual.locator("button:visible, select:visible").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileMoneyControls.every((height) => height >= 43.5), `Mobile Money Path controls should preserve 44px touch targets: ${mobileMoneyControls.join(", ")}`);
+  await assertNoPageOverflow(mobile, "Mobile Money Path");
+  await mobileMoneyVisual.screenshot({ path: `${OUT_DIR}/money-path-mobile.png` });
 
   await mobile.setViewportSize({ width: 360, height: 740 });
   await openSurface(mobile, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");

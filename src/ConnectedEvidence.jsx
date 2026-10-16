@@ -100,7 +100,7 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
   ].filter(Boolean);
 
   return (
-    <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}`} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined}>
+    <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}`} style={{ minWidth: 0, maxWidth: "100%", width: "100%", overflow: "hidden" }} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined}>
       <header>
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
         <small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces · deterministic joins only</small>

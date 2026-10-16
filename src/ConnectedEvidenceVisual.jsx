@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { loadMoneyPath } from "./intelligence-graph.js";
 import "./ConnectedEvidenceVisual.css";
+
+const MoneyPath = lazy(() => import("./MoneyPath.jsx"));
 
 const TYPE_LABEL = {
   activity: "Opportunity",
@@ -12,9 +15,18 @@ const TYPE_LABEL = {
   predecessor: "Predecessor",
   successor: "Successor",
   conflict: "Evidence conflict",
+  program: "Program",
+  "budget-line": "Budget line",
+  prime: "Prime recipient",
+  supplier: "Supplier sample",
+  "request-flow": "Budget request flow",
+  "obligation-flow": "Exact obligation flow",
+  "structure-flow": "Contract structure",
+  "prime-flow": "Prime award flow",
+  "subaward-flow": "Retained subaward flow",
 };
 
-const VIEWS = new Set(["connections", "timeline"]);
+const VIEWS = new Set(["connections", "timeline", "money"]);
 
 function routeSelection() {
   if (typeof window === "undefined") return { view: "connections", item: "" };
@@ -47,6 +59,16 @@ function date(value) {
   if (!value) return "Unknown date";
   const parsed = new Date(`${String(value).slice(0, 10)}T12:00:00Z`);
   return Number.isNaN(parsed.getTime()) ? "Unknown date" : parsed.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+function money(value) {
+  const amount = Number(value || 0);
+  const absolute = Math.abs(amount);
+  const sign = amount < 0 ? "−" : "";
+  if (absolute >= 1_000_000_000) return `${sign}$${(absolute / 1_000_000_000).toFixed(1)}B`;
+  if (absolute >= 1_000_000) return `${sign}$${(absolute / 1_000_000).toFixed(1)}M`;
+  if (absolute >= 1_000) return `${sign}$${Math.round(absolute / 1_000).toLocaleString()}K`;
+  return `${sign}$${Math.round(absolute).toLocaleString()}`;
 }
 
 function node(id, type, label, detail, action = null) {
@@ -123,7 +145,20 @@ export default function ConnectedEvidenceVisual({ connection, lineage, temporal,
   const initial = routeSelection();
   const [view, setView] = useState(initial.view);
   const [selectedId, setSelectedId] = useState(initial.item);
-  const visibleItems = view === "connections" ? nodes : events;
+  const [moneyState, setMoneyState] = useState({ status: "loading", path: null });
+  useEffect(() => {
+    if (view !== "money" || moneyState.status !== "loading") return;
+    let active = true;
+    loadMoneyPath()
+      .then((payload) => { if (active) setMoneyState({ status: "ready", path: payload.indices?.byActivity?.[opportunityId] || null, metadata: payload.metadata }); })
+      .catch((error) => { if (active) setMoneyState({ status: "error", path: null, error }); });
+    return () => { active = false; };
+  }, [moneyState.status, opportunityId, view]);
+  const moneyItems = useMemo(() => moneyState.path ? [
+    ...moneyState.path.nodes,
+    ...moneyState.path.links.map((item) => ({ ...item, type: `${item.type}-flow`, label: item.label, detail: item.detail || `${item.confidence} ${item.amountType.replaceAll("-", " ")}` })),
+  ] : [], [moneyState.path]);
+  const visibleItems = view === "connections" ? nodes : view === "timeline" ? events : moneyItems;
   const selected = visibleItems.find((item) => item.id === selectedId) || visibleItems[0] || nodes[0];
   const selectView = (next) => { setView(next); setSelectedId(""); updateRouteSelection(next); };
   const selectItem = (item) => { setSelectedId(item.id); updateRouteSelection(view, item.id); };
@@ -142,10 +177,10 @@ export default function ConnectedEvidenceVisual({ connection, lineage, temporal,
     window.addEventListener("keydown", clearOnEscape);
     return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); window.removeEventListener("keydown", clearOnEscape); };
   }, []);
-  return <section className="connected-visual" data-connected-visual-analysis data-connected-visual-view={view} data-connected-visual-selected={selected?.id || ""} onKeyDown={(event) => { if (event.key === "Escape" && selectedId) { event.preventDefault(); reset(); } }}>
-    <header><div><span>Visual analysis</span> · <strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : `${events.length} dated signals`}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button></nav><button type="button" style={{ minHeight: "2.75rem" }} disabled={!selectedId} onClick={reset}>Reset</button></header>
-    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={selectItem} /> : <TimelineView events={events} selected={selected} onSelect={selectItem} />}
-    <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.detail}</span></div><p>{selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`}</p>{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}</article>
+  return <section className="connected-visual" style={{ minWidth: 0, maxWidth: "100%", width: "100%", overflow: "hidden" }} data-connected-visual-analysis data-connected-visual-view={view} data-connected-visual-selected={selected?.id || ""} onKeyDown={(event) => { if (event.key === "Escape" && selectedId) { event.preventDefault(); reset(); } }}>
+    <header><div><span>Visual analysis</span> · <strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : view === "timeline" ? `${events.length} dated signals` : moneyState.path ? `${moneyState.path.nodes.length} money-path nodes` : "bounded funding chain"}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button><button type="button" className={view === "money" ? "is-active" : ""} aria-pressed={view === "money"} onClick={() => selectView("money")}>Money Path</button></nav><button type="button" style={{ minHeight: "2.75rem" }} disabled={!selectedId} onClick={reset}>Reset</button></header>
+    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={selectItem} /> : view === "timeline" ? <TimelineView events={events} selected={selected} onSelect={selectItem} /> : moneyState.status === "loading" ? <div className="connected-visual__empty" role="status">Loading bounded funding chain…</div> : moneyState.status === "error" ? <div className="connected-visual__empty" role="alert">Money Path is temporarily unavailable. The evidence graph remains usable.</div> : moneyState.path ? <Suspense fallback={<div className="connected-visual__empty" role="status">Drawing Money Path…</div>}><MoneyPath path={moneyState.path} selected={selected} onSelect={selectItem} /></Suspense> : <div className="connected-visual__empty" data-money-path-empty>No exact award-account funding path is published for this record yet. No relationship was inferred.</div>}
+    <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.amount != null ? money(selected.amount) : selected.detail}</span></div><p>{selected.detail || (selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`)}</p>{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}</article>
     <footer aria-live="polite"><span>Click, tap, or tab to inspect. Escape resets selection.</span> · <span>Bounded indexes only · full graph never loaded</span></footer>
   </section>;
 }
