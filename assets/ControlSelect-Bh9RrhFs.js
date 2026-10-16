@@ -1,1 +1,0 @@
-import{S as e,j as t}from"./react-D38AK7lV.js";var n=t();function r({ariaLabel:t,...r}){return(0,n.jsx)(e,{label:t||`Select`,...r})}export{r as t};
