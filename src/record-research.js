@@ -190,7 +190,7 @@ export function buildRecordResearchRequest(record, candidates = [], { model = RE
     store: false,
     reasoning: { effort: degraded ? "low" : "medium" },
     max_output_tokens: degraded ? 7200 : 5600,
-    tools: [{ type: "web_search", search_context_size: degraded ? "low" : "medium" }],
+    tools: [{ type: "web_search", search_context_size: degraded ? "high" : "medium" }],
     tool_choice: "required",
     include: ["web_search_call.action.sources"],
     text: { format: { type: "json_schema", name: "federal_record_research", strict: true, schema: researchSchema } },
@@ -200,7 +200,7 @@ export function buildRecordResearchRequest(record, candidates = [], { model = RE
       "Distinguish published facts from analysis. Never invent scope, dates, incumbent identity, competition posture, contract access, eligibility, recompete timing, or relationships.",
       "Treat identifiers beginning OPP as commercial GovWin identifiers, not official government solicitation or award identifiers.",
       "Classify the record as verified, partial, ambiguous, no-public-evidence, or test-or-placeholder. An explicit no-evidence disposition is a valid result.",
-      "Every finding and risk must cite one or more official URLs actually consulted. Use empty arrays and caveats when evidence is absent.",
+      "Every finding and risk must cite one or more official URLs actually consulted. Prefer the supplied official record URLs before broad discovery. Use empty arrays and an explicit no-public-evidence disposition with caveats when evidence is absent.",
       "Compare the record's imported timing with official evidence. Mark it corroborated, superseded, conflicting, unverified, or not-applicable. Never infer that a forecast date was a proposal deadline.",
       "Give the operator a conservative pursue, watch, pass, or research recommendation, explicit priority, published key dates, and concrete next actions. Cite every decision, date, and next action to consulted official sources.",
       "Relationship proposals may target only the supplied candidate IDs. A follow-on requires direct official evidence or a highly specific combination of program identity, buyer, codes, scope, and timing.",
@@ -283,6 +283,10 @@ export function recordResearchRetryable(error) {
   return ["invalid_structured_output", "incomplete_output", "missing_citations", "provider_timeout", "provider_unavailable"].includes(error?.code) || error?.httpStatus === 408 || error?.httpStatus === 429 || Number(error?.httpStatus || 0) >= 500;
 }
 
+export function shouldRetainPriorResearch(error, attempt = 1) {
+  return Number(attempt || 1) >= 2 && ["missing_citations", "invalid_structured_output", "incomplete_output"].includes(error?.code);
+}
+
 export async function startRecordResearchWithOpenAi({ apiKey, record, candidates = [], fetchImpl = fetch, model = RECORD_RESEARCH_MODEL, degraded = false } = {}) {
   if (!apiKey) throw Object.assign(new Error("Configure an active workspace OpenAI credential before AI research"), { code: "credential_unavailable", httpStatus: 409 });
   let response;
@@ -308,14 +312,14 @@ export async function pollRecordResearchWithOpenAi({ apiKey, responseId, record,
   if (!responseId) throw Object.assign(new Error("The research job is missing its provider response identifier"), { code: "missing_response_id", httpStatus: 500 });
   let response;
   try {
-    response = await fetchImpl(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}?include%5B%5D=web_search_call.action.sources`, {
+    response = await fetchImpl(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}`, {
       headers: { authorization: `Bearer ${apiKey}` },
-      ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(25_000) } : {}),
+      ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(12_000) } : {}),
     });
   } catch (error) {
     throw Object.assign(new Error(error?.name === "TimeoutError" || error?.name === "AbortError" ? "OpenAI research status check timed out" : "OpenAI research status transport failed"), { code: error?.name === "TimeoutError" || error?.name === "AbortError" ? "provider_timeout" : "provider_unavailable", httpStatus: error?.name === "TimeoutError" || error?.name === "AbortError" ? 504 : 502 });
   }
-  const body = await response.json().catch(() => ({}));
+  let body = await response.json().catch(() => ({}));
   if (!response.ok) throw providerError(body, response.status);
   const status = clean(body?.status || "failed", 40);
   if (["queued", "in_progress"].includes(status)) return { status, responseId };
@@ -323,8 +327,16 @@ export async function pollRecordResearchWithOpenAi({ apiKey, responseId, record,
     const incomplete = status === "incomplete" && body?.incomplete_details?.reason === "max_output_tokens";
     throw Object.assign(new Error(incomplete ? "OpenAI exhausted its output budget before completing structured record research" : clean(body?.error?.message || `OpenAI research ended with status ${status}`, 500)), { code: incomplete ? "incomplete_output" : clean(body?.error?.code || `provider_${status}`, 100), httpStatus: 502, providerStatus: status });
   }
+  try {
+    const expanded = await fetchImpl(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}?include%5B%5D=web_search_call.action.sources`, {
+      headers: { authorization: `Bearer ${apiKey}` },
+      ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(20_000) } : {}),
+    });
+    if (expanded.ok) body = await expanded.json().catch(() => body);
+  } catch { /* The completed response body can still contain citation annotations and retained official URLs. */ }
   const payload = structuredPayload(body);
-  const report = normalizeRecordResearch(payload, record, candidates, { model, responseId: body.id || responseId, consultedSources: providerOfficialSources(body) });
+  const retainedSources = [record, ...candidates].flatMap((item) => (item?.sourceUrls || []).map((url) => ({ url, title: clean(item?.title || item?.id || "Retained official record", 300) })));
+  const report = normalizeRecordResearch(payload, record, candidates, { model, responseId: body.id || responseId, consultedSources: [...providerOfficialSources(body), ...retainedSources] });
   const explicitGap = ["no-public-evidence", "test-or-placeholder"].includes(report.researchDisposition) && report.caveats.length;
   if ((!report.sources.length || !(report.findings.length || report.risks.length || report.decisionBrief)) && !explicitGap) throw Object.assign(new Error("OpenAI research did not return grounded official-source citations or an explicit evidence-gap disposition"), { code: "missing_citations", httpStatus: 502 });
   return { status, responseId, report };

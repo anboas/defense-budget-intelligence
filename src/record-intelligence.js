@@ -63,7 +63,7 @@ export function useRecordIntelligence(records = [], opportunityId = "") {
         if (result?.job) {
           setJobs((current) => [result.job, ...current.filter((candidate) => candidate.id !== result.job.id)]);
           setState(result.job.status);
-          setNotice(result.job.attempt > 1 ? "The first provider result did not pass the evidence contract. A smaller bounded retry is running automatically…" : "Research is running in the background. Official sources and structured evidence are being assembled…");
+          setNotice(result.job.attempt > 1 ? "The first provider result did not pass the evidence contract. A bounded recovery search is running automatically…" : "Research is running in the background. Official sources and structured evidence are being assembled…");
         }
         if (result?.job?.status === "failed") throw Object.assign(new Error(result.job.error?.message || "Official-source research stopped before producing a verified brief."), { code: result.job.error?.code || "research_failed" });
         if (result?.report || result?.job?.status === "completed") return result;
@@ -81,7 +81,7 @@ export function useRecordIntelligence(records = [], opportunityId = "") {
       if (result?.report) setReports((current) => [result.report, ...current.filter((row) => row.id !== result.report.id)]);
       if (result?.relationships?.length) setSavedRelationships((current) => [...result.relationships.map(cleanRelationship).filter(Boolean), ...current]);
       setState("succeeded");
-      setNotice("Research complete. Review the cited findings, linked lifecycle evidence, and timeline dates below.");
+      setNotice(result?.retainedPriorReport || result?.job?.retainedPriorReport ? "No new grounded evidence passed review, so the prior cited brief and timeline dates were retained." : "Research complete. Review the cited findings, linked lifecycle evidence, and timeline dates below.");
     }).catch((error) => { setState("failed"); setNotice(error.message); });
   }, [jobs, opportunityId, pollResearchJob, remote]);
 
@@ -99,7 +99,7 @@ export function useRecordIntelligence(records = [], opportunityId = "") {
       if (result?.report) setReports((current) => [result.report, ...current.filter((row) => row.id !== result.report.id)]);
       if (result?.relationships?.length) setSavedRelationships((current) => [...result.relationships.map(cleanRelationship).filter(Boolean), ...current]);
       setState("succeeded");
-      setNotice("Research complete. Review the cited findings, linked lifecycle evidence, and timeline dates below.");
+      setNotice(result?.retainedPriorReport || result?.job?.retainedPriorReport ? "No new grounded evidence passed review, so the prior cited brief and timeline dates were retained." : "Research complete. Review the cited findings, linked lifecycle evidence, and timeline dates below.");
       return result;
     } catch (error) {
       if (error.code === "research_still_running") {

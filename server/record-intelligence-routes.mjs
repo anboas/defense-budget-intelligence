@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { accessCapabilities } from "../src/access-model.js";
 import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence, exactRecordGroupAssessment } from "../src/record-linking.js";
-import { deleteRecordResearchResponse, pollRecordResearchWithOpenAi, rankResearchCandidates, recordResearchRetryable, startRecordResearchWithOpenAi } from "../src/record-research.js";
+import { deleteRecordResearchResponse, pollRecordResearchWithOpenAi, rankResearchCandidates, recordResearchRetryable, shouldRetainPriorResearch, startRecordResearchWithOpenAi } from "../src/record-research.js";
 import { cleanText } from "../src/security-policy.js";
 import { recordUniverse } from "./record-universe.mjs";
 import { consumeAiOperationLimit, sendAiRateLimit } from "./ai-operation-rate-limit.mjs";
 
 function jsonValue(value, fallback) { if (value && typeof value === "object") return value; try { return JSON.parse(value || ""); } catch { return fallback; } }
 function publicResearch(row) { return { id: row.id, opportunityId: row.opportunity_id, ...jsonValue(row.report_json, {}), createdBy: row.created_by, createdAt: row.created_at }; }
-function publicResearchJob(row) { return row ? { id: row.id, opportunityId: row.opportunity_id, status: row.status, attempt: Number(row.attempt || 1), reportId: row.report_id || "", error: row.error_code ? { code: row.error_code, message: row.error_message } : null, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at || "" } : null; }
+function publicResearchJob(row) { return row ? { id: row.id, opportunityId: row.opportunity_id, status: row.status, attempt: Number(row.attempt || 1), reportId: row.report_id || "", retainedPriorReport: Boolean(row.report_id && row.report_id !== row.id), error: row.error_code ? { code: row.error_code, message: row.error_message } : null, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at || "" } : null; }
 function publicRelationship(row) { return { id: row.id, sourceId: row.source_id, targetId: row.target_id, relationship: row.relationship, confidence: row.confidence, rationale: row.rationale || "", evidence: jsonValue(row.evidence_json, []), sourceUrls: jsonValue(row.source_urls_json, []), caveats: jsonValue(row.caveats_json, []), provenance: jsonValue(row.provenance_json, {}), createdBy: row.created_by, createdAt: row.created_at, updatedAt: row.updated_at }; }
 
 function mockRelationshipAssessment(records) {
@@ -117,12 +117,23 @@ export function registerRecordIntelligenceRoutes(app, pool, { assertSameOrigin, 
         const report = await pool.query("SELECT * FROM app_workspace_record_research WHERE id=$1 AND workspace_id=$2", [completed.rows[0].report_id, user.active_workspace_id]);
         return { data: { job: publicResearchJob(completed.rows[0]), ...(report.rowCount ? { report: publicResearch(report.rows[0]) } : {}) } };
       }
-      if (["provider_timeout", "provider_unavailable"].includes(error?.code)) return reply.code(202).send({ data: { job: publicResearchJob(job) } });
+      if (["provider_timeout", "provider_unavailable"].includes(error?.code)) {
+        const touched = await pool.query("UPDATE app_workspace_record_research_jobs SET updated_at=NOW() WHERE id=$1 RETURNING *", [job.id]);
+        return reply.code(202).send({ data: { job: publicResearchJob(touched.rows[0]) } });
+      }
       if (Number(job.attempt || 1) < 2 && recordResearchRetryable(error)) {
         const restarted = await startRecordResearchWithOpenAi({ apiKey, record, candidates, degraded: true });
         await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
         const updated = await pool.query("UPDATE app_workspace_record_research_jobs SET status=$1,response_id=$2,attempt=2,error_code='',error_message='',updated_at=NOW() WHERE id=$3 RETURNING *", [restarted.status, restarted.responseId, job.id]);
         return reply.code(202).send({ data: { job: publicResearchJob(updated.rows[0]) } });
+      }
+      if (shouldRetainPriorResearch(error, job.attempt)) {
+        const prior = await pool.query("SELECT * FROM app_workspace_record_research WHERE workspace_id=$1 AND opportunity_id=$2 ORDER BY created_at DESC LIMIT 1", [user.active_workspace_id, recordId]);
+        if (prior.rowCount) {
+          const retained = await pool.query("UPDATE app_workspace_record_research_jobs SET status='completed',report_id=$1,error_code='',error_message='',updated_at=NOW(),completed_at=NOW() WHERE id=$2 RETURNING *", [prior.rows[0].id, job.id]);
+          await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+          return { data: { job: publicResearchJob(retained.rows[0]), report: publicResearch(prior.rows[0]), retainedPriorReport: true } };
+        }
       }
       const failed = await pool.query("UPDATE app_workspace_record_research_jobs SET status='failed',error_code=$1,error_message=$2,updated_at=NOW(),completed_at=NOW() WHERE id=$3 RETURNING *", [cleanText(error.code, 100) || "openai_failed", cleanText(error.message, 500), job.id]);
       await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
