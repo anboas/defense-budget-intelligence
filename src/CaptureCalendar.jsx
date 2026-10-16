@@ -1,7 +1,7 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./CaptureCalendar.css";
 import { createPortal } from "react-dom";
-import { BarChart3, Bookmark, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Link2, Maximize2, Minimize2, Network, Search, ShieldCheck, Star, Trash2, X } from "lucide-react";
+import { BarChart3, Bookmark, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Link2, Maximize2, Minimize2, Network, Search, ShieldCheck, Sparkles, Star, Trash2, X } from "lucide-react";
 import {
   assembleProcurementRecords,
   applyProcurementChanges,
@@ -28,7 +28,6 @@ import { useRecordGroups } from "./record-groups.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import LifecycleGroupPanel from "./LifecycleGroupPanel.jsx";
 import { TimelineProgressiveLoader, useProgressiveTimelineRows } from "./TimelineProgressiveRows.jsx";
-
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
 const EMPTY_TIMELINE_ITEMS = Object.freeze([]);
@@ -36,11 +35,9 @@ const TIMELINE_FIRST_YEAR = 2023;
 const TIMELINE_LAST_YEAR = 2034;
 const TIMELINE_CURRENT_YEAR = Math.max(TIMELINE_FIRST_YEAR, Math.min(TIMELINE_LAST_YEAR, new Date().getUTCFullYear()));
 const TIMELINE_YEARS = Array.from({ length: TIMELINE_LAST_YEAR - TIMELINE_FIRST_YEAR + 1 }, (_value, index) => String(TIMELINE_FIRST_YEAR + index));
-
 function CaptureEmpty({ title, message }) {
   return <ControlAsyncState compact state="empty" title={title} message={message} />;
 }
-
 const FILTER_DEFAULTS = {
   capQuery: "",
   capPortfolio: "all",
@@ -74,9 +71,7 @@ const FILTER_DEFAULTS = {
   capFields: "party",
   capFeed: '["changes","followon"]',
 };
-
 const MULTI_FILTER_KEYS = ["capPortfolio", "capNoticeType", "capEvidence", "capLifecycle", "capParty", "capOffice", "capVehicle", "capWork", "capTech", "capOrgBranch", "capOrgComponent", "capOrgOffice", "capOrigin"];
-
 const GROUP_BY_OPTIONS = [
   ["attention", "Decision priority"],
   ["none", "No grouping"],
@@ -862,7 +857,7 @@ function FollowOnDetailModal({ detail, onClose, onOpenRecord }) {
   );
 }
 
-const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, overlayLanes, actions, followOnActivities, onOpenFollowOn }) {
+const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf, labelMode, feedMode, overlayLanes, actions, followOnActivities, researchDates, onOpenFollowOn }) {
   const feeds = new Set(parseMultiValues(feedMode));
   const solicitationVisible = record.solicitationStart && record.solicitationEnd && record.solicitationEnd >= `${startYear}-01-01` && record.solicitationStart <= `${endYear}-12-31`;
   const solicitationLeft = solicitationVisible ? positionFor(record.solicitationStart, startYear, endYear) : 0;
@@ -926,6 +921,7 @@ const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf
       ? <i {...common} key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-marker" style={{ left: `${left}%` }} />
       : <i {...common} key={`followon-${marker.activity.opportunityId}-${marker.label}-${marker.start}`} className="capture-timeline__followon-window" style={{ left: `${left}%`, width: `${Math.max(right - left, 0.8)}%` }} />;
   });
+  const researchElements = (researchDates || []).filter((item) => item.date >= `${startYear}-01-01` && item.date <= `${endYear}-12-31`).map((item) => <i role="button" tabIndex="0" key={`research-${item.eventType}-${item.date}-${item.label}`} className="capture-timeline__research-marker" data-research-timeline-marker data-timeline-context={`AI research · ${item.label}`} data-timeline-detail={`${formatDate(item.date)} · ${item.confidence || "review"} confidence · ${item.basis}`} style={{ left: `${positionFor(item.date, startYear, endYear)}%` }} aria-label={`AI research date ${item.label}: ${formatDate(item.date)}`}><Sparkles size={11} aria-hidden="true" /></i>);
   if (record.mode === "contract-performance" && record.start && (record.currentEnd || record.potentialEnd)) {
     const baseEnd = record.currentEnd || record.potentialEnd;
     const left = positionFor(record.start, startYear, endYear);
@@ -957,6 +953,7 @@ const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf
         {provenanceElement}
         {changeElement}
         {followOnElements}
+        {researchElements}
       </>
     );
   }
@@ -970,10 +967,10 @@ const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf
         {right - left >= 8 && labelMode !== "none" ? <b>{labelMode === "dates" ? milestone.label : timelineBarLabel(record, labelMode, milestone.start, milestone.end)}</b> : null}
       </i>
     );
-  })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward actions in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipients`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} />] : []).concat(followOnElements);
+  })).concat(fiscalMarkers.map((marker) => { const start = `${marker.fiscalYear - 1}-10-01`; const end = `${marker.fiscalYear}-09-30`; const leftEdge = positionFor(start, startYear, endYear); const rightEdge = positionFor(end, startYear, endYear); return <i key={`fy-${marker.fiscalYear}`} className={`capture-timeline__fiscal-marker${marker.amount < 0 ? " is-negative" : ""}`} data-timeline-context={`FY${marker.fiscalYear} net obligations`} data-timeline-detail={signedMoney(marker.amount)} style={{ left: `${Math.max(0, leftEdge)}%`, width: `${Math.max(Math.min(100, rightEdge) - Math.max(0, leftEdge), 0.8)}%`, "--capture-fiscal-intensity": Math.abs(marker.amount) / fiscalMaximum }} />; })).concat(actionMarkers.map((marker) => <i key={`action-${marker.month}`} className={`capture-timeline__action-marker${marker.deobligation ? " has-deobligation" : ""}`} data-timeline-context={`FPDS actions · ${marker.month}`} data-timeline-detail={`${marker.count} action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.obligationDelta)}`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, "--capture-action-size": Math.min(4 + marker.count, 11) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(subawardMarkers.map((marker, index) => <i key={`subaward-${marker.month}`} className="capture-timeline__subaward-marker" data-subaward-overlay role="button" tabIndex={0} aria-label={`${marker.count} sampled subaward actions in ${marker.month}`} data-timeline-context={`Subaward actions · ${marker.month}`} data-timeline-detail={`${marker.count} sampled action${marker.count === 1 ? "" : "s"} · ${signedMoney(marker.amount)} · ${marker.recipientCount} recipients`} style={{ left: `${positionFor(`${marker.month}-15`, startYear, endYear)}%`, top: `${9 + (index % 2) * 11}px`, "--capture-subaward-size": Math.min(5 + marker.count, 10) }}><span>{marker.count > 1 ? marker.count : ""}</span></i>)).concat(refreshedEndVisible ? [<i key="refreshed-end" className="capture-timeline__award-marker" data-timeline-context="USAspending refreshed award end" data-timeline-detail={`${formatDate(refreshedEnd)} · exact award-ID match`} style={{ left: `${positionFor(refreshedEnd, startYear, endYear)}%` }} />] : []).concat(followOnElements, researchElements);
 });
 
-function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, onOpenRecord, asOf, dataAsOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity, watchedIds, onToggleWatch, mergeMode, mergeSelectedIds, onToggleMergeSelect, batchSize }) {
+function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, onOpenRecord, asOf, dataAsOf, density, groupBy, labelMode, rowFields, feedMode, actionsByOpportunity, followOnByOpportunity, researchDates, watchedIds, onToggleWatch, mergeMode, mergeSelectedIds, onToggleMergeSelect, batchSize }) {
   const scrollerRef = useRef(null);
   const hoverTargetRef = useRef(null);
   const [hover, setHover] = useState(null);
@@ -1083,7 +1080,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
                   <span className="capture-timeline__grid" aria-hidden="true">{years.map((year) => <i key={year} />)}</span>
                   {showAsOf ? <span className="capture-timeline__today" style={{ left: `${asOfPosition}%` }} aria-hidden="true" /> : null}
                   {showDataAsOf ? <span className="capture-timeline__data-as-of" style={{ left: `${dataAsOfPosition}%` }} aria-hidden="true" /> : null}
-                  {(record.lifecycleMembers || [record]).map((member) => <TimelineBar key={member.opportunityId} record={member} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[member.opportunityId] || EMPTY_TIMELINE_ITEMS} followOnActivities={followOnByOpportunity?.[member.opportunityId] || EMPTY_TIMELINE_ITEMS} onOpenFollowOn={openFollowOn} />)}
+                  {(record.lifecycleMembers || [record]).map((member) => <TimelineBar key={member.opportunityId} record={member} startYear={startYear} endYear={endYear} asOf={asOf} labelMode={labelMode} feedMode={feedMode} overlayLanes={overlayLanes} actions={actionsByOpportunity?.[member.opportunityId] || EMPTY_TIMELINE_ITEMS} followOnActivities={followOnByOpportunity?.[member.opportunityId] || EMPTY_TIMELINE_ITEMS} researchDates={member.opportunityId === selectedId ? researchDates : EMPTY_TIMELINE_ITEMS} onOpenFollowOn={openFollowOn} />)}
                   {!recordDates(record).length ? <em>Schedule not published</em> : null}
                 </span>
               </div>
@@ -1171,6 +1168,9 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const dispositions = useRecordDispositions();
   const recordGroups = useRecordGroups(records);
   const recordIntelligence = useRecordIntelligence(records, selectedId);
+  const selectedResearchId = new URLSearchParams(window.location.hash.split("?")[1] || "").get("capResearch") || "";
+  const selectedResearchReport = recordIntelligence.reports.find((report) => report.id === selectedResearchId) || recordIntelligence.reports[0];
+  const selectedResearchDates = selectedResearchReport?.keyDates || EMPTY_TIMELINE_ITEMS;
   const timelineStartYear = Math.min(Number(filters.capFrom), Number(filters.capTo));
   const timelineEndYear = Math.max(Number(filters.capFrom), Number(filters.capTo));
   const portfolios = useMemo(() => [...new Set(records.map((record) => record.portfolio))].sort(), [records]);
@@ -1700,7 +1700,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       ) : null}
 
       <section className={`capture-section capture-gantt-section${timelineExpanded ? " is-fullscreen" : ""}`} data-capture-gantt-section data-follow-on-count={followOnLinkCount} data-fpds-overlay-state={selectedFeeds.has("fpds") ? (actionDataset ? "ready" : actionState) : "disabled"}>
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Timeline</strong><small>Open a title for the full record · select a bar for evidence · {timelineRecords.length.toLocaleString()} lines · data through {formatDate(dataAsOf)}</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Timeline</strong><small>Open a title for the full record · select a bar for evidence · {timelineRecords.length.toLocaleString()} lines · data through {formatDate(dataAsOf)}</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{selectedResearchDates.length ? <><i className="research" />AI research date</> : null}{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
         <div className="capture-gantt-commandbar" data-capture-gantt-commandbar>
           <div className="capture-gantt-commandbar__group" aria-label="Timeline window"><span>Window</span><button type="button" aria-pressed={timelineStartYear === Number(asOf.slice(0, 4)) && timelineEndYear === Number(asOf.slice(0, 4))} onClick={() => setTimelineWindow(0, 0)}>Current</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 1) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 2)} onClick={() => setTimelineWindow(1, 2)}>3 year</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 3) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 3)} onClick={() => setTimelineWindow(3, 3)}>7 year</button><button type="button" aria-pressed={timelineStartYear === TIMELINE_FIRST_YEAR && timelineEndYear === TIMELINE_LAST_YEAR} onClick={() => setFilters({ capFrom: String(TIMELINE_FIRST_YEAR), capTo: String(TIMELINE_LAST_YEAR) })}>All</button></div>
           <div className="capture-gantt-commandbar__group" aria-label="Timeline layers"><span>Layers</span><button type="button" aria-pressed={!parseMultiValues(filters.capFeed).length} onClick={() => setFilters({ capFeed: "none" })}>Schedule</button><button type="button" aria-pressed={selectedFeeds.has("changes")} onClick={() => toggleTimelineFeed("changes")}>Changes</button><button type="button" aria-pressed={selectedFeeds.has("followon")} onClick={() => toggleTimelineFeed("followon")}>Follow-ons</button><button type="button" aria-pressed={selectedFeeds.has("fpds") && selectedFeeds.has("fiscal")} onClick={() => toggleTimelineFeed("fpds", "fiscal")}>Funding</button><button type="button" aria-pressed={selectedFeeds.has("subawards")} onClick={() => toggleTimelineFeed("subawards")}>Subawards</button></div>
@@ -1712,7 +1712,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} dialogRef={ganttDialogRef} title="Timeline controls" eyebrow="Transactions" summary="Adjust the visible time window, row density, grouping, labels, and evidence overlays." size="wide" closeLabel="Close Timeline controls" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
           <div className="capture-gantt-tools capture-gantt-tools--dialog">{ganttControlGroups}</div>
         </ControlDialog> : null}
-        {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} dataAsOf={dataAsOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title="No matching transactions" message="Adjust or clear filters to restore public transaction records." />}
+        {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} dataAsOf={dataAsOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} researchDates={selectedResearchDates} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title="No matching transactions" message="Adjust or clear filters to restore public transaction records." />}
       </section>
 
       {showLegacyTransactionExtras ? <><details className="capture-analytics-disclosure" data-capture-analytics-disclosure>

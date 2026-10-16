@@ -1,5 +1,5 @@
 import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence, exactRecordGroupAssessment } from "./record-linking.js";
-import { rankResearchCandidates, researchRecordWithOpenAi } from "./record-research.js";
+import { deleteRecordResearchResponse, pollRecordResearchWithOpenAi, rankResearchCandidates, recordResearchRetryable, startRecordResearchWithOpenAi } from "./record-research.js";
 import { cleanText } from "./security-policy.js";
 import { AI_OPERATION_LIMIT, AI_OPERATION_WINDOW_MINUTES, consumeD1AiOperationLimit } from "./d1-sensitive-rate-limit.js";
 
@@ -7,6 +7,11 @@ export const D1_RECORD_INTELLIGENCE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS dbi_workspace_record_research (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, opportunity_id TEXT NOT NULL,
     report_json TEXT NOT NULL DEFAULT '{}', created_by TEXT NOT NULL, created_at TEXT NOT NULL)`,
   "CREATE INDEX IF NOT EXISTS idx_dbi_record_research_workspace_record ON dbi_workspace_record_research (workspace_id, opportunity_id, created_at DESC)",
+  `CREATE TABLE IF NOT EXISTS dbi_workspace_record_research_jobs (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, opportunity_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued', response_id TEXT NOT NULL DEFAULT '', attempt INTEGER NOT NULL DEFAULT 1,
+    report_id TEXT NOT NULL DEFAULT '', error_code TEXT NOT NULL DEFAULT '', error_message TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, completed_at TEXT NOT NULL DEFAULT '')`,
+  "CREATE INDEX IF NOT EXISTS idx_dbi_record_research_jobs_workspace_record ON dbi_workspace_record_research_jobs (workspace_id, opportunity_id, created_at DESC)",
   `CREATE TABLE IF NOT EXISTS dbi_workspace_record_relationships (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, source_id TEXT NOT NULL,
     target_id TEXT NOT NULL, relationship TEXT NOT NULL, confidence TEXT NOT NULL DEFAULT 'high', rationale TEXT NOT NULL DEFAULT '',
     evidence_json TEXT NOT NULL DEFAULT '[]', source_urls_json TEXT NOT NULL DEFAULT '[]', caveats_json TEXT NOT NULL DEFAULT '[]',
@@ -18,6 +23,7 @@ export const D1_RECORD_INTELLIGENCE_SCHEMA = [
 
 function parsed(value, fallback) { try { return JSON.parse(value || ""); } catch { return fallback; } }
 function publicResearch(row) { return { id: row.id, opportunityId: row.opportunity_id, ...parsed(row.report_json, {}), createdBy: row.created_by, createdAt: row.created_at }; }
+function publicResearchJob(row) { return row ? { id: row.id, opportunityId: row.opportunity_id, status: row.status, attempt: Number(row.attempt || 1), reportId: row.report_id || "", error: row.error_code ? { code: row.error_code, message: row.error_message } : null, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at || "" } : null; }
 function publicRelationship(row) {
   return {
     id: row.id, sourceId: row.source_id, targetId: row.target_id, relationship: row.relationship, confidence: row.confidence,
@@ -117,13 +123,14 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
   const { allRecords, decryptSecret, error, hasScope, json, recordActivity, safeJson } = deps;
   const scope = request.method === "GET" ? "tracking:read" : "tracking:write";
   if (!hasScope(principal, scope)) return error("insufficient_scope", `Scope ${scope} is required`, 403);
-  const [first = "", second = ""] = segments.map((value) => cleanText(decodeURIComponent(value || ""), 180));
+  const [first = "", second = "", third = ""] = segments.map((value) => cleanText(decodeURIComponent(value || ""), 180));
   if (request.method === "GET" && first && !second && first !== "relationships") {
-    const [research, relationships] = await Promise.all([
+    const [research, relationships, jobs] = await Promise.all([
       db.prepare("SELECT * FROM dbi_workspace_record_research WHERE workspace_id=? AND opportunity_id=? ORDER BY created_at DESC LIMIT 8").bind(principal.workspaceId, first).all(),
       db.prepare("SELECT * FROM dbi_workspace_record_relationships WHERE workspace_id=? AND (source_id=? OR target_id=?) ORDER BY updated_at DESC").bind(principal.workspaceId, first, first).all(),
+      db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE workspace_id=? AND opportunity_id=? ORDER BY created_at DESC LIMIT 8").bind(principal.workspaceId, first).all(),
     ]);
-    return json({ reports: (research.results || []).map(publicResearch), relationships: (relationships.results || []).map(publicRelationship) });
+    return json({ reports: (research.results || []).map(publicResearch), relationships: (relationships.results || []).map(publicRelationship), jobs: (jobs.results || []).map(publicResearchJob) });
   }
   if (request.method === "DELETE" && first === "relationships" && second) {
     const changed = await db.prepare("DELETE FROM dbi_workspace_record_relationships WHERE workspace_id=? AND id=?").bind(principal.workspaceId, second).run();
@@ -134,6 +141,67 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
   const universe = await allRecords(request, env, db, principal.workspaceId);
   const byId = new Map(universe.records.map((record) => [record.opportunityId, record]));
   const mockMode = String(env.DBI_RECORD_RESEARCH_MOCK_MODE || env.DBI_RECORD_LINKING_MOCK_MODE || env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
+  if (request.method === "GET" && first && second === "jobs" && third) {
+    let job = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=? AND workspace_id=? AND opportunity_id=?").bind(third, principal.workspaceId, first).first();
+    if (!job) return error("research_job_not_found", "Research job not found", 404);
+    if (["completed", "failed"].includes(job.status)) {
+      const report = job.status === "completed" && job.report_id
+        ? await db.prepare("SELECT * FROM dbi_workspace_record_research WHERE id=? AND workspace_id=? AND opportunity_id=?").bind(job.report_id, principal.workspaceId, first).first()
+        : null;
+      return json({ job: publicResearchJob(job), ...(report ? { report: publicResearch(report) } : {}) });
+    }
+    const record = byId.get(first);
+    if (!record) return error("record_not_found", "Record not found in the active workspace corpus", 404);
+    const credential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
+    const apiKey = credential ? await decryptSecret(credential, env) : "";
+    if (!apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
+    const candidates = rankResearchCandidates(record, universe.records);
+    try {
+      const result = await pollRecordResearchWithOpenAi({ apiKey, responseId: job.response_id, record, candidates });
+      if (["queued", "in_progress"].includes(result.status)) {
+        const now = new Date().toISOString();
+        await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status=?, updated_at=? WHERE id=?").bind(result.status, now, job.id).run();
+        job = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=?").bind(job.id).first();
+        return json({ job: publicResearchJob(job) }, 202);
+      }
+      const now = new Date().toISOString();
+      const reportId = job.id;
+      await db.prepare("INSERT OR IGNORE INTO dbi_workspace_record_research (id,workspace_id,opportunity_id,report_json,created_by,created_at) VALUES (?,?,?,?,?,?)")
+        .bind(reportId, principal.workspaceId, first, JSON.stringify({ ...result.report, provenance: { ...result.report.provenance, attempts: Number(job.attempt || 1), degradedRetry: Number(job.attempt || 1) > 1 } }), principal.id, now).run();
+      const savedRelationships = [];
+      for (const proposal of result.report.relationshipProposals || []) {
+        if (proposal.confidence !== "high" || !byId.has(proposal.targetId)) continue;
+        savedRelationships.push(await saveRelationship(db, principal, relationshipFromAssessment([record, byId.get(proposal.targetId)], { ...proposal, evidence: proposal.sourceUrls, provenance: result.report.provenance }), recordActivity));
+      }
+      await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status='completed', report_id=?, updated_at=?, completed_at=? WHERE id=?").bind(reportId, now, now, job.id).run();
+      if (credential?.id) await db.prepare("UPDATE dbi_openai_keys SET last_used_at=?, updated_at=? WHERE id=?").bind(now, now, credential.id).run();
+      await recordActivity(db, principal, "record_research_completed", "record", first, { jobId: job.id, reportId, relationshipCount: savedRelationships.length });
+      await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+      job = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=?").bind(job.id).first();
+      return json({ job: publicResearchJob(job), report: { id: reportId, ...result.report, provenance: { ...result.report.provenance, attempts: Number(job.attempt || 1), degradedRetry: Number(job.attempt || 1) > 1 }, createdBy: principal.id, createdAt: now }, relationships: savedRelationships });
+    } catch (providerError) {
+      const completed = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=?").bind(job.id).first();
+      if (completed?.status === "completed" && completed.report_id) {
+        const report = await db.prepare("SELECT * FROM dbi_workspace_record_research WHERE id=? AND workspace_id=?").bind(completed.report_id, principal.workspaceId).first();
+        return json({ job: publicResearchJob(completed), ...(report ? { report: publicResearch(report) } : {}) });
+      }
+      if (["provider_timeout", "provider_unavailable"].includes(providerError?.code)) return json({ job: publicResearchJob(job) }, 202);
+      if (Number(job.attempt || 1) < 2 && recordResearchRetryable(providerError)) {
+        const restarted = await startRecordResearchWithOpenAi({ apiKey, record, candidates, degraded: true });
+        const now = new Date().toISOString();
+        await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+        await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status=?, response_id=?, attempt=2, error_code='', error_message='', updated_at=? WHERE id=?").bind(restarted.status, restarted.responseId, now, job.id).run();
+        job = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=?").bind(job.id).first();
+        return json({ job: publicResearchJob(job) }, 202);
+      }
+      const now = new Date().toISOString();
+      await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status='failed', error_code=?, error_message=?, updated_at=?, completed_at=? WHERE id=?")
+        .bind(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), now, now, job.id).run();
+      await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+      job = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=?").bind(job.id).first();
+      return json({ job: publicResearchJob(job) });
+    }
+  }
   if (request.method === "POST" && first === "relationships" && !second) {
     const body = await safeJson(request);
     const memberIds = [...new Set((Array.isArray(body?.memberIds) ? body.memberIds : []).map((value) => cleanText(value, 180)).filter(Boolean))].slice(0, 2);
@@ -161,13 +229,35 @@ export async function recordIntelligenceResponse(request, env, db, principal, se
     const credential = await db.prepare("SELECT * FROM dbi_openai_keys WHERE workspace_id=? AND scope_type='workspace' AND revoked_at='' ORDER BY is_default DESC, created_at DESC LIMIT 1").bind(principal.workspaceId).first();
     const apiKey = credential ? await decryptSecret(credential, env) : "";
     if (!apiKey) return error("credential_unavailable", "Configure an active workspace OpenAI credential first", 409);
+    const staleBefore = new Date(Date.now() - 30 * 60_000).toISOString();
+    const now = new Date().toISOString();
+    await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status='failed', error_code='stale_run', error_message='The prior research job stopped reporting progress.', updated_at=?, completed_at=? WHERE workspace_id=? AND opportunity_id=? AND status IN ('queued','in_progress') AND updated_at<?")
+      .bind(now, now, principal.workspaceId, first, staleBefore).run();
+    const active = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE workspace_id=? AND opportunity_id=? AND status IN ('queued','in_progress') ORDER BY created_at DESC LIMIT 1").bind(principal.workspaceId, first).first();
+    if (active) return json({ job: publicResearchJob(active) }, 202);
     const limited = await aiQuotaResponse(db, principal, error);
     if (limited) return limited;
     const candidates = rankResearchCandidates(record, universe.records);
+    if (!mockMode) {
+      const id = crypto.randomUUID();
+      await db.prepare("INSERT INTO dbi_workspace_record_research_jobs (id,workspace_id,opportunity_id,status,response_id,attempt,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
+        .bind(id, principal.workspaceId, first, "queued", "", 1, principal.id, now, now).run();
+      try {
+        const started = await startRecordResearchWithOpenAi({ apiKey, record, candidates });
+        await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status=?, response_id=?, updated_at=? WHERE id=?").bind(started.status, started.responseId, new Date().toISOString(), id).run();
+        const job = await db.prepare("SELECT * FROM dbi_workspace_record_research_jobs WHERE id=?").bind(id).first();
+        await recordActivity(db, principal, "record_research_started", "record", first, { jobId: id });
+        return json({ job: publicResearchJob(job) }, 202);
+      } catch (providerError) {
+        const failedAt = new Date().toISOString();
+        await db.prepare("UPDATE dbi_workspace_record_research_jobs SET status='failed', error_code=?, error_message=?, updated_at=?, completed_at=? WHERE id=?")
+          .bind(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), failedAt, failedAt, id).run();
+        return error(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), Number(providerError.httpStatus || 502));
+      }
+    }
     let report;
-    try { report = mockMode ? mockResearch(record, candidates) : await researchRecordWithOpenAi({ apiKey, record, candidates }); }
+    try { report = mockResearch(record, candidates); }
     catch (providerError) { return error(cleanText(providerError.code, 100) || "openai_failed", cleanText(providerError.message, 500), Number(providerError.httpStatus || 502)); }
-    const now = new Date().toISOString();
     const id = crypto.randomUUID();
     await db.prepare("INSERT INTO dbi_workspace_record_research (id,workspace_id,opportunity_id,report_json,created_by,created_at) VALUES (?,?,?,?,?,?)")
       .bind(id, principal.workspaceId, first, JSON.stringify(report), principal.id, now).run();
