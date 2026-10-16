@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { automatedSamRecord } from "../src/procurement-taxonomy.js";
-import { buildRecordResearchRequest, deleteRecordResearchResponse, normalizeRecordResearch, pollRecordResearchWithOpenAi, rankResearchCandidates, researchRecordWithOpenAi, startRecordResearchWithOpenAi } from "../src/record-research.js";
+import { buildRecordResearchRequest, deleteRecordResearchResponse, normalizeRecordResearch, pollRecordResearchWithOpenAi, rankResearchCandidates, researchRecordWithOpenAi, shouldRetainPriorResearch, startRecordResearchWithOpenAi } from "../src/record-research.js";
 
 const capture = JSON.parse(readFileSync(resolve("src/data/capture-calendar.json"), "utf8"));
 const supportV = { ...capture.records.find((record) => record.id === "C104"), naicsCode: "541511", pscCode: "DA01" };
@@ -89,7 +89,7 @@ const retried = await researchRecordWithOpenAi({
 });
 assert.equal(attempts, 2, "Malformed structured output must receive one bounded retry");
 assert.equal(posted.reasoning.effort, "low", "The retry must reduce reasoning latency");
-assert.equal(posted.tools[0].search_context_size, "low", "The retry must use a smaller search context");
+assert.equal(posted.tools[0].search_context_size, "high", "The recovery attempt must widen official-source discovery before preserving a prior verified brief");
 assert.equal(retried.provenance.degradedRetry, true);
 
 attempts = 0;
@@ -119,13 +119,21 @@ assert.equal(started.responseId, "resp-background");
 assert.equal(backgroundRequest.background, true, "Button-triggered research must return a resumable provider response instead of holding the browser request open");
 assert.equal(backgroundRequest.store, false, "Background research must use temporary provider retention only");
 
-const pending = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ id: started.responseId, status: "in_progress" }) }) });
+let pendingUrl = "";
+const pending = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async (url) => { pendingUrl = url; return { ok: true, status: 200, json: async () => ({ id: started.responseId, status: "in_progress" }) }; } });
 assert.equal(pending.status, "in_progress");
-const completed = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ id: started.responseId, status: "completed", output_text: JSON.stringify(payload), output: [
+assert.doesNotMatch(pendingUrl, /include/, "In-progress polling must not expand web-search sources on every status check");
+let completedPolls = 0;
+const completed = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async (_url) => { completedPolls += 1; return { ok: true, status: 200, json: async () => ({ id: started.responseId, status: "completed", output_text: JSON.stringify(payload), output: [
   { type: "web_search_call", action: { sources: consulted } },
   { type: "message", content: [{ type: "output_text", text: JSON.stringify(payload), annotations: consulted.map((source) => ({ type: "url_citation", url: source.url, title: source.title })) }] },
-] }) }) });
+] }) }; } });
+assert.equal(completedPolls, 2, "Completed research should expand source details only after the fast status check succeeds");
 assert.equal(completed.report.keyDates[0].eventType, "proposal-deadline", "Completed background research must retain timeline-ready cited dates");
+const retainedSourceCompletion = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ id: started.responseId, status: "completed", output_text: JSON.stringify(payload), output: [] }) }) });
+assert.equal(retainedSourceCompletion.report.keyDates[0].date, "2026-10-05", "Supplied official record URLs must remain valid grounding when provider source expansion is unavailable");
+assert.equal(shouldRetainPriorResearch({ code: "missing_citations" }, 1), false, "The first evidence-contract failure must receive a bounded retry");
+assert.equal(shouldRetainPriorResearch({ code: "missing_citations" }, 2), true, "A second evidence-contract failure may retain the prior cited brief instead of breaking the button");
 let deletedResponse = "";
 assert.equal(await deleteRecordResearchResponse({ apiKey: "masked-test-key", responseId: started.responseId, fetchImpl: async (url, options) => { deletedResponse = `${options.method} ${url}`; return { ok: true }; } }), true);
 assert.match(deletedResponse, /^DELETE .*resp-background$/, "Completed raw provider responses must be deleted after normalization");
