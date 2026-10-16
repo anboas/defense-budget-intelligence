@@ -1,6 +1,7 @@
 export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.4.0";
 export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
 export const TEMPORAL_EVIDENCE_SCHEMA_VERSION = "1.0.0";
+export const MONEY_PATH_SCHEMA_VERSION = "1.0.0";
 
 export const INTELLIGENCE_ENTITY_TYPES = Object.freeze([
   "activity",
@@ -224,6 +225,8 @@ let cachedContractLineage = null;
 let pendingContractLineage = null;
 let cachedTemporalEvidence = null;
 let pendingTemporalEvidence = null;
+let cachedMoneyPath = null;
+let pendingMoneyPath = null;
 
 export function emptyIntelligenceGraph() {
   return EMPTY_GRAPH;
@@ -307,4 +310,24 @@ export async function loadTemporalEvidence() {
       .finally(() => { pendingTemporalEvidence = null; });
   }
   return pendingTemporalEvidence;
+}
+
+export async function loadMoneyPath() {
+  if (cachedMoneyPath) return cachedMoneyPath;
+  if (!pendingMoneyPath) {
+    pendingMoneyPath = fetch(`${import.meta.env.BASE_URL}data/money-path-index.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (payload?.metadata?.schemaVersion !== MONEY_PATH_SCHEMA_VERSION || payload?.metadata?.graphSchemaVersion !== INTELLIGENCE_GRAPH_SCHEMA_VERSION) {
+          throw new Error(`Money Path requires schema ${MONEY_PATH_SCHEMA_VERSION} on graph ${INTELLIGENCE_GRAPH_SCHEMA_VERSION}`);
+        }
+        cachedMoneyPath = payload;
+        return cachedMoneyPath;
+      })
+      .finally(() => { pendingMoneyPath = null; });
+  }
+  return pendingMoneyPath;
 }

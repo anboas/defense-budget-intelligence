@@ -10,7 +10,7 @@ import {
   safeLogMetadata,
   sameOriginRequest,
 } from "../src/security-policy.js";
-import { INTELLIGENCE_GRAPH_SCHEMA_VERSION } from "../src/intelligence-graph.js";
+import { INTELLIGENCE_GRAPH_SCHEMA_VERSION, MONEY_PATH_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 
 const root = resolve(import.meta.dirname, "..");
 const read = (path) => readFile(resolve(root, path), "utf8");
@@ -134,6 +134,7 @@ const contractLineageIndexBytes = (await stat(resolve(root, "dist/data/contract-
 const contractLineageReviewBytes = (await stat(resolve(root, "dist/data/contract-lineage-review.json"))).size;
 const temporalEvidenceIndexBytes = (await stat(resolve(root, "dist/data/temporal-evidence-index.json"))).size;
 const temporalEvidenceReviewBytes = (await stat(resolve(root, "dist/data/temporal-evidence-review.json"))).size;
+const moneyPathIndexBytes = (await stat(resolve(root, "dist/data/money-path-index.json"))).size;
 assert.ok(intelligenceGraphBytes >= 100_000_000 && intelligenceGraphBytes <= 115_000_000, `Full evidence graph must retain organization dossiers, people, industrial-base, document, program, money, legislative, action, and review evidence within its 115MB review-artifact ceiling, got ${intelligenceGraphBytes} bytes`);
 assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedBytes <= 7_500_000, `Compressed integrity graph must remain below its 7.5MB distribution budget, got ${intelligenceGraphCompressedBytes} bytes`);
 assert.ok(gunzipSync(await readFile(resolve(root, "dist/data/intelligence-graph.json.gzip"))).equals(await readFile(resolve(root, "dist/data/intelligence-graph.json"))), "Compressed integrity graph must decode to the exact canonical JSON artifact");
@@ -147,6 +148,7 @@ assert.ok(contractLineageIndexBytes > 0 && contractLineageIndexBytes <= 350_000,
 assert.ok(contractLineageReviewBytes > 0 && contractLineageReviewBytes <= 100_000, `Contract-lineage review exceeds its 100KB audit budget, got ${contractLineageReviewBytes} bytes`);
 assert.ok(temporalEvidenceIndexBytes > 0 && temporalEvidenceIndexBytes <= 1_000_000, `Deferred temporal evidence index exceeds its 1MB ceiling, got ${temporalEvidenceIndexBytes} bytes`);
 assert.ok(temporalEvidenceReviewBytes > 0 && temporalEvidenceReviewBytes <= 900_000, `Temporal evidence review exceeds its 900KB audit budget, got ${temporalEvidenceReviewBytes} bytes`);
+assert.ok(moneyPathIndexBytes > 0 && moneyPathIndexBytes <= 3_000_000, `Deferred Money Path index exceeds its 3MB ceiling, got ${moneyPathIndexBytes} bytes`);
 const organizationIdentityReview = JSON.parse(await read("dist/data/organization-identity-review.json"));
 assert.equal(organizationIdentityReview.metadata?.schemaVersion, "1.0.0", "Organization identity review must publish its independent schema version");
 assert.equal(organizationIdentityReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Organization identity review must track the canonical graph schema");
@@ -167,6 +169,10 @@ assert.equal(temporalEvidenceReview.metadata?.graphSchemaVersion, INTELLIGENCE_G
 const temporalReviewRequired = temporalEvidenceReview.conflicts?.filter((item) => item.status === "needs_review").length || 0;
 assert.equal(temporalReviewRequired, temporalEvidenceIndex.metadata?.summary?.needs_review, "Review-required temporal queue must match the published temporal summary");
 assert.equal(temporalEvidenceReview.conflicts?.length, temporalEvidenceIndex.metadata?.summary?.totalConflicts, "Temporal review conflicts must match the published temporal summary");
+const moneyPathIndex = JSON.parse(await read("dist/data/money-path-index.json"));
+assert.equal(moneyPathIndex.metadata?.schemaVersion, MONEY_PATH_SCHEMA_VERSION, "Money Path index must publish its independent schema version");
+assert.equal(moneyPathIndex.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Money Path index must track the canonical graph schema");
+assert.equal(moneyPathIndex.metadata?.activityCount, Object.keys(moneyPathIndex.indices?.byActivity || {}).length, "Money Path activity coverage must match the published metadata");
 const opportunityMapBytes = (await stat(resolve(root, "dist/data/opportunity-map-data.json"))).size;
 assert.ok(opportunityMapBytes >= 1_100_000 && opportunityMapBytes <= 1_200_000, `Opportunity Map evidence payload must retain the complete authoritative location and relationship layers without exceeding its route budget, got ${opportunityMapBytes} bytes`);
 const opportunityMapPayload = JSON.parse(await read("dist/data/opportunity-map-data.json"));

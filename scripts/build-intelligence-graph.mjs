@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
-import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
+import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, MONEY_PATH_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 import { buildContractLineageRegistry, CONTRACT_LINEAGE_SCHEMA_VERSION } from "./contract-lineage-resolver.mjs";
 import { buildOrganizationIdentityRegistry, splitOfficeCodes } from "./organization-identity-resolver.mjs";
 import { buildTemporalEvidenceRegistry } from "./temporal-evidence-resolver.mjs";
@@ -20,6 +20,7 @@ const CONTRACT_LINEAGE_INDEX_FILE = resolve(DATA_DIR, "contract-lineage-index.js
 const CONTRACT_LINEAGE_REVIEW_FILE = resolve(DATA_DIR, "contract-lineage-review.json");
 const TEMPORAL_EVIDENCE_INDEX_FILE = resolve(DATA_DIR, "temporal-evidence-index.json");
 const TEMPORAL_EVIDENCE_REVIEW_FILE = resolve(DATA_DIR, "temporal-evidence-review.json");
+const MONEY_PATH_INDEX_FILE = resolve(DATA_DIR, "money-path-index.json");
 const AGENT_GRAPH_DIR = resolve(DATA_DIR, "agent-graph");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
@@ -35,6 +36,7 @@ const calendar = read("capture-calendar.json");
 const transactions = read("capture-transactions.json");
 const accountSpine = read("account-spine.json");
 const subawards = read("usaspending-subawards.json");
+const subawardDetails = JSON.parse(readFileSync(resolve(ROOT, "src/data/usaspending-subawards.json"), "utf8"));
 const spendingCoverage = read("usaspending-coverage.json");
 const samBackbone = JSON.parse(readFileSync(resolve(ROOT, "src/data/sam-acquisition-backbone.json"), "utf8"));
 const priorityAwardActions = JSON.parse(readFileSync(resolve(ROOT, "src/data/priority-award-actions.json"), "utf8"));
@@ -1385,6 +1387,151 @@ const contractLineageReview = {
 };
 writeFileSync(CONTRACT_LINEAGE_REVIEW_FILE, JSON.stringify(contractLineageReview));
 const lookup = Object.fromEntries(Object.entries(entities).map(([type, rows]) => [type, new Map(rows.map((row) => [row.id, row]))]));
+const relationsFrom = new Map();
+const relationsTo = new Map();
+for (const relation of relations) {
+  relationsFrom.set(relation.from, [...(relationsFrom.get(relation.from) || []), relation]);
+  relationsTo.set(relation.to, [...(relationsTo.get(relation.to) || []), relation]);
+}
+const sourceUrlFor = (entityIdValue) => {
+  const relation = (relationsFrom.get(entityIdValue) || []).find((item) => item.type === "supported-by-source");
+  return relation?.evidence?.sourceUrl || lookup.source.get(relation?.to)?.url || "";
+};
+const budgetSourceByBook = new Map((core.metadata?.sources || []).map((item) => [item.id, item.sourceUrl]));
+const subawardPrimeByAward = new Map((subawardDetails.primes || []).map((item) => [item.primeAwardId, item]));
+const moneyActivityById = new Map((agents.records || []).map((item) => [item.opportunityId, item]));
+const MONEY_STOP_WORDS = new Set(["THE", "AND", "FOR", "WITH", "FROM", "THIS", "THAT", "CONTRACT", "AWARD", "SUPPORT", "SERVICES", "SYSTEM", "SYSTEMS", "PROGRAM", "PROGRAMS", "ADVANCE", "ACQUISITION", "OTHER", "UNCLASSIFIED"]);
+const moneyTokens = (value) => new Set(String(value || "").toUpperCase().replace(/([A-Z])-(\d)/g, "$1$2").split(/[^A-Z0-9]+/).filter((item) => item.length >= 3 && !MONEY_STOP_WORDS.has(item)));
+const moneyOverlap = (tokens, value) => [...moneyTokens(value)].filter((item) => tokens.has(item)).length;
+const moneyAmount = (value) => Math.round(Number(value || 0) * 100) / 100;
+const moneyNode = (entity, type, lane, extra = {}) => ({ id: entity.id, type, lane, label: entity.label || entity.piid || entity.federalAccountCode || entity.id, ...extra });
+const moneyLink = (type, source, target, amount, amountType, confidence, extra = {}) => ({ id: `money-link:${hash(`${type}|${source}|${target}|${amountType}`)}`, type, source, target, amount: moneyAmount(amount), amountType, confidence, ...extra });
+
+function buildMoneyPath(opportunityId, connection) {
+  const nodes = new Map();
+  const links = [];
+  const addNode = (item) => { if (item?.id && !nodes.has(item.id)) nodes.set(item.id, item); return item?.id; };
+  const addLink = (item) => {
+    if (!item?.source || !item?.target || links.some((existing) => existing.id === item.id)) return;
+    if (item.type !== "structure" && Number(item.amount || 0) === 0) return;
+    links.push(item);
+  };
+  const budgetLineIds = new Set();
+  const accountIds = new Set();
+  const awardIds = new Set(connection.awardIds.slice(0, 2));
+  const record = moneyActivityById.get(opportunityId);
+  const contextTokens = moneyTokens([record?.title, record?.reference, ...[...awardIds].map((id) => lookup.award.get(id)?.label)].filter(Boolean).join(" "));
+
+  for (const awardId of awardIds) {
+    const award = lookup.award.get(awardId);
+    if (!award) continue;
+    const awardAmount = Number(award.obligatedAmount || award.awardAmount || award.coverageAwardAmount || 0);
+    addNode(moneyNode(award, "award", 4, { code: award.piid, amount: awardAmount, amountType: "published-award-total", sourceUrl: sourceUrlFor(awardId), action: `#/budget-spend/awards` }));
+
+    const accountRelations = (relationsFrom.get(awardId) || []).filter((relation) => relation.type === "award-funded-by-account")
+      .sort((left, right) => Number(right.attributes?.obligatedAmount || 0) - Number(left.attributes?.obligatedAmount || 0)).slice(0, 5);
+    for (const relation of accountRelations) {
+      const account = lookup["federal-account"].get(relation.to);
+      if (!account) continue;
+      accountIds.add(account.id);
+      addNode(moneyNode(account, "account", 2, { code: account.federalAccountCode, amount: Number(account.obligatedAmount || 0), amountType: "account-obligations", sourceUrl: sourceUrlFor(account.id), status: accountSpine.metadata?.status || "unknown" }));
+      addLink(moneyLink("obligation", account.id, awardId, relation.attributes?.obligatedAmount, "exact-award-account-obligation", relation.evidence?.confidence || "exact", { label: "Exact account obligation", sourceUrl: relation.evidence?.sourceUrl || sourceUrlFor(account.id) }));
+    }
+
+    const vehicleRelations = (relationsFrom.get(awardId) || []).filter((relation) => relation.type === "award-ordered-under-vehicle").slice(0, 2);
+    for (const relation of vehicleRelations) {
+      const vehicle = lookup["contract-vehicle"].get(relation.to);
+      if (!vehicle) continue;
+      addNode(moneyNode(vehicle, "vehicle", 3, { code: vehicle.piid, amountType: "contract-structure", sourceUrl: sourceUrlFor(vehicle.id), status: "current" }));
+      addLink(moneyLink("structure", vehicle.id, awardId, 0, "contract-lineage", relation.evidence?.confidence || "exact", { label: "Exact parent vehicle", sourceUrl: relation.evidence?.sourceUrl || sourceUrlFor(vehicle.id) }));
+    }
+
+    const recipientRelations = (relationsFrom.get(awardId) || []).filter((relation) => relation.type === "award-recipient");
+    const primeIds = [...new Set(recipientRelations.map((relation) => relation.to))]
+      .sort((left, right) => Number(lookup.organization.get(right)?.identity?.resolutionState === "resolved") - Number(lookup.organization.get(left)?.identity?.resolutionState === "resolved"))
+      .slice(0, 1);
+    for (const primeId of primeIds) {
+      const prime = lookup.organization.get(primeId);
+      if (!prime) continue;
+      addNode(moneyNode(prime, "prime", 5, { amount: awardAmount, amountType: "published-award-total", status: prime.identity?.resolutionState || "source_declared" }));
+      const relation = recipientRelations.find((item) => item.to === primeId);
+      addLink(moneyLink("prime", awardId, primeId, awardAmount, "published-award-total", relation?.evidence?.confidence || "source_declared", { label: "Award recipient", sourceUrl: relation?.evidence?.sourceUrl || sourceUrlFor(awardId) }));
+
+      const retained = subawardPrimeByAward.get(award.generatedAwardId);
+      const suppliers = new Map();
+      for (const item of retained?.subawards || []) {
+        const label = String(item.recipientName || "Unpublished subrecipient").trim();
+        const key = normalized(label) || "UNPUBLISHED";
+        const current = suppliers.get(key) || { label, amount: 0, magnitude: 0, count: 0, latestActionDate: "" };
+        current.amount += Number(item.amount || 0);
+        current.magnitude += Math.abs(Number(item.amount || 0));
+        current.count += 1;
+        if (String(item.actionDate || "") > current.latestActionDate) current.latestActionDate = item.actionDate;
+        suppliers.set(key, current);
+      }
+      const rankedSuppliers = [...suppliers.values()].sort((left, right) => right.magnitude - left.magnitude || right.count - left.count).slice(0, 4);
+      for (const supplier of rankedSuppliers) {
+        const supplierId = `money-supplier:${hash(`${award.generatedAwardId}|${supplier.label}`)}`;
+        addNode({ id: supplierId, type: "supplier", lane: 6, label: supplier.label, amount: moneyAmount(supplier.amount), magnitude: moneyAmount(supplier.magnitude), amountType: "retained-subaward-sample", coverage: "partial", detail: `${supplier.count} retained subaward action${supplier.count === 1 ? "" : "s"}`, date: supplier.latestActionDate, sourceUrl: subawardDetails.metadata?.sourceUrl || "", status: retained?.detailStatus || subawardDetails.metadata?.status || "unknown" });
+        addLink(moneyLink("subaward", primeId, supplierId, supplier.magnitude, "retained-subaward-sample", "exact", { label: "Retained subaward sample", coverage: "partial", detail: `${supplier.count} retained action${supplier.count === 1 ? "" : "s"}; net ${moneyAmount(supplier.amount)}`, sourceUrl: subawardDetails.metadata?.sourceUrl || "", status: retained?.detailStatus || subawardDetails.metadata?.status || "unknown" }));
+      }
+    }
+  }
+
+  const lineRelations = [...accountIds].flatMap((accountId) => (relationsTo.get(accountId) || [])
+    .filter((relation) => relation.type === "budget-line-matches-account-title")
+    .map((relation) => ({ relation, accountId, line: lookup["budget-line"].get(relation.from) })))
+    .filter((item) => item.line && moneyOverlap(contextTokens, item.line.label) > 0)
+    .sort((left, right) => moneyOverlap(contextTokens, right.line.label) - moneyOverlap(contextTokens, left.line.label) || Number(right.line.fiscalValues?.fy2027 || 0) - Number(left.line.fiscalValues?.fy2027 || 0))
+    .filter((item, index, rows) => rows.findIndex((candidate) => candidate.line.id === item.line.id) === index)
+    .slice(0, 4);
+  for (const { relation, accountId, line } of lineRelations) {
+      budgetLineIds.add(line.id);
+      addNode(moneyNode(line, "budget-line", 1, { code: line.bookId, fiscalValues: line.fiscalValues, amount: Number(line.fiscalValues?.fy2027 || 0) * 1_000_000_000, amountType: "budget-request", sourceUrl: budgetSourceByBook.get(line.bookId) || "", confidence: relation.evidence?.confidence || "derived" }));
+      addLink(moneyLink("request", line.id, accountId, Number(line.fiscalValues?.fy2027 || 0) * 1_000_000_000, "fy2027-budget-request", relation.evidence?.confidence || "derived", { label: "Exact title match", detail: "Derived budget-line-to-account join; not an award funding assertion", sourceUrl: budgetSourceByBook.get(line.bookId) || "" }));
+  }
+
+  for (const lineId of budgetLineIds) {
+    const programRelations = (relationsTo.get(lineId) || []).filter((relation) => ["program-element-represented-by-budget-line", "project-represented-by-budget-line", "defense-program-represented-by-budget-line"].includes(relation.type))
+      .sort((left, right) => Number(right.type.startsWith("defense-program")) - Number(left.type.startsWith("defense-program")))
+      .filter((relation, index, rows) => {
+        const entityType = relation.type.startsWith("program-element") ? "program-element" : relation.type.startsWith("project") ? "project" : "defense-program";
+        const label = normalized(lookup[entityType].get(relation.from)?.label);
+        return rows.findIndex((candidate) => {
+          const candidateType = candidate.type.startsWith("program-element") ? "program-element" : candidate.type.startsWith("project") ? "project" : "defense-program";
+          return normalized(lookup[candidateType].get(candidate.from)?.label) === label;
+        }) === index;
+      }).slice(0, 1);
+    const line = lookup["budget-line"].get(lineId);
+    for (const relation of programRelations) {
+      const entityType = relation.type.startsWith("program-element") ? "program-element" : relation.type.startsWith("project") ? "project" : "defense-program";
+      const program = lookup[entityType].get(relation.from);
+      if (!program) continue;
+      addNode(moneyNode(program, "program", 0, { code: program.code, fiscalValues: line?.fiscalValues, amount: Number(line?.fiscalValues?.fy2027 || 0) * 1_000_000_000, amountType: "budget-request", sourceUrl: sourceUrlFor(program.id) || budgetSourceByBook.get(line?.bookId) || "", confidence: relation.evidence?.confidence || "exact" }));
+      addLink(moneyLink("request", program.id, lineId, Number(line?.fiscalValues?.fy2027 || 0) * 1_000_000_000, "fy2027-budget-request", relation.evidence?.confidence || "exact", { label: "Program represented by budget line", sourceUrl: relation.evidence?.sourceUrl || budgetSourceByBook.get(line?.bookId) || "" }));
+    }
+  }
+
+  const boundedNodes = [...nodes.values()].sort((left, right) => left.lane - right.lane || Number(right.magnitude || right.amount || 0) - Number(left.magnitude || left.amount || 0)).slice(0, 28);
+  const boundedIds = new Set(boundedNodes.map((item) => item.id));
+  const boundedLinks = links.filter((item) => boundedIds.has(item.source) && boundedIds.has(item.target)).slice(0, 36);
+  if (!boundedLinks.length) return null;
+  const linkedIds = new Set(boundedLinks.flatMap((item) => [item.source, item.target]));
+  const linkedNodes = boundedNodes.filter((item) => linkedIds.has(item.id));
+  return {
+    opportunityId,
+    nodes: linkedNodes,
+    links: boundedLinks,
+    fiscalYears: [2025, 2026, 2027],
+    summary: {
+      exactObligations: moneyAmount(boundedLinks.filter((item) => item.type === "obligation").reduce((sum, item) => sum + item.amount, 0)),
+      fy2027Request: moneyAmount(boundedLinks.filter((item) => item.type === "request" && item.target.startsWith("account:")).reduce((sum, item) => sum + item.amount, 0)),
+      retainedSubawardSample: moneyAmount(linkedNodes.filter((item) => item.type === "supplier").reduce((sum, item) => sum + Number(item.amount || 0), 0)),
+      exactLinks: boundedLinks.filter((item) => item.confidence === "exact").length,
+      derivedLinks: boundedLinks.filter((item) => item.confidence === "derived").length,
+    },
+  };
+}
 const compact = (type, id) => {
   const entity = lookup[type]?.get(id);
   if (!entity) return null;
@@ -1495,6 +1642,25 @@ const temporalEvidenceReview = {
 writeFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE, JSON.stringify(temporalEvidenceReview));
 const graphIndex = { metadata: graph.metadata, domain: graph.domain, indices: { byActivity: activityIndex } };
 writeFileSync(INDEX_FILE, JSON.stringify(graphIndex));
+const moneyPathByActivity = Object.fromEntries(Object.entries(byActivity).flatMap(([opportunityId, connection]) => {
+  const path = buildMoneyPath(opportunityId, connection);
+  return path ? [[opportunityId, path]] : [];
+}));
+const moneyPathIndex = {
+  metadata: {
+    schemaVersion: MONEY_PATH_SCHEMA_VERSION,
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    title: "Bounded opportunity Money Path index",
+    status: [accountSpine.metadata?.status, subawards.metadata?.status].includes("stale") ? "stale" : subawards.metadata?.status || accountSpine.metadata?.status || "unknown",
+    sourceStatus: { accountSpine: accountSpine.metadata?.status || "unknown", subawards: subawards.metadata?.status || "unknown" },
+    activityCount: Object.keys(moneyPathByActivity).length,
+    trustBoundary: "Budget-request, obligation, vehicle, prime, and retained subaward measures remain distinct. Exact award-account joins do not assert that a budget line funded a specific award; exact normalized title matches remain derived and sampled subawards remain visibly partial.",
+    amountPolicy: accountSpine.metadata?.amountPolicy,
+  },
+  indices: { byActivity: moneyPathByActivity },
+};
+writeFileSync(MONEY_PATH_INDEX_FILE, JSON.stringify(moneyPathIndex));
 const graphSummary = {
   metadata: graph.metadata,
   domain: graph.domain,
