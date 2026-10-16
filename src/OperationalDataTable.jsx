@@ -85,6 +85,7 @@ export default function OperationalDataTable({
   onRowActivate,
   renderDetail,
   initialExpandedId = null,
+  expandedRowId,
   selectable = true,
   toolbarActions = null,
   className = "",
@@ -168,6 +169,8 @@ export default function OperationalDataTable({
       mobilePageSize: Number(preferences.mobilePageSize) || defaultMobilePageSize,
     }));
   }, [defaultMobilePageSize, defaultPageSize, density, id, orderedKeys, preferences.mobilePageSize, preferences.pageSize, visibleKeys, widths]);
+
+  const activeExpandedId = expandedRowId === undefined ? expandedId : expandedRowId || null;
 
   useEffect(() => {
     const closeOnOutside = (event) => {
@@ -341,8 +344,9 @@ export default function OperationalDataTable({
 
   function activateRow(row) {
     const key = String(rowKey(row));
-    if (renderDetail) setExpandedId((current) => current === key ? null : key);
-    onRowActivate?.(row);
+    const next = activeExpandedId === key ? null : key;
+    if (renderDetail && expandedRowId === undefined) setExpandedId(next);
+    onRowActivate?.(row, next !== null);
   }
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
@@ -392,7 +396,7 @@ export default function OperationalDataTable({
           <thead><tr>{selectable ? <th scope="col" className="dbi-data-table__select" data-if-table-pin="left"><label className="dbi-data-table__check"><input type="checkbox" checked={pageSelected} onChange={togglePageSelection} aria-label="Select all rows on this page" /></label></th> : null}{visibleColumns.map((column) => <th scope="col" key={column.key} data-column-key={column.key} data-table-column-role={column.role} data-table-column-dragging={draggingKey === column.key ? "true" : "false"} className={column.sticky ? "is-sticky" : ""} style={{ minWidth: column.role === "actions" ? undefined : widths[column.key] || column.minWidth, width: column.role === "actions" ? "1%" : widths[column.key] || column.width, textAlign: column.align }} aria-sort={column.sortable === false ? undefined : sort.key === column.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"} onDragOver={(event) => event.preventDefault()} onDrop={() => dropColumn(column.key)}><span className="dbi-data-table__header">{column.role === "actions" ? null : <button type="button" className="dbi-data-table__reorder" draggable onDragStart={() => setDraggingKey(column.key)} onDragEnd={() => setDraggingKey("")} aria-label={`Drag to reorder ${column.label}`}><GripVertical size={13} /></button>}<button type="button" className="if-table__sort" onClick={() => column.sortable === false ? null : toggleSort(column.key)} disabled={column.sortable === false}>{column.label}{column.sortable === false ? null : <span>{sort.key === column.key ? (sort.direction === "asc" ? "▲" : "▼") : "↕"}</span>}</button>{column.role === "actions" ? null : <span role="separator" tabIndex={0} aria-orientation="vertical" aria-label={`Resize ${column.label} column`} className="dbi-data-table__resizer" onPointerDown={(event) => beginResize(event, column)} onDoubleClick={() => resetColumnWidth(column.key)} onKeyDown={(event) => { if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return; event.preventDefault(); const current = widths[column.key] || event.currentTarget.closest("th")?.getBoundingClientRect().width || column.width || column.minWidth || 160; setColumnWidth(column.key, current + (event.key === "ArrowLeft" ? -16 : 16)); }} />}</span></th>)}</tr></thead>
           <tbody>{pageRows.length ? pageRows.flatMap((row, index) => {
             const key = String(rowKey(row));
-            const expanded = expandedId === key;
+            const expanded = activeExpandedId === key;
             const mobilePrimaryKey = visibleColumns.find((column) => column.mobilePrimary)?.key
               || visibleColumns.find((column) => column.required && column.sticky)?.key
               || visibleColumns.find((column) => !mobileColumns || mobileColumns.includes(column.key))?.key;
