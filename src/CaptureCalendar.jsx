@@ -591,7 +591,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
         <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
       </ControlDisclosure>
       <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
-      <ConnectedEvidence opportunityId={record.opportunityId} />
+      <ConnectedEvidence opportunityId={record.opportunityId} record={record} />
       {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
       {record.milestones.length ? (
         <div className="capture-detail__milestones">

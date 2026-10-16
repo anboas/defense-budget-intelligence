@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from "./intelligence-graph.js";
 import "./ConnectedEvidence.css";
+
+const ConnectedEvidenceVisual = lazy(() => import("./ConnectedEvidenceVisual.jsx"));
 
 const RELATION_LABELS = {
   "activity-awarded-as": "Award identity",
@@ -50,7 +52,7 @@ function ConnectionGroup({ title, items, renderItem }) {
   return <section className="connected-evidence__group"><h4>{title}</h4><div>{items.map(renderItem)}</div></section>;
 }
 
-export default function ConnectedEvidence({ opportunityId, fullView = false }) {
+export default function ConnectedEvidence({ opportunityId, record = null, researchReport = null, fullView = false }) {
   const [state, setState] = useState({ status: "loading", graph: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -109,6 +111,7 @@ export default function ConnectedEvidence({ opportunityId, fullView = false }) {
       <nav className="connected-evidence__routes" aria-label="Open connected surfaces">
         {routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}
       </nav>
+      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} /></Suspense>
       <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
         <ConnectionGroup title="Exact parent vehicles" items={contractLineage?.vehicles} renderItem={(vehicle) => <article key={vehicle.id} data-contract-vehicle><strong>{vehicle.piid}</strong><span>{countLabel(vehicle.orderCount, "linked order")}</span><em>Exact USAspending parent IDV</em></article>} />

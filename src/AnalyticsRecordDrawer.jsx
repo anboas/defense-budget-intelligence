@@ -40,6 +40,6 @@ export default function AnalyticsRecordDrawer({ record, onClose }) {
     <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>
       <ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} />
     </ControlDisclosure>
-    <ConnectedEvidence opportunityId={record.opportunityId} />
+    <ConnectedEvidence opportunityId={record.opportunityId} record={record} />
   </ControlDrawer>;
 }
