@@ -24,6 +24,7 @@ const compiledStyleBytes = styleAssets.reduce((total, asset) => total + asset.by
 const shellStyleBytes = styleAssets.find((asset) => /^index-.*\.css$/.test(asset.name))?.bytes || 0;
 const mapStyleBytes = styleAssets.find((asset) => /^OpportunityMap-.*\.css$/.test(asset.name))?.bytes || 0;
 const connectedEvidenceStyleBytes = styleAssets.find((asset) => /^ConnectedEvidence-.*\.css$/.test(asset.name))?.bytes || 0;
+const connectedEvidenceVisualStyleBytes = styleAssets.find((asset) => /^ConnectedEvidenceVisual-.*\.css$/.test(asset.name))?.bytes || 0;
 const domainModelStyleBytes = styleAssets.find((asset) => /^DomainModelPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^IntelligenceProductsPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
@@ -32,6 +33,7 @@ assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Respons
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
 assert.ok(connectedEvidenceStyleBytes > 0 && connectedEvidenceStyleBytes <= 4_000, `Deferred connected-evidence CSS must stay within its 4 KB component budget, got ${connectedEvidenceStyleBytes.toLocaleString()} bytes`);
+assert.ok(connectedEvidenceVisualStyleBytes > 0 && connectedEvidenceVisualStyleBytes <= 4_000, `Deferred visual-analysis CSS must stay within its 4 KB component budget, got ${connectedEvidenceVisualStyleBytes.toLocaleString()} bytes`);
 assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Domain Model CSS must stay within its 8 KB route budget, got ${domainModelStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
@@ -43,6 +45,7 @@ assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name))
 assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).length, 1, "Timeline, table, and charts should share one lazy Spend Explorer boundary");
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
+assert.equal(builtAssets.filter((name) => /^ConnectedEvidenceVisual-.*\.js$/.test(name)).length, 1, "Record visual analysis should ship behind its own nested lazy boundary");
 assert.equal(builtAssets.filter((name) => /^DomainModelPage-.*\.js$/.test(name)).length, 1, "Domain Model should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^ResearchDiscoveryDashboard-.*\.js$/.test(name)).length, 1, "Discovery Operations should ship behind its own deferred administration boundary");
 assert.equal(builtAssets.filter((name) => /^ProfilePage-.*\.js$/.test(name)).length, 1, "Personal account surfaces should ship behind their own lazy route boundary");
@@ -1046,7 +1049,7 @@ try {
   assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*Connected intelligence/i, "Opportunity rows should expand into qualification, source scope, and bounded graph evidence");
   assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Opportunity Workbench details must not load the complete integrity graph into the browser");
   await page.screenshot({ path: `${OUT_DIR}/opportunity-workbench-desktop.png` });
-  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Timeline", exact: true }).click();
   await page.waitForSelector("[data-capture-timeline]");
   assert.match(await page.getByPlaceholder("Program, company, reference, buyer").inputValue(), /Application Arsenal/i, "Spend Explorer Timeline should inherit the shared table search state");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
@@ -1765,6 +1768,17 @@ try {
   assert.match(connectedEvidenceText, /UEI|Office [A-Z0-9]+|Label-only identity|review required/i, "Connected organization evidence should disclose identifier or resolution state");
   assert.match(connectedEvidenceText, /SeaPort-NxG/i, "Application Arsenal should disclose its published acquisition path");
   assert.match(connectedEvidenceText, /N6600123F3509/i, "Application Arsenal should disclose its resolved predecessor");
+  await connectedEvidence.locator("[data-connected-visual-analysis]").waitFor();
+  const visualGraph = connectedEvidence.locator("[data-evidence-visual-graph]");
+  assert.ok(Number(await visualGraph.getAttribute("data-node-count")) >= 4, "Connected visual analysis should render the selected opportunity with its bounded neighbors");
+  assert.ok(Number(await visualGraph.getAttribute("data-node-count")) <= 13, "Connected visual analysis must remain bounded to the selected record and at most twelve neighbors");
+  await visualGraph.locator("[data-evidence-node]").nth(1).click();
+  assert.match(await connectedEvidence.locator("[data-evidence-visual-inspector]").innerText(), /organization|vehicle|classification|location|predecessor|conflict/i, "Selecting a visual node should expose its typed evidence inspector");
+  await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-graph-desktop.png` });
+  await connectedEvidence.getByRole("button", { name: "Timeline", exact: true }).click();
+  assert.equal(await connectedEvidence.getAttribute("data-connected-evidence-state"), "ready", "Switching visualization modes must preserve the loaded evidence record");
+  assert.ok(await connectedEvidence.locator("[data-visual-timeline-marker]").count() > 0, "The record visualization should project published, evidence, and review dates onto a bounded event rail");
+  await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-desktop.png` });
   assert.equal(await connectedEvidence.locator("[data-acquisition-path]").count(), 1, "Published acquisition paths should render as typed lineage evidence");
   assert.equal(await connectedEvidence.locator("[data-contract-predecessor]").count(), 1, "Resolved predecessor relationships should render as typed lineage evidence");
   assert.equal(await connectedEvidence.locator('[data-temporal-status="conflicting"]').count(), 1, "Competing current and historical lifecycle claims should mark this record as conflicting");
@@ -2378,6 +2392,15 @@ try {
   await mobile.waitForSelector("[data-opportunity-record-page]");
   assert.match(decodeURIComponent(new URL(mobile.url()).hash), /spendView=record.*capRecord=/, "Mobile Timeline titles should open the dedicated record workspace");
   assert.equal(await mobile.locator("[data-record-lifecycle]").count(), 1, "The mobile record workspace should retain the linked lifecycle");
+  await mobile.locator("[data-connected-visual-analysis]").waitFor();
+  const mobileVisual = mobile.locator("[data-connected-visual-analysis]");
+  const mobileVisualControls = await mobileVisual.locator("button:visible").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.ok(mobileVisualControls.every((height) => height >= 43.5), `Mobile visual-analysis controls should preserve 44px touch targets: ${mobileVisualControls.join(", ")}`);
+  const mobileGraphGeometry = await mobileVisual.locator(".connected-visual__scroller").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
+  assert.ok(mobileGraphGeometry.scrollWidth > mobileGraphGeometry.clientWidth, `The bounded graph should use a contained horizontal scroller on mobile: ${JSON.stringify(mobileGraphGeometry)}`);
+  await mobileVisual.getByRole("button", { name: "Timeline", exact: true }).tap();
+  assert.ok(await mobileVisual.locator("[data-visual-timeline-marker]").count() > 0, "Mobile record analysis should retain the linked event rail");
+  await mobileVisual.screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-mobile.png` });
   await assertNoPageOverflow(mobile, "Mobile opportunity record");
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-capture-timeline]");

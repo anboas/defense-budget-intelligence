@@ -29,6 +29,6 @@ export default function OpportunityWorkbenchDetail({ record }) {
       <section><small>Why it fits</small><OpportunityFitBadge assessment={assessment} /><ul>{assessment.reasons.length ? assessment.reasons.map((reason) => <li key={reason}>{reason}</li>) : <li>No strong published capability or code signal was found.</li>}</ul><p>{assessment.methodology}</p></section>
       <section><small>Published scope</small><p>{record.description || record.scope || record.context || "The retained source did not publish scope text for this record."}</p><dl><div><dt>NAICS</dt><dd>{record.naicsCode || "Not published"}</dd></div><div><dt>PSC</dt><dd>{record.pscCode || "Not published"}</dd></div><div><dt>Set-aside</dt><dd>{record.setAside || "Not published"}</dd></div></dl></section>
     </div>
-    <ConnectedEvidence opportunityId={id} />
+    <ConnectedEvidence opportunityId={id} record={record} />
   </div>;
 }

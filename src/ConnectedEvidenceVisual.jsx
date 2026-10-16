@@ -1,0 +1,114 @@
+import { useMemo, useState } from "react";
+import "./ConnectedEvidenceVisual.css";
+
+const TYPE_LABEL = {
+  activity: "Opportunity",
+  award: "Award",
+  organization: "Organization",
+  location: "Location",
+  account: "Federal account",
+  classification: "Classification",
+  vehicle: "Parent vehicle",
+  predecessor: "Predecessor",
+  successor: "Successor",
+  conflict: "Evidence conflict",
+};
+
+function compact(value, fallback = "Not published") {
+  return String(value || fallback).replaceAll("_", " ");
+}
+
+function short(value, length = 38) {
+  const text = compact(value);
+  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+}
+
+function date(value) {
+  if (!value) return "Unknown date";
+  const parsed = new Date(`${String(value).slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? "Unknown date" : parsed.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+function node(id, type, label, detail, action = null) {
+  return { id, type, label: compact(label), detail: compact(detail), action };
+}
+
+function graphNodes(connection, lineage, temporal, record, opportunityId) {
+  const connected = connection?.connected || {};
+  const neighbors = [
+    ...(connected.organizations || []).slice(0, 3).map((item) => node(item.id, "organization", item.label, item.identity?.identifiers?.uei ? `UEI ${item.identity.identifiers.uei}` : item.identity?.method)),
+    ...(connected.awards || []).slice(0, 2).map((item) => node(item.id, "award", item.piid || item.label, item.label)),
+    ...(lineage?.vehicles || []).slice(0, 2).map((item) => node(item.id, "vehicle", item.piid || item.label, `${item.orderCount || 0} linked order${item.orderCount === 1 ? "" : "s"}`)),
+    ...(connected.federalAccounts || []).slice(0, 2).map((item) => node(item.id, "account", item.federalAccountCode || item.label, item.label)),
+    ...(lineage?.predecessors || []).slice(0, 1).map((item) => node(item.opportunityId, "predecessor", item.reference || item.label, item.label, `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(item.opportunityId)}`)),
+    ...(lineage?.successors || []).slice(0, 1).map((item) => node(item.opportunityId, "successor", item.reference || item.label, item.label, `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(item.opportunityId)}`)),
+    ...(connected.locations || []).slice(0, 1).map((item) => node(item.id, "location", item.label, [item.city, item.state].filter(Boolean).join(", "))),
+    ...(connected.classifications || []).slice(0, 2).map((item) => node(item.id, "classification", item.label, item.namespace)),
+    ...(temporal?.conflicts || []).filter((item) => item.status === "needs_review").slice(0, 1).map((item) => node(item.id, "conflict", compact(item.field), item.reason)),
+  ].slice(0, 12);
+  return [node(opportunityId, "activity", record?.title || record?.id || "Selected opportunity", record?.reference || record?.id || opportunityId, `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(opportunityId)}`), ...neighbors];
+}
+
+function timelineEvents(record, report, temporal, lineage, opportunityId) {
+  const route = (item) => {
+    const params = new URLSearchParams({ spendView: "timeline", capRecord: opportunityId });
+    if (item.reportId) params.set("capResearch", item.reportId);
+    if (item.date) params.set("capResearchDate", item.date);
+    return `#/budget-spend/explorer?${params}`;
+  };
+  const events = [
+    ...(record?.events || []).map((item) => ({ id: item.eventId || `${item.label}-${item.start}`, date: item.start, label: item.label, detail: `${item.isForecast ? "Forecast" : "Reported"} · ${compact(item.status)}`, type: item.isForecast ? "forecast" : "official" })),
+    ...(record?.milestones || []).map((item) => ({ id: `milestone-${item.label}-${item.start}`, date: item.start, label: item.label, detail: "Published milestone", type: "official" })),
+    ...(report?.keyDates || []).map((item, index) => ({ id: `research-${item.label}-${item.date}-${index}`, date: item.date, label: item.label, detail: item.basis, type: "research", reportId: report.id, sourceUrl: item.sourceUrls?.[0] })),
+    temporal?.validity?.effectiveFrom ? { id: "validity-start", date: temporal.validity.effectiveFrom, label: "Evidence becomes effective", detail: temporal.validity.basis, type: "evidence" } : null,
+    temporal?.validity?.effectiveTo ? { id: "validity-end", date: temporal.validity.effectiveTo, label: "Reported effective end", detail: temporal.validity.basis, type: "evidence" } : null,
+    temporal?.validity?.reviewBy ? { id: "validity-review", date: temporal.validity.reviewBy, label: "Evidence review due", detail: `Current state: ${compact(temporal.validity.status)}`, type: "review" } : null,
+    ...(lineage?.recompeteSignals || []).map((item) => ({ id: item.id, date: item.endDate, label: "Recompete timing review", detail: item.caveat, type: "review" })),
+  ].filter((item) => item?.date && !Number.isNaN(Date.parse(item.date))).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  const unique = [...new Map(events.map((item) => [`${item.date}|${item.label}`, item])).values()].slice(0, 14);
+  return unique.map((item) => ({ ...item, action: route(item) }));
+}
+
+function ConnectionsView({ nodes, selected, onSelect }) {
+  const neighbors = nodes.slice(1);
+  const positioned = nodes.map((item, index) => {
+    if (!index) return { ...item, x: 50, y: 50 };
+    const angle = -Math.PI / 2 + ((index - 1) * Math.PI * 2) / Math.max(neighbors.length, 1);
+    return { ...item, x: 50 + Math.cos(angle) * 38, y: 50 + Math.sin(angle) * 35 };
+  });
+  return <div className="connected-visual__scroller" tabIndex="0" aria-label="Scrollable connected evidence graph">
+    <div className="connected-visual__graph" data-evidence-visual-graph data-node-count={nodes.length}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{positioned.slice(1).map((item) => <line key={item.id} x1="50" y1="50" x2={item.x} y2={item.y} />)}</svg>
+      {positioned.map((item) => <button key={`${item.type}-${item.id}`} type="button" className={`connected-visual__node is-${item.type}${selected.id === item.id ? " is-selected" : ""}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-evidence-node={item.type}><small>{TYPE_LABEL[item.type]}</small><strong>{short(item.label)}</strong></button>)}
+    </div>
+  </div>;
+}
+
+function TimelineView({ events, selected, onSelect }) {
+  if (!events.length) return <div className="connected-visual__empty" data-evidence-visual-empty>No dated evidence is available for this record yet. Open the full Timeline to inspect the surrounding workspace.</div>;
+  const first = Date.parse(events[0].date);
+  const last = Date.parse(events.at(-1).date);
+  const span = Math.max(last - first, 86_400_000);
+  return <div className="connected-visual__scroller" tabIndex="0" aria-label="Scrollable connected evidence timeline">
+    <div className="connected-visual__timeline" data-evidence-visual-timeline data-marker-count={events.length}>
+      <div className="connected-visual__axis"><span>{date(events[0].date)}</span><span>{date(events.at(-1).date)}</span></div>
+      {events.map((item, index) => { const left = 4 + ((Date.parse(item.date) - first) / span) * 92; return <button key={item.id} type="button" className={`connected-visual__marker is-${item.type}${selected.id === item.id ? " is-selected" : ""}`} style={{ left: `${left}%`, top: index % 2 ? "86px" : "38px" }} aria-label={`${item.label}, ${date(item.date)}`} aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-visual-timeline-marker={item.type}>{index + 1}</button>; })}
+    </div>
+  </div>;
+}
+
+export default function ConnectedEvidenceVisual({ connection, lineage, temporal, record, researchReport, opportunityId }) {
+  const nodes = useMemo(() => graphNodes(connection, lineage, temporal, record, opportunityId), [connection, lineage, opportunityId, record, temporal]);
+  const events = useMemo(() => timelineEvents(record, researchReport, temporal, lineage, opportunityId), [lineage, opportunityId, record, researchReport, temporal]);
+  const [view, setView] = useState("connections");
+  const [selectedId, setSelectedId] = useState("");
+  const visibleItems = view === "connections" ? nodes : events;
+  const selected = visibleItems.find((item) => item.id === selectedId) || visibleItems[0] || nodes[0];
+  const selectView = (next) => { setView(next); setSelectedId(""); };
+  return <section className="connected-visual" data-connected-visual-analysis data-connected-visual-view={view}>
+    <header><div><span>Visual analysis</span> · <strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : `${events.length} dated signals`}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button></nav></header>
+    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={(item) => setSelectedId(item.id)} /> : <TimelineView events={events} selected={selected} onSelect={(item) => setSelectedId(item.id)} />}
+    <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.detail}</span></div><p>{selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`}</p>{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}</article>
+    <footer><span>Click or tap a node or marker to inspect it.</span> · <span>Bounded indexes only · full graph never loaded</span></footer>
+  </section>;
+}

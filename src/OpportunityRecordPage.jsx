@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Link2, SearchCheck, Sparkles, Star } from "lucide-react";
 import { ControlAsyncState, ControlFactGrid } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
+import ConnectedEvidence from "./ConnectedEvidence.jsx";
 import { useManagementState } from "./management-state.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import { samNoticeTypeLabel } from "./sam-notice-types.js";
@@ -115,6 +116,7 @@ export default function OpportunityRecordPage({ records = [], recordId = "", tab
       {relationshipCount ? <div className="record-page__lifecycle-grid"><section><h3>Past / incumbent</h3>{past.length ? past.map(({ relationship, related }) => <RelationshipCard key={relationship.id} relationship={relationship} related={related} direction="past" onRemove={intelligence.canWrite ? intelligence.removeRelationship : null} />) : <p>No predecessor link has been established.</p>}</section><section className="is-current"><h3>This record</h3><article><CalendarClock size={18} /><strong>{record.title}</strong><span>{record.id || record.reference}</span></article></section><section><h3>Future / follow-on</h3>{future.length ? future.map(({ relationship, related }) => <RelationshipCard key={relationship.id} relationship={relationship} related={related} direction="future" onRemove={intelligence.canWrite ? intelligence.removeRelationship : null} />) : <p>No follow-on link has been established.</p>}</section></div> : null}
     </section>
     <AcquisitionPortfolioDetail record={record} />
+    <ConnectedEvidence opportunityId={recordId} record={record} researchReport={intelligence.reports[0]} fullView />
     <div className="record-page__body"><section className="record-page__facts"><header><SearchCheck size={18} /><span><strong>Published record</strong><small>Fields retained from authoritative and normalized sources.</small></span></header><ControlFactGrid label="Published record facts" mobileTwoColumn items={facts} />{record.events?.length ? <div className="record-page__events"><h3>Event ledger</h3>{record.events.map((event) => <article key={event.eventId}><strong>{event.label}</strong><span>{date(event.start)}{event.end && event.end !== event.start ? ` to ${date(event.end)}` : ""}</span><small>{event.isForecast ? "Forecast" : "Reported"} · {event.status || "status not published"}</small></article>)}</div> : null}<div className="record-page__sources">{record.sourceUrls?.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Official source {index + 1}<ExternalLink size={13} /></a>)}</div></section><section className="record-page__research"><header><Sparkles size={18} /><span><strong>AI research brief</strong><small>Resumable official-source research with cited findings, review-required links, and timeline-ready dates.</small></span></header><ResearchReport report={intelligence.reports[0]} recordId={recordId} /></section></div>
   </div>;
 }
