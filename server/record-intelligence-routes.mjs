@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { accessCapabilities } from "../src/access-model.js";
 import { analyzeRecordGroupWithOpenAi, exactFollowOnEvidence, exactLifecycleEvidence, exactRecordGroupAssessment } from "../src/record-linking.js";
-import { rankResearchCandidates, researchRecordWithOpenAi } from "../src/record-research.js";
+import { deleteRecordResearchResponse, pollRecordResearchWithOpenAi, rankResearchCandidates, recordResearchRetryable, startRecordResearchWithOpenAi } from "../src/record-research.js";
 import { cleanText } from "../src/security-policy.js";
 import { recordUniverse } from "./record-universe.mjs";
 import { consumeAiOperationLimit, sendAiRateLimit } from "./ai-operation-rate-limit.mjs";
 
 function jsonValue(value, fallback) { if (value && typeof value === "object") return value; try { return JSON.parse(value || ""); } catch { return fallback; } }
 function publicResearch(row) { return { id: row.id, opportunityId: row.opportunity_id, ...jsonValue(row.report_json, {}), createdBy: row.created_by, createdAt: row.created_at }; }
+function publicResearchJob(row) { return row ? { id: row.id, opportunityId: row.opportunity_id, status: row.status, attempt: Number(row.attempt || 1), reportId: row.report_id || "", error: row.error_code ? { code: row.error_code, message: row.error_message } : null, createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at || "" } : null; }
 function publicRelationship(row) { return { id: row.id, sourceId: row.source_id, targetId: row.target_id, relationship: row.relationship, confidence: row.confidence, rationale: row.rationale || "", evidence: jsonValue(row.evidence_json, []), sourceUrls: jsonValue(row.source_urls_json, []), caveats: jsonValue(row.caveats_json, []), provenance: jsonValue(row.provenance_json, {}), createdBy: row.created_by, createdAt: row.created_at, updatedAt: row.updated_at }; }
 
 function mockRelationshipAssessment(records) {
@@ -63,11 +64,70 @@ export function registerRecordIntelligenceRoutes(app, pool, { assertSameOrigin, 
     if (!user) return reply.code(401).send({ error: "sign in required" });
     if (!user.active_workspace_id) return { data: { reports: [], relationships: [] } };
     const recordId = cleanText(request.params.recordId, 180);
-    const [research, relationships] = await Promise.all([
+    const [research, relationships, jobs] = await Promise.all([
       pool.query("SELECT * FROM app_workspace_record_research WHERE workspace_id=$1 AND opportunity_id=$2 ORDER BY created_at DESC LIMIT 8", [user.active_workspace_id, recordId]),
       pool.query("SELECT * FROM app_workspace_record_relationships WHERE workspace_id=$1 AND (source_id=$2 OR target_id=$2) ORDER BY updated_at DESC", [user.active_workspace_id, recordId]),
+      pool.query("SELECT * FROM app_workspace_record_research_jobs WHERE workspace_id=$1 AND opportunity_id=$2 ORDER BY created_at DESC LIMIT 8", [user.active_workspace_id, recordId]),
     ]);
-    return { data: { reports: research.rows.map(publicResearch), relationships: relationships.rows.map(publicRelationship) } };
+    return { data: { reports: research.rows.map(publicResearch), relationships: relationships.rows.map(publicRelationship), jobs: jobs.rows.map(publicResearchJob) } };
+  });
+
+  app.get("/api/v1/agent/record-intelligence/:recordId/jobs/:jobId", async (request, reply) => {
+    const user = await authenticated(pool, request);
+    if (!user) return reply.code(401).send({ error: "sign in required" });
+    const recordId = cleanText(request.params.recordId, 180);
+    const jobResult = await pool.query("SELECT * FROM app_workspace_record_research_jobs WHERE id=$1 AND workspace_id=$2 AND opportunity_id=$3", [cleanText(request.params.jobId, 180), user.active_workspace_id, recordId]);
+    if (!jobResult.rowCount) return reply.code(404).send({ error: "research job not found" });
+    let job = jobResult.rows[0];
+    if (["completed", "failed"].includes(job.status)) {
+      const report = job.status === "completed" && job.report_id
+        ? await pool.query("SELECT * FROM app_workspace_record_research WHERE id=$1 AND workspace_id=$2 AND opportunity_id=$3", [job.report_id, user.active_workspace_id, recordId])
+        : { rowCount: 0, rows: [] };
+      return { data: { job: publicResearchJob(job), ...(report.rowCount ? { report: publicResearch(report.rows[0]) } : {}) } };
+    }
+    const universe = await recordUniverse(pool, user.active_workspace_id);
+    const byId = new Map(universe.map((record) => [record.opportunityId, record]));
+    const record = byId.get(recordId);
+    if (!record) return reply.code(404).send({ error: "record not found in the active workspace corpus" });
+    const stored = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type='workspace' AND workspace_id=$1 AND revoked_at IS NULL ORDER BY is_default DESC,created_at DESC LIMIT 1", [user.active_workspace_id]);
+    const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
+    if (!apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential first", code: "credential_unavailable" });
+    const candidates = rankResearchCandidates(record, universe);
+    try {
+      const result = await pollRecordResearchWithOpenAi({ apiKey, responseId: job.response_id, record, candidates });
+      if (["queued", "in_progress"].includes(result.status)) {
+        const updated = await pool.query("UPDATE app_workspace_record_research_jobs SET status=$1,updated_at=NOW() WHERE id=$2 RETURNING *", [result.status, job.id]);
+        return reply.code(202).send({ data: { job: publicResearchJob(updated.rows[0]) } });
+      }
+      const reportId = job.id;
+      const report = { ...result.report, provenance: { ...result.report.provenance, attempts: Number(job.attempt || 1), degradedRetry: Number(job.attempt || 1) > 1 } };
+      const inserted = await pool.query("INSERT INTO app_workspace_record_research (id,workspace_id,opportunity_id,report_json,created_by) VALUES ($1,$2,$3,$4::jsonb,$5) ON CONFLICT (id) DO UPDATE SET id=EXCLUDED.id RETURNING *", [reportId, user.active_workspace_id, recordId, JSON.stringify(report), user.actor_user_id || user.user_id]);
+      const savedRelationships = [];
+      for (const proposal of report.relationshipProposals || []) {
+        if (proposal.confidence !== "high" || !byId.has(proposal.targetId)) continue;
+        savedRelationships.push(await saveRelationship(pool, user, relationshipFromAssessment([record, byId.get(proposal.targetId)], { ...proposal, evidence: proposal.sourceUrls, provenance: report.provenance })));
+      }
+      const completed = await pool.query("UPDATE app_workspace_record_research_jobs SET status='completed',report_id=$1,updated_at=NOW(),completed_at=NOW() WHERE id=$2 RETURNING *", [reportId, job.id]);
+      if (stored.rowCount) await pool.query("UPDATE app_openai_keys SET last_used_at=NOW(),updated_at=NOW() WHERE id=$1", [stored.rows[0].id]);
+      await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+      return { data: { job: publicResearchJob(completed.rows[0]), report: publicResearch(inserted.rows[0]), relationships: savedRelationships } };
+    } catch (error) {
+      const completed = await pool.query("SELECT * FROM app_workspace_record_research_jobs WHERE id=$1", [job.id]);
+      if (completed.rows[0]?.status === "completed" && completed.rows[0].report_id) {
+        const report = await pool.query("SELECT * FROM app_workspace_record_research WHERE id=$1 AND workspace_id=$2", [completed.rows[0].report_id, user.active_workspace_id]);
+        return { data: { job: publicResearchJob(completed.rows[0]), ...(report.rowCount ? { report: publicResearch(report.rows[0]) } : {}) } };
+      }
+      if (["provider_timeout", "provider_unavailable"].includes(error?.code)) return reply.code(202).send({ data: { job: publicResearchJob(job) } });
+      if (Number(job.attempt || 1) < 2 && recordResearchRetryable(error)) {
+        const restarted = await startRecordResearchWithOpenAi({ apiKey, record, candidates, degraded: true });
+        await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+        const updated = await pool.query("UPDATE app_workspace_record_research_jobs SET status=$1,response_id=$2,attempt=2,error_code='',error_message='',updated_at=NOW() WHERE id=$3 RETURNING *", [restarted.status, restarted.responseId, job.id]);
+        return reply.code(202).send({ data: { job: publicResearchJob(updated.rows[0]) } });
+      }
+      const failed = await pool.query("UPDATE app_workspace_record_research_jobs SET status='failed',error_code=$1,error_message=$2,updated_at=NOW(),completed_at=NOW() WHERE id=$3 RETURNING *", [cleanText(error.code, 100) || "openai_failed", cleanText(error.message, 500), job.id]);
+      await deleteRecordResearchResponse({ apiKey, responseId: job.response_id });
+      return { data: { job: publicResearchJob(failed.rows[0]) } };
+    }
   });
 
   app.post("/api/v1/agent/record-intelligence/relationships", async (request, reply) => {
@@ -122,12 +182,29 @@ export function registerRecordIntelligenceRoutes(app, pool, { assertSameOrigin, 
     const stored = await pool.query("SELECT * FROM app_openai_keys WHERE scope_type='workspace' AND workspace_id=$1 AND revoked_at IS NULL ORDER BY is_default DESC,created_at DESC LIMIT 1", [user.active_workspace_id]);
     const apiKey = stored.rowCount ? decryptSecret(stored.rows[0]) : "";
     if (!apiKey) return reply.code(409).send({ error: "configure an active workspace OpenAI credential first", code: "credential_unavailable" });
-    const quota = await consumeAiOperationLimit(pool, user);
-    if (quota.limited) return sendAiRateLimit(reply, quota);
     const mockMode = String(process.env.DBI_RECORD_RESEARCH_MOCK_MODE || process.env.DBI_RECORD_LINKING_MOCK_MODE || process.env.DBI_EVENT_AI_MOCK_MODE || "").toLowerCase() === "true";
     const candidates = rankResearchCandidates(record, universe);
+    if (!mockMode) {
+      await pool.query("UPDATE app_workspace_record_research_jobs SET status='failed',error_code='stale_run',error_message='The prior research job stopped reporting progress.',updated_at=NOW(),completed_at=NOW() WHERE workspace_id=$1 AND opportunity_id=$2 AND status IN ('queued','in_progress') AND updated_at < NOW() - INTERVAL '30 minutes'", [user.active_workspace_id, record.opportunityId]);
+      const active = await pool.query("SELECT * FROM app_workspace_record_research_jobs WHERE workspace_id=$1 AND opportunity_id=$2 AND status IN ('queued','in_progress') ORDER BY created_at DESC LIMIT 1", [user.active_workspace_id, record.opportunityId]);
+      if (active.rowCount) return reply.code(202).send({ data: { job: publicResearchJob(active.rows[0]) } });
+      const quota = await consumeAiOperationLimit(pool, user);
+      if (quota.limited) return sendAiRateLimit(reply, quota);
+      const id = randomUUID();
+      await pool.query("INSERT INTO app_workspace_record_research_jobs (id,workspace_id,opportunity_id,status,response_id,attempt,created_by) VALUES ($1,$2,$3,'queued','',1,$4)", [id, user.active_workspace_id, record.opportunityId, user.actor_user_id || user.user_id]);
+      try {
+        const started = await startRecordResearchWithOpenAi({ apiKey, record, candidates });
+        const created = await pool.query("UPDATE app_workspace_record_research_jobs SET status=$1,response_id=$2,updated_at=NOW() WHERE id=$3 RETURNING *", [started.status, started.responseId, id]);
+        return reply.code(202).send({ data: { job: publicResearchJob(created.rows[0]) } });
+      } catch (error) {
+        await pool.query("UPDATE app_workspace_record_research_jobs SET status='failed',error_code=$1,error_message=$2,updated_at=NOW(),completed_at=NOW() WHERE id=$3", [cleanText(error.code, 100) || "openai_failed", cleanText(error.message, 500), id]);
+        return reply.code(Number(error.httpStatus || 502)).send({ error: cleanText(error.message, 500), code: cleanText(error.code, 100) || "openai_failed" });
+      }
+    }
+    const quota = await consumeAiOperationLimit(pool, user);
+    if (quota.limited) return sendAiRateLimit(reply, quota);
     let report;
-    try { report = mockMode ? mockResearch(record, candidates) : await researchRecordWithOpenAi({ apiKey, record, candidates }); }
+    try { report = mockResearch(record, candidates); }
     catch (error) { return reply.code(Number(error.httpStatus || 502)).send({ error: cleanText(error.message, 500), code: cleanText(error.code, 100) || "openai_failed" }); }
     const id = randomUUID();
     const inserted = await pool.query("INSERT INTO app_workspace_record_research (id,workspace_id,opportunity_id,report_json,created_by) VALUES ($1,$2,$3,$4::jsonb,$5) RETURNING *", [id, user.active_workspace_id, record.opportunityId, JSON.stringify(report), user.actor_user_id || user.user_id]);

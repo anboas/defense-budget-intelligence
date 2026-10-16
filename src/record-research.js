@@ -279,8 +279,63 @@ function providerError(body, status) {
   return Object.assign(new Error(clean(body?.error?.message || `OpenAI returned HTTP ${status}`, 500)), { code: clean(body?.error?.code || body?.error?.type || "provider_failed", 100), httpStatus: status });
 }
 
-function retryable(error) {
+export function recordResearchRetryable(error) {
   return ["invalid_structured_output", "incomplete_output", "missing_citations", "provider_timeout", "provider_unavailable"].includes(error?.code) || error?.httpStatus === 408 || error?.httpStatus === 429 || Number(error?.httpStatus || 0) >= 500;
+}
+
+export async function startRecordResearchWithOpenAi({ apiKey, record, candidates = [], fetchImpl = fetch, model = RECORD_RESEARCH_MODEL, degraded = false } = {}) {
+  if (!apiKey) throw Object.assign(new Error("Configure an active workspace OpenAI credential before AI research"), { code: "credential_unavailable", httpStatus: 409 });
+  let response;
+  try {
+    response = await fetchImpl("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ ...buildRecordResearchRequest(record, candidates, { model, degraded }), background: true, store: false }),
+      ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(25_000) } : {}),
+    });
+  } catch (error) {
+    throw Object.assign(new Error(error?.name === "TimeoutError" || error?.name === "AbortError" ? "OpenAI did not acknowledge the background research request in time" : "OpenAI research transport failed"), { code: error?.name === "TimeoutError" || error?.name === "AbortError" ? "provider_timeout" : "provider_unavailable", httpStatus: error?.name === "TimeoutError" || error?.name === "AbortError" ? 504 : 502 });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw providerError(body, response.status);
+  if (!body?.id) throw Object.assign(new Error("OpenAI did not return a resumable response identifier"), { code: "missing_response_id", httpStatus: 502 });
+  const status = ["queued", "in_progress"].includes(body.status) ? body.status : "in_progress";
+  return { responseId: clean(body.id, 180), status, response: body };
+}
+
+export async function pollRecordResearchWithOpenAi({ apiKey, responseId, record, candidates = [], fetchImpl = fetch, model = RECORD_RESEARCH_MODEL } = {}) {
+  if (!apiKey) throw Object.assign(new Error("Configure an active workspace OpenAI credential before AI research"), { code: "credential_unavailable", httpStatus: 409 });
+  if (!responseId) throw Object.assign(new Error("The research job is missing its provider response identifier"), { code: "missing_response_id", httpStatus: 500 });
+  let response;
+  try {
+    response = await fetchImpl(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}?include%5B%5D=web_search_call.action.sources`, {
+      headers: { authorization: `Bearer ${apiKey}` },
+      ...(typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? { signal: AbortSignal.timeout(25_000) } : {}),
+    });
+  } catch (error) {
+    throw Object.assign(new Error(error?.name === "TimeoutError" || error?.name === "AbortError" ? "OpenAI research status check timed out" : "OpenAI research status transport failed"), { code: error?.name === "TimeoutError" || error?.name === "AbortError" ? "provider_timeout" : "provider_unavailable", httpStatus: error?.name === "TimeoutError" || error?.name === "AbortError" ? 504 : 502 });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw providerError(body, response.status);
+  const status = clean(body?.status || "failed", 40);
+  if (["queued", "in_progress"].includes(status)) return { status, responseId };
+  if (status !== "completed") {
+    const incomplete = status === "incomplete" && body?.incomplete_details?.reason === "max_output_tokens";
+    throw Object.assign(new Error(incomplete ? "OpenAI exhausted its output budget before completing structured record research" : clean(body?.error?.message || `OpenAI research ended with status ${status}`, 500)), { code: incomplete ? "incomplete_output" : clean(body?.error?.code || `provider_${status}`, 100), httpStatus: 502, providerStatus: status });
+  }
+  const payload = structuredPayload(body);
+  const report = normalizeRecordResearch(payload, record, candidates, { model, responseId: body.id || responseId, consultedSources: providerOfficialSources(body) });
+  const explicitGap = ["no-public-evidence", "test-or-placeholder"].includes(report.researchDisposition) && report.caveats.length;
+  if ((!report.sources.length || !(report.findings.length || report.risks.length || report.decisionBrief)) && !explicitGap) throw Object.assign(new Error("OpenAI research did not return grounded official-source citations or an explicit evidence-gap disposition"), { code: "missing_citations", httpStatus: 502 });
+  return { status, responseId, report };
+}
+
+export async function deleteRecordResearchResponse({ apiKey, responseId, fetchImpl = fetch } = {}) {
+  if (!apiKey || !responseId) return false;
+  try {
+    const response = await fetchImpl(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}`, { method: "DELETE", headers: { authorization: `Bearer ${apiKey}` } });
+    return response.ok;
+  } catch { return false; }
 }
 
 export async function researchRecordWithOpenAi({ apiKey, record, candidates = [], fetchImpl = fetch, model = RECORD_RESEARCH_MODEL } = {}) {
@@ -305,7 +360,7 @@ export async function researchRecordWithOpenAi({ apiKey, record, candidates = []
       lastError = error?.name === "TimeoutError" || error?.name === "AbortError"
         ? Object.assign(new Error("OpenAI research timed out before a grounded report was ready"), { code: "provider_timeout", httpStatus: 504 })
         : error?.httpStatus ? error : Object.assign(new Error("OpenAI research transport failed"), { code: "provider_unavailable", httpStatus: 502 });
-      if (attempt === 0 && retryable(lastError)) continue;
+      if (attempt === 0 && recordResearchRetryable(lastError)) continue;
       throw lastError;
     }
   }

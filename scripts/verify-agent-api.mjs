@@ -154,6 +154,7 @@ try {
   assert.ok(result.payload.paths["/api/v1/agent/record-groups"], "Agent OpenAPI must document lifecycle grouping operations");
   assert.ok(result.payload.paths["/api/v1/agent/record-intelligence/{recordId}"], "Agent OpenAPI must document record research and relationship reads");
   assert.ok(result.payload.paths["/api/v1/agent/record-intelligence/{recordId}/research"], "Agent OpenAPI must document official-source AI research operations");
+  assert.ok(result.payload.paths["/api/v1/agent/record-intelligence/{recordId}/jobs/{jobId}"], "Agent OpenAPI must document resumable record-research polling");
   assert.ok(result.payload.paths["/api/v1/agent/event-catalog"], "Agent OpenAPI must document curated event catalog search");
   assert.ok(result.payload.paths["/api/v1/agent/entities/{entityId}/relations"], "Agent OpenAPI must document graph traversal");
   assert.ok(result.payload.paths["/api/v1/agent/enrichment/proposals"], "Agent OpenAPI must document cited enrichment proposals");

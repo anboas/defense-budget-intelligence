@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { automatedSamRecord } from "../src/procurement-taxonomy.js";
-import { buildRecordResearchRequest, normalizeRecordResearch, rankResearchCandidates, researchRecordWithOpenAi } from "../src/record-research.js";
+import { buildRecordResearchRequest, deleteRecordResearchResponse, normalizeRecordResearch, pollRecordResearchWithOpenAi, rankResearchCandidates, researchRecordWithOpenAi, startRecordResearchWithOpenAi } from "../src/record-research.js";
 
 const capture = JSON.parse(readFileSync(resolve("src/data/capture-calendar.json"), "utf8"));
 const supportV = { ...capture.records.find((record) => record.id === "C104"), naicsCode: "541511", pscCode: "DA01" };
@@ -106,5 +106,28 @@ const completedAfterTruncation = await researchRecordWithOpenAi({
 });
 assert.equal(attempts, 2, "A max-output truncation must receive one larger bounded retry");
 assert.equal(completedAfterTruncation.provenance.degradedRetry, true);
+
+let backgroundRequest;
+const started = await startRecordResearchWithOpenAi({
+  apiKey: "masked-test-key", record: ndmsDraft, candidates,
+  fetchImpl: async (_url, options) => {
+    backgroundRequest = JSON.parse(options.body);
+    return { ok: true, status: 200, json: async () => ({ id: "resp-background", status: "queued" }) };
+  },
+});
+assert.equal(started.responseId, "resp-background");
+assert.equal(backgroundRequest.background, true, "Button-triggered research must return a resumable provider response instead of holding the browser request open");
+assert.equal(backgroundRequest.store, false, "Background research must use temporary provider retention only");
+
+const pending = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ id: started.responseId, status: "in_progress" }) }) });
+assert.equal(pending.status, "in_progress");
+const completed = await pollRecordResearchWithOpenAi({ apiKey: "masked-test-key", responseId: started.responseId, record: ndmsDraft, candidates, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ id: started.responseId, status: "completed", output_text: JSON.stringify(payload), output: [
+  { type: "web_search_call", action: { sources: consulted } },
+  { type: "message", content: [{ type: "output_text", text: JSON.stringify(payload), annotations: consulted.map((source) => ({ type: "url_citation", url: source.url, title: source.title })) }] },
+] }) }) });
+assert.equal(completed.report.keyDates[0].eventType, "proposal-deadline", "Completed background research must retain timeline-ready cited dates");
+let deletedResponse = "";
+assert.equal(await deleteRecordResearchResponse({ apiKey: "masked-test-key", responseId: started.responseId, fetchImpl: async (url, options) => { deletedResponse = `${options.method} ${url}`; return { ok: true }; } }), true);
+assert.match(deletedResponse, /^DELETE .*resp-background$/, "Completed raw provider responses must be deleted after normalization");
 
 console.log("Record research contract passed");
