@@ -85,6 +85,8 @@ export default function OperationalDataTable({
   exportFilename = `${id || "records"}.csv`,
   onRowActivate,
   renderDetail,
+  detailLabel = "View details",
+  detailCloseLabel = "Hide details",
   initialExpandedId = null,
   expandedRowId,
   selectable = true,
@@ -415,6 +417,8 @@ export default function OperationalDataTable({
               data-row-key={key}
               data-row-index={start + index}
               data-row-expandable={renderDetail ? "true" : undefined}
+              data-row-expand-label={renderDetail ? detailLabel : undefined}
+              data-row-expand-close-label={renderDetail ? detailCloseLabel : undefined}
               data-row-highlighted={highlightedKey === key ? "true" : undefined}
               className={`${selected.has(key) || highlightedKey === key ? "is-selected " : ""}${expanded ? "is-expanded" : ""}`.trim()}
               tabIndex={renderDetail ? 0 : undefined}

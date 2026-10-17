@@ -23,7 +23,7 @@ const RELATION_LABELS = {
 };
 
 const SURFACE_LABELS = {
-  "spend-explorer": "Spend Explorer",
+  "spend-explorer": "Opportunities",
   "opportunity-map": "Opportunity Map",
   "procurement-discovery": "Discovery",
   "capture-calendar": "Capture Calendar",

@@ -674,7 +674,7 @@ function DetailPanel({ point, asOf, watchedIds, onToggleWatch, spendMetric, onCl
       <header><span>Indexed activity</span><b>{point.records.length}</b></header>
       {records.slice(0, 6).map((record) => <OpportunityRow key={record.opportunityId} record={record} asOf={asOf} watched={watchedIds.has(record.opportunityId)} onToggleWatch={onToggleWatch} spendMetric={spendMetric} />)}
     </section>
-    {records.length > 6 ? <a className="opportunity-map__detail-link" href={`#/budget-spend/explorer?spendView=table&capQuery=${encodeURIComponent(point.organizations[0] || point.label)}`}>Open all {records.length} records in Spend Explorer</a> : null}
+    {records.length > 6 ? <a className="opportunity-map__detail-link" href={`#/budget-spend/explorer?spendView=table&capQuery=${encodeURIComponent(point.organizations[0] || point.label)}`}>Review all {records.length} opportunities</a> : null}
   </aside>;
 }
 

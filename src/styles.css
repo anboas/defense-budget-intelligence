@@ -6339,8 +6339,8 @@ td .dot {
   .dbi-data-table .if-table td[data-ui-table-cell-role="actions"] :where(a, button) { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
   .dbi-data-table .if-table-detail { display: block; margin-top: -8px; border: 1px solid #73b3e7; border-top: 0; }
   .dbi-data-table .if-table-detail td { display: block; }
-  .dbi-data-table .if-table tbody tr[data-row-expandable="true"]::after { grid-column: 1 / -1; content: "View details"; display: block; padding: 9px 10px; background: var(--if-bg-subtle); color: var(--if-link); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-black); }
-  .dbi-data-table .if-table tbody tr[data-row-expandable="true"].is-expanded::after { content: "Hide details"; }
+  .dbi-data-table .if-table tbody tr[data-row-expandable="true"]::after { grid-column: 1 / -1; content: attr(data-row-expand-label); display: block; padding: 9px 10px; background: var(--if-bg-subtle); color: var(--if-link); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-black); }
+  .dbi-data-table .if-table tbody tr[data-row-expandable="true"].is-expanded::after { content: attr(data-row-expand-close-label); }
   [data-api-request-table] .if-table tbody tr[data-row-expandable="true"]::after { grid-column: 2; display: grid; align-items: center; }
   .ops-request-detail { grid-template-columns: minmax(0, 1fr); }
   .ops-request-detail__wide { grid-column: auto; }

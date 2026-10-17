@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox, MoreHorizontal, Radar as RadarIcon, RotateCcw, ScatterChart } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, ChevronDown, FileSpreadsheet, Filter, Inbox, MoreHorizontal, Radar as RadarIcon, RotateCcw, ScatterChart } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -36,6 +36,21 @@ function readRoute() {
 
 function readTableNoticeType(params) {
   return params.get("noticeType") || parseMultiValues(params.get("capNoticeType"))[0] || "all";
+}
+
+function readTableFilters(params) {
+  return {
+    customer: params.get("customer") || "all",
+    stage: params.get("stage") || "all",
+    trust: params.get("trust") || "all",
+    technology: params.get("technology") || "all",
+    noticeType: readTableNoticeType(params),
+    branch: params.get("orgBranch") || "all",
+    component: params.get("orgComponent") || "all",
+    office: params.get("orgOffice") || "all",
+    disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active",
+    changes: params.get("changes") === "today" ? "today" : "all",
+  };
 }
 
 function readStrategyScope(params = new URLSearchParams(window.location.hash.split("?")[1] || "")) {
@@ -94,12 +109,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const [view, setView] = useState(readRoute);
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capQuery") || "");
   const [focusedRecordId, setFocusedRecordId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
-  const [tableFilters, setTableFilters] = useState(() => {
-    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-    return { technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" };
-  });
+  const [tableFilters, setTableFilters] = useState(() => readTableFilters(new URLSearchParams(window.location.hash.split("?")[1] || "")));
   const [strategyScope, setStrategyScope] = useState(readStrategyScope);
-  const [scopeExpanded, setScopeExpanded] = useState(false);
   const dispositions = useRecordDispositions();
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [dailyFeed, setDailyFeed] = useState(emptyProcurementFeed);
@@ -126,7 +137,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
       setQuery(params.get("capQuery") || "");
       setFocusedRecordId(params.get("capRecord") || "");
-      setTableFilters({ technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" });
+      setTableFilters(readTableFilters(params));
       setStrategyScope(readStrategyScope(params));
     };
     window.addEventListener("hashchange", sync);
@@ -181,7 +192,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   };
   const analysisView = { visuals: "Visuals", timeline: "Timeline", charts: "Analytics" }[view] || "";
   const tabs = <div className="spend-explorer__viewbar">
-    <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
+    <nav className="if-tabs__list spend-explorer__tabs" aria-label="Opportunity views">
       <button type="button" className={`if-tab${["table", "record"].includes(view) ? " is-active" : ""}`} aria-pressed={["table", "record"].includes(view)} onClick={() => select("table")}><FileSpreadsheet size={15} />Workbench</button>
       <button type="button" className={`if-tab${view === "radar" ? " is-active" : ""}`} aria-pressed={view === "radar"} onClick={() => select("radar")}><RadarIcon size={15} />Radar</button>
       <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
@@ -204,11 +215,17 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const latestFeed = dailyFeed.history?.[0];
   const latestFeedDate = latestFeed?.date || null;
   const branchOptions = useMemo(() => [...new Set(rows.map((record) => record.organization?.branch).filter(Boolean))].sort(), [rows]);
+  const customerOptions = useMemo(() => [...new Set(rows.map(customer).filter((value) => value !== "Customer not published"))].sort(), [rows]);
+  const stageOptions = useMemo(() => [...new Set(rows.map((record) => samNoticeTypeLabel(record.noticeType)).filter(Boolean))].sort(), [rows]);
+  const trustOptions = useMemo(() => [...new Set(rows.map((record) => record.evidenceTier || "unclassified"))].sort(), [rows]);
   const componentOptions = useMemo(() => [...new Set(rows.filter((record) => tableFilters.branch === "all" || record.organization?.branch === tableFilters.branch).map((record) => record.organization?.component).filter(Boolean))].sort(), [rows, tableFilters.branch]);
   const officeOptions = useMemo(() => [...new Set(rows.filter((record) => (tableFilters.branch === "all" || record.organization?.branch === tableFilters.branch) && (tableFilters.component === "all" || record.organization?.component === tableFilters.component)).map((record) => record.organization?.office).filter((value) => value && value !== "Office not published"))].sort(), [rows, tableFilters.branch, tableFilters.component]);
   const tableRows = useMemo(() => rows.filter((record) => {
     const tombstoned = dispositions.tombstonedIds.has(record.opportunityId);
     return (tableFilters.disposition === "tombstoned" ? tombstoned : !tombstoned)
+      && (tableFilters.customer === "all" || customer(record) === tableFilters.customer)
+      && (tableFilters.stage === "all" || samNoticeTypeLabel(record.noticeType) === tableFilters.stage)
+      && (tableFilters.trust === "all" || (record.evidenceTier || "unclassified") === tableFilters.trust)
       && (tableFilters.technology === "all" || (record.technologyAreas || []).includes(tableFilters.technology))
       && (tableFilters.noticeType === "all" || samNoticeTypeId(record.noticeType) === tableFilters.noticeType)
       && (tableFilters.branch === "all" || record.organization?.branch === tableFilters.branch)
@@ -222,7 +239,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     if (key === "branch") { next.component = "all"; next.office = "all"; }
     if (key === "component") next.office = "all";
     setTableFilters(next);
-    updateRoute(view === "today" ? "today" : "table", { technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
+    updateRoute(view === "today" ? "today" : "table", { customer: next.customer === "all" ? "" : next.customer, stage: next.stage === "all" ? "" : next.stage, trust: next.trust === "all" ? "" : next.trust, technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
   };
   const tableColumns = [
     { key: "record", label: "Opportunity", required: true, sticky: true, minWidth: 320, mobilePrimary: true, value: (record) => `${record.title || "Untitled"} ${record.id || record.reference || "Unidentified"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title, record.description].filter(Boolean).join(" "), render: (record) => <><strong>{record.title || "Untitled public record"}</strong><small>{record.id || record.reference || record.sourceRecordId || "Unidentified"}</small></> },
@@ -249,14 +266,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { key: "acquisitionRoute", label: "Access route", facet: true, minWidth: 190, value: (record) => record.acquisitionRoute || "Not assessed" },
     { key: "acquisitionPriority", label: "Priority", facet: true, minWidth: 110, sortValue: (record) => Number(record.acquisitionPriority || 99), value: (record) => record.acquisitionPriority ? `P${record.acquisitionPriority}` : "Not assessed" },
     { key: "acquisitionScore", label: "Screening", minWidth: 120, sortValue: (record) => Number(record.acquisitionScore || 0), value: (record) => record.acquisitionScore == null ? "Not assessed" : `${record.acquisitionScore}/100` },
-    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><a href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(record.opportunityId || record.id || record.reference || "")}`}>Open</a>{dispositions.canWrite ? dispositions.tombstonedIds.has(record.opportunityId) ? <button type="button" onClick={() => dispositions.restore(record.opportunityId)} aria-label={`Restore ${record.title}`} title="Restore to active explorer"><ArchiveRestore size={15} /></button> : <button type="button" onClick={() => dispositions.tombstone(record.opportunityId)} aria-label={`Tombstone ${record.title}`} title="Tombstone this record"><ArchiveX size={15} /></button> : null}</div> },
-  ];
-  const sevenDaysAgo = new Date(Date.parse(discoveryIndex.metadata?.generatedAt || dailyFeed.metadata?.generatedAt || procurementDelta?.metadata?.generatedAt || dataset.metadata?.generatedAt || "1970-01-01T00:00:00.000Z") - 7 * 86_400_000).toISOString();
-  const tableMetrics = [
-    { id: "records", label: tableFilters.disposition === "tombstoned" ? "Tombstoned" : "Active records", value: tableRows.length.toLocaleString(), meta: tableFilters.disposition === "tombstoned" ? "Recoverable workspace exclusions" : `${rows.length.toLocaleString()} total published records` },
-    { id: "added", label: "Added in 7 days", value: rows.filter((record) => record.firstSeenAt >= sevenDaysAgo).length.toLocaleString(), meta: "First seen by DBI" },
-    { id: "awards", label: "Awards", value: Number(awards?.length || 0).toLocaleString(), meta: "Retained award evidence" },
-    { id: "snapshot", label: "Snapshot", value: dataset.metadata?.asOf || "Current", meta: "Published-data boundary" },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions">{dispositions.canWrite ? dispositions.tombstonedIds.has(record.opportunityId) ? <button type="button" onClick={() => dispositions.restore(record.opportunityId)} aria-label={`Restore ${record.title}`} title="Restore to active opportunities"><ArchiveRestore size={15} /></button> : <button type="button" onClick={() => dispositions.tombstone(record.opportunityId)} aria-label={`Hide ${record.title}`} title="Hide from active opportunities"><ArchiveX size={15} /></button> : null}</div> },
   ];
   const todayMetrics = [
     { id: "known", label: "Known records", value: Number(dailyFeed.metadata?.coverage?.knownRecords || dailyFeed.metadata?.discoveryCount || rows.length).toLocaleString(), meta: "Disclosed discovery scope" },
@@ -271,14 +281,32 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { id: "rfi", label: "RFIs / sources sought", value: rows.filter((record) => samNoticeTypeId(record.noticeType) === "r").length.toLocaleString(), meta: "Source-backed opportunity records" },
     { id: "coded", label: "Code-backed", value: rows.filter((record) => record.naicsCode || record.pscCode).length.toLocaleString(), meta: "Published NAICS or PSC" },
   ];
-  const activeScopeFilterCount = [tableFilters.technology, tableFilters.noticeType, tableFilters.branch, tableFilters.component, tableFilters.office, tableFilters.disposition].filter((value) => value && !["all", "active"].includes(value)).length;
+  const activeScopeFilterCount = [tableFilters.customer, tableFilters.stage, tableFilters.trust, tableFilters.technology, tableFilters.noticeType, tableFilters.branch, tableFilters.component, tableFilters.office, tableFilters.disposition].filter((value) => value && !["all", "active"].includes(value)).length;
+  const resetTableFilters = () => {
+    setTableFilters(readTableFilters(new URLSearchParams()));
+    updateRoute("table", { customer: "", stage: "", trust: "", technology: "", noticeType: "", orgBranch: "", orgComponent: "", orgOffice: "", records: "", changes: "" });
+  };
   const savedViewRows = rows.length ? rows : (discoveryIndex.discovery || []);
   const savedViews = <SpendSavedViews compact={view === "table"} rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
     const next = { ...tableFilters, ...(saved.filters || {}), disposition: saved.filters?.disposition === "tombstoned" ? "tombstoned" : "active", changes: "all" };
     setTableFilters(next);
     setQuery(saved.query || "");
-    updateRoute("table", { capQuery: saved.query || "", technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
+    updateRoute("table", { capQuery: saved.query || "", customer: next.customer === "all" ? "" : next.customer, stage: next.stage === "all" ? "" : next.stage, trust: next.trust === "all" ? "" : next.trust, technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
   }} />;
+  const scopeFilters = <details className="dbi-data-table__columns spend-explorer__scope-menu" data-opportunity-workbench-scope>
+    <summary className="if-btn if-btn--secondary"><Filter size={15} aria-hidden="true" /><span>Filters{activeScopeFilterCount ? ` · ${activeScopeFilterCount}` : ""}</span><ChevronDown size={13} aria-hidden="true" /></summary>
+    <div><header><strong>Filter opportunities</strong>{activeScopeFilterCount ? <button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetTableFilters}><RotateCcw size={13} />Reset</button> : null}</header><div className="spend-explorer__scope-grid">
+      <ControlSelect compact label="Customer" value={tableFilters.customer} options={[{ value: "all", label: "All customers" }, ...customerOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("customer", value)} />
+      <ControlSelect compact label="Stage" value={tableFilters.stage} options={[{ value: "all", label: "All stages" }, ...stageOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("stage", value)} />
+      <ControlSelect compact label="Trust" value={tableFilters.trust} options={[{ value: "all", label: "All evidence" }, ...trustOptions.map((value) => ({ value, label: value.replaceAll("-", " ") }))]} onChange={(value) => setTableFilter("trust", value)} />
+      <ControlSelect compact label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} />
+      <ControlSelect compact label="Branch" value={tableFilters.branch} options={[{ value: "all", label: "All branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} />
+      <ControlSelect compact label="Technology" value={tableFilters.technology} options={[{ value: "all", label: "All technology" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} />
+      <ControlSelect compact label="Component" value={tableFilters.component} options={[{ value: "all", label: "All components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
+      <ControlSelect compact label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
+      <ControlSelect compact label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active" }, { value: "tombstoned", label: `Hidden (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
+    </div></div>
+  </details>;
 
   if (view === "radar") return <section className="spend-explorer spend-explorer--radar" data-spend-explorer="radar">
     <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Radar" summary="Find applicable work, inspect why it fits, add known SAM.gov notices, and track what matters." metrics={radarMetrics} metricLabel="Opportunity radar summary" tabs={tabs} />
@@ -288,29 +316,17 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
-  if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, office, technology, disposition: "active", changes: "all" }; setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "", strategyScope: "" }); }} onQuadrant={(quadrant, ids) => { const scope = { key: quadrant.key || `ansoff-${quadrant.id}`, label: quadrant.label || `${quadrant.code} / ${quadrant.name}`, ids }; window.sessionStorage.setItem(STRATEGY_SCOPE_KEY, JSON.stringify(scope)); setStrategyScope(scope); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", capRecord: "", strategyScope: scope.key }); }} /></Suspense></SpendViewBoundary>;
+  if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, customer: "all", stage: "all", trust: "all", office, technology, disposition: "active", changes: "all" }; setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", customer: "", stage: "", trust: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "", strategyScope: "" }); }} onQuadrant={(quadrant, ids) => { const scope = { key: quadrant.key || `ansoff-${quadrant.id}`, label: quadrant.label || `${quadrant.code} / ${quadrant.name}`, ids }; window.sessionStorage.setItem(STRATEGY_SCOPE_KEY, JSON.stringify(scope)); setStrategyScope(scope); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", capRecord: "", strategyScope: scope.key }); }} /></Suspense></SpendViewBoundary>;
   if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="record workspace" />}><OpportunityRecordPage records={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} recordId={focusedRecordId} tabs={tabs} /></Suspense></SpendViewBoundary>;
   if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
   if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
-    <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Workbench" summary="Search, qualify, triage, and investigate source-backed opportunities from one operating queue." metrics={tableMetrics} metricLabel="Opportunity workbench summary" tabs={tabs} />
+    <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Workbench" summary="Review the best-fit opportunities, inspect evidence, and move promising work into action." meta={<span className="spend-explorer__snapshot"><strong>{tableRows.length.toLocaleString()} {tableFilters.disposition === "tombstoned" ? "hidden" : "active"}</strong><span>{Number(awards?.length || 0).toLocaleString()} awards · Data through {dataset.metadata?.asOf || "current snapshot"}</span></span>} tabs={tabs} />
     <ControlPageBody compact>
       {strategyScope ? <div className="if-alert if-alert--info spend-explorer__strategy-scope" role="status"><span><strong>Strategic matrix scope</strong>Showing {strategyScope.label} opportunities from the current Ansoff baseline.</span><button type="button" className="if-button if-button--secondary" onClick={() => { setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); updateRoute("table", { strategyScope: "" }); }}>Clear scope</button></div> : null}
       {tableFilters.changes === "today" ? <div className="if-alert if-alert--info spend-explorer__change-scope" role="status"><span><strong>Complete daily update ledger</strong>Showing every retained record changed on {date(latestFeedDate)}.</span><button type="button" className="if-button if-button--secondary" onClick={() => setTableFilter("changes", "all")}>Show all records</button></div> : null}
-      <section className={`capture-filters${scopeExpanded ? " is-expanded" : ""}`} aria-label="Opportunity workbench filters" data-opportunity-workbench-scope>
-        <div className="capture-filters__heading"><strong>Filters</strong><span>{tableRows.length.toLocaleString()} opportunities{activeScopeFilterCount ? ` · ${activeScopeFilterCount} active` : ""}</span><button type="button" className="capture-filter-toggle" aria-expanded={scopeExpanded} onClick={() => setScopeExpanded((value) => !value)}>{scopeExpanded ? "Fewer filters" : "More filters"}</button>{activeScopeFilterCount ? <button type="button" onClick={() => { setTableFilters({ technology: "all", noticeType: "all", branch: "all", component: "all", office: "all", disposition: "active", changes: "all" }); updateRoute("table", { technology: "", noticeType: "", orgBranch: "", orgComponent: "", orgOffice: "", records: "", changes: "" }); }}><RotateCcw size={14} />Reset ({activeScopeFilterCount})</button> : null}</div>
-        <div className="capture-filter"><ControlSelect compact label="Notice type" value={tableFilters.noticeType} options={[{ value: "all", label: "All notice types" }, ...noticeTypeOptions.map((option) => ({ value: option.id, label: option.label }))]} onChange={(value) => setTableFilter("noticeType", value)} /></div>
-        <div className="capture-filter capture-filter--core-secondary"><ControlSelect compact label="Branch" value={tableFilters.branch} options={[{ value: "all", label: "All branches" }, ...branchOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("branch", value)} /></div>
-        <div className="capture-filter"><ControlSelect compact label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active" }, { value: "tombstoned", label: `Hidden (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} /></div>
-        <div className="capture-filter capture-filter--advanced"><ControlSelect compact label="Technology" value={tableFilters.technology} options={[{ value: "all", label: "All technology" }, ...technologyOptions.map((area) => ({ value: area, label: TECHNOLOGY_AREA_BY_ID.get(area)?.label || area }))]} onChange={(value) => setTableFilter("technology", value)} /></div>
-        <div className="capture-filter capture-filter--advanced"><ControlSelect compact label="Component" value={tableFilters.component} options={[{ value: "all", label: "All components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} /></div>
-        <div className="capture-filter capture-filter--advanced"><ControlSelect compact label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} /></div>
-      </section>
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
-      <OperationalDataTable id="opportunity-workbench-v1" label="Opportunity workbench" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "fit", direction: "desc" }} defaultVisibleColumns={["record", "customer", "stage", "fit", "trust", "deadline", "obligations", "change", "source", "actions"]} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search opportunities, scope, customers, codes, and references…" exportFilename="opportunity-workbench.csv" toolbarActions={<>
-        {savedViews}
-        <a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=today" data-daily-acquisition-feed><Inbox size={15} />Updates{dailyFeed.history?.[0] ? ` · ${dailyFeed.history[0].summary.added + dailyFeed.history[0].summary.updated}` : ""}</a>
-      </>} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "fit", "actions"] : ["record", "customer", "fit", "deadline", "actions"]} highlightedRowId={focusedRecordId} initialExpandedId={focusedRecordId || null} expandedRowId={focusedRecordId || null} onRowActivate={(record, expanded) => { const id = expanded ? record.opportunityId || record.id || record.reference : ""; setFocusedRecordId(id); updateRoute("table", { capRecord: id }); }} renderDetail={(record) => <OpportunityWorkbenchDetail record={record} records={rows} />} bulkActions={dispositions.canWrite ? (selectedRows, clear) => <button type="button" className="if-btn if-btn--secondary" onClick={() => { selectedRows.forEach((record) => tableFilters.disposition === "tombstoned" ? dispositions.restore(record.opportunityId) : dispositions.tombstone(record.opportunityId)); clear(); }}>{tableFilters.disposition === "tombstoned" ? <ArchiveRestore size={15} /> : <ArchiveX size={15} />}{tableFilters.disposition === "tombstoned" ? "Restore selected" : "Hide selected"}</button> : null} empty={tableFilters.disposition === "tombstoned" ? "No hidden records. Records you remove from the active queue remain recoverable here." : "No active opportunities match the current workbench controls."} />
+      <OperationalDataTable id="opportunity-workbench-v1" label="Opportunity workbench" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "fit", direction: "desc" }} defaultVisibleColumns={["record", "customer", "stage", "fit", "trust", "deadline", "obligations", "change", "source", "actions"]} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search opportunities, scope, customers, codes, and references…" exportFilename="opportunity-workbench.csv" showFacets={false} toolbarActions={<>{scopeFilters}{savedViews}</>} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "fit", "actions"] : ["record", "customer", "fit", "deadline", "actions"]} highlightedRowId={focusedRecordId} initialExpandedId={focusedRecordId || null} expandedRowId={focusedRecordId || null} onRowActivate={(record, expanded) => { const id = expanded ? record.opportunityId || record.id || record.reference : ""; setFocusedRecordId(id); updateRoute("table", { capRecord: id }); }} renderDetail={(record) => <OpportunityWorkbenchDetail record={record} records={rows} />} detailLabel="Review opportunity" detailCloseLabel="Close workspace" bulkActions={dispositions.canWrite ? (selectedRows, clear) => <button type="button" className="if-btn if-btn--secondary" onClick={() => { selectedRows.forEach((record) => tableFilters.disposition === "tombstoned" ? dispositions.restore(record.opportunityId) : dispositions.tombstone(record.opportunityId)); clear(); }}>{tableFilters.disposition === "tombstoned" ? <ArchiveRestore size={15} /> : <ArchiveX size={15} />}{tableFilters.disposition === "tombstoned" ? "Restore selected" : "Hide selected"}</button> : null} empty={tableFilters.disposition === "tombstoned" ? "No hidden records. Records you remove from the active queue remain recoverable here." : "No active opportunities match the current workbench controls."} />
     </ControlPageBody>
   </section>;
 }

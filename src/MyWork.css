@@ -32,7 +32,7 @@
 .my-work__agenda > div { display: grid; }
 .my-work__agenda article {
   display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: .6rem;
   min-width: 0;
@@ -48,7 +48,8 @@
 .my-work__agenda article small { color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-2xs); }
 .my-work__agenda article[data-task-priority="critical"] { box-shadow: inset 3px 0 var(--if-color-danger, #a64639); }
 .my-work__agenda article[data-task-priority="high"] { box-shadow: inset 3px 0 var(--if-color-warning, #b66b2b); }
-.my-work__complete { display: grid; place-items: center; min-width: 2.75rem; min-height: 2.75rem; border: 0; background: transparent; color: var(--if-color-success, #347252); }
+.my-work__task-actions { display: grid !important; grid-template-columns: repeat(2, max-content); gap: var(--if-space-2) !important; }
+.my-work__complete { color: var(--if-color-success, #347252); }
 .my-work__next { display: grid; gap: .12rem; min-width: 0; }
 .my-work__next strong,
 .my-work__next small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -80,8 +81,9 @@
   .my-work > .if-page-header .if-btn { min-height: 2.75rem; padding-inline: .65rem; }
   .my-work__status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .my-work__status:first-child { grid-column: 1 / -1; }
-  .my-work__agenda article { grid-template-columns: 2.75rem minmax(0, 1fr) auto; }
-  .my-work__agenda article > .if-btn { grid-column: 2 / 4; width: 100%; }
+  .my-work__agenda article { grid-template-columns: minmax(0, 1fr); }
+  .my-work__task-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .my-work__task-actions .if-btn { width: 100%; }
   .my-work__agenda > header { align-items: start; }
   .my-work__agenda-summary { align-items: flex-end; flex-direction: column; }
   .my-work__tracked > header { align-items: flex-start; }
