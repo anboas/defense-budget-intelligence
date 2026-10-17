@@ -1274,6 +1274,34 @@ try {
   await openSurface(page, "#/budget-spend/timeline", "[data-capture-timeline]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Timeline", "Timeline should be a first-class primary route");
   assert.equal(await page.locator('[data-timeline-scope="tracked"]').count(), 1, "Primary Timeline should default to tracked work");
+  assert.equal(await page.locator('[data-capture-filters] .capture-filters__heading [data-timeline-scope="tracked"]').count(), 1, "Timeline Scope should be owned by the Find Records toolbar instead of a standalone card");
+  assert.equal(await page.locator('[data-capture-calendar-page] > [data-timeline-scope]').count(), 0, "Timeline should not stack a separate scope container above record controls");
+  assert.equal(await page.getByText("Timeline Scope", { exact: true }).count(), 1, "Timeline Scope should use title case");
+  assert.equal(await page.getByRole("button", { name: /^All Intelligence / }).count(), 1, "All Intelligence should use title case");
+  const primaryTimelineChrome = await page.locator("[data-capture-calendar-page]").evaluate((surface) => {
+    const filters = surface.querySelector("[data-capture-filters]")?.getBoundingClientRect();
+    const heading = surface.querySelector(".capture-filters__heading")?.getBoundingClientRect();
+    const scope = surface.querySelector("[data-timeline-scope]")?.getBoundingClientRect();
+    const scopeButtons = [...surface.querySelectorAll("[data-timeline-scope] button")].map((button) => button.getBoundingClientRect());
+    const filterButton = [...surface.querySelectorAll(".capture-filters__heading button")].find((button) => button.textContent.trim() === "Filters")?.getBoundingClientRect();
+    const timeline = surface.querySelector("[data-capture-gantt-section]")?.getBoundingClientRect();
+    return {
+      filterLeft: filters?.left || 0,
+      filterWidth: filters?.width || 0,
+      timelineLeft: timeline?.left || 0,
+      headingHeight: heading?.height || 0,
+      scopeHeight: scope?.height || 0,
+      scopeWidth: scope?.width || 0,
+      scopeButtonHeights: scopeButtons.map((rect) => rect.height),
+      scopeCenter: scope ? scope.top + scope.height / 2 : 0,
+      filterCenter: filterButton ? filterButton.top + filterButton.height / 2 : 0,
+    };
+  });
+  assert.ok(Math.abs(primaryTimelineChrome.filterLeft - primaryTimelineChrome.timelineLeft) <= 1, `Find Records and Timeline should share one left gutter: ${JSON.stringify(primaryTimelineChrome)}`);
+  assert.ok(primaryTimelineChrome.headingHeight <= 36, `Desktop Timeline controls should stay on one compact toolbar row: ${JSON.stringify(primaryTimelineChrome)}`);
+  assert.ok(primaryTimelineChrome.scopeHeight <= 30 && primaryTimelineChrome.scopeWidth <= Math.min(420, primaryTimelineChrome.filterWidth * 0.35), `Timeline scope should be compact rather than a full-width card: ${JSON.stringify(primaryTimelineChrome)}`);
+  assert.ok(primaryTimelineChrome.scopeButtonHeights.every((height) => height >= 27 && height <= 30), `Desktop Timeline scope buttons should match compact toolbar geometry: ${JSON.stringify(primaryTimelineChrome)}`);
+  assert.ok(Math.abs(primaryTimelineChrome.scopeCenter - primaryTimelineChrome.filterCenter) <= 1, `Timeline scope and utility actions should share the same vertical center: ${JSON.stringify(primaryTimelineChrome)}`);
   await page.getByRole("button", { name: /All intelligence/i }).click();
   assert.match(decodeURIComponent(new URL(page.url()).hash), /timelineScope=all/, "All intelligence scope should be durable and shareable");
   assert.ok(await page.locator("[data-capture-timeline-row]").count() > 1, "All intelligence should restore the complete matching family timeline");
@@ -1801,7 +1829,7 @@ try {
   assert.match(await portfolioTrigger.getAttribute("aria-label"), /Portfolio \(2\)/, "Portfolio filter should support searchable multi-selection");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Reset" }).click();
-  await page.getByRole("button", { name: "Close filters", exact: true }).click();
+  await page.getByRole("button", { name: "Close Filters", exact: true }).click();
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__row").count(), 50, "Transactions should initially render one bounded Timeline batch");
   const legacyAwardRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "DAAA0998E0006" });
   assert.doesNotMatch(await legacyAwardRow.innerText(), /199812!2100!/, "Timeline labels should replace serialized legacy rows with readable award identity");
@@ -2657,7 +2685,7 @@ try {
   assert.equal(await mobile.locator(".capture-gantt-commandbar__group:visible").count(), 0, "Mobile should keep duplicate window and layer controls inside the focused Controls dialog");
   await mobile.getByRole("button", { name: "Filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 24, "All advanced filters should remain reachable");
-  await mobile.getByRole("button", { name: "Close filters", exact: true }).click();
+  await mobile.getByRole("button", { name: "Close Filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
   await mobile.getByRole("button", { name: "Controls", exact: true }).click();
@@ -2809,6 +2837,14 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/my-work-mobile.png`, fullPage: true });
   await openSurface(mobile, "#/budget-spend/timeline?timelineScope=tracked", "[data-capture-timeline]");
   assert.equal(await mobile.locator('[data-timeline-scope="tracked"]').count(), 1, "Mobile primary Timeline should retain its tracked default");
+  assert.equal(await mobile.locator('[data-capture-filters] [data-timeline-scope="tracked"]').count(), 1, "Mobile Timeline Scope should remain inside the Find Records surface");
+  const mobileTimelineScopeGeometry = await mobile.locator("[data-capture-filters]").evaluate((filters) => {
+    const scope = filters.querySelector("[data-timeline-scope]")?.getBoundingClientRect();
+    const buttons = [...filters.querySelectorAll("[data-timeline-scope] button")].map((button) => button.getBoundingClientRect());
+    return { filterWidth: filters.getBoundingClientRect().width, scopeWidth: scope?.width || 0, buttonHeights: buttons.map((rect) => rect.height) };
+  });
+  assert.ok(mobileTimelineScopeGeometry.scopeWidth <= mobileTimelineScopeGeometry.filterWidth, `Mobile Timeline Scope should stay contained in the Find Records surface: ${JSON.stringify(mobileTimelineScopeGeometry)}`);
+  assert.ok(mobileTimelineScopeGeometry.buttonHeights.every((height) => height >= 43.5), `Mobile Timeline scope buttons should retain 44px touch targets: ${JSON.stringify(mobileTimelineScopeGeometry)}`);
   await assertNoPageOverflow(mobile, "Mobile primary Timeline");
   await mobile.screenshot({ path: `${OUT_DIR}/timeline-primary-mobile.png`, fullPage: true });
   await openSurface(mobile, "#/budget-spend/library", "[data-data-library-page]");
