@@ -7,8 +7,12 @@ Prototype artifacts:
 - [Interactive HTML prototype](./interaction-architecture-v2-prototype.html)
 - [Today desktop](./screenshots/interaction-v2-today-desktop.png)
 - [Timeline desktop](./screenshots/interaction-v2-timeline-desktop.png)
+- [Timeline, all intelligence desktop](./screenshots/interaction-v2-timeline-all-desktop.png)
 - [Timeline mobile](./screenshots/interaction-v2-timeline-mobile.png)
 - [Opportunities desktop](./screenshots/interaction-v2-opportunities-desktop.png)
+- [Data library desktop](./screenshots/interaction-v2-library-desktop.png)
+- [Funding chain desktop](./screenshots/interaction-v2-funding-chain-desktop.png)
+- [Spend landscape desktop](./screenshots/interaction-v2-spend-landscape-desktop.png)
 - [Today mobile](./screenshots/interaction-v2-today-mobile.png)
 - [Opportunities mobile](./screenshots/interaction-v2-opportunities-mobile.png)
 
@@ -54,6 +58,34 @@ Graph, Money Path, Portfolio, Strategy, Analytics, and Map are navigated as dest
 
 ## 3. Product model
 
+### Preservation contract
+
+Architecture v2 changes control surfaces and derived views. It does not replace or flatten the intelligence substrate.
+
+The following remain first-class and lossless:
+
+- source records and raw imported identifiers
+- opportunities, notices, forecasts, awards, vehicles, organizations, offices, accounts, programs, documents, legislation, events, and tasks
+- typed relationships, predecessor/successor evidence, amendments, modifications, recompetes, renames, and candidate links
+- provenance, source URLs, retrieval and publication timestamps, freshness, trust, confidence, and conflict states
+- the complete schema, even when a field is not visible in an operating view
+
+Every v2 surface is an adapter over this library. A family row never deletes its member records. A spend flow never combines unlike measures. A focused view never changes the complete corpus.
+
+### Focused work and complete exploration
+
+V2 deliberately separates the operating scope from the discovery scope:
+
+| Surface | Default scope | Complete escape hatch |
+| --- | --- | --- |
+| Today | tracked work owned by the current user | open Timeline or Opportunities with the current selection |
+| Timeline | tracked families, tasks, and dates | switch Scope to **All intelligence** and browse every supported family and single-record term |
+| Opportunities | all retained opportunities | filter to Tracked, owner, saved view, or evidence state |
+| Data Library | every retained entity and relationship type | already exhaustive; filters only narrow the view |
+| Funding Chain | selected record, family, buyer, or saved scope | expand to the complete evidence ledger for every underlying measure |
+
+The focused defaults reduce noise. They never remove the ability to inspect everything.
+
 ### Primary surfaces
 
 The primary navigation becomes:
@@ -76,6 +108,19 @@ These are no longer peer destinations in the primary workflow:
 - Source lineage
 
 They open as lenses on the current scope or selected record. A lens never replaces the operating context.
+
+### Complete data library
+
+The existing data library remains reachable from the secondary Library menu and global search. It is organized by retained schema type rather than by a new simplified schema:
+
+- Opportunities and notices
+- Awards, vehicles, task orders, and modifications
+- Programs, budget lines, appropriations, and accounts
+- Organizations, offices, primes, and suppliers
+- Documents, legislation, citations, and research reports
+- Events, milestones, tasks, and temporal relationships
+
+The library is the exhaustive browse and audit surface. Primary operating surfaces may summarize these entities, but they always deep-link back to the exact library record and its provenance.
 
 ### Operating loop
 
@@ -254,6 +299,17 @@ It shows:
 
 Users can select an item without leaving Today. The context dock opens in place. **Open full Timeline** carries the current date range and selection into the full surface.
 
+### Full timeline scope
+
+The full Timeline never becomes tracked-only. It opens on **My tracked work** for focus, with an adjacent first-class scope switch for:
+
+- My tracked work
+- Team tracked work
+- All intelligence
+- Saved timeline views
+
+All-intelligence mode keeps the same family rows, lineage rules, layers, evidence states, and context dock. It adds virtualized browsing, family search, buyer/capability filters, and explicit counts so users can scan the entire retained timeline without losing the focused operating mode.
+
 ## 6. Surface definitions
 
 ### Today
@@ -287,6 +343,26 @@ Default content order:
 3. shared context dock on selection
 
 The queue no longer expands a large workspace inside the table. Inline expansion is replaced by the shared dock so the queue remains stable while users inspect multiple records.
+
+### Data Library
+
+Default content order:
+
+1. schema-type navigator with complete retained counts
+2. global entity and identifier search
+3. dense entity table with provenance and freshness
+4. relationship and source inspector in the shared dock
+
+The library is secondary navigation, but it is never a degraded or archived experience. It is where users browse everything, reconcile identifiers, inspect provenance, and reach records that do not yet qualify as opportunities.
+
+### Spending
+
+Spending is reduced to two complementary views over the same evidence, both available as lenses from the selected scope and as secondary Library tools:
+
+1. **Funding Chain**: a left-to-right evidence path from budget request -> appropriation/account -> program -> vehicle -> award -> prime -> retained supplier sample. Width is meaningful only within a measure class; request, obligation, award, and subaward values stay visibly separate.
+2. **Spend Landscape**: a left-to-right portfolio summary from department/office -> capability -> program/family -> opportunities and awards, with fiscal-year columns and comparable-measure selection. It answers where demand is concentrated without manufacturing one mixed total.
+
+Both views share the context dock, open the exact Money evidence tab, and expose an underlying ledger. Existing spend records and evidence remain available even when the default operating surface shows only one selected chain.
 
 ## 7. Control ownership
 
@@ -350,11 +426,18 @@ Surface-specific filters remain namespaced but cannot silently survive a handoff
 
 ### Release 3: Lens consolidation
 
-- move Graph, Money Path, Strategy, Analytics, and Map into scoped lenses
+- move Graph, Funding Chain, Spend Landscape, Strategy, Analytics, and Map into scoped lenses
 - remove duplicate route-level action owners
 - unify saved scope and export behavior
 
-### Release 4: Advanced timeline
+### Release 4: Library continuity
+
+- retain complete schema-type browsing and raw record provenance
+- add all-intelligence scope to Timeline without changing its tracked default
+- connect every family segment, spend node, and context-dock fact to the exact library record
+- verify source counts and relationship coverage before and after the v2 cutover
+
+### Release 5: Advanced timeline
 
 - agenda and calendar modes
 - saved timeline views

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>DBI Interaction Architecture v2</title>
   <style>
     :root {
@@ -136,9 +137,10 @@
     .timeline-footer { padding: 10px 14px; display: flex; align-items: center; gap: 8px; color: var(--muted); background: white; font-size: 10px; }
     .timeline-footer strong { color: var(--ink); }
     .family-timeline { display: none; min-width: 0; background: white; }
-    body.screen-timeline .layout { grid-template-columns: minmax(0, 1fr) minmax(310px, .3fr); }
-    body.screen-timeline .column, body.screen-timeline .timeline, body.screen-timeline .queue { display: none; }
-    body.screen-timeline .family-timeline { display: block; }
+    body.screen-timeline .layout, body.screen-timeline-all .layout { grid-template-columns: minmax(0, 1fr) minmax(310px, .3fr); }
+    body.screen-timeline .column, body.screen-timeline .timeline, body.screen-timeline .queue,
+    body.screen-timeline-all .column, body.screen-timeline-all .timeline, body.screen-timeline-all .queue { display: none; }
+    body.screen-timeline .family-timeline, body.screen-timeline-all .family-timeline { display: block; }
     .family-head { min-height: 62px; padding: 10px 13px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid var(--line); background: #f8fafc; }
     .family-head h2 { margin: 2px 0 0; font-size: 16px; }
     .family-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
@@ -191,6 +193,9 @@
     .family-summary { padding: 8px 11px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); color: var(--muted); background: #f8fafc; font-size: 9px; }
     .family-summary strong { color: var(--ink); }
     .family-summary .control { margin-left: auto; min-height: 30px; font-size: 10px; }
+    .all-only { display: none; }
+    body.screen-timeline-all .all-only.family-row { display: grid; }
+    body.screen-timeline-all .all-only.family-group { display: flex; }
     .queue { display: none; min-width: 0; background: white; }
     body.screen-opportunities .layout { grid-template-columns: minmax(0, 1fr) minmax(320px, .42fr); }
     body.screen-opportunities .column, body.screen-opportunities .timeline { display: none; }
@@ -210,6 +215,61 @@
     .fit { display: inline-flex; min-width: 34px; padding: 4px 7px; justify-content: center; border-radius: 999px; color: #174f98; background: var(--blue-soft); font-weight: 850; }
     .stage { color: #31506f; font-weight: 750; }
     .queue-footer { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); background: #fafbfd; font-size: 10px; }
+    .library-surface, .funding-surface, .landscape-surface { display: none; min-width: 0; background: white; }
+    body.screen-library .layout, body.screen-funding .layout, body.screen-landscape .layout { grid-template-columns: minmax(0, 1fr) minmax(320px, .34fr); }
+    body.screen-library .column, body.screen-library .timeline, body.screen-library .family-timeline, body.screen-library .queue,
+    body.screen-funding .column, body.screen-funding .timeline, body.screen-funding .family-timeline, body.screen-funding .queue,
+    body.screen-landscape .column, body.screen-landscape .timeline, body.screen-landscape .family-timeline, body.screen-landscape .queue { display: none; }
+    body.screen-library .library-surface, body.screen-funding .funding-surface, body.screen-landscape .landscape-surface { display: block; }
+    .surface-head { min-height: 64px; padding: 11px 14px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); background: #f8fafc; }
+    .surface-head h2 { margin: 2px 0 0; font-size: 16px; }
+    .surface-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .surface-head__actions { margin-left: auto; display: flex; gap: 7px; }
+    .library-shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 620px; }
+    .schema-nav { padding: 10px; border-right: 1px solid var(--line); background: #f8fafc; }
+    .schema-nav h3 { margin: 3px 7px 8px; font-size: 11px; }
+    .schema-type { width: 100%; margin-bottom: 5px; padding: 9px 10px; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; border-radius: 6px; color: var(--ink); background: transparent; text-align: left; }
+    .schema-type:hover, .schema-type.is-selected { border-color: #bfd0e6; background: white; }
+    .schema-type.is-selected { box-shadow: inset 3px 0 0 var(--blue); }
+    .schema-type strong { font-size: 11px; }
+    .schema-type span { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 800; }
+    .library-main { min-width: 0; }
+    .library-search { padding: 10px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--line); }
+    .library-search input { flex: 1; min-height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: 6px; }
+    .library-table { width: 100%; border-collapse: collapse; }
+    .library-table th { padding: 9px 10px; border-bottom: 1px solid var(--line); color: #4f6078; background: #f4f7fb; font-size: 9px; text-align: left; text-transform: uppercase; }
+    .library-table td { padding: 11px 10px; border-bottom: 1px solid var(--line); font-size: 11px; vertical-align: top; }
+    .type-pill { display: inline-flex; padding: 3px 6px; border-radius: 999px; color: #31506f; background: #edf3f8; font-size: 9px; font-weight: 850; }
+    .source-state { color: var(--green); font-weight: 800; }
+    .coverage-strip { padding: 9px 12px; display: flex; gap: 16px; border-bottom: 1px solid var(--line); color: var(--muted); background: white; font-size: 10px; }
+    .coverage-strip strong { color: var(--ink); }
+    .money-summary { padding: 9px 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border-bottom: 1px solid var(--line); background: white; }
+    .money-summary .fact { padding: 9px; }
+    .diagram-scroll { overflow-x: auto; }
+    .funding-chain { min-width: 1110px; min-height: 485px; padding: 24px 18px 30px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 22px; align-items: stretch; background: linear-gradient(#f9fbfd, #fff); }
+    .flow-stage { position: relative; min-width: 0; }
+    .flow-stage:not(:last-child)::after { content: "→"; position: absolute; right: -18px; top: 112px; color: #7e96b0; font-size: 21px; font-weight: 900; }
+    .flow-stage h3 { margin: 0 0 9px; min-height: 28px; color: #4f627a; font-size: 9px; line-height: 1.3; letter-spacing: .05em; text-align: center; text-transform: uppercase; }
+    .money-node { margin-bottom: 9px; padding: 9px; border: 1px solid #bbcadb; border-left: 4px solid var(--blue); border-radius: 7px; background: white; box-shadow: 0 3px 9px rgba(21,48,78,.06); }
+    .money-node.is-request { border-left-color: var(--purple); background: #f8f5ff; }
+    .money-node.is-obligation { border-left-color: var(--teal); background: #f1fbfa; }
+    .money-node.is-sample { border-left-style: dashed; border-left-color: #8090a3; background: #f8fafc; }
+    .money-node small { display: block; color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+    .money-node strong { display: block; margin-top: 3px; font-size: 11px; line-height: 1.3; }
+    .money-node span { display: block; margin-top: 5px; color: #35506c; font-size: 9px; }
+    .evidence-ledger { padding: 9px 12px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); background: #f8fafc; color: var(--muted); font-size: 10px; }
+    .evidence-ledger .control { margin-left: auto; }
+    .landscape { min-width: 1120px; min-height: 500px; padding: 20px; display: grid; grid-template-columns: 150px 190px 190px 220px minmax(250px, 1fr); gap: 18px; background: linear-gradient(#f9fbfd, #fff); }
+    .landscape-col { position: relative; }
+    .landscape-col:not(:last-child)::after { content: "→"; position: absolute; right: -15px; top: 118px; color: #7e96b0; font-size: 20px; font-weight: 900; }
+    .landscape-col h3 { margin: 0 0 8px; color: #4f627a; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
+    .landscape-card { margin-bottom: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: white; box-shadow: 0 2px 7px rgba(21,48,78,.05); }
+    .landscape-card.is-selected { border-color: #96b8e6; background: #eff6ff; box-shadow: inset 3px 0 0 var(--blue); }
+    .landscape-card strong { display: block; font-size: 11px; line-height: 1.25; }
+    .landscape-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .landscape-card .bar { height: 5px; margin-top: 7px; border-radius: 999px; background: #dfe8f3; overflow: hidden; }
+    .landscape-card .bar::before { content: ""; display: block; width: var(--share, 60%); height: 100%; background: var(--blue); }
+    .measure-note { padding: 8px 12px; border-top: 1px solid var(--line); color: var(--muted); background: #fffaf2; font-size: 9px; }
     .flow-map { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; }
     .flow-step { position: relative; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; background: white; }
     .flow-step::after { content: "→"; position: absolute; right: -10px; top: 50%; z-index: 2; transform: translateY(-50%); color: #7790ad; font-weight: 900; }
@@ -261,14 +321,23 @@
       .dock-actions { position: sticky; bottom: 0; background: white; }
       .flow-map { grid-template-columns: 1fr; }
       .flow-step::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -15px; transform: translateX(-50%); }
-      body.screen-timeline .layout { display: flex; }
-      body.screen-timeline .family-timeline { order: 1; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
-      body.screen-timeline .dock { order: 2; }
+      body.screen-timeline .layout, body.screen-timeline-all .layout { display: flex; }
+      body.screen-timeline .family-timeline, body.screen-timeline-all .family-timeline { order: 1; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+      body.screen-timeline .dock, body.screen-timeline-all .dock { order: 2; }
       .family-head { align-items: start; }
       .family-head p, .family-head__actions .control:not(.is-primary) { display: none; }
       .family-controls { padding: 6px; }
       .family-legend { padding: 7px 8px; }
       .family-scroll { max-height: 480px; }
+      body.screen-library .layout, body.screen-funding .layout, body.screen-landscape .layout { display: flex; }
+      body.screen-library .library-surface, body.screen-funding .funding-surface, body.screen-landscape .landscape-surface { order: 1; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+      body.screen-library .dock, body.screen-funding .dock, body.screen-landscape .dock { order: 2; }
+      .surface-head { align-items: start; }
+      .surface-head p, .surface-head__actions .control:not(.is-primary) { display: none; }
+      .library-shell { grid-template-columns: 180px minmax(540px, 1fr); overflow-x: auto; }
+      .money-summary { grid-template-columns: repeat(2, 1fr); }
+      .funding-chain { min-width: 1060px; }
+      .landscape { min-width: 1080px; }
     }
   </style>
 </head>
@@ -281,21 +350,21 @@
         <button type="button" data-screen-button="timeline">Timeline</button>
         <button type="button" data-screen-button="opportunities">Opportunities</button>
       </nav>
-      <div class="top-actions"><button class="search-button" type="button">⌕ Search</button><button class="icon-button" type="button" aria-label="Tools">☰</button><button class="icon-button" type="button" aria-label="Notifications">●</button></div>
+      <div class="top-actions"><button class="search-button" type="button">⌕ Search</button><button class="icon-button" type="button" aria-label="Library and analysis" data-screen-button="library">☰</button><button class="icon-button" type="button" aria-label="Notifications">●</button></div>
     </header>
     <main>
       <div class="page">
         <header class="page-head">
           <div><span class="eyebrow" id="page-eyebrow">Workspace focus</span><h1 id="page-title">Good afternoon, Adam</h1><p id="page-summary">Start with the work that needs a decision, then move through time without losing the selected opportunity.</p></div>
           <span class="mobile-title" id="mobile-title">Today</span>
-          <div class="summary-line"><span class="summary-pill"><strong>3</strong> need attention</span><span class="summary-pill"><strong>2</strong> waiting</span><span class="summary-pill"><strong>1</strong> evidence gap</span></div>
+          <div class="summary-line"><span class="summary-pill" id="summary-one"><strong>3</strong> need attention</span><span class="summary-pill" id="summary-two"><strong>2</strong> waiting</span><span class="summary-pill" id="summary-three"><strong>1</strong> evidence gap</span></div>
         </header>
 
         <section class="scope-bar" aria-label="Current scope">
           <span class="scope-label">Scope</span>
-          <button class="control is-soft" type="button">My tracked work</button>
-          <button class="control" type="button">Next 14 days</button>
-          <button class="control" type="button">Owner: Adam</button>
+          <button class="control is-soft" id="scope-primary" type="button">My tracked work</button>
+          <button class="control" id="scope-secondary" type="button">Next 14 days</button>
+          <button class="control" id="scope-tertiary" type="button">Owner: Adam</button>
           <span class="scope-spacer"></span>
           <button class="control" type="button">Filters · 1</button>
           <button class="control" type="button">Save view</button>
@@ -350,7 +419,7 @@
                 <div class="family-year-axis"><div>Contract / acquisition family</div><div>2025</div><div>2026</div><div>2027</div><div>2028</div></div>
                 <div class="family-quarter-axis"><div>Versions, terms, and follow-ons</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div></div>
 
-                <div class="family-group"><span>Tracked contract families</span><span>12 families · 37 versions · 4 links need review</span></div>
+                <div class="family-group"><span id="timeline-family-heading">Tracked contract families</span><span id="timeline-family-count">12 families · 37 versions · 4 links need review</span></div>
                 <div class="family-row is-selected" data-family="arsenal">
                   <div class="family-identity"><button class="family-toggle" type="button" data-family-toggle="arsenal" aria-label="Expand Application Arsenal family">▸</button><div><strong>Application Arsenal mission engineering</strong><small>3 versions · Army applications · selected</small></div></div>
                   <div class="family-track">
@@ -373,9 +442,14 @@
                 <div class="family-group"><span>Single-record terms</span><span>Shown separately until lineage is supported</span></div>
                 <div class="family-row"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand record">▸</button><div><strong>Construction / ammunition facilities</strong><small>Active reported term · ends in 19 months</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:3%;width:53%">Oct 2024 – Nov 2026</button><span class="family-marker is-change" style="left:38%"></span></div></div>
                 <div class="family-row"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand record">▸</button><div><strong>Multi-INT water supply support</strong><small>Active reported term · follow-on not yet linked</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:8%;width:62%">May 2024 – Dec 2027</button><button class="family-bar is-v3" type="button" style="left:73%;width:20%">Possible follow-on</button></div></div>
+
+                <div class="family-group all-only"><span>All intelligence · additional families</span><span>884 more records · virtualized in production</span></div>
+                <div class="family-row all-only"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand cyber family">▸</button><div><strong>Installation cyber resilience</strong><small>5 notices · Navy facilities · not tracked</small></div></div><div class="family-track"><button class="family-bar is-muted" type="button" style="left:17%;width:19%">Sources sought</button><span class="family-link" style="left:36%;width:3%"></span><button class="family-bar" type="button" style="left:39%;width:36%">Draft to award window</button><span class="family-marker is-change" style="left:55%"></span></div></div>
+                <div class="family-row all-only"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand tactical communications family">▸</button><div><strong>Secure tactical communications</strong><small>7 records · Army PEO C3T · not tracked</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:23%;width:24%">Market research</button><span class="family-link is-candidate" style="left:47%;width:5%"></span><button class="family-bar is-v3" type="button" style="left:52%;width:29%">Potential solicitation</button></div></div>
+                <div class="family-row all-only"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand ISR platform family">▸</button><div><strong>ISR data integration platform</strong><small>Forecast + awards · Air Force · evidence gap</small></div></div><div class="family-track"><button class="family-bar is-purple" type="button" style="left:6%;width:38%">Incumbent award history</button><span class="family-link is-candidate" style="left:44%;width:6%"></span><button class="family-bar is-v3" type="button" style="left:50%;width:34%">Forecast follow-on</button><span class="family-marker" style="left:74%"></span></div></div>
               </div>
             </div>
-            <footer class="family-summary"><span><strong>5 lines visible</strong> · 3 grouped families · 1 candidate link selected for review</span><button class="control" type="button">Review relationship evidence</button></footer>
+            <footer class="family-summary"><span id="timeline-footer-copy"><strong>5 lines visible</strong> · 3 grouped families · 1 candidate link selected for review</span><button class="control" type="button">Review relationship evidence</button></footer>
           </section>
 
           <section class="queue">
@@ -392,12 +466,77 @@
             <footer class="queue-footer"><span>Showing 4 of 888 records</span><span>Sorted by decision priority</span></footer>
           </section>
 
+          <section class="library-surface" aria-label="Complete data library">
+            <header class="surface-head"><div><span class="eyebrow">Complete intelligence substrate</span><h2>Data Library</h2><p>Browse every retained schema type, source record, relationship, and provenance field.</p></div><div class="surface-head__actions"><button class="control">Schema</button><button class="control">Export ledger</button><button class="control is-primary">Add source</button></div></header>
+            <div class="coverage-strip"><span><strong>72,459</strong> entities</span><span><strong>135,766</strong> typed relations</span><span><strong>72</strong> official documents</span><span><strong>31</strong> version chains</span><span><strong>270</strong> expiration signals</span></div>
+            <div class="library-shell">
+              <aside class="schema-nav">
+                <h3>Browse by schema</h3>
+                <button class="schema-type is-selected"><strong>Opportunities & notices</strong><span>888</span></button>
+                <button class="schema-type"><strong>Awards & vehicles</strong><span>18,420</span></button>
+                <button class="schema-type"><strong>Programs & accounts</strong><span>6,118</span></button>
+                <button class="schema-type"><strong>Organizations & offices</strong><span>2,704</span></button>
+                <button class="schema-type"><strong>Documents & legislation</strong><span>101</span></button>
+                <button class="schema-type"><strong>Events & milestones</strong><span>11,383</span></button>
+                <button class="schema-type"><strong>Research & citations</strong><span>1,906</span></button>
+                <button class="schema-type"><strong>Relationships</strong><span>135,766</span></button>
+              </aside>
+              <div class="library-main">
+                <div class="library-search"><input aria-label="Search complete library" value="Application Arsenal" placeholder="Search title, identifier, organization, account, award, document, or citation"><button class="control is-soft">Search all fields</button><button class="control">Filters · 2</button></div>
+                <table class="library-table">
+                  <thead><tr><th>Record</th><th>Schema type</th><th>Identifier / lineage</th><th>Source</th><th>Freshness</th></tr></thead>
+                  <tbody>
+                    <tr class="is-selected"><td><span class="queue-title">Application Arsenal EELS</span><span class="queue-meta">Exact source record · selected</span></td><td><span class="type-pill">Opportunity</span></td><td>AA-EELS-2026 · succeeds C4I Storefront</td><td>Official notice</td><td class="source-state">Current</td></tr>
+                    <tr><td><span class="queue-title">C4I Storefront</span><span class="queue-meta">Base + modifications I–VI</span></td><td><span class="type-pill">Contract family</span></td><td>W52P1J-21-D-0042 · predecessor</td><td>FPDS / official</td><td class="source-state">Current</td></tr>
+                    <tr><td><span class="queue-title">Application Arsenal follow-on</span><span class="queue-meta">Candidate relationship · review required</span></td><td><span class="type-pill">Forecast</span></td><td>Candidate v3 · not merged</td><td>Acquisition forecast</td><td>38 days</td></tr>
+                    <tr><td><span class="queue-title">Army application modernization account</span><span class="queue-meta">FY2026 request context</span></td><td><span class="type-pill">Budget account</span></td><td>2035 / BA 07</td><td>Army budget books</td><td class="source-state">Current</td></tr>
+                    <tr><td><span class="queue-title">BAE Systems Ordnance Systems</span><span class="queue-meta">Prime and supplier relationships retained</span></td><td><span class="type-pill">Organization</span></td><td>UEI / CAGE crosswalk</td><td>SAM / USAspending</td><td>Partial</td></tr>
+                    <tr><td><span class="queue-title">AA EELS decision brief</span><span class="queue-meta">4 cited dates · 5 findings · 2 risks</span></td><td><span class="type-pill">Research report</span></td><td>Report 7bc16fcf · cited</td><td>Official web sources</td><td class="source-state">Current</td></tr>
+                  </tbody>
+                </table>
+                <footer class="queue-footer"><span>Showing 6 exact records from the complete library</span><span>No schema fields or source identities are discarded in v2</span></footer>
+              </div>
+            </div>
+          </section>
+
+          <section class="funding-surface" aria-label="Funding chain">
+            <header class="surface-head"><div><span class="eyebrow">Spend lens · evidence chain</span><h2>Funding Chain</h2><p>Follow one selected scope from request context to awards and retained supplier samples.</p></div><div class="surface-head__actions"><button class="control">FY2026</button><button class="control">Evidence</button><button class="control is-primary" data-screen-jump="landscape">Open landscape</button></div></header>
+            <div class="money-summary"><div class="fact"><small>Budget request</small><strong>$184.0M · FY26</strong></div><div class="fact"><small>Exact obligations</small><strong>$64.2M</strong></div><div class="fact"><small>Published award</small><strong>$112.0M ceiling</strong></div><div class="fact"><small>Supplier coverage</small><strong>7 retained samples</strong></div></div>
+            <div class="diagram-scroll">
+              <div class="funding-chain">
+                <div class="flow-stage"><h3>Budget request</h3><div class="money-node is-request"><small>Request · FY26</small><strong>Army application modernization</strong><span>$184.0M requested</span></div><div class="money-node is-request"><small>Request context</small><strong>Mission command portfolio</strong><span>Comparable request only</span></div></div>
+                <div class="flow-stage"><h3>Appropriation / account</h3><div class="money-node is-request"><small>2035 · BA 07</small><strong>Other procurement, Army</strong><span>Budget-book lineage</span></div><div class="money-node"><small>RDT&E context</small><strong>Applied research support</strong><span>Separate measure class</span></div></div>
+                <div class="flow-stage"><h3>Program / family</h3><div class="money-node"><small>Tracked family</small><strong>Application Arsenal mission engineering</strong><span>3 versions retained</span></div><div class="money-node"><small>Related program</small><strong>Mission command software</strong><span>Supported relationship</span></div></div>
+                <div class="flow-stage"><h3>Vehicle</h3><div class="money-node"><small>Contract vehicle</small><strong>Enterprise application services</strong><span>Ceiling shown separately</span></div><div class="money-node"><small>Task order path</small><strong>C4I Storefront vehicle</strong><span>Exact identifier</span></div></div>
+                <div class="flow-stage"><h3>Award / obligation</h3><div class="money-node is-obligation"><small>Exact obligations</small><strong>AA EELS task order</strong><span>$64.2M obligated</span></div><div class="money-node"><small>Published award</small><strong>$112.0M ceiling</strong><span>Not added to obligations</span></div></div>
+                <div class="flow-stage"><h3>Prime</h3><div class="money-node"><small>Prime recipient</small><strong>BAE Systems Ordnance Systems</strong><span>Official award evidence</span></div><div class="money-node"><small>Incumbent context</small><strong>Application delivery team</strong><span>Relationship supported</span></div></div>
+                <div class="flow-stage"><h3>Supplier samples</h3><div class="money-node is-sample"><small>Retained sample</small><strong>Secure cloud services</strong><span>$4.8M observed</span></div><div class="money-node is-sample"><small>Retained sample</small><strong>DevSecOps integration</strong><span>$2.1M observed</span></div><div class="money-node is-sample"><small>Coverage</small><strong>5 more samples</strong><span>Partial, never treated as total</span></div></div>
+              </div>
+            </div>
+            <footer class="evidence-ledger"><span><strong>Evidence boundary:</strong> requests, obligations, award ceilings, and supplier samples remain separate.</span><button class="control">Open 23-line evidence ledger</button></footer>
+          </section>
+
+          <section class="landscape-surface" aria-label="Spend landscape">
+            <header class="surface-head"><div><span class="eyebrow">Spend lens · portfolio orientation</span><h2>Spend Landscape</h2><p>See where comparable demand moves from department and office into capability, program families, opportunities, and awards.</p></div><div class="surface-head__actions"><button class="control">Measure: exact obligations</button><button class="control">FY2025–2027</button><button class="control is-primary" data-screen-jump="funding">Open selected chain</button></div></header>
+            <div class="coverage-strip"><span><strong>446</strong> exact obligation facts</span><span><strong>461</strong> request facts</span><span><strong>702</strong> award facts</span><span><strong>1</strong> measure selected at a time</span></div>
+            <div class="diagram-scroll">
+              <div class="landscape">
+                <div class="landscape-col"><h3>Department</h3><div class="landscape-card is-selected" style="--share:82%"><strong>Army</strong><span>$4.8B exact obligations</span><div class="bar"></div></div><div class="landscape-card" style="--share:64%"><strong>Air Force</strong><span>$3.7B exact obligations</span><div class="bar"></div></div><div class="landscape-card" style="--share:41%"><strong>Navy</strong><span>$2.4B exact obligations</span><div class="bar"></div></div></div>
+                <div class="landscape-col"><h3>Buying office</h3><div class="landscape-card is-selected" style="--share:76%"><strong>Army PEO C3T</strong><span>142 awards · 18 opportunities</span><div class="bar"></div></div><div class="landscape-card" style="--share:58%"><strong>Army Contracting Command</strong><span>96 awards · 11 opportunities</span><div class="bar"></div></div><div class="landscape-card" style="--share:38%"><strong>Army applications office</strong><span>34 awards · 7 opportunities</span><div class="bar"></div></div></div>
+                <div class="landscape-col"><h3>Capability</h3><div class="landscape-card is-selected" style="--share:88%"><strong>Mission software</strong><span>$742M obligations · 14 families</span><div class="bar"></div></div><div class="landscape-card" style="--share:67%"><strong>Secure communications</strong><span>$568M · 10 families</span><div class="bar"></div></div><div class="landscape-card" style="--share:49%"><strong>Data integration</strong><span>$412M · 8 families</span><div class="bar"></div></div></div>
+                <div class="landscape-col"><h3>Program / contract family</h3><div class="landscape-card is-selected" style="--share:92%"><strong>Application Arsenal</strong><span>C4I Storefront v1 → AA EELS v2</span><div class="bar"></div></div><div class="landscape-card" style="--share:62%"><strong>Mission command services</strong><span>6 retained contract versions</span><div class="bar"></div></div><div class="landscape-card" style="--share:44%"><strong>Cyber resilience</strong><span>4 notices · 2 awards</span><div class="bar"></div></div></div>
+                <div class="landscape-col"><h3>Opportunity and award outcomes</h3><div class="landscape-card is-selected" style="--share:78%"><strong>AA EELS modernization</strong><span>Tracked · Capture · response Sep 30</span><div class="bar"></div></div><div class="landscape-card" style="--share:58%"><strong>AA EELS task order</strong><span>$64.2M exact obligations</span><div class="bar"></div></div><div class="landscape-card" style="--share:36%"><strong>Application Arsenal follow-on</strong><span>Candidate v3 · evidence review</span><div class="bar"></div></div><div class="landscape-card" style="--share:31%"><strong>7 supplier samples</strong><span>Partial industrial-base evidence</span><div class="bar"></div></div></div>
+              </div>
+            </div>
+            <div class="measure-note"><strong>Comparable-measure rule:</strong> this view currently sizes only exact obligations. Change the measure to budget request or published award; DBI never adds them together.</div>
+          </section>
+
           <aside class="dock">
             <header class="dock-head"><div class="dock-head__row"><div><span class="eyebrow" id="dock-eyebrow">Selected opportunity</span><h2 id="dock-title">Application Arsenal modernization</h2><p id="dock-subtitle">BAE Systems Ordnance Systems · Official notice</p></div><button class="close" type="button" aria-label="Close">×</button></div></header>
             <div class="dock-status"><div class="fact"><small>Pursuit</small><strong>Capture</strong></div><div class="fact"><small>Owner</small><strong>Adam</strong></div><div class="fact"><small>Next milestone</small><strong>Response · Sep 30</strong></div><div class="fact"><small>Evidence</small><strong>Official · current</strong></div></div>
             <nav class="dock-tabs" aria-label="Selected record"><button class="is-active" type="button" data-dock-tab="Summary">Summary</button><button type="button" data-dock-tab="Timeline">Timeline</button><button type="button" data-dock-tab="Evidence">Evidence</button><button type="button" data-dock-tab="Money">Money</button><button type="button" data-dock-tab="Tasks">Tasks</button></nav>
             <div class="dock-body"><h3 id="dock-section-title">Decision summary</h3><p id="dock-copy">Customer access is established, but the retained notice does not publish detailed scope or set-aside terms. Confirm the buyer response before committing proposal effort.</p><div class="next-action"><small id="dock-action-label">Next action</small><strong id="dock-action">Prepare customer follow-up and validate acquisition route</strong></div></div>
-            <div class="dock-actions"><button class="control is-primary" type="button">Complete action</button><button class="control" type="button">More</button></div>
+            <div class="dock-actions"><button class="control is-primary" id="dock-primary-action" type="button">Complete action</button><button class="control" type="button">More</button></div>
           </aside>
         </section>
 
@@ -415,11 +554,18 @@
     const copy = {
       today: ["Workspace focus", "Good afternoon, Adam", "Start with the work that needs a decision, then move through time without losing the selected opportunity.", "Today", "Forward view", "Next 14 days", "Tasks, opportunity dates, research, and team events"],
       timeline: ["Primary control surface", "Timeline", "Follow contract terms, versions, amendments, recompetes, milestones, and follow-ons on one shared time axis.", "Timeline", "Family timeline", "Contract and acquisition lineage", "Related versions share one line; every source record remains inspectable"],
-      opportunities: ["Opportunity intelligence", "Opportunities", "Qualify records in one stable queue, then inspect and act through the shared context dock.", "Opportunities", "Selected portfolio", "Opportunity decision horizon", "Deadlines, tasks, and evidence stay visible while reviewing records"]
+      "timeline-all": ["Primary control surface · complete scope", "Timeline · All intelligence", "Browse every supported family and single-record term without changing the tracked-work default.", "Timeline", "Family timeline", "Complete contract and acquisition lineage", "All retained families, versions, single records, and candidate links remain browsable"],
+      opportunities: ["Opportunity intelligence · complete queue", "Opportunities", "Browse all retained opportunities, then narrow to tracked work, an owner, or a saved decision scope.", "Opportunities", "Complete opportunity library", "Opportunity decision horizon", "All retained opportunities remain reachable while the context dock preserves review state"],
+      library: ["Complete intelligence substrate", "Data Library", "Browse every retained entity, relationship, identifier, field, and source without flattening the schema.", "Library", "Library", "Complete data library", "Every schema type and source record remains available"],
+      funding: ["Spend lens · selected evidence chain", "Funding Chain", "Follow requests, accounts, programs, vehicles, awards, primes, and retained supplier evidence left to right.", "Funding", "Money", "Funding Chain", "Separate measure classes linked to exact source evidence"],
+      landscape: ["Spend lens · portfolio orientation", "Spend Landscape", "See where comparable demand moves from departments and offices into capabilities, families, opportunities, and awards.", "Spend", "Money", "Spend Landscape", "One comparable measure at a time across the retained portfolio"]
     };
     function setScreen(screen) {
       const data = copy[screen] || copy.today;
-      document.querySelectorAll("[data-screen-button]").forEach((button) => button.classList.toggle("is-active", button.dataset.screenButton === screen));
+      const isTimeline = screen === "timeline" || screen === "timeline-all";
+      const isMoney = screen === "funding" || screen === "landscape";
+      const navScreen = isTimeline ? "timeline" : screen;
+      document.querySelectorAll("[data-screen-button]").forEach((button) => button.classList.toggle("is-active", button.dataset.screenButton === navScreen));
       document.getElementById("brand-title").textContent = data[3];
       document.getElementById("page-eyebrow").textContent = data[0];
       document.getElementById("page-title").textContent = data[1];
@@ -429,18 +575,63 @@
       document.getElementById("timeline-title").textContent = data[5];
       document.getElementById("timeline-subtitle").textContent = data[6];
       document.body.className = `screen-${screen}`;
-      document.querySelectorAll("[data-dock-tab]").forEach((button) => button.classList.toggle("is-active", button.dataset.dockTab === (screen === "timeline" ? "Timeline" : "Summary")));
-      document.getElementById("dock-eyebrow").textContent = screen === "timeline" ? "Selected family" : "Selected opportunity";
-      document.getElementById("dock-title").textContent = screen === "timeline" ? "Application Arsenal lineage" : "Application Arsenal modernization";
-      document.getElementById("dock-subtitle").textContent = screen === "timeline" ? "C4I Storefront v1 → AA EELS v2 → candidate v3" : "BAE Systems Ordnance Systems · Official notice";
-      document.getElementById("dock-section-title").textContent = screen === "timeline" ? "Family relationship" : "Decision summary";
-      document.getElementById("dock-copy").textContent = screen === "timeline" ? "C4I Storefront and AA EELS have supported predecessor/successor evidence. The proposed v3 follow-on is a candidate relationship and remains excluded from exact family metrics until reviewed." : "Customer access is established, but the retained notice does not publish detailed scope or set-aside terms. Confirm the buyer response before committing proposal effort.";
-      document.getElementById("dock-action-label").textContent = screen === "timeline" ? "Relationship review" : "Next action";
-      document.getElementById("dock-action").textContent = screen === "timeline" ? "Review the candidate v3 link and its cited evidence" : "Prepare customer follow-up and validate acquisition route";
+      const scope = {
+        today: ["My tracked work", "Next 14 days", "Owner: Adam"],
+        timeline: ["My tracked work", "7 years", "12 families"],
+        "timeline-all": ["All intelligence", "7 years", "888 records"],
+        opportunities: ["All opportunities", "Decision priority", "888 records"],
+        library: ["All data", "All schema types", "72,459 entities"],
+        funding: ["Application Arsenal family", "FY2026", "Exact + contextual evidence"],
+        landscape: ["All retained portfolios", "FY2025–2027", "Exact obligations"]
+      }[screen] || ["My tracked work", "Next 14 days", "Owner: Adam"];
+      ["scope-primary", "scope-secondary", "scope-tertiary"].forEach((id, index) => {
+        const button = document.getElementById(id); button.textContent = scope[index]; button.classList.toggle("is-soft", index === 0);
+      });
+      const summaries = {
+        today: ["<strong>3</strong> need attention", "<strong>2</strong> waiting", "<strong>1</strong> evidence gap"],
+        timeline: ["<strong>12</strong> tracked families", "<strong>37</strong> versions", "<strong>4</strong> links to review"],
+        "timeline-all": ["<strong>888</strong> records", "<strong>31</strong> version chains", "<strong>270</strong> expiration signals"],
+        opportunities: ["<strong>888</strong> retained", "<strong>23</strong> tracked", "<strong>74</strong> changed this week"],
+        library: ["<strong>72,459</strong> entities", "<strong>135,766</strong> relations", "<strong>7</strong> schema families"],
+        funding: ["<strong>23</strong> evidence lines", "<strong>4</strong> measure classes", "<strong>7</strong> supplier samples"],
+        landscape: ["<strong>446</strong> obligation facts", "<strong>461</strong> request facts", "<strong>702</strong> award facts"]
+      }[screen] || ["<strong>3</strong> need attention", "<strong>2</strong> waiting", "<strong>1</strong> evidence gap"];
+      ["summary-one", "summary-two", "summary-three"].forEach((id, index) => document.getElementById(id).innerHTML = summaries[index]);
+      document.getElementById("timeline-family-heading").textContent = screen === "timeline-all" ? "All contract and acquisition families" : "Tracked contract families";
+      document.getElementById("timeline-family-count").textContent = screen === "timeline-all" ? "888 retained records · 31 version chains · virtualized" : "12 families · 37 versions · 4 links need review";
+      document.getElementById("timeline-footer-copy").innerHTML = screen === "timeline-all" ? "<strong>8 example lines visible</strong> · 888 retained records available · search and virtualized scroll in production" : "<strong>5 lines visible</strong> · 3 grouped families · 1 candidate link selected for review";
+      const activeDockTab = isTimeline ? "Timeline" : isMoney ? "Money" : screen === "library" ? "Evidence" : "Summary";
+      document.querySelectorAll("[data-dock-tab]").forEach((button) => button.classList.toggle("is-active", button.dataset.dockTab === activeDockTab));
+      const dock = isTimeline ? {
+        eyebrow: "Selected family", title: "Application Arsenal lineage", subtitle: "C4I Storefront v1 → AA EELS v2 → candidate v3", section: "Family relationship",
+        copy: "C4I Storefront and AA EELS have supported predecessor/successor evidence. The proposed v3 follow-on is a candidate relationship and remains excluded from exact family metrics until reviewed.", label: "Relationship review", action: "Review the candidate v3 link and its cited evidence"
+      } : screen === "library" ? {
+        eyebrow: "Selected library record", title: "Application Arsenal EELS", subtitle: "Opportunity · AA-EELS-2026 · exact source record", section: "Provenance and lineage",
+        copy: "This retained record keeps the original notice identity, cited source, retrieval and publication timestamps, typed predecessor relationship, and every imported schema field.", label: "Library integrity", action: "Open the source record, relationship evidence, and full field ledger"
+      } : isMoney ? {
+        eyebrow: "Selected money context", title: "Application Arsenal funding", subtitle: "Request → account → family → award → prime", section: screen === "funding" ? "Selected evidence chain" : "Selected portfolio path",
+        copy: screen === "funding" ? "FY2026 request context, exact obligations, award ceiling, and retained supplier samples are shown as separate measure classes with source-level evidence." : "Army mission-software obligations are selected. The landscape shows only exact obligations until the measure is deliberately changed.", label: "Next analysis", action: screen === "funding" ? "Inspect the exact obligation ledger and missing supplier coverage" : "Open the Application Arsenal chain without losing this portfolio scope"
+      } : {
+        eyebrow: "Selected opportunity", title: "Application Arsenal modernization", subtitle: "BAE Systems Ordnance Systems · Official notice", section: "Decision summary",
+        copy: "Customer access is established, but the retained notice does not publish detailed scope or set-aside terms. Confirm the buyer response before committing proposal effort.", label: "Next action", action: "Prepare customer follow-up and validate acquisition route"
+      };
+      document.getElementById("dock-eyebrow").textContent = dock.eyebrow;
+      document.getElementById("dock-title").textContent = dock.title;
+      document.getElementById("dock-subtitle").textContent = dock.subtitle;
+      document.getElementById("dock-section-title").textContent = dock.section;
+      document.getElementById("dock-copy").textContent = dock.copy;
+      document.getElementById("dock-action-label").textContent = dock.label;
+      document.getElementById("dock-action").textContent = dock.action;
+      document.getElementById("dock-primary-action").textContent = isTimeline ? "Review evidence" : screen === "library" ? "Open source record" : isMoney ? "Open evidence ledger" : "Complete action";
       const url = new URL(window.location.href); url.searchParams.set("screen", screen); history.replaceState(null, "", url);
     }
     document.querySelectorAll("[data-screen-button]").forEach((button) => button.addEventListener("click", () => setScreen(button.dataset.screenButton)));
     document.querySelectorAll("[data-screen-jump]").forEach((button) => button.addEventListener("click", () => setScreen(button.dataset.screenJump)));
+    document.getElementById("scope-primary").addEventListener("click", () => {
+      const screen = new URL(window.location.href).searchParams.get("screen");
+      if (screen === "timeline") setScreen("timeline-all");
+      else if (screen === "timeline-all") setScreen("timeline");
+    });
     document.querySelectorAll("[data-select]").forEach((button) => button.addEventListener("click", () => {
       document.querySelectorAll("[data-select]").forEach((item) => item.classList.toggle("is-selected", item.dataset.select === button.dataset.select));
     }));
