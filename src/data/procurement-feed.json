@@ -1,10 +1,10 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:40:23.325Z",
+    "generatedAt": "2026-10-17T13:57:52.088Z",
     "status": "compared",
     "discoveryCount": 888,
-    "historyDays": 2,
+    "historyDays": 3,
     "coverage": {
       "scope": "Technology-focused acquisition records assembled from disclosed public-source queries; not exhaustive DoW award coverage.",
       "knownRecords": 888,
@@ -28,7 +28,7 @@
         "sam": {
           "status": "unavailable",
           "generatedAt": null,
-          "lastAttemptAt": "2026-10-15T19:40:21.851Z"
+          "lastAttemptAt": "2026-10-17T13:57:43.043Z"
         },
         "usaspending": {
           "status": "current",
@@ -43,6 +43,22 @@
     }
   },
   "history": [
+    {
+      "date": "2026-10-17",
+      "generatedAt": "2026-10-17T13:57:52.088Z",
+      "summary": {
+        "added": 0,
+        "updated": 0,
+        "removed": 0
+      },
+      "sources": {
+        "sam": "unavailable",
+        "usaspending": "current",
+        "contractMonitor": "gaps-disclosed"
+      },
+      "changes": [],
+      "truncated": false
+    },
     {
       "date": "2026-10-15",
       "generatedAt": "2026-10-15T19:40:23.325Z",
@@ -1678,6 +1694,13 @@
       "sourceSystem": "USAspending",
       "title": "THE PURPOSE OF THIS ACTION IS TO AWARD A NEW FIVE (5) YEAR TASK ORDER UNDER THE RS3 CONTRACT FOR MODELING AND SIMULATION, ANALYSIS, ENGINEERING, NETWORKING, AND EXPERIMENTATION SUPPORT",
       "date": "2026-10-31"
+    },
+    {
+      "opportunityId": "opp_4ee47d7c94491f12b9c9",
+      "sourceRecordId": "opp_4ee47d7c94491f12b9c9",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "C5I sustainment bridge",
+      "date": "2026-11-15"
     }
   ]
 }
