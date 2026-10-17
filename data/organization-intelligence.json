@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-17T04:23:40.407Z",
+    "generatedAt": "2026-10-17T12:08:37.448Z",
     "status": "current",
     "coverage": {
       "dossiers": 100,
@@ -18,7 +18,7 @@
     },
     "evidenceBoundary": "Dossiers are bounded projections of retained public evidence. Observed-current professional roles are lower-bound observations, not appointment dates. Request, authority, obligation, outlay, award value, and ceiling measures remain separate. Missing public evidence is an explicit research gap, never a negative assertion.",
     "selectionPolicy": "The 100-dossier cohort prioritizes sourced leadership and oversight organizations, reviewed mission organizations, published budget sponsors, major buyers, and major vendors. Category quotas preserve breadth while deterministic ranking preserves high-value coverage.",
-    "contentHash": "394cb9f7888b3bc2868e"
+    "contentHash": "10ff5562429e86e0a8d7"
   },
   "dossiers": [
     {
