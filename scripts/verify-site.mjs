@@ -34,6 +34,7 @@ const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^Intelligenc
 const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRecordPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset.name))?.bytes || 0;
+const spendExplorerStyleBytes = styleAssets.find((asset) => /^SpendExplorer-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
@@ -45,8 +46,9 @@ assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_200, `Deferred Strategic Analysis Studio CSS must stay within its 13.2 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
+assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 12_200, `Lazy Spend Explorer CSS must stay within its 12.2 KB route budget, got ${spendExplorerStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 442_000, `Total scoped CSS must stay below 442 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 445_000, `Total scoped CSS must stay below 445 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
@@ -123,6 +125,12 @@ async function chooseControlSelect(page, label, option) {
   await page.getByRole("option", { name: option, exact: true }).click();
 }
 
+async function chooseSpendAnalysis(page, label) {
+  const menu = page.locator(".spend-explorer__analysis-menu");
+  if (await menu.getAttribute("open") === null) await menu.locator("summary").click();
+  await menu.getByRole("menuitem", { name: new RegExp(`^${label}`) }).click();
+}
+
 async function assertNoPageOverflow(page, label) {
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(overflow <= 2, `${label} page overflow should be contained, got ${overflow}px`);
@@ -187,14 +195,14 @@ async function assertActiveGroupState(page, group, childLabel) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose Spend Explorer, Opportunity Map, and Schedule as primary links");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Spend Explorer", "Opportunity Map", "Schedule"], "Primary navigation should contain the three consolidated working surfaces");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose My Work, Spend Explorer, and Schedule as primary links");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["My Work", "Spend Explorer", "Schedule"], "Primary navigation should contain the three consolidated working surfaces");
   assert.equal(await page.getByRole("button", { name: "Search and navigate" }).count(), 1, "The header should expose one global command trigger");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   await page.waitForSelector(".if-command-dialog");
   const commandPaletteText = await page.locator(".if-command-dialog").innerText();
   assert.match(commandPaletteText, /Recent[\s\S]*Navigate/i, "The command palette should separate recent and general navigation");
-  assert.match(commandPaletteText, /Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule/i, "The command palette should expose role-visible primary navigation");
+  for (const primaryLabel of ["My Work", "Spend Explorer", "Schedule"]) assert.match(commandPaletteText, new RegExp(primaryLabel, "i"), `The command palette should expose ${primaryLabel}`);
   await page.locator(".if-command-dialog input[type=search]").fill("Source Lineage");
   assert.equal(await page.locator(".if-command-palette__item:visible").count(), 1, "Command search should reduce the visible command set");
   await page.keyboard.press("Escape");
@@ -215,16 +223,16 @@ async function assertFlowShell(page) {
     });
     assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.workspaceLeft, "Workspace divider should sit between Money flow and Workspace");
     await page.locator('[data-nav-group-trigger="money"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 5, "Money flow should contain every non-Transactions stage plus lineage");
-    assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Source Lineage/i);
+    assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 6, "Budget and Spend should contain the detailed analytical routes, map, and lineage");
+    assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Opportunity Map[\s\S]*Source Lineage/i);
     await page.locator('[data-nav-group-trigger="money"]').click();
     await page.locator('[data-nav-group-trigger="work"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Workspace should expose supporting work surfaces without primary or administrative surfaces");
-    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /My Work[\s\S]*Task Center/i);
+    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 1, "Standard work navigation should expose only the supporting task surface");
+    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Task Center/i);
     assert.deepEqual(
       await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
-      ["#/budget-spend/watchlist", "#/budget-spend/tasks"],
-      "Schedule views must remain consolidated outside the Work menu",
+      ["#/budget-spend/tasks"],
+      "Primary work and schedule views must remain outside the supporting Work menu",
     );
     await page.locator('[data-nav-group-trigger="work"]').click();
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
@@ -297,7 +305,8 @@ try {
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
   assert.ok(initialDecodedDataBytes <= 2_000_000, `Today should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
-  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 6, "Spend Explorer should expose Radar, Brief, Visuals, Timeline, Table, and Charts");
+  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 3, "Spend Explorer should expose three primary operating views");
+  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__analysis-menu [role="menuitem"]').count(), 3, "Spend Explorer should progressively disclose Visuals, Timeline, and Analytics");
   assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Decision Brief should expose reusable saved acquisition views with unread state");
   assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Decision Brief should expose source coverage and automation behind one disclosure");
   assert.match(await page.locator("[data-decision-brief]").innerText(), /Needs attention[\s\S]*What changed[\s\S]*Due soon[\s\S]*Continue where you left off/i, "Decision Brief should lead with decisions, changes, deadlines, and continuity");
@@ -505,7 +514,7 @@ try {
 
   await openSurface(page, "#/budget-spend/map", "[data-opportunity-map]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunity Map", "Opportunity Map should own a first-class route title");
-  assert.equal(await page.locator('[data-primary-nav="map"][aria-current="page"]').count(), 1, "Opportunity Map should own a primary-navigation state");
+  assert.equal(await page.locator('[data-nav-group-trigger="money"][data-nav-group-active-child="Opportunity Map"]').count(), 1, "Opportunity Map should own the active Budget and Spend group state");
   assert.equal(await resourceCount(page, "opportunity-map-data.json"), 1, "Opportunity Map should load one map-specific factual payload");
   assert.equal(await resourceCount(page, "opportunity-map-location-metadata.json"), 0, "Detailed location metadata should stay deferred until a user opens a location");
   const mapEvidenceCounts = await page.locator("[data-opportunity-map]").evaluate((node) => ({
@@ -1020,7 +1029,7 @@ try {
   await page.waitForFunction(() => !window.location.hash.includes("capView"));
   await page.waitForSelector("[data-capture-timeline]");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Legacy table links must canonicalize back to the Gantt");
-  await page.getByRole("button", { name: "Table", exact: true }).click();
+  await page.getByRole("button", { name: "Workbench", exact: true }).click();
   await page.waitForSelector('[data-spend-explorer="table"]');
   await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("procurement-discovery.json")));
   assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Spend Explorer views should share one deferred discovery request");
@@ -1036,9 +1045,7 @@ try {
   assert.ok(workbenchGeometry.scopeHeight <= 116, `Desktop opportunity filters should remain compact, got ${workbenchGeometry.scopeHeight}px`);
   assert.ok(workbenchGeometry.firstRowTop <= 760, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 0, "Strategic spend context must remain deferred until the operator opens Visuals");
-  const strategySpendReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/strategy-spend-index.json") && response.ok());
-  await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Visuals", exact: true }).click();
-  await strategySpendReady;
+  await chooseSpendAnalysis(page, "Visuals");
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 1, "Strategic Analysis Studio should load its compact spend index exactly once");
   if (!await page.locator("[data-strategy-quadrant]").count()) {
@@ -1109,7 +1116,7 @@ try {
   assert.equal(await page.locator(".spend-explorer__strategy-scope").count(), 1, "The operating queue should disclose its active strategic-matrix handoff");
   assert.ok(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "A populated strategic quadrant should hand off its exact opportunity set to the queue");
   await page.getByRole("button", { name: "Clear scope", exact: true }).click();
-  await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Visuals", exact: true }).click();
+  await chooseSpendAnalysis(page, "Visuals");
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
   await page.getByRole("button", { name: "Analytical maps", exact: true }).click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-opportunity-portfolio-map]');
@@ -1164,7 +1171,10 @@ try {
   assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*Connected intelligence/i, "Opportunity rows should expand into qualification, source scope, and bounded graph evidence");
   const commandRail = page.locator("[data-opportunity-workbench-detail] [data-opportunity-command-rail]");
   assert.equal(await commandRail.count(), 1, "Opportunity details should expose one shared contextual command rail");
-  for (const action of ["Build AI decision brief", "Open record", "Timeline"]) assert.equal(await commandRail.getByRole("link", { name: action, exact: true }).count() + await commandRail.getByRole("button", { name: action, exact: true }).count(), 1, `The command rail should expose ${action} exactly once`);
+  for (const action of ["Build AI decision brief", "Open record"]) assert.equal(await commandRail.getByRole("link", { name: action, exact: true }).count() + await commandRail.getByRole("button", { name: action, exact: true }).count(), 1, `The command rail should expose ${action} exactly once`);
+  await commandRail.locator(".pursuit-actions__more > summary").click();
+  assert.equal(await commandRail.getByRole("link", { name: "Timeline", exact: true }).count(), 1, "Pursuit controls should progressively disclose Timeline");
+  await commandRail.locator(".pursuit-actions__more > summary").click();
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
   await commandRail.getByLabel("Owner").fill("Adam");
@@ -1172,6 +1182,7 @@ try {
   await commandRail.getByLabel("Next action").fill("Confirm customer discovery meeting");
   await commandRail.getByLabel("Next action").blur();
   await commandRail.getByLabel("Checkpoint").fill("2026-10-20");
+  await commandRail.locator("[data-pursuit-tasks] > summary").click();
   await commandRail.getByRole("button", { name: "Add task", exact: true }).click();
   await commandRail.getByLabel("Task", { exact: true }).fill("Prepare capture brief");
   await chooseControlSelect(page, "Task priority", "High");
@@ -1221,7 +1232,7 @@ try {
   await page.waitForFunction(() => document.querySelector("[data-opportunity-command-rail]")?.getAttribute("data-tracked") === "false");
   assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Opportunity Workbench details must not load the complete integrity graph into the browser");
   await page.screenshot({ path: `${OUT_DIR}/opportunity-workbench-desktop.png` });
-  await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Timeline", exact: true }).click();
+  await chooseSpendAnalysis(page, "Timeline");
   await page.waitForSelector("[data-capture-timeline]");
   await page.waitForSelector("[data-capture-detail-modal]");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capRecord=/, "Changing workbench views should carry the selected opportunity into the Timeline inspector");
@@ -1249,12 +1260,14 @@ try {
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "My Work", "The masthead should identify the action-oriented workspace surface");
-  assert.equal(await page.locator("[data-my-work] .my-work__status").count(), 5, "My Work should expose the five attention states in one compact cockpit");
+  assert.equal(await page.locator("[data-my-work] .my-work__status").count(), 3, "My Work should expose three action-oriented attention states");
   assert.equal(await page.locator("[data-my-work-task]").count(), 1, "My Work should project the pursuit task into its cross-record action queue");
+  assert.equal(await page.locator("[data-ops-watch-table]").count(), 0, "My Work should defer the portfolio table until the operator requests it");
+  await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
   assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "My Work should project the tracked stable-ID working set");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
-  await page.getByRole("button", { name: /Overdue 1 Needs action now/i }).click();
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /workFocus=overdue/, "My Work attention filters should persist in the shareable route");
+  await page.getByRole("button", { name: /Act now 1 .*overdue/i }).click();
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /workFocus=urgent/, "My Work attention filters should persist in the shareable route");
   await page.screenshot({ path: `${OUT_DIR}/my-work-desktop.png`, fullPage: true });
   const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
   await watchRow.click();
@@ -2364,10 +2377,10 @@ try {
   assert.equal(new URL(page.url()).hash, "#/budget-spend", "Legacy strategy URLs should canonicalize to the request analytics surface");
   assert.equal(await page.locator("[data-strategy-page]").count(), 0, "Legacy strategy surface should not render");
   await page.goto(`${BASE_URL}#/definitely-not-a-route`, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => window.location.hash === "#/budget-spend/explorer");
-  assert.equal(new URL(page.url()).hash, "#/budget-spend/explorer", "Unknown routes should canonicalize to the flagship Opportunity Radar");
+  await page.waitForFunction(() => window.location.hash === "#/budget-spend/watchlist");
+  assert.equal(new URL(page.url()).hash, "#/budget-spend/watchlist", "Unknown routes should canonicalize to the action-oriented My Work surface");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForSelector("[data-opportunity-radar]");
+  await page.waitForSelector("[data-operations-hub]");
   await assertFlowShell(page);
   await assertNoPageOverflow(page, "Desktop analytics shell");
   await page.screenshot({ path: `${OUT_DIR}/analytics-flow-desktop.png`, fullPage: true });
@@ -2376,8 +2389,8 @@ try {
   await installVerificationDate(ultrawide);
   await ultrawide.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-defense-budget-app]");
-  await ultrawide.waitForSelector("[data-opportunity-radar]");
-  assert.equal(new URL(ultrawide.url()).hash, "#/budget-spend/explorer", "Spend Explorer should open on Opportunity Radar by default");
+  await ultrawide.waitForSelector("[data-operations-hub]");
+  assert.equal(new URL(ultrawide.url()).hash, "#/budget-spend/watchlist", "The application should open on My Work by default");
   await ultrawide.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await ultrawide.waitForSelector("[data-transaction-analytics-page]");
   const ultrawideGeometry = await ultrawide.evaluate(() => {
@@ -2427,14 +2440,15 @@ try {
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-spend-today]");
   await assertFlowShell(mobile);
-  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 6, "Mobile Spend Explorer should expose the six focused views");
+  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 3, "Mobile Spend Explorer should expose three primary operating views");
+  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__analysis-menu [role="menuitem"]').count(), 3, "Mobile Spend Explorer should progressively disclose three analysis views");
   assert.ok(await mobile.locator("[data-decision-brief] .decision-brief__record-list > a").count() <= 4, "Mobile Decision Brief should start with a tightly bounded change list");
   const mobileBriefActions = await mobile.locator('[data-decision-brief] :is(.decision-brief__action, .decision-brief__record-list > a, .decision-brief__compact-list > a)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
   assert.ok(mobileBriefActions.length > 0 && mobileBriefActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Decision Brief actions should preserve 44px touch targets: ${JSON.stringify(mobileBriefActions)}`);
   await assertButtonIntegrity(mobile, "Mobile Decision Brief", '[data-spend-explorer="today"]');
   await assertNoPageOverflow(mobile, "Mobile Decision Brief");
   await mobile.screenshot({ path: `${OUT_DIR}/decision-brief-mobile.png`, fullPage: true });
-  await mobile.getByRole("button", { name: "Visuals", exact: true }).click();
+  await chooseSpendAnalysis(mobile, "Visuals");
   await mobile.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
   if (!await mobile.locator("[data-strategy-quadrant]").count()) {
     await mobile.getByRole("button", { name: /^Current buying centers:/ }).click();
@@ -2483,7 +2497,7 @@ try {
   await mobile.locator("[data-portfolio-inspector]").screenshot({ path: `${OUT_DIR}/opportunity-portfolio-focused-mobile.png` });
   await mobile.keyboard.press("Escape");
   await mobile.waitForSelector("[data-portfolio-inspector]", { state: "detached" });
-  await mobile.getByRole("button", { name: "Table", exact: true }).click();
+  await mobile.getByRole("button", { name: "Workbench", exact: true }).click();
   await mobile.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
   assert.equal(await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"]').getAttribute("data-table-layout"), "cards", "Mobile Opportunity Workbench should use readable record cards");
   const mobileWorkbenchGeometry = await mobile.evaluate(() => ({
@@ -2513,7 +2527,7 @@ try {
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Admin[\s\S]*Domain Model[\s\S]*Intelligence Operations/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*My Work[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Workspace[\s\S]*Domain Model[\s\S]*Intelligence Operations/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
@@ -2755,7 +2769,7 @@ try {
   assert.equal(await mobile.locator("[data-admin-workspace]").count(), 0, "Mobile work surfaces should not repeat ownership navigation below the masthead");
   const mobileWorkHeaderHeight = await mobile.locator("[data-ops-watchlist] > .if-page-header").evaluate((node) => node.getBoundingClientRect().height);
   assert.ok(mobileWorkHeaderHeight <= 120, `Mobile My Work should expose a compact route header before the table, got ${mobileWorkHeaderHeight}px`);
-  assert.equal(await mobile.locator("[data-my-work] .my-work__status").count(), 5, "Mobile My Work should retain every attention status");
+  assert.equal(await mobile.locator("[data-my-work] .my-work__status").count(), 3, "Mobile My Work should retain the three action-oriented attention states");
   assert.equal(await mobile.locator("[data-my-work-task]").count(), 1, "Mobile My Work should retain the action queue");
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
   const mobileWorkboardStatus = mobile.locator(".target-workboard__status");

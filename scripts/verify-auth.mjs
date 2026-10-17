@@ -130,9 +130,10 @@ try {
   await page.getByLabel("Confirm password").fill(initialPassword);
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
+  assert.equal(await page.locator('[data-primary-nav="watchlist"]').count(), 1, "My Work must remain a primary action surface");
   await page.locator('[data-nav-group-trigger="work"]').click();
-  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/watchlist", "#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must contain My Work, Task Center, and the dedicated Event Discovery manager");
-  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /My Work[\s\S]*Task Center[\s\S]*Event Discovery/i);
+  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must keep Task Center and Event Discovery behind My Work");
+  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Task Center[\s\S]*Event Discovery/i);
   assert.equal(await page.locator('[data-budget-nav-menu="work"] a[href="#/budget-spend/schedule"]').count(), 0, "Schedule must remain a primary surface rather than a nested work item");
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
@@ -1236,6 +1237,7 @@ try {
   const dispositionRestoreStatus = await page.evaluate(async (recordId) => (await fetch(`/api/v1/agent/record-dispositions/${encodeURIComponent(recordId)}`, { method: "DELETE" })).status, visibleRecordId);
   assert.equal(dispositionRestoreStatus, 204, "Authenticated D1 users should restore a workspace tombstone");
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
   await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
   assert.equal(await page.locator(".operations-boundary").count(), 0, "Working routes should not repeat the storage contract as persistent page chrome");
   await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
@@ -1347,7 +1349,7 @@ try {
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Spend Explorer[\s\S]*Opportunity Map[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*My Work[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-research-discovery-dashboard]');

@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Download, FileSpreadsheet, Inbox, Radar as RadarIcon, RefreshCw, RotateCcw, ScatterChart } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, FileSpreadsheet, Inbox, MoreHorizontal, Radar as RadarIcon, RotateCcw, ScatterChart } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -18,6 +18,7 @@ import { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx"
 import OpportunityRadar from "./OpportunityRadar.jsx";
 import { classifyOpportunityFit } from "./opportunity-fit.js";
 import OpportunityWorkbenchDetail, { OpportunityFitBadge } from "./OpportunityWorkbenchDetail.jsx";
+import "./SpendExplorer.css";
 
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
@@ -27,20 +28,10 @@ const OpportunityPortfolioVisuals = lazyWithRefresh(() => import("./OpportunityP
 const VIEWS = new Set(["radar", "today", "visuals", "timeline", "table", "charts", "record"]);
 const STRATEGY_SCOPE_KEY = "dbi:strategy-scope:v1";
 
-function exportAcquisitionRegister(records) {
-  const rows = records.map((record) => record.acquisitionIntel).filter(Boolean);
-  if (!rows.length) return;
-  const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))];
-  const quote = (value) => `"${String(value == null ? "" : typeof value === "object" ? JSON.stringify(value) : value).replaceAll('"', '""')}"`;
-  const csv = [keys.map(quote).join(","), ...rows.map((row) => keys.map((key) => quote(row[key])).join(","))].join("\n");
-  const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }));
-  const anchor = document.createElement("a"); anchor.href = url; anchor.download = "navy-acquisition-intelligence-filtered.csv"; anchor.click(); URL.revokeObjectURL(url);
-}
-
 function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
   const value = params.get("spendView");
-  return VIEWS.has(value) ? value : "radar";
+  return VIEWS.has(value) ? value : "table";
 }
 
 function readTableNoticeType(params) {
@@ -93,7 +84,7 @@ function RouteLoading({ label }) {
 }
 
 function SpendViewBoundary({ view, children }) {
-  const label = { charts: "Charts", timeline: "Timeline", visuals: "Portfolio visuals", record: "Record workspace" }[view] || "Spend view";
+  const label = { charts: "Analytics", timeline: "Timeline", visuals: "Portfolio visuals", record: "Record workspace" }[view] || "Spend view";
   return <ControlErrorBoundary resetKey={view} title={`${label} could not render`} message="Retry this view. The failure was recorded in Connections → API Log." onError={(error, info) => reportClientError(error, { kind: "route_render_error", componentStack: info?.componentStack })}>{children}</ControlErrorBoundary>;
 }
 
@@ -188,14 +179,22 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     }
     updateRoute(next, { noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
   };
-  const tabs = <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
-    <button type="button" className={`if-tab${view === "radar" ? " is-active" : ""}`} aria-pressed={view === "radar"} onClick={() => select("radar")}><RadarIcon size={15} />Radar</button>
-    <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
-    <button type="button" className={`if-tab${view === "visuals" ? " is-active" : ""}`} aria-pressed={view === "visuals"} onClick={() => select("visuals")}><ScatterChart size={15} />Visuals</button>
-    <button type="button" className={`if-tab${view === "timeline" ? " is-active" : ""}`} aria-pressed={view === "timeline"} onClick={() => select("timeline")}><CalendarClock size={15} />Timeline</button>
-    <button type="button" className={`if-tab${view === "table" ? " is-active" : ""}`} aria-pressed={view === "table"} onClick={() => select("table")}><FileSpreadsheet size={15} />Table</button>
-    <button type="button" className={`if-tab${view === "charts" ? " is-active" : ""}`} aria-pressed={view === "charts"} onClick={() => select("charts")}><BarChart3 size={15} />Charts</button>
-  </nav>;
+  const analysisView = { visuals: "Visuals", timeline: "Timeline", charts: "Analytics" }[view] || "";
+  const tabs = <div className="spend-explorer__viewbar">
+    <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
+      <button type="button" className={`if-tab${["table", "record"].includes(view) ? " is-active" : ""}`} aria-pressed={["table", "record"].includes(view)} onClick={() => select("table")}><FileSpreadsheet size={15} />Workbench</button>
+      <button type="button" className={`if-tab${view === "radar" ? " is-active" : ""}`} aria-pressed={view === "radar"} onClick={() => select("radar")}><RadarIcon size={15} />Radar</button>
+      <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
+    </nav>
+    <details className={`dbi-data-table__columns spend-explorer__analysis-menu${analysisView ? " is-active" : ""}`}>
+      <summary className="if-tab" aria-label={analysisView ? `Analysis view: ${analysisView}` : "Open analysis views"}><MoreHorizontal size={15} />{analysisView || "Analyze"}</summary>
+      <div role="menu" aria-label="Analysis views">
+        <button className="if-btn if-btn--ghost" type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); select("visuals"); }}><ScatterChart size={15} /><span><strong>Visuals</strong><small>Portfolio, strategy, and heatmap views</small></span></button>
+        <button className="if-btn if-btn--ghost" type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); select("timeline"); }}><CalendarClock size={15} /><span><strong>Timeline</strong><small>Dates, milestones, and linked research</small></span></button>
+        <button className="if-btn if-btn--ghost" type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); select("charts"); }}><BarChart3 size={15} /><span><strong>Analytics</strong><small>Spend, awards, and comparison charts</small></span></button>
+      </div>
+    </details>
+  </div>;
   const rows = useMemo(
     () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], effectiveManualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
     [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveManualProcurement?.records, effectiveSamOpportunities?.records, procurementDelta?.records, subawardSnapshot],
@@ -311,8 +310,6 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       <OperationalDataTable id="opportunity-workbench-v1" label="Opportunity workbench" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "fit", direction: "desc" }} defaultVisibleColumns={["record", "customer", "stage", "fit", "trust", "deadline", "obligations", "change", "source", "actions"]} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchPlaceholder="Search opportunities, scope, customers, codes, and references…" exportFilename="opportunity-workbench.csv" toolbarActions={<>
         {savedViews}
         <a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=today" data-daily-acquisition-feed><Inbox size={15} />Updates{dailyFeed.history?.[0] ? ` · ${dailyFeed.history[0].summary.added + dailyFeed.history[0].summary.updated}` : ""}</a>
-        <button type="button" className="if-btn if-btn--secondary" onClick={() => void loadRuntimeRecords()}><RefreshCw size={15} />Refresh</button>
-        {tableRows.some((record) => record.acquisitionIntel) ? <button type="button" className="if-btn if-btn--secondary opportunity-workbench__register-export" onClick={() => exportAcquisitionRegister(tableRows)}><Download size={15} />Register</button> : null}
       </>} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "fit", "actions"] : ["record", "customer", "fit", "deadline", "actions"]} highlightedRowId={focusedRecordId} initialExpandedId={focusedRecordId || null} expandedRowId={focusedRecordId || null} onRowActivate={(record, expanded) => { const id = expanded ? record.opportunityId || record.id || record.reference : ""; setFocusedRecordId(id); updateRoute("table", { capRecord: id }); }} renderDetail={(record) => <OpportunityWorkbenchDetail record={record} records={rows} />} bulkActions={dispositions.canWrite ? (selectedRows, clear) => <button type="button" className="if-btn if-btn--secondary" onClick={() => { selectedRows.forEach((record) => tableFilters.disposition === "tombstoned" ? dispositions.restore(record.opportunityId) : dispositions.tombstone(record.opportunityId)); clear(); }}>{tableFilters.disposition === "tombstoned" ? <ArchiveRestore size={15} /> : <ArchiveX size={15} />}{tableFilters.disposition === "tombstoned" ? "Restore selected" : "Hide selected"}</button> : null} empty={tableFilters.disposition === "tombstoned" ? "No hidden records. Records you remove from the active queue remain recoverable here." : "No active opportunities match the current workbench controls."} />
     </ControlPageBody>
   </section>;
