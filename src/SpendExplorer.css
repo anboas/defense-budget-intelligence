@@ -5,8 +5,17 @@
 .spend-explorer__analysis-menu > div button { justify-content: flex-start; min-height: 2.75rem; text-align: left; }
 .spend-explorer__analysis-menu > div button > span { display: grid; gap: .1rem; }
 .spend-explorer__analysis-menu > div button small { color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); font-weight: 500; }
+.spend-explorer__snapshot { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .65rem; color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); }
+.spend-explorer__snapshot strong { color: var(--if-text-strong, #1f2933); }
+.spend-explorer__scope-menu > div { width: min(46rem, calc(100vw - 2rem)); max-height: min(70vh, 34rem); gap: .65rem; }
+.spend-explorer__scope-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.spend-explorer__scope-menu .spend-explorer__scope-grid > .if-field { display: grid; align-items: stretch; gap: .25rem; min-height: 0; padding: 0; }
+.spend-explorer__scope-menu .spend-explorer__scope-grid > .if-field:hover { background: transparent; }
 @media (max-width: 640px) {
   .spend-explorer__viewbar { width: 100%; overflow-x: auto; }
   .spend-explorer__viewbar .if-tab { min-height: 2.75rem; white-space: nowrap; }
   .spend-explorer__analysis-menu { flex: 0 0 auto; }
+  .spend-explorer__snapshot { display: grid; gap: .1rem; }
+  .spend-explorer__scope-grid { grid-template-columns: 1fr; }
+  .spend-explorer__scope-menu > div { width: auto; }
 }

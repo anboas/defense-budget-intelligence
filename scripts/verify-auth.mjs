@@ -1349,7 +1349,7 @@ try {
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*My Work[\s\S]*Spend Explorer[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*My Work[\s\S]*Opportunities[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-research-discovery-dashboard]');

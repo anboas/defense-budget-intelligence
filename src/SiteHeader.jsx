@@ -13,7 +13,7 @@ const WORK_IDS = new Set(["tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "intelligence", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 const MOBILE_TITLES = {
-  spend: "Spend",
+  spend: "Opportunities",
   map: "Map",
   schedule: "Schedule",
   overview: "PDB Request",
@@ -106,18 +106,18 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         ...tab,
         tabId: tab.id,
         href: routes[tab.id],
-        badge: tab.id === "watchlist" ? "Act" : tab.id === "spend" ? "Explore" : "Schedule",
+        badge: tab.id === "watchlist" ? "Act" : tab.id === "spend" ? "Review" : "Schedule",
         description: tab.id === "watchlist"
           ? "Open overdue work, next actions, waiting items, and tracked pursuits."
           : tab.id === "spend"
-            ? "Search and qualify opportunities from the operating queue."
+            ? "Review, qualify, and advance opportunities from one queue."
             : "Create events and switch between list, calendar, and room display.",
       })),
     },
     ...groups,
   ];
   const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
-  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "watchlist" ? "Act on overdue work, next actions, and tracked pursuits." : tab.id === "spend" ? "Search and qualify opportunities from the operating queue." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
+  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "watchlist" ? "Act on overdue work, next actions, and tracked pursuits." : tab.id === "spend" ? "Review, qualify, and advance opportunities from one queue." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
   const itemById = new Map(allNavigationItems.map((item) => [item.tabId, item]));
   const effectiveRecentIds = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
   const command = (item, icon) => ({ id: `route-${item.tabId}`, label: item.label, description: item.description || item.groupLabel || "Open section", href: item.href, tabId: item.tabId, icon });
