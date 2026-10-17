@@ -4,6 +4,7 @@ import { PURSUIT_TASK_EVENT } from "./pursuit-metadata.js";
 import "./ConnectedEvidenceVisual.css";
 
 const MoneyPath = lazy(() => import("./MoneyPath.jsx"));
+const OrganizationRelationshipLens = lazy(() => import("./OrganizationRelationshipLens.jsx"));
 
 const TYPE_LABEL = {
   activity: "Opportunity",
@@ -27,7 +28,7 @@ const TYPE_LABEL = {
   "subaward-flow": "Retained subaward flow",
 };
 
-const VIEWS = new Set(["connections", "timeline", "money"]);
+const VIEWS = new Set(["connections", "timeline", "money", "relationships"]);
 
 function routeSelection() {
   if (typeof window === "undefined") return { view: "connections", item: "" };
@@ -114,15 +115,32 @@ function timelineEvents(record, report, temporal, lineage, opportunityId) {
 
 function ConnectionsView({ nodes, selected, onSelect }) {
   const neighbors = nodes.slice(1);
-  const positioned = nodes.map((item, index) => {
+  const leftCount = Math.ceil(neighbors.length / 2);
+  const rightCount = Math.floor(neighbors.length / 2);
+  const graphHeight = Math.max(400, Math.max(leftCount, rightCount) * 120);
+  const positioned = [nodes[0], ...neighbors].map((item, index) => {
     if (!index) return { ...item, x: 50, y: 50 };
-    const angle = -Math.PI / 2 + ((index - 1) * Math.PI * 2) / Math.max(neighbors.length, 1);
-    return { ...item, x: 50 + Math.cos(angle) * 38, y: 50 + Math.sin(angle) * 35 };
+    const neighborIndex = index - 1;
+    const left = neighborIndex % 2 === 0;
+    const position = Math.floor(neighborIndex / 2);
+    const count = left ? leftCount : rightCount;
+    return { ...item, x: left ? 17 : 83, y: 12 + ((position + 1) / (count + 1)) * 76 };
   });
+  const anchor = positioned[0];
+  const edgePoint = (from, to, inset = 8) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const scale = inset / Math.max(Math.abs(dx), Math.abs(dy), 1);
+    return { x: from.x + dx * scale, y: from.y + dy * scale };
+  };
   return <div className="connected-visual__scroller" tabIndex="0" aria-label="Scrollable connected evidence graph">
-    <div className="connected-visual__graph" data-evidence-visual-graph data-node-count={nodes.length}>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{positioned.slice(1).map((item) => <line key={item.id} x1="50" y1="50" x2={item.x} y2={item.y} />)}</svg>
-      {positioned.map((item) => <button key={`${item.type}-${item.id}`} type="button" className={`connected-visual__node is-${item.type}${selected.id === item.id ? " is-selected" : ""}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-evidence-node={item.type}><small>{TYPE_LABEL[item.type]}</small><strong>{short(item.label)}</strong></button>)}
+    <div className="connected-visual__graph" style={{ height: graphHeight }} data-evidence-visual-graph data-node-count={nodes.length}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{positioned.slice(1).map((item) => {
+        const start = edgePoint(anchor, item);
+        const end = edgePoint(item, anchor);
+        return <path key={item.id} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`} vectorEffect="non-scaling-stroke" data-evidence-edge />;
+      })}</svg>
+      {positioned.map((item) => <button key={`${item.type}-${item.id}`} type="button" className={`connected-visual__node is-${item.type}${selected.id === item.id ? " is-selected" : ""}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-evidence-node={item.type}><small>{TYPE_LABEL[item.type]}</small><strong>{short(item.label, 24)}</strong></button>)}
     </div>
   </div>;
 }
@@ -171,7 +189,7 @@ export default function ConnectedEvidenceVisual({ connection, lineage, temporal,
     ...moneyState.path.nodes,
     ...moneyState.path.links.map((item) => ({ ...item, type: `${item.type}-flow`, label: item.label, detail: item.detail || `${item.confidence} ${item.amountType.replaceAll("-", " ")}` })),
   ] : [], [moneyState.path]);
-  const visibleItems = view === "connections" ? nodes : view === "timeline" ? events : moneyItems;
+  const visibleItems = view === "connections" ? nodes : view === "timeline" ? events : view === "money" ? moneyItems : [];
   const selected = visibleItems.find((item) => item.id === selectedId) || visibleItems[0] || nodes[0];
   const selectView = (next) => { setView(next); setSelectedId(""); updateRouteSelection(next); };
   const selectItem = (item) => { setSelectedId(item.id); updateRouteSelection(view, item.id); };
@@ -191,9 +209,9 @@ export default function ConnectedEvidenceVisual({ connection, lineage, temporal,
     return () => { window.removeEventListener("hashchange", sync); window.removeEventListener("popstate", sync); window.removeEventListener("keydown", clearOnEscape); };
   }, []);
   return <section className="connected-visual" style={{ minWidth: 0, maxWidth: "100%", width: "100%", overflow: "hidden" }} data-connected-visual-analysis data-connected-visual-view={view} data-connected-visual-selected={selected?.id || ""} onKeyDown={(event) => { if (event.key === "Escape" && selectedId) { event.preventDefault(); reset(); } }}>
-    <header><div><span>Visual analysis</span> · <strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : view === "timeline" ? `${events.length} dated signals` : moneyState.path ? `${moneyState.path.nodes.length} money-path nodes` : "bounded funding chain"}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button><button type="button" className={view === "money" ? "is-active" : ""} aria-pressed={view === "money"} onClick={() => selectView("money")}>Money Path</button></nav><button type="button" style={{ minHeight: "2.75rem" }} disabled={!selectedId} onClick={reset}>Reset</button></header>
-    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={selectItem} /> : view === "timeline" ? <TimelineView events={events} selected={selected} onSelect={selectItem} /> : moneyState.status === "loading" ? <div className="connected-visual__empty" role="status">Loading bounded funding chain…</div> : moneyState.status === "error" ? <div className="connected-visual__empty" role="alert">Money Path is temporarily unavailable. The evidence graph remains usable.</div> : moneyState.path ? <Suspense fallback={<div className="connected-visual__empty" role="status">Drawing Money Path…</div>}><MoneyPath path={moneyState.path} selected={selectedId ? selected : null} onSelect={selectItem} /></Suspense> : <div className="connected-visual__empty" data-money-path-empty>No exact award-account funding path is published for this record yet. No relationship was inferred.</div>}
-    {view !== "money" || selectedId ? <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.amount != null ? money(selected.amount) : selected.detail}</span></div><p>{selected.detail || (selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`)}</p><nav className="if-button-group" aria-label="Selected evidence actions">{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}<button type="button" className="if-btn if-btn--secondary" onClick={() => createTask(opportunityId, selected, view)}>Create task</button></nav></article> : null}
+    <header><div><span>Analysis ·</span>{" "}<strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : view === "timeline" ? `${events.length} dated signals` : view === "relationships" ? "customer and industrial-base lanes" : moneyState.path ? `${moneyState.path.nodes.length} money-path nodes` : "bounded funding chain"}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button><button type="button" className={view === "money" ? "is-active" : ""} aria-pressed={view === "money"} onClick={() => selectView("money")}>Money Path</button><button type="button" className={view === "relationships" ? "is-active" : ""} aria-pressed={view === "relationships"} onClick={() => selectView("relationships")}>Relationships</button></nav>{view !== "relationships" ? <button type="button" disabled={!selectedId} onClick={reset}>Reset</button> : null}</header>
+    {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={selectItem} /> : view === "timeline" ? <TimelineView events={events} selected={selected} onSelect={selectItem} /> : view === "relationships" ? <Suspense fallback={<div className="connected-visual__empty" role="status">Loading organization relationships…</div>}><OrganizationRelationshipLens record={record} connection={connection} compact embedded /></Suspense> : moneyState.status === "loading" ? <div className="connected-visual__empty" role="status">Loading bounded funding chain…</div> : moneyState.status === "error" ? <div className="connected-visual__empty" role="alert">Money Path is temporarily unavailable. The evidence graph remains usable.</div> : moneyState.path ? <Suspense fallback={<div className="connected-visual__empty" role="status">Drawing Money Path…</div>}><MoneyPath path={moneyState.path} selected={selectedId ? selected : null} onSelect={selectItem} /></Suspense> : <div className="connected-visual__empty" data-money-path-empty>No exact award-account funding path is published for this record yet. No relationship was inferred.</div>}
+    {view !== "relationships" && (view !== "money" || selectedId) ? <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.amount != null ? money(selected.amount) : selected.detail}</span></div><p>{selected.detail || (selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`)}</p><nav className="if-button-group" aria-label="Selected evidence actions">{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}<button type="button" className="if-btn if-btn--secondary" onClick={() => createTask(opportunityId, selected, view)}>Create task</button></nav></article> : null}
     <footer aria-live="polite"><span>Click, tap, or tab to inspect. Escape resets selection.</span> · <span>Bounded indexes only · full graph never loaded</span></footer>
   </section>;
 }

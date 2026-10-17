@@ -53,7 +53,7 @@ function RelationshipColumn({ icon, eyebrow, title, items, empty, compact = fals
   return <section style={{ ...styles.column, ...(compact ? { flex: "1 0 220px", maxHeight: 480, overflowY: "auto" } : {}) }}><header style={styles.columnHeader}><span style={styles.icon}>{icon}</span><div><small style={styles.eyebrow}>{eyebrow}</small><h4 style={{ margin: 0, fontSize: 13 }}>{title}</h4></div></header>{items.length ? <div style={styles.cards}>{items.map((item) => <article key={item.id} title={item.fullLabel || undefined} style={styles.card}><strong>{item.label}</strong>{item.meta ? <span style={styles.cardMeta}>{item.meta}</span> : null}{item.note ? <em style={{ ...styles.cardMeta, color: "#6d5476" }}>{item.note}</em> : null}</article>)}</div> : <p style={styles.cardMeta}>{empty}</p>}</section>;
 }
 
-export default function OrganizationRelationshipLens({ record = null, connection = null, dossierId = "", compact = false }) {
+export default function OrganizationRelationshipLens({ record = null, connection = null, dossierId = "", compact = false, embedded = false }) {
   const [state, setState] = useState({ status: "loading", payload: null });
   useEffect(() => {
     let active = true;
@@ -61,9 +61,10 @@ export default function OrganizationRelationshipLens({ record = null, connection
     return () => { active = false; };
   }, []);
   const dossier = useMemo(() => matchDossier(state.payload?.organizations?.dossiers || [], { dossierId, record, connection }), [connection, dossierId, record, state.payload]);
+  const rootStyle = embedded ? { ...styles.root, padding: 0, border: 0, borderRadius: 0, background: "transparent" } : styles.root;
   if (state.status === "loading") return <ControlAsyncState compact state="loading" title="Loading organization relationships" message="Resolving customer offices, people, work, and companies." />;
   if (state.status === "error") return <ControlAsyncState compact state="error" title="Organization relationships unavailable" message="The primary record and evidence remain available." />;
-  if (!dossier) return <section style={styles.root} data-organization-relationships="unmatched"><strong>No reviewed customer dossier match</strong><span style={styles.summary}>Record-level organizations remain visible above. A label-only match was not promoted into a relationship.</span></section>;
+  if (!dossier) return <section style={rootStyle} data-organization-relationships="unmatched" data-embedded={embedded || undefined}><strong>No reviewed customer dossier match</strong><span style={styles.summary}>Record-level organizations remain visible above. A label-only match was not promoted into a relationship.</span></section>;
 
   const { organizations, roadmap } = state.payload;
   const peopleById = new Map((organizations.people || []).map((person) => [person.id, person]));
@@ -86,7 +87,7 @@ export default function OrganizationRelationshipLens({ record = null, connection
     ...supplierRows.map((row) => ({ id: row.id, label: `${row.primeName} → ${row.supplierName}`, meta: `${Number(row.subawardCount || 0).toLocaleString()} sampled subawards`, note: `${row.coverageState || "partial"} coverage` })),
   ];
 
-  return <section style={styles.root} data-organization-relationships="ready" data-organization-dossier={dossier.id} data-compact={compact || undefined}>
+  return <section style={rootStyle} data-organization-relationships="ready" data-organization-dossier={dossier.id} data-compact={compact || undefined} data-embedded={embedded || undefined}>
     <header style={styles.heading}><div style={styles.headingCopy}><span style={styles.eyebrow}>Organizations &amp; relationships</span><h3 style={{ margin: 0, fontSize: 18 }}>{dossier.label}</h3><p style={styles.summary}>Customer hierarchy, official people, work, companies, and supplier samples connected through retained evidence.</p></div><ControlStatusBadge status={dossier.reviewState || "reviewed"} /></header>
     <div style={compact ? styles.compactFlow : styles.flow} aria-label={`Relationships for ${dossier.label}`}>
       <RelationshipColumn compact={compact} icon={<Building2 size={17} />} eyebrow="Customer" title="Organization hierarchy" items={hierarchy} empty="No reviewed hierarchy is retained." />

@@ -29,6 +29,7 @@ import { useRecordIntelligence } from "./record-intelligence.js";
 import LifecycleGroupPanel from "./LifecycleGroupPanel.jsx";
 import { TimelineProgressiveLoader, useProgressiveTimelineRows } from "./TimelineProgressiveRows.jsx";
 import TimelineScopeNav, { replaceTimelineScope } from "./TimelineScopeNav.jsx";
+import { analysisCanvasStyle, analysisContextStyle, analysisDrawerBodyStyle, analysisDrawerStyle, analysisWorkspaceStyle } from "./analysis-workspace.js";
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
 const EMPTY_TIMELINE_ITEMS = Object.freeze([]); const TIMELINE_FIRST_YEAR = 2023;
@@ -575,53 +576,24 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
     { label: "Source posture", value: `${record.sourceRoleCount} source role${record.sourceRoleCount === 1 ? "" : "s"}`, meta: `${label(record.validationStatus)} · checked ${formatDate(record.validationCheckedAt?.slice(0, 10))}` },
   ].filter(Boolean);
   return (
-    <aside className="capture-detail" data-capture-detail aria-label={`${record.title} evidence details`}>
-      <ControlFactGrid label="Primary transaction facts" mobileTwoColumn items={primaryFacts} data-capture-primary-facts />
-      <ControlDisclosure className="capture-detail__secondary" title="Procurement and provenance details" summary={`${secondaryFacts.length} published fields · offices, competition, instrument, coding, and source posture`}>
-        <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
-      </ControlDisclosure>
-      <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
-      <ConnectedEvidence opportunityId={record.opportunityId} record={record} />
-      {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
-      {record.milestones.length ? (
-        <div className="capture-detail__milestones">
-          <h3>Published milestones</h3>
-          {record.milestones.map((milestone) => <span key={`${milestone.label}-${milestone.start}`}><b>{milestone.label}</b>{formatDate(milestone.start)}{milestone.end !== milestone.start ? ` to ${formatDate(milestone.end)}` : ""}</span>)}
-        </div>
-      ) : null}
-      {record.events.length ? (
-        <div className="capture-detail__events" data-capture-event-ledger>
-          <h3>Canonical event ledger</h3>
-          {record.events.map((event) => (
-            <span key={event.eventId}>
-              <b>{event.label}</b>
-              <small>{formatDate(event.start)}{event.end && event.end !== event.start ? ` to ${formatDate(event.end)}` : ""}</small>
-              <em>{event.precision || "unknown precision"}{event.isForecast ? " · forecast" : " · reported"}{event.status ? ` · ${event.status}` : ""}</em>
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {(parentRelations.length || vehicleRelations.length || followOnRelations.length) ? (
-        <div className="capture-detail__relations" data-capture-relations>
-          <h3>Published instrument relationships</h3>
-          {followOnRelations.length ? <section data-followon-relations><strong>Published follow-on activity</strong><small>Exact PIID links and explicitly labeled curated program crosswalks are distinguished in the activity modal. The activity date is published evidence, not a win or recompete prediction.</small>{followOnRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{related.sourceSystem}</em></button>)}</section> : null}
-          {parentRelations.length ? <section><strong>Same parent award / IDV</strong><small>Exact published parent reference: {record.parentReference}</small>{parentRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
-          {vehicleRelations.length ? <section><strong>Same published vehicle label</strong><small>{record.vehicle}; this is a route relationship, not proof of the same contract family.</small>{vehicleRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}
-        </div>
-      ) : null}
-      {record.subawardSummary?.reportedCount ? (
-        <div className="capture-detail__subawards" data-capture-subawards>
-          <h3>USAspending subaward activity</h3>
-          <p>{record.subawardSummary.reportedCount.toLocaleString()} reported subawards are linked by exact USAspending generated prime-award ID. The retained {record.subawardSummary.sampledCount.toLocaleString()} recent detail rows total {formatMoney(record.subawardSummary.sampledAmount)}. {record.subawardSummary.detailTruncated ? "This sampled amount is not the complete subaward total." : "The retained detail covers the current reported rows."}</p>
-          <div>{(record.subawards || []).slice(0, 12).map((subaward) => <article key={subaward.subawardId}><span><b>{subaward.recipientName}</b><small>{subaward.subawardNumber || subaward.subawardId}</small></span><strong>{formatMoney(subaward.amount)}</strong><time>{formatDate(subaward.actionDate)}</time><p>{subaward.description || "Description not published"}</p></article>)}</div>
-        </div>
-      ) : null}
-      <div className="capture-detail__sources">
-        {record.sourceUrls.map((url, index) => (
-          <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>
-        ))}
+    <aside className="capture-detail capture-detail--workspace" style={analysisWorkspaceStyle} data-capture-detail aria-label={`${record.title} evidence details`}>
+      <div className="capture-detail__context" style={analysisContextStyle} data-record-context-panel>
+        <ControlFactGrid label="Primary transaction facts" mobileTwoColumn items={primaryFacts} data-capture-primary-facts />
+        <ControlDisclosure className="capture-detail__secondary" title="Procurement and provenance details" summary={`${secondaryFacts.length} published fields · offices, competition, instrument, coding, and source posture`}>
+          <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
+        </ControlDisclosure>
+        <p className="capture-detail__finding"><ShieldCheck size={17} aria-hidden="true" />{record.corroborationFinding || "No corroboration finding published."}</p>
+        {record.sourceDescription ? <p className="capture-detail__description">{record.sourceDescription}</p> : null}
+        {record.milestones.length ? <div className="capture-detail__milestones"><h3>Published milestones</h3>{record.milestones.map((milestone) => <span key={`${milestone.label}-${milestone.start}`}><b>{milestone.label}</b>{formatDate(milestone.start)}{milestone.end !== milestone.start ? ` to ${formatDate(milestone.end)}` : ""}</span>)}</div> : null}
+        <div className="capture-detail__sources">{record.sourceUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}<ExternalLink size={13} aria-hidden="true" /></a>)}</div>
       </div>
-      <AwardActionHistory key={record.opportunityId} record={record} actions={actions} state={actionState} onRetry={onRetryActions} />
+      <div className="capture-detail__analysis" style={analysisCanvasStyle} data-record-analysis-panel>
+        <ConnectedEvidence opportunityId={record.opportunityId} record={record} workspace />
+        {record.events.length ? <div className="capture-detail__events" data-capture-event-ledger><h3>Canonical event ledger</h3>{record.events.map((event) => <span key={event.eventId}><b>{event.label}</b><small>{formatDate(event.start)}{event.end && event.end !== event.start ? ` to ${formatDate(event.end)}` : ""}</small><em>{event.precision || "unknown precision"}{event.isForecast ? " · forecast" : " · reported"}{event.status ? ` · ${event.status}` : ""}</em></span>)}</div> : null}
+        {(parentRelations.length || vehicleRelations.length || followOnRelations.length) ? <div className="capture-detail__relations" data-capture-relations><h3>Published instrument relationships</h3>{followOnRelations.length ? <section data-followon-relations><strong>Published follow-on activity</strong><small>Exact PIID links and explicitly labeled curated program crosswalks are distinguished in the activity modal. The activity date is published evidence, not a win or recompete prediction.</small>{followOnRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{related.sourceSystem}</em></button>)}</section> : null}{parentRelations.length ? <section><strong>Same parent award / IDV</strong><small>Exact published parent reference: {record.parentReference}</small>{parentRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}{vehicleRelations.length ? <section><strong>Same published vehicle label</strong><small>{record.vehicle}; this is a route relationship, not proof of the same contract family.</small>{vehicleRelations.map((related) => <button type="button" key={related.opportunityId} onClick={() => onSelectRelated(related.opportunityId)}><b>{related.id}</b><span>{related.title}</span><em>{formatMoney(recordObligations(related))}</em></button>)}</section> : null}</div> : null}
+        {record.subawardSummary?.reportedCount ? <div className="capture-detail__subawards" data-capture-subawards><h3>USAspending subaward activity</h3><p>{record.subawardSummary.reportedCount.toLocaleString()} reported subawards are linked by exact USAspending generated prime-award ID. The retained {record.subawardSummary.sampledCount.toLocaleString()} recent detail rows total {formatMoney(record.subawardSummary.sampledAmount)}. {record.subawardSummary.detailTruncated ? "This sampled amount is not the complete subaward total." : "The retained detail covers the current reported rows."}</p><div>{(record.subawards || []).slice(0, 12).map((subaward) => <article key={subaward.subawardId}><span><b>{subaward.recipientName}</b><small>{subaward.subawardNumber || subaward.subawardId}</small></span><strong>{formatMoney(subaward.amount)}</strong><time>{formatDate(subaward.actionDate)}</time><p>{subaward.description || "Description not published"}</p></article>)}</div></div> : null}
+        <AwardActionHistory key={record.opportunityId} record={record} actions={actions} state={actionState} onRetry={onRetryActions} />
+      </div>
     </aside>
   );
 }
@@ -1692,7 +1664,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       <ComparisonTray records={comparisonRecords} startYear={timelineStartYear} endYear={timelineEndYear} onOpen={setSelectedId} onRemove={toggleComparison} onClear={() => { setComparisonIds([]); setCompareNotice(""); }} />
 
       {selected ? (
-        <ControlDrawer open onClose={() => setSelectedId("")} title={selected.title} header={<ControlRecordHeader eyebrow={selected.id} title={selected.title} summary={selected.lifecycleMembers ? "One timeline line with each source award preserved as a separate segment." : "Published transaction, schedule, procurement, and provenance evidence."} status={<ControlStatusBadge status={selected.lifecycleMembers ? "linked lifecycle" : selected.lifecycleStatus || "active"} />} meta={[{ label: "Portfolio", value: selected.portfolio }, { label: "Recipient", value: selected.party || "Not published" }, { label: "Reference", value: selected.reference || "Not published" }]} actions={selected.lifecycleMembers ? null : <div className="capture-detail__heading-actions"><button type="button" className={management.watchedIds.has(selected.opportunityId) ? "is-active is-starred" : ""} aria-pressed={management.watchedIds.has(selected.opportunityId)} onClick={() => management.toggleWatch(selected.opportunityId)} aria-label={management.watchedIds.has(selected.opportunityId) ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={management.watchedIds.has(selected.opportunityId) ? "currentColor" : "none"} />{management.watchedIds.has(selected.opportunityId) ? "Tracked" : "Track"}</button><button type="button" className={comparisonIds.includes(selected.opportunityId) ? "is-active" : ""} onClick={() => toggleComparison(selected.opportunityId)} aria-label={comparisonIds.includes(selected.opportunityId) ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{comparisonIds.includes(selected.opportunityId) ? "Compared" : "Compare"}</button></div>} />} size="wide" closeLabel="Close record details" drawerProps={{ "data-capture-detail-modal": "" }}>
+        <ControlDrawer open onClose={() => setSelectedId("")} title={selected.title} header={<ControlRecordHeader eyebrow={selected.id} title={selected.title} summary={selected.lifecycleMembers ? "One timeline line with each source award preserved as a separate segment." : "Published transaction, schedule, procurement, and provenance evidence."} status={<ControlStatusBadge status={selected.lifecycleMembers ? "linked lifecycle" : selected.lifecycleStatus || "active"} />} meta={[{ label: "Portfolio", value: selected.portfolio }, { label: "Recipient", value: selected.party || "Not published" }, { label: "Reference", value: selected.reference || "Not published" }]} actions={selected.lifecycleMembers ? null : <div className="capture-detail__heading-actions"><button type="button" className={management.watchedIds.has(selected.opportunityId) ? "is-active is-starred" : ""} aria-pressed={management.watchedIds.has(selected.opportunityId)} onClick={() => management.toggleWatch(selected.opportunityId)} aria-label={management.watchedIds.has(selected.opportunityId) ? "Stop tracking this record" : "Track this record"}><Star size={17} fill={management.watchedIds.has(selected.opportunityId) ? "currentColor" : "none"} />{management.watchedIds.has(selected.opportunityId) ? "Tracked" : "Track"}</button><button type="button" className={comparisonIds.includes(selected.opportunityId) ? "is-active" : ""} onClick={() => toggleComparison(selected.opportunityId)} aria-label={comparisonIds.includes(selected.opportunityId) ? "Remove from comparison" : "Add to comparison"}><GitCompareArrows size={17} />{comparisonIds.includes(selected.opportunityId) ? "Compared" : "Compare"}</button></div>} />} size={selected.lifecycleMembers ? "wide" : "detail"} className={selected.lifecycleMembers ? "" : "analysis-workspace-drawer"} closeLabel="Close record details" drawerProps={{ "data-capture-detail-modal": "", "data-analysis-workspace": selected.lifecycleMembers ? undefined : true, style: selected.lifecycleMembers ? undefined : analysisDrawerStyle }} bodyProps={selected.lifecycleMembers ? {} : { className: "analysis-workspace-drawer__body", style: analysisDrawerBodyStyle }}>
           {selected.lifecycleMembers ? <LifecycleGroupPanel record={selected} onOpenMember={setSelectedId} onRemove={(groupId) => { void recordGroups.remove(groupId); setSelectedId(""); }} /> : <DetailPanel record={selected} liveAward={selectedLiveAward} actions={selectedActions} actionState={resolvedActionState} onRetryActions={() => { setActionState("idle"); setActionDataset(null); setActionLoadAttempt((value) => value + 1); }} parentRelations={parentRelations} vehicleRelations={vehicleRelations} followOnRelations={followOnRelations} onSelectRelated={setSelectedId} />}
         </ControlDrawer>
       ) : null}
