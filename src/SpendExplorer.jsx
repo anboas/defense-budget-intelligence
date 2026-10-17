@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Download, FileSpreadsheet, Inbox, Radar as RadarIcon, RefreshCw, RotateCcw } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Download, FileSpreadsheet, Inbox, Radar as RadarIcon, RefreshCw, RotateCcw, ScatterChart } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -22,8 +22,9 @@ import OpportunityWorkbenchDetail, { OpportunityFitBadge } from "./OpportunityWo
 const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "capture-calendar");
 const TransactionAnalytics = lazyWithRefresh(() => import("./TransactionAnalytics.jsx"), "transaction-analytics");
 const OpportunityRecordPage = lazyWithRefresh(() => import("./OpportunityRecordPage.jsx"), "opportunity-record-page");
+const OpportunityPortfolioVisuals = lazyWithRefresh(() => import("./OpportunityPortfolioVisuals.jsx"), "opportunity-portfolio-visuals");
 
-const VIEWS = new Set(["radar", "today", "timeline", "table", "charts", "record"]);
+const VIEWS = new Set(["radar", "today", "visuals", "timeline", "table", "charts", "record"]);
 
 function exportAcquisitionRegister(records) {
   const rows = records.map((record) => record.acquisitionIntel).filter(Boolean);
@@ -80,7 +81,8 @@ function RouteLoading({ label }) {
 }
 
 function SpendViewBoundary({ view, children }) {
-  return <ControlErrorBoundary resetKey={view} title={`${view === "charts" ? "Charts" : "Timeline"} could not render`} message="Retry this view. The failure was recorded in Connections → API Log." onError={(error, info) => reportClientError(error, { kind: "route_render_error", componentStack: info?.componentStack })}>{children}</ControlErrorBoundary>;
+  const label = { charts: "Charts", timeline: "Timeline", visuals: "Portfolio visuals", record: "Record workspace" }[view] || "Spend view";
+  return <ControlErrorBoundary resetKey={view} title={`${label} could not render`} message="Retry this view. The failure was recorded in Connections → API Log." onError={(error, info) => reportClientError(error, { kind: "route_render_error", componentStack: info?.componentStack })}>{children}</ControlErrorBoundary>;
 }
 
 export default function SpendExplorer({ dataset, awards, samOpportunities, manualProcurement, procurementDelta, subawardSnapshot, accountSpine, requestLineCount }) {
@@ -175,6 +177,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const tabs = <nav className="if-tabs__list spend-explorer__tabs" aria-label="Spend Explorer view">
     <button type="button" className={`if-tab${view === "radar" ? " is-active" : ""}`} aria-pressed={view === "radar"} onClick={() => select("radar")}><RadarIcon size={15} />Radar</button>
     <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
+    <button type="button" className={`if-tab${view === "visuals" ? " is-active" : ""}`} aria-pressed={view === "visuals"} onClick={() => select("visuals")}><ScatterChart size={15} />Visuals</button>
     <button type="button" className={`if-tab${view === "timeline" ? " is-active" : ""}`} aria-pressed={view === "timeline"} onClick={() => select("timeline")}><CalendarClock size={15} />Timeline</button>
     <button type="button" className={`if-tab${view === "table" ? " is-active" : ""}`} aria-pressed={view === "table"} onClick={() => select("table")}><FileSpreadsheet size={15} />Table</button>
     <button type="button" className={`if-tab${view === "charts" ? " is-active" : ""}`} aria-pressed={view === "charts"} onClick={() => select("charts")}><BarChart3 size={15} />Charts</button>
@@ -271,6 +274,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
+  if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, office, technology, disposition: "active", changes: "all" }; setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "" }); }} /></Suspense></SpendViewBoundary>;
   if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="record workspace" />}><OpportunityRecordPage records={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} recordId={focusedRecordId} tabs={tabs} /></Suspense></SpendViewBoundary>;
   if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
   if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;

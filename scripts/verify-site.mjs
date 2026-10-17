@@ -46,6 +46,7 @@ assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, 
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^SpendExplorer-.*\.js$/.test(name)).length, 1, "Timeline, table, and charts should share one lazy Spend Explorer boundary");
+assert.equal(builtAssets.filter((name) => /^OpportunityPortfolioVisuals-.*\.js$/.test(name)).length, 1, "Portfolio decision visuals should ship behind their own nested lazy boundary");
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidenceVisual-.*\.js$/.test(name)).length, 1, "Record visual analysis should ship behind its own nested lazy boundary");
@@ -290,7 +291,7 @@ try {
     .filter((entry) => entry.name.includes("/data/"))
     .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
   assert.ok(initialDecodedDataBytes <= 2_000_000, `Today should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
-  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 5, "Spend Explorer should expose Radar, Brief, Timeline, Table, and Charts");
+  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 6, "Spend Explorer should expose Radar, Brief, Visuals, Timeline, Table, and Charts");
   assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Decision Brief should expose reusable saved acquisition views with unread state");
   assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Decision Brief should expose source coverage and automation behind one disclosure");
   assert.match(await page.locator("[data-decision-brief]").innerText(), /Needs attention[\s\S]*What changed[\s\S]*Due soon[\s\S]*Continue where you left off/i, "Decision Brief should lead with decisions, changes, deadlines, and continuity");
@@ -1028,6 +1029,32 @@ try {
   }));
   assert.ok(workbenchGeometry.scopeHeight <= 116, `Desktop opportunity filters should remain compact, got ${workbenchGeometry.scopeHeight}px`);
   assert.ok(workbenchGeometry.firstRowTop <= 760, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
+  await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Visuals", exact: true }).click();
+  await page.waitForSelector('[data-spend-explorer="visuals"] [data-opportunity-portfolio-map]');
+  assert.equal(await page.locator('[data-spend-explorer="visuals"] [data-buyer-capability-heatmap]').count(), 1, "Portfolio Visuals should pair prioritization with one buyer-capability heatmap");
+  assert.ok(await page.locator('[data-opportunity-portfolio-map] .target-bubble[role="button"]').count() >= 20, "Opportunity Portfolio should retain a useful bounded decision set");
+  assert.ok(await page.locator('[data-buyer-capability-heatmap] .target-matrix__cell[role="button"]').count() >= 12, "Buyer-capability heatmap should retain a useful observed matrix");
+  await assertButtonIntegrity(page, "Opportunity Portfolio Visuals", '[data-spend-explorer="visuals"]');
+  await assertNoPageOverflow(page, "Opportunity Portfolio Visuals");
+  await page.locator("[data-opportunity-portfolio-visuals]").screenshot({ path: `${OUT_DIR}/opportunity-portfolio-desktop.png` });
+  const firstPortfolioBubble = page.locator('[data-opportunity-portfolio-map] .target-bubble[role="button"]').first();
+  await firstPortfolioBubble.click();
+  await page.waitForSelector("[data-portfolio-inspector]");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capRecord=/, "Portfolio bubble selection should persist the exact opportunity in the shareable route");
+  await page.locator("[data-opportunity-portfolio-visuals]").screenshot({ path: `${OUT_DIR}/opportunity-portfolio-focused-desktop.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("[data-portfolio-inspector]", { state: "detached" });
+  assert.doesNotMatch(decodeURIComponent(new URL(page.url()).hash), /capRecord=/, "Escape should clear portfolio selection from the shareable route");
+  await chooseControlSelect(page, "Heatmap measure", "Largest reported value");
+  await page.locator("[data-buyer-capability-heatmap]").screenshot({ path: `${OUT_DIR}/buyer-capability-heatmap-desktop.png` });
+  await page.locator('[data-buyer-capability-heatmap] .target-matrix__cell[role="button"]').first().click();
+  await page.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /technology=[^&]+/, "Heatmap selection should apply the exact capability filter to the canonical queue");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /orgOffice=[^&]+/, "Heatmap selection should apply the exact buying-office filter to the canonical queue");
+  assert.ok(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "A populated heatmap cell should resolve to matching operating records");
+  await page.evaluate(() => { window.location.hash = "#/budget-spend/explorer?spendView=table"; });
+  await page.waitForFunction(() => !decodeURIComponent(window.location.hash).includes("technology=") && !decodeURIComponent(window.location.hash).includes("orgOffice="));
+  await page.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
   const dueHeader = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="deadline"]');
   await dueHeader.locator(".if-table__sort").click();
   assert.equal(await dueHeader.getAttribute("aria-sort"), "ascending", "Response deadline should sort directly in the opportunity queue");
@@ -2318,13 +2345,32 @@ try {
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-spend-today]");
   await assertFlowShell(mobile);
-  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 5, "Mobile Spend Explorer should expose the five focused views");
+  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__tabs .if-tab').count(), 6, "Mobile Spend Explorer should expose the six focused views");
   assert.ok(await mobile.locator("[data-decision-brief] .decision-brief__record-list > a").count() <= 4, "Mobile Decision Brief should start with a tightly bounded change list");
   const mobileBriefActions = await mobile.locator('[data-decision-brief] :is(.decision-brief__action, .decision-brief__record-list > a, .decision-brief__compact-list > a)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
   assert.ok(mobileBriefActions.length > 0 && mobileBriefActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Decision Brief actions should preserve 44px touch targets: ${JSON.stringify(mobileBriefActions)}`);
   await assertButtonIntegrity(mobile, "Mobile Decision Brief", '[data-spend-explorer="today"]');
   await assertNoPageOverflow(mobile, "Mobile Decision Brief");
   await mobile.screenshot({ path: `${OUT_DIR}/decision-brief-mobile.png`, fullPage: true });
+  await mobile.getByRole("button", { name: "Visuals", exact: true }).click();
+  await mobile.waitForSelector('[data-spend-explorer="visuals"] [data-opportunity-portfolio-map]');
+  const mobilePortfolioGeometry = await mobile.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    surfaceWidth: document.querySelector('[data-opportunity-portfolio-visuals]')?.getBoundingClientRect().width || 0,
+    mapViewportWidth: document.querySelector('[data-opportunity-portfolio-map]')?.getBoundingClientRect().width || 0,
+    mapCanvasWidth: document.querySelector('[data-opportunity-portfolio-map] svg')?.getBoundingClientRect().width || 0,
+  }));
+  assert.ok(mobilePortfolioGeometry.surfaceWidth <= mobilePortfolioGeometry.viewportWidth, `Mobile portfolio surface must stay within the page viewport: ${JSON.stringify(mobilePortfolioGeometry)}`);
+  assert.ok(mobilePortfolioGeometry.mapViewportWidth <= mobilePortfolioGeometry.viewportWidth && mobilePortfolioGeometry.mapCanvasWidth >= mobilePortfolioGeometry.mapViewportWidth, `Mobile portfolio map should own its analytical overflow: ${JSON.stringify(mobilePortfolioGeometry)}`);
+  await assertButtonIntegrity(mobile, "Mobile Opportunity Portfolio", '[data-spend-explorer="visuals"]');
+  await assertNoPageOverflow(mobile, "Mobile Opportunity Portfolio");
+  await mobile.screenshot({ path: `${OUT_DIR}/opportunity-portfolio-mobile.png`, fullPage: true });
+  await mobile.locator('[data-opportunity-portfolio-map] .target-bubble[role="button"]').first().tap();
+  await mobile.waitForSelector("[data-portfolio-inspector]");
+  assert.match(decodeURIComponent(new URL(mobile.url()).hash), /capRecord=/, "Mobile portfolio selection should retain the exact opportunity in the route");
+  await mobile.locator("[data-portfolio-inspector]").screenshot({ path: `${OUT_DIR}/opportunity-portfolio-focused-mobile.png` });
+  await mobile.keyboard.press("Escape");
+  await mobile.waitForSelector("[data-portfolio-inspector]", { state: "detached" });
   await mobile.getByRole("button", { name: "Table", exact: true }).click();
   await mobile.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
   assert.equal(await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"]').getAttribute("data-table-layout"), "cards", "Mobile Opportunity Workbench should use readable record cards");
