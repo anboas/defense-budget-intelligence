@@ -2352,6 +2352,14 @@ code {
   transition: transform var(--if-duration-normal) var(--if-ease-standard);
 }
 
+.if-drawer--wide {
+  width: min(100vw, 42rem);
+}
+
+.if-drawer--detail {
+  width: min(100vw, 52rem);
+}
+
 .if-drawer.is-open,
 .if-drawer[aria-hidden="false"] {
   transform: translateX(0);

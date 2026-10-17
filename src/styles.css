@@ -8162,6 +8162,7 @@ td .dot {
 }
 
 @media (max-width: 760px) {
+  .analysis-workspace-drawer { --analysis-drawer-overflow: auto; --analysis-columns: minmax(0, 1fr); --analysis-height: auto; --analysis-overflow: visible; --analysis-pane-overflow: visible; --analysis-divider-right: 0; --analysis-divider-bottom: 1px solid var(--border-soft); width: 100vw !important; }
   .capture-timeline__star { width: 44px; height: 44px; right: 0; }
   .capture-timeline__record-button { min-height: 44px; padding-right: 40px; }
   .capture-detail__heading-actions { width: 100%; flex-wrap: nowrap; justify-content: flex-start; }

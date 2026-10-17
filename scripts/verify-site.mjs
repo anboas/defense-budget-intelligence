@@ -2020,13 +2020,42 @@ try {
   const connectedEvidenceText = await connectedEvidence.innerText();
   assert.match(connectedEvidenceText, /Connected intelligence/i, "Record detail should expose its cross-surface evidence graph");
   assert.match(connectedEvidenceText, /organization|event|FPDS action/i, "Connected evidence should summarize typed neighboring entities");
-  assert.match(connectedEvidenceText, /UEI|Office [A-Z0-9]+|Label-only identity|review required/i, "Connected organization evidence should disclose identifier or resolution state");
-  assert.match(connectedEvidenceText, /SeaPort-NxG/i, "Application Arsenal should disclose its published acquisition path");
-  assert.match(connectedEvidenceText, /N6600123F3509/i, "Application Arsenal should disclose its resolved predecessor");
+  assert.equal(await connectedEvidence.locator(".connected-evidence__ledger").getAttribute("open"), null, "Supporting evidence should stay collapsed until requested");
   await connectedEvidence.locator("[data-connected-visual-analysis]").waitFor();
   const visualGraph = connectedEvidence.locator("[data-evidence-visual-graph]");
   assert.ok(Number(await visualGraph.getAttribute("data-node-count")) >= 4, "Connected visual analysis should render the selected opportunity with its bounded neighbors");
   assert.ok(Number(await visualGraph.getAttribute("data-node-count")) <= 13, "Connected visual analysis must remain bounded to the selected record and at most twelve neighbors");
+  const workspaceGeometry = await page.locator("[data-analysis-workspace]").evaluate((drawer) => {
+    const drawerRect = drawer.getBoundingClientRect();
+    const context = drawer.querySelector(".capture-detail__context, .analytics-record-workspace__context");
+    const analysis = drawer.querySelector(".capture-detail__analysis, .analytics-record-workspace__analysis");
+    const evidence = drawer.querySelector("[data-connected-evidence]");
+    const visual = drawer.querySelector("[data-connected-visual-analysis]");
+    const graph = drawer.querySelector("[data-evidence-visual-graph]");
+    return {
+      drawerWidth: drawerRect.width,
+      viewportWidth: window.innerWidth,
+      contextWidth: context?.getBoundingClientRect().width || 0,
+      analysisWidth: analysis?.getBoundingClientRect().width || 0,
+      graphWidth: graph?.getBoundingClientRect().width || 0,
+      evidenceBorder: evidence ? parseFloat(getComputedStyle(evidence).borderTopWidth) : -1,
+      visualBorder: visual ? parseFloat(getComputedStyle(visual).borderTopWidth) : -1,
+    };
+  });
+  assert.ok(workspaceGeometry.drawerWidth >= workspaceGeometry.viewportWidth * 0.75, `Analytical record workspaces should own at least 75% of the desktop viewport (${workspaceGeometry.drawerWidth}px of ${workspaceGeometry.viewportWidth}px)`);
+  assert.ok(workspaceGeometry.analysisWidth > workspaceGeometry.contextWidth, "The analytical canvas should be wider than the record-context rail");
+  assert.ok(workspaceGeometry.graphWidth >= 600, `The evidence graph should receive at least 600px of desktop working width (received ${workspaceGeometry.graphWidth}px)`);
+  assert.equal(workspaceGeometry.evidenceBorder, 0, "Connected evidence should not add an outer card border inside the analysis workspace");
+  assert.equal(workspaceGeometry.visualBorder, 0, "Visual analysis should not add another outer card border inside connected evidence");
+  await page.screenshot({ path: `${OUT_DIR}/analysis-workspace-desktop.png` });
+  const evidenceEdges = await visualGraph.locator("[data-evidence-edge]").evaluateAll((paths) => paths.map((path) => path.getAttribute("d")));
+  assert.equal(evidenceEdges.length, Number(await visualGraph.getAttribute("data-node-count")) - 1, "Every bounded neighbor should have one graph edge");
+  assert.ok(evidenceEdges.every((path) => path && !/^M\s+50(?:\.0+)?\s+50(?:\.0+)?\b/.test(path)), "Graph edges should terminate at stable node ports instead of running from center to center");
+  const graphNodeOverlaps = await visualGraph.locator("[data-evidence-node]").evaluateAll((nodes) => {
+    const rectangles = nodes.map((node) => node.getBoundingClientRect());
+    return rectangles.flatMap((left, index) => rectangles.slice(index + 1).filter((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top).map((right) => ({ left: [left.left, left.top, left.right, left.bottom], right: [right.left, right.top, right.right, right.bottom] })));
+  });
+  assert.equal(graphNodeOverlaps.length, 0, `Evidence graph nodes must not overlap: ${JSON.stringify(graphNodeOverlaps)}`);
   await visualGraph.locator("[data-evidence-node]").nth(1).click();
   assert.match(await connectedEvidence.locator("[data-evidence-visual-inspector]").innerText(), /organization|vehicle|classification|location|predecessor|conflict/i, "Selecting a visual node should expose its typed evidence inspector");
   await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-graph-desktop.png` });
@@ -2034,17 +2063,26 @@ try {
   assert.equal(await connectedEvidence.getAttribute("data-connected-evidence-state"), "ready", "Switching visualization modes must preserve the loaded evidence record");
   assert.ok(await connectedEvidence.locator("[data-visual-timeline-marker]").count() > 0, "The record visualization should project published, evidence, and review dates onto a bounded event rail");
   await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-desktop.png` });
+  await connectedEvidence.getByRole("button", { name: "Relationships", exact: true }).click();
+  await connectedEvidence.locator('[data-organization-relationships]').waitFor();
+  assert.equal(await connectedEvidence.locator('[data-organization-relationships]').getAttribute("data-embedded"), "true", "Organization relationships should reuse the visual-analysis canvas without adding another outer container");
+  await connectedEvidence.getByRole("button", { name: "Connections", exact: true }).click();
   assert.equal(await connectedEvidence.locator("[data-acquisition-path]").count(), 1, "Published acquisition paths should render as typed lineage evidence");
   assert.equal(await connectedEvidence.locator("[data-contract-predecessor]").count(), 1, "Resolved predecessor relationships should render as typed lineage evidence");
   assert.equal(await connectedEvidence.locator('[data-temporal-status="conflicting"]').count(), 1, "Competing current and historical lifecycle claims should mark this record as conflicting");
   assert.equal(await connectedEvidence.locator('[data-evidence-conflict="needs_review"]').count(), 1, "Unresolved lifecycle disagreement should remain visible in the record drawer");
-  assert.match(connectedEvidenceText, /historical · agent-records[\s\S]*(?:active|upcoming) · opportunity-map-data/i, "Conflict disclosure should retain competing values and source artifacts without freezing the newer lifecycle claim");
   const connectedActivityId = await connectedEvidence.getAttribute("data-connected-evidence-id");
   assert.ok(connectedActivityId?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
   const connectedFullView = connectedEvidence.getByRole("link", { name: /Full view/i });
   assert.equal(await connectedFullView.count(), 1, "Every Connected Intelligence drawer should expose a durable full-page view");
   assert.match(await connectedFullView.getAttribute("href"), new RegExp(`domain-model\\?activity=${connectedActivityId}$`), "Full view should carry the stable activity identity");
   assert.ok(await connectedEvidence.locator(".connected-evidence__routes a").count() >= 2, "Connected evidence should link back into analytical working surfaces");
+  await connectedEvidence.locator(".connected-evidence__ledger > summary").click();
+  const supportingEvidenceText = await connectedEvidence.locator(".connected-evidence__ledger").innerText();
+  assert.match(supportingEvidenceText, /UEI|Office [A-Z0-9]+|Label-only identity|review required/i, "Connected organization evidence should disclose identifier or resolution state");
+  assert.match(supportingEvidenceText, /SeaPort-NxG/i, "Application Arsenal should disclose its published acquisition path");
+  assert.match(supportingEvidenceText, /N6600123F3509/i, "Application Arsenal should disclose its resolved predecessor");
+  assert.match(supportingEvidenceText, /historical · agent-records[\s\S]*(?:active|upcoming) · opportunity-map-data/i, "Conflict disclosure should retain competing values and source artifacts without freezing the newer lifecycle claim");
   await connectedEvidence.locator(".connected-evidence__evidence > summary").click();
   assert.match(await connectedEvidence.locator(".connected-evidence__evidence").innerText(), /exact|source declared|deterministic/i, "Connected evidence should disclose join basis and confidence");
   assert.equal(await resourceCount(page, "intelligence-graph-index.json"), 1, "Record drawers should load the deferred evidence index exactly once");
@@ -2761,6 +2799,8 @@ try {
   assert.ok(mobileFactGeometry.height <= 520, `Mobile primary facts should not become a vertical card wall, got ${mobileFactGeometry.height}px`);
   assert.equal(await mobile.locator(".capture-detail__secondary").getAttribute("open"), null, "Mobile secondary procurement diagnostics should stay collapsed until requested");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-detail-modal-mobile.png` });
+  await mobile.locator("[data-record-analysis-panel]").scrollIntoViewIfNeeded();
+  await mobile.screenshot({ path: `${OUT_DIR}/analysis-workspace-mobile.png` });
   await mobile.getByRole("button", { name: "Close record details" }).evaluate((button) => button.click());
   await mobile.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   assert.equal(await mobile.getByRole("button", { name: "Data table" }).count(), 0, "Mobile Transactions must remain Gantt-only");

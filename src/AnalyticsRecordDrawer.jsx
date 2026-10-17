@@ -1,6 +1,7 @@
 import { ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import { WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
+import { analysisCanvasStyle, analysisContextStyle, analysisDrawerBodyStyle, analysisDrawerStyle, analysisWorkspaceStyle } from "./analysis-workspace.js";
 
 function money(value) {
   const amount = Number(value || 0);
@@ -30,16 +31,16 @@ export default function AnalyticsRecordDrawer({ record, onClose }) {
     onClose={onClose}
     title={record.title}
     header={<ControlRecordHeader eyebrow={record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"} title={record.title} summary="Published analytical facts, schedule, structure, and provenance." status={<ControlStatusBadge status={record.lifecycleStatus || record.status || "active"} />} meta={[{ label: "Record", value: record.id }, { label: "Portfolio", value: record.portfolio || "Not classified" }, { label: "Recipient", value: record.party || "Not published" }]} />}
-    size="wide"
+    size="detail"
+    className="analysis-workspace-drawer"
     closeLabel="Close analytical detail"
-    drawerProps={{ "data-analytics-record-drawer": "" }}
-    bodyProps={{ className: "if-record-detail if-record-detail--intelligence" }}
+    drawerProps={{ "data-analytics-record-drawer": "", "data-analysis-workspace": true, style: analysisDrawerStyle }}
+    bodyProps={{ className: "if-record-detail if-record-detail--intelligence analysis-workspace-drawer__body", style: analysisDrawerBodyStyle }}
     footer={<><a className="if-btn if-btn--primary" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Timeline</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</>}
   >
-    <ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} />
-    <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>
-      <ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} />
-    </ControlDisclosure>
-    <ConnectedEvidence opportunityId={record.opportunityId} record={record} />
+    <div className="analytics-record-workspace" style={analysisWorkspaceStyle}>
+      <div className="analytics-record-workspace__context" style={analysisContextStyle}><ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} /><ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}><ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} /></ControlDisclosure></div>
+      <div className="analytics-record-workspace__analysis" style={analysisCanvasStyle}><ConnectedEvidence opportunityId={record.opportunityId} record={record} workspace /></div>
+    </div>
   </ControlDrawer>;
 }

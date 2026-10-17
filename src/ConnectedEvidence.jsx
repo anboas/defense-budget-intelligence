@@ -3,7 +3,6 @@ import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from
 import "./ConnectedEvidence.css";
 
 const ConnectedEvidenceVisual = lazy(() => import("./ConnectedEvidenceVisual.jsx"));
-const OrganizationRelationshipLens = lazy(() => import("./OrganizationRelationshipLens.jsx"));
 
 const RELATION_LABELS = {
   "activity-awarded-as": "Award identity",
@@ -53,7 +52,7 @@ function ConnectionGroup({ title, items, renderItem }) {
   return <section className="connected-evidence__group"><h4>{title}</h4><div>{items.map(renderItem)}</div></section>;
 }
 
-export default function ConnectedEvidence({ opportunityId, record = null, researchReport = null, fullView = false }) {
+export default function ConnectedEvidence({ opportunityId, record = null, researchReport = null, fullView = false, workspace = false }) {
   const [state, setState] = useState({ status: "loading", graph: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -102,7 +101,7 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
   ].filter(Boolean);
 
   return (
-    <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}`} style={{ minWidth: 0, maxWidth: "100%", width: "100%", overflow: "hidden" }} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined}>
+    <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}${workspace ? " connected-evidence--workspace" : ""}`} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined} data-connected-evidence-workspace={workspace || undefined}>
       <header>
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
         <small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces · deterministic joins only</small>
@@ -114,8 +113,9 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         {routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}
       </nav>
       <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} /></Suspense>
-      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading organization relationships…</div>}><OrganizationRelationshipLens record={record} connection={connection} compact={!fullView} /></Suspense>
-      <div className="connected-evidence__connections">
+      <details className="connected-evidence__ledger">
+        <summary><strong>Supporting evidence ledger</strong><span>Awards, lineage, organizations, classifications, and conflicts</span></summary>
+        <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
         <ConnectionGroup title="Exact parent vehicles" items={contractLineage?.vehicles} renderItem={(vehicle) => <article key={vehicle.id} data-contract-vehicle><strong>{vehicle.piid}</strong><span>{countLabel(vehicle.orderCount, "linked order")}</span><em>Exact USAspending parent IDV</em></article>} />
         <ConnectionGroup title="Published acquisition paths" items={contractLineage?.acquisitionPaths} renderItem={(path) => <article key={path.id} data-acquisition-path><strong>{path.label}</strong><span>{countLabel(path.activityCount, "linked activity")}</span><em>Source-declared path; not a substitute for parent IDV</em></article>} />
@@ -133,7 +133,8 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         <ConnectionGroup title="Reviewed locations" items={connected.locations} renderItem={(location) => <article key={location.id}><strong>{location.label}</strong><span>{[location.city, location.state].filter(Boolean).join(", ")}</span><em>Reviewed map registry</em></article>} />
         <ConnectionGroup title="Federal accounts" items={connected.federalAccounts} renderItem={(account) => <article key={account.id}><strong>{account.federalAccountCode}</strong><span>{account.label}</span><em>Exact award transaction funding</em></article>} />
         <ConnectionGroup title="Classifications" items={connected.classifications} renderItem={(classification) => <article key={classification.id}><strong>{classification.label}</strong><span>{classification.namespace.replaceAll("-", " ")}</span><em>Deterministic taxonomy</em></article>} />
-      </div>
+        </div>
+      </details>
       <details className="connected-evidence__evidence">
         <summary><strong>Evidence and join policy</strong><span>{connection.evidenceSummary.length} relation methods</span></summary>
         <div>

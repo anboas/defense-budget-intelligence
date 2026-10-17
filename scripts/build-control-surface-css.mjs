@@ -16,6 +16,8 @@ const [result] = await new PurgeCSS().purge({
       "if-table--spacious",
       "if-dialog--wide",
       "if-dialog--detail",
+      "if-drawer--wide",
+      "if-drawer--detail",
       "if-sparkline--up",
       "if-sparkline--down",
       "if-toast-stack--masthead",
