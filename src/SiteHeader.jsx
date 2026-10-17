@@ -21,7 +21,7 @@ const MOBILE_TITLES = {
   lifecycle: "Account Flow",
   awards: "Awards",
   sources: "Sources",
-  watchlist: "Watchlist",
+  watchlist: "My Work",
   tasks: "Tasks",
   "event-discovery": "Discovery",
   connections: "Connections",
@@ -41,7 +41,7 @@ const MONEY_META = {
 };
 
 const ADMIN_META = {
-  watchlist: { badge: "Track", description: "Starred records, notes, review dates, and wallboard visibility." },
+  watchlist: { badge: "Act", description: "Overdue work, upcoming actions, waiting items, and tracked pursuits." },
   tasks: { badge: "Progress", description: "Background augmentation and API tasks, stages, outcomes, and review." },
   "event-discovery": { badge: "Curate", description: "Review official-source candidates, source health, and ingestion history." },
   connections: { badge: "Admin", description: "Integration health, credentials, request diagnostics, and workspace audit." },

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Link2, SearchCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Link2, Plus, SearchCheck, Sparkles } from "lucide-react";
 import { ControlAsyncState, ControlFactGrid } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
@@ -6,6 +6,7 @@ import OpportunityCommandRail from "./OpportunityCommandRail.jsx";
 import { useManagementState } from "./management-state.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import { samNoticeTypeLabel } from "./sam-notice-types.js";
+import { PURSUIT_TASK_EVENT } from "./pursuit-metadata.js";
 import "./OpportunityRecordPage.css";
 
 function date(value) {
@@ -49,7 +50,7 @@ function ResearchReport({ report, recordId }) {
     <p className="record-page__research-summary">{report.summary}</p>
     {report.decisionBrief ? <section className={`record-page__decision is-${report.decisionBrief.priority || "low"}`} data-record-decision-brief><header className="if-button-group"><CheckCircle2 size={18} /><span><small>Recommended action: </small><strong>{report.decisionBrief.recommendedAction}</strong></span><b className="if-badge if-badge--info">{report.decisionBrief.priority} priority</b></header><p>{report.decisionBrief.rationale}</p><small>{report.decisionBrief.sourceUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Decision source {index + 1}<ExternalLink size={12} /></a>)}</small></section> : null}
     {report.keyDates?.length ? <section><h3>Key published dates</h3><ul>{report.keyDates.map((item) => <li key={`${item.label}-${item.date}`}><strong>{item.label} · <time dateTime={item.date}>{date(item.date)}</time></strong><span>{item.basis}</span><small>{item.sourceUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer">Date source {index + 1}<ExternalLink size={12} /></a>)}<a className="record-page__timeline-link" href={researchTimelineHref(recordId, report.id, item)}><CalendarClock size={12} />Show on Timeline</a></small></li>)}</ul></section> : null}
-    {report.nextActions?.length ? <section><h3>Next actions</h3><ol>{report.nextActions.map((item, index) => <li key={`${item.action}-${index}`}><strong>{item.action}</strong><span>{item.rationale}</span><small>{item.sourceUrls.map((url, sourceIndex) => <a key={url} href={url} target="_blank" rel="noreferrer">Action source {sourceIndex + 1}<ExternalLink size={12} /></a>)}</small></li>)}</ol></section> : null}
+    {report.nextActions?.length ? <section><h3>Next actions</h3><ol>{report.nextActions.map((item, index) => <li key={`${item.action}-${index}`}><strong>{item.action}</strong><span>{item.rationale}</span><small>{item.sourceUrls.map((url, sourceIndex) => <a key={url} href={url} target="_blank" rel="noreferrer">Action source {sourceIndex + 1}<ExternalLink size={12} /></a>)}<button type="button" className="record-page__timeline-link" onClick={() => window.dispatchEvent(new CustomEvent(PURSUIT_TASK_EVENT, { detail: { recordId, title: item.action, priority: report.decisionBrief?.priority === "critical" ? "critical" : report.decisionBrief?.priority === "high" ? "high" : "normal", sourceType: "research", sourceId: report.id, sourceLabel: "AI research brief" } }))}><Plus size={12} />Create task</button></small></li>)}</ol></section> : null}
     {report.scope ? <section><h3>Published scope</h3><p>{report.scope}</p></section> : null}
     {report.incumbentPosture ? <section><h3>Incumbent and follow-on posture</h3><p>{report.incumbentPosture}</p></section> : null}
     {report.findings?.length ? <section><h3>Cited findings</h3><ul>{report.findings.map((finding, index) => <li key={`${finding.text}-${index}`}><span>{finding.text}</span><small>{finding.sourceUrls.map((url, sourceIndex) => <a key={url} href={url} target="_blank" rel="noreferrer">Source {sourceIndex + 1}<ExternalLink size={12} /></a>)}</small></li>)}</ul></section> : null}

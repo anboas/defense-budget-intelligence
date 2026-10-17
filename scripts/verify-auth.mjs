@@ -131,8 +131,8 @@ try {
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
   await page.locator('[data-nav-group-trigger="work"]').click();
-  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/watchlist", "#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must contain Watchlist, Task Center, and the dedicated Event Discovery manager");
-  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center[\s\S]*Event Discovery/i);
+  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/watchlist", "#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must contain My Work, Task Center, and the dedicated Event Discovery manager");
+  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /My Work[\s\S]*Task Center[\s\S]*Event Discovery/i);
   assert.equal(await page.locator('[data-budget-nav-menu="work"] a[href="#/budget-spend/schedule"]').count(), 0, "Schedule must remain a primary surface rather than a nested work item");
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  ArrowRight,
   Bot,
   CalendarDays,
   Building2,
@@ -14,6 +15,7 @@ import {
   Sparkles,
   CircleAlert,
   CircleCheck,
+  Clock3,
   Star,
   Tags,
   Trash2,
@@ -36,6 +38,7 @@ import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
 import { directorySelection, openWorkspaceProfile, workspaceTeamHref } from "./workspace-profile-routes.js";
 import { eventDateTimeInputValue } from "./event-date-input.js";
+import "./MyWork.css";
 
 const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
 const OpenAiKeyManagement = lazy(() => import("./OpenAiKeyManagement.jsx"));
@@ -467,11 +470,51 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   </ControlDialog>;
 }
 
-function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, updateWatch }) {
+function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, updateWatch, savePursuit }) {
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
+  const recordById = new Map(rows.map((record) => [record.opportunityId, record]));
+  const [focus, setFocus] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("workFocus") || "all");
+  const [referenceTime] = useState(() => Date.now());
+  const today = new Date(referenceTime).toISOString().slice(0, 10);
+  const soon = new Date(referenceTime + 7 * 86_400_000).toISOString().slice(0, 10);
+  const recent = new Date(referenceTime - 7 * 86_400_000).toISOString();
+  const tasks = watchlist.flatMap((watch) => (watch.pursuit?.tasks || []).map((task) => ({ ...task, recordId: watch.recordId, record: recordById.get(watch.recordId), pursuit: watch.pursuit })));
+  const openTasks = tasks.filter((task) => task.status !== "done");
+  const overdueTasks = openTasks.filter((task) => task.dueAt && task.dueAt.slice(0, 10) < today);
+  const dueSoonTasks = openTasks.filter((task) => task.dueAt && task.dueAt.slice(0, 10) >= today && task.dueAt.slice(0, 10) <= soon);
+  const waitingTasks = openTasks.filter((task) => task.status === "waiting");
+  const noActionRecords = rows.filter((record) => { const watch = watchById.get(record.opportunityId); return !watch?.pursuit?.nextAction && !(watch?.pursuit?.tasks || []).some((task) => task.status !== "done"); });
+  const changedRecords = rows.filter((record) => String(record.lastChangedAt || record.firstSeenAt || "") >= recent);
+  const focusRecords = new Set((focus === "overdue" ? overdueTasks.map((task) => task.recordId) : focus === "due" ? dueSoonTasks.map((task) => task.recordId) : focus === "waiting" ? waitingTasks.map((task) => task.recordId) : focus === "no-action" ? noActionRecords.map((record) => record.opportunityId) : focus === "changed" ? changedRecords.map((record) => record.opportunityId) : rows.map((record) => record.opportunityId)));
+  const filteredRows = rows.filter((record) => focusRecords.has(record.opportunityId));
+
+  function chooseFocus(next) {
+    setFocus(next);
+    const [path, search = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(search);
+    if (next === "all") params.delete("workFocus"); else params.set("workFocus", next);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${path}?${params}`);
+  }
+
+  function patchTask(task, patch) {
+    const watch = watchById.get(task.recordId);
+    if (!watch) return;
+    const tasksForRecord = watch.pursuit.tasks.map((item) => item.id === task.id ? { ...item, ...patch, completedAt: patch.status === "done" ? new Date().toISOString() : patch.status ? "" : item.completedAt } : item);
+    void savePursuit(task.recordId, { ...watch.pursuit, tasks: tasksForRecord, reviewAt: watch.reviewAt });
+  }
+
+  const cards = [
+    ["overdue", "Overdue", overdueTasks.length, "Needs action now", "danger"],
+    ["due", "Due soon", dueSoonTasks.length, "Next seven days", "warning"],
+    ["waiting", "Waiting", waitingTasks.length, "Blocked or external", "info"],
+    ["no-action", "No next action", noActionRecords.length, "Tracked without a plan", "neutral"],
+    ["changed", "Recently changed", changedRecords.length, "Source changed in seven days", "success"],
+  ];
   const columns = [
     { key: "record", label: "Tracked record", required: true, sticky: true, minWidth: 300, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.party, record.portfolio, record.reference], render: (record) => <a className="dbi-table-record-link" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a> },
-    { key: "work", label: "Type of work", facet: true, minWidth: 150, value: (record) => WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work" },
+    { key: "stage", label: "Pursuit", facet: true, minWidth: 140, value: (record) => watchById.get(record.opportunityId)?.pursuit?.stage || "monitor", render: (record) => <ControlStatusBadge status={watchById.get(record.opportunityId)?.pursuit?.stage || "monitor"} /> },
+    { key: "owner", label: "Owner", facet: true, minWidth: 150, value: (record) => watchById.get(record.opportunityId)?.pursuit?.owner || "Unassigned" },
+    { key: "next", label: "Next action", minWidth: 260, value: (record) => watchById.get(record.opportunityId)?.pursuit?.nextAction || "No next action", render: (record) => { const watch = watchById.get(record.opportunityId); const open = (watch?.pursuit?.tasks || []).filter((task) => task.status !== "done"); return <span className="my-work__next"><strong>{watch?.pursuit?.nextAction || "No next action"}</strong><small>{open.length ? `${open.length} open task${open.length === 1 ? "" : "s"}` : "No open tasks"}</small></span>; } },
     { key: "date", label: "Next published date", minWidth: 130, value: (record) => nextPublishedDate(record, asOf) || "Not scheduled", render: (record) => compactDate(nextPublishedDate(record, asOf)) },
     { key: "observed", label: "Observed", sortValue: recordAmount, exportValue: recordAmount, render: (record) => <strong>{money(recordAmount(record))}</strong> },
     { key: "review", label: "Review", minWidth: 150, sortValue: (record) => watchById.get(record.opportunityId)?.reviewAt || "", render: (record) => { const watch = watchById.get(record.opportunityId); return <input aria-label={`Review date for ${record.title}`} type="date" value={String(watch?.reviewAt || "").slice(0, 10)} onChange={(event) => updateWatch(record.opportunityId, { reviewAt: event.target.value })} />; } },
@@ -479,10 +522,14 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => toggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={16} fill="currentColor" />Untrack</button></div> },
   ];
   return (
-    <section className="ops-panel" data-ops-watchlist>
-      <ControlPageHeader compact divided eyebrow="Workspace work" title="Watchlist" summary="Tracked records, private notes, review dates, and wallboard visibility." headingLevel={2} />
+    <section className="ops-panel my-work" data-ops-watchlist data-my-work>
+      <ControlPageHeader compact divided eyebrow="Workspace work" title="My Work" summary="See what needs attention, act on tracked pursuits, and keep every next step tied to evidence." headingLevel={2} actions={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Open opportunity queue<ArrowRight size={15} /></a>} />
       <ControlPageBody compact>
-      {rows.length ? <OperationalDataTable id="watchlist" label="Tracked records" rows={rows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "date", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked records…" exportFilename="tracked-records.csv" mobileColumns={["record", "date", "review", "wallboard", "actions"]} wrapperProps={{ "data-ops-watch-table": true }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <label className="dbi-table-note"><span>Private workspace note</span><textarea key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label>; }} /> : <ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Use the star on any Spend Explorer timeline row to build this working set." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=timeline">Open Spend Explorer</a>} />}
+      {rows.length ? <>
+        <nav className="my-work__status-grid" aria-label="Filter My Work by attention status">{cards.map(([id, label, value, detail, tone]) => <button key={id} type="button" className={`my-work__status is-${tone}${focus === id ? " is-active" : ""}`} aria-pressed={focus === id} onClick={() => chooseFocus(focus === id ? "all" : id)}><span>{label}</span><strong>{value}</strong><small>{detail}</small></button>)}</nav>
+        <section className="my-work__agenda" aria-labelledby="my-work-agenda-title"><header><div><small>Action queue</small><h3 id="my-work-agenda-title">What needs to happen next</h3></div><span>{openTasks.length} open task{openTasks.length === 1 ? "" : "s"}</span></header>{openTasks.length ? <div>{[...openTasks].sort((a, b) => (a.dueAt || "9999").localeCompare(b.dueAt || "9999")).slice(0, 8).map((task) => <article key={`${task.recordId}:${task.id}`} data-my-work-task data-task-status={task.status} data-task-priority={task.priority}><button type="button" className="my-work__complete" aria-label={`Complete ${task.title}`} onClick={() => patchTask(task, { status: "done" })}><CircleCheck size={18} /></button><div><strong>{task.title}</strong><a href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(task.recordId)}`}>{task.record?.title || task.recordId}</a><small>{[task.owner || "Unassigned", task.dueAt ? `${task.dueAt.slice(0, 10) < today ? "Overdue" : "Due"} ${compactDate(task.dueAt)}` : "No due date", task.sourceLabel].filter(Boolean).join(" · ")}</small></div><ControlStatusBadge status={task.status.replaceAll("_", " ")} />{task.status !== "waiting" ? <button type="button" className="if-btn if-btn--secondary" onClick={() => patchTask(task, { status: "waiting" })}><Clock3 size={14} />Wait</button> : <button type="button" className="if-btn if-btn--secondary" onClick={() => patchTask(task, { status: "todo" })}>Resume</button>}</article>)}</div> : <ControlAsyncState compact state="empty" icon={<ListChecks size={20} />} title="No open tasks" message="Create a task from Pursuit Controls, AI research, Timeline, Connections, or Money Path." />}</section>
+        <OperationalDataTable id="watchlist" label="Tracked pursuits" rows={filteredRows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "review", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked pursuits…" exportFilename="my-work.csv" mobileColumns={["record", "stage", "next", "review", "actions"]} wrapperProps={{ "data-ops-watch-table": true, "data-work-focus": focus }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <div className="my-work__detail"><a className="if-btn if-btn--primary" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(record.opportunityId)}`}>Open pursuit workspace</a><label className="dbi-table-note"><span>Private workspace note</span><textarea key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label></div>; }} />
+      </> : <ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Track an opportunity to build your status cockpit and action queue." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Open opportunity queue</a>} />}
       </ControlPageBody>
     </section>
   );
@@ -1111,7 +1158,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   };
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
-    {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} /> : null}
+    {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} savePursuit={state.savePursuit} /> : null}
     {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add-launcher" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "directory" ? <DirectoryView auth={auth} state={state} records={records} teams={calendarTeams} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} onApplyDraft={applyReviewedEvent} onFocusEvent={focusSavedEvent} /> : null}

@@ -41,7 +41,7 @@ assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Dom
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 415_000, `Total scoped CSS must stay below 415 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 423_000, `Total scoped CSS must stay below 423 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
@@ -213,7 +213,7 @@ async function assertFlowShell(page) {
     await page.locator('[data-nav-group-trigger="money"]').click();
     await page.locator('[data-nav-group-trigger="work"]').click();
     assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Workspace should expose supporting work surfaces without primary or administrative surfaces");
-    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Watchlist[\s\S]*Task Center/i);
+    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /My Work[\s\S]*Task Center/i);
     assert.deepEqual(
       await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
       ["#/budget-spend/watchlist", "#/budget-spend/tasks"],
@@ -1063,11 +1063,21 @@ try {
   await commandRail.getByLabel("Next action").fill("Confirm customer discovery meeting");
   await commandRail.getByLabel("Next action").blur();
   await commandRail.getByLabel("Checkpoint").fill("2026-10-20");
+  await commandRail.getByRole("button", { name: "Add task", exact: true }).click();
+  await commandRail.getByLabel("Task", { exact: true }).fill("Prepare capture brief");
+  await chooseControlSelect(page, "Task priority", "High");
+  await commandRail.getByLabel("Due").fill("2026-10-18");
+  await commandRail.getByRole("button", { name: "Create task", exact: true }).click();
+  assert.equal(await commandRail.locator('[data-pursuit-task="todo"]').count(), 1, "Pursuit Controls should create a dated task without leaving the analysis flow");
+  await commandRail.getByRole("button", { name: "Edit Prepare capture brief", exact: true }).click();
+  await commandRail.getByLabel("Due").fill("2026-10-19");
+  await commandRail.getByRole("button", { name: "Save task", exact: true }).click();
   await page.waitForFunction((encodedId) => {
     const recordId = decodeURIComponent(encodedId);
     const watch = JSON.parse(localStorage.getItem("dbi:watchlist:v1") || "[]").find((item) => item.recordId === recordId);
-    return watch?.pursuit?.stage === "capture" && watch?.pursuit?.owner === "Adam" && watch?.pursuit?.nextAction === "Confirm customer discovery meeting" && watch?.reviewAt === "2026-10-20";
+    return watch?.pursuit?.stage === "capture" && watch?.pursuit?.owner === "Adam" && watch?.pursuit?.nextAction === "Confirm customer discovery meeting" && watch?.pursuit?.tasks?.[0]?.title === "Prepare capture brief" && watch?.pursuit?.tasks?.[0]?.dueAt === "2026-10-19" && watch?.reviewAt === "2026-10-20";
   }, expandedWorkbenchId);
+  await page.screenshot({ path: `${OUT_DIR}/pursuit-controls-tasks-desktop.png`, fullPage: false });
   assert.match(await commandRail.getAttribute("data-tracked"), /true/, "Editing pursuit state should automatically retain the opportunity in the workspace");
   const workbenchVisual = page.locator("[data-opportunity-workbench-detail] [data-connected-visual-analysis]");
   await workbenchVisual.getByRole("button", { name: "Timeline", exact: true }).click();
@@ -1076,6 +1086,9 @@ try {
   const selectedVisualItem = await workbenchVisual.getAttribute("data-connected-visual-selected");
   assert.ok(selectedVisualItem, "Selecting a timeline marker should retain an exact visual item identity");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisualItem=/, "Visual selection should persist in the shareable route");
+  await workbenchVisual.getByRole("button", { name: "Create task", exact: true }).click();
+  assert.equal(await commandRail.locator("[data-task-composer]").count(), 1, "Selected graph or timeline evidence should open the linked task composer");
+  await commandRail.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis][data-connected-visual-view="timeline"]');
   assert.equal(await page.locator("[data-opportunity-workbench-detail] [data-connected-visual-analysis]").getAttribute("data-connected-visual-selected"), selectedVisualItem, "Reloading should restore the exact selected timeline item");
@@ -1114,14 +1127,26 @@ try {
   const firstWatchStar = firstWatchRow.locator(".capture-timeline__star");
   await firstWatchStar.click();
   assert.equal(await firstWatchStar.getAttribute("aria-pressed"), "true", "Gantt rows should support stable-ID tracking");
+  await page.evaluate((recordId) => {
+    const key = "dbi:watchlist:v1";
+    const rows = JSON.parse(localStorage.getItem(key) || "[]");
+    const next = rows.map((entry) => entry.recordId === recordId ? { ...entry, updatedAt: "2026-09-13T12:00:00.000Z", pursuit: { stage: "capture", owner: "Adam", nextAction: "Review customer response", tasks: [{ id: "task-my-work", title: "Prepare customer follow-up", status: "todo", priority: "high", dueAt: "2026-09-12", owner: "Adam", sourceType: "timeline", sourceId: "timeline-marker-1", sourceLabel: "Published response deadline", createdAt: "2026-09-10T12:00:00.000Z", completedAt: "" }] } } : entry);
+    localStorage.setItem(key, JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent("dbi:management-state-changed", { detail: { key } }));
+  }, firstWatchId);
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   await chooseControlSelect(page, "Tracking", "Tracked only (1)");
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Watchlist", "The masthead should identify the active workspace surface rather than flatten every area into Administration");
-  assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "Watchlist should project the tracked stable-ID working set");
-  assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "Watchlist should preserve the exact Gantt stable ID");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "My Work", "The masthead should identify the action-oriented workspace surface");
+  assert.equal(await page.locator("[data-my-work] .my-work__status").count(), 5, "My Work should expose the five attention states in one compact cockpit");
+  assert.equal(await page.locator("[data-my-work-task]").count(), 1, "My Work should project the pursuit task into its cross-record action queue");
+  assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "My Work should project the tracked stable-ID working set");
+  assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
+  await page.getByRole("button", { name: /Overdue 1 Needs action now/i }).click();
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /workFocus=overdue/, "My Work attention filters should persist in the shareable route");
+  await page.screenshot({ path: `${OUT_DIR}/my-work-desktop.png`, fullPage: true });
   const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
   await watchRow.click();
   const watchNote = page.locator("[data-ops-watch-table] [data-if-table-detail] textarea");
@@ -1192,7 +1217,7 @@ try {
   assert.ok(await page.locator("[data-ops-activity] [data-ops-activity-table] [data-if-table-row]").count() >= 4, "Watchlist and event mutations should produce append-only activity entries");
   await page.evaluate((recordIds) => {
     const at = "2026-09-13T12:00:00.000Z";
-    localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true }))));
+    localStorage.setItem("dbi:watchlist:v1", JSON.stringify(recordIds.map((recordId, index) => ({ recordId, starredAt: at, updatedAt: at, reviewAt: index < 3 ? `2026-10-0${index + 1}` : "", note: "", wallboard: true, pursuit: index === 0 ? { stage: "capture", owner: "Adam", nextAction: "Prepare customer follow-up", tasks: [{ id: "task-mobile", title: "Prepare customer follow-up", status: "todo", priority: "high", dueAt: "2026-09-12", owner: "Adam", sourceType: "timeline", sourceId: "timeline-marker-1", sourceLabel: "Published response deadline", createdAt: at, completedAt: "" }] } : undefined }))));
     localStorage.setItem("dbi:management-events:v1", JSON.stringify([
       { id: "event-air-space-cyber-conference-2026", title: "Air, Space & Cyber Conference", startsAt: "2026-09-14T08:00", endsAt: "2026-09-16T17:00", location: "National Harbor, Maryland, USA", links: [{ id: "official", label: "Official event page", url: "https://example.test/air-space-cyber" }, { id: "agenda", label: "Agenda", url: "https://example.test/air-space-cyber/agenda" }], attendees: [{ id: "user-jon", displayName: "Jon VandeMark" }, { id: "user-adam", displayName: "Adam Boas" }], milestones: [{ id: "registration", type: "registration_deadline", label: "Registration closes", occursAt: "2026-09-10", notes: "Published registration cutoff" }, { id: "refund", type: "refund_deadline", label: "Last day for refunds", occursAt: "2026-09-11", notes: "Published refund policy" }] },
       { id: "event-ausa-annual-meeting-2026", title: "AUSA Annual Meeting & Exposition 2026", startsAt: "2026-10-12T08:00", endsAt: "2026-10-14T17:00", location: "Walter E. Washington Convention Center, Washington, DC", attendees: [], milestones: [{ id: "hotel", type: "hotel_deadline", label: "Hotel block cutoff", occursAt: "2026-10-01", notes: "Published room-block cutoff" }] },
@@ -2562,10 +2587,18 @@ try {
   assert.ok(await mobile.locator('[data-d3-analytics="evidence-risk"] .transaction-viz__scroller').evaluate((node) => node.scrollWidth > node.clientWidth), "Mobile evidence matrix should stay inside its horizontal chart scroller");
   await assertNoPageOverflow(mobile, "Mobile evidence-risk analytics");
 
+  await mobile.evaluate((recordId) => {
+    const at = "2026-09-13T12:00:00.000Z";
+    const key = "dbi:watchlist:v1";
+    localStorage.setItem(key, JSON.stringify([{ recordId, starredAt: at, updatedAt: at, reviewAt: "2026-10-01", note: "", wallboard: true, pursuit: { stage: "capture", owner: "Adam", nextAction: "Prepare customer follow-up", tasks: [{ id: "task-mobile", title: "Prepare customer follow-up", status: "todo", priority: "high", dueAt: "2026-09-12", owner: "Adam", sourceType: "timeline", sourceId: "timeline-marker-1", sourceLabel: "Published response deadline", createdAt: at, completedAt: "" }] } }]));
+    window.dispatchEvent(new CustomEvent("dbi:management-state-changed", { detail: { key } }));
+  }, firstWatchId);
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
   assert.equal(await mobile.locator("[data-admin-workspace]").count(), 0, "Mobile work surfaces should not repeat ownership navigation below the masthead");
   const mobileWorkHeaderHeight = await mobile.locator("[data-ops-watchlist] > .if-page-header").evaluate((node) => node.getBoundingClientRect().height);
-  assert.ok(mobileWorkHeaderHeight <= 120, `Mobile Watchlist should expose a compact route header before the table, got ${mobileWorkHeaderHeight}px`);
+  assert.ok(mobileWorkHeaderHeight <= 120, `Mobile My Work should expose a compact route header before the table, got ${mobileWorkHeaderHeight}px`);
+  assert.equal(await mobile.locator("[data-my-work] .my-work__status").count(), 5, "Mobile My Work should retain every attention status");
+  assert.equal(await mobile.locator("[data-my-work-task]").count(), 1, "Mobile My Work should retain the action queue");
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
   const mobileWorkboardStatus = mobile.locator(".target-workboard__status");
   if (await mobileWorkboardStatus.count()) {
@@ -2574,7 +2607,8 @@ try {
     assert.ok(statusGeometry.height <= 112, `Mobile target status should stay in one compact rail, got ${statusGeometry.height}px`);
     assert.ok(statusGeometry.scrollWidth > statusGeometry.clientWidth, "Mobile target status should use contained horizontal scrolling instead of another vertical card wall");
   }
-  await assertNoPageOverflow(mobile, "Mobile Watchlist");
+  await assertNoPageOverflow(mobile, "Mobile My Work");
+  await mobile.screenshot({ path: `${OUT_DIR}/my-work-mobile.png`, fullPage: true });
   await openSurface(mobile, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
   const mobileWallboardEmpty = mobile.locator(".ops-wallboard__empty");
   if (await mobileWallboardEmpty.count()) {
