@@ -1,7 +1,7 @@
 {
   "metadata": {
     "title": "USAspending Subaward Snapshot for Indexed DoD Prime Awards",
-    "generatedAt": "2026-10-15T19:39:18.654Z",
+    "generatedAt": "2026-10-17T13:56:53.881Z",
     "sourceUrl": "https://api.usaspending.gov/api/v2/subawards/",
     "joinBasis": "Exact USAspending generated prime-award identifier",
     "countUrl": "https://api.usaspending.gov/api/v2/awards/count/subaward/",
@@ -13,12 +13,12 @@
     "coverageStatus": "partial-bounded-stratified-primes",
     "failedPrimeCount": 402,
     "primeWithSubawardsCount": 410,
-    "reportedSubawardCount": 500873,
-    "sampledSubawardAmount": 75966543479.78,
-    "retainedDetailCount": 28786,
-    "changedPrimeCount": 5,
-    "stalePrimeCount": 2,
-    "partialPrimeCount": 3,
+    "reportedSubawardCount": 500880,
+    "sampledSubawardAmount": 75985636665.78,
+    "retainedDetailCount": 28790,
+    "changedPrimeCount": 3,
+    "stalePrimeCount": 1,
+    "partialPrimeCount": 2,
     "status": "partial"
   },
   "primes": [
@@ -15158,925 +15158,6 @@
       "subawards": [],
       "status": "detail-partial",
       "changeStatus": "baseline"
-    },
-    {
-      "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-      "primePiid": "HQ085621C0001",
-      "primeRecipient": "LOCKHEED MARTIN CORPORATION",
-      "primeDescription": "DESIGN, DEVELOPMENT, AND DEVELOPMENTAL TESTING OF THE NEXT GENERATION INTERCEPTOR (NGI) ALL-UP-ROUND (AUR)",
-      "reportedCount": 2000,
-      "sampledAmount": 29084325.32,
-      "latestActionDate": "2025-02-28",
-      "earliestActionDate": "2025-01-27",
-      "sampledCount": 100,
-      "detailTruncated": true,
-      "detailStatus": "current",
-      "detailError": null,
-      "subawards": [
-        {
-          "subawardId": "9703131",
-          "subawardNumber": "4104962083",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-28",
-          "amount": 651323.06,
-          "recipientName": "IERUS TECHNOLOGIES INC",
-          "description": "##BOOSTER TVCS SUPPORT## BOOSTER FTS SUPPORT BOOSTER FTS SUPPO DUAL PATH SRM ME LEAD & ANALYSIS SUP##"
-        },
-        {
-          "subawardId": "9702835",
-          "subawardNumber": "4106565760",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-28",
-          "amount": 12744,
-          "recipientName": "AVNET, INC.",
-          "description": "MICROCIRCUIT LINEAR OP-AMP 5962R162050"
-        },
-        {
-          "subawardId": "9703133",
-          "subawardNumber": "4105148577",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-27",
-          "amount": 1093.19,
-          "recipientName": "HEWLETT PACKARD ENTERPRISE COMPANY",
-          "description": "##TAX_PO4105148577##APP8CO24"
-        },
-        {
-          "subawardId": "9702873",
-          "subawardNumber": "4106196539",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-27",
-          "amount": 238322.57,
-          "recipientName": "TELEDYNE BROWN ENGINEERING, INC.",
-          "description": "HAND PLACEMENT 0053 0056-751 -753 0059 HAND PLACEMENT 0122 0125 0128 0359 0360"
-        },
-        {
-          "subawardId": "9702674",
-          "subawardNumber": "4106601431",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-27",
-          "amount": 49977.49,
-          "recipientName": "POWELL ELECTRONICS, INC.",
-          "description": "CONN ADPTR 45DEG SIZE 09 CONN ADPTR 90DEG SIZE 09 CONN ADPTR 90DEG SIZE 19 CONN ADPTR STR SIZE 09 CONN ADPTR STR SIZE 25 CONN RCPT 33P RECT CONTACT DUMMY SIZE 12 CONTACT DUMMY SZ:16 CONTACT DUMMY SZ:8"
-        },
-        {
-          "subawardId": "9703726",
-          "subawardNumber": "4106598747",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-26",
-          "amount": 49621.16,
-          "recipientName": "AVATAR MACHINE, LLC",
-          "description": "INTERSTAGE AVIONICS BRACKET INTERSTAGE TPU BRACKET INTERSTAGE TVC BRACKET INTERSTAGE RCS BRACKET GTV-3"
-        },
-        {
-          "subawardId": "9703569",
-          "subawardNumber": "4106490998",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-26",
-          "amount": 34358,
-          "recipientName": "AEROSPACE ENGINEERING, LLC",
-          "description": "##SK985YG0015-501##PROOFING FIXTURE. ##SK985YG0015-501##PROOFING FIXTURE"
-        },
-        {
-          "subawardId": "9703125",
-          "subawardNumber": "4106306781",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-26",
-          "amount": 5844659.26,
-          "recipientName": "OPTICAL PHYSICS COMPANY IN NEVADA",
-          "description": "OPC BASE PERIOD DEVELOPMENT CLIN 200"
-        },
-        {
-          "subawardId": "9702843",
-          "subawardNumber": "4106598514",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-26",
-          "amount": 38304,
-          "recipientName": "S & S TOOL & MACHINE CO",
-          "description": "COVER SAFE LOW ENCLOSURE SAFE"
-        },
-        {
-          "subawardId": "9702717",
-          "subawardNumber": "4106183165",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-26",
-          "amount": 411252,
-          "recipientName": "RADIATION TEST SOLUTIONS INC",
-          "description": "##RTS23-Q3536-A##DOSE RATE TEST"
-        },
-        {
-          "subawardId": "9703595",
-          "subawardNumber": "4106596877",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 47074,
-          "recipientName": "INFINITE ELECTRONICS INTERNATIONAL, INC.",
-          "description": "##PE6173##RF LOAD 1W 40GHZ 2.92 M ##PE6178##TERMINATION 1 WATT RF LOAD 2."
-        },
-        {
-          "subawardId": "9703136",
-          "subawardNumber": "4106382300",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 400,
-          "recipientName": "FALCON ELECTRONICS, LLC",
-          "description": "XSTR PNP SWG 60V"
-        },
-        {
-          "subawardId": "9702848",
-          "subawardNumber": "4106596094",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 52815,
-          "recipientName": "S & S TOOL & MACHINE CO",
-          "description": "MSV BULKHEAD ASSEMBLY 1 MSV BULKHEAD ASSEMBLY 2 MSV BULKHEAD ASSEMBLY 3 MSV BULKHEAD ASSEMBLY 4 MSV BULKHEAD ASSEMBLY 6"
-        },
-        {
-          "subawardId": "9702847",
-          "subawardNumber": "4106595946",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 63378,
-          "recipientName": "S & S TOOL & MACHINE CO",
-          "description": "MSV BULKHEAD ASSEMBLY 1 MSV BULKHEAD ASSEMBLY 2 MSV BULKHEAD ASSEMBLY 3 MSV BULKHEAD ASSEMBLY 4 MSV BULKHEAD ASSEMBLY 5 MSV BULKHEAD ASSEMBLY 6"
-        },
-        {
-          "subawardId": "9702845",
-          "subawardNumber": "4106100940",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 31854,
-          "recipientName": "S & S TOOL & MACHINE CO",
-          "description": "ASSEMBLY COVER PACE HIGH ASSEMBLY FRAME 3 PACE HIGH COVER NED HIGH PLATE COVER TESTPORT CONNECTOR PACE"
-        },
-        {
-          "subawardId": "9702844",
-          "subawardNumber": "4106596566",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 32784,
-          "recipientName": "S & S TOOL & MACHINE CO",
-          "description": "MSV CABLE STACK BRKT ASSEMBLY MSV CYLINDER CUTOUT PANEL HE MSV CYLINDER CUTOUT PANEL MSV NED BRACKET ASSEMBLY MSV SINGLE CONN BRKT MSV TLM ANT BRACKET MSV TRUSS EXTENDED PCLAMP BRKT MSV TRUSS HARNESS BRKT WITH TIE DOWN MSV UPGRADABILITY BALLAST BRACKET MSV UPGRADABILITY BALLAST"
-        },
-        {
-          "subawardId": "9702833",
-          "subawardNumber": "4106596799",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 96547.75,
-          "recipientName": "AVNET, INC.",
-          "description": "CAP BME NICKEL CERAMIC CHIP STD REL X7R CAP CERAMIC CHIP X7R 4.7UF +10/-10PCT 50"
-        },
-        {
-          "subawardId": "9702759",
-          "subawardNumber": "4106597221",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 53684.8,
-          "recipientName": "RALOID CORPORATION",
-          "description": "COVER - CONNECTOR INNER"
-        },
-        {
-          "subawardId": "9702755",
-          "subawardNumber": "4106581590",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 66881.25,
-          "recipientName": "SAMTEC INC",
-          "description": "CONN RCPT HDR 120 POS STR."
-        },
-        {
-          "subawardId": "9702684",
-          "subawardNumber": "4106409286",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-25",
-          "amount": 2900,
-          "recipientName": "HELANDER METAL SPINNING COMPANY LLC",
-          "description": "SHIELD LIGHT"
-        },
-        {
-          "subawardId": "9703142",
-          "subawardNumber": "4105999860",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 169830,
-          "recipientName": "ALKU TECHNOLOGIES, LLC",
-          "description": "##SOFTWARE ENGINEER ALKU##"
-        },
-        {
-          "subawardId": "9703141",
-          "subawardNumber": "4106593230",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 165990,
-          "recipientName": "ALPHA DATA INC",
-          "description": "##ADM-PA100## HPC BOARD ##FMC-QSFP-DP-51UD## VITA57 MODULE"
-        },
-        {
-          "subawardId": "9703128",
-          "subawardNumber": "4106593048",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 40461.5,
-          "recipientName": "LOGISTICS365 INC",
-          "description": "EQP-PWR INTERFACE GCI TLM DRAWER"
-        },
-        {
-          "subawardId": "9703126",
-          "subawardNumber": "4106595664",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 75201.02,
-          "recipientName": "METRO MACHINE, INC.",
-          "description": "SHIELD TANTALUM"
-        },
-        {
-          "subawardId": "9702967",
-          "subawardNumber": "4106593801",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 63742.57,
-          "recipientName": "GLENAIR, INC.",
-          "description": "BACKSHELL 45DEG SIZE 22 CONN RCPT 186S CIRC STR CONTACT CONN SKT CRP SIZE 12 GUO-CABLE ASSY MICRO-D 15S 48L"
-        },
-        {
-          "subawardId": "9702834",
-          "subawardNumber": "4106594869",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 51108.75,
-          "recipientName": "AVNET, INC.",
-          "description": "CAP CERAMIC CHIP X7R 10UF +10/-10PCT 5"
-        },
-        {
-          "subawardId": "9702736",
-          "subawardNumber": "4106584279",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": 30105.45,
-          "recipientName": "NEWARK CORPORATION",
-          "description": "##34922T-002##TERMINAL BOARD FOR 34922A ##34937A##FORMC/FORM A SWITCH MODULE. ##780695-01##PXIE-6535 (FOR RS422 DIGITA ##781740-01##DIN RAIL KIT NI 9913 ##782110-01##NI PXI-6683H GPS IEEE 1588 ##782110-02##NI PXI-6683H GPS IEEE 1588 ##783866-01##PXIE-4303 24 BIT AI. ##783868-01##PXIE-4305 42V AI 32CH. ##783869-01##TB-4302 FRONT MOUNT TB FOR ##783870-01##TB-4304 TB FOR PXIE-4305 ##784087-01##TB-4340 TB FOR PXIE-4340 ##785068-01##PXIE-4340 LVDT ##786371-01##18-SLOT CHASSIS FRONT RACK"
-        },
-        {
-          "subawardId": "9702633",
-          "subawardNumber": "4105365033",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-24",
-          "amount": -3726.04,
-          "recipientName": "ANSYS INC",
-          "description": "##ANSYS MODELCENTER PREMIUM - LEASE##ANS"
-        },
-        {
-          "subawardId": "9703132",
-          "subawardNumber": "4103865720",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-23",
-          "amount": 15861.64,
-          "recipientName": "HEWLETT PACKARD ENTERPRISE COMPANY",
-          "description": "##4103865720-PO##TAXES ##POCR_4103865720##APP8CH6 HNT ##POCR_4103865720##APP8CH6 KOP"
-        },
-        {
-          "subawardId": "9703127",
-          "subawardNumber": "4106594120",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-21",
-          "amount": 57179.25,
-          "recipientName": "LOGISTICS365 INC",
-          "description": "EQP-ETHERNET SWITCH EQP-POWER SUPPLY MODULE 240VAC 250VDC"
-        },
-        {
-          "subawardId": "9703684",
-          "subawardNumber": "4105661074",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 334581.3,
-          "recipientName": "ENSIGN-BICKFORD AEROSPACE & DEFENSE COMPANY",
-          "description": "SLSC - CLIN 0200 SLSC CLIN 601 (602/1201)"
-        },
-        {
-          "subawardId": "9703134",
-          "subawardNumber": "4106593023",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 182270,
-          "recipientName": "FRONTGRADE COLORADO SPRINGS LLC",
-          "description": "MICROCIRCUIT DIGITAL-LINEAR LVDS REPEA"
-        },
-        {
-          "subawardId": "9703130",
-          "subawardNumber": "4106593779",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 47082.45,
-          "recipientName": "JRH ELECTRONICS L.L.C.",
-          "description": "CONN PLUG 110P CIRC STR CONN PLUG 140P CIRC STR CONN PLUG 19S CIRC STR CONN PLUG 97S CIRC STR"
-        },
-        {
-          "subawardId": "9702968",
-          "subawardNumber": "4106593706",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 62367.27,
-          "recipientName": "GLENAIR, INC.",
-          "description": "BACKSHELL 45DEG SIZE 24 CONN ADAPTER 90 DEG SZ:10 GUO-CONN PLUG 7S CIRC STR GUO-CONN RCPT 8P CIRC STR"
-        },
-        {
-          "subawardId": "9702827",
-          "subawardNumber": "4106588985",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 160246,
-          "recipientName": "GALAXY TECHNOLOGIES INC",
-          "description": "##LAB2223206-M001##7075-T651/7050-T7451. ##LAB2223206-M002##7075-T651/7050-T7451."
-        },
-        {
-          "subawardId": "9702770",
-          "subawardNumber": "4106577175",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 627918.31,
-          "recipientName": "ARROW ELECTRONICS, INC.",
-          "description": "IC DR MOSFET IC LINEAR SWTCH 400MBPS."
-        },
-        {
-          "subawardId": "9702757",
-          "subawardNumber": "4106586619",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 148952,
-          "recipientName": "AMRO FABRICATING CORP",
-          "description": "TVA MANIPULATOR ADAPTER STAGE 1. TVA MANIPULATOR ADAPTER STAGE 2."
-        },
-        {
-          "subawardId": "9702673",
-          "subawardNumber": "4106593882",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 54074.85,
-          "recipientName": "POWELL ELECTRONICS, INC.",
-          "description": "CONTACT CONN PIN CRIMP 8AWG CONTACT CONN SKT CRIMP 8AWG GUO-CONN PLUG 8S CIRC STR"
-        },
-        {
-          "subawardId": "9702638",
-          "subawardNumber": "4106589533",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-20",
-          "amount": 146034,
-          "recipientName": "VPT, INC.",
-          "description": "IC CONV DC-DC SGL CH 15VDC"
-        },
-        {
-          "subawardId": "9702823",
-          "subawardNumber": "4106590312",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-19",
-          "amount": 54880,
-          "recipientName": "MCALLISTER TOOL & MACHINE INC",
-          "description": "985BM0739-501 FAR ULC HOUSING ASSY"
-        },
-        {
-          "subawardId": "9702754",
-          "subawardNumber": "4106589794",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-19",
-          "amount": 86724,
-          "recipientName": "SCHMIEDE CORPORATION",
-          "description": "COVER BOTTOM"
-        },
-        {
-          "subawardId": "9703693",
-          "subawardNumber": "4105880333",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-18",
-          "amount": 17068,
-          "recipientName": "PENTA RESEARCH INC",
-          "description": "##PENTA SUPPORT GFI## PERFORMANCE SUPPORT (1.2.4.6)"
-        },
-        {
-          "subawardId": "9702758",
-          "subawardNumber": "4106589587",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-18",
-          "amount": 61729,
-          "recipientName": "AMRO FABRICATING CORP",
-          "description": "##LAB2223216-501##AFT SKIRT TEST BARREL. ##LAB2223216-502##INTERSTAGE AND FAR TES"
-        },
-        {
-          "subawardId": "9703138",
-          "subawardNumber": "4106577086",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-17",
-          "amount": 241344,
-          "recipientName": "BEYOND PRECISION, LLC",
-          "description": "HOUSING SUBASSY GEAR TOP GEAR HSG TV HOUSING GEAR BOT GEAR HSG TVA SS BS"
-        },
-        {
-          "subawardId": "9702769",
-          "subawardNumber": "4106553296",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-17",
-          "amount": 751488.84,
-          "recipientName": "ARROW ELECTRONICS, INC.",
-          "description": "DIODE XIENTVSUPPR 6V DIODE-ZENER/TEMP COMP/POWER XSTR E-HEMT PWR 650V."
-        },
-        {
-          "subawardId": "9703178",
-          "subawardNumber": "4106478862",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-13",
-          "amount": 33156.96,
-          "recipientName": "SANMINA CORPORATION",
-          "description": "PRINTED WIRING BOARD FLIGHT COMPUTER PO"
-        },
-        {
-          "subawardId": "9703177",
-          "subawardNumber": "4106577950",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-13",
-          "amount": 97974,
-          "recipientName": "VOTAW PRECISION TECHNOLOGIES, LLC",
-          "description": "OUTSOURCE (985BU0026-001) OUTSOURCE (985BU0030-001) OUTSOURCE (985BU0031-501)"
-        },
-        {
-          "subawardId": "9703144",
-          "subawardNumber": "4105332433",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-13",
-          "amount": 8105149,
-          "recipientName": "MAROTTA CONTROLS INC",
-          "description": "MSV PDU CLIN 0200"
-        },
-        {
-          "subawardId": "9702961",
-          "subawardNumber": "4106585275",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-13",
-          "amount": 33850,
-          "recipientName": "PRECISION MACHINING SHEET METAL, INC",
-          "description": "FAR ZF BRKT BASE LEFT FAR ZF BRKT BASE RIGHT FAR ZF BRKT CONN LOWER PLATE ASSY FAR ZF BRKT CONN TENSILE BAR FAR ZF BRKT UPPER PLATE ASSY FAR ZF BRKT UPRIGHT ASSY"
-        },
-        {
-          "subawardId": "9703560",
-          "subawardNumber": "4106583903",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-12",
-          "amount": 32876,
-          "recipientName": "TEVET LLC",
-          "description": "##1333.1711.02##19 RACKMOUNT ADAPTER ##1335.8794.04##DIGITAL 4 CH. SCOPE 100 ##1335.9078.02##1GHZ BANDWIDTH UPDATE"
-        },
-        {
-          "subawardId": "9702846",
-          "subawardNumber": "4106583793",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-12",
-          "amount": 63915,
-          "recipientName": "S & S TOOL & MACHINE CO",
-          "description": "PEDESTAL BOTTOM VIS-T"
-        },
-        {
-          "subawardId": "9703143",
-          "subawardNumber": "4105595213",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 393637.02,
-          "recipientName": "ABT, INC.",
-          "description": "ENGINEERING SUPPORT FOR NICC DESIGN"
-        },
-        {
-          "subawardId": "9703124",
-          "subawardNumber": "4106569668",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 136352.69,
-          "recipientName": "PORT ELECTRONICS CORPORATION",
-          "description": "IC ISOLATOR DIG 4CH"
-        },
-        {
-          "subawardId": "9702942",
-          "subawardNumber": "4105965780",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 303395.82,
-          "recipientName": "NETACQUIRE CORP",
-          "description": "##NA-FCSTE-NRE##NRE FOR FC STE DEVELOPME NA-PACESTE-NRE NRE FOR PACE STE DEVELOPM NA-TVCSTE-NRE NRE FOR TVC STE DEVELOPMEN"
-        },
-        {
-          "subawardId": "9702941",
-          "subawardNumber": "4106558052",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 449270.22,
-          "recipientName": "NETACQUIRE CORP",
-          "description": "##NA-121-05## RMP-LOADSMON-FC ##NA-121-15## RMP-LOADSMON-PACE NA-121 ##NA-CBL-870-01## NGI HL MATRIX TO QCP- ##NA-CBL-870-01## NGI HL MATRIX TO QCP-M ##NA-CBL-871-01## LF MATRIX SLOT1 TO HF ##NA-CBL-873-01## LF MATRIX SLOT3 TO QCP ##NA-CBL-874-01## LF MATRIX SLOT4 TO QCP ##NA-CBL-875-01 ## LF MATRIX SLOT5 TO QC ##NA-CBL-876-01## LF MATRIX SLOT6 TO RMP ##NA-CBL-877-01## RMP TO 2SPST D25P TO ##NA-CBL-877-01## RMP TO 2SPST D25P TO ##NA-CBL-881-01## LF MATRIX SLOT1 TO HF ##NA-CBL-882-01 ## LF MATRIX SLOT2-3 TO ##NA-CBL-884-01## LF MATRIX SLOT4 TO QC ##NA-CBL-885-01 ## LF MATRIX SLOT5 TO QC ##NA-CBL-886-01## LF MATRIX SLOT6 TO QC ##NA-CBL-891-01 ## LF MATRIX SLOT1-2 HF ##NA-CBL-893-01## LF MATRIX SLOT3 QCP-V ##NA-CBL-894-01## LF MATRIX SLOT4 QCP-P ##NA-CBL-895-01## LF MATRIX SLOT5 QCP-P ##NA-CBL-900-01## QCP-DIFFMON TICKERFW 5 ##NA-CBL-901-01## DIFFMON 2TXD 1TXC 2RXD ##NA-CBL-902-01## NGI HFM QCP-DIFFMON 2 ##NA-CBL-902-01## NGI HFM QCP-DIFFMON 2T ##NA-CBL-903-01## HFM QCP-DIFFMON RXD D ##NA-CBL-903-01## HFM QCP-DIFFMON RXD D3 ##NA-CBL-904-01## HFM QCP-DIFFMON 2TXD ##NA-CBL-905-01 ## HFM QCP-DIFFMON TXFC ##NA-CBL-905-01## HFM QCP-DIFFMON TXFC ##NA-CBL-908-01## HFM QCP-DIFFMON IMUEM ##NA-CBL-909-01## HFM QCP-DIFFMON IMUEM ##NA-CBL-910-01## HFM QCP-DIFFMON FPAEM ##NA-PCA-251-01-FPRES## NGI BRIDGE BOAR ##NA-PCA-251-01-PPRES## BRIDGE BOARD FO ##NA-PCA-251-01-PTEMP## BRIDGE BOARD FO ##NA-PCA-251-01-TPRES## BRIDGE BOARD FOR ##NA-PCA-251-01-TTEMP## NGI BRIDGE BOAR ##NA-XC-121-05## EQP-HIGH VOLTAGE BATTER ##NA-XC-121-10## QCP-BMMLV NA-XC-121- ##NA-XC-121-10## QCP-BMMLV ##NA-XC-121-15## EQP-NA-TNC-602-01-E QC ##NA-XC-121-15## EQP-NA-TNC-602-01-E QCP ##NA-XC-121-20## EQP-NA-TNC-603-01-F QC ##NA-XC-121-25## QCP-POSSENSORMON NA-X ##NA-XC-121-25## QCP-POSSENSORMON ##NA-XC-121-30## EQP-NA-TNC-605-01-D QC ##NA-XC-121-30## EQP-NA-TNC-605-01-D QCP ##NA-XC-121-50## EQP-NA-TNC-607-01-B LM ##NA-XC-121-50## EQP-NA-TNC-607-01-B LM ##NA-XC-121-80## QCP-DIFFMON-D4D4 NA-X ##NA-XC-121-80## QCP-DIFFMON-D4D4 ##NA-XC-121-84## QCP-DIFFMON-DLDL NA-X ##NA-XC-121-84## QCP-DIFFMON-DLDL ##NA-XC-121-84## QCP-DIFFMON-DLDL"
-        },
-        {
-          "subawardId": "9702832",
-          "subawardNumber": "4106554761",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 185754.49,
-          "recipientName": "AVNET, INC.",
-          "description": "MCKT LIN VOLTAGE REGULATOR NEG 5962F025 MICROCIRCUIT LINEAR 5962F9568902VYC MICROCIRCUIT LINEAR 5962F9666302VYC"
-        },
-        {
-          "subawardId": "9702695",
-          "subawardNumber": "4105572168",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 797855,
-          "recipientName": "TRIPLE CROWN CONSULTING LLC",
-          "description": "ENGINEERING SERVICE LABOR SUPPORT HARDWARE/ WCCA ENGINEERING LABOR SUPPORT"
-        },
-        {
-          "subawardId": "9702692",
-          "subawardNumber": "4105226447",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-11",
-          "amount": 707156,
-          "recipientName": "SEAKR ENGINEERING, LLC",
-          "description": "NGI SERVICES - MISSION COMPUTER"
-        },
-        {
-          "subawardId": "9702773",
-          "subawardNumber": "4106577631",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-10",
-          "amount": 65907.16,
-          "recipientName": "RF-LAMBDA USA, LLC",
-          "description": "##RFDPDT50EMA##DPDT SWITCH DC-50GHZ ##RFLC22G33GA##COAXIAL CIRCULATOR 22-33G ##RFLT2W1840G##COAXIAL 2-WAY POWER DIVID ##RFLT8W1840G##COAXIAL 8-WAY POWER DIVID ##RFSPDT50EMC-T##SPDT ABSORPTIVE SWITCH"
-        },
-        {
-          "subawardId": "9702656",
-          "subawardNumber": "4105227558",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-10",
-          "amount": 1464444,
-          "recipientName": "SPACE INFORMATION LABORATORIES, LLC",
-          "description": "SIL CLIN 200 OVERRUN"
-        },
-        {
-          "subawardId": "9702644",
-          "subawardNumber": "4105816333",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-10",
-          "amount": -1500516.17,
-          "recipientName": "TRYSTINE TECHNICAL INNOVATIONS INC",
-          "description": "RADIATION TEST SME"
-        },
-        {
-          "subawardId": "9703140",
-          "subawardNumber": "4106257813",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-06",
-          "amount": -848341.75,
-          "recipientName": "AMERGINT TECHNOLOGIES, INC.",
-          "description": "TASK 1: HARDWARE/SOFTWARE TASK 1 TASK 1: NRE TASK 1 TASK 1: RE TASK 1 TASK 2: HARDWARE/SOFTWARE TASK 2"
-        },
-        {
-          "subawardId": "9703139",
-          "subawardNumber": "4106563906",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-06",
-          "amount": 363075.1,
-          "recipientName": "AVNET INC",
-          "description": "CAP CER 10UF 10% 25V"
-        },
-        {
-          "subawardId": "9703129",
-          "subawardNumber": "4106571481",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-06",
-          "amount": 38934.24,
-          "recipientName": "KIRKHILL, INC.",
-          "description": "ELASTOMER .100THK 36X48 CURED SH."
-        },
-        {
-          "subawardId": "9702797",
-          "subawardNumber": "4106091462",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-06",
-          "amount": 1239406.63,
-          "recipientName": "L3 TECHNOLOGIES, INC.",
-          "description": "L3 SUBCONTRACT CLIN 400 L3 SUBCONTRACT CLIN 601 AND 1201 L3HARRIS CLIN 0200 LABOR/TRAVEL/ODC"
-        },
-        {
-          "subawardId": "9702718",
-          "subawardNumber": "4106543982",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-05",
-          "amount": 500,
-          "recipientName": "NIKEL PRECISION GROUP LLC",
-          "description": "MIRROR PRIMARY MIRROR SECONDARY"
-        },
-        {
-          "subawardId": "9702969",
-          "subawardNumber": "4106548365",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-04",
-          "amount": -32695.2,
-          "recipientName": "GLENAIR, INC.",
-          "description": "##GHS73-0049-78##GHS73-0049-78 ##GHS73-0050-78##GHS73-0050-78 ##GHS73-0052-30##GHS73-0052-30 ##GHS73-0053-30##GHS73-0053-30"
-        },
-        {
-          "subawardId": "9702966",
-          "subawardNumber": "4106565649",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-04",
-          "amount": 112625.4,
-          "recipientName": "GLENAIR, INC.",
-          "description": "CONN RCPT 43P RT ANG CONN RCPT 4POS RTANG"
-        },
-        {
-          "subawardId": "9702861",
-          "subawardNumber": "4106129865",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-04",
-          "amount": -9619.74,
-          "recipientName": "TECHNICS 2000, INC",
-          "description": "THREADED ROD MOTOR TVA GTU SS BSTR"
-        },
-        {
-          "subawardId": "9702831",
-          "subawardNumber": "4106554651",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-04",
-          "amount": 257646.4,
-          "recipientName": "AVNET, INC.",
-          "description": "SEMICONDUCTOR MOSFET RAD-HARD JANSR2N"
-        },
-        {
-          "subawardId": "9703762",
-          "subawardNumber": "4106491576",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": -9718,
-          "recipientName": "AEROSPACE AND DEFENSE MANUFACTURING INC.",
-          "description": "CANCELATION FEE FOR 985CM0173-701 FRAME IFICS-R CCA GTU"
-        },
-        {
-          "subawardId": "9703730",
-          "subawardNumber": "4106261570",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": 462350,
-          "recipientName": "SPECTRUM CONTROL INC",
-          "description": "##LNA CLIN 200##"
-        },
-        {
-          "subawardId": "9703683",
-          "subawardNumber": "4105665472",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": 1462951.8,
-          "recipientName": "ENSIGN-BICKFORD AEROSPACE & DEFENSE COMPANY",
-          "description": "ETL - CLIN 0200 ETL CLIN 601 (602/1201)"
-        },
-        {
-          "subawardId": "9703176",
-          "subawardNumber": "4106565865",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": 145074,
-          "recipientName": "VOTAW PRECISION TECHNOLOGIES, LLC",
-          "description": "##985CL0265-016##LOWER RING SIMULATOR. ##985CL0265-017##UPPER RING SIMULATOR. ##985CL0265-302##FIXTURE BASE ##985CL0265-303##UPPER BASE RING ##985CL0265-306##LOWER DRILL RING ##985CL0265-307##UPPER DRILL RING"
-        },
-        {
-          "subawardId": "9703137",
-          "subawardNumber": "4106571419",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": 38680,
-          "recipientName": "COILCRAFT INC",
-          "description": "INDUCTOR 4.7UH 20% 6.2A INDUCTOR PWR 150UH 20% .58A"
-        },
-        {
-          "subawardId": "9703135",
-          "subawardNumber": "4106557632",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": 19074,
-          "recipientName": "FRONTGRADE COLORADO SPRINGS LLC",
-          "description": "IC REF VOLT SUPERVISOR 5V."
-        },
-        {
-          "subawardId": "9702771",
-          "subawardNumber": "4106511630",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-02-03",
-          "amount": 429.59,
-          "recipientName": "ARROW ELECTRONICS, INC.",
-          "description": "IC COMP VOLT 15V"
-        },
-        {
-          "subawardId": "9676155",
-          "subawardNumber": "4106552262",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-31",
-          "amount": 729604.4,
-          "recipientName": "DOVE ELECTRONIC COMPONENTS, INC.",
-          "description": "OSC XTAL 200MHZ 3.3V OSC XTAL 80MHZ"
-        },
-        {
-          "subawardId": "9676210",
-          "subawardNumber": "4106569838",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 54946,
-          "recipientName": "VISIONEERING INC",
-          "description": "##985BT0430-040##PIVOT BLOCK 3. ##985BT0430-044##PIVOT BLOCK 4."
-        },
-        {
-          "subawardId": "9676206",
-          "subawardNumber": "4106557756",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 51810.4,
-          "recipientName": "TTI INC.",
-          "description": "CAP CER 22UF 10% 10V"
-        },
-        {
-          "subawardId": "9676159",
-          "subawardNumber": "4106569430",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 59047,
-          "recipientName": "FRONTGRADE COLORADO SPRINGS LLC",
-          "description": "IC DRV LINE DIFF QUAD 16T FP IC LINEAR CMOS SPRVRY 5.0V IC RCVR LINE DIFF"
-        },
-        {
-          "subawardId": "9676152",
-          "subawardNumber": "4106568200",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 66996,
-          "recipientName": "C.L. HANN INDUSTRIES, INC.",
-          "description": "X AXIS MOI FIXTURE ASSEMBLY Y AXIS MOI FIXTURE Z AXIS MOI FIXTURE"
-        },
-        {
-          "subawardId": "9676151",
-          "subawardNumber": "4106569836",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 52618,
-          "recipientName": "C.L. HANN INDUSTRIES, INC.",
-          "description": "##985BT0430-029##T-HANDLE SHAFT ##985BT0430-030##T-HANDLE. ## 985BT0430-041##T-HANDLE SHAFT. ##985BT0430-043##SLIDER CLEVIS BLOCK 3 ##985BT0430-045##SLIDER CLEVIS BLOCK 4 ## 985BT0430-311##GUIDE ROD WELDMENT"
-        },
-        {
-          "subawardId": "9676145",
-          "subawardNumber": "4106569653",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 80874.75,
-          "recipientName": "AVNET INC",
-          "description": "IC DR LINE DIFF QUAD 5V. IC DR LINE DIFF QUAD 7V. IC RCVR LINE DIFF. IC RCVR LINE LINEAR"
-        },
-        {
-          "subawardId": "9676142",
-          "subawardNumber": "4106515952",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-30",
-          "amount": 79,
-          "recipientName": "AVNET INC",
-          "description": "IC ISOLATOR DIGITAL"
-        },
-        {
-          "subawardId": "9676211",
-          "subawardNumber": "4106567126",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-29",
-          "amount": 60498,
-          "recipientName": "VOTAW PRECISION TECHNOLOGIES, LLC",
-          "description": "##LAB2223215-001##AFT SKIRT BASE PLATE. ##LAB2223215-002##TRUNNION SHEAR LIP. ##LAB2223217-001##AFT SKIRT BASE PLATE. ##LAB2223217-002##TRUNNION SHEAR LIP."
-        },
-        {
-          "subawardId": "9676198",
-          "subawardNumber": "4106566991",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-29",
-          "amount": 82412,
-          "recipientName": "SMITH BROTHERS TOOL COMPANY",
-          "description": "##LAB2223212-001##EAST ADAPTER PLATE. ##LAB2223212-002##WEST ADAPTER PLATE. ##LAB2223213-501##E1 CRUCIFORM LOAD HEAD ##LAB2223214-501##FAR CRUCIFORM LOAD HEA"
-        },
-        {
-          "subawardId": "9676186",
-          "subawardNumber": "4106567350",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-29",
-          "amount": 79587.52,
-          "recipientName": "POWELL ELECTRONICS, INC.",
-          "description": "CONN PLUG 78P RT ANG"
-        },
-        {
-          "subawardId": "9676163",
-          "subawardNumber": "4105586270",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-29",
-          "amount": 466660,
-          "recipientName": "GENERAL DYNAMICS MISSION SYSTEMS, INC.",
-          "description": "CLIN 0200 CLIN 0400"
-        },
-        {
-          "subawardId": "9676153",
-          "subawardNumber": "4106563949",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-29",
-          "amount": 42565.6,
-          "recipientName": "CABLE ASSOCIATES INC",
-          "description": "MANIPULATOR CABLE ASSEMBLY EOAT INTERF MANIPULATOR CABLE ASSEMBLY HMI SUPPLY MANIPULATOR CABLE ASSEMBLY SPOTTER SWI"
-        },
-        {
-          "subawardId": "9676144",
-          "subawardNumber": "4106550402",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-29",
-          "amount": 39256.9,
-          "recipientName": "AVNET INC",
-          "description": "XSTR MOSFET PWR N-CH 100V"
-        },
-        {
-          "subawardId": "9676207",
-          "subawardNumber": "4106565333",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-28",
-          "amount": 99062.47,
-          "recipientName": "TTI INC.",
-          "description": "CONN PLUG 12S RTANG. CONN RCPT 43S RT ANG. GUO-CONN PLUG 130P D-MICRO GUO-CONN RCPT 130S D-MICRO"
-        },
-        {
-          "subawardId": "9676201",
-          "subawardNumber": "4106534657",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-28",
-          "amount": 478941.95,
-          "recipientName": "SPIRIT AMERICA CORP",
-          "description": "IC CONV A-D 12BIT 8 CH"
-        },
-        {
-          "subawardId": "9676199",
-          "subawardNumber": "4106565926",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-28",
-          "amount": 71227.5,
-          "recipientName": "SOLID STATE DEVICES, INC",
-          "description": "DIODE RECT 300V 50A."
-        },
-        {
-          "subawardId": "9676148",
-          "subawardNumber": "4106565760",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-28",
-          "amount": 73648,
-          "recipientName": "AVNET, INC.",
-          "description": "MICROCIRCUIT LINEAR OP-AMP 5962R162050"
-        },
-        {
-          "subawardId": "9676140",
-          "subawardNumber": "4106558403",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-28",
-          "amount": 68646,
-          "recipientName": "AMRO FABRICATING CORP",
-          "description": "AVIONICS ASSEMBLY CRADLE"
-        },
-        {
-          "subawardId": "9676179",
-          "subawardNumber": "4106497832",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-27",
-          "amount": -207994,
-          "recipientName": "MISSION SYSTEMS ORCHARD PARK INC",
-          "description": "OPTION 80 PRODUCTION"
-        },
-        {
-          "subawardId": "9676174",
-          "subawardNumber": "4106544729",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-27",
-          "amount": 96982,
-          "recipientName": "MAVERICK AEROSPACE LLC",
-          "description": "MSV AFT PLATE"
-        },
-        {
-          "subawardId": "9676171",
-          "subawardNumber": "4104962083",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-27",
-          "amount": 232488.14,
-          "recipientName": "IERUS TECHNOLOGIES INC",
-          "description": "##BOOSTER FTS SUPPORT##BOOSTER FTS SUPPO"
-        },
-        {
-          "subawardId": "9676169",
-          "subawardNumber": "4106516893",
-          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-          "actionDate": "2025-01-27",
-          "amount": 271330.34,
-          "recipientName": "HEILIND MIL-AERO LLC",
-          "description": "##233-281-07ME17E-75PASA02V ##CIRCULAR C ##233-281-07ME17E-75PNSN02V##CIRCULAR CO ##233-281-07ME19E-18PASA02V##FEEDTHRU CO ##233-281-07ME19E-18PNSN02V##CONN RCPT 4 ##NRE#LOT/CHARGE/DIV."
-        }
-      ],
-      "status": "stale",
-      "changeStatus": "unchanged",
-      "error": "fetch failed"
     },
     {
       "primeAwardId": "CONT_AWD_W52P1J19F0400_9700_W52P1J19D0045_9700",
@@ -63033,7 +62114,7 @@
           "primeAwardId": "CONT_AWD_N0002418C2406_9700_-NONE-_-NONE-",
           "actionDate": "2025-11-10",
           "amount": 47200,
-          "recipientName": "DELPHINUS ENGINEERING, INC.",
+          "recipientName": "DELPHINUS ENGINEERING LLC",
           "description": "LPD30 VSR SA 31721 DELPHINIUS"
         },
         {
@@ -67398,7 +66479,7 @@
           "primeAwardId": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
           "actionDate": "2025-12-12",
           "amount": 104918.8,
-          "recipientName": "AUREUS AVIATION, INC",
+          "recipientName": "AUREUS AVIATION, INC.",
           "description": "ANNUAL FLIGHT SUITS SERVICE CONTRACT"
         },
         {
@@ -67605,7 +66686,7 @@
           "primeAwardId": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
           "actionDate": "2025-04-04",
           "amount": 66000,
-          "recipientName": "AUREUS AVIATION, INC",
+          "recipientName": "AUREUS AVIATION, INC.",
           "description": "FLIGHT SUITS"
         },
         {
@@ -67830,7 +66911,7 @@
           "primeAwardId": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
           "actionDate": "2024-12-06",
           "amount": 892486.76,
-          "recipientName": "AUREUS AVIATION, INC",
+          "recipientName": "AUREUS AVIATION, INC.",
           "description": "FLIGHT SUITS, GLOVES AND HELMET BAGS"
         },
         {
@@ -111105,15 +110186,42 @@
       "primePiid": "W31P4Q23C0036",
       "primeRecipient": "RAYTHEON",
       "primeDescription": "REQUIREMENT FOR PATRIOT M903 LAUNCHING STATIONS.",
-      "reportedCount": 216,
-      "sampledAmount": 4264540294,
-      "latestActionDate": "2026-09-02",
-      "earliestActionDate": "2025-08-01",
+      "reportedCount": 219,
+      "sampledAmount": 4263212335,
+      "latestActionDate": "2026-09-21",
+      "earliestActionDate": "2025-08-18",
       "sampledCount": 100,
       "detailTruncated": true,
       "detailStatus": "current",
       "detailError": null,
       "subawards": [
+        {
+          "subawardId": "10827963",
+          "subawardNumber": "4203303061",
+          "primeAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
+          "actionDate": "2026-09-21",
+          "amount": 87529,
+          "recipientName": "PALL AEROPOWER CORPORATION",
+          "description": "MECHANICAL FILTERS"
+        },
+        {
+          "subawardId": "10828198",
+          "subawardNumber": "4203323097",
+          "primeAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
+          "actionDate": "2026-09-16",
+          "amount": 141137,
+          "recipientName": "MERRIMAC INDUSTRIES, INC",
+          "description": "COMBNER/DIVIDER/CPLR"
+        },
+        {
+          "subawardId": "10828206",
+          "subawardNumber": "4203356407",
+          "primeAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
+          "actionDate": "2026-09-15",
+          "amount": 104250,
+          "recipientName": "FIRAN TECHNOLOGY GROUP CORPORATION",
+          "description": "BARE FLEX"
+        },
         {
           "subawardId": "10821068",
           "subawardNumber": "4203349314",
@@ -111986,37 +111094,10 @@
           "amount": 68063,
           "recipientName": "ELMET EUCLID LLC",
           "description": "PRECISION MACHINED."
-        },
-        {
-          "subawardId": "10702261",
-          "subawardNumber": "4203156749",
-          "primeAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
-          "actionDate": "2025-08-14",
-          "amount": 1489952,
-          "recipientName": "U. S. DYNAMICS CORPORATION",
-          "description": "RATE GYROS."
-        },
-        {
-          "subawardId": "10702262",
-          "subawardNumber": "4203157544",
-          "primeAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
-          "actionDate": "2025-08-07",
-          "amount": 130993,
-          "recipientName": "TRAK TECOM CORPORATION",
-          "description": "CIRCULATORS/ISOLATOR."
-        },
-        {
-          "subawardId": "10702257",
-          "subawardNumber": "4203155353",
-          "primeAwardId": "CONT_AWD_W31P4Q23C0036_9700_-NONE-_-NONE-",
-          "actionDate": "2025-08-01",
-          "amount": 39930,
-          "recipientName": "INDUSTRIAL ENGINEERING MANUFACTURING CO, INC",
-          "description": "COMPLEX/WELDED ASSYS."
         }
       ],
       "status": "current",
-      "changeStatus": "unchanged"
+      "changeStatus": "updated"
     },
     {
       "primeAwardId": "CONT_AWD_N0001924C0032_9700_-NONE-_-NONE-",
@@ -131604,7 +130685,7 @@
           "primeAwardId": "CONT_AWD_N0002420C5405_9700_-NONE-_-NONE-",
           "actionDate": "2025-03-13",
           "amount": 650000,
-          "recipientName": "KBE CONSTRUCTION SERVICES INC.",
+          "recipientName": "KBE CONSTRUCTION SERVICES INC",
           "description": "FACILITIES:SERV&SUPP."
         },
         {
@@ -134109,15 +133190,24 @@
       "primePiid": "HQ085126FE029",
       "primeRecipient": "RAYTHEON",
       "primeDescription": "NEXT GENERATION MISSILE DEFENSE RADAR",
-      "reportedCount": 1,
-      "sampledAmount": 43920,
-      "latestActionDate": "2026-09-09",
+      "reportedCount": 2,
+      "sampledAmount": 18280591,
+      "latestActionDate": "2026-09-21",
       "earliestActionDate": "2026-09-09",
-      "sampledCount": 1,
+      "sampledCount": 2,
       "detailTruncated": false,
       "detailStatus": "current",
       "detailError": null,
       "subawards": [
+        {
+          "subawardId": "10828011",
+          "subawardNumber": "4203355936",
+          "primeAwardId": "CONT_AWD_HQ085126FE029_9700_HQ085926DE008_9700",
+          "actionDate": "2026-09-21",
+          "amount": 18236671,
+          "recipientName": "ABB INC.",
+          "description": "INTEGRATEDELECT ASSY,NRE - ALL"
+        },
         {
           "subawardId": "10824425",
           "subawardNumber": "4203352958",
@@ -134129,7 +133219,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "unchanged"
+      "changeStatus": "updated"
     },
     {
       "primeAwardId": "CONT_AWD_N0001921C0723_9700_-NONE-_-NONE-",
@@ -146175,7 +145265,7 @@
           "primeAwardId": "CONT_AWD_N0002418C4314_9700_-NONE-_-NONE-",
           "actionDate": "2026-01-16",
           "amount": 134358.51,
-          "recipientName": "DELPHINUS ENGINEERING, INC.",
+          "recipientName": "DELPHINUS ENGINEERING LLC",
           "description": "BONNET,VAR,FOR 5.000 NOM BALL VALVE,VLV BONNET/STEM,VARIOUS,,ASSEMBLY VALVE,CUNI,6.000 NOM,BALL VALVE,CUNI,1.500 NOM,BALL OPR,VAR,FOR 5X5X5 IPS BALL VALVE,VLV VALVE,CUNI,6.000 NOM,BALL VALVE,CUNI,10.000 NOM,BALL VALVE,NICU,1.000 NOM,HULL & BACKUP"
         },
         {
@@ -146517,7 +145607,7 @@
           "primeAwardId": "CONT_AWD_N0002418C4314_9700_-NONE-_-NONE-",
           "actionDate": "2024-11-01",
           "amount": 90859.02,
-          "recipientName": "DELPHINUS ENGINEERING, INC.",
+          "recipientName": "DELPHINUS ENGINEERING LLC",
           "description": "ICE MACHINE REPLACE INBOARD OVEN WARMING OVEN NEW COFFEE MAKER NEW ICE CREAM MACHINE REPLACE DISHWASHER SOAP AND RINSE DISPEN REPLACE FWD KETTLE REPLACE AFT KETTLE MILK DISPENSER CLAIBRATION REACH IN FREEZER FREEZER DECK REPLACE PANTRY REACH-IN REFRIGERATOR FREEZER DOOR"
         },
         {
@@ -209261,7 +208351,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "updated"
+      "changeStatus": "unchanged"
     },
     {
       "primeAwardId": "CONT_AWD_W52P1J20C0014_9700_-NONE-_-NONE-",
@@ -210512,7 +209602,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "updated"
+      "changeStatus": "unchanged"
     },
     {
       "primeAwardId": "CONT_AWD_FA807522F0017_9700_FA807518D0011_9700",
@@ -210998,7 +210088,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "updated"
+      "changeStatus": "unchanged"
     },
     {
       "primeAwardId": "CONT_AWD_W15P7T24F0061_9700_W15P7T16D0002_9700",
@@ -225281,7 +224371,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "updated"
+      "changeStatus": "unchanged"
     },
     {
       "primeAwardId": "CONT_AWD_W9126022FD508_9700_W9113M17D0007_9700",
@@ -228876,7 +227966,7 @@
           "primeAwardId": "CONT_AWD_N0002422C5231_9700_-NONE-_-NONE-",
           "actionDate": "2025-03-20",
           "amount": 202370.69,
-          "recipientName": "DELPHINUS ENGINEERING, INC.",
+          "recipientName": "DELPHINUS ENGINEERING LLC",
           "description": "PROCURED GOODS AND/OR SERVICES BETWEEN 20-MAR-25 AND 31-DEC-25 IN SUPPORT OF CONTRACT SOW."
         },
         {
@@ -232391,7 +231481,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "updated"
+      "changeStatus": "unchanged"
     },
     {
       "primeAwardId": "CONT_AWD_N6945024C0004_9700_-NONE-_-NONE-",
@@ -235152,15 +234242,42 @@
       "primePiid": "N0002423C5530",
       "primeRecipient": "NORTHROP GRUMMAN SYSTEMS",
       "primeDescription": "UKRAINE. ABL FACILITY CONSTRUCTION, EQUIPMENT, AND MANAGEMENT",
-      "reportedCount": 25,
-      "sampledAmount": 71619352.06,
-      "latestActionDate": "2026-08-03",
+      "reportedCount": 28,
+      "sampledAmount": 73803826.06,
+      "latestActionDate": "2026-09-21",
       "earliestActionDate": "2024-01-18",
-      "sampledCount": 25,
+      "sampledCount": 28,
       "detailTruncated": false,
       "detailStatus": "current",
       "detailError": null,
       "subawards": [
+        {
+          "subawardId": "10828196",
+          "subawardNumber": "MP00531900",
+          "primeAwardId": "CONT_AWD_N0002423C5530_9700_-NONE-_-NONE-",
+          "actionDate": "2026-09-21",
+          "amount": 625000,
+          "recipientName": "S & S ELECTRIC, INC",
+          "description": "ELECTRICAL CONTRACTORS AND OTHER WIRING INSTALLATION CONTRACTORS"
+        },
+        {
+          "subawardId": "10828267",
+          "subawardNumber": "MP00492817",
+          "primeAwardId": "CONT_AWD_N0002423C5530_9700_-NONE-_-NONE-",
+          "actionDate": "2026-09-16",
+          "amount": 464999,
+          "recipientName": "WAYNESBORO CONSTRUCTION CO INC",
+          "description": "INDUSTRIAL BUILDING CONSTRUCTION"
+        },
+        {
+          "subawardId": "10828244",
+          "subawardNumber": "MP00530546",
+          "primeAwardId": "CONT_AWD_N0002423C5530_9700_-NONE-_-NONE-",
+          "actionDate": "2026-09-10",
+          "amount": 1094475,
+          "recipientName": "M. C. DEAN, INC.",
+          "description": "ALL OTHER SPECIALTY TRADE CONTRACTORS"
+        },
         {
           "subawardId": "10750136",
           "subawardNumber": "MP00527619  0",
@@ -235388,7 +234505,7 @@
         }
       ],
       "status": "current",
-      "changeStatus": "unchanged"
+      "changeStatus": "updated"
     },
     {
       "primeAwardId": "CONT_AWD_N4008520C0044_9700_-NONE-_-NONE-",
@@ -252284,6 +251401,924 @@
       "changeStatus": "unchanged"
     },
     {
+      "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+      "primePiid": "HQ085621C0001",
+      "primeRecipient": "LOCKHEED MARTIN CORPORATION",
+      "primeDescription": "DESIGN, DEVELOPMENT, AND DEVELOPMENTAL TESTING OF THE NEXT GENERATION INTERCEPTOR (NGI) ALL-UP-ROUND (AUR)",
+      "reportedCount": 2000,
+      "sampledAmount": 29084325.32,
+      "latestActionDate": "2025-02-28",
+      "earliestActionDate": "2025-01-27",
+      "sampledCount": 100,
+      "detailTruncated": true,
+      "detailStatus": "current",
+      "detailError": null,
+      "subawards": [
+        {
+          "subawardId": "9703131",
+          "subawardNumber": "4104962083",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-28",
+          "amount": 651323.06,
+          "recipientName": "IERUS TECHNOLOGIES INC",
+          "description": "##BOOSTER TVCS SUPPORT## BOOSTER FTS SUPPORT BOOSTER FTS SUPPO DUAL PATH SRM ME LEAD & ANALYSIS SUP##"
+        },
+        {
+          "subawardId": "9702835",
+          "subawardNumber": "4106565760",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-28",
+          "amount": 12744,
+          "recipientName": "AVNET, INC.",
+          "description": "MICROCIRCUIT LINEAR OP-AMP 5962R162050"
+        },
+        {
+          "subawardId": "9703133",
+          "subawardNumber": "4105148577",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-27",
+          "amount": 1093.19,
+          "recipientName": "HEWLETT PACKARD ENTERPRISE COMPANY",
+          "description": "##TAX_PO4105148577##APP8CO24"
+        },
+        {
+          "subawardId": "9702873",
+          "subawardNumber": "4106196539",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-27",
+          "amount": 238322.57,
+          "recipientName": "TELEDYNE BROWN ENGINEERING, INC.",
+          "description": "HAND PLACEMENT 0053 0056-751 -753 0059 HAND PLACEMENT 0122 0125 0128 0359 0360"
+        },
+        {
+          "subawardId": "9702674",
+          "subawardNumber": "4106601431",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-27",
+          "amount": 49977.49,
+          "recipientName": "POWELL ELECTRONICS, INC.",
+          "description": "CONN ADPTR 45DEG SIZE 09 CONN ADPTR 90DEG SIZE 09 CONN ADPTR 90DEG SIZE 19 CONN ADPTR STR SIZE 09 CONN ADPTR STR SIZE 25 CONN RCPT 33P RECT CONTACT DUMMY SIZE 12 CONTACT DUMMY SZ:16 CONTACT DUMMY SZ:8"
+        },
+        {
+          "subawardId": "9703726",
+          "subawardNumber": "4106598747",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-26",
+          "amount": 49621.16,
+          "recipientName": "AVATAR MACHINE, LLC",
+          "description": "INTERSTAGE AVIONICS BRACKET INTERSTAGE TPU BRACKET INTERSTAGE TVC BRACKET INTERSTAGE RCS BRACKET GTV-3"
+        },
+        {
+          "subawardId": "9703569",
+          "subawardNumber": "4106490998",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-26",
+          "amount": 34358,
+          "recipientName": "AEROSPACE ENGINEERING, LLC",
+          "description": "##SK985YG0015-501##PROOFING FIXTURE. ##SK985YG0015-501##PROOFING FIXTURE"
+        },
+        {
+          "subawardId": "9703125",
+          "subawardNumber": "4106306781",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-26",
+          "amount": 5844659.26,
+          "recipientName": "OPTICAL PHYSICS COMPANY IN NEVADA",
+          "description": "OPC BASE PERIOD DEVELOPMENT CLIN 200"
+        },
+        {
+          "subawardId": "9702843",
+          "subawardNumber": "4106598514",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-26",
+          "amount": 38304,
+          "recipientName": "S & S TOOL & MACHINE CO",
+          "description": "COVER SAFE LOW ENCLOSURE SAFE"
+        },
+        {
+          "subawardId": "9702717",
+          "subawardNumber": "4106183165",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-26",
+          "amount": 411252,
+          "recipientName": "RADIATION TEST SOLUTIONS INC",
+          "description": "##RTS23-Q3536-A##DOSE RATE TEST"
+        },
+        {
+          "subawardId": "9703595",
+          "subawardNumber": "4106596877",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 47074,
+          "recipientName": "INFINITE ELECTRONICS INTERNATIONAL, INC.",
+          "description": "##PE6173##RF LOAD 1W 40GHZ 2.92 M ##PE6178##TERMINATION 1 WATT RF LOAD 2."
+        },
+        {
+          "subawardId": "9703136",
+          "subawardNumber": "4106382300",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 400,
+          "recipientName": "FALCON ELECTRONICS, LLC",
+          "description": "XSTR PNP SWG 60V"
+        },
+        {
+          "subawardId": "9702848",
+          "subawardNumber": "4106596094",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 52815,
+          "recipientName": "S & S TOOL & MACHINE CO",
+          "description": "MSV BULKHEAD ASSEMBLY 1 MSV BULKHEAD ASSEMBLY 2 MSV BULKHEAD ASSEMBLY 3 MSV BULKHEAD ASSEMBLY 4 MSV BULKHEAD ASSEMBLY 6"
+        },
+        {
+          "subawardId": "9702847",
+          "subawardNumber": "4106595946",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 63378,
+          "recipientName": "S & S TOOL & MACHINE CO",
+          "description": "MSV BULKHEAD ASSEMBLY 1 MSV BULKHEAD ASSEMBLY 2 MSV BULKHEAD ASSEMBLY 3 MSV BULKHEAD ASSEMBLY 4 MSV BULKHEAD ASSEMBLY 5 MSV BULKHEAD ASSEMBLY 6"
+        },
+        {
+          "subawardId": "9702845",
+          "subawardNumber": "4106100940",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 31854,
+          "recipientName": "S & S TOOL & MACHINE CO",
+          "description": "ASSEMBLY COVER PACE HIGH ASSEMBLY FRAME 3 PACE HIGH COVER NED HIGH PLATE COVER TESTPORT CONNECTOR PACE"
+        },
+        {
+          "subawardId": "9702844",
+          "subawardNumber": "4106596566",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 32784,
+          "recipientName": "S & S TOOL & MACHINE CO",
+          "description": "MSV CABLE STACK BRKT ASSEMBLY MSV CYLINDER CUTOUT PANEL HE MSV CYLINDER CUTOUT PANEL MSV NED BRACKET ASSEMBLY MSV SINGLE CONN BRKT MSV TLM ANT BRACKET MSV TRUSS EXTENDED PCLAMP BRKT MSV TRUSS HARNESS BRKT WITH TIE DOWN MSV UPGRADABILITY BALLAST BRACKET MSV UPGRADABILITY BALLAST"
+        },
+        {
+          "subawardId": "9702833",
+          "subawardNumber": "4106596799",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 96547.75,
+          "recipientName": "AVNET, INC.",
+          "description": "CAP BME NICKEL CERAMIC CHIP STD REL X7R CAP CERAMIC CHIP X7R 4.7UF +10/-10PCT 50"
+        },
+        {
+          "subawardId": "9702759",
+          "subawardNumber": "4106597221",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 53684.8,
+          "recipientName": "RALOID CORPORATION",
+          "description": "COVER - CONNECTOR INNER"
+        },
+        {
+          "subawardId": "9702755",
+          "subawardNumber": "4106581590",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 66881.25,
+          "recipientName": "SAMTEC INC",
+          "description": "CONN RCPT HDR 120 POS STR."
+        },
+        {
+          "subawardId": "9702684",
+          "subawardNumber": "4106409286",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-25",
+          "amount": 2900,
+          "recipientName": "HELANDER METAL SPINNING COMPANY LLC",
+          "description": "SHIELD LIGHT"
+        },
+        {
+          "subawardId": "9703142",
+          "subawardNumber": "4105999860",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 169830,
+          "recipientName": "ALKU TECHNOLOGIES, LLC",
+          "description": "##SOFTWARE ENGINEER ALKU##"
+        },
+        {
+          "subawardId": "9703141",
+          "subawardNumber": "4106593230",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 165990,
+          "recipientName": "ALPHA DATA INC",
+          "description": "##ADM-PA100## HPC BOARD ##FMC-QSFP-DP-51UD## VITA57 MODULE"
+        },
+        {
+          "subawardId": "9703128",
+          "subawardNumber": "4106593048",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 40461.5,
+          "recipientName": "LOGISTICS365 INC",
+          "description": "EQP-PWR INTERFACE GCI TLM DRAWER"
+        },
+        {
+          "subawardId": "9703126",
+          "subawardNumber": "4106595664",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 75201.02,
+          "recipientName": "METRO MACHINE, INC.",
+          "description": "SHIELD TANTALUM"
+        },
+        {
+          "subawardId": "9702967",
+          "subawardNumber": "4106593801",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 63742.57,
+          "recipientName": "GLENAIR, INC.",
+          "description": "BACKSHELL 45DEG SIZE 22 CONN RCPT 186S CIRC STR CONTACT CONN SKT CRP SIZE 12 GUO-CABLE ASSY MICRO-D 15S 48L"
+        },
+        {
+          "subawardId": "9702834",
+          "subawardNumber": "4106594869",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 51108.75,
+          "recipientName": "AVNET, INC.",
+          "description": "CAP CERAMIC CHIP X7R 10UF +10/-10PCT 5"
+        },
+        {
+          "subawardId": "9702736",
+          "subawardNumber": "4106584279",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": 30105.45,
+          "recipientName": "NEWARK CORPORATION",
+          "description": "##34922T-002##TERMINAL BOARD FOR 34922A ##34937A##FORMC/FORM A SWITCH MODULE. ##780695-01##PXIE-6535 (FOR RS422 DIGITA ##781740-01##DIN RAIL KIT NI 9913 ##782110-01##NI PXI-6683H GPS IEEE 1588 ##782110-02##NI PXI-6683H GPS IEEE 1588 ##783866-01##PXIE-4303 24 BIT AI. ##783868-01##PXIE-4305 42V AI 32CH. ##783869-01##TB-4302 FRONT MOUNT TB FOR ##783870-01##TB-4304 TB FOR PXIE-4305 ##784087-01##TB-4340 TB FOR PXIE-4340 ##785068-01##PXIE-4340 LVDT ##786371-01##18-SLOT CHASSIS FRONT RACK"
+        },
+        {
+          "subawardId": "9702633",
+          "subawardNumber": "4105365033",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-24",
+          "amount": -3726.04,
+          "recipientName": "ANSYS INC",
+          "description": "##ANSYS MODELCENTER PREMIUM - LEASE##ANS"
+        },
+        {
+          "subawardId": "9703132",
+          "subawardNumber": "4103865720",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-23",
+          "amount": 15861.64,
+          "recipientName": "HEWLETT PACKARD ENTERPRISE COMPANY",
+          "description": "##4103865720-PO##TAXES ##POCR_4103865720##APP8CH6 HNT ##POCR_4103865720##APP8CH6 KOP"
+        },
+        {
+          "subawardId": "9703127",
+          "subawardNumber": "4106594120",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-21",
+          "amount": 57179.25,
+          "recipientName": "LOGISTICS365 INC",
+          "description": "EQP-ETHERNET SWITCH EQP-POWER SUPPLY MODULE 240VAC 250VDC"
+        },
+        {
+          "subawardId": "9703684",
+          "subawardNumber": "4105661074",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 334581.3,
+          "recipientName": "ENSIGN-BICKFORD AEROSPACE & DEFENSE COMPANY",
+          "description": "SLSC - CLIN 0200 SLSC CLIN 601 (602/1201)"
+        },
+        {
+          "subawardId": "9703134",
+          "subawardNumber": "4106593023",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 182270,
+          "recipientName": "FRONTGRADE COLORADO SPRINGS LLC",
+          "description": "MICROCIRCUIT DIGITAL-LINEAR LVDS REPEA"
+        },
+        {
+          "subawardId": "9703130",
+          "subawardNumber": "4106593779",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 47082.45,
+          "recipientName": "JRH ELECTRONICS L.L.C.",
+          "description": "CONN PLUG 110P CIRC STR CONN PLUG 140P CIRC STR CONN PLUG 19S CIRC STR CONN PLUG 97S CIRC STR"
+        },
+        {
+          "subawardId": "9702968",
+          "subawardNumber": "4106593706",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 62367.27,
+          "recipientName": "GLENAIR, INC.",
+          "description": "BACKSHELL 45DEG SIZE 24 CONN ADAPTER 90 DEG SZ:10 GUO-CONN PLUG 7S CIRC STR GUO-CONN RCPT 8P CIRC STR"
+        },
+        {
+          "subawardId": "9702827",
+          "subawardNumber": "4106588985",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 160246,
+          "recipientName": "GALAXY TECHNOLOGIES INC",
+          "description": "##LAB2223206-M001##7075-T651/7050-T7451. ##LAB2223206-M002##7075-T651/7050-T7451."
+        },
+        {
+          "subawardId": "9702770",
+          "subawardNumber": "4106577175",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 627918.31,
+          "recipientName": "ARROW ELECTRONICS, INC.",
+          "description": "IC DR MOSFET IC LINEAR SWTCH 400MBPS."
+        },
+        {
+          "subawardId": "9702757",
+          "subawardNumber": "4106586619",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 148952,
+          "recipientName": "AMRO FABRICATING CORP",
+          "description": "TVA MANIPULATOR ADAPTER STAGE 1. TVA MANIPULATOR ADAPTER STAGE 2."
+        },
+        {
+          "subawardId": "9702673",
+          "subawardNumber": "4106593882",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 54074.85,
+          "recipientName": "POWELL ELECTRONICS, INC.",
+          "description": "CONTACT CONN PIN CRIMP 8AWG CONTACT CONN SKT CRIMP 8AWG GUO-CONN PLUG 8S CIRC STR"
+        },
+        {
+          "subawardId": "9702638",
+          "subawardNumber": "4106589533",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-20",
+          "amount": 146034,
+          "recipientName": "VPT, INC.",
+          "description": "IC CONV DC-DC SGL CH 15VDC"
+        },
+        {
+          "subawardId": "9702823",
+          "subawardNumber": "4106590312",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-19",
+          "amount": 54880,
+          "recipientName": "MCALLISTER TOOL & MACHINE INC",
+          "description": "985BM0739-501 FAR ULC HOUSING ASSY"
+        },
+        {
+          "subawardId": "9702754",
+          "subawardNumber": "4106589794",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-19",
+          "amount": 86724,
+          "recipientName": "SCHMIEDE CORPORATION",
+          "description": "COVER BOTTOM"
+        },
+        {
+          "subawardId": "9703693",
+          "subawardNumber": "4105880333",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-18",
+          "amount": 17068,
+          "recipientName": "PENTA RESEARCH INC",
+          "description": "##PENTA SUPPORT GFI## PERFORMANCE SUPPORT (1.2.4.6)"
+        },
+        {
+          "subawardId": "9702758",
+          "subawardNumber": "4106589587",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-18",
+          "amount": 61729,
+          "recipientName": "AMRO FABRICATING CORP",
+          "description": "##LAB2223216-501##AFT SKIRT TEST BARREL. ##LAB2223216-502##INTERSTAGE AND FAR TES"
+        },
+        {
+          "subawardId": "9703138",
+          "subawardNumber": "4106577086",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-17",
+          "amount": 241344,
+          "recipientName": "BEYOND PRECISION, LLC",
+          "description": "HOUSING SUBASSY GEAR TOP GEAR HSG TV HOUSING GEAR BOT GEAR HSG TVA SS BS"
+        },
+        {
+          "subawardId": "9702769",
+          "subawardNumber": "4106553296",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-17",
+          "amount": 751488.84,
+          "recipientName": "ARROW ELECTRONICS, INC.",
+          "description": "DIODE XIENTVSUPPR 6V DIODE-ZENER/TEMP COMP/POWER XSTR E-HEMT PWR 650V."
+        },
+        {
+          "subawardId": "9703178",
+          "subawardNumber": "4106478862",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-13",
+          "amount": 33156.96,
+          "recipientName": "SANMINA CORPORATION",
+          "description": "PRINTED WIRING BOARD FLIGHT COMPUTER PO"
+        },
+        {
+          "subawardId": "9703177",
+          "subawardNumber": "4106577950",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-13",
+          "amount": 97974,
+          "recipientName": "VOTAW PRECISION TECHNOLOGIES, LLC",
+          "description": "OUTSOURCE (985BU0026-001) OUTSOURCE (985BU0030-001) OUTSOURCE (985BU0031-501)"
+        },
+        {
+          "subawardId": "9703144",
+          "subawardNumber": "4105332433",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-13",
+          "amount": 8105149,
+          "recipientName": "MAROTTA CONTROLS INC",
+          "description": "MSV PDU CLIN 0200"
+        },
+        {
+          "subawardId": "9702961",
+          "subawardNumber": "4106585275",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-13",
+          "amount": 33850,
+          "recipientName": "PRECISION MACHINING SHEET METAL, INC",
+          "description": "FAR ZF BRKT BASE LEFT FAR ZF BRKT BASE RIGHT FAR ZF BRKT CONN LOWER PLATE ASSY FAR ZF BRKT CONN TENSILE BAR FAR ZF BRKT UPPER PLATE ASSY FAR ZF BRKT UPRIGHT ASSY"
+        },
+        {
+          "subawardId": "9703560",
+          "subawardNumber": "4106583903",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-12",
+          "amount": 32876,
+          "recipientName": "TEVET LLC",
+          "description": "##1333.1711.02##19 RACKMOUNT ADAPTER ##1335.8794.04##DIGITAL 4 CH. SCOPE 100 ##1335.9078.02##1GHZ BANDWIDTH UPDATE"
+        },
+        {
+          "subawardId": "9702846",
+          "subawardNumber": "4106583793",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-12",
+          "amount": 63915,
+          "recipientName": "S & S TOOL & MACHINE CO",
+          "description": "PEDESTAL BOTTOM VIS-T"
+        },
+        {
+          "subawardId": "9703143",
+          "subawardNumber": "4105595213",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 393637.02,
+          "recipientName": "ABT, INC.",
+          "description": "ENGINEERING SUPPORT FOR NICC DESIGN"
+        },
+        {
+          "subawardId": "9703124",
+          "subawardNumber": "4106569668",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 136352.69,
+          "recipientName": "PORT ELECTRONICS CORPORATION",
+          "description": "IC ISOLATOR DIG 4CH"
+        },
+        {
+          "subawardId": "9702942",
+          "subawardNumber": "4105965780",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 303395.82,
+          "recipientName": "NETACQUIRE CORP",
+          "description": "##NA-FCSTE-NRE##NRE FOR FC STE DEVELOPME NA-PACESTE-NRE NRE FOR PACE STE DEVELOPM NA-TVCSTE-NRE NRE FOR TVC STE DEVELOPMEN"
+        },
+        {
+          "subawardId": "9702941",
+          "subawardNumber": "4106558052",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 449270.22,
+          "recipientName": "NETACQUIRE CORP",
+          "description": "##NA-121-05## RMP-LOADSMON-FC ##NA-121-15## RMP-LOADSMON-PACE NA-121 ##NA-CBL-870-01## NGI HL MATRIX TO QCP- ##NA-CBL-870-01## NGI HL MATRIX TO QCP-M ##NA-CBL-871-01## LF MATRIX SLOT1 TO HF ##NA-CBL-873-01## LF MATRIX SLOT3 TO QCP ##NA-CBL-874-01## LF MATRIX SLOT4 TO QCP ##NA-CBL-875-01 ## LF MATRIX SLOT5 TO QC ##NA-CBL-876-01## LF MATRIX SLOT6 TO RMP ##NA-CBL-877-01## RMP TO 2SPST D25P TO ##NA-CBL-877-01## RMP TO 2SPST D25P TO ##NA-CBL-881-01## LF MATRIX SLOT1 TO HF ##NA-CBL-882-01 ## LF MATRIX SLOT2-3 TO ##NA-CBL-884-01## LF MATRIX SLOT4 TO QC ##NA-CBL-885-01 ## LF MATRIX SLOT5 TO QC ##NA-CBL-886-01## LF MATRIX SLOT6 TO QC ##NA-CBL-891-01 ## LF MATRIX SLOT1-2 HF ##NA-CBL-893-01## LF MATRIX SLOT3 QCP-V ##NA-CBL-894-01## LF MATRIX SLOT4 QCP-P ##NA-CBL-895-01## LF MATRIX SLOT5 QCP-P ##NA-CBL-900-01## QCP-DIFFMON TICKERFW 5 ##NA-CBL-901-01## DIFFMON 2TXD 1TXC 2RXD ##NA-CBL-902-01## NGI HFM QCP-DIFFMON 2 ##NA-CBL-902-01## NGI HFM QCP-DIFFMON 2T ##NA-CBL-903-01## HFM QCP-DIFFMON RXD D ##NA-CBL-903-01## HFM QCP-DIFFMON RXD D3 ##NA-CBL-904-01## HFM QCP-DIFFMON 2TXD ##NA-CBL-905-01 ## HFM QCP-DIFFMON TXFC ##NA-CBL-905-01## HFM QCP-DIFFMON TXFC ##NA-CBL-908-01## HFM QCP-DIFFMON IMUEM ##NA-CBL-909-01## HFM QCP-DIFFMON IMUEM ##NA-CBL-910-01## HFM QCP-DIFFMON FPAEM ##NA-PCA-251-01-FPRES## NGI BRIDGE BOAR ##NA-PCA-251-01-PPRES## BRIDGE BOARD FO ##NA-PCA-251-01-PTEMP## BRIDGE BOARD FO ##NA-PCA-251-01-TPRES## BRIDGE BOARD FOR ##NA-PCA-251-01-TTEMP## NGI BRIDGE BOAR ##NA-XC-121-05## EQP-HIGH VOLTAGE BATTER ##NA-XC-121-10## QCP-BMMLV NA-XC-121- ##NA-XC-121-10## QCP-BMMLV ##NA-XC-121-15## EQP-NA-TNC-602-01-E QC ##NA-XC-121-15## EQP-NA-TNC-602-01-E QCP ##NA-XC-121-20## EQP-NA-TNC-603-01-F QC ##NA-XC-121-25## QCP-POSSENSORMON NA-X ##NA-XC-121-25## QCP-POSSENSORMON ##NA-XC-121-30## EQP-NA-TNC-605-01-D QC ##NA-XC-121-30## EQP-NA-TNC-605-01-D QCP ##NA-XC-121-50## EQP-NA-TNC-607-01-B LM ##NA-XC-121-50## EQP-NA-TNC-607-01-B LM ##NA-XC-121-80## QCP-DIFFMON-D4D4 NA-X ##NA-XC-121-80## QCP-DIFFMON-D4D4 ##NA-XC-121-84## QCP-DIFFMON-DLDL NA-X ##NA-XC-121-84## QCP-DIFFMON-DLDL ##NA-XC-121-84## QCP-DIFFMON-DLDL"
+        },
+        {
+          "subawardId": "9702832",
+          "subawardNumber": "4106554761",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 185754.49,
+          "recipientName": "AVNET, INC.",
+          "description": "MCKT LIN VOLTAGE REGULATOR NEG 5962F025 MICROCIRCUIT LINEAR 5962F9568902VYC MICROCIRCUIT LINEAR 5962F9666302VYC"
+        },
+        {
+          "subawardId": "9702695",
+          "subawardNumber": "4105572168",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 797855,
+          "recipientName": "TRIPLE CROWN CONSULTING LLC",
+          "description": "ENGINEERING SERVICE LABOR SUPPORT HARDWARE/ WCCA ENGINEERING LABOR SUPPORT"
+        },
+        {
+          "subawardId": "9702692",
+          "subawardNumber": "4105226447",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-11",
+          "amount": 707156,
+          "recipientName": "SEAKR ENGINEERING, LLC",
+          "description": "NGI SERVICES - MISSION COMPUTER"
+        },
+        {
+          "subawardId": "9702773",
+          "subawardNumber": "4106577631",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-10",
+          "amount": 65907.16,
+          "recipientName": "RF-LAMBDA USA, LLC",
+          "description": "##RFDPDT50EMA##DPDT SWITCH DC-50GHZ ##RFLC22G33GA##COAXIAL CIRCULATOR 22-33G ##RFLT2W1840G##COAXIAL 2-WAY POWER DIVID ##RFLT8W1840G##COAXIAL 8-WAY POWER DIVID ##RFSPDT50EMC-T##SPDT ABSORPTIVE SWITCH"
+        },
+        {
+          "subawardId": "9702656",
+          "subawardNumber": "4105227558",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-10",
+          "amount": 1464444,
+          "recipientName": "SPACE INFORMATION LABORATORIES, LLC",
+          "description": "SIL CLIN 200 OVERRUN"
+        },
+        {
+          "subawardId": "9702644",
+          "subawardNumber": "4105816333",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-10",
+          "amount": -1500516.17,
+          "recipientName": "TRYSTINE TECHNICAL INNOVATIONS INC",
+          "description": "RADIATION TEST SME"
+        },
+        {
+          "subawardId": "9703140",
+          "subawardNumber": "4106257813",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-06",
+          "amount": -848341.75,
+          "recipientName": "AMERGINT TECHNOLOGIES, INC.",
+          "description": "TASK 1: HARDWARE/SOFTWARE TASK 1 TASK 1: NRE TASK 1 TASK 1: RE TASK 1 TASK 2: HARDWARE/SOFTWARE TASK 2"
+        },
+        {
+          "subawardId": "9703139",
+          "subawardNumber": "4106563906",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-06",
+          "amount": 363075.1,
+          "recipientName": "AVNET INC",
+          "description": "CAP CER 10UF 10% 25V"
+        },
+        {
+          "subawardId": "9703129",
+          "subawardNumber": "4106571481",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-06",
+          "amount": 38934.24,
+          "recipientName": "KIRKHILL, INC.",
+          "description": "ELASTOMER .100THK 36X48 CURED SH."
+        },
+        {
+          "subawardId": "9702797",
+          "subawardNumber": "4106091462",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-06",
+          "amount": 1239406.63,
+          "recipientName": "L3 TECHNOLOGIES, INC.",
+          "description": "L3 SUBCONTRACT CLIN 400 L3 SUBCONTRACT CLIN 601 AND 1201 L3HARRIS CLIN 0200 LABOR/TRAVEL/ODC"
+        },
+        {
+          "subawardId": "9702718",
+          "subawardNumber": "4106543982",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-05",
+          "amount": 500,
+          "recipientName": "NIKEL PRECISION GROUP LLC",
+          "description": "MIRROR PRIMARY MIRROR SECONDARY"
+        },
+        {
+          "subawardId": "9702969",
+          "subawardNumber": "4106548365",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-04",
+          "amount": -32695.2,
+          "recipientName": "GLENAIR, INC.",
+          "description": "##GHS73-0049-78##GHS73-0049-78 ##GHS73-0050-78##GHS73-0050-78 ##GHS73-0052-30##GHS73-0052-30 ##GHS73-0053-30##GHS73-0053-30"
+        },
+        {
+          "subawardId": "9702966",
+          "subawardNumber": "4106565649",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-04",
+          "amount": 112625.4,
+          "recipientName": "GLENAIR, INC.",
+          "description": "CONN RCPT 43P RT ANG CONN RCPT 4POS RTANG"
+        },
+        {
+          "subawardId": "9702861",
+          "subawardNumber": "4106129865",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-04",
+          "amount": -9619.74,
+          "recipientName": "TECHNICS 2000, INC",
+          "description": "THREADED ROD MOTOR TVA GTU SS BSTR"
+        },
+        {
+          "subawardId": "9702831",
+          "subawardNumber": "4106554651",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-04",
+          "amount": 257646.4,
+          "recipientName": "AVNET, INC.",
+          "description": "SEMICONDUCTOR MOSFET RAD-HARD JANSR2N"
+        },
+        {
+          "subawardId": "9703762",
+          "subawardNumber": "4106491576",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": -9718,
+          "recipientName": "AEROSPACE AND DEFENSE MANUFACTURING INC.",
+          "description": "CANCELATION FEE FOR 985CM0173-701 FRAME IFICS-R CCA GTU"
+        },
+        {
+          "subawardId": "9703730",
+          "subawardNumber": "4106261570",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": 462350,
+          "recipientName": "SPECTRUM CONTROL INC",
+          "description": "##LNA CLIN 200##"
+        },
+        {
+          "subawardId": "9703683",
+          "subawardNumber": "4105665472",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": 1462951.8,
+          "recipientName": "ENSIGN-BICKFORD AEROSPACE & DEFENSE COMPANY",
+          "description": "ETL - CLIN 0200 ETL CLIN 601 (602/1201)"
+        },
+        {
+          "subawardId": "9703176",
+          "subawardNumber": "4106565865",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": 145074,
+          "recipientName": "VOTAW PRECISION TECHNOLOGIES, LLC",
+          "description": "##985CL0265-016##LOWER RING SIMULATOR. ##985CL0265-017##UPPER RING SIMULATOR. ##985CL0265-302##FIXTURE BASE ##985CL0265-303##UPPER BASE RING ##985CL0265-306##LOWER DRILL RING ##985CL0265-307##UPPER DRILL RING"
+        },
+        {
+          "subawardId": "9703137",
+          "subawardNumber": "4106571419",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": 38680,
+          "recipientName": "COILCRAFT INC",
+          "description": "INDUCTOR 4.7UH 20% 6.2A INDUCTOR PWR 150UH 20% .58A"
+        },
+        {
+          "subawardId": "9703135",
+          "subawardNumber": "4106557632",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": 19074,
+          "recipientName": "FRONTGRADE COLORADO SPRINGS LLC",
+          "description": "IC REF VOLT SUPERVISOR 5V."
+        },
+        {
+          "subawardId": "9702771",
+          "subawardNumber": "4106511630",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-02-03",
+          "amount": 429.59,
+          "recipientName": "ARROW ELECTRONICS, INC.",
+          "description": "IC COMP VOLT 15V"
+        },
+        {
+          "subawardId": "9676155",
+          "subawardNumber": "4106552262",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-31",
+          "amount": 729604.4,
+          "recipientName": "DOVE ELECTRONIC COMPONENTS, INC.",
+          "description": "OSC XTAL 200MHZ 3.3V OSC XTAL 80MHZ"
+        },
+        {
+          "subawardId": "9676210",
+          "subawardNumber": "4106569838",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 54946,
+          "recipientName": "VISIONEERING INC",
+          "description": "##985BT0430-040##PIVOT BLOCK 3. ##985BT0430-044##PIVOT BLOCK 4."
+        },
+        {
+          "subawardId": "9676206",
+          "subawardNumber": "4106557756",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 51810.4,
+          "recipientName": "TTI INC.",
+          "description": "CAP CER 22UF 10% 10V"
+        },
+        {
+          "subawardId": "9676159",
+          "subawardNumber": "4106569430",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 59047,
+          "recipientName": "FRONTGRADE COLORADO SPRINGS LLC",
+          "description": "IC DRV LINE DIFF QUAD 16T FP IC LINEAR CMOS SPRVRY 5.0V IC RCVR LINE DIFF"
+        },
+        {
+          "subawardId": "9676152",
+          "subawardNumber": "4106568200",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 66996,
+          "recipientName": "C.L. HANN INDUSTRIES, INC.",
+          "description": "X AXIS MOI FIXTURE ASSEMBLY Y AXIS MOI FIXTURE Z AXIS MOI FIXTURE"
+        },
+        {
+          "subawardId": "9676151",
+          "subawardNumber": "4106569836",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 52618,
+          "recipientName": "C.L. HANN INDUSTRIES, INC.",
+          "description": "##985BT0430-029##T-HANDLE SHAFT ##985BT0430-030##T-HANDLE. ## 985BT0430-041##T-HANDLE SHAFT. ##985BT0430-043##SLIDER CLEVIS BLOCK 3 ##985BT0430-045##SLIDER CLEVIS BLOCK 4 ## 985BT0430-311##GUIDE ROD WELDMENT"
+        },
+        {
+          "subawardId": "9676145",
+          "subawardNumber": "4106569653",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 80874.75,
+          "recipientName": "AVNET INC",
+          "description": "IC DR LINE DIFF QUAD 5V. IC DR LINE DIFF QUAD 7V. IC RCVR LINE DIFF. IC RCVR LINE LINEAR"
+        },
+        {
+          "subawardId": "9676142",
+          "subawardNumber": "4106515952",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-30",
+          "amount": 79,
+          "recipientName": "AVNET INC",
+          "description": "IC ISOLATOR DIGITAL"
+        },
+        {
+          "subawardId": "9676211",
+          "subawardNumber": "4106567126",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-29",
+          "amount": 60498,
+          "recipientName": "VOTAW PRECISION TECHNOLOGIES, LLC",
+          "description": "##LAB2223215-001##AFT SKIRT BASE PLATE. ##LAB2223215-002##TRUNNION SHEAR LIP. ##LAB2223217-001##AFT SKIRT BASE PLATE. ##LAB2223217-002##TRUNNION SHEAR LIP."
+        },
+        {
+          "subawardId": "9676198",
+          "subawardNumber": "4106566991",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-29",
+          "amount": 82412,
+          "recipientName": "SMITH BROTHERS TOOL COMPANY",
+          "description": "##LAB2223212-001##EAST ADAPTER PLATE. ##LAB2223212-002##WEST ADAPTER PLATE. ##LAB2223213-501##E1 CRUCIFORM LOAD HEAD ##LAB2223214-501##FAR CRUCIFORM LOAD HEA"
+        },
+        {
+          "subawardId": "9676186",
+          "subawardNumber": "4106567350",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-29",
+          "amount": 79587.52,
+          "recipientName": "POWELL ELECTRONICS, INC.",
+          "description": "CONN PLUG 78P RT ANG"
+        },
+        {
+          "subawardId": "9676163",
+          "subawardNumber": "4105586270",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-29",
+          "amount": 466660,
+          "recipientName": "GENERAL DYNAMICS MISSION SYSTEMS, INC.",
+          "description": "CLIN 0200 CLIN 0400"
+        },
+        {
+          "subawardId": "9676153",
+          "subawardNumber": "4106563949",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-29",
+          "amount": 42565.6,
+          "recipientName": "CABLE ASSOCIATES INC",
+          "description": "MANIPULATOR CABLE ASSEMBLY EOAT INTERF MANIPULATOR CABLE ASSEMBLY HMI SUPPLY MANIPULATOR CABLE ASSEMBLY SPOTTER SWI"
+        },
+        {
+          "subawardId": "9676144",
+          "subawardNumber": "4106550402",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-29",
+          "amount": 39256.9,
+          "recipientName": "AVNET INC",
+          "description": "XSTR MOSFET PWR N-CH 100V"
+        },
+        {
+          "subawardId": "9676207",
+          "subawardNumber": "4106565333",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-28",
+          "amount": 99062.47,
+          "recipientName": "TTI INC.",
+          "description": "CONN PLUG 12S RTANG. CONN RCPT 43S RT ANG. GUO-CONN PLUG 130P D-MICRO GUO-CONN RCPT 130S D-MICRO"
+        },
+        {
+          "subawardId": "9676201",
+          "subawardNumber": "4106534657",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-28",
+          "amount": 478941.95,
+          "recipientName": "SPIRIT AMERICA CORP",
+          "description": "IC CONV A-D 12BIT 8 CH"
+        },
+        {
+          "subawardId": "9676199",
+          "subawardNumber": "4106565926",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-28",
+          "amount": 71227.5,
+          "recipientName": "SOLID STATE DEVICES, INC",
+          "description": "DIODE RECT 300V 50A."
+        },
+        {
+          "subawardId": "9676148",
+          "subawardNumber": "4106565760",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-28",
+          "amount": 73648,
+          "recipientName": "AVNET, INC.",
+          "description": "MICROCIRCUIT LINEAR OP-AMP 5962R162050"
+        },
+        {
+          "subawardId": "9676140",
+          "subawardNumber": "4106558403",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-28",
+          "amount": 68646,
+          "recipientName": "AMRO FABRICATING CORP",
+          "description": "AVIONICS ASSEMBLY CRADLE"
+        },
+        {
+          "subawardId": "9676179",
+          "subawardNumber": "4106497832",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-27",
+          "amount": -207994,
+          "recipientName": "MISSION SYSTEMS ORCHARD PARK INC",
+          "description": "OPTION 80 PRODUCTION"
+        },
+        {
+          "subawardId": "9676174",
+          "subawardNumber": "4106544729",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-27",
+          "amount": 96982,
+          "recipientName": "MAVERICK AEROSPACE LLC",
+          "description": "MSV AFT PLATE"
+        },
+        {
+          "subawardId": "9676171",
+          "subawardNumber": "4104962083",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-27",
+          "amount": 232488.14,
+          "recipientName": "IERUS TECHNOLOGIES INC",
+          "description": "##BOOSTER FTS SUPPORT##BOOSTER FTS SUPPO"
+        },
+        {
+          "subawardId": "9676169",
+          "subawardNumber": "4106516893",
+          "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
+          "actionDate": "2025-01-27",
+          "amount": 271330.34,
+          "recipientName": "HEILIND MIL-AERO LLC",
+          "description": "##233-281-07ME17E-75PASA02V ##CIRCULAR C ##233-281-07ME17E-75PNSN02V##CIRCULAR CO ##233-281-07ME19E-18PASA02V##FEEDTHRU CO ##233-281-07ME19E-18PNSN02V##CONN RCPT 4 ##NRE#LOT/CHARGE/DIV."
+        }
+      ],
+      "status": "current",
+      "changeStatus": "unchanged"
+    },
+    {
       "primeAwardId": "CONT_AWD_W52P1J10C0062_9700_-NONE-_-NONE-",
       "primePiid": "W52P1J10C0062",
       "primeRecipient": "V2X SYSTEMS LLC",
@@ -264057,7 +264092,7 @@
           "primeAwardId": "CONT_AWD_W52P1J19F0394_9700_W52P1J19D0044_9700",
           "actionDate": "2025-04-22",
           "amount": 220778.27,
-          "recipientName": "WCTRON SP. Z O.O.",
+          "recipientName": "WCTRON SPOLKA Z OGRANICZONA ODPOWIEDZIALNOSCIA",
           "description": "SHOWERS AND LATRINES"
         },
         {
@@ -266479,28 +266514,28 @@
   ],
   "failures": [
     {
-      "primeAwardId": "CONT_AWD_FA861106C2899_9700_-NONE-_-NONE-",
-      "primePiid": "FA861106C2899",
+      "primeAwardId": "CONT_AWD_DASG6000C0072_9700_-NONE-_-NONE-",
+      "primePiid": "DASG6000C0072",
       "error": "fetch failed",
       "retainedPrevious": false
     },
     {
-      "primeAwardId": "CONT_AWD_0004_9700_W52P1J07D0007_9700",
-      "primePiid": "0004",
+      "primeAwardId": "CONT_AWD_HT940213C0012_9700_-NONE-_-NONE-",
+      "primePiid": "HT940213C0012",
       "error": "fetch failed",
       "retainedPrevious": false
     },
     {
-      "primeAwardId": "CONT_AWD_0059_9700_DAAA0902D0007_9700",
-      "primePiid": "0059",
+      "primeAwardId": "CONT_AWD_0005_9700_FA852612D0001_9700",
+      "primePiid": "0005",
       "error": "fetch failed",
       "retainedPrevious": false
     },
     {
-      "primeAwardId": "CONT_AWD_HQ085621C0001_9700_-NONE-_-NONE-",
-      "primePiid": "HQ085621C0001",
+      "primeAwardId": "CONT_AWD_F3365701C2002_9700_-NONE-_-NONE-",
+      "primePiid": "F3365701C2002",
       "error": "fetch failed",
-      "retainedPrevious": true
+      "retainedPrevious": false
     },
     {
       "primeAwardId": "CONT_AWD_W52P1J19F0400_9700_W52P1J19D0045_9700",

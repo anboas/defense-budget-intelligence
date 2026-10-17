@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:39:17.083Z",
+    "generatedAt": "2026-10-17T13:56:52.933Z",
     "sourceAuthority": "official_primary",
     "sources": {
       "govinfo": "https://www.govinfo.gov/developers",
@@ -10,15 +10,15 @@
     "coverage": {
       "since": "2017-01-01",
       "measures": 13,
-      "versions": 31,
+      "versions": 33,
       "committeeReports": 3,
-      "enactedProvisions": 16,
-      "exactRelations": 50,
+      "enactedProvisions": 15,
+      "exactRelations": 51,
       "failures": 163
     },
     "caveat": "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published. A separately reviewed FY2024 House RDT&E Army table supplies page-cited committee marks; Senate, conference, and enacted line-item amounts remain unasserted until their official tables are parsed.",
     "apiCredential": "public-demo",
-    "contentHash": "bbbeff5ba5cbe4c479a3"
+    "contentHash": "f815a14112827c3373f7"
   },
   "measures": [
     {
@@ -69,7 +69,7 @@
       "billType": "hr",
       "billNumber": 4016,
       "label": "HR 4016, 119th Congress",
-      "title": "An Act Making appropriations for the Department of Defense for the fiscal year ending September 30, 2026, and for other purposes.",
+      "title": "Making appropriations for the Department of Defense for the fiscal year ending September 30, 2026, and for other purposes.",
       "sourceUrl": "https://www.congress.gov/bill/119th-congress/house-bill/4016",
       "latestAction": {
         "actionDate": "2025-12-08",
@@ -182,12 +182,7 @@
       "label": "FY2024 National Defense Authorization Act",
       "title": "National Defense Authorization Act for Fiscal Year 2024",
       "sourceUrl": "https://www.congress.gov/bill/118th-congress/house-bill/2670",
-      "baseline": "exact-official-identifier",
-      "latestAction": {
-        "actionDate": "2023-12-22",
-        "text": "Became Public Law No: 118-31."
-      },
-      "updateDate": "2026-09-08T19:31:27Z"
+      "baseline": "exact-official-identifier"
     },
     {
       "id": "legislative-measure:118:s:4638",
@@ -198,12 +193,7 @@
       "label": "FY2025 National Defense Authorization Act",
       "title": "National Defense Authorization Act for Fiscal Year 2025",
       "sourceUrl": "https://www.congress.gov/bill/118th-congress/senate-bill/4638",
-      "baseline": "exact-official-identifier",
-      "latestAction": {
-        "actionDate": "2024-07-08",
-        "text": "Placed on Senate Legislative Calendar under General Orders. Calendar No. 433."
-      },
-      "updateDate": "2026-02-25T12:03:21Z"
+      "baseline": "exact-official-identifier"
     },
     {
       "id": "legislative-measure:118:hr:4365",
@@ -299,6 +289,30 @@
       "dateIssued": "2025-07-31",
       "lastModified": "2026-07-10T23:42:53Z",
       "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-119hr4016pcs",
+      "textLink": null,
+      "pdfLink": null
+    },
+    {
+      "id": "legislative-version:BILLS-119hr4016eh",
+      "measureId": "legislative-measure:119:hr:4016",
+      "packageId": "BILLS-119hr4016eh",
+      "versionCode": "eh",
+      "title": "An Act Making appropriations for the Department of Defense for the fiscal year ending September 30, 2026, and for other purposes.",
+      "dateIssued": "2025-07-18",
+      "lastModified": "2026-07-10T23:42:38Z",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-119hr4016eh",
+      "textLink": null,
+      "pdfLink": null
+    },
+    {
+      "id": "legislative-version:BILLS-119hr4016rh",
+      "measureId": "legislative-measure:119:hr:4016",
+      "packageId": "BILLS-119hr4016rh",
+      "versionCode": "rh",
+      "title": "Making appropriations for the Department of Defense for the fiscal year ending September 30, 2026, and for other purposes.",
+      "dateIssued": "2025-06-16",
+      "lastModified": "2026-07-10T23:42:59Z",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-119hr4016rh",
       "textLink": null,
       "pdfLink": null
     },
@@ -810,16 +824,6 @@
       "sourceUrl": "https://www.congress.gov/bill/117th-congress/house-bill/7776",
       "publicLawNumber": "117-263",
       "lawType": "Public Law"
-    },
-    {
-      "id": "enacted-provision:118:public law:118-31",
-      "packageId": null,
-      "title": "Public Law 118-31",
-      "congress": 118,
-      "dateIssued": null,
-      "sourceUrl": "https://www.congress.gov/bill/118th-congress/house-bill/2670",
-      "publicLawNumber": "118-31",
-      "lawType": "Public Law"
     }
   ],
   "relations": [
@@ -871,6 +875,20 @@
       "to": "legislative-version:BILLS-119hr4016pcs",
       "basis": "govinfo-package-identity",
       "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-119hr4016pcs"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:119:hr:4016",
+      "to": "legislative-version:BILLS-119hr4016eh",
+      "basis": "govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-119hr4016eh"
+    },
+    {
+      "type": "measure-has-version",
+      "from": "legislative-measure:119:hr:4016",
+      "to": "legislative-version:BILLS-119hr4016rh",
+      "basis": "govinfo-package-identity",
+      "sourceUrl": "https://www.govinfo.gov/app/details/BILLS-119hr4016rh"
     },
     {
       "type": "measure-has-version",
@@ -1165,26 +1183,9 @@
       "to": "enacted-provision:117:public law:117-263",
       "basis": "congress-api-law-identity",
       "sourceUrl": "https://www.congress.gov/bill/117th-congress/house-bill/7776"
-    },
-    {
-      "type": "measure-enacted-as",
-      "from": "legislative-measure:118:hr:2670",
-      "to": "enacted-provision:118:public law:118-31",
-      "basis": "congress-api-law-identity",
-      "sourceUrl": "https://www.congress.gov/bill/118th-congress/house-bill/2670"
     }
   ],
   "failures": [
-    {
-      "stage": "summary",
-      "packageId": "BILLS-119hr4016eh",
-      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
-    },
-    {
-      "stage": "summary",
-      "packageId": "BILLS-119hr4016rh",
-      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
-    },
     {
       "stage": "summary",
       "packageId": "BILLS-118hr8774pcs",
@@ -1939,6 +1940,16 @@
       "stage": "summary",
       "packageId": "PLAW-118publ63",
       "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
+    },
+    {
+      "stage": "congress-bill",
+      "measureId": "legislative-measure:118:hr:2670",
+      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us for assistance: https://api.congress.gov:443\"\n  }\n}"
+    },
+    {
+      "stage": "congress-bill",
+      "measureId": "legislative-measure:118:s:4638",
+      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us for assistance: https://api.congress.gov:443\"\n  }\n}"
     },
     {
       "stage": "congress-bill",

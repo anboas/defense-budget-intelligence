@@ -2,7 +2,7 @@
   "metadata": {
     "schemaVersion": "1.0.0",
     "generatedAt": "2026-09-30T17:17:18.415Z",
-    "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+    "lastAttemptAt": "2026-10-17T13:48:17.242Z",
     "status": "stale",
     "source": "https://api.usaspending.gov/api/v2/transactions/",
     "sourceAuthority": "official_primary",
@@ -36785,19 +36785,19 @@
   ],
   "awardSummaries": [
     {
+      "awardId": "CONT_AWD_N0001902C3002_9700_-NONE-_-NONE-",
+      "observedActionCount": 573,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0001917C0001_9700_-NONE-_-NONE-",
       "observedActionCount": 211,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_HT940216C0001_9700_-NONE-_-NONE-",
-      "observedActionCount": 714,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36805,39 +36805,15 @@
       "observedActionCount": 458,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001902C3002_9700_-NONE-_-NONE-",
-      "observedActionCount": 573,
+      "awardId": "CONT_AWD_HT940216C0001_9700_-NONE-_-NONE-",
+      "observedActionCount": 714,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
-      "observedActionCount": 331,
-      "retainedActionCount": 28,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001920C0009_9700_-NONE-_-NONE-",
-      "observedActionCount": 92,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
-      "observedActionCount": 347,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36845,15 +36821,31 @@
       "observedActionCount": 24,
       "retainedActionCount": 22,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_MDA90603C0010_9700_-NONE-_-NONE-",
-      "observedActionCount": 1199,
+      "awardId": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
+      "observedActionCount": 331,
+      "retainedActionCount": 28,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
+      "observedActionCount": 347,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001920C0009_9700_-NONE-_-NONE-",
+      "observedActionCount": 92,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36861,7 +36853,7 @@
       "observedActionCount": 1198,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36869,7 +36861,15 @@
       "observedActionCount": 1199,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_MDA90603C0010_9700_-NONE-_-NONE-",
+      "observedActionCount": 1199,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36877,15 +36877,7 @@
       "observedActionCount": 729,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
-      "observedActionCount": 1199,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36893,7 +36885,15 @@
       "observedActionCount": 453,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
+      "observedActionCount": 1199,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36901,7 +36901,7 @@
       "observedActionCount": 1081,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36909,23 +36909,7 @@
       "observedActionCount": 775,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002409C2104_9700_-NONE-_-NONE-",
-      "observedActionCount": 1197,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002418C2130_9700_-NONE-_-NONE-",
-      "observedActionCount": 156,
-      "retainedActionCount": 27,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36933,7 +36917,23 @@
       "observedActionCount": 1052,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002409C2104_9700_-NONE-_-NONE-",
+      "observedActionCount": 1197,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002418C2130_9700_-NONE-_-NONE-",
+      "observedActionCount": 156,
+      "retainedActionCount": 27,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36941,15 +36941,7 @@
       "observedActionCount": 66,
       "retainedActionCount": 25,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002416C2116_9700_-NONE-_-NONE-",
-      "observedActionCount": 420,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36957,7 +36949,7 @@
       "observedActionCount": 826,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36965,7 +36957,15 @@
       "observedActionCount": 329,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002416C2116_9700_-NONE-_-NONE-",
+      "observedActionCount": 420,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -36973,31 +36973,7 @@
       "observedActionCount": 190,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58P0522C0001_9700_-NONE-_-NONE-",
-      "observedActionCount": 8,
-      "retainedActionCount": 8,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001916C0033_9700_-NONE-_-NONE-",
-      "observedActionCount": 207,
-      "retainedActionCount": 28,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58RGZ12C0008_9700_-NONE-_-NONE-",
-      "observedActionCount": 535,
-      "retainedActionCount": 28,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37005,23 +36981,31 @@
       "observedActionCount": 387,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA861404C2004_9700_-NONE-_-NONE-",
-      "observedActionCount": 956,
-      "retainedActionCount": 30,
+      "awardId": "CONT_AWD_W58P0522C0001_9700_-NONE-_-NONE-",
+      "observedActionCount": 8,
+      "retainedActionCount": 8,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA863412C2651_9700_-NONE-_-NONE-",
-      "observedActionCount": 122,
-      "retainedActionCount": 29,
+      "awardId": "CONT_AWD_W58RGZ12C0008_9700_-NONE-_-NONE-",
+      "observedActionCount": 535,
+      "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001916C0033_9700_-NONE-_-NONE-",
+      "observedActionCount": 207,
+      "retainedActionCount": 28,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37029,7 +37013,7 @@
       "observedActionCount": 29,
       "retainedActionCount": 22,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37037,15 +37021,23 @@
       "observedActionCount": 285,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002408C2103_9700_-NONE-_-NONE-",
-      "observedActionCount": 215,
+      "awardId": "CONT_AWD_FA863412C2651_9700_-NONE-_-NONE-",
+      "observedActionCount": 122,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_FA861404C2004_9700_-NONE-_-NONE-",
+      "observedActionCount": 956,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37053,15 +37045,7 @@
       "observedActionCount": 268,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
-      "observedActionCount": 388,
-      "retainedActionCount": 28,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37069,31 +37053,23 @@
       "observedActionCount": 78,
       "retainedActionCount": 26,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_F4261098C0001_9700_-NONE-_-NONE-",
-      "observedActionCount": 1199,
-      "retainedActionCount": 30,
+      "awardId": "CONT_AWD_N0002408C2103_9700_-NONE-_-NONE-",
+      "observedActionCount": 215,
+      "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_F3365702C2001_9700_-NONE-_-NONE-",
-      "observedActionCount": 60,
-      "retainedActionCount": 27,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58RGZ08C0003_9700_-NONE-_-NONE-",
-      "observedActionCount": 449,
+      "awardId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
+      "observedActionCount": 388,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37101,15 +37077,31 @@
       "observedActionCount": 1200,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA881113C0003_9700_-NONE-_-NONE-",
-      "observedActionCount": 318,
-      "retainedActionCount": 29,
+      "awardId": "CONT_AWD_F4261098C0001_9700_-NONE-_-NONE-",
+      "observedActionCount": 1199,
+      "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_W58RGZ08C0003_9700_-NONE-_-NONE-",
+      "observedActionCount": 449,
+      "retainedActionCount": 28,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_F3365702C2001_9700_-NONE-_-NONE-",
+      "observedActionCount": 60,
+      "retainedActionCount": 27,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37117,15 +37109,15 @@
       "observedActionCount": 782,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002403C2101_9700_-NONE-_-NONE-",
-      "observedActionCount": 1194,
-      "retainedActionCount": 30,
+      "awardId": "CONT_AWD_FA881113C0003_9700_-NONE-_-NONE-",
+      "observedActionCount": 318,
+      "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37133,15 +37125,15 @@
       "observedActionCount": 50,
       "retainedActionCount": 24,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_HT940223C0002_9700_-NONE-_-NONE-",
-      "observedActionCount": 214,
-      "retainedActionCount": 29,
+      "awardId": "CONT_AWD_N0002403C2101_9700_-NONE-_-NONE-",
+      "observedActionCount": 1194,
+      "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37149,15 +37141,7 @@
       "observedActionCount": 209,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_F0470102C0002_9700_-NONE-_-NONE-",
-      "observedActionCount": 676,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37165,7 +37149,23 @@
       "observedActionCount": 129,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_HT940223C0002_9700_-NONE-_-NONE-",
+      "observedActionCount": 214,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_F0470102C0002_9700_-NONE-_-NONE-",
+      "observedActionCount": 676,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37173,23 +37173,7 @@
       "observedActionCount": 122,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA861108C2897_9700_-NONE-_-NONE-",
-      "observedActionCount": 925,
-      "retainedActionCount": 28,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_0159_9700_DAAA0902D0007_9700",
-      "observedActionCount": 212,
-      "retainedActionCount": 27,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37197,31 +37181,23 @@
       "observedActionCount": 97,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
-      "observedActionCount": 203,
-      "retainedActionCount": 26,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001918C1037_9700_-NONE-_-NONE-",
-      "observedActionCount": 164,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_F3365796C2059_9700_-NONE-_-NONE-",
-      "observedActionCount": 38,
+      "awardId": "CONT_AWD_FA861108C2897_9700_-NONE-_-NONE-",
+      "observedActionCount": 925,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_0159_9700_DAAA0902D0007_9700",
+      "observedActionCount": 212,
+      "retainedActionCount": 27,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37229,7 +37205,31 @@
       "observedActionCount": 186,
       "retainedActionCount": 26,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_F3365796C2059_9700_-NONE-_-NONE-",
+      "observedActionCount": 38,
+      "retainedActionCount": 28,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001918C1037_9700_-NONE-_-NONE-",
+      "observedActionCount": 164,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
+      "observedActionCount": 203,
+      "retainedActionCount": 26,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37237,23 +37237,7 @@
       "observedActionCount": 33,
       "retainedActionCount": 22,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
-      "observedActionCount": 109,
-      "retainedActionCount": 27,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_0139_9700_DAAA0902D0007_9700",
-      "observedActionCount": 128,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37261,15 +37245,23 @@
       "observedActionCount": 180,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
-      "observedActionCount": 34,
-      "retainedActionCount": 22,
+      "awardId": "CONT_AWD_N0001921C0020_9700_-NONE-_-NONE-",
+      "observedActionCount": 109,
+      "retainedActionCount": 27,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_0139_9700_DAAA0902D0007_9700",
+      "observedActionCount": 128,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37277,7 +37269,7 @@
       "observedActionCount": 518,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37285,7 +37277,15 @@
       "observedActionCount": 178,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
+      "observedActionCount": 34,
+      "retainedActionCount": 22,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37293,23 +37293,7 @@
       "observedActionCount": 55,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_0004_9700_W52P1J07D0007_9700",
-      "observedActionCount": 193,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58RGZ16C0023_9700_-NONE-_-NONE-",
-      "observedActionCount": 354,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37317,7 +37301,23 @@
       "observedActionCount": 200,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_0004_9700_W52P1J07D0007_9700",
+      "observedActionCount": 193,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_W58RGZ16C0023_9700_-NONE-_-NONE-",
+      "observedActionCount": 354,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37325,7 +37325,7 @@
       "observedActionCount": 199,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37333,15 +37333,7 @@
       "observedActionCount": 411,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA868224CB001_9700_-NONE-_-NONE-",
-      "observedActionCount": 19,
-      "retainedActionCount": 19,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37349,7 +37341,15 @@
       "observedActionCount": 240,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_FA868224CB001_9700_-NONE-_-NONE-",
+      "observedActionCount": 19,
+      "retainedActionCount": 19,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37357,31 +37357,7 @@
       "observedActionCount": 235,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
-      "observedActionCount": 12,
-      "retainedActionCount": 12,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_DAAE0703CS023_9700_-NONE-_-NONE-",
-      "observedActionCount": 353,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001917C0015_9700_-NONE-_-NONE-",
-      "observedActionCount": 206,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37389,15 +37365,31 @@
       "observedActionCount": 288,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001914C0002_9700_-NONE-_-NONE-",
-      "observedActionCount": 237,
+      "awardId": "CONT_AWD_DAAE0703CS023_9700_-NONE-_-NONE-",
+      "observedActionCount": 353,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
+      "observedActionCount": 12,
+      "retainedActionCount": 12,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001917C0015_9700_-NONE-_-NONE-",
+      "observedActionCount": 206,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37405,7 +37397,7 @@
       "observedActionCount": 817,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37413,7 +37405,15 @@
       "observedActionCount": 1200,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001914C0002_9700_-NONE-_-NONE-",
+      "observedActionCount": 237,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37421,7 +37421,7 @@
       "observedActionCount": 66,
       "retainedActionCount": 26,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37429,15 +37429,7 @@
       "observedActionCount": 604,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001906C0081_9700_-NONE-_-NONE-",
-      "observedActionCount": 347,
-      "retainedActionCount": 30,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37445,7 +37437,15 @@
       "observedActionCount": 1143,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001906C0081_9700_-NONE-_-NONE-",
+      "observedActionCount": 347,
+      "retainedActionCount": 30,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37453,31 +37453,7 @@
       "observedActionCount": 293,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA862514C6450_9700_-NONE-_-NONE-",
-      "observedActionCount": 77,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001913C0008_9700_-NONE-_-NONE-",
-      "observedActionCount": 196,
-      "retainedActionCount": 25,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA862914C2403_9700_-NONE-_-NONE-",
-      "observedActionCount": 399,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37485,15 +37461,31 @@
       "observedActionCount": 95,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002402C2300_9700_-NONE-_-NONE-",
-      "observedActionCount": 799,
-      "retainedActionCount": 27,
+      "awardId": "CONT_AWD_FA862914C2403_9700_-NONE-_-NONE-",
+      "observedActionCount": 399,
+      "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001913C0008_9700_-NONE-_-NONE-",
+      "observedActionCount": 196,
+      "retainedActionCount": 25,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_FA862514C6450_9700_-NONE-_-NONE-",
+      "observedActionCount": 77,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37501,7 +37493,7 @@
       "observedActionCount": 209,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37509,7 +37501,15 @@
       "observedActionCount": 351,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002402C2300_9700_-NONE-_-NONE-",
+      "observedActionCount": 799,
+      "retainedActionCount": 27,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37517,31 +37517,7 @@
       "observedActionCount": 262,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001909C0022_9700_-NONE-_-NONE-",
-      "observedActionCount": 294,
-      "retainedActionCount": 27,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001924C0025_9700_-NONE-_-NONE-",
-      "observedActionCount": 18,
-      "retainedActionCount": 18,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
-      "diagnostic": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W31P4Q15C0022_9700_-NONE-_-NONE-",
-      "observedActionCount": 345,
-      "retainedActionCount": 29,
-      "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37549,7 +37525,31 @@
       "observedActionCount": 283,
       "retainedActionCount": 30,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001909C0022_9700_-NONE-_-NONE-",
+      "observedActionCount": 294,
+      "retainedActionCount": 27,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001924C0025_9700_-NONE-_-NONE-",
+      "observedActionCount": 18,
+      "retainedActionCount": 18,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
+      "diagnostic": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_W31P4Q15C0022_9700_-NONE-_-NONE-",
+      "observedActionCount": 345,
+      "retainedActionCount": 29,
+      "status": "stale",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37557,7 +37557,7 @@
       "observedActionCount": 212,
       "retainedActionCount": 29,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37565,7 +37565,7 @@
       "observedActionCount": 278,
       "retainedActionCount": 27,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37573,7 +37573,7 @@
       "observedActionCount": 8,
       "retainedActionCount": 8,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     },
     {
@@ -37581,17 +37581,17 @@
       "observedActionCount": 353,
       "retainedActionCount": 28,
       "status": "stale",
-      "lastAttemptAt": "2026-10-15T19:30:20.409Z",
+      "lastAttemptAt": "2026-10-17T13:48:17.242Z",
       "diagnostic": "fetch failed"
     }
   ],
   "failures": [
     {
-      "awardId": "CONT_AWD_N0001917C0001_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0001902C3002_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_HT940216C0001_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0001917C0001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37599,19 +37599,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001902C3002_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001920C0009_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_HT940216C0001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37619,7 +37607,15 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_MDA90603C0010_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA862511C6600_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001920C0009_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37631,15 +37627,19 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_MDA90603C0010_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_HT940216C0002_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_HQ000601C0001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_HQ000601C0001_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37651,6 +37651,10 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_MDA90603C0011_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0002409C2104_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
@@ -37659,15 +37663,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_MDA90603C0011_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
       "awardId": "CONT_AWD_FA821920C0006_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002416C2116_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37679,19 +37675,11 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_N0002416C2116_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_0005_9700_W52P1J07D0008_9700",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58P0522C0001_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001916C0033_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58RGZ12C0008_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37699,11 +37687,15 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA861404C2004_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_W58P0522C0001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA863412C2651_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_W58RGZ12C0008_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001916C0033_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37715,7 +37707,11 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002408C2103_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA863412C2651_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_FA861404C2004_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37723,23 +37719,15 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
       "awardId": "CONT_AWD_W31P4Q24C0022_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_F4261098C0001_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0002408C2103_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_F3365702C2001_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_W58RGZ08C0003_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37747,7 +37735,15 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA881113C0003_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_F4261098C0001_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_W58RGZ08C0003_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_F3365702C2001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37755,7 +37751,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002403C2101_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA881113C0003_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37763,7 +37759,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_HT940223C0002_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0002403C2101_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37771,15 +37767,23 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_F0470102C0002_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
       "awardId": "CONT_AWD_HQ014717C0032_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_HT940223C0002_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_F0470102C0002_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0001999C1226_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001918C1021_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37791,15 +37795,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001918C1021_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001918C1037_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA880219C0001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37807,11 +37803,19 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA880219C0001_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0001918C1037_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
       "awardId": "CONT_AWD_W911QY20C0100_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0001902C3003_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37823,14 +37827,6 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001902C3003_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
       "awardId": "CONT_AWD_N0001904C3146_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
@@ -37839,7 +37835,15 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0001920C0011_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_FA881018C0005_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37851,10 +37855,6 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA881018C0005_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
       "awardId": "CONT_AWD_N0001912C2001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
@@ -37863,11 +37863,11 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA868224CB001_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0001909C0019_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001909C0019_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA868224CB001_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37875,7 +37875,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37883,15 +37883,11 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0001917C0015_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001914C0002_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37903,6 +37899,10 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_N0001914C0002_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0002423C2305_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
@@ -37911,11 +37911,11 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0001906C0081_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_W56HZV15C0095_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_W56HZV15C0095_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_N0001906C0081_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37923,11 +37923,7 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_FA862514C6450_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0001913C0008_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_0059_9700_DAAA0902D0007_9700",
       "error": "fetch failed"
     },
     {
@@ -37935,11 +37931,11 @@
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_0059_9700_DAAA0902D0007_9700",
+      "awardId": "CONT_AWD_N0001913C0008_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
-      "awardId": "CONT_AWD_N0002402C2300_9700_-NONE-_-NONE-",
+      "awardId": "CONT_AWD_FA862514C6450_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37951,7 +37947,15 @@
       "error": "fetch failed"
     },
     {
+      "awardId": "CONT_AWD_N0002402C2300_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
       "awardId": "CONT_AWD_N0001909C0010_9700_-NONE-_-NONE-",
+      "error": "fetch failed"
+    },
+    {
+      "awardId": "CONT_AWD_N0002405C5346_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
@@ -37964,10 +37968,6 @@
     },
     {
       "awardId": "CONT_AWD_W31P4Q15C0022_9700_-NONE-_-NONE-",
-      "error": "fetch failed"
-    },
-    {
-      "awardId": "CONT_AWD_N0002405C5346_9700_-NONE-_-NONE-",
       "error": "fetch failed"
     },
     {
