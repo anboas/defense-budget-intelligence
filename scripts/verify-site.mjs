@@ -40,7 +40,7 @@ assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Respons
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
 assert.ok(connectedEvidenceStyleBytes > 0 && connectedEvidenceStyleBytes <= 4_000, `Deferred connected-evidence CSS must stay within its 4 KB component budget, got ${connectedEvidenceStyleBytes.toLocaleString()} bytes`);
-assert.ok(connectedEvidenceVisualStyleBytes > 0 && connectedEvidenceVisualStyleBytes <= 4_000, `Deferred visual-analysis CSS must stay within its 4 KB component budget, got ${connectedEvidenceVisualStyleBytes.toLocaleString()} bytes`);
+assert.ok(connectedEvidenceVisualStyleBytes > 0 && connectedEvidenceVisualStyleBytes <= 30_000, `Deferred framework graph and visual-analysis CSS must stay within its 30 KB component budget, got ${connectedEvidenceVisualStyleBytes.toLocaleString()} bytes`);
 assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Domain Model CSS must stay within its 8 KB route budget, got ${domainModelStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
@@ -48,7 +48,7 @@ assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_50
 assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_200, `Deferred Strategic Analysis Studio CSS must stay within its 13.2 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
 assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 13_000, `Lazy Opportunities CSS must stay within its 13 KB route budget, got ${spendExplorerStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 445_000, `Total scoped CSS must stay below 445 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 470_000, `Total scoped CSS must stay below 470 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
@@ -2048,17 +2048,27 @@ try {
   assert.equal(workspaceGeometry.evidenceBorder, 0, "Connected evidence should not add an outer card border inside the analysis workspace");
   assert.equal(workspaceGeometry.visualBorder, 0, "Visual analysis should not add another outer card border inside connected evidence");
   await page.screenshot({ path: `${OUT_DIR}/analysis-workspace-desktop.png` });
-  const evidenceEdges = await visualGraph.locator("[data-evidence-edge]").evaluateAll((paths) => paths.map((path) => path.getAttribute("d")));
+  assert.equal(await visualGraph.locator("[data-if-graph-viewport='fit']").count(), 1, "Evidence graphs should reuse the framework viewport toolbar");
+  assert.equal(await visualGraph.locator("[data-if-graph-a11y]").count(), 1, "Evidence graphs should retain the framework accessible relationship index");
+  const graphCanvas = visualGraph.locator(".if-graph-canvas");
+  const initialGraphZoom = Number(await graphCanvas.getAttribute("data-graph-zoom"));
+  await visualGraph.locator("[data-if-graph-viewport='in']").click();
+  assert.ok(Number(await graphCanvas.getAttribute("data-graph-zoom")) > initialGraphZoom, "The framework graph toolbar should zoom the evidence canvas");
+  await visualGraph.locator("[data-if-graph-viewport='fit']").click();
+  assert.equal(Number(await graphCanvas.getAttribute("data-graph-zoom")), 1, "Fit should restore the evidence graph viewport");
+  const evidenceEdges = await visualGraph.locator(".if-graph-lines [data-edge-from]").evaluateAll((paths) => paths.map((path) => path.getAttribute("d")));
   assert.equal(evidenceEdges.length, Number(await visualGraph.getAttribute("data-node-count")) - 1, "Every bounded neighbor should have one graph edge");
   assert.ok(evidenceEdges.every((path) => path && !/^M\s+50(?:\.0+)?\s+50(?:\.0+)?\b/.test(path)), "Graph edges should terminate at stable node ports instead of running from center to center");
-  const graphNodeOverlaps = await visualGraph.locator("[data-evidence-node]").evaluateAll((nodes) => {
+  const graphNodeOverlaps = await visualGraph.locator(".if-graph-node[data-evidence-node]").evaluateAll((nodes) => {
     const rectangles = nodes.map((node) => node.getBoundingClientRect());
     return rectangles.flatMap((left, index) => rectangles.slice(index + 1).filter((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top).map((right) => ({ left: [left.left, left.top, left.right, left.bottom], right: [right.left, right.top, right.right, right.bottom] })));
   });
   assert.equal(graphNodeOverlaps.length, 0, `Evidence graph nodes must not overlap: ${JSON.stringify(graphNodeOverlaps)}`);
-  await visualGraph.locator("[data-evidence-node]").nth(1).click();
+  await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-graph-neutral-desktop.png` });
+  await visualGraph.locator(".if-graph-node[data-evidence-node]").nth(1).click();
   assert.match(await connectedEvidence.locator("[data-evidence-visual-inspector]").innerText(), /organization|vehicle|classification|location|predecessor|conflict/i, "Selecting a visual node should expose its typed evidence inspector");
   await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-graph-desktop.png` });
+  await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-graph-focused-desktop.png` });
   await connectedEvidence.getByRole("button", { name: "Timeline", exact: true }).click();
   assert.equal(await connectedEvidence.getAttribute("data-connected-evidence-state"), "ready", "Switching visualization modes must preserve the loaded evidence record");
   assert.ok(await connectedEvidence.locator("[data-visual-timeline-marker]").count() > 0, "The record visualization should project published, evidence, and review dates onto a bounded event rail");
@@ -2771,10 +2781,18 @@ try {
   assert.equal(await mobile.locator("[data-record-lifecycle]").count(), 1, "The mobile record workspace should retain the linked lifecycle");
   await mobile.locator("[data-connected-visual-analysis]").waitFor();
   const mobileVisual = mobile.locator("[data-connected-visual-analysis]");
-  const mobileVisualControls = await mobileVisual.locator("button:visible").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.ok(mobileVisualControls.every((height) => height >= 43.5), `Mobile visual-analysis controls should preserve 44px touch targets: ${mobileVisualControls.join(", ")}`);
-  const mobileGraphGeometry = await mobileVisual.locator(".connected-visual__scroller").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
+  const mobileVisualControls = await mobileVisual.locator("button:visible").evaluateAll((nodes) => nodes.map((node) => ({
+    label: node.getAttribute("aria-label") || node.textContent?.trim() || node.className,
+    className: node.className,
+    height: node.getBoundingClientRect().height,
+    minHeight: getComputedStyle(node).minHeight,
+    viewportWidth: innerWidth,
+    coarsePointer: matchMedia("(pointer: coarse)").matches,
+  })));
+  assert.ok(mobileVisualControls.every(({ height }) => height >= 43.5), `Mobile visual-analysis controls should preserve 44px touch targets: ${JSON.stringify(mobileVisualControls)}`);
+  const mobileGraphGeometry = await mobileVisual.locator(".connected-visual__control-graph").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileGraphGeometry.scrollWidth > mobileGraphGeometry.clientWidth, `The bounded graph should use a contained horizontal scroller on mobile: ${JSON.stringify(mobileGraphGeometry)}`);
+  await mobileVisual.screenshot({ path: `${OUT_DIR}/connected-evidence-graph-mobile.png` });
   await mobileVisual.getByRole("button", { name: "Timeline", exact: true }).tap();
   assert.ok(await mobileVisual.locator("[data-visual-timeline-marker]").count() > 0, "Mobile record analysis should retain the linked event rail");
   await mobileVisual.screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-mobile.png` });

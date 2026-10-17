@@ -9626,3 +9626,9 @@ td .dot {
     min-height: 44px;
   }
 }
+/* Preserve DBI's compact control typography when consuming the framework's inheritable controls. */
+.if-btn,
+.if-tab,
+.if-picker__trigger {
+  font-size: var(--if-font-size-sm);
+}
