@@ -165,8 +165,11 @@ try {
   assert.equal(samNoticeTypeId("Sources Sought"), "r", "SAM notice labels must normalize to stable filter IDs");
   assert.equal(samNoticeTypeId("RFI"), "r", "RFI must be a first-class alias for Sources Sought");
   assert.equal(samNoticeTypeLabel("r"), "Sources sought / RFI", "Stable notice IDs must retain human-readable labels");
-  const saved = normalizeSavedAcquisitionView({ query: "runtime", filters: { branch: "Army", noticeType: "r", naics: "541512", untrustedField: "discard me" }, credential: "must-not-survive" });
-  assert.deepEqual(saved, { query: "runtime", filters: { branch: "Army", noticeType: "r", naics: "541512" } }, "Saved acquisition views must retain only the allowlisted filter contract");
+  const saved = normalizeSavedAcquisitionView({ query: "runtime", filters: { branch: "Army", noticeType: "r", naics: "541512", untrustedField: "discard me" }, analysis: { kind: "strategy", lens: "win-readiness", spendMeasure: "obligations", threshold: 65, buyers: ["ACC-APG", "ACC-APG"], capabilities: ["cybersecurity"], untrusted: "discard me" }, credential: "must-not-survive" });
+  assert.deepEqual(saved.filters, { branch: "Army", noticeType: "r", naics: "541512" }, "Saved acquisition views must retain only the allowlisted filter contract");
+  assert.equal(saved.analysis.lens, "win-readiness", "Saved views must retain a normalized Strategic Analysis lens");
+  assert.deepEqual(saved.analysis.buyers, ["ACC-APG"], "Saved strategy baselines must be deduplicated");
+  assert.equal(saved.analysis.untrusted, undefined, "Saved strategy analysis must discard fields outside its allowlist");
   assert.equal(matchesSavedAcquisitionView({ ...normalized, noticeType: "Sources Sought", naicsCode: "541512", organization: { branch: "Army" } }, saved), true, "Durable RFI alerts must use the same normalized notice-type contract as Spend Explorer");
   assert.equal(matchesSavedAcquisitionView({ ...normalized, noticeType: "Special Notice", naicsCode: "541512", organization: { branch: "Army" } }, saved), false, "Saved RFI views must reject other SAM notice classes");
   assert.equal(parseSamOpportunityReference("https://sam.gov/opp/8e101b6ad5ca48c5ab542d9d9bd883a0/view"), "8e101b6ad5ca48c5ab542d9d9bd883a0", "SAM.gov intake must extract canonical opportunity IDs from public links");

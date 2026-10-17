@@ -903,7 +903,7 @@ async function verifyApiLifecycle(persistPath) {
     const enrichedCampaignRecord = body.records.find((record) => record.sourceRecordId === "EM-LIVE");
     assert.equal(enrichedCampaignRecord.evidenceCampaign.campaignId, evidenceCampaignId);
     assert.equal(enrichedCampaignRecord.events.filter((event) => event.reviewState === "accepted").length, 1);
-    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { name: "Fourth Estate AI RFIs", query: "artificial intelligence", filters: { branch: "Fourth Estate", noticeType: "r", untrustedField: "discard me" }, alertMode: "daily", credential: "discard me" } });
+    response = await apiRequest(baseUrl, "/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { name: "Fourth Estate AI RFIs", query: "artificial intelligence", filters: { branch: "Fourth Estate", noticeType: "r", untrustedField: "discard me" }, analysis: { kind: "strategy", lens: "win-readiness", spendMeasure: "obligations", threshold: 65, buyers: ["Fourth Estate"], capabilities: ["artificial-intelligence"], untrusted: "discard me" }, alertMode: "daily", credential: "discard me" } });
     assert.equal(response.status, 201, "D1 must persist cross-device acquisition views");
     body = await response.json();
     const acquisitionViewId = body.view.id;
@@ -918,6 +918,8 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(body.views[0].filters.branch, "Fourth Estate");
     assert.equal(body.views[0].filters.noticeType, "r", "D1 saved views must preserve the first-class Sources Sought / RFI facet");
     assert.equal(body.views[0].filters.untrustedField, undefined, "D1 saved views must discard fields outside the filter allowlist");
+    assert.equal(body.views[0].analysis?.lens, "win-readiness", "D1 saved views must round-trip the normalized Strategic Analysis lens");
+    assert.equal(body.views[0].analysis?.untrusted, undefined, "D1 saved strategy views must discard analysis fields outside the allowlist");
     assert.equal(body.views[0].unreadCount, 0);
     response = await apiRequest(baseUrl, `/api/v1/auth/acquisition/saved-views/${acquisitionViewId}`, { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 204);

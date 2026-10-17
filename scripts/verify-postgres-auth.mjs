@@ -317,7 +317,7 @@ assert.equal(body.records.length, 1);
 assert.equal(body.records[0].noticeId, intakeNoticeId);
 assert.deepEqual(body.pagination, { offset: 0, limit: 10, total: 1, hasMore: false });
 response = await request("/api/v1/auth/acquisition/saved-views", { method: "POST", cookie: ownerCookie,
-  body: { name: "PostgreSQL Fourth Estate AI", query: "artificial intelligence", filters: { branch: "Fourth Estate", untrustedField: "discard me" }, alertMode: "daily", credential: "discard me" } });
+  body: { name: "PostgreSQL Fourth Estate AI", query: "artificial intelligence", filters: { branch: "Fourth Estate", untrustedField: "discard me" }, analysis: { kind: "strategy", lens: "win-readiness", spendMeasure: "obligations", threshold: 65, buyers: ["Fourth Estate"], capabilities: ["artificial-intelligence"], untrusted: "discard me" }, alertMode: "daily", credential: "discard me" } });
 assert.equal(response.status, 201, "PostgreSQL must persist cross-device acquisition views");
 body = await response.json();
 const acquisitionViewId = body.view.id;
@@ -331,6 +331,8 @@ body = await response.json();
 assert.equal(body.views.length, 1);
 assert.equal(body.views[0].filters.branch, "Fourth Estate");
 assert.equal(body.views[0].filters.untrustedField, undefined, "PostgreSQL saved views must discard fields outside the filter allowlist");
+assert.equal(body.views[0].analysis?.lens, "win-readiness", "PostgreSQL saved views must round-trip the normalized Strategic Analysis lens");
+assert.equal(body.views[0].analysis?.untrusted, undefined, "PostgreSQL saved strategy views must discard analysis fields outside the allowlist");
 assert.equal(body.views[0].unreadCount, 0);
 response = await request("/api/v1/auth/acquisition/delivery-preferences", { cookie: ownerCookie });
 assert.equal(response.status, 200, "PostgreSQL users must read their email-delivery preference");

@@ -50,7 +50,7 @@ export default function SpendSavedViews({ rows, tombstonedIds, query, filters, o
   useEffect(() => { onSummary?.({ count: views.length, unreadCount, favorites: favoriteIds.size }); }, [favoriteIds.size, onSummary, unreadCount, views.length]);
   const refresh = useCallback(async () => {
     if (!remote) { setViews(readLocal()); return; }
-    const [payload, delivery] = await Promise.all([auth.listAcquisitionSavedViews(), auth.getAcquisitionDeliveryPreferences()]); let next = payload.views || []; const local = readLocal();
+    const [payload, delivery] = await Promise.all([auth.listAcquisitionSavedViews(), auth.getAcquisitionDeliveryPreferences()]); let next = (payload.views || []).filter((entry) => entry.analysis?.kind !== "strategy"); const local = readLocal();
     setEmailEnabled(delivery.preferences?.emailEnabled !== false);
     if (!next.length && local.length) {
       next = [];

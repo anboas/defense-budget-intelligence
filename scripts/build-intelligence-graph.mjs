@@ -21,6 +21,7 @@ const CONTRACT_LINEAGE_REVIEW_FILE = resolve(DATA_DIR, "contract-lineage-review.
 const TEMPORAL_EVIDENCE_INDEX_FILE = resolve(DATA_DIR, "temporal-evidence-index.json");
 const TEMPORAL_EVIDENCE_REVIEW_FILE = resolve(DATA_DIR, "temporal-evidence-review.json");
 const MONEY_PATH_INDEX_FILE = resolve(DATA_DIR, "money-path-index.json");
+const STRATEGY_SPEND_INDEX_FILE = resolve(DATA_DIR, "strategy-spend-index.json");
 const AGENT_GRAPH_DIR = resolve(DATA_DIR, "agent-graph");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
@@ -1661,6 +1662,48 @@ const moneyPathIndex = {
   indices: { byActivity: moneyPathByActivity },
 };
 writeFileSync(MONEY_PATH_INDEX_FILE, JSON.stringify(moneyPathIndex));
+const strategySpendByActivity = Object.fromEntries(Object.entries(moneyPathByActivity).map(([opportunityId, path]) => {
+  const requestFacts = path.nodes.filter((node) => node.type === "budget-line" && node.fiscalValues).map((node) => ({
+    id: node.id,
+    label: node.label,
+    values: Object.fromEntries(Object.entries(node.fiscalValues).map(([year, value]) => [year.replace(/^fy/, ""), Number(value || 0) * 1_000_000_000])),
+    confidence: node.confidence || "derived",
+    sourceUrl: node.sourceUrl || "",
+  }));
+  const obligationFacts = path.links.filter((link) => link.type === "obligation" && link.confidence === "exact").map((link) => ({
+    id: `${link.source}|${link.target}`,
+    amount: Number(link.amount || 0),
+    sourceUrl: link.sourceUrl || "",
+  }));
+  const awardFacts = path.nodes.filter((node) => node.type === "award" && Number(node.amount || 0)).map((node) => ({
+    id: node.id,
+    amount: Number(node.amount || 0),
+    sourceUrl: node.sourceUrl || "",
+  }));
+  return [opportunityId, {
+    requestFacts,
+    obligationFacts,
+    awardFacts,
+    hasVehicle: path.nodes.some((node) => node.type === "vehicle"),
+    supplierCount: path.nodes.filter((node) => node.type === "supplier").length,
+    fiscalYears: path.fiscalYears,
+  }];
+}));
+const strategySpendIndex = {
+  metadata: {
+    schemaVersion: "strategy-spend.v1",
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    title: "Strategic analysis spend summary index",
+    status: moneyPathIndex.metadata.status,
+    sourceStatus: moneyPathIndex.metadata.sourceStatus,
+    activityCount: Object.keys(strategySpendByActivity).length,
+    fiscalYears: [...new Set(Object.values(strategySpendByActivity).flatMap((entry) => entry.fiscalYears || []))].sort(),
+    trustBoundary: "Budget requests, exact obligations, and published award totals remain separate measure classes. Facts are deduplicated by their retained source identity before portfolio summaries are calculated. Request context does not assert that a budget line funded an award.",
+  },
+  byActivity: strategySpendByActivity,
+};
+writeFileSync(STRATEGY_SPEND_INDEX_FILE, JSON.stringify(strategySpendIndex));
 const graphSummary = {
   metadata: graph.metadata,
   domain: graph.domain,
