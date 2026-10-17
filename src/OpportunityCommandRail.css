@@ -1,13 +1,11 @@
 .pursuit-tasks {
-  display: grid;
-  gap: .55rem;
-  padding: .7rem .85rem;
   border-top: 1px solid var(--if-border, #d7dce2);
   background: var(--if-bg-subtle, #f7f8fa);
 }
 
-.pursuit-tasks > header,
-.pursuit-tasks > header > div,
+.pursuit-tasks > summary,
+.pursuit-tasks > summary > span,
+.pursuit-tasks__body > header,
 .pursuit-tasks__composer-actions,
 .pursuit-tasks__completed summary,
 .pursuit-tasks__completed span {
@@ -15,11 +13,17 @@
   align-items: center;
 }
 
-.pursuit-tasks > header { justify-content: space-between; gap: .75rem; }
-.pursuit-tasks > header > div { gap: .45rem; }
-.pursuit-tasks > header span,
+.pursuit-tasks > summary { justify-content: space-between; gap: .75rem; min-height: 2.75rem; padding: .55rem .85rem; cursor: pointer; }
+.pursuit-tasks > summary::marker { content: ""; }
+.pursuit-tasks > summary > span:first-child { gap: .45rem; }
+.pursuit-tasks > summary > span:last-child,
+.pursuit-tasks > summary small,
 .pursuit-tasks__empty,
 .pursuit-tasks article small { color: var(--if-text-muted, #5f6873); }
+.pursuit-tasks > summary > span:last-child { font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-semibold); }
+.pursuit-tasks__body { display: grid; gap: .55rem; padding: 0 .85rem .7rem; }
+.pursuit-tasks__body > header { justify-content: space-between; gap: .75rem; }
+.pursuit-tasks__body > header p { margin: 0; color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); }
 .pursuit-tasks__empty { margin: 0; font-size: .78rem; }
 .pursuit-tasks__list { display: grid; gap: .35rem; }
 
@@ -66,6 +70,9 @@
 .pursuit-tasks__completed span { justify-content: space-between; gap: .75rem; }
 .pursuit-tasks__completed button { border: 0; background: transparent; color: var(--if-link, #315f82); }
 
+.pursuit-actions__more > div { top: auto; bottom: calc(100% + .35rem); }
+.pursuit-actions__more a { justify-content: flex-start; }
+
 @media (max-width: 720px) {
   .pursuit-tasks article { grid-template-columns: 2.75rem minmax(0, 1fr) auto; }
   .pursuit-tasks article .if-select { grid-column: 2 / 4; width: 100%; }
@@ -80,4 +87,7 @@
   .pursuit-tasks__composer-actions { grid-column: auto; }
   .pursuit-tasks__composer-actions { justify-content: stretch; }
   .pursuit-tasks__composer-actions > * { flex: 1; }
+  .pursuit-actions__more { flex: 1 1 100%; }
+  .pursuit-actions__more > summary { width: 100%; }
+  .pursuit-actions__more > div { right: auto; left: 0; }
 }

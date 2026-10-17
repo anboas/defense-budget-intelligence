@@ -7,9 +7,9 @@ import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
 
-const PRIMARY_IDS = ["spend", "map", "schedule"];
-const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "sources"];
-const WORK_IDS = new Set(["watchlist", "tasks", "event-discovery"]);
+const PRIMARY_IDS = ["watchlist", "spend", "schedule"];
+const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "map", "sources"];
+const WORK_IDS = new Set(["tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "intelligence", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 const MOBILE_TITLES = {
@@ -37,6 +37,7 @@ const MONEY_META = {
   trends: { badge: "4 vintages", description: "Request changes across published budget vintages and fiscal years." },
   lifecycle: { badge: "153 accounts", description: "Exact account joins across apportionment, obligations, and award execution." },
   awards: { badge: "Growing feed", description: "Published USAspending awards, recipients, offices, and obligation detail." },
+  map: { badge: "Geography", description: "Map organizations by contracting activity, opportunity state, and published spend." },
   sources: { badge: "6 stages", description: "Freshness, methodology, join quality, and official-source lineage." },
 };
 
@@ -79,7 +80,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const workItems = ["watchlist", "tasks", ...(auth?.user?.roleId === "super_user" ? ["event-discovery"] : [])].map((id) => {
+  const workItems = ["tasks", ...(auth?.user?.roleId === "super_user" ? ["event-discovery"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
@@ -105,18 +106,18 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         ...tab,
         tabId: tab.id,
         href: routes[tab.id],
-        badge: tab.id === "spend" ? "Analyze" : tab.id === "map" ? "Geography" : "Schedule",
-        description: tab.id === "spend"
-          ? "Explore transactions as a timeline, table, or chart workspace."
-          : tab.id === "map"
-            ? "Map organizations by contracting activity, opportunity state, and published spend."
+        badge: tab.id === "watchlist" ? "Act" : tab.id === "spend" ? "Explore" : "Schedule",
+        description: tab.id === "watchlist"
+          ? "Open overdue work, next actions, waiting items, and tracked pursuits."
+          : tab.id === "spend"
+            ? "Search and qualify opportunities from the operating queue."
             : "Create events and switch between list, calendar, and room display.",
       })),
     },
     ...groups,
   ];
   const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
-  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "spend" ? "Explore transactions, records, and charts." : tab.id === "map" ? "Map organizations, activity, opportunity state, and spend." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
+  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "watchlist" ? "Act on overdue work, next actions, and tracked pursuits." : tab.id === "spend" ? "Search and qualify opportunities from the operating queue." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
   const itemById = new Map(allNavigationItems.map((item) => [item.tabId, item]));
   const effectiveRecentIds = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
   const command = (item, icon) => ({ id: `route-${item.tabId}`, label: item.label, description: item.description || item.groupLabel || "Open section", href: item.href, tabId: item.tabId, icon });
@@ -244,7 +245,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   return (
     <header ref={navRef} className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--mobile-condensed if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
-        <a href={routes.spend} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Spend Explorer" title="Go to Spend Explorer">
+        <a href={routes.watchlist} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to My Work" title="Go to My Work">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
           <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title data-mobile-label={MOBILE_TITLES[activeTab] || activeTitle}>{activeTitle}</h1></span>
         </a>

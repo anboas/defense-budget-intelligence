@@ -1,0 +1,12 @@
+.spend-explorer .if-workbench-header { position: relative; z-index: 40; overflow: visible; }
+.spend-explorer__viewbar { display: flex; gap: var(--if-space-1); }
+.spend-explorer__analysis-menu.is-active > summary { background: var(--if-bg-selected, #eaf2f7); color: var(--if-link, #315f82); }
+.spend-explorer__analysis-menu > div { z-index: 41; width: 16rem; }
+.spend-explorer__analysis-menu > div button { justify-content: flex-start; min-height: 2.75rem; text-align: left; }
+.spend-explorer__analysis-menu > div button > span { display: grid; gap: .1rem; }
+.spend-explorer__analysis-menu > div button small { color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); font-weight: 500; }
+@media (max-width: 640px) {
+  .spend-explorer__viewbar { width: 100%; overflow-x: auto; }
+  .spend-explorer__viewbar .if-tab { min-height: 2.75rem; white-space: nowrap; }
+  .spend-explorer__analysis-menu { flex: 0 0 auto; }
+}

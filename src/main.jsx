@@ -115,10 +115,10 @@ const LEGACY_ROUTE_TABS = {
 };
 
 function tabFromHash(hash = "") {
-  const normalized = hash || HASH_ROUTES.spend;
+  const normalized = hash || HASH_ROUTES.watchlist;
   const routePath = normalized.split("?")[0];
   if (LEGACY_ROUTE_TARGETS[routePath]) return tabFromHash(LEGACY_ROUTE_TARGETS[routePath]);
-  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || LEGACY_ROUTE_TABS[routePath] || "spend";
+  return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || LEGACY_ROUTE_TABS[routePath] || "watchlist";
 }
 
 function useBudgetRoute() {
@@ -133,7 +133,7 @@ function useBudgetRoute() {
       const routePath = (window.location.hash || HASH_ROUTES.spend).split("?")[0];
       const knownRoute = Object.values(HASH_ROUTES).includes(routePath);
       if (!window.location.hash) {
-        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES.spend}`);
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES.watchlist}`);
       }
       if (LEGACY_ROUTE_TARGETS[routePath]) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${LEGACY_ROUTE_TARGETS[routePath]}`);
@@ -299,7 +299,7 @@ function App() {
   const [coreError, setCoreError] = useState("");
   const activeTitle = activeTab === "directory" ? "Workspace Directory" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const needsCore = CORE_TAB_IDS.has(activeTab);
-  const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "radar";
+  const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "table";
   const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
   const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && activeTab !== "map" && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CalendarClock, Check, Circle, ExternalLink, ListChecks, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { CalendarClock, Check, Circle, ExternalLink, ListChecks, MoreHorizontal, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import ControlSelect from "./ControlSelect.jsx";
 import { PURSUIT_STAGES, PURSUIT_TASK_EVENT, PURSUIT_TASK_PRIORITIES, PURSUIT_TASK_STATUSES, normalizePursuit } from "./pursuit-metadata.js";
 import "./OpportunityCommandRail.css";
@@ -36,6 +36,7 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
   const [composer, setComposer] = useState(null);
   const tasks = pursuit.tasks || [];
   const active = tasks.filter((task) => task.status !== "done");
+  const [expanded, setExpanded] = useState(active.length > 0);
   const canAdd = canWrite && active.length < 6;
 
   function saveTasks(nextTasks) {
@@ -44,6 +45,7 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
 
   function addTask(candidate = {}) {
     const title = String(candidate.title || pursuit.nextAction || "").trim();
+    setExpanded(true);
     setComposer({ id: candidate.id || "", title, priority: candidate.priority || "normal", dueAt: candidate.dueAt || "", owner: candidate.owner || pursuit.owner || "", sourceType: candidate.sourceType || "manual", sourceId: candidate.sourceId || "", sourceLabel: candidate.sourceLabel || "", status: candidate.status || "todo", createdAt: candidate.createdAt || "" });
   }
 
@@ -70,8 +72,10 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
     void saveTasks(tasks.map((item) => item.id === task.id ? { ...item, ...patch, completedAt } : item));
   }
 
-  return <div className="pursuit-tasks" data-pursuit-tasks>
-    <header><div><strong>Actions</strong><span>{active.length ? `${active.length} open` : "No open tasks"}</span></div>{canWrite ? <button type="button" className="if-btn if-btn--secondary if-touch-target" disabled={!canAdd} title={canAdd ? "Add a linked pursuit task" : "Complete or remove a task before adding another"} onClick={() => addTask()}><Plus size={15} />Add task</button> : null}</header>
+  return <details className="pursuit-tasks" data-pursuit-tasks open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
+    <summary><span><strong>Actions</strong><small>{active.length ? `${active.length} open` : "No open tasks"}</small></span><span>{expanded ? "Hide" : "Review"}</span></summary>
+    <div className="pursuit-tasks__body">
+    <header><p>Keep the next decision tied to an owner, due date, and evidence.</p>{canWrite ? <button type="button" className="if-btn if-btn--secondary if-touch-target" disabled={!canAdd} title={canAdd ? "Add a linked pursuit task" : "Complete or remove a task before adding another"} onClick={() => addTask()}><Plus size={15} />Add task</button> : null}</header>
     {active.length ? <div className="pursuit-tasks__list">{active.slice(0, 5).map((task) => <article key={task.id} data-pursuit-task={task.status} data-task-priority={task.priority}>
       <button type="button" className="pursuit-tasks__complete" disabled={!canWrite} aria-label={`Complete ${task.title}`} onClick={() => patchTask(task, { status: "done" })}><Circle size={18} /></button>
       <div><strong>{task.title}</strong><small>{[task.owner || "Unassigned", task.dueAt ? `Due ${task.dueAt.slice(0, 10)}` : "No due date", task.sourceLabel || (task.sourceType === "manual" ? "Manual task" : task.sourceType)].filter(Boolean).join(" · ")}</small></div>
@@ -86,7 +90,8 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
       <div className="pursuit-tasks__composer-actions"><button type="button" className="if-btn if-btn--primary if-touch-target" disabled={!composer.title.trim()} onClick={commitTask}><Check size={15} />{composer.id ? "Save task" : "Create task"}</button><button type="button" className="if-btn if-btn--secondary if-touch-target" onClick={() => setComposer(null)}>Cancel</button></div>
     </div> : null}
     {tasks.some((task) => task.status === "done") ? <details className="pursuit-tasks__completed"><summary><Check size={14} />{tasks.filter((task) => task.status === "done").length} completed</summary><div>{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite} onClick={() => patchTask(task, { status: "todo" })}>Restore</button></span>)}</div></details> : null}
-  </div>;
+    </div>
+  </details>;
 }
 
 export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true }) {
@@ -121,8 +126,7 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
       <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
       <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
       {showRecordLink ? <a className="if-btn if-btn--primary if-touch-target" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}`}><ListChecks size={15} />Open record</a> : null}
-      <a className="if-btn if-btn--secondary if-touch-target" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(id)}`}><CalendarClock size={15} />Timeline</a>
-      {sourceUrl ? <a className="if-btn if-btn--secondary if-touch-target" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}
+      <details className="dbi-data-table__columns pursuit-actions__more"><summary className="if-btn if-btn--secondary if-touch-target"><MoreHorizontal size={15} />More</summary><div><a className="if-btn if-btn--ghost" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(id)}`}><CalendarClock size={15} />Timeline</a>{sourceUrl ? <a className="if-btn if-btn--ghost" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}</div></details>
     </nav>
     {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
   </section>;
