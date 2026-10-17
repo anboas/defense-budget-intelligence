@@ -16,7 +16,6 @@ import {
   Network,
   RefreshCcw,
   SearchCheck,
-  Star,
   TrendingUp,
 } from "lucide-react";
 import AuthProvider, { useAuth } from "./AuthContext.jsx";
@@ -46,7 +45,7 @@ const TABS = [
   { id: "map", label: "Opportunity Map", icon: MapPinned },
   { id: "schedule", label: "Schedule", icon: CalendarClock },
   { id: "event-discovery", label: "Event Discovery", icon: SearchCheck },
-  { id: "watchlist", label: "Watchlist", icon: Star },
+  { id: "watchlist", label: "My Work", icon: ListChecks },
   { id: "tasks", label: "Task Center", icon: ListChecks },
   { id: "connections", label: "Connections", icon: Database },
   { id: "domain-model", label: "Domain Model", icon: Network },
