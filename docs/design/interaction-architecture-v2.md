@@ -7,6 +7,7 @@ Prototype artifacts:
 - [Interactive HTML prototype](./interaction-architecture-v2-prototype.html)
 - [Today desktop](./screenshots/interaction-v2-today-desktop.png)
 - [Timeline desktop](./screenshots/interaction-v2-timeline-desktop.png)
+- [Timeline mobile](./screenshots/interaction-v2-timeline-mobile.png)
 - [Opportunities desktop](./screenshots/interaction-v2-opportunities-desktop.png)
 - [Today mobile](./screenshots/interaction-v2-today-mobile.png)
 - [Opportunities mobile](./screenshots/interaction-v2-opportunities-mobile.png)
@@ -169,25 +170,75 @@ confidence
 
 The first release can derive this model client-side from existing persisted records. No database migration is required.
 
+### Canonical timeline control surface
+
+The primary Timeline is the dense horizontal range-bar control surface already proven in DBI, not a replacement agenda widget. It is the canonical place to understand duration, overlap, versions, amendments, recompetes, follow-ons, milestones, and gaps across tracked work.
+
+Its default grammar is:
+
+- a fixed identity column on the left
+- a shared multi-year quarter axis on the right
+- one collapsed row per contract, acquisition, or program family
+- one or more labeled range segments on that row for versions, phases, amendments, or successor efforts
+- exact milestone and change markers over the ranges
+- a Today line, published-data boundary, and explicit uncertain windows
+- an expandable child-row state for the exact underlying records and evidence
+
+This surface remains directly reachable from primary navigation. Today carries a compact derivative of the same model, and the selected-record dock carries a record-scoped derivative. They do not become separate timeline implementations.
+
+### Family and version model
+
+The derived `TimelineFamily` contract groups related records without destroying source identity:
+
+```text
+familyId
+canonicalTitle
+familyType: contract | acquisition | program | vehicle | award
+memberIds[]
+segments[]:
+  recordId
+  label
+  versionLabel
+  startAt
+  endAt
+  status
+  relationToPrevious: amends | succeeds | recompetes | renames | continues | potential
+  relationConfidence: exact | supported | candidate
+  sourceIds[]
+unresolvedCandidates[]
+```
+
+Examples include a single family row for `Application Arsenal: C4I Storefront (v1) -> AA EELS (v2) -> follow-on (v3)` or a contract line containing modifications I through VI.
+
+Grouping precedence is fail-closed:
+
+1. exact typed predecessor, successor, amendment, modification, vehicle, or task-order relationships
+2. official identifier lineage and cited renames
+3. supported temporal continuity across the same buyer, capability, scope, and contract family
+4. AI-proposed candidate relationships held for review
+
+Only exact and supported links enter the collapsed family line automatically. Candidate links remain dashed, labeled, and reviewable. Every segment still opens its original record and evidence.
+
 ### Timeline modes
 
+- **Families**: default multi-year range-bar view grouped by contract/program lineage
 - **Agenda**: what requires attention in date order
-- **Lanes**: tracked pursuits across time
 - **Calendar**: scheduled events and deadlines
 
-Agenda is the default. Lanes and Calendar are alternate views of the same event set, not separate products.
+Families, Agenda, and Calendar are alternate views of the same normalized event and family contracts, not separate products.
 
-### Lanes
+### Timeline layers
 
-Default lanes:
+Layers enrich the family rows without replacing them:
 
-- Actions
-- Opportunities
-- Research and evidence
-- Awards and recompetes
-- Team events
+- Schedule and published windows
+- Changes and modifications
+- Follow-ons and successor candidates
+- Funding and obligations
+- Subawards and industrial-base activity
+- Milestones, research dates, and team actions
 
-Lanes can be collapsed, but they share one time axis and one selected-record context.
+The default view keeps only Schedule, Changes, and Follow-ons visible. Additional layers are progressive disclosures with their own legend and provenance.
 
 ### My Work timeline component
 
@@ -221,11 +272,11 @@ The full tracked table, completed work, and low-priority items remain behind dis
 Default content order:
 
 1. compact scope bar
-2. date navigator and mode switch
-3. shared chronological canvas
+2. window controls, layer controls, and family/agenda/calendar switch
+3. family-grouped horizontal range-bar canvas
 4. context dock on selection
 
-The full timeline removes the current wall of advanced configuration. Grouping, labels, feed selection, and field choices move into an Advanced view panel.
+The full Timeline preserves the existing scan-dense control surface while removing duplicate configuration owners. Family grouping, labels, relationship review, feed selection, and field choices live in one Advanced panel. Selecting a family, segment, milestone, or relationship opens the same shared context dock.
 
 ### Opportunities
 
@@ -284,8 +335,11 @@ Surface-specific filters remain namespaced but cannot silently survive a handoff
 
 - promote Timeline to primary navigation
 - add the unified event adapter
+- add the `TimelineFamily` adapter and exact/support/candidate relationship contract
+- preserve the dense multi-year range-bar surface as the default Families mode
+- render related versions, amendments, and follow-ons as labeled segments on one family row
+- add expandable child rows for exact underlying records
 - add Next 14 days to Today
-- preserve existing Capture Timeline behind the new agenda shell
 - add shared selection handoff between Today and Timeline
 
 ### Release 2: Shared context dock
@@ -302,15 +356,18 @@ Surface-specific filters remain namespaced but cannot silently survive a handoff
 
 ### Release 4: Advanced timeline
 
-- lanes and calendar modes
+- agenda and calendar modes
 - saved timeline views
 - batch planning and task creation from selected events
 - movement history and outcome feedback
+- assisted family-link review and merge/split controls
 
 ## 11. Acceptance criteria
 
 - A user can identify and act on the top item within 10 seconds of opening the product.
 - A user can move from a timeline signal to cited evidence and a task without losing selection.
+- Related contract/program versions can appear on one collapsed family line while every source record remains independently inspectable.
+- Candidate family relationships are never silently merged or presented as exact.
 - Today, Timeline, and Opportunities share one record dock and one action hierarchy.
 - Primary navigation contains no analytical implementation details.
 - Default surfaces show no more than one filter owner and one primary action per selected state.

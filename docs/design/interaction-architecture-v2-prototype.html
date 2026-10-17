@@ -22,6 +22,8 @@
       --red-soft: #fff0f0;
       --green: #18764b;
       --green-soft: #eaf7f0;
+      --teal: #178f8f;
+      --purple: #6f56b5;
       --shadow: 0 10px 30px rgba(22, 42, 70, .09);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
@@ -133,6 +135,62 @@
     .dock-actions .control { flex: 1; }
     .timeline-footer { padding: 10px 14px; display: flex; align-items: center; gap: 8px; color: var(--muted); background: white; font-size: 10px; }
     .timeline-footer strong { color: var(--ink); }
+    .family-timeline { display: none; min-width: 0; background: white; }
+    body.screen-timeline .layout { grid-template-columns: minmax(0, 1fr) minmax(310px, .3fr); }
+    body.screen-timeline .column, body.screen-timeline .timeline, body.screen-timeline .queue { display: none; }
+    body.screen-timeline .family-timeline { display: block; }
+    .family-head { min-height: 62px; padding: 10px 13px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid var(--line); background: #f8fafc; }
+    .family-head h2 { margin: 2px 0 0; font-size: 16px; }
+    .family-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .family-head__actions { margin-left: auto; display: flex; gap: 6px; }
+    .family-controls { padding: 7px 9px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); overflow-x: auto; background: white; }
+    .family-controls__label { margin-left: 6px; color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+    .family-controls__label:first-child { margin-left: 0; }
+    .family-controls .control { min-height: 30px; padding: 0 9px; font-size: 10px; white-space: nowrap; }
+    .family-legend { padding: 7px 11px; display: flex; align-items: center; gap: 13px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; overflow-x: auto; white-space: nowrap; }
+    .legend-key { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-swatch { width: 18px; height: 6px; border-radius: 999px; background: var(--blue); }
+    .legend-swatch.is-potential { border: 1px dashed #6b7e97; background: repeating-linear-gradient(135deg, #fff 0 3px, #dfe6ee 3px 6px); }
+    .legend-swatch.is-change { width: 3px; height: 11px; border-radius: 1px; background: #dd7d12; }
+    .legend-swatch.is-milestone { width: 8px; height: 8px; transform: rotate(45deg); border-radius: 1px; background: var(--purple); }
+    .family-scroll { overflow: auto; max-height: 590px; }
+    .family-canvas { position: relative; min-width: 1080px; }
+    .family-year-axis { display: grid; grid-template-columns: 242px repeat(4, minmax(190px, 1fr)); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line-strong); background: #eef3f8; }
+    .family-year-axis > div { padding: 7px 8px 4px; border-left: 1px solid var(--line); color: #29435f; font-size: 10px; font-weight: 850; text-align: center; }
+    .family-year-axis > div:first-child { border-left: 0; text-align: left; }
+    .family-quarter-axis { display: grid; grid-template-columns: 242px repeat(16, minmax(47.5px, 1fr)); position: sticky; top: 28px; z-index: 5; border-bottom: 1px solid var(--line); background: #f8fafc; }
+    .family-quarter-axis > div { min-height: 23px; padding: 5px 3px; border-left: 1px solid #e3e9f0; color: #78889d; font-size: 8px; font-weight: 800; text-align: center; }
+    .family-quarter-axis > div:first-child { border-left: 0; text-align: left; }
+    .family-group { padding: 7px 11px; display: flex; align-items: center; border-bottom: 1px solid var(--line); color: #3c536d; background: #edf3f8; font-size: 10px; font-weight: 850; letter-spacing: .03em; text-transform: uppercase; }
+    .family-group span:last-child { margin-left: auto; color: #6d8095; font-size: 9px; font-weight: 750; letter-spacing: 0; text-transform: none; }
+    .family-row { display: grid; grid-template-columns: 242px minmax(760px, 1fr); min-height: 66px; border-bottom: 1px solid var(--line); background: white; }
+    .family-row:hover, .family-row.is-selected { background: #f8fbff; }
+    .family-row.is-selected { box-shadow: inset 3px 0 0 var(--blue); }
+    .family-identity { padding: 9px 10px; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px; align-content: center; border-right: 1px solid var(--line); }
+    .family-toggle { width: 18px; height: 22px; padding: 0; border: 0; color: #4e6782; background: transparent; font-size: 13px; font-weight: 900; }
+    .family-identity strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .family-identity small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.3; }
+    .family-track { position: relative; min-height: 66px; background: repeating-linear-gradient(90deg, transparent 0 calc(6.25% - 1px), #e8edf3 calc(6.25% - 1px) 6.25%); }
+    .family-track::after { content: ""; position: absolute; z-index: 0; top: 0; bottom: 0; left: 34%; width: 2px; background: #ef7373; }
+    .family-bar { position: absolute; z-index: 2; top: 18px; height: 27px; padding: 0 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #0b4f8b; border-radius: 4px; color: white; background: #0b659d; box-shadow: 0 1px 4px rgba(15,64,102,.16); overflow: hidden; font-size: 9px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+    .family-bar.is-v2 { border-color: #0f6d70; background: var(--teal); }
+    .family-bar.is-v3 { border: 1px dashed #6c7890; color: #44556c; background: repeating-linear-gradient(135deg, #fff 0 5px, #e8edf3 5px 10px); }
+    .family-bar.is-purple { border-color: #58439b; background: var(--purple); }
+    .family-bar.is-muted { border-color: #6b7e97; background: #6f849c; }
+    .family-link { position: absolute; z-index: 3; top: 31px; height: 2px; background: #4e718e; }
+    .family-link::after { content: ""; position: absolute; right: -1px; top: -3px; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 6px solid #4e718e; }
+    .family-link.is-candidate { height: 0; border-top: 2px dashed #77879b; background: transparent; }
+    .family-link.is-candidate::after { border-left-color: #77879b; }
+    .family-marker { position: absolute; z-index: 4; top: 13px; width: 8px; height: 8px; transform: rotate(45deg); border: 2px solid white; border-radius: 1px; background: var(--purple); box-shadow: 0 0 0 1px #5a438f; }
+    .family-marker.is-change { top: 10px; width: 3px; height: 38px; transform: none; border: 0; border-radius: 1px; background: #df7a0a; box-shadow: none; }
+    .family-child { display: none; grid-template-columns: 242px minmax(760px, 1fr); min-height: 46px; border-bottom: 1px solid #e7ecf2; background: #fbfcfe; }
+    .family-child.is-visible { display: grid; }
+    .family-child .family-identity { padding-left: 34px; grid-template-columns: 1fr; }
+    .family-child .family-track { min-height: 46px; }
+    .family-child .family-bar { top: 10px; height: 23px; opacity: .9; }
+    .family-summary { padding: 8px 11px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); color: var(--muted); background: #f8fafc; font-size: 9px; }
+    .family-summary strong { color: var(--ink); }
+    .family-summary .control { margin-left: auto; min-height: 30px; font-size: 10px; }
     .queue { display: none; min-width: 0; background: white; }
     body.screen-opportunities .layout { grid-template-columns: minmax(0, 1fr) minmax(320px, .42fr); }
     body.screen-opportunities .column, body.screen-opportunities .timeline { display: none; }
@@ -203,6 +261,14 @@
       .dock-actions { position: sticky; bottom: 0; background: white; }
       .flow-map { grid-template-columns: 1fr; }
       .flow-step::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -15px; transform: translateX(-50%); }
+      body.screen-timeline .layout { display: flex; }
+      body.screen-timeline .family-timeline { order: 1; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+      body.screen-timeline .dock { order: 2; }
+      .family-head { align-items: start; }
+      .family-head p, .family-head__actions .control:not(.is-primary) { display: none; }
+      .family-controls { padding: 6px; }
+      .family-legend { padding: 7px 8px; }
+      .family-scroll { max-height: 480px; }
     }
   </style>
 </head>
@@ -259,6 +325,59 @@
             <footer class="timeline-footer"><span><strong>8 visible events</strong> · 2 need action</span><button class="control is-soft" type="button" data-screen-jump="timeline">Open full Timeline</button></footer>
           </section>
 
+          <section class="family-timeline" aria-label="Family timeline">
+            <header class="family-head">
+              <div><span class="eyebrow">Primary control surface</span><h2>Contract and acquisition timeline</h2><p>Related versions share one line. Expand any family for exact source records and relationship evidence.</p></div>
+              <div class="family-head__actions"><button class="control" type="button">Link records</button><button class="control" type="button">Controls</button><button class="control is-primary" type="button">Expand</button></div>
+            </header>
+            <div class="family-controls" aria-label="Timeline controls">
+              <span class="family-controls__label">Window</span>
+              <button class="control is-soft" type="button">Current</button><button class="control" type="button">1 year</button><button class="control" type="button">7 years</button><button class="control" type="button">All</button>
+              <span class="family-controls__label">Layers</span>
+              <button class="control is-soft" type="button">Schedule</button><button class="control is-soft" type="button">Changes</button><button class="control is-soft" type="button">Follow-ons</button><button class="control" type="button">Funding</button><button class="control" type="button">Subawards</button>
+              <span class="scope-spacer"></span><button class="control" type="button">Today</button>
+            </div>
+            <div class="family-legend" aria-label="Timeline legend">
+              <span class="legend-key"><span class="legend-swatch"></span> Published term</span>
+              <span class="legend-key"><span class="legend-swatch" style="background:var(--teal)"></span> Successor version</span>
+              <span class="legend-key"><span class="legend-swatch is-potential"></span> Candidate follow-on</span>
+              <span class="legend-key"><span class="legend-swatch is-change"></span> Change</span>
+              <span class="legend-key"><span class="legend-swatch is-milestone"></span> Milestone</span>
+              <span>Solid links are evidenced · dashed links require review</span>
+            </div>
+            <div class="family-scroll">
+              <div class="family-canvas">
+                <div class="family-year-axis"><div>Contract / acquisition family</div><div>2025</div><div>2026</div><div>2027</div><div>2028</div></div>
+                <div class="family-quarter-axis"><div>Versions, terms, and follow-ons</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div><div>Q1</div><div>Q2</div><div>Q3</div><div>Q4</div></div>
+
+                <div class="family-group"><span>Tracked contract families</span><span>12 families · 37 versions · 4 links need review</span></div>
+                <div class="family-row is-selected" data-family="arsenal">
+                  <div class="family-identity"><button class="family-toggle" type="button" data-family-toggle="arsenal" aria-label="Expand Application Arsenal family">▸</button><div><strong>Application Arsenal mission engineering</strong><small>3 versions · Army applications · selected</small></div></div>
+                  <div class="family-track">
+                    <button class="family-bar" type="button" style="left:2%;width:29%" data-family-select="arsenal">C4I Storefront · v1</button>
+                    <span class="family-link" style="left:31%;width:2%"></span>
+                    <button class="family-bar is-v2" type="button" style="left:33%;width:31%" data-family-select="arsenal">AA EELS · v2</button>
+                    <span class="family-link is-candidate" style="left:64%;width:3%"></span>
+                    <button class="family-bar is-v3" type="button" style="left:67%;width:23%" data-family-select="arsenal">Follow-on · v3 candidate</button>
+                    <span class="family-marker is-change" style="left:18%" title="Modification IV"></span><span class="family-marker is-change" style="left:24%" title="Modification V"></span><span class="family-marker" style="left:60%" title="Transition milestone"></span>
+                  </div>
+                </div>
+                <div class="family-child" data-family-child="arsenal"><div class="family-identity"><div><strong>C4I Storefront</strong><small>v1 · exact predecessor link</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:2%;width:29%">Base + modifications I–VI</button></div></div>
+                <div class="family-child" data-family-child="arsenal"><div class="family-identity"><div><strong>Application Arsenal EELS</strong><small>v2 · official successor evidence</small></div></div><div class="family-track"><button class="family-bar is-v2" type="button" style="left:33%;width:31%">AA EELS v2</button></div></div>
+                <div class="family-child" data-family-child="arsenal"><div class="family-identity"><div><strong>Application Arsenal follow-on</strong><small>v3 · candidate relationship · review required</small></div></div><div class="family-track"><button class="family-bar is-v3" type="button" style="left:67%;width:23%">Potential v3 window</button></div></div>
+
+                <div class="family-row" data-family="gps"><div class="family-identity"><button class="family-toggle" type="button" data-family-toggle="gps" aria-label="Expand GPS family">▸</button><div><strong>Global Positioning System control segment</strong><small>OCX phases · 4 records · Space Force</small></div></div><div class="family-track"><button class="family-bar is-muted" type="button" style="left:4%;width:22%">OCX Block 1</button><span class="family-link" style="left:26%;width:2%"></span><button class="family-bar" type="button" style="left:28%;width:31%">OCX Block 1.5</button><span class="family-link" style="left:59%;width:2%"></span><button class="family-bar is-v2" type="button" style="left:61%;width:27%">OCX follow-on</button><span class="family-marker" style="left:55%"></span></div></div>
+
+                <div class="family-row" data-family="kc"><div class="family-identity"><button class="family-toggle" type="button" data-family-toggle="kc" aria-label="Expand tanker family">▸</button><div><strong>KC-X modernization program</strong><small>3 acquisition phases · Air Force</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:1%;width:28%">KC-46 production</button><span class="family-link" style="left:29%;width:3%"></span><button class="family-bar is-purple" type="button" style="left:32%;width:32%">KC-Y bridge tanker</button><span class="family-link is-candidate" style="left:64%;width:4%"></span><button class="family-bar is-v3" type="button" style="left:68%;width:26%">NGAS / KC-Z window</button><span class="family-marker is-change" style="left:45%"></span></div></div>
+
+                <div class="family-group"><span>Single-record terms</span><span>Shown separately until lineage is supported</span></div>
+                <div class="family-row"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand record">▸</button><div><strong>Construction / ammunition facilities</strong><small>Active reported term · ends in 19 months</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:3%;width:53%">Oct 2024 – Nov 2026</button><span class="family-marker is-change" style="left:38%"></span></div></div>
+                <div class="family-row"><div class="family-identity"><button class="family-toggle" type="button" aria-label="Expand record">▸</button><div><strong>Multi-INT water supply support</strong><small>Active reported term · follow-on not yet linked</small></div></div><div class="family-track"><button class="family-bar" type="button" style="left:8%;width:62%">May 2024 – Dec 2027</button><button class="family-bar is-v3" type="button" style="left:73%;width:20%">Possible follow-on</button></div></div>
+              </div>
+            </div>
+            <footer class="family-summary"><span><strong>5 lines visible</strong> · 3 grouped families · 1 candidate link selected for review</span><button class="control" type="button">Review relationship evidence</button></footer>
+          </section>
+
           <section class="queue">
             <header class="queue-head"><div><span class="eyebrow">Review queue</span><h2>Best-fit opportunities</h2><p>Ranked by fit, urgency, and evidence quality</p></div><input class="queue-search" aria-label="Search opportunities" value="" placeholder="Search 888 opportunities"></header>
             <table class="queue-table">
@@ -274,10 +393,10 @@
           </section>
 
           <aside class="dock">
-            <header class="dock-head"><div class="dock-head__row"><div><span class="eyebrow">Selected opportunity</span><h2>Application Arsenal modernization</h2><p>BAE Systems Ordnance Systems · Official notice</p></div><button class="close" type="button" aria-label="Close">×</button></div></header>
+            <header class="dock-head"><div class="dock-head__row"><div><span class="eyebrow" id="dock-eyebrow">Selected opportunity</span><h2 id="dock-title">Application Arsenal modernization</h2><p id="dock-subtitle">BAE Systems Ordnance Systems · Official notice</p></div><button class="close" type="button" aria-label="Close">×</button></div></header>
             <div class="dock-status"><div class="fact"><small>Pursuit</small><strong>Capture</strong></div><div class="fact"><small>Owner</small><strong>Adam</strong></div><div class="fact"><small>Next milestone</small><strong>Response · Sep 30</strong></div><div class="fact"><small>Evidence</small><strong>Official · current</strong></div></div>
-            <nav class="dock-tabs" aria-label="Selected record"><button class="is-active" type="button">Summary</button><button type="button">Timeline</button><button type="button">Evidence</button><button type="button">Money</button><button type="button">Tasks</button></nav>
-            <div class="dock-body"><h3>Decision summary</h3><p>Customer access is established, but the retained notice does not publish detailed scope or set-aside terms. Confirm the buyer response before committing proposal effort.</p><div class="next-action"><small>Next action</small><strong>Prepare customer follow-up and validate acquisition route</strong></div></div>
+            <nav class="dock-tabs" aria-label="Selected record"><button class="is-active" type="button" data-dock-tab="Summary">Summary</button><button type="button" data-dock-tab="Timeline">Timeline</button><button type="button" data-dock-tab="Evidence">Evidence</button><button type="button" data-dock-tab="Money">Money</button><button type="button" data-dock-tab="Tasks">Tasks</button></nav>
+            <div class="dock-body"><h3 id="dock-section-title">Decision summary</h3><p id="dock-copy">Customer access is established, but the retained notice does not publish detailed scope or set-aside terms. Confirm the buyer response before committing proposal effort.</p><div class="next-action"><small id="dock-action-label">Next action</small><strong id="dock-action">Prepare customer follow-up and validate acquisition route</strong></div></div>
             <div class="dock-actions"><button class="control is-primary" type="button">Complete action</button><button class="control" type="button">More</button></div>
           </aside>
         </section>
@@ -295,7 +414,7 @@
   <script>
     const copy = {
       today: ["Workspace focus", "Good afternoon, Adam", "Start with the work that needs a decision, then move through time without losing the selected opportunity.", "Today", "Forward view", "Next 14 days", "Tasks, opportunity dates, research, and team events"],
-      timeline: ["Chronological workspace", "Timeline", "Review every task, deadline, milestone, research date, and material change on one time axis.", "Timeline", "Shared event model", "Tracked work over time", "Agenda, lanes, and calendar use the same selected scope"],
+      timeline: ["Primary control surface", "Timeline", "Follow contract terms, versions, amendments, recompetes, milestones, and follow-ons on one shared time axis.", "Timeline", "Family timeline", "Contract and acquisition lineage", "Related versions share one line; every source record remains inspectable"],
       opportunities: ["Opportunity intelligence", "Opportunities", "Qualify records in one stable queue, then inspect and act through the shared context dock.", "Opportunities", "Selected portfolio", "Opportunity decision horizon", "Deadlines, tasks, and evidence stay visible while reviewing records"]
     };
     function setScreen(screen) {
@@ -310,12 +429,30 @@
       document.getElementById("timeline-title").textContent = data[5];
       document.getElementById("timeline-subtitle").textContent = data[6];
       document.body.className = `screen-${screen}`;
+      document.querySelectorAll("[data-dock-tab]").forEach((button) => button.classList.toggle("is-active", button.dataset.dockTab === (screen === "timeline" ? "Timeline" : "Summary")));
+      document.getElementById("dock-eyebrow").textContent = screen === "timeline" ? "Selected family" : "Selected opportunity";
+      document.getElementById("dock-title").textContent = screen === "timeline" ? "Application Arsenal lineage" : "Application Arsenal modernization";
+      document.getElementById("dock-subtitle").textContent = screen === "timeline" ? "C4I Storefront v1 → AA EELS v2 → candidate v3" : "BAE Systems Ordnance Systems · Official notice";
+      document.getElementById("dock-section-title").textContent = screen === "timeline" ? "Family relationship" : "Decision summary";
+      document.getElementById("dock-copy").textContent = screen === "timeline" ? "C4I Storefront and AA EELS have supported predecessor/successor evidence. The proposed v3 follow-on is a candidate relationship and remains excluded from exact family metrics until reviewed." : "Customer access is established, but the retained notice does not publish detailed scope or set-aside terms. Confirm the buyer response before committing proposal effort.";
+      document.getElementById("dock-action-label").textContent = screen === "timeline" ? "Relationship review" : "Next action";
+      document.getElementById("dock-action").textContent = screen === "timeline" ? "Review the candidate v3 link and its cited evidence" : "Prepare customer follow-up and validate acquisition route";
       const url = new URL(window.location.href); url.searchParams.set("screen", screen); history.replaceState(null, "", url);
     }
     document.querySelectorAll("[data-screen-button]").forEach((button) => button.addEventListener("click", () => setScreen(button.dataset.screenButton)));
     document.querySelectorAll("[data-screen-jump]").forEach((button) => button.addEventListener("click", () => setScreen(button.dataset.screenJump)));
     document.querySelectorAll("[data-select]").forEach((button) => button.addEventListener("click", () => {
       document.querySelectorAll("[data-select]").forEach((item) => item.classList.toggle("is-selected", item.dataset.select === button.dataset.select));
+    }));
+    document.querySelectorAll("[data-family-toggle]").forEach((button) => button.addEventListener("click", () => {
+      const family = button.dataset.familyToggle;
+      const children = [...document.querySelectorAll(`[data-family-child="${family}"]`)];
+      const visible = children.some((child) => child.classList.contains("is-visible"));
+      children.forEach((child) => child.classList.toggle("is-visible", !visible));
+      button.textContent = visible ? "▸" : "▾";
+    }));
+    document.querySelectorAll("[data-family-select]").forEach((button) => button.addEventListener("click", () => {
+      document.querySelectorAll("[data-family]").forEach((row) => row.classList.toggle("is-selected", row.dataset.family === button.dataset.familySelect));
     }));
     setScreen(new URL(window.location.href).searchParams.get("screen") || "today");
   </script>
