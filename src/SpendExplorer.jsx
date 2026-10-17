@@ -25,6 +25,7 @@ const OpportunityRecordPage = lazyWithRefresh(() => import("./OpportunityRecordP
 const OpportunityPortfolioVisuals = lazyWithRefresh(() => import("./OpportunityPortfolioVisuals.jsx"), "opportunity-portfolio-visuals");
 
 const VIEWS = new Set(["radar", "today", "visuals", "timeline", "table", "charts", "record"]);
+const STRATEGY_SCOPE_KEY = "dbi:strategy-scope:v1";
 
 function exportAcquisitionRegister(records) {
   const rows = records.map((record) => record.acquisitionIntel).filter(Boolean);
@@ -44,6 +45,17 @@ function readRoute() {
 
 function readTableNoticeType(params) {
   return params.get("noticeType") || parseMultiValues(params.get("capNoticeType"))[0] || "all";
+}
+
+function readStrategyScope(params = new URLSearchParams(window.location.hash.split("?")[1] || "")) {
+  const key = params.get("strategyScope") || "";
+  if (!key) return null;
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(STRATEGY_SCOPE_KEY) || "null");
+    return parsed?.key === key && Array.isArray(parsed.ids) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function updateRoute(view, patch = {}) {
@@ -95,6 +107,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return { technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" };
   });
+  const [strategyScope, setStrategyScope] = useState(readStrategyScope);
   const [scopeExpanded, setScopeExpanded] = useState(false);
   const dispositions = useRecordDispositions();
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
@@ -123,6 +136,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       setQuery(params.get("capQuery") || "");
       setFocusedRecordId(params.get("capRecord") || "");
       setTableFilters({ technology: params.get("technology") || "all", noticeType: readTableNoticeType(params), branch: params.get("orgBranch") || "all", component: params.get("orgComponent") || "all", office: params.get("orgOffice") || "all", disposition: params.get("records") === "tombstoned" ? "tombstoned" : "active", changes: params.get("changes") === "today" ? "today" : "all" });
+      setStrategyScope(readStrategyScope(params));
     };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -201,8 +215,9 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       && (tableFilters.branch === "all" || record.organization?.branch === tableFilters.branch)
       && (tableFilters.component === "all" || record.organization?.component === tableFilters.component)
       && (tableFilters.office === "all" || record.organization?.office === tableFilters.office)
+      && (!strategyScope?.ids?.length || strategyScope.ids.includes(record.opportunityId || record.id || record.reference || record.sourceRecordId))
       && (tableFilters.changes !== "today" || !latestFeedDate || String(record.lastChangedAt || record.firstSeenAt || "").slice(0, 10) === latestFeedDate);
-  }).map((record) => ({ ...record, fitAssessment: classifyOpportunityFit(record) })), [dispositions.tombstonedIds, latestFeedDate, rows, tableFilters]);
+  }).map((record) => ({ ...record, fitAssessment: classifyOpportunityFit(record) })), [dispositions.tombstonedIds, latestFeedDate, rows, strategyScope, tableFilters]);
   const setTableFilter = (key, value) => {
     const next = { ...tableFilters, [key]: value };
     if (key === "branch") { next.component = "all"; next.office = "all"; }
@@ -274,13 +289,14 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
     <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
-  if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, office, technology, disposition: "active", changes: "all" }; setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "" }); }} /></Suspense></SpendViewBoundary>;
+  if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, office, technology, disposition: "active", changes: "all" }; setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "", strategyScope: "" }); }} onQuadrant={(quadrant, ids) => { const scope = { key: `ansoff-${quadrant.id}`, label: `${quadrant.code} / ${quadrant.name}`, ids }; window.sessionStorage.setItem(STRATEGY_SCOPE_KEY, JSON.stringify(scope)); setStrategyScope(scope); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", capRecord: "", strategyScope: scope.key }); }} /></Suspense></SpendViewBoundary>;
   if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="record workspace" />}><OpportunityRecordPage records={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} recordId={focusedRecordId} tabs={tabs} /></Suspense></SpendViewBoundary>;
   if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => updateRoute("record", { capRecord: recordId })} /></Suspense></SpendViewBoundary>;
   if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Workbench" summary="Search, qualify, triage, and investigate source-backed opportunities from one operating queue." metrics={tableMetrics} metricLabel="Opportunity workbench summary" tabs={tabs} />
     <ControlPageBody compact>
+      {strategyScope ? <div className="if-alert if-alert--info spend-explorer__strategy-scope" role="status"><span><strong>Strategic matrix scope</strong>Showing {strategyScope.label} opportunities from the current Ansoff baseline.</span><button type="button" className="if-button if-button--secondary" onClick={() => { setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); updateRoute("table", { strategyScope: "" }); }}>Clear scope</button></div> : null}
       {tableFilters.changes === "today" ? <div className="if-alert if-alert--info spend-explorer__change-scope" role="status"><span><strong>Complete daily update ledger</strong>Showing every retained record changed on {date(latestFeedDate)}.</span><button type="button" className="if-button if-button--secondary" onClick={() => setTableFilter("changes", "all")}>Show all records</button></div> : null}
       <section className={`capture-filters${scopeExpanded ? " is-expanded" : ""}`} aria-label="Opportunity workbench filters" data-opportunity-workbench-scope>
         <div className="capture-filters__heading"><strong>Filters</strong><span>{tableRows.length.toLocaleString()} opportunities{activeScopeFilterCount ? ` · ${activeScopeFilterCount} active` : ""}</span><button type="button" className="capture-filter-toggle" aria-expanded={scopeExpanded} onClick={() => setScopeExpanded((value) => !value)}>{scopeExpanded ? "Fewer filters" : "More filters"}</button>{activeScopeFilterCount ? <button type="button" onClick={() => { setTableFilters({ technology: "all", noticeType: "all", branch: "all", component: "all", office: "all", disposition: "active", changes: "all" }); updateRoute("table", { technology: "", noticeType: "", orgBranch: "", orgComponent: "", orgOffice: "", records: "", changes: "" }); }}><RotateCcw size={14} />Reset ({activeScopeFilterCount})</button> : null}</div>
