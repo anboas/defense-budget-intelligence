@@ -31,6 +31,7 @@ function publicView(row) {
   const specification = row.query_json || {};
   return {
     id: row.id, name: row.name, query: specification.query || "", filters: specification.filters || {},
+    analysis: specification.analysis || null,
     alertMode: row.alert_mode, unreadCount: Number(row.unread_count || 0), latestMatchAt: row.latest_match_at || null,
     lastOpenedAt: row.last_opened_at, savedAt: row.created_at, updatedAt: row.updated_at,
   };

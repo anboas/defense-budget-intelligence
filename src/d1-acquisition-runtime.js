@@ -97,7 +97,7 @@ function portfolioSource(value) {
   const source = cleanText(value, 80).toLowerCase();
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(source) ? source : "navy-acquisition-intelligence";
 }
-function view(row) { const spec = parsed(row.query_json, {}); return { id: row.id, name: row.name, query: spec.query || "", filters: spec.filters || {}, alertMode: row.alert_mode, unreadCount: Number(row.unread_count || 0), latestMatchAt: row.latest_match_at || null, lastOpenedAt: row.last_opened_at, savedAt: row.created_at, updatedAt: row.updated_at }; }
+function view(row) { const spec = parsed(row.query_json, {}); return { id: row.id, name: row.name, query: spec.query || "", filters: spec.filters || {}, analysis: spec.analysis || null, alertMode: row.alert_mode, unreadCount: Number(row.unread_count || 0), latestMatchAt: row.latest_match_at || null, lastOpenedAt: row.last_opened_at, savedAt: row.created_at, updatedAt: row.updated_at }; }
 function run(row) { return row ? { id: row.id, source: row.source, status: row.status, trigger: row.trigger_type, recordsSeen: Number(row.records_seen || 0), recordsAdded: Number(row.records_added || 0), recordsUpdated: Number(row.records_updated || 0), linksAdded: Number(row.links_added || 0), errorCode: row.error_code || null, errorMessage: row.error_message || null, startedAt: row.started_at, completedAt: row.completed_at || null } : null; }
 function record(row) { return { ...parsed(row.record_json, {}), firstSeenAt: row.first_seen_at, lastSeenAt: row.last_seen_at, lastChangedAt: row.last_changed_at, removedAt: row.removed_at || null }; }
 

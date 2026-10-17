@@ -173,15 +173,62 @@ const SAVED_VIEW_FILTERS = Object.freeze({
   psc: 40,
 });
 
+const STRATEGY_LENSES = new Set(["ansoff", "win-readiness"]);
+const STRATEGY_VIEWS = new Set(["customer", "capability"]);
+const STRATEGY_SPEND_MEASURES = new Set(["request", "obligations", "award"]);
+const STRATEGY_STAGES = new Set(["all", "award", "solicitation", "shaping", "forecast", "other"]);
+
+function savedStringArray(values, limit, itemLimit) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => text(value, itemLimit)).filter(Boolean))].slice(0, limit);
+}
+
+function savedWeights(values, keys, fallback) {
+  return Object.fromEntries(keys.map((key) => {
+    if (values?.[key] === null || values?.[key] === undefined || values?.[key] === "") return [key, fallback[key]];
+    const parsed = Number(values?.[key]);
+    return [key, Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : fallback[key]];
+  }));
+}
+
+function savedBoundedNumber(value, fallback, minimum = 0, maximum = 100) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(minimum, Math.min(maximum, Math.round(parsed))) : fallback;
+}
+
+function normalizeStrategyAnalysis(input = {}) {
+  if (input?.kind !== "strategy") return null;
+  const attractiveness = { fit: 35, urgency: 25, funding: 25, evidence: 15 };
+  const ability = { customer: 30, capability: 30, route: 25, pursuit: 15 };
+  return {
+    kind: "strategy",
+    version: 1,
+    lens: STRATEGY_LENSES.has(input.lens) ? input.lens : "ansoff",
+    view: STRATEGY_VIEWS.has(input.view) ? input.view : "customer",
+    spendMeasure: STRATEGY_SPEND_MEASURES.has(input.spendMeasure) ? input.spendMeasure : "request",
+    fiscalYear: [2025, 2026, 2027].includes(Number(input.fiscalYear)) ? Number(input.fiscalYear) : 2027,
+    trackedOnly: Boolean(input.trackedOnly),
+    stage: STRATEGY_STAGES.has(input.stage) ? input.stage : "all",
+    minimumFit: savedBoundedNumber(input.minimumFit, 0),
+    threshold: savedBoundedNumber(input.threshold, 50, 40, 80),
+    buyers: savedStringArray(input.buyers, 40, 320),
+    capabilities: savedStringArray(input.capabilities, 20, 120),
+    attractivenessWeights: savedWeights(input.attractivenessWeights, Object.keys(attractiveness), attractiveness),
+    abilityWeights: savedWeights(input.abilityWeights, Object.keys(ability), ability),
+  };
+}
+
 export function normalizeSavedAcquisitionView(input = {}) {
   const filters = {};
   for (const [key, limit] of Object.entries(SAVED_VIEW_FILTERS)) {
     const value = text(input?.filters?.[key], limit);
     if (value) filters[key] = value;
   }
+  const analysis = normalizeStrategyAnalysis(input?.analysis);
   return {
     query: text(input?.query, 500),
     filters,
+    ...(analysis ? { analysis } : {}),
   };
 }
 
