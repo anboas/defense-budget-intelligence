@@ -35,6 +35,7 @@ const [application] = await new PurgeCSS().purge({
   css: ["src/styles.css"],
   defaultExtractor: extractor,
   safelist: {
+    standard: ["if-picker__trigger"],
     greedy: [
       /^is-/,
       /^has-/,

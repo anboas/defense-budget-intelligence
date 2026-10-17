@@ -54,7 +54,7 @@ function EvidenceDrawer({ record, onClose, books, sourcePackageUrl, snapshotGene
 
 function ResetFilters({ filters, defaults, onReset }) {
   const active = Object.keys(defaults).some((key) => filters[key] !== defaults[key]);
-  return <button type="button" className="reset-filters" onClick={onReset} disabled={!active}><RotateCcw size={14} aria-hidden="true" /> Reset</button>;
+  return <button type="button" className="if-btn if-btn--secondary reset-filters" onClick={onReset} disabled={!active}><RotateCcw size={14} aria-hidden="true" /> Reset</button>;
 }
 
 function ControlField({ label, value, options, onChange, ariaLabel = label, searchable }) {
@@ -145,7 +145,7 @@ export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, s
 
   return <div className="grid awards-page" data-awards-page>
     <ControlWorkbenchHeader eyebrow="Award-level spend" title="Awards" summary="Search, inspect, and export the complete matched award set from the cached USAspending sample." metrics={metrics} metricLabel="Award filter metrics" actions={<AnalysisActions rows={filteredAwards} filename="filtered-awards" sourceUrlForRow={sourceUrl} exportMetadata={{ snapshotGeneratedAt, methodology }} />} controls={<div className="award-filter-bar" data-award-filter-bar>
-      <label className="searchbox"><Search size={15} aria-hidden="true" /><input aria-label="Search awards" placeholder="Search award IDs, vendors, buyers, descriptions" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} /></label>
+      <label className="if-field searchbox award-search"><span className="if-field__label">Search</span><Search size={15} aria-hidden="true" /><input className="if-input" aria-label="Search awards" placeholder="Search award IDs, vendors, buyers, descriptions" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} /></label>
       <ControlField label="Area" value={filters.area} options={[["all", "All areas"], ...areaOptions.map((option) => [option.id, option.label])]} onChange={(area) => setFilters({ ...filters, area })} />
       <ControlField label="Buyer" searchable value={filters.buyer} options={[["all", "All buyers"], ...buyerOptions.map((option) => [option.id, option.label])]} onChange={(buyer) => setFilters({ ...filters, buyer })} />
       <ControlField label="Vendor" searchable value={filters.vendor} options={[["all", "All vendors"], ...vendorOptions.map((option) => [option.id, option.label])]} onChange={(vendor) => setFilters({ ...filters, vendor })} />

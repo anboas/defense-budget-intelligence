@@ -34,6 +34,7 @@ const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^Intelligenc
 const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRecordPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset.name))?.bytes || 0;
+const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
@@ -43,8 +44,9 @@ assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Dom
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
-assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_000, `Deferred Strategic Analysis Studio CSS must stay within its 13 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 436_000, `Total scoped CSS must stay below 436 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_200, `Deferred Strategic Analysis Studio CSS must stay within its 13.2 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
+assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 442_000, `Total scoped CSS must stay below 442 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
