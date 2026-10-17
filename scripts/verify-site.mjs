@@ -1287,6 +1287,7 @@ try {
     const timeline = surface.querySelector("[data-capture-gantt-section]")?.getBoundingClientRect();
     return {
       filterLeft: filters?.left || 0,
+      filterWidth: filters?.width || 0,
       timelineLeft: timeline?.left || 0,
       headingHeight: heading?.height || 0,
       scopeHeight: scope?.height || 0,
@@ -1298,7 +1299,7 @@ try {
   });
   assert.ok(Math.abs(primaryTimelineChrome.filterLeft - primaryTimelineChrome.timelineLeft) <= 1, `Find Records and Timeline should share one left gutter: ${JSON.stringify(primaryTimelineChrome)}`);
   assert.ok(primaryTimelineChrome.headingHeight <= 36, `Desktop Timeline controls should stay on one compact toolbar row: ${JSON.stringify(primaryTimelineChrome)}`);
-  assert.ok(primaryTimelineChrome.scopeHeight <= 30 && primaryTimelineChrome.scopeWidth <= 370, `Timeline scope should be compact rather than a full-width card: ${JSON.stringify(primaryTimelineChrome)}`);
+  assert.ok(primaryTimelineChrome.scopeHeight <= 30 && primaryTimelineChrome.scopeWidth <= Math.min(420, primaryTimelineChrome.filterWidth * 0.35), `Timeline scope should be compact rather than a full-width card: ${JSON.stringify(primaryTimelineChrome)}`);
   assert.ok(primaryTimelineChrome.scopeButtonHeights.every((height) => height >= 27 && height <= 30), `Desktop Timeline scope buttons should match compact toolbar geometry: ${JSON.stringify(primaryTimelineChrome)}`);
   assert.ok(Math.abs(primaryTimelineChrome.scopeCenter - primaryTimelineChrome.filterCenter) <= 1, `Timeline scope and utility actions should share the same vertical center: ${JSON.stringify(primaryTimelineChrome)}`);
   await page.getByRole("button", { name: /All intelligence/i }).click();
