@@ -8600,6 +8600,8 @@ td .dot {
 }
 
 @media (max-width: 520px) {
+  .transaction-analytics-page > .if-workbench-header > .if-page-header { padding-block: var(--if-space-1); }
+  .transaction-analytics-page > .if-workbench-header .if-page-header__heading { gap: 0; }
   .transaction-analytics-page > .if-workbench-header > .if-management-grid--strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
