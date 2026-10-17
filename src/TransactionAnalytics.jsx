@@ -32,6 +32,7 @@ import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
+import "./RouteControlConsistency.css";
 const AnalyticsRecordDrawer = lazy(() => import("./AnalyticsRecordDrawer.jsx"));
 
 function useNarrowAnalyticsViewport() {
@@ -1978,14 +1979,14 @@ export default function TransactionAnalytics({
       <ControlWorkbenchHeader eyebrow={embedded ? "Spend intelligence" : "Factual analytical workbench"} title={embedded ? "Spend Explorer" : "Contract & Transaction Analytics"} summary={embedded ? "Timeline, records, and charts share one public-data scope." : "Cross-filter schedules, reported values, recipients, offices, acquisition structure, provenance, FPDS actions, and exact prime-to-subaward counts."} metrics={metrics} metricLabel="Current analytical scope" tabs={<>{embeddedTabs}<nav className="analytics-view-tabs" aria-label="Analytics view">
           {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => { setActiveView(id); updateAnalyticsView(id); }}><Icon size={15} aria-hidden="true" />{label}</button>)}
         </nav></>} controls={<div className="analytics-commandbar__controls">
-          <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
+          <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input className="if-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
           <div className="analytics-commandbar__secondary">
             <div className="analytics-mobile-chart-picker"><span>Chart</span><ControlSelect ariaLabel="Visible mobile chart" value={mobileChartId} options={chartOptions.filter(([id]) => activeChartIds.includes(id))} onChange={(chartId) => setMobileChartByView((current) => ({ ...current, [activeView]: chartId }))} /></div>
             <div className="analytics-record-type"><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>
             <div className="analytics-dimension"><span>Dimension</span><ControlSelect ariaLabel="Dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
             <div className="analytics-measure"><span>Measure</span><ControlSelect ariaLabel="Measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
-            <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
-            {activeFilters ? <button type="button" className="analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
+            <button type="button" className="if-btn if-btn--secondary analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
+            {activeFilters ? <button type="button" className="if-btn if-btn--secondary analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
           </div>
         </div>} secondaryControls={<><details className="analytics-manager" data-analytics-manager>
           <summary><Filter size={14} aria-hidden="true" /><strong>Filter data & manage charts</strong><span>{activeFilters ? `${activeFilters} active filters` : "All records"} · {activeChartIds.length} of {chartOptions.length} charts</span></summary>
@@ -1993,7 +1994,7 @@ export default function TransactionAnalytics({
             <div className="analytics-manager__mobile-actions">
               <div><span>Dimension</span><ControlSelect ariaLabel="Mobile dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
               <div><span>Measure</span><ControlSelect ariaLabel="Mobile measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
-              <button type="button" className="analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
+              <button type="button" className="if-btn if-btn--secondary analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
             </div>
             {filterDefinitions.map((definition) => (
               <SearchMultiSelect

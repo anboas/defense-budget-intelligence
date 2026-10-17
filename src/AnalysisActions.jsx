@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Bookmark, Copy, Download } from "lucide-react";
+import "./RouteControlConsistency.css";
 
 function csvCell(value) {
   const normalized = value && typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
@@ -88,10 +89,10 @@ export default function AnalysisActions({
   }
   return (
     <div className="analysis-actions" data-analysis-actions>
-      <button type="button" onClick={handleCopy}><Copy size={14} aria-hidden="true" />{copyLabel}</button>
-      <button type="button" onClick={handleWatch} aria-pressed={watched}><Bookmark size={14} aria-hidden="true" />{watched ? "Saved" : "Save view"}</button>
-      <button type="button" onClick={() => downloadRows(rows, filename, "csv", sourceUrlForRow, exportMetadata)} disabled={!rows.length}><Download size={14} aria-hidden="true" />CSV</button>
-      <button type="button" onClick={() => downloadRows(rows, filename, "json", sourceUrlForRow, exportMetadata)} disabled={!rows.length}><Download size={14} aria-hidden="true" />JSON</button>
+      <button className="if-btn if-btn--secondary" type="button" onClick={handleCopy}><Copy size={14} aria-hidden="true" />{copyLabel}</button>
+      <button className="if-btn if-btn--secondary" type="button" onClick={handleWatch} aria-pressed={watched}><Bookmark size={14} aria-hidden="true" />{watched ? "Saved" : "Save view"}</button>
+      <button className="if-btn if-btn--secondary" type="button" onClick={() => downloadRows(rows, filename, "csv", sourceUrlForRow, exportMetadata)} disabled={!rows.length}><Download size={14} aria-hidden="true" />CSV</button>
+      <button className="if-btn if-btn--secondary" type="button" onClick={() => downloadRows(rows, filename, "json", sourceUrlForRow, exportMetadata)} disabled={!rows.length}><Download size={14} aria-hidden="true" />JSON</button>
       <span role="status" aria-live="polite">{message}</span>
     </div>
   );

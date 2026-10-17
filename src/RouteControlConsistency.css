@@ -1,0 +1,146 @@
+/* Route-owned controls resolve to the shared system after legacy CSS. */
+.analysis-actions .if-btn,
+.reset-filters,
+.analytics-commandbar__controls .if-btn {
+  min-height: var(--if-control-height);
+  padding-inline: var(--if-control-padding-x);
+  border-radius: var(--if-control-radius);
+  font-size: var(--if-font-size-sm);
+  font-weight: var(--if-font-weight-semibold);
+}
+.award-filter-bar { align-items: end; }
+.award-filter-bar label > span,
+.award-filter-bar .control-field > span,
+.analytics-commandbar__controls > label,
+.analytics-commandbar__secondary > div,
+.analytics-manager__grid .capture-filter > span {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-xs);
+  font-weight: var(--if-font-weight-bold);
+  letter-spacing: 0;
+  line-height: var(--if-line-height-snug);
+}
+.award-filter-bar input,
+.award-filter-bar select,
+.analytics-search .if-input {
+  min-height: var(--if-control-height);
+  padding-block: 0;
+  border-color: var(--if-border);
+  border-radius: var(--if-control-radius);
+  background: var(--if-bg-surface);
+  color: var(--if-text);
+  font-size: var(--if-font-size-sm);
+  font-weight: var(--if-font-weight-semibold);
+}
+.award-search > svg {
+  top: auto !important;
+  bottom: calc((var(--if-control-height) - 15px) / 2) !important;
+  transform: none !important;
+}
+.analytics-commandbar__controls,
+.analytics-commandbar__secondary { align-items: end; }
+.analytics-commandbar__secondary { display: contents; }
+.analytics-search > svg { bottom: calc((var(--if-control-height) - 15px) / 2); }
+.analytics-reset,
+.analytics-export {
+  min-height: var(--if-control-height);
+  padding: 0 var(--if-control-padding-x);
+  font-size: var(--if-font-size-sm);
+}
+.analytics-manager > summary {
+  min-height: var(--if-control-height);
+  padding-block: var(--if-space-2);
+  font-size: var(--if-font-size-sm);
+}
+.analytics-manager > summary span { font-size: var(--if-font-size-2xs); }
+.analytics-active-filters button {
+  min-height: var(--if-control-height);
+  padding: 0 var(--if-space-2);
+  border-radius: var(--if-control-radius);
+  font-size: var(--if-font-size-2xs);
+}
+.dbi-data-table__toolbar {
+  min-height: 3.25rem;
+  gap: var(--if-space-2);
+  padding: var(--if-space-2);
+}
+.dbi-data-table__status,
+.dbi-data-table__footer,
+.dbi-data-table__filter,
+.dbi-data-table__columns label { font-size: var(--if-font-size-xs); }
+.dbi-data-table__status strong { font-size: var(--if-font-size-sm); }
+.dbi-data-table__tools .if-btn,
+.dbi-data-table__tools .if-picker__trigger,
+.dbi-data-table__primary-filter .if-picker__trigger,
+.dbi-data-table__filter .if-picker__trigger,
+.dbi-data-table__search .if-input,
+.dbi-data-table__filters > .if-btn {
+  min-height: var(--if-control-height);
+  height: var(--if-control-height);
+  font-size: var(--if-font-size-sm);
+}
+.dbi-data-table__search > .if-icon-btn {
+  right: 0;
+  width: var(--if-control-height);
+  height: var(--if-control-height);
+  border: 0;
+  background: transparent;
+}
+.dbi-data-table__columns > div > header .if-btn,
+.dbi-data-table__column-order .if-icon-btn {
+  min-height: 1.875rem;
+  height: 1.875rem;
+  font-size: var(--if-font-size-xs);
+}
+.dbi-data-table__column-order .if-icon-btn { width: 1.875rem; min-width: 1.875rem; }
+.dbi-table-actions > :where(a, button) {
+  min-height: var(--if-control-height);
+  padding: 0 var(--if-space-2);
+  border-radius: var(--if-control-radius);
+  font-size: var(--if-font-size-sm);
+  font-weight: var(--if-font-weight-semibold);
+}
+.dbi-data-table .if-table td :where(input[type="date"], input[type="text"], select):not([class]) {
+  min-height: var(--if-control-height);
+  padding-inline: var(--if-space-2);
+  border: var(--if-outline);
+  border-radius: var(--if-control-radius);
+  background: var(--if-bg-surface);
+  color: var(--if-text);
+  font: inherit;
+  font-size: var(--if-font-size-sm);
+}
+@media (max-width: 720px) {
+  .analytics-commandbar__secondary { display: grid; }
+  .award-filter-bar label > span,
+  .award-filter-bar .control-field > span,
+  .analytics-commandbar__controls > label,
+  .analytics-commandbar__secondary > div { font-size: var(--if-font-size-xs); }
+  .award-filter-bar input,
+  .award-filter-bar select,
+  .analytics-search .if-input,
+  .analysis-actions .if-btn,
+  .reset-filters,
+  .analytics-commandbar__controls .if-btn {
+    min-height: 2.75rem;
+    height: 2.75rem;
+    font-size: var(--if-font-size-sm);
+  }
+  .dbi-data-table__tools .if-btn,
+  .dbi-data-table__tools .if-picker__trigger,
+  .dbi-data-table__primary-filter .if-picker__trigger,
+  .dbi-data-table__filter .if-picker__trigger,
+  .dbi-data-table__filters > .if-btn {
+    min-height: 2.75rem;
+    height: 2.75rem;
+  }
+  .dbi-data-table__footer .if-select {
+    min-height: 2.75rem;
+    height: 2.75rem;
+  }
+  .dbi-data-table__columns > div > header .if-btn,
+  .dbi-data-table__column-order .if-icon-btn {
+    min-height: 2.75rem;
+    height: 2.75rem;
+  }
+}

@@ -6256,6 +6256,7 @@ td .dot {
 .dbi-data-table__footer .if-page-btn { display: grid; place-items: center; width: 32px; height: 32px; }
 .dbi-table-icon-button.is-active { border-color: #005ea8; background: #d9e8f6; color: #005ea8; }
 .dbi-table-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: max-content; min-width: 0; margin-inline-start: auto; }
+[data-ops-event-table] .dbi-table-actions { gap: 2px; }
 .dbi-table-actions > :where(a, button) {
   display: inline-flex;
   align-items: center;
@@ -6345,6 +6346,7 @@ td .dot {
   .ops-request-detail__wide { grid-column: auto; }
   .dbi-data-table__footer { align-items: flex-start; flex-direction: column; }
   .dbi-data-table__footer .if-pagination { width: 100%; justify-content: space-between; }
+  .dbi-data-table__search .if-input { height: 44px !important; min-height: 44px !important; }
   .dbi-data-table__footer .if-page-btn { width: 44px; min-width: 44px; height: 44px; }
   .dbi-data-table__footer .dbi-page-edge { display: none; }
   .dbi-table-detail-grid { grid-template-columns: 1fr; }
@@ -6394,13 +6396,14 @@ td .dot {
   .analytics-commandbar > nav button,
   .analytics-commandbar button,
   .analytics-commandbar select,
-  .analytics-commandbar input { min-height: 44px; }
+  .analytics-commandbar input { min-height: 44px !important; }
   .analytics-commandbar__controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-commandbar__controls > label:first-child { grid-column: 1 / -1; }
   .analytics-reset { grid-column: 1 / -1; }
   .analytics-search input { min-height: 44px; }
   .analytics-search > svg { bottom: 14px; }
-  .analytics-manager > summary { min-height: 44px; }
+  .analytics-manager > summary { min-height: 44px !important; }
+  .analytics-manager input { min-height: 44px !important; }
   .analytics-manager > summary span { max-width: 46%; text-align: right; }
   .analytics-manager__grid { grid-template-columns: 1fr; }
   .analytics-chart-manager { grid-column: auto; }
@@ -8597,6 +8600,8 @@ td .dot {
 }
 
 @media (max-width: 520px) {
+  .transaction-analytics-page > .if-workbench-header > .if-page-header { padding-block: var(--if-space-1); }
+  .transaction-analytics-page > .if-workbench-header .if-page-header__heading { gap: 0; }
   .transaction-analytics-page > .if-workbench-header > .if-management-grid--strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
