@@ -23,7 +23,7 @@ function resolveChange(change, recordsById) {
   const record = recordsById.get(String(change.opportunityId || "").toUpperCase()) || recordsById.get(String(change.sourceRecordId || "").toUpperCase());
   return { id: `${change.change}:${change.opportunityId || change.sourceRecordId}`, kind: change.change, title: change.title || record?.title || change.sourceRecordId || "Untitled public record", reference: record?.id || record?.reference || change.sourceRecordId || "Identifier not published", sourceSystem: change.sourceSystem || record?.sourceSystem || "Published source", opportunityId: record?.opportunityId || change.opportunityId || null, date: record?.lastChangedAt || record?.firstSeenAt || null, fields: change.fields || record?.changedFields || [] };
 }
-function recordHref(row) { return row.opportunityId ? `#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(row.opportunityId)}` : "#/budget-spend/explorer?spendView=table&changes=today"; }
+function recordHref(row) { return row.opportunityId ? `#/budget-spend/timeline?capRecord=${encodeURIComponent(row.opportunityId)}` : "#/budget-spend/explorer?spendView=table&changes=today"; }
 
 export default function SpendToday({ rows, discoveryFeed, savedViews, savedViewSummary, runtimePanel }) {
   const notifications = useNotifications();

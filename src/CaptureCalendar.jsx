@@ -28,10 +28,10 @@ import { useRecordGroups } from "./record-groups.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import LifecycleGroupPanel from "./LifecycleGroupPanel.jsx";
 import { TimelineProgressiveLoader, useProgressiveTimelineRows } from "./TimelineProgressiveRows.jsx";
+import TimelineScopeNav, { replaceTimelineScope } from "./TimelineScopeNav.jsx";
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
-const EMPTY_TIMELINE_ITEMS = Object.freeze([]);
-const TIMELINE_FIRST_YEAR = 2023;
+const EMPTY_TIMELINE_ITEMS = Object.freeze([]); const TIMELINE_FIRST_YEAR = 2023;
 const TIMELINE_LAST_YEAR = 2034;
 const TIMELINE_CURRENT_YEAR = Math.max(TIMELINE_FIRST_YEAR, Math.min(TIMELINE_LAST_YEAR, new Date().getUTCFullYear()));
 const TIMELINE_YEARS = Array.from({ length: TIMELINE_LAST_YEAR - TIMELINE_FIRST_YEAR + 1 }, (_value, index) => String(TIMELINE_FIRST_YEAR + index));
@@ -90,7 +90,6 @@ const GROUP_BY_OPTIONS = [
   ["subaward-posture", "Subaward posture"],
   ["acquisition-source", "Acquisition source"], ["acquisition-area", "Acquisition work area"], ["acquisition-route", "Acquisition access route"], ["acquisition-priority", "Acquisition priority"], ["set-aside", "Set-aside"],
 ];
-
 const ROW_FIELD_OPTIONS = [
   ["party", "Company / sponsor"],
   ["reference", "Award / notice reference"],
@@ -109,7 +108,6 @@ const ROW_FIELD_OPTIONS = [
   ["subawards", "Subaward count / value"],
   ["acquisition-source", "Acquisition source"], ["acquisition-area", "Acquisition work area"], ["acquisition-route", "Acquisition access route"], ["acquisition-score", "Acquisition priority / score"], ["set-aside", "Set-aside"],
 ];
-
 const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
 const ROW_FIELD_IDS = new Set(ROW_FIELD_OPTIONS.map(([id]) => id));
 const MAX_ROW_FIELDS = 4;
@@ -128,23 +126,19 @@ const FEED_OPTIONS = [
   ["subawards", "USAspending subaward actions"],
 ];
 const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
-
 function normalizeMultiValue(value, options, emptyValue = "all") {
   const available = new Set(options);
   return serializeMultiValues(parseMultiValues(value).filter((item) => available.has(item)), emptyValue);
 }
-
 function normalizeFieldIds(value) {
   if (value === "none") return "none";
   const fields = [...new Set(String(value || "").split(",").filter((field) => ROW_FIELD_IDS.has(field)))];
   return fields.length ? fields.slice(0, MAX_ROW_FIELDS).join(",") : FILTER_DEFAULTS.capFields;
 }
-
 function selectedFieldIds(value) {
   const normalized = normalizeFieldIds(value);
   return normalized === "none" ? [] : normalized.split(",");
 }
-
 const MINIMUM_VALUES = {
   all: 0,
   "1m": 1_000_000,
@@ -153,7 +147,6 @@ const MINIMUM_VALUES = {
   "100m": 100_000_000,
   "500m": 500_000_000,
 };
-
 const LABELS = {
   "contract-performance": "Contract performance",
   "acquisition-window": "Acquisition window",
@@ -175,7 +168,6 @@ const LABELS = {
 function label(value) {
   return LABELS[value] || value?.replaceAll("-", " ") || "Not published";
 }
-
 function formatMoney(value) {
   const amount = Number(value || 0);
   if (!amount) return "Not published";
@@ -183,12 +175,10 @@ function formatMoney(value) {
   if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(amount >= 10_000_000 ? 1 : 2)}M`;
   return `$${Math.round(amount / 1_000).toLocaleString()}K`;
 }
-
 function formatDate(value) {
   if (!value) return "Not published";
   return new Date(`${value}T12:00:00Z`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 }
-
 function compactDate(value) {
   if (!value) return "Undated";
   return new Date(`${value}T12:00:00Z`).toLocaleDateString(undefined, { year: "2-digit", month: "short", timeZone: "UTC" });
@@ -1119,7 +1109,7 @@ function LifecycleMatrix({ records, portfolios, onSelect }) {
   );
 }
 
-export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] }, embedded = false, embeddedTabs = null, onOpenRecord = null }) {
+export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] }, embedded = false, embeddedTabs = null, onOpenRecord = null, primary = false, defaultScope = "all" }) {
   const [filters, setFilters] = useCaptureFilters();
   const [discoveryFeed, setDiscoveryFeed] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
@@ -1133,6 +1123,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [ganttToolsOpen, setGanttToolsOpen] = useState(false);
   const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const [timelineScope, setTimelineScopeState] = useState(() => { const routed = new URLSearchParams(window.location.hash.split("?")[1] || "").get("timelineScope"); return ["tracked", "all"].includes(routed) ? routed : defaultScope; });
   const [mergeMode, setMergeMode] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capLink") === "1");
   const [mergeSelectedIds, setMergeSelectedIds] = useState(() => { const params = new URLSearchParams(window.location.hash.split("?")[1] || ""); const seed = params.get("capSeed"); return params.get("capLink") === "1" && seed ? new Set([seed]) : new Set(); });
   const ganttDialogRef = useRef(null);
@@ -1337,7 +1328,9 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   }, [activeMultiFilters, asOf, dispositions.tombstonedIds, enriched, filters, management.watchedIds, timelineEndYear, timelineStartYear]);
 
   const visible = filtered;
-  const timelineRecords = useMemo(() => collapseLifecycleRecords(visible, recordGroups.groups), [recordGroups.groups, visible]);
+  const scopedVisible = useMemo(() => timelineScope === "tracked" ? visible.filter((record) => management.watchedIds.has(record.opportunityId) || record.opportunityId === selectedId) : visible, [management.watchedIds, selectedId, timelineScope, visible]);
+  const timelineRecords = useMemo(() => collapseLifecycleRecords(scopedVisible, recordGroups.groups), [recordGroups.groups, scopedVisible]);
+  const trackedRecordCount = useMemo(() => visible.filter((record) => management.watchedIds.has(record.opportunityId)).length, [management.watchedIds, visible]);
   const selected = timelineRecords.find((record) => record.opportunityId === selectedId) || recordById.get(selectedId) || null;
   const selectedLiveAward = selected ? awardMap.get(String(selected.reference || "").toUpperCase()) : null;
   const selectedActions = actionDataset?.byOpportunity?.[selectedId] || [];
@@ -1393,6 +1386,11 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${route}${query ? `?${query}` : ""}`);
   }
 
+  function setTimelineScope(nextScope) {
+    setTimelineScopeState(nextScope); if (primary && filters.capTracked !== "all") setFilters({ capTracked: "all" });
+    replaceTimelineScope(nextScope, defaultScope);
+  }
+
   function toggleComparison(opportunityId) {
     setComparisonIds((current) => {
       if (current.includes(opportunityId)) {
@@ -1433,7 +1431,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   }
 
   useEffect(() => {
-    const sync = () => { const params = new URLSearchParams(window.location.hash.split("?")[1] || ""); setSelectedIdState(params.get("spendView") === "timeline" ? params.get("capRecord") || "" : ""); };
+    const sync = () => { const [route, search = ""] = window.location.hash.split("?"); const params = new URLSearchParams(search); const isTimelineRoute = route === "#/budget-spend/timeline" || params.get("spendView") === "timeline"; setSelectedIdState(isTimelineRoute ? params.get("capRecord") || "" : ""); };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
@@ -1643,7 +1641,9 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
   return (
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page data-public-record-count={records.length} data-automatic-record-count={records.filter((record) => record.ingestionMethod === "automated").length}>
-      <ControlWorkbenchHeader className="capture-primary-header" eyebrow={embedded ? "Spend intelligence" : "Transaction intelligence"} title={embedded ? "Spend Timeline" : "Transactions"} summary={embedded ? "A now-first view of reported terms, acquisition events, and public evidence." : "Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence."} meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></span>} tabs={embeddedTabs} />
+      <ControlWorkbenchHeader className="capture-primary-header" eyebrow={primary ? "Primary control surface" : embedded ? "Spend intelligence" : "Transaction intelligence"} title={primary ? "Timeline" : embedded ? "Spend Timeline" : "Transactions"} summary={primary ? "Orient on contract families, exact source records, milestones, changes, funding, and follow-on activity without losing the complete intelligence library." : embedded ? "A now-first view of reported terms, acquisition events, and public evidence." : "Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence."} meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></span>} tabs={embeddedTabs} />
+
+      {primary ? <TimelineScopeNav scope={timelineScope} trackedCount={trackedRecordCount} allCount={visible.length} onChange={setTimelineScope} /> : null}
 
       <SavedViews
         views={savedViews}
@@ -1662,9 +1662,9 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
           <button type="button" aria-pressed={parseMultiValues(filters.capNoticeType).includes("r") && filters.capHorizon === "soliciting"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capMode: "acquisition-window", capNoticeType: serializeMultiValues(["r"]), capHorizon: "soliciting", capSort: "deadline" })}>Active RFIs</button>
           <button type="button" aria-pressed={filters.capChange === "updated"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capChange: "updated" })}>Changed</button>
           <button type="button" aria-pressed={filters.capHorizon === "upcoming"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capHorizon: "upcoming" })}>Upcoming</button>
-          <button type="button" aria-pressed={filters.capTracked === "tracked"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capTracked: "tracked" })}>Tracked</button>
+          {!primary ? <button type="button" aria-pressed={filters.capTracked === "tracked"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capTracked: "tracked" })}>Tracked</button> : null}
         </div>
-        <SingleSelectFilter className="capture-filter--advanced" title="Tracking" value={filters.capTracked} options={[["all", "All records"], ["tracked", `Tracked only (${management.watchlist.length})`]]} onChange={(capTracked) => setFilters({ capTracked })} />
+        {!primary ? <SingleSelectFilter className="capture-filter--advanced" title="Tracking" value={filters.capTracked} options={[["all", "All records"], ["tracked", `Tracked only (${management.watchlist.length})`]]} onChange={(capTracked) => setFilters({ capTracked })} /> : null}
         <SearchMultiSelect className="capture-filter--advanced" title="Portfolio" allLabel="All portfolios" value={filters.capPortfolio} options={portfolios} onChange={(values) => setFilters({ capPortfolio: serializeMultiValues(values) })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Record type" value={filters.capMode} options={[["all", "All records"], ["contract-performance", "Contract performance"], ["acquisition-window", "Acquisition windows"]]} onChange={(capMode) => setFilters({ capMode })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Notice type" allLabel="All notice types" value={filters.capNoticeType} options={noticeTypes.map((option) => [option.id, option.label])} onChange={(values) => setFilters({ capNoticeType: serializeMultiValues(values) })} />
@@ -1712,7 +1712,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} dialogRef={ganttDialogRef} title="Timeline controls" eyebrow="Transactions" summary="Adjust the visible time window, row density, grouping, labels, and evidence overlays." size="wide" closeLabel="Close Timeline controls" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
           <div className="capture-gantt-tools capture-gantt-tools--dialog">{ganttControlGroups}</div>
         </ControlDialog> : null}
-        {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} dataAsOf={dataAsOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} researchDates={selectedResearchDates} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title="No matching transactions" message="Adjust or clear filters to restore public transaction records." />}
+        {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} dataAsOf={dataAsOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} researchDates={selectedResearchDates} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title={timelineScope === "tracked" ? "No tracked records match this window" : "No matching transactions"} message={timelineScope === "tracked" ? "Track an opportunity or switch to All intelligence to browse every retained timeline term." : "Adjust or clear filters to restore public transaction records."} />}
       </section>
 
       {showLegacyTransactionExtras ? <><details className="capture-analytics-disclosure" data-capture-analytics-disclosure>

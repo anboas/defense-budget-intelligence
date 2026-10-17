@@ -1746,7 +1746,7 @@ function RecordExplorer({ records, metricId, onSelect }) {
     { key: "end", label: "Reported end", minWidth: 120, value: (record) => record.currentEnd || record.solicitationEnd || "Not published" },
     { key: "provenance", label: "Provenance", facet: true, minWidth: 135, value: (record) => record.ingestionLabel || record.ingestionMethod || "Not published" },
     { key: "metric", label: metric.label, sortValue: metric.value, exportValue: metric.value, render: (record) => <strong>{metric.format(metric.value(record))}</strong> },
-    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}>Timeline</a></div> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => onSelect(record)} aria-label={`Open analytical detail for ${record.id}`}>Details<ChevronRight size={15} /></button><a href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(record.opportunityId)}`}>Timeline</a></div> },
   ];
   return (
     <ControlDisclosure className="analytics-records" data-analytics-records icon={<TableProperties size={18} />} title="Record explorer" summary={`${records.length.toLocaleString()} in scope · complete filtered set ranked by ${metric.label.toLowerCase()}`}>
