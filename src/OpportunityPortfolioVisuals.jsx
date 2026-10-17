@@ -226,7 +226,7 @@ function BuyerCapabilityHeatmap({ records, metric, onScope }) {
 }
 
 function OpportunityInspector({ record, tracked }) {
-  if (!record) return <div className="if-alert if-alert--info" role="status"><LocateFixed size={17} /><span><strong>Select an opportunity</strong>Choose a bubble to pin its evidence and open the exact operating record.</span></div>;
+  if (!record) return <div className="if-alert if-alert--info" role="status"><LocateFixed size={17} /><span><strong>Select an opportunity</strong> Choose a bubble to pin its evidence and open the exact operating record.</span></div>;
   const id = idOf(record);
   return <section className="target-brief" data-portfolio-inspector>
     <header>
