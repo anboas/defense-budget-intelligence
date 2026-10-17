@@ -77,7 +77,7 @@ export default function OperationalDataTable({
   defaultSort,
   defaultVisibleColumns = null,
   defaultDensity = "compact",
-  defaultPageSize = 25,
+  defaultPageSize = 10,
   defaultMobilePageSize = 5,
   pageSizeOptions = [5, 10, 25, 50, 100],
   searchPlaceholder = "Filter rows…",
