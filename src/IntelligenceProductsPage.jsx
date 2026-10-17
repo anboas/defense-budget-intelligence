@@ -115,7 +115,10 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     if (!query) return rows;
     return rows.filter((row) => [row.label, row.organizationName, ...(row.categories || [])].join(" ").toLowerCase().includes(query));
   }, [organizationQuery, state.organizations]);
-  const selectedDossier = useMemo(() => (state.organizations?.dossiers || []).find((row) => row.id === organizationId) || null, [organizationId, state.organizations]);
+  const selectedDossier = useMemo(() => {
+    const rows = state.organizations?.dossiers || [];
+    return rows.find((row) => row.id === organizationId) || filteredDossiers[0] || rows[0] || null;
+  }, [filteredDossiers, organizationId, state.organizations]);
 
   if (!allowed) return <section className="intelligence-products" data-intelligence-products-page><ControlAsyncState compact state="empty" icon={<ShieldCheck size={22} />} title="Workspace manager access required" message="Intelligence operations expose administrative evidence, review boundaries, and reusable workspace templates." /></section>;
   if (state.status !== "ready") return <section className="intelligence-products" data-intelligence-products-page><ControlAsyncState compact state={state.status === "error" ? "error" : "loading"} icon={<Network size={22} />} title={state.status === "error" ? "Intelligence products unavailable" : "Loading intelligence products"} message={state.error || "Loading people, industrial-base, accountability, document, and operational intelligence."} /></section>;
@@ -146,7 +149,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
       <aside className="intelligence-products__organization-index">
         <label><Search size={15} /><input aria-label="Search organization dossiers" value={organizationQuery} onChange={(event) => setOrganizationQuery(event.target.value)} placeholder="Search organizations" /></label>
         <div><strong>{number(filteredDossiers.length)} dossiers</strong><span>{number(organizationData.metadata.coverage.researchGaps)} open research gaps</span></div>
-        <nav aria-label="Organization dossier list">{filteredDossiers.map((row) => <button key={row.id} type="button" className={selectedDossier?.id === row.id ? "is-active" : ""} onClick={() => setOrganizationRoute(row.id)} data-organization-dossier-link={row.id}>
+        <nav aria-label="Organization dossier list">{filteredDossiers.slice(0, 30).map((row) => <button key={row.id} type="button" className={selectedDossier?.id === row.id ? "is-active" : ""} onClick={() => setOrganizationRoute(row.id)} data-organization-dossier-link={row.id}>
           <strong>{row.label}</strong><span>{row.priorityTier.replaceAll("-", " ")} · {row.categories.join(" · ")}</span><small>{number(row.coverage.roles)} roles · {number(row.coverage.programs)} programs · {number(row.coverage.awards)} awards</small>
         </button>)}</nav>
       </aside>

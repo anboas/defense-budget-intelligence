@@ -6,7 +6,7 @@ const BASE_URL = "http://127.0.0.1:4196/";
 const OUT_DIR = "test-results/ui-consistency";
 const VERIFY = process.argv.includes("--verify");
 const ROUTES = [
-  ["today", "#/budget-spend/explorer?spendView=today", "[data-spend-today]"],
+  ["brief", "#/budget-spend/explorer?spendView=today", "[data-spend-today]"],
   ["radar", "#/budget-spend/explorer?spendView=radar", "[data-opportunity-radar]"],
   ["visuals", "#/budget-spend/explorer?spendView=visuals", "[data-opportunity-portfolio-visuals]"],
   ["timeline", "#/budget-spend/timeline?timelineScope=all", "[data-capture-timeline]"],
@@ -137,10 +137,14 @@ async function collect(page, route, viewport) {
       const key = [item.kind, Math.round(item.height), item.fontSize, item.fontWeight, item.radius].join("|");
       clusters[key] = (clusters[key] || 0) + 1;
     }
+    const aboveFoldControls = controls.filter((item) => item.y < innerHeight).length;
+    const headingTexts = elements.filter((item) => item.kind === "heading").map((item) => item.text).filter(Boolean);
+    const duplicateHeadings = [...new Set(headingTexts.filter((text, index) => headingTexts.indexOf(text) !== index))];
     return {
       route: routeName,
       viewport: viewportName,
-      document: { width: document.documentElement.scrollWidth, viewportWidth: innerWidth, height: document.documentElement.scrollHeight },
+      document: { width: document.documentElement.scrollWidth, viewportWidth: innerWidth, height: document.documentElement.scrollHeight, viewportHeight: innerHeight },
+      hierarchy: { aboveFoldControls, duplicateHeadings },
       elements,
       clusters,
       adjacentMismatches: adjacentMismatches.slice(0, 100),
@@ -199,7 +203,10 @@ const summary = normalized.map((entry) => ({
   route: entry.route,
   viewport: entry.viewport,
   overflow: Math.max(0, entry.document.width - entry.document.viewportWidth),
+  viewportLengths: rounded(entry.document.height / entry.document.viewportHeight),
   controls: entry.elements.filter((item) => item.kind === "action" || item.kind === "field").length,
+  aboveFoldControls: entry.hierarchy.aboveFoldControls,
+  duplicateHeadings: entry.hierarchy.duplicateHeadings,
   clusters: Object.keys(entry.clusters).length,
   adjacentMismatches: entry.adjacentMismatches.length,
 }));
@@ -210,6 +217,11 @@ if (VERIFY) {
   for (const entry of normalized) {
     const overflow = Math.max(0, entry.document.width - entry.document.viewportWidth);
     if (overflow > 1) violations.push(`${entry.viewport}/${entry.route}: page overflow ${overflow}px`);
+    const viewportLengths = entry.document.height / entry.document.viewportHeight;
+    const maximumViewportLengths = 5;
+    if (viewportLengths > maximumViewportLengths) violations.push(`${entry.viewport}/${entry.route}: unbounded page length ${rounded(viewportLengths)} viewports`);
+    if (entry.hierarchy.aboveFoldControls > 100) violations.push(`${entry.viewport}/${entry.route}: ${entry.hierarchy.aboveFoldControls} controls compete above the fold`);
+    if (entry.hierarchy.duplicateHeadings.length) violations.push(`${entry.viewport}/${entry.route}: duplicate visible headings ${entry.hierarchy.duplicateHeadings.join(", ")}`);
     if (entry.adjacentMismatches.length) violations.push(`${entry.viewport}/${entry.route}: ${entry.adjacentMismatches.length} adjacent control mismatches`);
     const undersizedType = entry.elements.filter((item) =>
       ["action", "field"].includes(item.kind)

@@ -10,6 +10,7 @@ const styles = {
   eyebrow: { color: "var(--if-text-muted,#5f6873)", fontSize: 10, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase" },
   summary: { margin: 0, color: "var(--if-text-muted,#5f6873)", fontSize: 12, lineHeight: 1.45 },
   flow: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10, minWidth: 0 },
+  compactFlow: { display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, overflowX: "auto", overscrollBehaviorInline: "contain", paddingBottom: 4 },
   column: { display: "grid", alignContent: "start", gap: 9, minWidth: 0, padding: 10, border: "1px solid var(--if-border,#d7dce2)", borderRadius: 7, background: "var(--if-bg-subtle,#f7f8fa)" },
   columnHeader: { display: "flex", alignItems: "center", gap: 8 },
   icon: { display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 6, background: "#e9f1f6", color: "var(--if-color-info,#315f82)" },
@@ -48,8 +49,8 @@ function limitLabels(ids, labels, limit = 5) {
   return (ids || []).slice(0, limit).map((id) => { const fullLabel = labels?.[id] || id; return { id, fullLabel, label: fullLabel.length > 92 ? `${fullLabel.slice(0, 89)}…` : fullLabel }; });
 }
 
-function RelationshipColumn({ icon, eyebrow, title, items, empty }) {
-  return <section style={styles.column}><header style={styles.columnHeader}><span style={styles.icon}>{icon}</span><div><small style={styles.eyebrow}>{eyebrow}</small><h4 style={{ margin: 0, fontSize: 13 }}>{title}</h4></div></header>{items.length ? <div style={styles.cards}>{items.map((item) => <article key={item.id} title={item.fullLabel || undefined} style={styles.card}><strong>{item.label}</strong>{item.meta ? <span style={styles.cardMeta}>{item.meta}</span> : null}{item.note ? <em style={{ ...styles.cardMeta, color: "#6d5476" }}>{item.note}</em> : null}</article>)}</div> : <p style={styles.cardMeta}>{empty}</p>}</section>;
+function RelationshipColumn({ icon, eyebrow, title, items, empty, compact = false }) {
+  return <section style={{ ...styles.column, ...(compact ? { flex: "1 0 220px", maxHeight: 480, overflowY: "auto" } : {}) }}><header style={styles.columnHeader}><span style={styles.icon}>{icon}</span><div><small style={styles.eyebrow}>{eyebrow}</small><h4 style={{ margin: 0, fontSize: 13 }}>{title}</h4></div></header>{items.length ? <div style={styles.cards}>{items.map((item) => <article key={item.id} title={item.fullLabel || undefined} style={styles.card}><strong>{item.label}</strong>{item.meta ? <span style={styles.cardMeta}>{item.meta}</span> : null}{item.note ? <em style={{ ...styles.cardMeta, color: "#6d5476" }}>{item.note}</em> : null}</article>)}</div> : <p style={styles.cardMeta}>{empty}</p>}</section>;
 }
 
 export default function OrganizationRelationshipLens({ record = null, connection = null, dossierId = "", compact = false }) {
@@ -87,11 +88,11 @@ export default function OrganizationRelationshipLens({ record = null, connection
 
   return <section style={styles.root} data-organization-relationships="ready" data-organization-dossier={dossier.id} data-compact={compact || undefined}>
     <header style={styles.heading}><div style={styles.headingCopy}><span style={styles.eyebrow}>Organizations &amp; relationships</span><h3 style={{ margin: 0, fontSize: 18 }}>{dossier.label}</h3><p style={styles.summary}>Customer hierarchy, official people, work, companies, and supplier samples connected through retained evidence.</p></div><ControlStatusBadge status={dossier.reviewState || "reviewed"} /></header>
-    <div style={styles.flow} aria-label={`Relationships for ${dossier.label}`}>
-      <RelationshipColumn icon={<Building2 size={17} />} eyebrow="Customer" title="Organization hierarchy" items={hierarchy} empty="No reviewed hierarchy is retained." />
-      <RelationshipColumn icon={<UserRound size={17} />} eyebrow="People" title="Officials & roles" items={people} empty="Leadership is an explicit research gap." />
-      <RelationshipColumn icon={<BriefcaseBusiness size={17} />} eyebrow="Work" title="Programs, awards & accounts" items={work} empty="No exact retained work IDs are linked." />
-      <RelationshipColumn icon={<Network size={17} />} eyebrow="Industrial base" title="Companies & suppliers" items={companies} empty="No retained company evidence is linked." />
+    <div style={compact ? styles.compactFlow : styles.flow} aria-label={`Relationships for ${dossier.label}`}>
+      <RelationshipColumn compact={compact} icon={<Building2 size={17} />} eyebrow="Customer" title="Organization hierarchy" items={hierarchy} empty="No reviewed hierarchy is retained." />
+      <RelationshipColumn compact={compact} icon={<UserRound size={17} />} eyebrow="People" title="Officials & roles" items={people} empty="Leadership is an explicit research gap." />
+      <RelationshipColumn compact={compact} icon={<BriefcaseBusiness size={17} />} eyebrow="Work" title="Programs, awards & accounts" items={work} empty="No exact retained work IDs are linked." />
+      <RelationshipColumn compact={compact} icon={<Network size={17} />} eyebrow="Industrial base" title="Companies & suppliers" items={companies} empty="No retained company evidence is linked." />
     </div>
     <footer style={styles.footer}><span>Exact IDs and reviewed/source-declared relationships only.</span><span>Supplier evidence is sampled and never treated as a complete registry.</span></footer>
   </section>;

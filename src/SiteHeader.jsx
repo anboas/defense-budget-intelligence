@@ -253,7 +253,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
       <div className="if-product-header__inner masthead__inner">
         <a href={routes.watchlist} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Today" title="Go to Today">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
-          <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title data-mobile-label={MOBILE_TITLES[activeTab] || activeTitle}>{activeTitle}</h1></span>
+          <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-mobile-label={MOBILE_TITLES[activeTab] || activeTitle}>{workspace?.displayTitle || "Defense Budget Intelligence"}</h1><span className="if-sr-only" data-active-page-title>{activeTitle}</span></span>
         </a>
 
         <nav className="if-operations-topnav ci-header-nav" aria-label="Defense budget intelligence">
