@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { forceCollide, forceSimulation, forceX, forceY, max, scaleLinear, scaleSqrt } from "d3";
-import { ExternalLink, FileSpreadsheet, LocateFixed } from "lucide-react";
+import { ExternalLink, FileSpreadsheet, LocateFixed, RotateCcw, Settings2 } from "lucide-react";
 import { ControlPageBody } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
+import SearchMultiSelect from "./SearchMultiSelect.jsx";
 import { useManagementState } from "./management-state.js";
 import { TECHNOLOGY_AREA_BY_ID } from "./procurement-taxonomy.js";
 import { samNoticeTypeLabel } from "./sam-notice-types.js";
+import "./OpportunityPortfolioVisuals.css";
 
 const DAY = 86_400_000;
+const STRATEGY_BASELINE_KEY = "dbi:strategy-baseline:v1";
 const STAGE_COLORS = Object.freeze({
   award: "#167247",
   solicitation: "#0067a3",
@@ -86,6 +89,144 @@ function trustLabel(record) {
 function titleOf(record, length = 52) {
   const title = String(record.title || idOf(record) || "Untitled opportunity");
   return title.length > length ? `${title.slice(0, length - 1)}…` : title;
+}
+
+function readStrategyBaseline() {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(STRATEGY_BASELINE_KEY) || "null");
+    if (!parsed || !Array.isArray(parsed.buyers) || !Array.isArray(parsed.capabilities)) return null;
+    return {
+      buyers: [...new Set(parsed.buyers.filter((value) => typeof value === "string" && value))],
+      capabilities: [...new Set(parsed.capabilities.filter((value) => typeof value === "string" && value))],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStrategyBaseline(value) {
+  if (typeof window === "undefined") return;
+  try {
+    if (value) window.localStorage.setItem(STRATEGY_BASELINE_KEY, JSON.stringify(value));
+    else window.localStorage.removeItem(STRATEGY_BASELINE_KEY);
+  } catch {
+    // A blocked browser store leaves the strategy board usable for the current session.
+  }
+}
+
+const ANSOFF_QUADRANTS = Object.freeze([
+  { id: "a", code: "A", name: "Deepen", strategy: "Market penetration", row: "current", column: "demonstrated", proof: "Retained customer results and available delivery capacity." },
+  { id: "c", code: "C", name: "Develop", strategy: "Service development", row: "current", column: "new", proof: "Buyer acceptance, technical proof, and repeatable economics." },
+  { id: "b", code: "B", name: "Transfer", strategy: "Market development", row: "new", column: "demonstrated", proof: "A sponsor, buying route, and delivery fit in the new account." },
+  { id: "d", code: "D", name: "Extend selectively", strategy: "Related diversification", row: "new", column: "new", proof: "Buyer access, technical proof, contract path, and adoption funding." },
+]);
+
+function StrategicMatrix({ records, watchedIds, watchlist, selectedId, onSelect, onQuadrant }) {
+  const [view, setView] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("strategyView") === "capability" ? "capability" : "customer");
+  const [baselineOverride, setBaselineOverride] = useState(readStrategyBaseline);
+  const [editing, setEditing] = useState(false);
+  const watchById = useMemo(() => new Map(watchlist.map((entry) => [entry.recordId, entry])), [watchlist]);
+  const derivedBaseline = useMemo(() => {
+    const tracked = records.filter((record) => watchedIds.has(idOf(record)));
+    return {
+      buyers: [...new Set(tracked.map(officeOf).filter(Boolean))].sort(),
+      capabilities: [...new Set(tracked.flatMap((record) => record.technologyAreas || []))].sort(),
+    };
+  }, [records, watchedIds]);
+  const baseline = baselineOverride || derivedBaseline;
+  const buyerOptions = useMemo(() => [...new Set(records.map(officeOf).filter(Boolean))].sort().map((value) => ({ value, label: value })), [records]);
+  const capabilityOptions = useMemo(() => [...new Set(records.flatMap((record) => record.technologyAreas || []))].sort((left, right) => (TECHNOLOGY_AREA_BY_ID.get(left)?.label || left).localeCompare(TECHNOLOGY_AREA_BY_ID.get(right)?.label || right)).map((value) => ({ value, label: TECHNOLOGY_AREA_BY_ID.get(value)?.label || value })), [records]);
+  const hasBaseline = baseline.buyers.length > 0 && baseline.capabilities.length > 0;
+  const classified = useMemo(() => {
+    if (!hasBaseline) return { placements: [], unclassified: records };
+    const buyers = new Set(baseline.buyers);
+    const capabilities = new Set(baseline.capabilities);
+    const placements = [];
+    const unclassified = [];
+    for (const record of records) {
+      const buyer = officeOf(record);
+      const areas = [...new Set(record.technologyAreas || [])];
+      if (!buyer || !areas.length) { unclassified.push(record); continue; }
+      const buyerCurrent = buyers.has(buyer);
+      const capabilityCurrent = areas.some((area) => capabilities.has(area));
+      const quadrant = buyerCurrent ? (capabilityCurrent ? "a" : "c") : (capabilityCurrent ? "b" : "d");
+      placements.push({ record, quadrant, buyer, areas, buyerCurrent, capabilityCurrent });
+    }
+    return { placements, unclassified };
+  }, [baseline, hasBaseline, records]);
+  const quadrantRows = useMemo(() => new Map(ANSOFF_QUADRANTS.map((quadrant) => {
+    const rows = classified.placements.filter((placement) => placement.quadrant === quadrant.id).sort((left, right) => Number(watchedIds.has(idOf(right.record))) - Number(watchedIds.has(idOf(left.record))) || Number(right.record.fitAssessment?.score || 0) - Number(left.record.fitAssessment?.score || 0) || valueOf(right.record) - valueOf(left.record));
+    return [quadrant.id, rows];
+  })), [classified.placements, watchedIds]);
+  const updateView = (next) => {
+    setView(next);
+    const [path, search = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(search);
+    params.set("strategyView", next);
+    window.history.replaceState(null, "", `${path}?${params}`);
+  };
+  const updateBaseline = (patch) => {
+    const next = { ...baseline, ...patch };
+    setBaselineOverride(next);
+    writeStrategyBaseline(next);
+  };
+  const resetBaseline = () => {
+    setBaselineOverride(null);
+    writeStrategyBaseline(null);
+  };
+  return <section className="strategy-matrix" data-strategic-matrix data-strategy-view={view}>
+    <header className="strategy-matrix__header">
+      <div><span>Growth architecture</span><h3>Ansoff strategic matrix</h3><p>{view === "customer" ? "Customers and the work required to expand." : "Capabilities and service offers positioned for growth."}</p></div>
+      <div className="strategy-matrix__controls">
+        <div className="strategy-matrix__switch" role="group" aria-label="Strategy matrix view">
+          <button type="button" aria-pressed={view === "customer"} onClick={() => updateView("customer")}>Customer view</button>
+          <button type="button" aria-pressed={view === "capability"} onClick={() => updateView("capability")}>Capability view</button>
+        </div>
+        <button type="button" className="if-btn if-btn--secondary" aria-expanded={editing} onClick={() => setEditing((value) => !value)}><Settings2 size={15} />Baseline</button>
+      </div>
+    </header>
+    <div className="strategy-matrix__baseline" data-strategy-baseline-summary>
+      <span><b>{baseline.buyers.length}</b> current buying centers</span><span><b>{baseline.capabilities.length}</b> demonstrated capabilities</span><span><b>{classified.unclassified.length}</b> need classification</span><small>{baselineOverride ? "Browser-local baseline" : "Baseline seeded from My Work"}</small>
+    </div>
+    {editing || !hasBaseline ? <section className="strategy-matrix__editor" aria-label="Strategy baseline editor">
+      <div><strong>Define what is already established</strong><p>Only selected buying centers and capabilities are treated as current. Everything else remains new or unclassified; DBI does not infer corporate experience.</p></div>
+      <SearchMultiSelect title="Current buying centers" allLabel="Select established buyers" value={JSON.stringify(baseline.buyers)} options={buyerOptions} maxSelected={40} onChange={(buyers) => updateBaseline({ buyers })} />
+      <SearchMultiSelect title="Demonstrated capabilities" allLabel="Select proven capabilities" value={JSON.stringify(baseline.capabilities)} options={capabilityOptions} maxSelected={20} onChange={(capabilities) => updateBaseline({ capabilities })} />
+      {baselineOverride ? <button type="button" className="if-btn if-btn--secondary" onClick={resetBaseline}><RotateCcw size={14} />Reset to My Work</button> : null}
+    </section> : null}
+    {hasBaseline ? <div className="strategy-matrix__board">
+      <div className="strategy-matrix__corner" />
+      <div className="strategy-matrix__axis strategy-matrix__axis--column"><strong>Demonstrated services</strong><span>Established delivery</span></div>
+      <div className="strategy-matrix__axis strategy-matrix__axis--column"><strong>New service offers</strong><span>New capability or delivery model</span></div>
+      <div className="strategy-matrix__axis strategy-matrix__axis--row"><strong>Current buying centers</strong></div>
+      {ANSOFF_QUADRANTS.slice(0, 2).map((quadrant) => <StrategyQuadrant key={quadrant.id} quadrant={quadrant} rows={quadrantRows.get(quadrant.id) || []} view={view} watchedIds={watchedIds} watchById={watchById} selectedId={selectedId} onSelect={onSelect} onQuadrant={onQuadrant} />)}
+      <div className="strategy-matrix__axis strategy-matrix__axis--row"><strong>New buying centers</strong></div>
+      {ANSOFF_QUADRANTS.slice(2).map((quadrant) => <StrategyQuadrant key={quadrant.id} quadrant={quadrant} rows={quadrantRows.get(quadrant.id) || []} view={view} watchedIds={watchedIds} watchById={watchById} selectedId={selectedId} onSelect={onSelect} onQuadrant={onQuadrant} />)}
+    </div> : <div className="if-alert if-alert--info" role="status"><Settings2 size={17} /><span><strong>Set the strategy baseline</strong> Select at least one current buying center and one demonstrated capability to classify the active portfolio without guessing.</span></div>}
+    <footer className="strategy-matrix__footer"><span>Placement is deterministic from the editable baseline and retained buyer/capability evidence.</span><span>{classified.placements.length.toLocaleString()} classified · {classified.unclassified.length.toLocaleString()} unclassified</span></footer>
+  </section>;
+}
+
+function StrategyQuadrant({ quadrant, rows, view, watchedIds, watchById, selectedId, onSelect, onQuadrant }) {
+  const visible = rows.slice(0, 4);
+  return <article className={`strategy-quadrant strategy-quadrant--${quadrant.id}`} data-strategy-quadrant={quadrant.id}>
+    <header><div><strong>{quadrant.code} / {quadrant.name}</strong><span>{quadrant.strategy}</span></div><b>{rows.length}</b></header>
+    <div className="strategy-quadrant__list">
+      {visible.length ? visible.map(({ record, buyer, areas }) => {
+        const id = idOf(record);
+        const pursuit = watchById.get(id)?.pursuit;
+        const primary = view === "customer" ? buyer : areas.map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area).slice(0, 2).join(" · ");
+        return <button key={id} type="button" className={id === selectedId ? "is-selected" : ""} onClick={() => onSelect(id)}>
+          <span className="strategy-quadrant__title">{primary}</span>
+          <strong>{titleOf(record, 68)}</strong>
+          <small>{money(valueOf(record))} · fit {Number(record.fitAssessment?.score || 0)} · {watchedIds.has(id) ? pursuit?.owner || "tracked" : trustLabel(record)}</small>
+          <em>{pursuit?.nextAction || (watchedIds.has(id) ? "No next action" : "Open evidence and qualify")}</em>
+        </button>;
+      }) : <p>No classified opportunities in this quadrant.</p>}
+    </div>
+    <div className="strategy-quadrant__proof"><span>Proof to expand</span><p>{quadrant.proof}</p>{rows.length ? <button type="button" onClick={() => onQuadrant(quadrant, rows.map(({ record }) => idOf(record)))}>Review {rows.length} in queue</button> : null}</div>
+  </article>;
 }
 
 function hashOffset(value, magnitude) {
@@ -247,9 +388,10 @@ function OpportunityInspector({ record, tracked }) {
   </section>;
 }
 
-export default function OpportunityPortfolioVisuals({ records, selectedId, tabs, onSelect, onScope, asOf }) {
+export default function OpportunityPortfolioVisuals({ records, selectedId, tabs, onSelect, onScope, onQuadrant, asOf }) {
   const management = useManagementState(records);
   const [heatMetric, setHeatMetric] = useState("count");
+  const [visualMode, setVisualMode] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("visualMode") === "portfolio" ? "portfolio" : "strategy");
   const selected = useMemo(() => records.find((record) => idOf(record) === selectedId) || null, [records, selectedId]);
   const snapshotTime = Date.parse(String(asOf || "1970-01-01"));
   useEffect(() => {
@@ -268,25 +410,42 @@ export default function OpportunityPortfolioVisuals({ records, selectedId, tabs,
     { id: "urgent", label: "Due in 60 days", value: nearTerm.length.toLocaleString(), meta: "Published response dates" },
     { id: "value", label: "Valued records", value: valued.length.toLocaleString(), meta: "Published value; no aggregate" },
   ];
+  const updateVisualMode = (next) => {
+    setVisualMode(next);
+    const [path, search = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(search);
+    params.set("visualMode", next);
+    window.history.replaceState(null, "", `${path}?${params}`);
+  };
   return <section className="spend-explorer spend-explorer--visuals" data-spend-explorer="visuals">
-    <ControlWorkbenchHeader eyebrow="Decision visualization" title="Opportunity Portfolio" summary="Prioritize opportunities and inspect where buyer demand intersects Sabre-aligned capabilities." metrics={metrics} metricLabel="Opportunity portfolio summary" tabs={tabs} />
+    <ControlWorkbenchHeader eyebrow="Decision visualization" title="Strategic Portfolio" summary="Choose growth direction, prioritize opportunities, and move the underlying evidence into the operating queue." metrics={metrics} metricLabel="Opportunity portfolio summary" tabs={tabs} />
     <ControlPageBody compact>
       <section className="capture-targeting" data-opportunity-portfolio-visuals>
         <div className="capture-targeting__heading">
-          <div><span>Portfolio decision surface</span><h2>Where to focus pursuit effort</h2><p>Fit, timing, reported value, customer demand, and evidence remain separate signals. These views direct analyst attention; they do not estimate probability of win or invent market whitespace.</p></div>
+          <div><span>Portfolio decision surface</span><h2>{visualMode === "strategy" ? "Where to grow" : "Where to focus pursuit effort"}</h2><p>{visualMode === "strategy" ? "Classify active opportunities against an explicit customer and capability baseline. Named cards keep the strategy review connected to evidence and action." : "Fit, timing, reported value, customer demand, and evidence remain separate signals. These views direct analyst attention; they do not estimate probability of win or invent market whitespace."}</p></div>
           <div className="capture-targeting__lanes"><span><b>{tracked.length}</b>Tracked</span><span><b>{strong.length}</b>Strong fit</span><span><b>{nearTerm.length}</b>Due soon</span><span><b>{records.filter((record) => valueOf(record) > 0).length}</b>Valued</span></div>
         </div>
-        <div className="capture-targeting__interpretations" aria-label="Portfolio interpretation">
-          <article><span>Priority quadrant</span><strong>{records.filter((record) => Number(record.fitAssessment?.score || 0) >= 70 && urgencyOf(record, snapshotTime) >= 68).length}</strong><p>Strong-fit records with a published deadline inside 60 days.</p></article>
-          <article><span>Tracked coverage</span><strong>{records.length ? `${Math.round((tracked.length / records.length) * 100)}%` : "0%"}</strong><p>Current filtered opportunities already represented in My Work.</p></article>
-          <article><span>Buyer-capability cells</span><strong>{new Set(records.flatMap((record) => (record.technologyAreas || []).map((area) => `${officeOf(record)}|${area}`)).filter((value) => !value.startsWith("|"))).size}</strong><p>Observed combinations in retained records; blanks are not proof of absence.</p></article>
+        <div className="capture-targeting__mode" role="group" aria-label="Portfolio visualization mode">
+          <button type="button" aria-pressed={visualMode === "strategy"} onClick={() => updateVisualMode("strategy")}>Strategic matrix</button>
+          <button type="button" aria-pressed={visualMode === "portfolio"} onClick={() => updateVisualMode("portfolio")}>Analytical maps</button>
         </div>
-        <OpportunityInspector record={selected} tracked={Boolean(selected && management.watchedIds.has(idOf(selected)))} />
-        <div className="capture-targeting__visuals">
-          <section className="capture-targeting__route"><header><div><strong>Opportunity priority map</strong><small>Fit × decision urgency · bubble area = reported value · green ring = tracked</small></div></header><PortfolioMap records={records} selectedId={selectedId} watchedIds={management.watchedIds} onSelect={onSelect} snapshotTime={snapshotTime} /></section>
-          <section className="capture-targeting__route"><header><div><strong>Buyer × capability heatmap</strong><small>Observed retained opportunities; click a populated cell to filter the operating queue</small></div><ControlSelect compact ariaLabel="Heatmap measure" value={heatMetric} options={[{ value: "count", label: "Opportunity count" }, { value: "value", label: "Largest reported value" }, { value: "fit", label: "Average fit" }]} onChange={setHeatMetric} /></header><BuyerCapabilityHeatmap records={records} metric={heatMetric} onScope={onScope} /></section>
-        </div>
-        <details className="capture-targeting__method"><summary>How to read these views</summary><p>The portfolio map uses the explainable public capability fit score, published response timing, and reported value. The heatmap uses published buying-office hierarchy and classified technology areas. Missing values remain missing. Empty cells mean no matching retained record in the active scope, not zero demand. Selecting a heatmap cell applies exact workbench filters so the table remains the canonical operating queue.</p></details>
+        {visualMode === "strategy" ? <>
+          <StrategicMatrix records={records} watchedIds={management.watchedIds} watchlist={management.watchlist} selectedId={selectedId} onSelect={onSelect} onQuadrant={onQuadrant} />
+          {selected ? <OpportunityInspector record={selected} tracked={management.watchedIds.has(idOf(selected))} /> : null}
+          <details className="capture-targeting__method"><summary>How placement works</summary><p>Current customers and demonstrated capabilities come only from the editable strategy baseline. Buyer identity uses the published buying office. Capability identity uses the retained technology classification. Records missing either field remain unclassified. A record with at least one demonstrated capability is treated as demonstrated; all-new classified capabilities place it in service development or related diversification.</p></details>
+        </> : <>
+          <div className="capture-targeting__interpretations" aria-label="Portfolio interpretation">
+            <article><span>Priority quadrant</span><strong>{records.filter((record) => Number(record.fitAssessment?.score || 0) >= 70 && urgencyOf(record, snapshotTime) >= 68).length}</strong><p>Strong-fit records with a published deadline inside 60 days.</p></article>
+            <article><span>Tracked coverage</span><strong>{records.length ? `${Math.round((tracked.length / records.length) * 100)}%` : "0%"}</strong><p>Current filtered opportunities already represented in My Work.</p></article>
+            <article><span>Buyer-capability cells</span><strong>{new Set(records.flatMap((record) => (record.technologyAreas || []).map((area) => `${officeOf(record)}|${area}`)).filter((value) => !value.startsWith("|"))).size}</strong><p>Observed combinations in retained records; blanks are not proof of absence.</p></article>
+          </div>
+          <OpportunityInspector record={selected} tracked={Boolean(selected && management.watchedIds.has(idOf(selected)))} />
+          <div className="capture-targeting__visuals">
+            <section className="capture-targeting__route"><header><div><strong>Opportunity priority map</strong><small>Fit × decision urgency · bubble area = reported value · green ring = tracked</small></div></header><PortfolioMap records={records} selectedId={selectedId} watchedIds={management.watchedIds} onSelect={onSelect} snapshotTime={snapshotTime} /></section>
+            <section className="capture-targeting__route"><header><div><strong>Buyer × capability heatmap</strong><small>Observed retained opportunities; click a populated cell to filter the operating queue</small></div><ControlSelect compact ariaLabel="Heatmap measure" value={heatMetric} options={[{ value: "count", label: "Opportunity count" }, { value: "value", label: "Largest reported value" }, { value: "fit", label: "Average fit" }]} onChange={setHeatMetric} /></header><BuyerCapabilityHeatmap records={records} metric={heatMetric} onScope={onScope} /></section>
+          </div>
+          <details className="capture-targeting__method"><summary>How to read these views</summary><p>The portfolio map uses the explainable public capability fit score, published response timing, and reported value. The heatmap uses published buying-office hierarchy and classified technology areas. Missing values remain missing. Empty cells mean no matching retained record in the active scope, not zero demand. Selecting a heatmap cell applies exact workbench filters so the table remains the canonical operating queue.</p></details>
+        </>}
       </section>
     </ControlPageBody>
   </section>;

@@ -32,6 +32,7 @@ const domainModelStyleBytes = styleAssets.find((asset) => /^DomainModelPage-.*\.
 const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^IntelligenceProductsPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRecordPage-.*\.css$/.test(asset.name))?.bytes || 0;
+const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
@@ -41,7 +42,8 @@ assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Dom
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 423_000, `Total scoped CSS must stay below 423 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 7_000, `Deferred strategic-portfolio CSS must stay within its 7 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 430_000, `Total scoped CSS must stay below 430 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^CaptureCalendar-.*\.js$/.test(name)).length, 1, "Transactions should ship behind its own lazy route boundary");
@@ -1030,6 +1032,42 @@ try {
   assert.ok(workbenchGeometry.scopeHeight <= 116, `Desktop opportunity filters should remain compact, got ${workbenchGeometry.scopeHeight}px`);
   assert.ok(workbenchGeometry.firstRowTop <= 760, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
   await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Visuals", exact: true }).click();
+  await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
+  if (!await page.locator("[data-strategy-quadrant]").count()) {
+    await page.getByRole("button", { name: /^Current buying centers:/ }).click();
+    await page.getByRole("option").first().click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: /^Demonstrated capabilities:/ }).click();
+    await page.getByRole("option").first().click();
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("[data-strategy-quadrant=a]");
+  }
+  assert.equal(await page.locator("[data-strategy-quadrant]").count(), 4, "Ansoff strategy mode should expose the four growth quadrants");
+  assert.match(await page.locator("[data-strategy-baseline-summary]").innerText(), /current buying centers[\s\S]*demonstrated capabilities[\s\S]*need classification/i, "The strategy board should disclose its explicit current/new baseline and unresolved classification set");
+  assert.ok(await page.locator(".strategy-quadrant__list > button").count() > 0, "The strategy board should project named evidence-backed opportunities instead of anonymous marks");
+  await assertButtonIntegrity(page, "Customer Ansoff strategy matrix", '[data-spend-explorer="visuals"]');
+  await assertNoPageOverflow(page, "Customer Ansoff strategy matrix");
+  await page.locator("[data-opportunity-portfolio-visuals]").screenshot({ path: `${OUT_DIR}/strategic-matrix-customer-desktop.png` });
+  await page.getByRole("button", { name: "Capability view", exact: true }).click();
+  assert.equal(await page.locator("[data-strategic-matrix]").getAttribute("data-strategy-view"), "capability", "Strategy mode should switch the same classified set into a capability-led executive view");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /strategyView=capability/, "Strategy view should persist in the shareable route");
+  await page.locator("[data-opportunity-portfolio-visuals]").screenshot({ path: `${OUT_DIR}/strategic-matrix-capability-desktop.png` });
+  await page.getByRole("button", { name: "Customer view", exact: true }).click();
+  await page.locator(".strategy-quadrant__list > button").first().click();
+  await page.waitForSelector("[data-portfolio-inspector]");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capRecord=/, "Strategy-card selection should persist the exact opportunity in the shareable route");
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("[data-portfolio-inspector]", { state: "detached" });
+  const firstQuadrantReview = page.getByRole("button", { name: /Review \d+ in queue/ }).first();
+  await firstQuadrantReview.click();
+  await page.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /strategyScope=ansoff-/, "Quadrant review should preserve the exact strategic scope in the workbench route");
+  assert.equal(await page.locator(".spend-explorer__strategy-scope").count(), 1, "The operating queue should disclose its active strategic-matrix handoff");
+  assert.ok(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "A populated strategic quadrant should hand off its exact opportunity set to the queue");
+  await page.getByRole("button", { name: "Clear scope", exact: true }).click();
+  await page.getByRole("navigation", { name: "Spend Explorer view" }).getByRole("button", { name: "Visuals", exact: true }).click();
+  await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
+  await page.getByRole("button", { name: "Analytical maps", exact: true }).click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-opportunity-portfolio-map]');
   assert.equal(await page.locator('[data-spend-explorer="visuals"] [data-buyer-capability-heatmap]').count(), 1, "Portfolio Visuals should pair prioritization with one buyer-capability heatmap");
   assert.ok(await page.locator('[data-opportunity-portfolio-map] .target-bubble[role="button"]').count() >= 20, "Opportunity Portfolio should retain a useful bounded decision set");
@@ -2353,6 +2391,29 @@ try {
   await assertNoPageOverflow(mobile, "Mobile Decision Brief");
   await mobile.screenshot({ path: `${OUT_DIR}/decision-brief-mobile.png`, fullPage: true });
   await mobile.getByRole("button", { name: "Visuals", exact: true }).click();
+  await mobile.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
+  if (!await mobile.locator("[data-strategy-quadrant]").count()) {
+    await mobile.getByRole("button", { name: /^Current buying centers:/ }).click();
+    await mobile.getByRole("option").first().click();
+    await mobile.keyboard.press("Escape");
+    await mobile.getByRole("button", { name: /^Demonstrated capabilities:/ }).click();
+    await mobile.getByRole("option").first().click();
+    await mobile.keyboard.press("Escape");
+    await mobile.waitForSelector("[data-strategy-quadrant=a]");
+  }
+  const mobileStrategyGeometry = await mobile.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    surfaceWidth: document.querySelector("[data-strategic-matrix]")?.getBoundingClientRect().width || 0,
+    boardClientWidth: document.querySelector(".strategy-matrix__board")?.clientWidth || 0,
+    boardScrollWidth: document.querySelector(".strategy-matrix__board")?.scrollWidth || 0,
+  }));
+  assert.ok(mobileStrategyGeometry.surfaceWidth <= mobileStrategyGeometry.viewportWidth, `Mobile strategy matrix must stay within the page viewport: ${JSON.stringify(mobileStrategyGeometry)}`);
+  assert.ok(mobileStrategyGeometry.boardScrollWidth > mobileStrategyGeometry.boardClientWidth, `Mobile strategy matrix should own its executive-board overflow: ${JSON.stringify(mobileStrategyGeometry)}`);
+  assert.equal(await mobile.locator("[data-strategy-quadrant]").count(), 4, "Mobile strategy mode should retain all four Ansoff quadrants");
+  await assertButtonIntegrity(mobile, "Mobile Ansoff strategy matrix", '[data-spend-explorer="visuals"]');
+  await assertNoPageOverflow(mobile, "Mobile Ansoff strategy matrix");
+  await mobile.screenshot({ path: `${OUT_DIR}/strategic-matrix-mobile.png`, fullPage: true });
+  await mobile.getByRole("button", { name: "Analytical maps", exact: true }).click();
   await mobile.waitForSelector('[data-spend-explorer="visuals"] [data-opportunity-portfolio-map]');
   const mobilePortfolioGeometry = await mobile.evaluate(() => ({
     viewportWidth: window.innerWidth,

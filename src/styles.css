@@ -3929,6 +3929,12 @@ td .dot {
   line-height: 1;
 }
 
+.spend-explorer__strategy-scope { justify-content: space-between; }
+@media (max-width: 760px) {
+  .spend-explorer__strategy-scope { align-items: stretch; flex-direction: column; }
+  .spend-explorer__strategy-scope button { min-height: 44px; }
+}
+
 .capture-targeting__interpretations {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
