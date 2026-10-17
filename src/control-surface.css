@@ -953,7 +953,6 @@ code {
   border-radius: var(--if-control-radius);
   background: var(--if-btn-bg);
   color: var(--if-btn-color);
-  font-size: var(--if-font-size-sm);
   font-weight: var(--if-font-weight-semibold);
   line-height: 1;
   max-width: 100%;
@@ -1873,7 +1872,6 @@ code {
   background: var(--if-bg-surface);
   color: var(--if-text);
   font: inherit;
-  font-size: var(--if-font-size-sm);
   text-align: left;
   cursor: pointer;
 }

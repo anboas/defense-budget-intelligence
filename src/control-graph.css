@@ -1,0 +1,567 @@
+/* Generated graph primitives from control-surface-ui. */
+/* Overflow and height guard layer. Keep dense demo surfaces predictable as content grows. */
+
+/* Rich picker family ------------------------------------------------------- */
+
+/* Native detail-dialog family -------------------------------------------- */
+
+/* Performance and scale guard layer. Synthetic large-data demos stay contained and measurable. */
+
+.if-graph-shell {
+  display: grid;
+  gap: var(--if-gap-density);
+}
+
+/* Diagram stress-test surface: dense research intelligence composition. */
+
+/* Diagram3: FastDAS autonomous growth operations briefing surface. */
+
+@media (max-width: 900px) {
+  .if-graph-a11y__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.if-graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--if-space-2);
+  padding: var(--if-panel-padding);
+  border-bottom: var(--if-divider);
+}
+
+.if-graph-canvas {
+  position: relative;
+  min-height: clamp(30rem, 62vh, 48rem);
+  overflow: hidden;
+  background:
+    linear-gradient(var(--if-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--if-border) 1px, transparent 1px),
+    var(--if-bg-surface);
+  background-size: 2.5rem 2.5rem, 2.5rem 2.5rem, auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.if-graph-canvas[data-graph-world="expanded"] {
+  min-height: clamp(36rem, 72vh, 56rem);
+}
+
+.if-graph-canvas[data-graph-world="expanded"] .if-graph-viewport {
+  inset: auto;
+  left: calc((100% - var(--graph-world-width, 136%)) / 2);
+  top: calc((100% - var(--graph-world-height, 128%)) / 2);
+  width: var(--graph-world-width, 136%);
+  height: var(--graph-world-height, 128%);
+}
+
+.if-graph-canvas[data-graph-world="expanded"] .if-graph-lines {
+  overflow: visible;
+}
+
+[data-graph-mode] .if-graph-canvas {
+  cursor: grab;
+}
+
+.if-graph-canvas[data-graph-panning="true"] {
+  cursor: grabbing;
+}
+
+.if-graph-viewport {
+  position: absolute;
+  inset: 0;
+  transform: translate(var(--graph-pan-x, 0), var(--graph-pan-y, 0)) scale(var(--graph-zoom, 1));
+  transform-origin: 50% 50%;
+  transition: transform var(--if-duration-fast) var(--if-ease-standard);
+}
+
+.if-graph-canvas[data-graph-panning="true"] .if-graph-viewport,
+.if-graph-node.is-dragging {
+  transition: none;
+}
+
+.if-graph-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.if-graph-lines :is( path) {
+  fill: none;
+  stroke: var(--edge-color, var(--if-color-slate-500));
+  stroke-width: 0.32;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.78;
+  vector-effect: non-scaling-stroke;
+  transition: opacity var(--if-duration-fast) var(--if-ease-standard), stroke-width var(--if-duration-fast) var(--if-ease-standard), stroke var(--if-duration-fast) var(--if-ease-standard);
+}
+
+
+.if-graph-lines :is( path).is-hidden {
+  display: none;
+}
+
+.if-graph-lines [data-edge-inferred="true"] {
+  stroke-dasharray: 1.7 1.4;
+  opacity: 0.52;
+}
+
+.if-graph-lines :is( path).is-related {
+  opacity: 1;
+  stroke: var(--edge-color, var(--if-accent));
+  stroke-width: 0.45;
+}
+
+.if-graph-lines :is( path).is-selected {
+  opacity: 1;
+  stroke: var(--if-link);
+  stroke-width: 0.62;
+}
+
+.if-graph-lines :is( path).is-muted {
+  opacity: 0.22;
+}
+
+.if-graph-svg-label {
+  fill: color-mix(in srgb, var(--edge-color, var(--if-link)) 82%, var(--if-text-strong));
+  stroke: var(--if-bg-surface);
+  stroke-linejoin: round;
+  stroke-width: 0.24;
+  font-size: 1.1px;
+  font-weight: var(--if-font-weight-bold);
+  letter-spacing: 0;
+  paint-order: stroke;
+  pointer-events: none;
+}
+
+.if-graph-svg-label.is-hidden {
+  display: none;
+}
+
+.if-graph-svg-label.is-muted {
+  opacity: 0.3;
+}
+
+.if-graph-svg-label.is-related,
+.if-graph-svg-label.is-selected {
+  fill: color-mix(in srgb, var(--edge-color, var(--if-link)) 92%, var(--if-text-strong));
+  opacity: 1;
+}
+
+[data-graph-direction="none"] .if-graph-lines :is( path) {
+  marker-start: none;
+  marker-end: none;
+}
+
+[data-graph-edge-label-mode="pill"] .if-graph-lines :is( path) {
+  marker-end: none;
+  marker-start: none;
+  opacity: 0.68;
+  stroke-width: 0.36;
+}
+
+[data-graph-edge-label-mode="pill"] .if-graph-svg-label {
+  display: none;
+}
+
+[data-graph-edge-label-mode="pill"] .if-graph-lines [data-edge-inferred="true"] {
+  opacity: 0.5;
+}
+
+[data-graph-edge-label-mode="pill"] .if-graph-lines :is( path).is-related,
+[data-graph-edge-label-mode="pill"] .if-graph-lines :is( path).is-selected {
+  opacity: 0.9;
+  stroke-width: 0.44;
+}
+
+[data-graph-edge-label-mode="pill"] .if-graph-lines :is( path).is-muted {
+  opacity: 0.2;
+}
+
+.if-graph-node {
+  position: absolute;
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  display: grid;
+  min-width: clamp(6.75rem, 9.5vw, 9.25rem);
+  max-width: 9.75rem;
+  min-height: clamp(2.5rem, calc(2.75rem + 7190px - 1000vw), 2.75rem);
+  place-items: center;
+  gap: var(--if-space-2);
+  padding: var(--if-space-2);
+  border: 1px solid var(--if-border-strong);
+  border-radius: var(--if-card-radius);
+  background: var(--if-bg-surface);
+  color: var(--if-text-strong);
+  box-shadow: var(--if-shadow-sm);
+  cursor: grab;
+  text-align: center;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+  transition: border-color var(--if-duration-fast) var(--if-ease-standard), background var(--if-duration-fast) var(--if-ease-standard), box-shadow var(--if-duration-fast) var(--if-ease-standard);
+  transition-property: left, top, border-color, background, box-shadow, opacity;
+  transition-duration: var(--if-duration-normal);
+  transition-timing-function: var(--if-ease-standard);
+}
+
+.if-graph-node:hover,
+.if-graph-node.is-selected,
+.if-graph-node[aria-selected="true"] {
+  border-color: var(--if-border-selected);
+  background: var(--if-bg-selected);
+  box-shadow: var(--if-shadow-md);
+}
+
+.if-graph-node.is-dragging {
+  z-index: 8;
+  cursor: grabbing;
+  box-shadow: var(--if-shadow-lg), var(--if-focus-ring);
+  transition: border-color var(--if-duration-fast) var(--if-ease-standard), background var(--if-duration-fast) var(--if-ease-standard), box-shadow var(--if-duration-fast) var(--if-ease-standard), opacity var(--if-duration-fast) var(--if-ease-standard);
+}
+
+.if-graph-node.is-muted {
+  opacity: 0.42;
+}
+
+.if-graph-node.is-related:not(.is-selected) {
+  border-color: color-mix(in srgb, var(--node-color, var(--if-accent)) 45%, var(--if-border));
+}
+
+.if-graph-node--primary {
+  min-width: clamp(8.25rem, 11vw, 10.5rem);
+  border-color: var(--if-accent);
+  background: var(--if-bg-selected);
+}
+
+[data-graph-node-density="expanded"] .if-graph-node {
+  min-width: 10rem;
+  max-width: 12rem;
+  padding: var(--if-space-3);
+}
+
+.if-graph-node--policy {
+  --node-color: var(--if-accent);
+}
+
+.if-graph-node--org {
+  --node-color: var(--if-color-cyan-700);
+}
+
+.if-graph-node--opportunity {
+  --node-color: var(--if-color-teal-700);
+}
+
+.if-graph-node--obligation {
+  --node-color: var(--if-warning);
+}
+
+.if-graph-node--evidence {
+  --node-color: var(--if-color-green-700);
+}
+
+.if-graph-node--event {
+  --node-color: var(--if-warning);
+}
+
+.if-graph-node--gap {
+  --node-color: var(--if-danger);
+}
+
+
+.if-graph-node--component {
+  --node-color: var(--if-color-teal-700);
+}
+
+.if-graph-node__icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: var(--if-radius-pill);
+  background: color-mix(in srgb, var(--node-color, var(--if-accent)) 14%, white);
+  color: var(--node-color, var(--if-accent));
+}
+
+.if-edge-label {
+  position: absolute;
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.35rem;
+  padding: 0.08rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--edge-color, var(--if-border-strong)) 42%, var(--if-border));
+  border-radius: var(--if-radius-pill);
+  background: rgb(255 255 255 / 0.96);
+  color: color-mix(in srgb, var(--edge-color, var(--if-text-muted)) 68%, var(--if-text-muted));
+  font-size: var(--if-font-size-2xs);
+  font-weight: var(--if-font-weight-bold);
+  line-height: 1.35;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.92), var(--if-shadow-xs);
+  transform-origin: center;
+  translate: -50% -50%;
+  rotate: var(--edge-angle, 0deg);
+  cursor: pointer;
+}
+
+.if-edge-label::before,
+.if-edge-label::after {
+  content: "";
+  position: absolute;
+  display: none;
+  top: 50%;
+  z-index: -1;
+  width: clamp(1.25rem, 3.2vw, 2.75rem);
+  border-top: 2px solid color-mix(in srgb, var(--edge-color, var(--if-link)) 72%, var(--if-border));
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.if-edge-label::before {
+  right: calc(100% + 0.22rem);
+}
+
+.if-edge-label::after {
+  left: calc(100% + 0.22rem);
+}
+
+.if-edge-label[data-edge-label-placement="inline"] {
+  padding-inline: 0.5rem;
+  border-color: color-mix(in srgb, var(--edge-color, var(--if-link)) 55%, var(--if-border));
+  background: rgb(255 255 255 / 0.98);
+  box-shadow: 0 0 0 4px rgb(255 255 255 / 0.96);
+}
+
+.if-edge-label[data-edge-label-placement="inline"]::before,
+.if-edge-label[data-edge-label-placement="inline"]::after {
+  display: block;
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label {
+  isolation: isolate;
+  min-height: clamp(1.42rem, calc(2.75rem + 7190px - 1000vw), 2.75rem);
+  padding: 0.1rem 0.5rem;
+  border-color: color-mix(in srgb, var(--edge-color, var(--if-link)) 50%, var(--if-border));
+  background: rgb(255 255 255 / 0.98);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.94), var(--if-shadow-xs);
+  color: color-mix(in srgb, var(--edge-color, var(--if-link)) 76%, var(--if-text-strong));
+  opacity: 0.98;
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label[data-edge-label-placement="inline"]::before,
+[data-graph-edge-label-mode="pill"] .if-edge-label[data-edge-label-placement="inline"]::after {
+  display: none;
+  width: var(--edge-arm, clamp(1.5rem, 5vw, 8rem));
+  border-top-width: 2px;
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label--blank {
+  width: clamp(0.62rem, calc(2.75rem + 7190px - 1000vw), 2.75rem);
+  min-width: clamp(0.62rem, calc(2.75rem + 7190px - 1000vw), 2.75rem);
+  height: clamp(0.62rem, calc(2.75rem + 7190px - 1000vw), 2.75rem);
+  min-height: clamp(0.62rem, calc(2.75rem + 7190px - 1000vw), 2.75rem);
+  padding: 0;
+  border-width: 2px;
+  background: var(--if-bg-surface);
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label--blank::before {
+  right: calc(100% + 0.12rem);
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label--blank::after {
+  left: calc(100% + 0.12rem);
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label.is-muted {
+  opacity: 0.28;
+}
+
+[data-graph-edge-label-mode="pill"] .if-edge-label.is-related,
+[data-graph-edge-label-mode="pill"] .if-edge-label.is-selected {
+  opacity: 1;
+}
+
+.if-edge-label.is-muted {
+  opacity: 0.25;
+}
+
+.if-edge-label.is-related,
+.if-edge-label.is-selected {
+  border-color: color-mix(in srgb, var(--edge-color, var(--if-link)) 72%, var(--if-border-selected));
+  background: color-mix(in srgb, var(--edge-color, var(--if-accent)) 11%, white);
+  color: color-mix(in srgb, var(--edge-color, var(--if-link)) 82%, var(--if-text-strong));
+}
+
+.if-edge-label.is-selected {
+  z-index: 5;
+  box-shadow: var(--if-focus-ring);
+}
+
+.if-graph-node__title {
+  margin: 0;
+  font-size: var(--if-font-size-xs);
+  font-weight: var(--if-font-weight-bold);
+  line-height: var(--if-line-height-snug);
+}
+
+.if-graph-node__meta {
+  color: var(--if-text-subtle);
+  font-size: var(--if-font-size-2xs);
+  font-weight: var(--if-font-weight-medium);
+}
+
+.if-graph-a11y {
+  margin: var(--if-space-3);
+  border: var(--if-outline);
+  border-radius: var(--if-card-radius);
+  background: var(--if-bg-subtle);
+}
+
+.if-graph-a11y__summary {
+  margin: 0;
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-xs);
+  line-height: var(--if-line-height-snug);
+}
+
+.if-graph-a11y__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--if-space-3);
+}
+
+.if-graph-a11y__section {
+  display: grid;
+  gap: var(--if-space-2);
+  min-width: 0;
+}
+
+.if-graph-a11y__list {
+  display: grid;
+  max-height: 16rem;
+  gap: var(--if-space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.if-graph-a11y__item {
+  min-width: 0;
+}
+
+.if-graph-a11y__action {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0.1rem;
+  padding: var(--if-space-2);
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-2);
+  background: var(--if-bg-surface);
+  color: var(--if-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--if-duration-fast) var(--if-ease-standard), background var(--if-duration-fast) var(--if-ease-standard), box-shadow var(--if-duration-fast) var(--if-ease-standard);
+}
+
+.if-graph-a11y__action:hover,
+.if-graph-a11y__action:focus-visible {
+  border-color: var(--if-border-selected);
+  background: var(--if-bg-selected);
+  box-shadow: var(--if-focus-ring);
+}
+
+
+.if-graph-a11y__action span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.if-graph-a11y__action span {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+}
+
+.if-graph-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--if-space-2);
+  align-items: center;
+  padding: var(--if-space-2) var(--if-space-3);
+  border-bottom: var(--if-divider);
+  background: var(--if-bg-subtle);
+}
+
+.if-graph-path:empty {
+  display: none;
+}
+
+.if-graph-path__step {
+  display: inline-grid;
+  grid-template-columns: auto;
+  gap: 0.05rem;
+  max-width: 13rem;
+  padding: var(--if-space-1) var(--if-space-2);
+  border: 1px solid var(--if-border);
+  border-radius: var(--if-radius-2);
+  background: var(--if-bg-surface);
+  color: var(--if-text);
+  text-align: left;
+}
+
+.if-graph-path__step span {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+  font-weight: var(--if-font-weight-semibold);
+}
+
+.if-graph-path__step.is-current {
+  border-color: var(--if-border-selected);
+  background: var(--if-bg-selected);
+}
+
+@media (max-width: 719px) {
+
+  .if-graph-canvas {
+    min-width: 46rem;
+  }
+
+  .if-graph-shell {
+    overflow-x: auto;
+  }
+}
+
+/* AdamBoas.com editorial pass: quiet framework skin over the original layout. */
+
+/* AdamBoas.com wide adaptive layout pass. */
+
+/* AdamBoas.com framework component adapter pass. */
+
+/* AdamBoas.com visual simplification pass. */
+
+/* AdamBoas.com light layout correction pass. */
+
+/* AdamBoas.com fresh profile and writing architecture. */
+
+/* Diagram4: KBR opportunity intelligence component interpretation. */
+
+/* Generic operations workspace patterns */
+
+/* Generic schedule and Gantt primitives */
+
+/* Operations application shell and dense workspace parity primitives */

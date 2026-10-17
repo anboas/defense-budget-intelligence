@@ -124,7 +124,7 @@ assert.ok(intelligenceProductsCssBytes > 0 && intelligenceProductsCssBytes <= 13
 assert.ok(researchDiscoveryCssBytes > 0 && researchDiscoveryCssBytes <= 10_000, `Deferred discovery-operations CSS exceeds its 10KB component ceiling (${researchDiscoveryCssBytes} bytes)`);
 assert.ok(opportunityPortfolioCssBytes > 0 && opportunityPortfolioCssBytes <= 13_200, `Deferred Strategic Analysis Studio CSS exceeds its 13.2KB route ceiling (${opportunityPortfolioCssBytes} bytes)`);
 assert.ok(routeControlConsistencyCssBytes > 0 && routeControlConsistencyCssBytes <= 4_200, `Deferred route-control consistency CSS exceeds its 4.2KB shared ceiling (${routeControlConsistencyCssBytes} bytes)`);
-assert.ok(cssBytes <= 445_000, `Total production CSS exceeds the 445KB ceiling (${cssBytes} bytes)`);
+assert.ok(cssBytes <= 470_000, `Total production CSS exceeds the 470KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
 const intelligenceGraphBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json"))).size;
 const intelligenceGraphCompressedBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json.gzip"))).size;

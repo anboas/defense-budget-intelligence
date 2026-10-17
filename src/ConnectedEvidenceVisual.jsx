@@ -1,6 +1,8 @@
+import { ControlGraph } from "control-surface-ui/react/graph";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { loadMoneyPath } from "./intelligence-graph.js";
 import { PURSUIT_TASK_EVENT } from "./pursuit-metadata.js";
+import "./control-graph.css";
 import "./ConnectedEvidenceVisual.css";
 
 const MoneyPath = lazy(() => import("./MoneyPath.jsx"));
@@ -29,6 +31,48 @@ const TYPE_LABEL = {
 };
 
 const VIEWS = new Set(["connections", "timeline", "money", "relationships"]);
+
+const GRAPH_NODE_TYPES = Object.freeze(Object.fromEntries(Object.entries({
+  activity: ["opportunity", "#0f766e", "star"],
+  award: ["obligation", "#b45309", "award"],
+  organization: ["org", "#0369a1", "department"],
+  location: ["org", "#0369a1", "location"],
+  account: ["source", "#4f46e5", "database"],
+  classification: ["evidence", "#15803d", "tag"],
+  vehicle: ["implementation", "#0f766e", "workflow"],
+  predecessor: ["event", "#b45309", "history"],
+  successor: ["event", "#b45309", "arrowRight"],
+  conflict: ["gap", "#b42318", "warning"],
+}).map(([type, [className, color, icon]]) => [type, { className, color, icon, label: TYPE_LABEL[type], data: { evidenceNode: type } }])));
+
+const GRAPH_RELATION = Object.freeze({
+  award: "linked award",
+  organization: "customer organization",
+  location: "place of performance",
+  account: "federal account",
+  classification: "classification",
+  vehicle: "contract vehicle",
+  predecessor: "predecessor",
+  successor: "successor",
+  conflict: "evidence conflict",
+});
+
+const GRAPH_LAYOUT_OPTIONS = Object.freeze({ deconflictPasses: 20, deconflictStrength: 0.78 });
+
+const graphNodeId = (item) => `${item.type}:${item.id}`;
+
+function evidenceLaneLayout({ nodes = [] }) {
+  const anchor = nodes.find((item) => item.kind === "activity") || nodes[0];
+  const neighbors = nodes.filter((item) => item !== anchor);
+  const left = neighbors.filter((_, index) => index % 2 === 0);
+  const right = neighbors.filter((_, index) => index % 2 === 1);
+  const lane = (items, x) => items.map((item, index) => ({ id: item.id, x, y: 12 + ((index + 1) / (items.length + 1)) * 76 }));
+  return {
+    coordinateSpace: "percent",
+    layout: "evidence-lanes",
+    nodes: [anchor ? { id: anchor.id, x: 50, y: 50 } : null, ...lane(left, 17), ...lane(right, 83)].filter(Boolean),
+  };
+}
 
 function routeSelection() {
   if (typeof window === "undefined") return { view: "connections", item: "" };
@@ -114,35 +158,57 @@ function timelineEvents(record, report, temporal, lineage, opportunityId) {
 }
 
 function ConnectionsView({ nodes, selected, onSelect }) {
-  const neighbors = nodes.slice(1);
+  const neighbors = useMemo(() => nodes.slice(1), [nodes]);
   const leftCount = Math.ceil(neighbors.length / 2);
   const rightCount = Math.floor(neighbors.length / 2);
-  const graphHeight = Math.max(400, Math.max(leftCount, rightCount) * 120);
-  const positioned = [nodes[0], ...neighbors].map((item, index) => {
-    if (!index) return { ...item, x: 50, y: 50 };
-    const neighborIndex = index - 1;
-    const left = neighborIndex % 2 === 0;
-    const position = Math.floor(neighborIndex / 2);
-    const count = left ? leftCount : rightCount;
-    return { ...item, x: left ? 17 : 83, y: 12 + ((position + 1) / (count + 1)) * 76 };
-  });
-  const anchor = positioned[0];
-  const edgePoint = (from, to, inset = 8) => {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const scale = inset / Math.max(Math.abs(dx), Math.abs(dy), 1);
-    return { x: from.x + dx * scale, y: from.y + dy * scale };
+  const graphHeight = Math.max(480, Math.max(leftCount, rightCount) * 104);
+  const graphNodes = useMemo(() => nodes.map((item) => ({
+    id: graphNodeId(item),
+    kind: item.type,
+    label: short(item.label, 34),
+    meta: TYPE_LABEL[item.type],
+    description: item.detail,
+    primary: item.type === "activity",
+    relation: GRAPH_RELATION[item.type] || "selected opportunity",
+  })), [nodes]);
+  const graphEdges = useMemo(() => neighbors.map((item) => ({
+    id: `edge:${graphNodeId(item)}`,
+    from: graphNodeId(nodes[0]),
+    to: graphNodeId(item),
+    type: item.type,
+    label: GRAPH_RELATION[item.type] || TYPE_LABEL[item.type],
+    evidence: item.detail,
+  })), [neighbors, nodes]);
+  const selectedGraphId = selected ? graphNodeId(selected) : graphNodeId(nodes[0]);
+  const selectGraphNode = ({ nodeId }) => {
+    const item = nodes.find((candidate) => graphNodeId(candidate) === nodeId);
+    if (item) onSelect(item);
   };
-  return <div className="connected-visual__scroller" tabIndex="0" aria-label="Scrollable connected evidence graph">
-    <div className="connected-visual__graph" style={{ height: graphHeight }} data-evidence-visual-graph data-node-count={nodes.length}>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{positioned.slice(1).map((item) => {
-        const start = edgePoint(anchor, item);
-        const end = edgePoint(item, anchor);
-        return <path key={item.id} d={`M ${start.x} ${start.y} L ${end.x} ${end.y}`} vectorEffect="non-scaling-stroke" data-evidence-edge />;
-      })}</svg>
-      {positioned.map((item) => <button key={`${item.type}-${item.id}`} type="button" className={`connected-visual__node is-${item.type}${selected.id === item.id ? " is-selected" : ""}`} style={{ left: `${item.x}%`, top: `${item.y}%` }} aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-evidence-node={item.type}><small>{TYPE_LABEL[item.type]}</small><strong>{short(item.label, 24)}</strong></button>)}
-    </div>
-  </div>;
+  const selectGraphEdge = ({ to }) => {
+    const item = nodes.find((candidate) => graphNodeId(candidate) === to);
+    if (item) onSelect(item);
+  };
+  return <ControlGraph
+    className="connected-visual__control-graph"
+    style={{ "--connected-evidence-graph-height": `${graphHeight}px` }}
+    nodes={graphNodes}
+    edges={graphEdges}
+    selected={selectedGraphId}
+    layout="evidence-lanes"
+    layoutEngine={evidenceLaneLayout}
+    layoutOptions={GRAPH_LAYOUT_OPTIONS}
+    nodeTypes={GRAPH_NODE_TYPES}
+    panelMode="external"
+    a11yMode="screenreader"
+    edgeLabelMode="pill"
+    canvasLabel="Connected evidence graph"
+    a11yLabel="Connected evidence graph index"
+    emptyLabel="Connected evidence"
+    onNodeSelect={selectGraphNode}
+    onEdgeSelect={selectGraphEdge}
+    data-evidence-visual-graph
+    data-node-count={nodes.length}
+  />;
 }
 
 function TimelineView({ events, selected, onSelect }) {
