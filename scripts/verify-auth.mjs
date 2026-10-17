@@ -132,9 +132,8 @@ try {
   await page.waitForSelector("[data-defense-budget-app]");
   assert.equal(await page.locator('[data-primary-nav="watchlist"]').count(), 1, "My Work must remain a primary action surface");
   await page.locator('[data-nav-group-trigger="work"]').click();
-  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must keep Task Center and Event Discovery behind My Work");
-  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Task Center[\s\S]*Event Discovery/i);
-  assert.equal(await page.locator('[data-budget-nav-menu="work"] a[href="#/budget-spend/schedule"]').count(), 0, "Schedule must remain a primary surface rather than a nested work item");
+  assert.deepEqual(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/schedule", "#/budget-spend/tasks", "#/budget-spend/event-discovery"], "Super-user work navigation must keep Schedule, Task Center, and Event Discovery behind the three primary operating surfaces");
+  assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Schedule[\s\S]*Task Center[\s\S]*Event Discovery/i);
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace", "Workspace navigation must use one compact label");
@@ -848,7 +847,7 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
   assert.equal(await page.locator('[data-control-area]').count(), 0, "Schedule List must render as a primary surface without a management shell");
-  assert.equal(await page.locator('[data-primary-nav="schedule"][aria-current="page"]').count(), 1, "Schedule must own the direct primary-navigation position for event work");
+  assert.equal(await page.locator('[data-nav-group-trigger="work"][data-nav-group-active-child="Schedule"]').count(), 1, "Schedule must remain the active event-work surface inside the Work group");
   assert.equal(await page.locator('[data-ops-events] > [data-event-ai-launcher]').count(), 0, "Events must not place the augmentation launcher above the data table");
   await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=calendar`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-wallboard-calendar][data-calendar-layout="standalone"]');
@@ -1348,8 +1347,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 17, "Authenticated mobile navigation should expose the reduced primary, work, and administration route set in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*My Work[\s\S]*Opportunities[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 19, "Authenticated mobile navigation should expose the three primary surfaces plus bounded work and administration routes in one menu");
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Today[\s\S]*Timeline[\s\S]*Opportunities[\s\S]*Budget & Spend[\s\S]*Data Library[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Schedule[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-research-discovery-dashboard]');

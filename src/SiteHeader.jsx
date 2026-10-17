@@ -7,13 +7,15 @@ import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
 import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
 
-const PRIMARY_IDS = ["watchlist", "spend", "schedule"];
-const MONEY_FLOW_IDS = ["overview", "trends", "lifecycle", "awards", "map", "sources"];
-const WORK_IDS = new Set(["tasks", "event-discovery"]);
+const PRIMARY_IDS = ["watchlist", "timeline", "spend"];
+const MONEY_FLOW_IDS = ["library", "overview", "trends", "lifecycle", "awards", "map", "sources"];
+const WORK_IDS = new Set(["schedule", "tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "intelligence", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
 const MOBILE_TITLES = {
   spend: "Opportunities",
+  timeline: "Timeline",
+  library: "Library",
   map: "Map",
   schedule: "Schedule",
   overview: "PDB Request",
@@ -21,7 +23,7 @@ const MOBILE_TITLES = {
   lifecycle: "Account Flow",
   awards: "Awards",
   sources: "Sources",
-  watchlist: "My Work",
+  watchlist: "Today",
   tasks: "Tasks",
   "event-discovery": "Discovery",
   connections: "Connections",
@@ -39,10 +41,12 @@ const MONEY_META = {
   awards: { badge: "Growing feed", description: "Published USAspending awards, recipients, offices, and obligation detail." },
   map: { badge: "Geography", description: "Map organizations by contracting activity, opportunity state, and published spend." },
   sources: { badge: "6 stages", description: "Freshness, methodology, join quality, and official-source lineage." },
+  library: { badge: "Complete", description: "Every retained record, entity, relationship, identifier, office hierarchy, and source boundary." },
 };
 
 const ADMIN_META = {
   watchlist: { badge: "Act", description: "Overdue work, upcoming actions, waiting items, and tracked pursuits." },
+  schedule: { badge: "Coordinate", description: "Team events, milestones, linked records, and shared calendar work." },
   tasks: { badge: "Progress", description: "Background augmentation and API tasks, stages, outcomes, and review." },
   "event-discovery": { badge: "Curate", description: "Review official-source candidates, source health, and ingestion history." },
   connections: { badge: "Admin", description: "Integration health, credentials, request diagnostics, and workspace audit." },
@@ -80,7 +84,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...MONEY_META[id] } : null;
   }).filter(Boolean);
-  const workItems = ["tasks", ...(auth?.user?.roleId === "super_user" ? ["event-discovery"] : [])].map((id) => {
+  const workItems = ["schedule", "tasks", ...(auth?.user?.roleId === "super_user" ? ["event-discovery"] : [])].map((id) => {
     const tab = tabById.get(id);
     return tab ? { ...tab, tabId: id, href: routes[id], ...ADMIN_META[id] } : null;
   }).filter(Boolean);
@@ -106,18 +110,20 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         ...tab,
         tabId: tab.id,
         href: routes[tab.id],
-        badge: tab.id === "watchlist" ? "Act" : tab.id === "spend" ? "Review" : "Schedule",
+        badge: tab.id === "watchlist" ? "Act" : tab.id === "timeline" ? "Orient" : "Review",
         description: tab.id === "watchlist"
           ? "Open overdue work, next actions, waiting items, and tracked pursuits."
+          : tab.id === "timeline"
+            ? "Orient around tracked contract families, milestones, changes, and funding activity."
           : tab.id === "spend"
             ? "Review, qualify, and advance opportunities from one queue."
-            : "Create events and switch between list, calendar, and room display.",
+            : "Review, qualify, and advance opportunities from one queue.",
       })),
     },
     ...groups,
   ];
   const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
-  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "watchlist" ? "Act on overdue work, next actions, and tracked pursuits." : tab.id === "spend" ? "Review, qualify, and advance opportunities from one queue." : "Manage list, calendar, and display views." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
+  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "watchlist" ? "Act on overdue work, next actions, and tracked pursuits." : tab.id === "timeline" ? "Orient on tracked contract families and every retained intelligence term." : "Review, qualify, and advance opportunities from one queue." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
   const itemById = new Map(allNavigationItems.map((item) => [item.tabId, item]));
   const effectiveRecentIds = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
   const command = (item, icon) => ({ id: `route-${item.tabId}`, label: item.label, description: item.description || item.groupLabel || "Open section", href: item.href, tabId: item.tabId, icon });
@@ -245,7 +251,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   return (
     <header ref={navRef} className="if-product-header if-product-header--masthead if-product-header--compact if-product-header--mobile-condensed if-product-header--sticky ci-sticky-header masthead" data-budget-spend-header>
       <div className="if-product-header__inner masthead__inner">
-        <a href={routes.watchlist} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to My Work" title="Go to My Work">
+        <a href={routes.watchlist} className="if-brand masthead__brand if-product-header__brand" data-home-link aria-label="Go to Today" title="Go to Today">
           <span className="if-brand__mark masthead__mark" aria-hidden="true"><WorkspaceMark workspace={workspace} className="masthead__icon" eager /></span>
           <span className="if-product-header__copy masthead__copy"><span className="if-product-header__eyebrow">{workspace?.headerEyebrow || "Defense Budget & Spend Analytics"}</span><h1 className="if-product-header__title" data-active-page-title data-mobile-label={MOBILE_TITLES[activeTab] || activeTitle}>{activeTitle}</h1></span>
         </a>

@@ -34,7 +34,7 @@ export default function AnalyticsRecordDrawer({ record, onClose }) {
     closeLabel="Close analytical detail"
     drawerProps={{ "data-analytics-record-drawer": "" }}
     bodyProps={{ className: "if-record-detail if-record-detail--intelligence" }}
-    footer={<><a className="if-btn if-btn--primary" href={`#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in timeline</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</>}
+    footer={<><a className="if-btn if-btn--primary" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(record.opportunityId)}`}>Open in Timeline</a>{(record.sourceUrls || []).slice(0, 2).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</>}
   >
     <ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} />
     <ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}>

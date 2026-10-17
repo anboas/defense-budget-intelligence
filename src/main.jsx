@@ -4,28 +4,17 @@ import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-
 import { installClientErrorReporting, reportClientError } from "./client-error-reporting.js";
 import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import "./control-surface.css";
-import {
-  BarChart3,
-  BrainCircuit,
-  Building2,
-  CalendarClock,
-  Database,
-  FileSpreadsheet,
-  ListChecks,
-  MapPinned,
-  Network,
-  RefreshCcw,
-  SearchCheck,
-  TrendingUp,
-} from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 import AuthProvider, { useAuth } from "./AuthContext.jsx";
 import NotificationProvider from "./NotificationContext.jsx";
 import ProductMark from "./ProductMark.jsx";
 import SiteHeader from "./SiteHeader.jsx";
 import { useRuntimeJson } from "./use-runtime-json.js";
+import { HASH_ROUTES, LEGACY_ROUTE_TABS, LEGACY_ROUTE_TARGETS, TABS } from "./budget-navigation.jsx";
 import "./styles.generated.css";
 
 const SpendExplorer = lazyWithRefresh(() => import("./SpendExplorer.jsx"), "spend-explorer");
+const CaptureCalendar = lazyWithRefresh(() => import("./CaptureCalendar.jsx"), "primary-timeline");
 const OpportunityMap = lazyWithRefresh(() => import("./OpportunityMap.jsx"), "opportunity-map");
 const OperationsHub = lazyWithRefresh(() => import("./OperationsHub.jsx"), "operations-hub");
 const AnalyticsSources = lazyWithRefresh(() => import("./AnalyticsSources.jsx"), "analytics-sources");
@@ -35,84 +24,7 @@ const ProfilePage = lazyWithRefresh(() => import("./ProfilePage.jsx"), "profile-
 const EventDiscoveryPage = lazyWithRefresh(() => import("./EventDiscoveryPage.jsx"), "event-discovery-page");
 const DomainModelPage = lazyWithRefresh(() => import("./DomainModelPage.jsx"), "domain-model-page");
 const IntelligenceProductsPage = lazyWithRefresh(() => import("./IntelligenceProductsPage.jsx"), "intelligence-products-page");
-
-const TABS = [
-  { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },
-  { id: "trends", label: "Request History", icon: TrendingUp, stage: "History" },
-  { id: "lifecycle", label: "Account Flow", icon: Network, stage: "Accounts" },
-  { id: "awards", label: "Awards", icon: FileSpreadsheet },
-  { id: "spend", label: "Opportunities", icon: BarChart3 },
-  { id: "map", label: "Opportunity Map", icon: MapPinned },
-  { id: "schedule", label: "Schedule", icon: CalendarClock },
-  { id: "event-discovery", label: "Event Discovery", icon: SearchCheck },
-  { id: "watchlist", label: "My Work", icon: ListChecks },
-  { id: "tasks", label: "Task Center", icon: ListChecks },
-  { id: "connections", label: "Connections", icon: Database },
-  { id: "domain-model", label: "Domain Model", icon: Network },
-  { id: "intelligence", label: "Intelligence Operations", icon: BrainCircuit },
-  { id: "users", label: "Accounts", icon: Building2 },
-  { id: "workspaces", label: "Workspaces", icon: Building2 },
-  { id: "workspace-settings", label: "Workspace Settings", icon: Building2 },
-  { id: "sources", label: "Source Lineage", icon: Database },
-  { id: "profile", label: "Profile", icon: Building2 },
-  { id: "security", label: "Security", icon: Building2 },
-  { id: "personal-ai", label: "OpenAI Keys", icon: BrainCircuit },
-];
-
-const HASH_ROUTES = {
-  overview: "#/budget-spend",
-  lifecycle: "#/budget-spend/lifecycle",
-  trends: "#/budget-spend/trends",
-  awards: "#/budget-spend/awards",
-  spend: "#/budget-spend/explorer",
-  map: "#/budget-spend/map",
-  schedule: "#/budget-spend/schedule",
-  "event-discovery": "#/budget-spend/event-discovery",
-  directory: "#/workspace/directory",
-  watchlist: "#/budget-spend/watchlist",
-  tasks: "#/budget-spend/tasks",
-  connections: "#/budget-spend/connections",
-  "domain-model": "#/budget-spend/domain-model",
-  intelligence: "#/budget-spend/intelligence",
-  users: "#/budget-spend/users",
-  workspaces: "#/budget-spend/workspaces",
-  "workspace-settings": "#/budget-spend/workspace",
-  sources: "#/budget-spend/sources",
-  profile: "#/profile",
-  security: "#/profile/security",
-  "personal-ai": "#/profile/openai",
-};
-
-const LEGACY_ROUTE_TARGETS = {
-  "#/budget-spend/transactions": "#/budget-spend/explorer?spendView=timeline",
-  "#/budget-spend/analytics": "#/budget-spend/explorer?spendView=charts",
-  "#/budget-spend/events": "#/budget-spend/schedule?scheduleView=list",
-  "#/budget-spend/wallboard": "#/budget-spend/schedule?scheduleView=display",
-  "#/budget-spend/integrations": "#/budget-spend/connections?connectionsView=integrations",
-  "#/budget-spend/agents": "#/budget-spend/connections?connectionsView=credentials",
-  "#/budget-spend/api-log": "#/budget-spend/connections?connectionsView=activity",
-  "#/profile/agents": "#/budget-spend/connections?connectionsView=credentials",
-  "#/profile/activity": "#/budget-spend/connections?connectionsView=activity",
-};
-
-const LEGACY_ROUTE_TABS = {
-  "#/budget-spend/strategy": "overview",
-  "#/budget-spend/briefs": "overview",
-  "#/budget-spend/visuals": "spend",
-  "#/budget-spend/hypotheses": "overview",
-  "#/budget-spend/accounts": "lifecycle",
-  "#/budget-spend/fit": "overview",
-  "#/budget-spend/relationships": "awards",
-  "#/budget-spend/pursuits": "spend",
-  "#/budget-spend/capture-calendar": "spend",
-  "#/budget-spend/queue": "spend",
-  "#/budget-spend/services": "overview",
-  "#/budget-spend/fourth-estate": "overview",
-  "#/budget-spend/ai-autonomy": "overview",
-  "#/budget-spend/drilldown": "overview",
-  "#/budget-spend/changes": "sources",
-  "#/budget-spend/operations": "watchlist",
-};
+const DataLibraryPage = lazyWithRefresh(() => import("./DataLibraryPage.jsx"), "data-library-page");
 
 function tabFromHash(hash = "") {
   const normalized = hash || HASH_ROUTES.watchlist;
@@ -182,7 +94,7 @@ const OPERATIONS_TAB_IDS = new Set(["schedule", "directory", ...ADMINISTRATION_T
 const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const BUDGET_REQUEST_TAB_IDS = new Set(["overview", "trends", "lifecycle"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
-const EXECUTION_TAB_IDS = new Set(["awards", "spend", "map", ...OPERATIONS_TAB_IDS]);
+const EXECUTION_TAB_IDS = new Set(["awards", "spend", "timeline", "map", "library", ...OPERATIONS_TAB_IDS]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -303,7 +215,7 @@ function App() {
   const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
   const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && activeTab !== "map" && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";
-  const needsCaptureCalendar = spendNeedsFullData || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
+  const needsCaptureCalendar = spendNeedsFullData || activeTab === "timeline" || activeTab === "library" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
   const needsOpportunityMap = activeTab === "map";
   const opportunityMap = useRuntimeJson(needsOpportunityMap, "opportunity-map-data.json");
 
@@ -391,6 +303,8 @@ function App() {
         {coreReady && BUDGET_REQUEST_TAB_IDS.has(activeTab) && (activeTab !== "lifecycle" || accountSpineReady) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Budget request analysis and money-flow evidence are loading." />}><BudgetRequestRoutes view={activeTab} budgetData={data} accountSpine={ACCOUNT_SPINE} /></Suspense> : null}
         {executionReady && activeTab === "awards" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading awards" loadingMessage="Award filters, evidence, and market rollups are loading." />}><AwardsRoute awardDrilldown={AWARD_DRILLDOWN} books={data.metadata.sources || []} sourcePackageUrl={data.metadata.dataInventory?.sourcePackageUrl || ""} snapshotGeneratedAt={data.metadata.generatedAt} methodology={data.metadata.methodology} executionCoverage={EXECUTION_COVERAGE} /></Suspense> : null}
         {activeTab === "spend" && (spendView === "today" || (executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady))) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunities" loadingMessage="Workbench, radar, brief, timeline, and analysis views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
+        {activeTab === "timeline" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Timeline" loadingMessage="Contract families, opportunity terms, milestones, and evidence layers are loading." />}><CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} primary defaultScope="tracked" onOpenRecord={(recordId) => { window.location.hash = `#/budget-spend/timeline?capRecord=${encodeURIComponent(recordId)}`; }} /></Suspense> : null}
+        {activeTab === "library" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Data Library" loadingMessage="Schema, organizations, people, companies, work, and evidence relationships are loading." />}><DataLibraryPage dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} routeHash={routeHash} /></Suspense> : null}
         {activeTab === "map" && opportunityMap.data ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunity Map" loadingMessage="Organization locations, opportunity status, and published spend are loading." />}><OpportunityMap dataset={opportunityMap.data} /></Suspense> : null}
         {activeTab === "event-discovery" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading event discovery" loadingMessage="Candidates, source health, and scan history are loading." />}><EventDiscoveryPage /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}

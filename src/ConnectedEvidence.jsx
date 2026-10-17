@@ -3,6 +3,7 @@ import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from
 import "./ConnectedEvidence.css";
 
 const ConnectedEvidenceVisual = lazy(() => import("./ConnectedEvidenceVisual.jsx"));
+const OrganizationRelationshipLens = lazy(() => import("./OrganizationRelationshipLens.jsx"));
 
 const RELATION_LABELS = {
   "activity-awarded-as": "Award identity",
@@ -92,7 +93,8 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
   const connected = connection.connected || {};
   const routeLinks = [
     !fullView ? ["Full view", `#/budget-spend/domain-model?activity=${encodeURIComponent(opportunityId)}`] : null,
-    ["Timeline", `#/budget-spend/explorer?spendView=timeline&capRecord=${encodeURIComponent(opportunityId)}`],
+    ["Timeline", `#/budget-spend/timeline?capRecord=${encodeURIComponent(opportunityId)}`],
+    ["Organization relationships", `#/budget-spend/library?libraryView=relationships&capRecord=${encodeURIComponent(opportunityId)}`],
     primaryLocation ? ["Map", `#/budget-spend/map?mapOrg=${encodeURIComponent(primaryLocation.sourceId)}`] : null,
     counts.awards ? ["Awards", "#/budget-spend/awards"] : null,
     counts.federalAccounts ? ["Account flow", "#/budget-spend/lifecycle"] : null,
@@ -112,6 +114,7 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         {routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}
       </nav>
       <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} /></Suspense>
+      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading organization relationships…</div>}><OrganizationRelationshipLens record={record} connection={connection} compact={!fullView} /></Suspense>
       <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
         <ConnectionGroup title="Exact parent vehicles" items={contractLineage?.vehicles} renderItem={(vehicle) => <article key={vehicle.id} data-contract-vehicle><strong>{vehicle.piid}</strong><span>{countLabel(vehicle.orderCount, "linked order")}</span><em>Exact USAspending parent IDV</em></article>} />

@@ -104,8 +104,8 @@ async function openSurface(page, route, selector) {
   let link = page.locator(`[data-budget-nav="${route}"]:visible`).first();
   if (!await link.count()) {
     if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
-      const group = ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/sources"].includes(route) ? "money"
-          : ["#/budget-spend/watchlist", "#/budget-spend/tasks"].includes(route) ? "work"
+      const group = ["#/budget-spend", "#/budget-spend/trends", "#/budget-spend/lifecycle", "#/budget-spend/awards", "#/budget-spend/library", "#/budget-spend/map", "#/budget-spend/sources"].includes(route) ? "money"
+          : ["#/budget-spend/schedule", "#/budget-spend/tasks"].includes(route) ? "work"
             : ["#/budget-spend/users", "#/budget-spend/workspaces"].includes(route) ? "platform-admin" : "workspace-admin";
       const trigger = page.locator(`[data-nav-group-trigger="${group}"]`);
       if (await trigger.count()) await trigger.click();
@@ -201,14 +201,14 @@ async function assertActiveGroupState(page, group, childLabel) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose My Work, Opportunities, and Schedule as primary links");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["My Work", "Opportunities", "Schedule"], "Primary navigation should contain the three consolidated working surfaces");
+  assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose Today, Timeline, and Opportunities as primary links");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Today", "Timeline", "Opportunities"], "Primary navigation should contain the three consolidated operating surfaces");
   assert.equal(await page.getByRole("button", { name: "Search and navigate" }).count(), 1, "The header should expose one global command trigger");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   await page.waitForSelector(".if-command-dialog");
   const commandPaletteText = await page.locator(".if-command-dialog").innerText();
   assert.match(commandPaletteText, /Recent[\s\S]*Navigate/i, "The command palette should separate recent and general navigation");
-  for (const primaryLabel of ["My Work", "Opportunities", "Schedule"]) assert.match(commandPaletteText, new RegExp(primaryLabel, "i"), `The command palette should expose ${primaryLabel}`);
+  for (const primaryLabel of ["Today", "Timeline", "Opportunities"]) assert.match(commandPaletteText, new RegExp(primaryLabel, "i"), `The command palette should expose ${primaryLabel}`);
   await page.locator(".if-command-dialog input[type=search]").fill("Source Lineage");
   assert.equal(await page.locator(".if-command-palette__item:visible").count(), 1, "Command search should reduce the visible command set");
   await page.keyboard.press("Escape");
@@ -229,16 +229,16 @@ async function assertFlowShell(page) {
     });
     assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.workspaceLeft, "Workspace divider should sit between Money flow and Workspace");
     await page.locator('[data-nav-group-trigger="money"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 6, "Budget and Spend should contain the detailed analytical routes, map, and lineage");
-    assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Opportunity Map[\s\S]*Source Lineage/i);
+    assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 7, "Budget and Spend should retain the Data Library, analytical routes, map, and lineage");
+    assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /Data Library[\s\S]*PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Opportunity Map[\s\S]*Source Lineage/i);
     await page.locator('[data-nav-group-trigger="money"]').click();
     await page.locator('[data-nav-group-trigger="work"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 1, "Standard work navigation should expose only the supporting task surface");
-    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Task Center/i);
+    assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Standard work navigation should retain Schedule and Task Center");
+    assert.match(await page.locator('[data-budget-nav-menu="work"]').innerText(), /Schedule[\s\S]*Task Center/i);
     assert.deepEqual(
       await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
-      ["#/budget-spend/tasks"],
-      "Primary work and schedule views must remain outside the supporting Work menu",
+      ["#/budget-spend/schedule", "#/budget-spend/tasks"],
+      "Schedule and Task Center should remain available without competing with primary operating surfaces",
     );
     await page.locator('[data-nav-group-trigger="work"]').click();
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
@@ -433,9 +433,9 @@ try {
   await moneyTrigger.focus();
   await page.keyboard.press("ArrowDown");
   assert.equal(await moneyTrigger.getAttribute("aria-expanded"), "true", "Arrow Down should open the Money flow menu");
-  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("PDB Request")), true, "Arrow Down should focus the first Money flow item");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Data Library")), true, "Arrow Down should focus the first Budget & Spend item");
   await page.keyboard.press("ArrowDown");
-  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Request History")), true, "Arrow keys should move through Money flow items");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("PDB Request")), true, "Arrow keys should move through Budget & Spend items");
   await page.keyboard.press("Escape");
   assert.equal(await moneyTrigger.getAttribute("aria-expanded"), "false", "Escape should close the Money flow menu");
   assert.equal(await moneyTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to the Money flow trigger");
@@ -1035,8 +1035,7 @@ try {
   await page.waitForFunction(() => !window.location.hash.includes("capView"));
   await page.waitForSelector("[data-capture-timeline]");
   assert.equal(await page.locator("[data-transaction-data-table]").count(), 0, "Legacy table links must canonicalize back to the Gantt");
-  await page.getByRole("button", { name: "Workbench", exact: true }).click();
-  await page.waitForSelector('[data-spend-explorer="table"]');
+  await openSurface(page, "#/budget-spend/explorer", '[data-spend-explorer="table"]');
   await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("procurement-discovery.json")));
   assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Spend Explorer views should share one deferred discovery request");
   assert.equal(await page.locator("[data-daily-acquisition-feed]").count(), 0, "Opportunity Workbench should not duplicate the Brief update ledger");
@@ -1272,8 +1271,21 @@ try {
   await chooseControlSelect(page, "Tracking", "Tracked only (1)");
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
+  await openSurface(page, "#/budget-spend/timeline", "[data-capture-timeline]");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Timeline", "Timeline should be a first-class primary route");
+  assert.equal(await page.locator('[data-timeline-scope="tracked"]').count(), 1, "Primary Timeline should default to tracked work");
+  await page.getByRole("button", { name: /All intelligence/i }).click();
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /timelineScope=all/, "All intelligence scope should be durable and shareable");
+  assert.ok(await page.locator("[data-capture-timeline-row]").count() > 1, "All intelligence should restore the complete matching family timeline");
+  await page.screenshot({ path: `${OUT_DIR}/timeline-primary-desktop.png`, fullPage: true });
+  await openSurface(page, "#/budget-spend/library", "[data-data-library-page]");
+  await page.waitForSelector('[data-organization-relationships="ready"]');
+  assert.match(await page.locator("[data-data-library-page]").innerText(), /Customers & offices[\s\S]*Officials & roles[\s\S]*Programs, awards & accounts[\s\S]*Companies & suppliers/i, "Data Library should connect customer hierarchy, people, work, and companies");
+  assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Data Library should load its bounded organization index once");
+  await page.screenshot({ path: `${OUT_DIR}/data-library-relationships-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "My Work", "The masthead should identify the action-oriented workspace surface");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Today", "The masthead should identify the action-oriented workspace surface");
+  assert.equal(await page.locator("[data-my-work-timeline]").count(), 1, "Today should expose a compact tracked Timeline slice");
   assert.equal(await page.locator("[data-my-work] .my-work__status").count(), 3, "My Work should expose three action-oriented attention states");
   assert.equal(await page.locator("[data-my-work-task]").count(), 1, "My Work should project the pursuit task into its cross-record action queue");
   assert.equal(await page.locator("[data-ops-watch-table]").count(), 0, "My Work should defer the portfolio table until the operator requests it");
@@ -1839,7 +1851,7 @@ try {
   assert.ok(await decisionBriefButton.evaluate((node) => node.classList.contains("if-btn--ai") && getComputedStyle(node).backgroundColor !== "rgba(0, 0, 0, 0)"), "Record research must use the shared framework AI action token");
   await page.getByRole("link", { name: /^(?:Review links|Find related records)$/ }).click();
   await page.waitForSelector("[data-capture-timeline]");
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /spendView=timeline.*capLink=1.*capSeed=opp_f2a64db1164b5263690b/, "Record-to-Timeline handoff must seed the exact record without filtering away its candidates");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /#\/budget-spend\/timeline\?capLink=1.*capSeed=opp_f2a64db1164b5263690b/, "Record-to-Timeline handoff must seed the exact record without filtering away its candidates");
   assert.equal(await page.locator('[data-lifecycle-selection-count="1"] button').count(), 1, "The seeded record must already be visible in the lifecycle workbench selection");
   assert.equal(await page.getByPlaceholder("Program, company, reference, buyer").inputValue(), "", "Lifecycle handoff must keep the complete candidate corpus visible");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -2540,8 +2552,8 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 13, "Mobile navigation should expose the reduced primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*My Work[\s\S]*Opportunities[\s\S]*Schedule[\s\S]*Budget & Spend[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Workspace[\s\S]*Domain Model[\s\S]*Intelligence Operations/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Mobile navigation should expose the primary and grouped route set from one menu");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Today[\s\S]*Timeline[\s\S]*Opportunities[\s\S]*Budget & Spend[\s\S]*Data Library[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Schedule[\s\S]*Workspace[\s\S]*Domain Model[\s\S]*Intelligence Operations/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
@@ -2795,6 +2807,14 @@ try {
   }
   await assertNoPageOverflow(mobile, "Mobile My Work");
   await mobile.screenshot({ path: `${OUT_DIR}/my-work-mobile.png`, fullPage: true });
+  await openSurface(mobile, "#/budget-spend/timeline?timelineScope=tracked", "[data-capture-timeline]");
+  assert.equal(await mobile.locator('[data-timeline-scope="tracked"]').count(), 1, "Mobile primary Timeline should retain its tracked default");
+  await assertNoPageOverflow(mobile, "Mobile primary Timeline");
+  await mobile.screenshot({ path: `${OUT_DIR}/timeline-primary-mobile.png`, fullPage: true });
+  await openSurface(mobile, "#/budget-spend/library", "[data-data-library-page]");
+  await mobile.waitForSelector('[data-organization-relationships="ready"]');
+  await assertNoPageOverflow(mobile, "Mobile Data Library relationships");
+  await mobile.screenshot({ path: `${OUT_DIR}/data-library-relationships-mobile.png`, fullPage: true });
   await openSurface(mobile, "#/budget-spend/schedule?scheduleView=display", "[data-ops-wallboard]");
   const mobileWallboardEmpty = mobile.locator(".ops-wallboard__empty");
   if (await mobileWallboardEmpty.count()) {
