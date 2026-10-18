@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Check, Eye, KeyRound, Pencil, RefreshCcw, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from "lucide-react";
 import UserAvatar from "./UserAvatar.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlStatusBadge, useToast } from "control-surface-ui/react";
+import SectionedPageHeader from "./SectionedPageHeader.jsx";
+import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, ControlStatusBadge, useToast } from "control-surface-ui/react";
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
 import { workspaceMemberHref } from "./workspace-profile-routes.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
@@ -190,8 +191,13 @@ export default function UserManagement({ auth }) {
     { key: "count", label: "Count", minWidth: 80, align: "right", value: (entry) => Number(entry.visitCount || 1), render: (entry) => Number(entry.visitCount || 1).toLocaleString() },
   ];
 
-  return <section className="ops-panel user-management" data-user-management data-platform-accounts aria-labelledby="user-management-title">
-    <ControlPageHeader compact divided eyebrow="Platform administration" title="Accounts" summary={<>Global identity, invitation-only registration, status, password recovery, and user emulation. Workspace roles live in <WorkspaceAccessLink />.</>} headingLevel={2} titleId="user-management-title" actions={surface === "accounts" ? <button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add account</button> : surface === "activity" ? <button type="button" className="if-btn if-btn--secondary" onClick={() => void refresh().catch((error) => notify("Activity unavailable", error.message, "danger"))} disabled={busy}><RefreshCcw size={15} />Refresh activity</button> : null} />
+  const accountSections = [
+    { id: "accounts", label: "Accounts", count: users.length },
+    { id: "invitations", label: "Invitations" },
+    { id: "activity", label: "Activity", count: activities.length },
+  ];
+  return <section className="ops-panel user-management" data-user-management data-platform-accounts aria-label="Accounts">
+    <SectionedPageHeader eyebrow="Platform administration" title="Accounts" summary={<>Global identity, invitation-only registration, status, password recovery, and user emulation. Workspace roles live in <WorkspaceAccessLink />.</>} actions={surface === "accounts" ? <button type="button" className="if-btn if-btn--primary" onClick={() => { setMode("create"); setSelectedId(""); setMessage(""); }} disabled={busy}><UserPlus size={15} />Add account</button> : surface === "activity" ? <button type="button" className="if-btn if-btn--secondary" onClick={() => void refresh().catch((error) => notify("Activity unavailable", error.message, "danger"))} disabled={busy}><RefreshCcw size={15} />Refresh activity</button> : null} items={accountSections} activeId={surface} ariaLabel="Platform account sections" onSelect={selectSurface} />
     <ControlPageBody compact>
 
     {surface !== "invitations" ? <ControlMetricStrip label={surface === "accounts" ? "User access summary" : "User activity summary"} items={surface === "accounts" ? [
@@ -205,12 +211,6 @@ export default function UserManagement({ auth }) {
       { id: "actions", label: "Actions", value: actionCount, tone: "purple" },
       { id: "accounts", label: "Active accounts", value: activeAccounts, tone: "success" },
     ]} /> : null}
-
-    <nav className="if-tabs__list user-management__tabs" aria-label="Platform account sections">
-      <button type="button" className={`if-tab${surface === "accounts" ? " is-active" : ""}`} aria-pressed={surface === "accounts"} onClick={() => selectSurface("accounts")}>Accounts <span className="if-badge">{users.length}</span></button>
-      <button type="button" className={`if-tab${surface === "invitations" ? " is-active" : ""}`} aria-pressed={surface === "invitations"} onClick={() => selectSurface("invitations")}>Invitations</button>
-      <button type="button" className={`if-tab${surface === "activity" ? " is-active" : ""}`} aria-pressed={surface === "activity"} onClick={() => selectSurface("activity")}>Activity <span className="if-badge">{activities.length}</span></button>
-    </nav>
 
     {surface === "accounts" && mode === "create" ? <ControlDialog open onClose={closeEditor} title="Add account" eyebrow="Platform administration" summary={<>Create a global account and grant its initial role in the active workspace. Future role changes belong in <WorkspaceAccessLink onClick={closeEditor} />.</>} size="wide" dialogRef={dialogRef} surfaceProps={{ "data-user-create": true }} footer={<><button type="button" className="if-btn" onClick={closeEditor}>Cancel</button><button type="submit" form="user-create-form" className="if-btn if-btn--primary" disabled={busy}><UserPlus size={15} />{busy ? "Creating…" : "Create account"}</button></>}><form id="user-create-form" className="user-management__editor if-form-grid" onSubmit={createUser}>
       <div className="user-management__form-grid">
