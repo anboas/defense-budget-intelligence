@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-BRK_XKou.js";import{S as t}from"./react-BKidFYpO.js";var n=e();function r({ariaLabel:e,...r}){return(0,n.jsx)(t,{label:e||`Select`,...r})}export{r as t};
