@@ -78,7 +78,7 @@ function routeSelection() {
   if (typeof window === "undefined") return { view: "connections", item: "" };
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
   const view = params.get("capVisual");
-  return { view: VIEWS.has(view) ? view : "connections", item: params.get("capVisualItem") || "" };
+  return { view: VIEWS.has(view) ? view : "connections", item: params.get("capVisualItem") || params.get("graphNode") || "" };
 }
 
 function updateRouteSelection(view, item = "") {
@@ -117,21 +117,21 @@ function money(value) {
   return `${sign}$${Math.round(absolute).toLocaleString()}`;
 }
 
-function node(id, type, label, detail, action = null) {
-  return { id, type, label: compact(label), detail: compact(detail), action };
+function node(id, type, label, detail, action = null, actionLabel = "Open connected record") {
+  return { id, type, label: compact(label), detail: compact(detail), action, actionLabel };
 }
 
 function graphNodes(connection, lineage, temporal, record, opportunityId) {
   const connected = connection?.connected || {};
   const neighbors = [
-    ...(connected.organizations || []).slice(0, 3).map((item) => node(item.id, "organization", item.label, item.identity?.identifiers?.uei ? `UEI ${item.identity.identifiers.uei}` : item.identity?.method)),
-    ...(connected.awards || []).slice(0, 2).map((item) => node(item.id, "award", item.piid || item.label, item.label)),
-    ...(lineage?.vehicles || []).slice(0, 2).map((item) => node(item.id, "vehicle", item.piid || item.label, `${item.orderCount || 0} linked order${item.orderCount === 1 ? "" : "s"}`)),
-    ...(connected.federalAccounts || []).slice(0, 2).map((item) => node(item.id, "account", item.federalAccountCode || item.label, item.label)),
-    ...(lineage?.predecessors || []).slice(0, 1).map((item) => node(item.opportunityId, "predecessor", item.reference || item.label, item.label, `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(item.opportunityId)}`)),
-    ...(lineage?.successors || []).slice(0, 1).map((item) => node(item.opportunityId, "successor", item.reference || item.label, item.label, `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(item.opportunityId)}`)),
-    ...(connected.locations || []).slice(0, 1).map((item) => node(item.id, "location", item.label, [item.city, item.state].filter(Boolean).join(", "))),
-    ...(connected.classifications || []).slice(0, 2).map((item) => node(item.id, "classification", item.label, item.namespace)),
+    ...(connected.organizations || []).slice(0, 3).map((item) => node(item.id, "organization", item.label, item.identity?.identifiers?.uei ? `UEI ${item.identity.identifiers.uei}` : item.identity?.method, `#/budget-spend/library?libraryQuery=${encodeURIComponent(item.label)}`, "Open customer hierarchy")),
+    ...(connected.awards || []).slice(0, 2).map((item) => node(item.id, "award", item.piid || item.label, item.label, `#/budget-spend/awards?awardQuery=${encodeURIComponent(item.piid || item.label)}`, "Open award evidence")),
+    ...(lineage?.vehicles || []).slice(0, 2).map((item) => node(item.id, "vehicle", item.piid || item.label, `${item.orderCount || 0} linked order${item.orderCount === 1 ? "" : "s"}`, `#/budget-spend/timeline?timelineScope=all&capVehicle=${encodeURIComponent(item.piid || item.label)}`, "Browse vehicle family")),
+    ...(connected.federalAccounts || []).slice(0, 2).map((item) => node(item.id, "account", item.federalAccountCode || item.label, item.label, `#/budget-spend/lifecycle?accountQuery=${encodeURIComponent(item.federalAccountCode || item.label)}`, "Open account flow")),
+    ...(lineage?.predecessors || []).slice(0, 1).map((item) => node(item.opportunityId, "predecessor", item.reference || item.label, item.label, `#/budget-spend/intelligence-graph?graphRecord=${encodeURIComponent(item.opportunityId)}`, "Traverse from predecessor")),
+    ...(lineage?.successors || []).slice(0, 1).map((item) => node(item.opportunityId, "successor", item.reference || item.label, item.label, `#/budget-spend/intelligence-graph?graphRecord=${encodeURIComponent(item.opportunityId)}`, "Traverse into successor")),
+    ...(connected.locations || []).slice(0, 1).map((item) => node(item.id, "location", item.label, [item.city, item.state].filter(Boolean).join(", "), `#/budget-spend/map?mapOrg=${encodeURIComponent(`location:${item.sourceId || item.id}`)}`, "Show on map")),
+    ...(connected.classifications || []).slice(0, 2).map((item) => node(item.id, "classification", item.label, item.namespace, `#/budget-spend/explorer?spendView=table&capQuery=${encodeURIComponent(item.label)}`, "Browse matching opportunities")),
     ...(temporal?.conflicts || []).filter((item) => item.status === "needs_review").slice(0, 1).map((item) => node(item.id, "conflict", compact(item.field), item.reason)),
   ].slice(0, 12);
   return [node(opportunityId, "activity", record?.title || record?.id || "Selected opportunity", record?.reference || record?.id || opportunityId, `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(opportunityId)}`), ...neighbors];
@@ -213,15 +213,13 @@ function ConnectionsView({ nodes, selected, onSelect }) {
 
 function TimelineView({ events, selected, onSelect }) {
   if (!events.length) return <div className="connected-visual__empty" data-evidence-visual-empty>No dated evidence is available for this record yet. Open the full Timeline to inspect the surrounding workspace.</div>;
-  const first = Date.parse(events[0].date);
-  const last = Date.parse(events.at(-1).date);
-  const span = Math.max(last - first, 86_400_000);
-  return <div className="connected-visual__scroller" tabIndex="0" aria-label="Scrollable connected evidence timeline">
-    <div className="connected-visual__timeline" data-evidence-visual-timeline data-marker-count={events.length}>
-      <div className="connected-visual__axis"><span>{date(events[0].date)}</span><span>{date(events.at(-1).date)}</span></div>
-      {events.map((item, index) => { const left = 4 + ((Date.parse(item.date) - first) / span) * 92; return <button key={item.id} type="button" className={`connected-visual__marker is-${item.type}${selected.id === item.id ? " is-selected" : ""}`} style={{ left: `${left}%`, top: index % 2 ? "86px" : "38px" }} aria-label={`${item.label}, ${date(item.date)}`} aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-visual-timeline-marker={item.type}>{index + 1}</button>; })}
-    </div>
-  </div>;
+  return <ol className="if-timeline connected-visual__timeline-list" aria-label="Connected evidence dates" data-evidence-visual-timeline data-marker-count={events.length}>
+    {events.map((item) => <li key={item.id} className={`if-timeline__item is-${item.type}${selected.id === item.id ? " is-selected" : ""}`}>
+      <button type="button" aria-pressed={selected.id === item.id} onClick={() => onSelect(item)} data-visual-timeline-marker={item.type}>
+        <time dateTime={item.date}>{date(item.date)}</time><span><strong>{item.label}</strong><small>{item.detail}</small></span><em>{TYPE_LABEL[item.type] || compact(item.type)}</em>
+      </button>
+    </li>)}
+  </ol>;
 }
 
 function createTask(recordId, item, view) {
@@ -236,7 +234,7 @@ function createTask(recordId, item, view) {
   } }));
 }
 
-export default function ConnectedEvidenceVisual({ connection, lineage, temporal, record, researchReport, opportunityId }) {
+export default function ConnectedEvidenceVisual({ connection, lineage, temporal, record, researchReport, opportunityId, fullView = false }) {
   const nodes = useMemo(() => graphNodes(connection, lineage, temporal, record, opportunityId), [connection, lineage, opportunityId, record, temporal]);
   const events = useMemo(() => timelineEvents(record, researchReport, temporal, lineage, opportunityId), [lineage, opportunityId, record, researchReport, temporal]);
   const initial = routeSelection();
@@ -277,7 +275,7 @@ export default function ConnectedEvidenceVisual({ connection, lineage, temporal,
   return <section className="connected-visual" style={{ minWidth: 0, maxWidth: "100%", width: "100%", overflow: "hidden" }} data-connected-visual-analysis data-connected-visual-view={view} data-connected-visual-selected={selected?.id || ""} onKeyDown={(event) => { if (event.key === "Escape" && selectedId) { event.preventDefault(); reset(); } }}>
     <header><div><span>Connected intelligence ·</span>{" "}<strong>{view === "connections" ? `${nodes.length - 1} bounded neighbors` : view === "timeline" ? `${events.length} dated signals` : view === "relationships" ? "customer and industrial-base lanes" : moneyState.path ? `${moneyState.path.nodes.length} money-path nodes` : "bounded funding chain"}</strong></div><nav aria-label="Choose visual analysis"><button type="button" className={view === "connections" ? "is-active" : ""} aria-pressed={view === "connections"} onClick={() => selectView("connections")}>Connections</button><button type="button" className={view === "timeline" ? "is-active" : ""} aria-pressed={view === "timeline"} onClick={() => selectView("timeline")}>Timeline</button><button type="button" className={view === "money" ? "is-active" : ""} aria-pressed={view === "money"} onClick={() => selectView("money")}>Money Path</button><button type="button" className={view === "relationships" ? "is-active" : ""} aria-pressed={view === "relationships"} onClick={() => selectView("relationships")}>Relationships</button></nav>{view !== "relationships" && selectedId ? <button type="button" onClick={reset}>Reset</button> : null}</header>
     {view === "connections" ? <ConnectionsView nodes={nodes} selected={selected} onSelect={selectItem} /> : view === "timeline" ? <TimelineView events={events} selected={selected} onSelect={selectItem} /> : view === "relationships" ? <Suspense fallback={<div className="connected-visual__empty" role="status">Loading organization relationships…</div>}><OrganizationRelationshipLens record={record} connection={connection} compact embedded /></Suspense> : moneyState.status === "loading" ? <div className="connected-visual__empty" role="status">Loading bounded funding chain…</div> : moneyState.status === "error" ? <div className="connected-visual__empty" role="alert">Money Path is temporarily unavailable. The evidence graph remains usable.</div> : moneyState.path ? <Suspense fallback={<div className="connected-visual__empty" role="status">Drawing Money Path…</div>}><MoneyPath path={moneyState.path} selected={selectedId ? selected : null} onSelect={selectItem} /></Suspense> : <div className="connected-visual__empty" data-money-path-empty>No exact award-account funding path is published for this record yet. No relationship was inferred.</div>}
-    {view !== "relationships" && (view !== "money" || selectedId) ? <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.amount != null ? money(selected.amount) : selected.detail}</span></div><p>{selected.detail || (selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`)}</p><nav className="if-button-group" aria-label="Selected evidence actions">{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : "Open connected record"} →</a> : null}<button type="button" className="if-btn if-btn--secondary" onClick={() => createTask(opportunityId, selected, view)}>Create task</button></nav></article> : null}
+    {view !== "relationships" && (view !== "money" || selectedId) ? <article className="connected-visual__inspector" data-evidence-visual-inspector><div><small>{TYPE_LABEL[selected.type] || compact(selected.type)}</small> · <strong>{selected.label}</strong> · <span>{selected.date ? date(selected.date) : selected.amount != null ? money(selected.amount) : selected.detail}</span></div><p>{selected.detail || (selected.date ? selected.detail : selected.type === "activity" ? "The selected record anchors this bounded, deterministic neighborhood." : `This ${TYPE_LABEL[selected.type]?.toLowerCase() || "entity"} is linked by retained source evidence.`)}</p><nav className="if-button-group" aria-label="Selected evidence actions">{selected.sourceUrl ? <a href={selected.sourceUrl} target="_blank" rel="noreferrer">Open cited source ↗</a> : selected.action ? <a href={selected.action}>{selected.date ? "Show on full Timeline" : selected.actionLabel} →</a> : null}{!fullView ? <a className="if-btn if-btn--secondary" href={`#/budget-spend/intelligence-graph?graphRecord=${encodeURIComponent(opportunityId)}&graphNode=${encodeURIComponent(selected.id)}`}>Open Intelligence Graph</a> : null}<button type="button" className="if-btn if-btn--secondary" onClick={() => createTask(opportunityId, selected, view)}>Create task</button></nav></article> : null}
     <footer aria-live="polite"><span>Click, tap, or tab to inspect. Escape resets selection.</span> · <span>Bounded indexes only · full graph never loaded</span></footer>
   </section>;
 }

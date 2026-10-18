@@ -25,6 +25,7 @@ const EventDiscoveryPage = lazyWithRefresh(() => import("./EventDiscoveryPage.js
 const DomainModelPage = lazyWithRefresh(() => import("./DomainModelPage.jsx"), "domain-model-page");
 const IntelligenceProductsPage = lazyWithRefresh(() => import("./IntelligenceProductsPage.jsx"), "intelligence-products-page");
 const DataLibraryPage = lazyWithRefresh(() => import("./DataLibraryPage.jsx"), "data-library-page");
+const IntelligenceGraphPage = lazyWithRefresh(() => import("./IntelligenceGraphPage.jsx"), "intelligence-graph-page");
 
 function tabFromHash(hash = "") {
   const normalized = hash || HASH_ROUTES.watchlist;
@@ -94,7 +95,7 @@ const OPERATIONS_TAB_IDS = new Set(["schedule", "directory", ...ADMINISTRATION_T
 const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const BUDGET_REQUEST_TAB_IDS = new Set(["overview", "trends", "lifecycle"]);
 const CORE_TAB_IDS = new Set(["overview", "trends", "lifecycle", "sources"]);
-const EXECUTION_TAB_IDS = new Set(["awards", "spend", "timeline", "map", "library", ...OPERATIONS_TAB_IDS]);
+const EXECUTION_TAB_IDS = new Set(["awards", "spend", "timeline", "map", "library", "intelligence-graph", ...OPERATIONS_TAB_IDS]);
 
 function hydrateCore(nextData) {
   data = nextData;
@@ -215,7 +216,7 @@ function App() {
   const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
   const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && activeTab !== "map" && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";
-  const needsCaptureCalendar = spendNeedsFullData || activeTab === "timeline" || activeTab === "library" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
+  const needsCaptureCalendar = spendNeedsFullData || activeTab === "timeline" || activeTab === "library" || activeTab === "intelligence-graph" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
   const needsOpportunityMap = activeTab === "map";
   const opportunityMap = useRuntimeJson(needsOpportunityMap, "opportunity-map-data.json");
 
@@ -305,6 +306,7 @@ function App() {
         {activeTab === "spend" && (spendView === "today" || (executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady))) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunities" loadingMessage="Workbench, radar, brief, timeline, and analysis views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
         {activeTab === "timeline" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Timeline" loadingMessage="Contract families, opportunity terms, milestones, and evidence layers are loading." />}><CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} primary defaultScope="tracked" onOpenRecord={(recordId) => { window.location.hash = `#/budget-spend/timeline?capRecord=${encodeURIComponent(recordId)}`; }} /></Suspense> : null}
         {activeTab === "library" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Data Library" loadingMessage="Schema, organizations, people, companies, work, and evidence relationships are loading." />}><DataLibraryPage dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} routeHash={routeHash} /></Suspense> : null}
+        {activeTab === "intelligence-graph" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Intelligence Graph" loadingMessage="Connected evidence, contract families, organizations, awards, accounts, classifications, and locations are loading." />}><IntelligenceGraphPage dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} routeHash={routeHash} /></Suspense> : null}
         {activeTab === "map" && opportunityMap.data ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunity Map" loadingMessage="Organization locations, opportunity status, and published spend are loading." />}><OpportunityMap dataset={opportunityMap.data} /></Suspense> : null}
         {activeTab === "event-discovery" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading event discovery" loadingMessage="Candidates, source health, and scan history are loading." />}><EventDiscoveryPage /></Suspense> : null}
         {executionReady && captureCalendarReady && OPERATIONS_TAB_IDS.has(activeTab) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="The shared management workspace is loading." />}><OperationsHub view={activeTab} dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} budgetGeneratedAt={data.metadata.generatedAt} awardGeneratedAt={EXECUTION_COVERAGE.cachedAt} /></Suspense> : null}

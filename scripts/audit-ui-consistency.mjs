@@ -25,6 +25,7 @@ const ROUTES = [
   ["connections", "#/budget-spend/connections", "[data-connections-surface]"],
   ["domain-model", "#/budget-spend/domain-model", "[data-domain-model-page]"],
   ["data-library", "#/budget-spend/library", "[data-data-library-page]"],
+  ["intelligence-graph", "#/budget-spend/intelligence-graph", "[data-intelligence-graph-page]"],
   ["intelligence", "#/budget-spend/intelligence", "[data-intelligence-products-page]"],
   ["sources", "#/budget-spend/sources", "[data-analytics-sources-page]"],
   ["profile", "#/profile", "[data-profile-page]"],

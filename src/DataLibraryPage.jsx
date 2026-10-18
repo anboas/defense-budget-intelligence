@@ -15,7 +15,7 @@ const styles = {
 
 export default function DataLibraryPage({ dataset, awards = [], routeHash = "" }) {
   const params = new URLSearchParams(String(routeHash).split("?")[1] || "");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => params.get("libraryQuery") || "");
   const [state, setState] = useState({ status: "loading", organizations: null, roadmap: null, graphSummary: null });
   const [selectedId, setSelectedId] = useState(() => params.get("libraryOrg") || "");
   const routedRecordId = params.get("capRecord") || "";

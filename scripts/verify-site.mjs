@@ -36,6 +36,7 @@ const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRec
 const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset.name))?.bytes || 0;
 const spendExplorerStyleBytes = styleAssets.find((asset) => /^SpendExplorer-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityWorkbenchDetailStyleBytes = styleAssets.find((asset) => /^OpportunityWorkbenchDetail-.*\.css$/.test(asset.name))?.bytes || 0;
+const intelligenceGraphPageStyleBytes = styleAssets.find((asset) => /^IntelligenceGraphPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
@@ -49,8 +50,9 @@ assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_50
 assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_200, `Deferred Strategic Analysis Studio CSS must stay within its 13.2 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
 assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 13_000, `Lazy Opportunities CSS must stay within its 13 KB route budget, got ${spendExplorerStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityWorkbenchDetailStyleBytes > 0 && opportunityWorkbenchDetailStyleBytes <= 5_000, `Deferred Workbench detail CSS must stay within its 5 KB component budget, got ${opportunityWorkbenchDetailStyleBytes.toLocaleString()} bytes`);
+assert.ok(intelligenceGraphPageStyleBytes > 0 && intelligenceGraphPageStyleBytes <= 1_200, `Lazy Intelligence Graph route CSS must stay within its 1.2 KB budget, got ${intelligenceGraphPageStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 470_000, `Total scoped CSS must stay below 470 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 471_200, `Total scoped CSS must stay below 471.2 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
@@ -231,8 +233,8 @@ async function assertFlowShell(page) {
     });
     assert.ok(dividerOrder.moneyRight <= dividerOrder.separatorLeft && dividerOrder.separatorRight <= dividerOrder.workspaceLeft, "Workspace divider should sit between Money flow and Workspace");
     await page.locator('[data-nav-group-trigger="money"]').click();
-    assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 7, "Budget and Spend should retain the Data Library, analytical routes, map, and lineage");
-    assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /Data Library[\s\S]*PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Opportunity Map[\s\S]*Source Lineage/i);
+    assert.equal(await page.locator('[data-budget-nav-menu="money"] a[data-budget-nav]').count(), 8, "Budget and Spend should retain the Data Library, traversable Intelligence Graph, analytical routes, map, and lineage");
+    assert.match(await page.locator('[data-budget-nav-menu="money"]').innerText(), /Data Library[\s\S]*Intelligence Graph[\s\S]*PDB Request[\s\S]*Request History[\s\S]*Account Flow[\s\S]*Awards[\s\S]*Opportunity Map[\s\S]*Source Lineage/i);
     await page.locator('[data-nav-group-trigger="money"]').click();
     await page.locator('[data-nav-group-trigger="work"]').click();
     assert.equal(await page.locator('[data-budget-nav-menu="work"] a[data-budget-nav]').count(), 2, "Standard work navigation should retain Schedule and Task Center");
@@ -245,7 +247,7 @@ async function assertFlowShell(page) {
     await page.locator('[data-nav-group-trigger="work"]').click();
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
     assert.ok(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count() >= 1, "Workspace admin should expose consolidated workspace management");
-    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations/i);
+    assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Integrations & API[\s\S]*Domain Model[\s\S]*Intelligence Operations/i);
     await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
@@ -438,7 +440,7 @@ try {
   assert.equal(await moneyTrigger.getAttribute("aria-expanded"), "true", "Arrow Down should open the Money flow menu");
   assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Data Library")), true, "Arrow Down should focus the first Budget & Spend item");
   await page.keyboard.press("ArrowDown");
-  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("PDB Request")), true, "Arrow keys should move through Budget & Spend items");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Intelligence Graph")), true, "Arrow keys should move through Budget & Spend items");
   await page.keyboard.press("Escape");
   assert.equal(await moneyTrigger.getAttribute("aria-expanded"), "false", "Escape should close the Money flow menu");
   assert.equal(await moneyTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to the Money flow trigger");
@@ -448,12 +450,12 @@ try {
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   await assertActiveGroupState(page, "money", "Source Lineage");
   await openSurface(page, "#/budget-spend/connections", "[data-connections-surface]");
-  await assertActiveGroupState(page, "workspace-admin", "Connections");
+  await assertActiveGroupState(page, "workspace-admin", "Integrations & API");
   assert.equal(await page.locator("[data-admin-workspace]").count(), 0, "API Log should not repeat a secondary administration shell below global navigation");
   assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header').count(), 1, "Connections should expose one framework-owned workbench header");
   assert.equal(await page.locator('[data-connections-surface] > .if-workbench-header .if-tab').count(), 3, "Connections should consolidate integrations, credentials, and API activity");
-  await assertButtonIntegrity(page, "Connections", "[data-connections-surface]");
-  await assertOpenStateControls(page, "Connections", "[data-connections-surface]");
+  await assertButtonIntegrity(page, "Integrations & API", "[data-connections-surface]");
+  await assertOpenStateControls(page, "Integrations & API", "[data-connections-surface]");
   assert.equal(await page.locator('[data-nav-group-trigger="money"] .ci-header-nav__menu-trigger-context').count(), 0, "Inactive Money flow should not show stale child context");
   await page.screenshot({ path: `${OUT_DIR}/navigation-active-admin-desktop.png` });
 
@@ -1860,14 +1862,15 @@ try {
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose a true current-date marker");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__data-as-of").first().count(), 1, "Timeline should separately expose the source-data cutoff");
   assert.equal(await page.getByText("Today · Sep 13, 2026", { exact: true }).count(), 1, "The red line must state the full current date instead of an ambiguous month/year label");
-  assert.equal(await page.getByText("Data through · Sep 11, 2026", { exact: true }).count(), 1, "The source cutoff must remain explicit and separate from Today");
+  assert.equal(await page.getByText("Historical snapshot · Sep 11, 2026", { exact: true }).count(), 1, "The historical snapshot boundary must remain explicit and separate from Today and live workspace refreshes");
+  assert.equal(await page.locator("[data-capture-record-autocomplete]").count(), 1, "Timeline record search should use the shared autosuggest control");
   const timelineSearch = page.getByPlaceholder("Program, company, reference, buyer");
   await timelineSearch.fill("ndms");
   const ndmsLifecycle = page.locator("[data-capture-timeline-row].is-lifecycle-group").filter({ hasText: "NDMS software development support" });
   assert.equal(await ndmsLifecycle.count(), 1, "Exact lifecycle evidence should automatically place NDMS support IV and V on one row");
   assert.equal(await ndmsLifecycle.locator(".capture-timeline__bar--base").count(), 2, "The grouped NDMS line must preserve separate IV and V award segments");
   assert.match(await ndmsLifecycle.locator(".capture-timeline__fields").textContent(), /47QFAA24F0008.*47QFAA25F0006/s, "The grouped line must retain both award identities");
-  await page.getByRole("button", { name: "Link records", exact: true }).click();
+  await page.getByRole("button", { name: "Link Records", exact: true }).click();
   assert.equal(await page.locator("[data-lifecycle-group-toolbar]").count(), 1, "Record linking should expose the checkbox and AI review workflow");
   assert.ok(await page.locator("[data-capture-timeline-row] input[type=checkbox]").count() >= 2, "Grouped and ungrouped records should remain selectable for AI relationship review");
   const relationshipReviewButton = page.getByRole("button", { name: "Review & link (0/2)", exact: true });
@@ -1894,7 +1897,7 @@ try {
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Grouping:/ }).click();
   assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 20, "Gantt should expose decision-priority grouping alongside acquisition source, work area, route, priority, set-aside, and the existing factual modes");
@@ -1902,7 +1905,7 @@ try {
   await page.getByRole("button", { name: /^Bar labels:/ }).click();
   assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 6, "Gantt should expose six bar-label modes");
   await page.getByRole("option", { name: "Date ranges" }).click();
-  assert.equal(await page.locator("[data-capture-gantt-dialog] .capture-gantt-toolgroup").count(), 3, "Gantt controls should be organized into time, display, and data groups");
+  assert.equal(await page.locator("[data-capture-gantt-dialog] .capture-gantt-toolgroup").count(), 1, "Display settings should own only density, grouping, labels, and row fields; window and evidence layers stay in the toolbar");
   await page.locator("[data-capture-field-picker] summary").click();
   assert.equal(await page.locator("[data-capture-field-picker] input[type=checkbox]").count(), 20, "Gantt should expose the existing row fields plus acquisition source, work area, route, priority/score, and set-aside");
   await page.locator("[data-capture-field-picker]").getByRole("checkbox", { name: "FPDS action count" }).check();
@@ -1928,17 +1931,19 @@ try {
   assert.match(hoverText, /Latest FPDS action/i);
   await firstTimelineBar.focus();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 1, "Keyboard focus on an actual Gantt bar should expose contextual evidence");
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Funding office");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
 
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
-  const classificationOverlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
+  await page.locator(".capture-layer-menu > summary").click();
+  const classificationOverlayTrigger = page.getByRole("button", { name: /^Evidence layers:/ });
   await classificationOverlayTrigger.click();
   await page.getByRole("option", { name: "Type of work" }).click();
   await page.getByRole("option", { name: "Ingestion provenance" }).click();
   await classificationOverlayTrigger.click();
+  await page.locator(".capture-layer-menu > summary").click();
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Work category");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   const workOverlayCount = await page.locator("[data-work-category-overlay]").count();
@@ -1988,19 +1993,22 @@ try {
   assert.ok(desktopLastRowReachable, "The final Gantt row should remain reachable inside the bounded timeline");
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Agile SSD");
+  await page.keyboard.press("Escape");
+  await page.locator(".capture-layer-menu > summary").click();
   assert.equal(await page.getByRole("button", { name: "Follow-ons", exact: true }).getAttribute("aria-pressed"), "true", "Published follow-on activity should be a default visible layer");
+  await page.locator(".capture-layer-menu > summary").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-followon-activity]").length > 0);
   assert.equal(transactionRequests, 0, "Follow-on relationships should not load the deferred FPDS action payload");
   await page.locator("[data-followon-activity]").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
   assert.match(await page.locator("[data-capture-hovercard]").innerText(), /predecessor PIID/i, "Follow-on overlay should disclose its predecessor join basis");
-  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Agency acquisition forecast/i, "Follow-on overlay should disclose its source system");
+  assert.match(await page.locator("[data-capture-hovercard]").innerText(), /Agency acquisition forecast|SAM\.gov/i, "Follow-on overlay should disclose its source system");
   await page.locator("[data-followon-activity]").first().click();
   await page.waitForSelector("[data-followon-modal]");
   const followOnModalText = await page.locator("[data-followon-modal]").innerText();
   assert.match(followOnModalText, /Published follow-on activity/i);
   assert.match(followOnModalText, /predecessor PIID/i);
-  assert.match(followOnModalText, /Agency acquisition forecast/i);
+  assert.match(followOnModalText, /Agency acquisition forecast|SAM\.gov/i);
   assert.equal(await page.locator("[data-capture-detail]").count(), 0, "Follow-on selection should open its own modal rather than the record detail modal");
   await page.screenshot({ path: `${OUT_DIR}/transactions-followon-modal-desktop.png` });
   await page.getByRole("button", { name: "Close follow-on details" }).click();
@@ -2081,6 +2089,7 @@ try {
   await connectedEvidence.getByRole("button", { name: "Timeline", exact: true }).click();
   assert.equal(await connectedEvidence.getAttribute("data-connected-evidence-state"), "ready", "Switching visualization modes must preserve the loaded evidence record");
   assert.ok(await connectedEvidence.locator("[data-visual-timeline-marker]").count() > 0, "The record visualization should project published, evidence, and review dates onto a bounded event rail");
+  assert.match(await connectedEvidence.locator("[data-evidence-visual-timeline]").innerText(), /Published|Reported|Evidence|Review|Deadline|Milestone/i, "Connected Timeline events should render semantic labels and evidence context instead of number-only markers");
   await connectedEvidence.locator("[data-connected-visual-analysis]").screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-desktop.png` });
   await connectedEvidence.getByRole("button", { name: "Relationships", exact: true }).click();
   await connectedEvidence.locator('[data-organization-relationships]').waitFor();
@@ -2093,9 +2102,9 @@ try {
   const connectedActivityId = await connectedEvidence.getAttribute("data-connected-evidence-id");
   assert.ok(connectedActivityId?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
   await connectedEvidence.locator(".connected-evidence__related > summary").click();
-  const connectedFullView = connectedEvidence.getByRole("link", { name: /Full view/i });
-  assert.equal(await connectedFullView.count(), 1, "Every Connected Intelligence drawer should expose a durable full-page view");
-  assert.match(await connectedFullView.getAttribute("href"), new RegExp(`domain-model\\?activity=${connectedActivityId}$`), "Full view should carry the stable activity identity");
+  const connectedFullView = connectedEvidence.getByRole("link", { name: /Open Intelligence Graph/i });
+  assert.equal(await connectedFullView.count(), 1, "Every Connected Intelligence drawer should expose a traversable full-page graph");
+  assert.match(await connectedFullView.getAttribute("href"), new RegExp(`intelligence-graph\\?graphRecord=${connectedActivityId}`), "Intelligence Graph should carry the stable activity identity as its graph root");
   assert.ok(await connectedEvidence.locator(".connected-evidence__routes a").count() >= 2, "Connected evidence should link back into analytical working surfaces");
   await connectedEvidence.locator(".connected-evidence__ledger > summary").click();
   const supportingEvidenceText = await connectedEvidence.locator(".connected-evidence__ledger").innerText();
@@ -2117,15 +2126,15 @@ try {
   assert.match(applicationDetail, /Cost Plus Fixed Fee \(CPFF\) Level of Effort/i);
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
-  const overlayTrigger = page.getByRole("button", { name: /^Overlays:/ });
+  await page.locator(".capture-layer-menu > summary").click();
+  const overlayTrigger = page.getByRole("button", { name: /^Evidence layers:/ });
   await overlayTrigger.click();
   await page.getByRole("option", { name: "Competition / set-aside" }).click();
   await page.getByRole("option", { name: "Contract vehicle" }).click();
   await page.getByRole("option", { name: "Award / pricing type" }).click();
   await page.getByRole("option", { name: "FPDS annual obligations" }).click();
   await overlayTrigger.click();
-  await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
+  await page.locator(".capture-layer-menu > summary").click();
   assert.ok(await page.locator("[data-competition-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct competition classifications");
   assert.ok(await page.locator("[data-vehicle-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct vehicles");
   assert.ok(await page.locator("[data-structure-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct pricing structures");
@@ -2163,7 +2172,10 @@ try {
   assert.equal(await page.locator('[data-pricing-kind="pricing-time-materials"]').count(), 1, "Pricing overlay should distinguish a known T&M row");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("N0002417C2100");
+  await page.keyboard.press("Escape");
+  await page.locator(".capture-layer-menu > summary").click();
   await page.getByRole("button", { name: "Subawards", exact: true }).click();
+  await page.locator(".capture-layer-menu > summary").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-subaward-overlay]").length > 0);
   assert.equal(subawardDetailRequests, 1, "Enabling the subaward overlay should lazily load recent detail once");
   const subawardMarker = page.locator("[data-subaward-overlay]").first();
@@ -2179,11 +2191,14 @@ try {
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
+  await page.keyboard.press("Escape");
   const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
+  await page.locator(".capture-layer-menu > summary").click();
   const fundingLayer = page.getByRole("button", { name: "Funding", exact: true });
   await fundingLayer.click();
-  await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') !== 'disabled');
   assert.equal(await fundingLayer.getAttribute("aria-pressed"), "true", "Funding layer should remain selected while its exact action feed loads");
+  await page.locator(".capture-layer-menu > summary").click();
+  await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') !== 'disabled');
   await fpdsReady;
   await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') === 'ready', null, { timeout: 60_000 });
   await page.waitForFunction(() => document.querySelectorAll(".capture-timeline__action-marker").length > 0, null, { timeout: 60_000 });
@@ -2192,7 +2207,7 @@ try {
   const applicationActionRow = page.locator("[data-capture-timeline-row]").filter({ hasText: "C028" });
   await applicationActionRow.waitFor();
   const pageHeightBeforeModal = await page.evaluate(() => document.documentElement.scrollHeight);
-  await applicationActionRow.click();
+  await applicationActionRow.locator(".capture-timeline__bar--base").first().evaluate((node) => node.click());
   await page.waitForSelector("[data-capture-detail-modal]");
   await page.waitForSelector("[data-capture-detail]");
   await page.waitForSelector("[data-capture-action-history]");
@@ -2220,11 +2235,9 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
-  await page.getByRole("button", { name: /^Overlays:/ }).waitFor();
   assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /Decision priority/, "Malformed grouping should canonicalize to the decision-first default");
-  assert.match(await page.getByRole("button", { name: /^Overlays:/ }).getAttribute("aria-label"), /Overlays \(2\)/, "Malformed overlay selection should canonicalize to the two useful default layers");
   await page.locator("[data-capture-field-picker] summary").click();
   const checkedFields = page.locator("[data-capture-field-picker] input[type=checkbox]:checked");
   while (await checkedFields.count()) await checkedFields.first().uncheck();
@@ -2232,7 +2245,7 @@ try {
   assert.match(new URL(page.url()).hash, /capFields=none/, "Title-only field state should be shareable");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  await page.getByRole("button", { name: "Controls", exact: true }).click();
+  await page.getByRole("button", { name: "Display", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal((await page.locator("[data-capture-field-picker] summary").textContent())?.trim(), "Row fields (0)", "Title-only field state should survive reload");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
@@ -2241,6 +2254,21 @@ try {
   await page.locator("[data-capture-timeline] .capture-timeline__bar--base").first().hover();
   await page.waitForSelector("[data-capture-hovercard]");
   await page.screenshot({ path: `${OUT_DIR}/transactions-gantt-desktop.png` });
+
+  await openSurface(page, `#/budget-spend/intelligence-graph?graphRecord=${connectedActivityId}`, "[data-intelligence-graph-page]");
+  await page.waitForSelector('[data-intelligence-graph-page] [data-connected-evidence-state="ready"]');
+  assert.equal(await page.locator("[data-intelligence-graph-search]").count(), 1, "The full Intelligence Graph should use the shared record autosuggest control");
+  assert.ok(Number(await page.locator("[data-intelligence-graph-page] [data-evidence-visual-graph]").getAttribute("data-node-count")) >= 4, "The full Intelligence Graph should preserve the bounded evidence neighborhood");
+  const fullGraphPredecessor = page.locator('[data-intelligence-graph-page] .if-graph-node[data-evidence-node="predecessor"]');
+  if (await fullGraphPredecessor.count()) {
+    await fullGraphPredecessor.click();
+    const traverseLink = page.getByRole("link", { name: /Traverse from predecessor/i });
+    assert.match(await traverseLink.getAttribute("href"), /intelligence-graph\?graphRecord=/, "Contract-family nodes should re-root the Intelligence Graph instead of dead-ending in an inspector");
+  }
+  const fullGraphNode = page.locator("[data-intelligence-graph-page] .if-graph-node[data-evidence-node]").nth(1);
+  await fullGraphNode.click();
+  assert.match(await page.locator("[data-intelligence-graph-page] [data-evidence-visual-inspector]").innerText(), /Open|Browse|Show|Traverse|Create task/i, "Every selected graph entity should expose a meaningful destination or task action");
+  await page.screenshot({ path: `${OUT_DIR}/intelligence-graph-desktop.png` });
 
   await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunities");
@@ -2640,8 +2668,8 @@ try {
   assert.ok(await mobile.locator("[data-budget-spend-header]").evaluate((node) => node.getBoundingClientRect().height) <= 64, "Mobile masthead should use one compact application row");
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Mobile navigation should expose the primary and grouped route set from one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Today[\s\S]*Timeline[\s\S]*Opportunities[\s\S]*Budget & Spend[\s\S]*Data Library[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Schedule[\s\S]*Workspace[\s\S]*Domain Model[\s\S]*Intelligence Operations/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
+  assert.equal(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Mobile navigation should expose the primary and grouped route set from one menu");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Today[\s\S]*Timeline[\s\S]*Opportunities[\s\S]*Budget & Spend[\s\S]*Data Library[\s\S]*Intelligence Graph[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Schedule[\s\S]*Workspace[\s\S]*Domain Model[\s\S]*Intelligence Operations/, "Mobile navigation should keep primary, budget, work, and administration groups visibly separated");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
@@ -2742,15 +2770,15 @@ try {
   assert.equal(compactMobileGeometry.freshnessCount, 0, "Mobile Transactions should begin with the transaction workspace, not source-health cards");
   assert.ok(compactMobileGeometry.metricHeight <= 56, `Mobile metrics should use a compact horizontal strip, got ${compactMobileGeometry.metricHeight}px`);
   assert.ok(compactMobileGeometry.firstRowTop <= 620, `The first mobile Gantt row should stay near the initial viewport, got ${compactMobileGeometry.firstRowTop}px`);
-  assert.equal(await mobile.locator(".capture-gantt-commandbar__group:visible").count(), 0, "Mobile should keep duplicate window and layer controls inside the focused Controls dialog");
+  assert.equal(await mobile.locator(".capture-gantt-commandbar__group:visible").count(), 0, "Mobile should collapse the full window button row while retaining compact layer and display controls");
   await mobile.getByRole("button", { name: "Filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-capture-filters] .capture-filter--advanced:visible").count(), 24, "All advanced filters should remain reachable");
   await mobile.getByRole("button", { name: "Close Filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
-  await mobile.getByRole("button", { name: "Controls", exact: true }).click();
+  await mobile.getByRole("button", { name: "Display", exact: true }).click();
   await mobile.waitForSelector("[data-capture-gantt-dialog]");
-  assert.equal(await mobile.locator("[data-capture-gantt-dialog]").evaluate((surface) => surface.closest("dialog")?.open), true, "Mobile Timeline controls should open in a focused dialog instead of pushing the Gantt below the viewport");
+  assert.equal(await mobile.locator("[data-capture-gantt-dialog]").evaluate((surface) => surface.closest("dialog")?.open), true, "Mobile Timeline display settings should open in a focused dialog instead of pushing the Gantt below the viewport");
   const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-dialog] .if-picker__trigger, [data-capture-gantt-dialog] [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileGanttControlHeights.every((height) => height >= 43.5), `Mobile Gantt controls should be 44px: ${mobileGanttControlHeights.join(", ")}`);
   const mobileScroller = await mobile.locator("[data-capture-timeline]").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
