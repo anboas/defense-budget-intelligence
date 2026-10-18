@@ -104,15 +104,10 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
     <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}${workspace ? " connected-evidence--workspace" : ""}`} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined} data-connected-evidence-workspace={workspace || undefined}>
       <header>
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
-        <small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces · deterministic joins only</small>
+        <div className="connected-evidence__summary"><div className="connected-evidence__metrics" aria-label="Connected evidence counts">{metrics.slice(0, 4).map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}</div><small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces</small></div>
       </header>
-      <div className="connected-evidence__metrics" aria-label="Connected evidence counts">
-        {metrics.map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}
-      </div>
-      <nav className="connected-evidence__routes" aria-label="Open connected surfaces">
-        {routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}
-      </nav>
       <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} /></Suspense>
+      <details className="connected-evidence__related"><summary><strong>Related views</strong><span>{routeLinks.length} ways to continue</span></summary><nav className="connected-evidence__routes" aria-label="Open connected surfaces">{routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}</nav></details>
       <details className="connected-evidence__ledger">
         <summary><strong>Supporting evidence ledger</strong><span>Awards, lineage, organizations, classifications, and conflicts</span></summary>
         <div className="connected-evidence__connections">

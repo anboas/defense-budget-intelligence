@@ -18,6 +18,9 @@ const styles = {
   card: { display: "grid", gap: 2, minWidth: 0, overflowWrap: "anywhere", padding: 7, border: "1px solid var(--if-border-soft,#e7eaee)", borderRadius: 5, background: "#fff", fontSize: 11 },
   cardMeta: { color: "var(--if-text-muted,#5f6873)", fontSize: 10, fontStyle: "normal", lineHeight: 1.35 },
   footer: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 6, color: "var(--if-text-muted,#5f6873)", fontSize: 10 },
+  disclosure: { border: "1px solid var(--if-border,#d7dce2)", borderRadius: 7, overflow: "hidden" },
+  disclosureSummary: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 44, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 750 },
+  disclosureBody: { padding: "0 10px 10px" },
 };
 
 function normalized(value) {
@@ -86,15 +89,17 @@ export default function OrganizationRelationshipLens({ record = null, connection
     ...(dossier.vendorNames || []).slice(0, compact ? 4 : 8).map((label) => ({ id: `vendor:${label}`, label, meta: "Observed vendor", note: "Retained award recipient" })),
     ...supplierRows.map((row) => ({ id: row.id, label: `${row.primeName} → ${row.supplierName}`, meta: `${Number(row.subawardCount || 0).toLocaleString()} sampled subawards`, note: `${row.coverageState || "partial"} coverage` })),
   ];
+  const relationshipColumns = <>
+    <RelationshipColumn compact={compact && embedded} icon={<Building2 size={17} />} eyebrow="Customer" title="Organization hierarchy" items={hierarchy} empty="No reviewed hierarchy is retained." />
+    <RelationshipColumn compact={compact && embedded} icon={<UserRound size={17} />} eyebrow="People" title="Officials & roles" items={people} empty="Leadership is an explicit research gap." />
+    <RelationshipColumn compact={compact && embedded} icon={<BriefcaseBusiness size={17} />} eyebrow="Work" title="Programs, awards & accounts" items={work} empty="No exact retained work IDs are linked." />
+    <RelationshipColumn compact={compact && embedded} icon={<Network size={17} />} eyebrow="Industrial base" title="Companies & suppliers" items={companies} empty="No retained company evidence is linked." />
+  </>;
+  const linkedItemCount = hierarchy.length + people.length + work.length + companies.length;
 
   return <section style={rootStyle} data-organization-relationships="ready" data-organization-dossier={dossier.id} data-compact={compact || undefined} data-embedded={embedded || undefined}>
     <header style={styles.heading}><div style={styles.headingCopy}><span style={styles.eyebrow}>Organizations &amp; relationships</span><h3 style={{ margin: 0, fontSize: 18 }}>{dossier.label}</h3><p style={styles.summary}>Customer hierarchy, official people, work, companies, and supplier samples connected through retained evidence.</p></div><ControlStatusBadge status={dossier.reviewState || "reviewed"} /></header>
-    <div style={compact ? styles.compactFlow : styles.flow} aria-label={`Relationships for ${dossier.label}`}>
-      <RelationshipColumn compact={compact} icon={<Building2 size={17} />} eyebrow="Customer" title="Organization hierarchy" items={hierarchy} empty="No reviewed hierarchy is retained." />
-      <RelationshipColumn compact={compact} icon={<UserRound size={17} />} eyebrow="People" title="Officials & roles" items={people} empty="Leadership is an explicit research gap." />
-      <RelationshipColumn compact={compact} icon={<BriefcaseBusiness size={17} />} eyebrow="Work" title="Programs, awards & accounts" items={work} empty="No exact retained work IDs are linked." />
-      <RelationshipColumn compact={compact} icon={<Network size={17} />} eyebrow="Industrial base" title="Companies & suppliers" items={companies} empty="No retained company evidence is linked." />
-    </div>
+    {compact && !embedded ? <details style={styles.disclosure} data-relationship-lanes><summary style={styles.disclosureSummary}><span>Explore relationship lanes</span><small style={styles.cardMeta}>{linkedItemCount} linked items · 4 lanes</small></summary><div style={styles.disclosureBody}><div style={styles.flow} aria-label={`Relationships for ${dossier.label}`}>{relationshipColumns}</div></div></details> : <div style={compact && embedded ? styles.compactFlow : styles.flow} aria-label={`Relationships for ${dossier.label}`}>{relationshipColumns}</div>}
     <footer style={styles.footer}><span>Exact IDs and reviewed/source-declared relationships only.</span><span>Supplier evidence is sampled and never treated as a complete registry.</span></footer>
   </section>;
 }

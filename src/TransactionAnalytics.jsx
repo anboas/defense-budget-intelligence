@@ -163,7 +163,7 @@ const VIEW_CHARTS = {
 const DEFAULT_VISIBLE_CHARTS = Object.fromEntries(
   Object.entries(VIEW_CHARTS).map(([view, charts]) => [
     view,
-    charts.map(([id]) => id),
+    (view === "overview" ? charts.slice(0, 2) : charts).map(([id]) => id),
   ]),
 );
 
@@ -1601,9 +1601,10 @@ function SourceCoverageMatrix({ records, onSource }) {
 
 function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
   const narrow = useNarrowAnalyticsViewport();
+  const [expanded, setExpanded] = useState(false);
   const dimension = DIMENSIONS.find((item) => item.id === dimensionId) || DIMENSIONS[0];
   const metric = METRICS.find((item) => item.id === metricId) || METRICS[0];
-  const rows = useMemo(() => {
+  const rankedRows = useMemo(() => {
     const grouped = new Map();
     for (const record of records) {
       const label = dimension.value(record);
@@ -1616,6 +1617,7 @@ function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
       .sort((left, right) => right.value - left.value || right.records - left.records)
       .slice(0, 14);
   }, [dimension, metric, records]);
+  const rows = rankedRows.slice(0, expanded ? 14 : 8);
   const width = 1260;
   const rowStep = narrow ? 82 : 34;
   const barHeight = narrow ? 77 : 25;
@@ -1623,7 +1625,7 @@ function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
   const inset = { top: 26, right: 150, bottom: 26, left: 330 };
   const plotWidth = width - inset.left - inset.right;
   const maximum = Math.max(...rows.map((row) => row.value), 1);
-  return (
+  return <>
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${dimension.label} ranked by ${metric.label}`}>
       {rows.map((row, index) => {
         const y = inset.top + index * rowStep;
@@ -1648,7 +1650,8 @@ function DimensionExplorer({ records, dimensionId, metricId, facet, onFacet }) {
         );
       })}
     </svg>
-  );
+    {rankedRows.length > 8 ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" data-analytics-ranking-toggle onClick={() => setExpanded((current) => !current)}>{expanded ? "Show top 8" : `Show ${rankedRows.length - 8} more categories`}</button> : null}
+  </>;
 }
 
 function ScheduleHorizon({ records, onYear }) {

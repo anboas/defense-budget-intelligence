@@ -1,4 +1,7 @@
 .spend-explorer .if-workbench-header { position: relative; z-index: 40; overflow: visible; }
+.spend-explorer--table > .if-workbench-header > .if-page-header { gap: .2rem .75rem; padding: .55rem .75rem; }
+.spend-explorer--table > .if-workbench-header .if-page-header__heading { gap: .12rem; }
+.spend-explorer--table > .if-workbench-header .if-page-header__summary { max-width: 58ch; }
 .spend-explorer__viewbar { display: flex; gap: var(--if-space-1); }
 .spend-explorer__analysis-menu.is-active > summary { background: var(--if-bg-selected, #eaf2f7); color: var(--if-link, #315f82); }
 .spend-explorer__analysis-menu > div { z-index: 41; width: 16rem; }
@@ -11,6 +14,11 @@
 .spend-explorer__scope-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
 .spend-explorer__scope-menu .spend-explorer__scope-grid > .if-field { display: grid; align-items: stretch; gap: .25rem; min-height: 0; padding: 0; }
 .spend-explorer__scope-menu .spend-explorer__scope-grid > .if-field:hover { background: transparent; }
+@media (min-width: 901px) and (max-width: 1280px) {
+  .spend-explorer--table > .if-workbench-header .if-page-header__summary { display: none; }
+  .spend-explorer--table > .if-workbench-header > .if-workbench-header__commands { padding-block: .35rem; }
+  .spend-explorer--table > .if-workbench-header .if-tab { min-height: 2.25rem; }
+}
 @media (max-width: 640px) {
   .spend-explorer__viewbar { width: 100%; overflow-x: auto; }
   .spend-explorer__viewbar .if-tab { min-height: 2.75rem; white-space: nowrap; }

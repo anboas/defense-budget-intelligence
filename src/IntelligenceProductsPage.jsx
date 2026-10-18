@@ -129,7 +129,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
   return <section className="intelligence-products" data-intelligence-products-page data-roadmap-schema={data.metadata.schemaVersion} data-organization-schema={organizationData.metadata.schemaVersion}>
     <ControlPageHeader compact divided eyebrow="Workspace intelligence" title="Organization intelligence" summary="Investigate source-backed organization identity, hierarchy, mission, people and tenure, finances, programs, awards, vendors, locations, changes, and unresolved research gaps." headingLevel={2} meta={<span className="if-badge if-badge--info">Evidence bounded</span>} actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/domain-model">Domain model</a><a className="if-btn if-btn--primary" href={`${import.meta.env.BASE_URL}data/organization-intelligence.json`} download><Download size={14} />Dossier artifact</a></>} />
 
-    <div className="intelligence-products__metrics" aria-label="Roadmap intelligence totals">
+    <details className="if-disclosure intelligence-products__coverage"><summary className="if-disclosure__summary"><span className="if-disclosure__heading"><span className="if-disclosure__copy"><strong className="if-disclosure__title">Coverage and source health</strong><small className="if-disclosure__description">{number(organizationData.metadata.coverage.dossiers)} dossiers · {number(coverage.citations)} exact citations · {number(state.monitor.metadata.coverage.monitoredSources)} monitored sources</small></span></span><span>Review</span></summary><div className="if-disclosure__body intelligence-products__coverage-body"><div className="intelligence-products__metrics" aria-label="Roadmap intelligence totals">
       <article data-organization-dossier-count={organizationData.metadata.coverage.dossiers}><Building2 size={18} /><strong>{number(organizationData.metadata.coverage.dossiers)}</strong><span>organization dossiers</span></article>
       <article data-official-role-count={coverage.officialRoles}><UsersRound size={18} /><strong>{number(coverage.officialRoles)}</strong><span>official roles</span></article>
       <article data-monitored-source-count={state.monitor.metadata.coverage.monitoredSources}><RefreshCcw size={18} /><strong>{number(state.monitor.metadata.coverage.monitoredSources)}</strong><span>monitored sources</span></article>
@@ -139,7 +139,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
       <article data-operational-template-count={coverage.savedQueryTemplates + coverage.briefTemplates}><BriefcaseBusiness size={18} /><strong>{number(coverage.savedQueryTemplates + coverage.briefTemplates)}</strong><span>operational templates</span></article>
     </div>
 
-    <div className="intelligence-products__health-grid" data-source-health>{data.sourceHealth.map((row) => <SourceState key={row.id} row={row} />)}</div>
+    <div className="intelligence-products__health-grid" data-source-health>{data.sourceHealth.map((row) => <SourceState key={row.id} row={row} />)}</div></div></details>
 
     <nav className="intelligence-products__tabs" aria-label="Intelligence product sections">
       {SECTIONS.map(([id, label]) => <button key={id} type="button" className={section === id ? "is-active" : ""} aria-pressed={section === id} onClick={() => setSectionRoute(id)}>{label}</button>)}

@@ -35,6 +35,7 @@ const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscov
 const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRecordPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset.name))?.bytes || 0;
 const spendExplorerStyleBytes = styleAssets.find((asset) => /^SpendExplorer-.*\.css$/.test(asset.name))?.bytes || 0;
+const opportunityWorkbenchDetailStyleBytes = styleAssets.find((asset) => /^OpportunityWorkbenchDetail-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
@@ -47,6 +48,7 @@ assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_0
 assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_200, `Deferred Strategic Analysis Studio CSS must stay within its 13.2 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
 assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 13_000, `Lazy Opportunities CSS must stay within its 13 KB route budget, got ${spendExplorerStyleBytes.toLocaleString()} bytes`);
+assert.ok(opportunityWorkbenchDetailStyleBytes > 0 && opportunityWorkbenchDetailStyleBytes <= 5_000, `Deferred Workbench detail CSS must stay within its 5 KB component budget, got ${opportunityWorkbenchDetailStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
 assert.ok(compiledStyleBytes <= 470_000, `Total scoped CSS must stay below 470 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
@@ -332,6 +334,7 @@ try {
   await page.getByRole("button", { name: "Delete saved view AI watch copy" }).click();
   await page.getByRole("button", { name: "Radar", exact: true }).click();
   await page.waitForSelector("[data-opportunity-radar]");
+  await page.locator(".opportunity-radar__setup > summary").click();
   assert.match(await page.locator("[data-opportunity-radar]").innerText(), /Add or find a SAM.gov opportunity[\s\S]*Sabre-aligned[\s\S]*Capability focus/i, "Opportunity Radar must lead with exact notice intake, the active fit profile, and browsable work clusters");
   assert.match(await page.locator(".opportunity-radar__intake").innerText(), /retained records first[\s\S]*SAM\.gov[\s\S]*cited web retrieval when needed/i, "Opportunity Radar must disclose that exact retained evidence leads and cited web retrieval is a fallback");
   assert.equal(await page.locator(".opportunity-radar__cluster-options button").count(), 7, "Opportunity Radar must expose the all-work board plus six capability clusters");
@@ -891,7 +894,7 @@ try {
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
   assert.equal(await page.locator("[data-award-filter-bar] .if-picker").count(), 5, "Awards should expose factual filter dimensions");
-  assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 25, "Awards should paginate the sampled award table without rendering hundreds of DOM rows at once");
+  assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 10, "Awards should lead with ten decision-useful records without rendering hundreds of DOM rows at once");
   const awardStatusText = await page.locator("[data-award-record-table] .dbi-data-table__status").innerText();
   const awardStatusCounts = awardStatusText.match(/([\d,]+)\s+of ([\d,]+) records/i)?.slice(1).map((value) => Number(value.replaceAll(",", ""))) || [];
   assert.ok(awardStatusCounts[0] >= 689 && awardStatusCounts[0] === awardStatusCounts[1], `Awards should preserve the complete growing corpus in pagination and export, got ${awardStatusText}`);
@@ -1045,7 +1048,8 @@ try {
   assert.equal(await workbenchScope.getByText("Filters", { exact: false }).count(), 1, "Opportunity Workbench should expose one filter trigger");
   await openOpportunityFilters(page);
   for (const label of ["Customer", "Stage", "Trust", "Technology", "Notice type", "Branch", "Component", "Buying office", "Record state"]) assert.equal(await page.getByRole("button", { name: new RegExp(`^${label}:`, "i") }).count(), 1, `Opportunity Workbench should expose the ${label} filter exactly once`);
-  for (const [key, label] of [["record", "Opportunity"], ["customer", "Customer"], ["stage", "Stage"], ["fit", "Fit"], ["trust", "Trust"], ["deadline", "Due"], ["obligations", "Value"], ["change", "Last change"], ["source", "Source"]]) assert.equal(await page.locator(`[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="${key}"]`).count(), 1, `Opportunity Workbench should expose the ${label} operating column by default`);
+  for (const [key, label] of [["record", "Opportunity"], ["customer", "Customer"], ["stage", "Stage"], ["fit", "Fit"], ["trust", "Trust"], ["deadline", "Due"], ["obligations", "Value"], ["change", "Last change"]]) assert.equal(await page.locator(`[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="${key}"]`).count(), 1, `Opportunity Workbench should expose the ${label} operating column by default`);
+  assert.equal(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="source"]').count(), 0, "Opportunity Workbench should keep source available without showing it in the default decision view");
   assert.equal(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] tbody tr[data-row-expandable="true"] a').count(), 0, "Opportunity rows should use one inline review action instead of a duplicate workspace link");
   const workbenchGeometry = await page.evaluate(() => ({
     scopeHeight: document.querySelector("[data-opportunity-workbench-scope]")?.getBoundingClientRect().height || 0,
@@ -1179,15 +1183,18 @@ try {
   await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().click();
   await page.waitForSelector("[data-opportunity-workbench-detail]");
   await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-evidence-state="ready"]');
+  await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis]');
   const expandedWorkbenchId = new URL(page.url()).hash.match(/(?:\?|&)capRecord=([^&]+)/)?.[1];
   assert.ok(expandedWorkbenchId, "Opening an opportunity row should persist the selected stable ID in the route");
   assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*Connected intelligence/i, "Opportunity rows should expand into qualification, source scope, and bounded graph evidence");
   const commandRail = page.locator("[data-opportunity-workbench-detail] [data-opportunity-command-rail]");
   assert.equal(await commandRail.count(), 1, "Opportunity details should expose one shared contextual command rail");
-  for (const action of ["Build AI decision brief", "Open record"]) assert.equal(await commandRail.getByRole("link", { name: action, exact: true }).count() + await commandRail.getByRole("button", { name: action, exact: true }).count(), 1, `The command rail should expose ${action} exactly once`);
+  assert.equal(await commandRail.getByRole("button", { name: "Build AI decision brief", exact: true }).count(), 1, "The command rail should expose decision research exactly once");
   await commandRail.locator(".pursuit-actions__more > summary").click();
+  assert.equal(await commandRail.getByRole("link", { name: "Open record", exact: true }).count(), 1, "Pursuit controls should progressively disclose the full record workspace");
   assert.equal(await commandRail.getByRole("link", { name: "Timeline", exact: true }).count(), 1, "Pursuit controls should progressively disclose Timeline");
   await commandRail.locator(".pursuit-actions__more > summary").click();
+  await commandRail.locator(".opportunity-command-rail__setup > summary").click();
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
   await commandRail.getByLabel("Owner").fill("Adam");
@@ -1308,6 +1315,8 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/timeline-primary-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/library", "[data-data-library-page]");
   await page.waitForSelector('[data-organization-relationships="ready"]');
+  assert.equal(await page.locator("[data-relationship-lanes]").count(), 1, "Data Library should summarize relationship lanes before rendering every retained item");
+  await page.locator("[data-relationship-lanes] > summary").click();
   assert.match(await page.locator("[data-data-library-page]").innerText(), /Customers & offices[\s\S]*Officials & roles[\s\S]*Programs, awards & accounts[\s\S]*Companies & suppliers/i, "Data Library should connect customer hierarchy, people, work, and companies");
   assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Data Library should load its bounded organization index once");
   await page.screenshot({ path: `${OUT_DIR}/data-library-relationships-desktop.png`, fullPage: true });
@@ -2017,11 +2026,11 @@ try {
   await page.waitForSelector("[data-capture-detail-modal]");
   await page.waitForSelector('[data-connected-evidence-state="ready"]');
   const connectedEvidence = page.locator("[data-connected-evidence]");
+  await connectedEvidence.locator("[data-connected-visual-analysis]").waitFor();
   const connectedEvidenceText = await connectedEvidence.innerText();
   assert.match(connectedEvidenceText, /Connected intelligence/i, "Record detail should expose its cross-surface evidence graph");
   assert.match(connectedEvidenceText, /organization|event|FPDS action/i, "Connected evidence should summarize typed neighboring entities");
   assert.equal(await connectedEvidence.locator(".connected-evidence__ledger").getAttribute("open"), null, "Supporting evidence should stay collapsed until requested");
-  await connectedEvidence.locator("[data-connected-visual-analysis]").waitFor();
   const visualGraph = connectedEvidence.locator("[data-evidence-visual-graph]");
   assert.ok(Number(await visualGraph.getAttribute("data-node-count")) >= 4, "Connected visual analysis should render the selected opportunity with its bounded neighbors");
   assert.ok(Number(await visualGraph.getAttribute("data-node-count")) <= 13, "Connected visual analysis must remain bounded to the selected record and at most twelve neighbors");
@@ -2083,6 +2092,7 @@ try {
   assert.equal(await connectedEvidence.locator('[data-evidence-conflict="needs_review"]').count(), 1, "Unresolved lifecycle disagreement should remain visible in the record drawer");
   const connectedActivityId = await connectedEvidence.getAttribute("data-connected-evidence-id");
   assert.ok(connectedActivityId?.startsWith("opp_"), "Connected evidence should resolve from the stable opportunity identity");
+  await connectedEvidence.locator(".connected-evidence__related > summary").click();
   const connectedFullView = connectedEvidence.getByRole("link", { name: /Full view/i });
   assert.equal(await connectedFullView.count(), 1, "Every Connected Intelligence drawer should expose a durable full-page view");
   assert.match(await connectedFullView.getAttribute("href"), new RegExp(`domain-model\\?activity=${connectedActivityId}$`), "Full view should carry the stable activity identity");
@@ -2235,12 +2245,17 @@ try {
   await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunities");
   assert.equal(await page.locator('[data-d3-analytics="dimension-explorer"]').count(), 1, "Overview should start with the shared dimensional ranking");
-  assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Overview should expose six focused factual D3 views");
-  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 6, "Every visible Overview view should render its analytical SVG");
-  assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 1, "Overview should include a logarithmic reported-value distribution");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 2, "Overview should lead with two decision charts while keeping the remaining views in chart management");
+  assert.equal(await page.locator("[data-d3-analytics] .transaction-viz__scroller > svg").count(), 2, "Every visible Overview view should render its analytical SVG");
+  assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 0, "Optional analytical views should remain deferred until selected");
+  const rankingToggle = page.locator("[data-analytics-ranking-toggle]");
+  assert.match(await rankingToggle.innerText(), /Show .* more categories/i, "The default ranking should summarize the leading categories before the long tail");
+  await rankingToggle.click();
+  assert.equal(await rankingToggle.innerText(), "Show top 8", "The complete bounded ranking should remain one explicit action away");
+  await rankingToggle.click();
   assert.equal(await page.locator("[data-analytics-insight]").count(), 4, "Every analytics workspace should start with four recomputed factual signals");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Leading work category[\s\S]*Leading recipient[\s\S]*Schedule coverage/i, "Overview signals should summarize concentration, near-term schedule, and coverage");
-  assert.equal(await page.locator("[data-analytics-legend]").count(), 6, "Every visible chart should explain its visual encoding");
+  assert.equal(await page.locator("[data-analytics-legend]").count(), 2, "Every visible chart should explain its visual encoding");
   const insightScopeBefore = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-analytics-insight="top-work"]').click();
   assert.match(await page.locator(".analytics-active-filters").innerText(), /Type of work:/, "Actionable factual signals should open their supporting slice");
@@ -2286,11 +2301,8 @@ try {
   await page.getByRole("button", { name: /^Visible charts:/ }).click();
   await page.locator('[data-if-picker-menu] [role="option"]').filter({ hasText: "Reported value distribution" }).click();
   await page.keyboard.press("Escape");
-  assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 0, "Chart management should remove an optional graph without changing the data filters");
-  assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Hiding one Overview graph should leave five visible views");
-  await page.getByRole("button", { name: /^Visible charts:/ }).click();
-  await page.locator('[data-if-picker-menu] [role="option"]').filter({ hasText: "Reported value distribution" }).click();
-  await page.keyboard.press("Escape");
+  assert.equal(await page.locator('[data-d3-analytics="value-distribution"]').count(), 1, "Chart management should add an optional graph without changing the data filters");
+  assert.equal(await page.locator("[data-d3-analytics]").count(), 3, "Adding one optional Overview graph should preserve the two decision defaults");
   const overviewScopeBefore = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-d3-analytics="value-distribution"] [role="button"]').filter({ hasText: "Under $1M" }).click();
   assert.match(await page.locator('.analytics-active-filters').innerText(), /Under \$1M/, "Value bands should filter every analytical view");
@@ -2616,8 +2628,8 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/opportunity-workbench-mobile.png`, fullPage: true });
   await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().tap();
   await mobile.waitForSelector("[data-opportunity-command-rail]");
-  const mobileCommandControls = await mobile.locator('[data-opportunity-command-rail] :is(button,a,input):visible').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
-  assert.ok(mobileCommandControls.length >= 7 && mobileCommandControls.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile contextual command controls should preserve 44px touch targets: ${JSON.stringify(mobileCommandControls)}`);
+  const mobileCommandControls = await mobile.locator('[data-opportunity-command-rail] :is(button,a,input,summary):visible').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
+  assert.ok(mobileCommandControls.length >= 4 && mobileCommandControls.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile contextual command controls should preserve 44px touch targets: ${JSON.stringify(mobileCommandControls)}`);
   await assertNoPageOverflow(mobile, "Mobile contextual opportunity workspace");
   await mobile.locator("[data-opportunity-workbench-detail]").screenshot({ path: `${OUT_DIR}/opportunity-workbench-command-mobile.png` });
   await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().tap();
@@ -2828,7 +2840,7 @@ try {
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-gantt-mobile.png` });
 
   await openSurface(mobile, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
-  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 6);
+  assert.equal(await mobile.locator("[data-d3-analytics]").count(), 2, "Mobile Analytics should start with two decision charts rather than the full chart inventory");
   assert.equal(await mobile.locator("[data-d3-analytics]:visible").count(), 1, "Mobile Analytics should render one selected chart at a time");
   assert.equal(await mobile.locator(".analytics-mobile-chart-picker:visible").count(), 1, "Mobile Analytics should expose its chart switcher inside the workbench");
   const mobileChartMarks = await mobile.locator('[data-d3-analytics]:visible [role="button"][data-analytics-tooltip]').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));

@@ -12,6 +12,7 @@ const ROUTES = [
   ["timeline", "#/budget-spend/timeline?timelineScope=all", "[data-capture-timeline]"],
   ["timeline-embedded", "#/budget-spend/explorer?spendView=timeline", "[data-capture-timeline]"],
   ["workbench", "#/budget-spend/explorer?spendView=table", "[data-spend-explorer='table']"],
+  ["workbench-expanded", "#/budget-spend/explorer?spendView=table", "[data-spend-explorer='table']"],
   ["analytics", "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]"],
   ["map", "#/budget-spend/map", "[data-opportunity-map]"],
   ["request", "#/budget-spend", "[data-pdb-request-page]"],
@@ -30,6 +31,7 @@ const ROUTES = [
 ];
 const VIEWPORTS = [
   ["desktop", { width: 1440, height: 1000 }],
+  ["laptop", { width: 1200, height: 675 }],
   ["mobile", { width: 390, height: 844 }],
   ["ultrawide", { width: 1920, height: 1080 }],
 ].filter(([name]) => !VERIFY || name !== "ultrawide");
@@ -110,7 +112,11 @@ async function collect(page, route, viewport) {
       tableCell: "td",
       meta: "small, .if-eyebrow, .if-page-header__eyebrow",
     };
-    const elements = Object.entries(selectors).flatMap(([kind, selector]) => [...document.querySelectorAll(selector)].filter((node) => visible(node) && !node.closest("svg") && !node.closest("[data-ui-audit-exempt]")) .map((node) => describe(node, kind)));
+    // Graph nodes and relationship labels are analytical marks with dedicated
+    // overlap, routing, accessibility, and touch contracts. Comparing their
+    // geometry as neighboring form controls produces noise and obscures the
+    // toolbar and page-control inconsistencies this audit owns.
+    const elements = Object.entries(selectors).flatMap(([kind, selector]) => [...document.querySelectorAll(selector)].filter((node) => visible(node) && !node.closest("svg") && !node.closest(".if-graph-viewport") && !node.closest(".if-graph-a11y") && !node.closest("[data-ui-audit-exempt]")) .map((node) => describe(node, kind)));
     const controls = elements.filter((item) => item.kind === "action" || item.kind === "field");
     const adjacentMismatches = [];
     for (let leftIndex = 0; leftIndex < controls.length; leftIndex += 1) {
@@ -137,14 +143,23 @@ async function collect(page, route, viewport) {
       const key = [item.kind, Math.round(item.height), item.fontSize, item.fontWeight, item.radius].join("|");
       clusters[key] = (clusters[key] || 0) + 1;
     }
-    const aboveFoldControls = controls.filter((item) => item.y < innerHeight).length;
+    const aboveFoldControls = controls.filter((item) => item.y + item.height > 0 && item.y < innerHeight && item.x + item.width > 0 && item.x < innerWidth).length;
     const headingTexts = elements.filter((item) => item.kind === "heading").map((item) => item.text).filter(Boolean);
     const duplicateHeadings = [...new Set(headingTexts.filter((text, index) => headingTexts.indexOf(text) !== index))];
+    const detail = document.querySelector("[data-opportunity-workbench-detail]");
+    const primarySurface = document.querySelector("[data-opportunity-workbench-detail] [data-connected-visual-analysis]");
+    const detailRect = detail?.getBoundingClientRect();
+    const primaryRect = primarySurface?.getBoundingClientRect();
     return {
       route: routeName,
       viewport: viewportName,
       document: { width: document.documentElement.scrollWidth, viewportWidth: innerWidth, height: document.documentElement.scrollHeight, viewportHeight: innerHeight },
       hierarchy: { aboveFoldControls, duplicateHeadings },
+      valueDensity: {
+        detailToAnalysis: detailRect && primaryRect ? primaryRect.top - detailRect.top : null,
+        visibleAnalysisHeight: primaryRect ? Math.max(0, Math.min(innerHeight, primaryRect.bottom) - Math.max(0, primaryRect.top)) : null,
+        analysisWidth: primaryRect?.width || null,
+      },
       elements,
       clusters,
       adjacentMismatches: adjacentMismatches.slice(0, 100),
@@ -165,6 +180,7 @@ try {
       localStorage.setItem("dbi:watchlist:v1", JSON.stringify(watches));
     }, fixtureWatches);
     for (const [routeName, route, selector] of ROUTES) {
+      if (viewportName === "laptop" && routeName !== "workbench-expanded") continue;
       console.error(`[ui-audit] ${viewportName} ${routeName}`);
       await page.goto(`${BASE_URL}${route}`, { waitUntil: "domcontentloaded" });
       await page.waitForSelector("[data-defense-budget-app]");
@@ -174,6 +190,14 @@ try {
         const first = page.locator("[data-ops-watch-table] tbody tr[data-row-expandable='true']").first();
         if (await first.count()) await first.click();
       }
+      if (routeName === "workbench-expanded") {
+        const first = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first();
+        if (await first.count()) await first.click();
+        await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-evidence-state="ready"]');
+        await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis]');
+      }
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
       report.push(await collect(page, routeName, viewportName));
       if (!VERIFY && (viewportName !== "ultrawide" || ["my-work", "workbench", "visuals", "map", "schedule"].includes(routeName))) {
         await page.screenshot({ path: `${OUT_DIR}/${routeName}-${viewportName}.png`, fullPage: true });
@@ -221,6 +245,13 @@ if (VERIFY) {
     const maximumViewportLengths = 5;
     if (viewportLengths > maximumViewportLengths) violations.push(`${entry.viewport}/${entry.route}: unbounded page length ${rounded(viewportLengths)} viewports`);
     if (entry.hierarchy.aboveFoldControls > 100) violations.push(`${entry.viewport}/${entry.route}: ${entry.hierarchy.aboveFoldControls} controls compete above the fold`);
+    if (entry.route === "workbench-expanded" && ["desktop", "laptop"].includes(entry.viewport)) {
+      if (entry.valueDensity.detailToAnalysis > 150) violations.push(`${entry.viewport}/${entry.route}: analysis begins ${rounded(entry.valueDensity.detailToAnalysis)}px below record context`);
+      const minimumVisibleAnalysis = entry.viewport === "laptop" ? 180 : 300;
+      const minimumAnalysisWidth = entry.viewport === "laptop" ? 650 : 700;
+      if (entry.valueDensity.visibleAnalysisHeight < minimumVisibleAnalysis) violations.push(`${entry.viewport}/${entry.route}: only ${rounded(entry.valueDensity.visibleAnalysisHeight)}px of analysis is visible without scrolling`);
+      if (entry.valueDensity.analysisWidth < minimumAnalysisWidth) violations.push(`${entry.viewport}/${entry.route}: analysis width ${rounded(entry.valueDensity.analysisWidth)}px is not decision-useful`);
+    }
     if (entry.hierarchy.duplicateHeadings.length) violations.push(`${entry.viewport}/${entry.route}: duplicate visible headings ${entry.hierarchy.duplicateHeadings.join(", ")}`);
     if (entry.adjacentMismatches.length) violations.push(`${entry.viewport}/${entry.route}: ${entry.adjacentMismatches.length} adjacent control mismatches`);
     const undersizedType = entry.elements.filter((item) =>
