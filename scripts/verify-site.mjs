@@ -1017,6 +1017,7 @@ try {
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 0, "Strategic spend context must remain deferred until the operator opens Visuals");
   await page.locator('[data-workspace-view="portfolio"]').click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
+  await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("strategy-spend-index.json")));
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 1, "Strategic Analysis Studio should load its compact spend index exactly once");
   if (!await page.locator("[data-strategy-quadrant]").count()) {
     await page.getByRole("button", { name: /^Current buying centers:/ }).click();
