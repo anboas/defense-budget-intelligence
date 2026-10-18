@@ -278,7 +278,7 @@ function App() {
 
   return (
     <main className="if-main if-operations-app if-operations-app--wide if-operations-app--sticky-header ci-budget-app ci-intelligence-platform app" data-defense-budget-app data-budget-spend-app>
-      <SiteHeader tabs={TABS} routes={HASH_ROUTES} activeTab={activeTab} activeTitle={activeTitle} />
+      <SiteHeader activeTab={activeTab} activeTitle={activeTitle} routeHash={routeHash} />
 
       <div className={`if-content if-page if-operations-workspace if-operations-workspace--compact app__content app__content--${activeTab}`} data-if-operations-workspace data-visual-density="compact">
         <p className="sr-only" role="status" aria-live="polite">
