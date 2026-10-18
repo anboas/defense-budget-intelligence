@@ -1390,6 +1390,7 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/today-command-menu-desktop.png` });
   await page.keyboard.press("Escape");
   assert.equal(await todayMenu.count(), 0, "Escape should close the Today command menu");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "More selected opportunity actions");
   assert.equal(await todayMore.evaluate((node) => node === document.activeElement), true, "Escape should restore focus to the Today More trigger");
   await todayMore.click();
   await page.getByRole("button", { name: "Filter Today work" }).click();
