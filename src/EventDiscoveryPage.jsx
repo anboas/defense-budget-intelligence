@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarCheck2, CircleAlert, ExternalLink, RefreshCw, SearchCheck, ShieldCheck, Trash2 } from "lucide-react";
-import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlStatusBadge, useToast } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlMetricStrip, ControlPageBody, ControlStatusBadge, useToast } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
+import SectionedPageHeader from "./SectionedPageHeader.jsx";
 import { useAuth } from "./AuthContext.jsx";
 
 const QUEUES = [
@@ -211,10 +212,10 @@ export default function EventDiscoveryPage() {
   if (!canCurate) return <section className="ops-panel"><ControlAsyncState compact state="empty" icon={<ShieldCheck size={22} />} title="Super user access required" message="Official-source discovery and catalog publication are limited to the immutable Super user." /></section>;
   const counts = snapshot?.counts || {};
   const healthySources = sourceRows.filter((source) => source.health?.lastSuccessAt && !source.health?.consecutiveFailures).length;
-  const tabs = <nav className="if-tabs__list" aria-label="Event discovery management view">{[["queue", "Review queue"], ["sources", "Source health"], ["runs", "Scan history"]].map(([id, label]) => <button key={id} type="button" className={`if-tab${surface === id ? " is-active" : ""}`} aria-pressed={surface === id} onClick={() => setSurface(id)}>{label}</button>)}</nav>;
+  const sections = [["queue", "Review queue"], ["sources", "Source health"], ["runs", "Scan history"]].map(([id, label]) => ({ id, label }));
   return <div className="operations-hub operations-hub--event-discovery" data-event-discovery-page data-event-discovery-surface={surface}>
     <section className="ops-panel">
-      <ControlPageHeader compact divided eyebrow="Workspace management" title="Event Discovery" summary="Monitor official-source ingestion, separate real event leads from navigation noise, and publish only verified dated editions." headingLevel={2} actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/schedule?scheduleView=list"><CalendarCheck2 size={15} />Open Schedule</a><button type="button" className="if-btn if-btn--primary" disabled={Boolean(busy)} onClick={() => void runScan()}><RefreshCw size={15} />{busy === "scan" ? "Scanning…" : "Scan due sources"}</button></>} />
+      <SectionedPageHeader eyebrow="Workspace management" title="Event Discovery" summary="Monitor official-source ingestion, separate real event leads from navigation noise, and publish only verified dated editions." actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/schedule?scheduleView=list"><CalendarCheck2 size={15} />Open Schedule</a><button type="button" className="if-btn if-btn--primary" disabled={Boolean(busy)} onClick={() => void runScan()}><RefreshCw size={15} />{busy === "scan" ? "Scanning…" : "Scan due sources"}</button></>} items={sections} activeId={surface} ariaLabel="Event discovery management view" onSelect={setSurface} />
       <ControlPageBody compact>
         {error ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} /><div><strong>Event discovery action failed</strong><p>{error}</p></div></div> : null}
         <ControlMetricStrip compactMobile label="Event discovery status" items={[
@@ -224,7 +225,6 @@ export default function EventDiscoveryPage() {
           { id: "noise", label: "Likely noise", value: Number(counts.lowQuality || 0).toLocaleString(), tone: counts.lowQuality ? "warning" : "neutral" },
           { id: "sources", label: "Healthy sources", value: `${healthySources}/${sourceRows.length || 0}`, tone: healthySources ? "success" : "neutral" },
         ]} />
-        {tabs}
         {busy === "load" && !snapshot ? <ControlAsyncState compact state="loading" title="Loading discovery management" message="Reading candidates, source health, and scan history." /> : null}
         {snapshot && surface === "queue" ? <>
           <nav className="event-discovery-views" aria-label="Discovery queue">{QUEUES.map(([id, label, countKey]) => <button key={id} type="button" className={`if-btn if-btn--sm${queue === id ? " if-btn--primary" : " if-btn--secondary"}`} aria-pressed={queue === id} onClick={() => { setBusy("load"); setQueue(id); }}>{label}<span className="event-discovery-views__count">{Number(counts[countKey] || 0)}</span></button>)}</nav>

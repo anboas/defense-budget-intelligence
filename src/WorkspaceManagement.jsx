@@ -15,7 +15,8 @@ import WorkspaceMark from "./WorkspaceMark.jsx";
 import WorkspaceTeams from "./WorkspaceTeams.jsx";
 import SaasControlPlane from "./SaasControlPlane.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
+import SectionedPageHeader from "./SectionedPageHeader.jsx";
+import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, useToast } from "control-surface-ui/react";
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
 import { workspaceMemberHref } from "./workspace-profile-routes.js";
 const CONTENT_METRICS = [
@@ -25,6 +26,17 @@ const CONTENT_METRICS = [
   ["manualRecords", "Manual records", "neutral"],
   ["activityEntries", "Audit entries", "success"],
   ["activeAgentKeys", "Agent keys", "gold"],
+];
+const WORKSPACE_SECTIONS = [
+  { id: "overview", label: "Plan & usage" },
+  { id: "general", label: "General" },
+  { id: "people", label: "Access" },
+  { id: "teams", label: "Teams" },
+  { id: "ai", label: "AI policy" },
+];
+const PLATFORM_SECTIONS = [
+  { id: "customers", label: "Customer organizations" },
+  { id: "workspaces", label: "Workspaces" },
 ];
 
 function displayCount(value) {
@@ -155,6 +167,14 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       .catch(() => {});
   }
 
+  function selectSection(parameter, value) {
+    const next = new URL(window.location.href);
+    const hashPath = String(next.hash || "").split("?")[0];
+    const params = new URLSearchParams(String(next.hash || "").split("?")[1] || "");
+    params.set(parameter, value);
+    window.history.replaceState(null, "", `${next.pathname}${next.search}${hashPath}?${params.toString()}`);
+  }
+
   function workspaceDetails(workspace, portalTarget = null, section = "all") {
     const memberIds = new Set(workspace.members.map((member) => member.id));
     const candidates = data.users.filter((user) => !memberIds.has(user.id));
@@ -183,36 +203,17 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
     </div>;
   }
 
-  return <section className="ops-panel workspace-management" data-workspace-management data-workspace-scope={activeOnly ? "active" : "platform"} aria-labelledby="workspace-management-title">
-    <ControlPageHeader compact divided eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Customer administration"} summary={activeOnly ? "Plan, usage, workspace identity, access roles, team visibility, and AI policy. Global account lifecycle stays in Accounts." : "Manage customer organizations separately from their isolated workspace boundaries."} headingLevel={2} titleId="workspace-management-title" meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly && platformSection === "workspaces" ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} />
+  return <section className="ops-panel workspace-management" data-workspace-management data-workspace-scope={activeOnly ? "active" : "platform"} aria-label={activeOnly ? "Workspace settings" : "Customer administration"}>
+    <SectionedPageHeader eyebrow={activeOnly ? "Workspace administration" : "Platform administration"} title={activeOnly ? "Workspace settings" : "Customer administration"} summary={activeOnly ? "Plan, usage, workspace identity, access roles, team visibility, and AI policy. Global account lifecycle stays in Accounts." : "Manage customer organizations separately from their isolated workspace boundaries."} meta={<span className="if-badge if-badge--info">{activeOnly ? "Active workspace" : "Super user"}</span>} actions={isSuperUser && !activeOnly && platformSection === "workspaces" ? <button className="if-btn if-btn--primary" type="button" onClick={() => setCreating(true)} disabled={busy}><Plus size={15} />Create workspace</button> : null} items={activeOnly ? WORKSPACE_SECTIONS : PLATFORM_SECTIONS} activeId={activeOnly ? activeSection : platformSection} ariaLabel={activeOnly ? "Workspace settings sections" : "Platform customer sections"} onSelect={(id) => {
+      if (activeOnly) {
+        setActiveSection(id);
+        selectSection("workspaceSection", id);
+      } else {
+        setPlatformSection(id);
+        selectSection("platformSection", id);
+      }
+    }} />
     <ControlPageBody compact>
-
-    {activeOnly ? <nav className="workspace-settings-tabs" aria-label="Workspace settings sections">{[
-      ["overview", "Customer"],
-      ["general", "General"],
-      ["people", "Access"],
-      ["teams", "Teams"],
-      ["ai", "AI policy"],
-    ].map(([id, label]) => <button key={id} type="button" className={activeSection === id ? "is-active" : ""} aria-pressed={activeSection === id} onClick={() => {
-      setActiveSection(id);
-      const next = new URL(window.location.href);
-      const hashPath = String(next.hash || "").split("?")[0];
-      const params = new URLSearchParams(String(next.hash || "").split("?")[1] || "");
-      params.set("workspaceSection", id);
-      window.history.replaceState(null, "", `${next.pathname}${next.search}${hashPath}?${params.toString()}`);
-    }}>{label}</button>)}</nav> : null}
-
-    {!activeOnly ? <nav className="workspace-settings-tabs" aria-label="Platform customer sections">{[
-      ["customers", "Customer organizations"],
-      ["workspaces", "Workspaces"],
-    ].map(([id, label]) => <button key={id} type="button" className={platformSection === id ? "is-active" : ""} aria-pressed={platformSection === id} onClick={() => {
-      setPlatformSection(id);
-      const next = new URL(window.location.href);
-      const hashPath = String(next.hash || "").split("?")[0];
-      const params = new URLSearchParams(String(next.hash || "").split("?")[1] || "");
-      params.set("platformSection", id);
-      window.history.replaceState(null, "", `${next.pathname}${next.search}${hashPath}?${params.toString()}`);
-    }}>{label}</button>)}</nav> : null}
 
     {!activeOnly && platformSection === "customers" ? <SaasControlPlane auth={auth} users={data.users} workspaces={data.workspaces} onNotice={showNotice} /> : null}
     {activeOnly && activeSection === "overview" ? <SaasControlPlane auth={auth} users={visibleWorkspaces[0]?.members || []} workspaces={visibleWorkspaces} activeOnly onNotice={showNotice} /> : null}

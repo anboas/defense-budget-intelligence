@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext.jsx";
 import UserAvatar from "./UserAvatar.jsx";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import SessionManagement from "./SessionManagement.jsx";
+import SectionedPageHeader from "./SectionedPageHeader.jsx";
 import { ControlAsyncState, ControlDialog, ControlIdentityEditor, ControlPageBody, ControlPageHeader, useToast } from "control-surface-ui/react";
 
 const DEFAULT_AGENT_SCOPES = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "integrations:read"];
@@ -225,14 +226,14 @@ export default function ProfilePage({ section = "profile" }) {
   const user = auth?.user;
   if (!auth || auth.staticHost || !auth.enabled || !user) return <section className="profile-page" data-profile-page><ControlAsyncState state="empty" title="Account service unavailable" message="Profile and agent administration are available on the authenticated Cloudflare application." /></section>;
 
+  const sections = [
+    { id: "profile", label: "Profile", href: "#/profile", icon: <UserRound size={14} aria-hidden="true" /> },
+    { id: "security", label: "Security", href: "#/profile/security", icon: <KeyRound size={14} aria-hidden="true" /> },
+    { id: "personal-ai", label: "OpenAI keys", href: "#/profile/openai", icon: <KeyRound size={14} aria-hidden="true" /> },
+  ];
   return <div className="profile-page" data-profile-page data-profile-section={section} data-density="compact">
-    <ControlPageHeader compact divided eyebrow="Account settings" title={section === "security" ? "Security" : section === "personal-ai" ? "Personal OpenAI keys" : "Profile"} summary={section === "security" ? "Manage the password for this workspace account." : section === "personal-ai" ? "Manage credentials available only to requests you initiate." : "Manage the identity shown across the workspace."} headingLevel={2} />
+    <SectionedPageHeader eyebrow="Personal administration" title="Account settings" summary="Manage your identity, sign-in security, and personal AI credentials." items={sections} activeId={section} ariaLabel="Profile sections" />
     <ControlPageBody compact>
-    <nav className="if-tabs__list profile-page__nav" aria-label="Profile sections">
-      <a role="tab" href="#/profile" className={`if-tab${section === "profile" ? " is-active" : ""}`} aria-selected={section === "profile"} aria-current={section === "profile" ? "page" : undefined}><UserRound size={14} />Profile</a>
-      <a role="tab" href="#/profile/security" className={`if-tab${section === "security" ? " is-active" : ""}`} aria-selected={section === "security"} aria-current={section === "security" ? "page" : undefined}><KeyRound size={14} />Security</a>
-      <a role="tab" href="#/profile/openai" className={`if-tab${section === "personal-ai" ? " is-active" : ""}`} aria-selected={section === "personal-ai"} aria-current={section === "personal-ai" ? "page" : undefined}><KeyRound size={14} />OpenAI keys</a>
-    </nav>
     <div className="profile-page__content">
       {section === "security" ? <><SecurityPanel auth={auth} user={user} /><SessionManagement auth={auth} /></> : section === "personal-ai" ? <OpenAiKeyManagement auth={auth} scope="user" embedded /> : <AccountPanel auth={auth} user={user} />}
     </div>

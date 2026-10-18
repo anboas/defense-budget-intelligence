@@ -176,15 +176,16 @@ try {
   await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
   assert.equal(await page.locator('[role="dialog"]').count(), 0, "Profile should render as a routed page, not a modal");
   assert.match(new URL(page.url()).hash, /^#\/profile$/, "Profile menu should navigate to the canonical profile route");
-  assert.equal(await page.locator(".profile-page__nav a").count(), 3, "Personal settings should contain identity, security, and personal OpenAI keys");
-  assert.equal(await page.locator('.profile-page__nav a:has-text("Agent access"), .profile-page__nav a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into the account settings rail");
+  const profileSections = page.locator('[data-profile-page] [data-section-navigation][aria-label="Profile sections"]');
+  assert.equal(await profileSections.locator("a").count(), 3, "Personal settings should contain identity, security, and personal OpenAI keys");
+  assert.equal(await profileSections.locator('a:has-text("Agent access"), a:has-text("API log")').count(), 0, "Agent and API administration must not be mixed into account settings");
   assert.equal(await page.locator('[data-profile-account] input:disabled').count(), 0, "Immutable account metadata should use compact key/value rows instead of oversized disabled inputs");
   assert.equal(await page.locator('[data-profile-account-meta] .if-kv').count(), 2, "Profile should expose email and role through the framework metadata primitive");
   await assertPageBodyGutter(page, "[data-profile-page]", "Profile");
   assert.equal(await page.locator(".if-identity-editor").count(), 1, "Profile should expose the shared identity editor for picture selection, replacement, and removal");
   const desktopProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
     const panel = node.querySelector(".profile-page__panel");
-    const pageHeader = node.querySelector(":scope > .if-page-header");
+    const pageHeader = node.querySelector(":scope > .if-workbench-header > .if-page-header");
     const heading = pageHeader.querySelector(".if-page-header__title");
     const panelTitle = node.querySelector(".profile-page__panel .if-panel__title");
     const input = node.querySelector(".profile-page__panel .if-input");
@@ -285,13 +286,14 @@ try {
   const requestChartCount = await page.locator("[data-api-observability-charts] .if-chart-card").count();
   assert.ok(requestChartCount === 0 || requestChartCount === 2, `API Log should render either no charts for a fresh workspace or the complete two-chart observability band, got ${requestChartCount}`);
   assert.match(await page.locator("[data-ops-activity]").innerText(), /Runtime & API[\s\S]*Workspace changes/i, "Connections activity must expose distinct runtime/API and workspace-change ledgers");
-  assert.equal(await page.locator('[data-ops-activity] > .if-page-body > .if-tabs__list .if-tab').count(), 2, "API Log must switch between ledgers instead of stacking both tables");
+  assert.equal(await page.locator('[data-ops-activity] [data-subsection-navigation] .if-tab').count(), 2, "API Log must switch between ledgers inside one labeled subsection instead of stacking both tables");
   await assertPageBodyGutter(page, "[data-ops-activity]", "API Log");
 
   await page.goto(`${BASE_URL}#/budget-spend/users`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-operations-hub][data-operations-view="users"] [data-user-management]');
   assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Accounts should not repeat a second administration shell below global navigation");
-  assert.equal(await page.locator('[data-user-management] > .if-page-header').count(), 1, "Accounts should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-user-management] > .if-workbench-header').count(), 1, "Accounts should expose one framework-owned sectioned route header");
+  assert.equal(await page.locator('[data-user-management] > .if-workbench-header [data-section-navigation]').count(), 1, "Accounts should keep its owned sections inside the route header");
   await assertPageBodyGutter(page, "[data-user-management]", "Accounts");
   await page.getByRole("button", { name: "Add account" }).click();
   const addUser = page.locator("[data-user-create]");
@@ -365,6 +367,18 @@ try {
   await teammate.getByRole("button", { name: "Edit" }).click();
   await page.locator("[data-user-edit]").getByRole("link", { name: "Workspace Settings → Access" }).click();
   await page.waitForSelector("[data-workspace-management]");
+  const workspaceSectionHeader = page.locator('[data-workspace-management] > .if-workbench-header');
+  const workspaceSectionNavigation = workspaceSectionHeader.locator('[data-section-navigation][aria-label="Workspace settings sections"]');
+  assert.equal(await workspaceSectionHeader.count(), 1, "Workspace settings must have one heading-and-sections owner");
+  assert.equal(await workspaceSectionNavigation.locator('[data-section-nav-item]').count(), 5, "Workspace settings must expose Plan & usage, General, Access, Teams, and AI policy as owned second-layer sections");
+  assert.equal(await page.locator('[data-workspace-management] > .if-page-body > [data-section-navigation]').count(), 0, "Workspace settings must not repeat section navigation inside page content");
+  const workspaceHeaderGeometry = await workspaceSectionHeader.evaluate((node) => {
+    const heading = node.querySelector('.if-page-header__title').getBoundingClientRect();
+    const navigation = node.querySelector('[data-section-navigation]').getBoundingClientRect();
+    return { headingBottom: heading.bottom, navigationTop: navigation.top, overflow: node.scrollWidth - node.clientWidth };
+  });
+  assert.ok(workspaceHeaderGeometry.navigationTop >= workspaceHeaderGeometry.headingBottom, `Workspace settings sections must follow the page heading: ${JSON.stringify(workspaceHeaderGeometry)}`);
+  assert.ok(workspaceHeaderGeometry.overflow <= 1, `Workspace settings header must remain horizontally contained: ${JSON.stringify(workspaceHeaderGeometry)}`);
   assert.equal(await page.locator("[data-workspace-teams]").count(), 0, "Workspace settings should show only the selected section instead of stacking teams below General");
   assert.equal(await page.getByRole("button", { name: "Access", exact: true }).getAttribute("aria-pressed"), "true", "The account-editor access link must open the Access section directly");
   const accessModel = page.locator(".workspace-access-model");
@@ -628,7 +642,8 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/workspaces`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-workspace-management]");
   assert.match(await page.locator('[data-manage-menu-button]').getAttribute("class"), /is-active/, "Workspace governance should activate the Manage utility");
-  assert.equal(await page.locator('[data-workspace-management] > .if-page-header').count(), 1, "Workspace governance should expose one framework-owned route header");
+  assert.equal(await page.locator('[data-workspace-management] > .if-workbench-header').count(), 1, "Workspace governance should expose one framework-owned sectioned route header");
+  assert.equal(await page.locator('[data-workspace-management] > .if-workbench-header [data-section-navigation]').count(), 1, "Workspace governance should keep its owned sections inside the route header");
   await assertPageBodyGutter(page, "[data-workspace-management]", "Workspaces");
   assert.equal(await page.locator('[data-admin-workspace]').count(), 0, "Workspace governance should not repeat platform navigation inside the page");
   const workspaceAdmin = page.locator("[data-workspace-management]");
@@ -1386,7 +1401,7 @@ try {
   await page.waitForSelector('[data-profile-page][data-profile-section="profile"]');
   const profileOverflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   assert.ok(profileOverflow <= 2, `Mobile profile page should not overflow, got ${profileOverflow}px`);
-  const profileNavHeights = await page.locator(".profile-page__nav a").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  const profileNavHeights = await page.locator('[data-profile-page] [data-section-navigation][aria-label="Profile sections"] a').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
   assert.ok(profileNavHeights.every((height) => height >= 43.5), `Mobile profile navigation should keep 44px touch targets: ${profileNavHeights.join(", ")}`);
   const mobileProfileGeometry = await page.locator("[data-profile-page]").evaluate((node) => {
     const panel = node.querySelector(".profile-page__panel");
@@ -1395,7 +1410,7 @@ try {
     return {
       panelHeight: panel.getBoundingClientRect().height,
       panelRadius: parseFloat(getComputedStyle(panel).borderRadius),
-      routeHeaderActions: node.querySelectorAll(":scope > .if-page-header > .if-page-header__actions").length,
+      routeHeaderActions: node.querySelectorAll(":scope > .if-workbench-header > .if-page-header > .if-page-header__actions").length,
       inputHeights: inputs.map((input) => input.getBoundingClientRect().height),
       buttonHeights: buttons.map((button) => button.getBoundingClientRect().height),
     };
@@ -1572,7 +1587,7 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/workspace`, { waitUntil: "domcontentloaded" });
   const workspaceSaasOverview = page.locator("[data-saas-overview]");
   await workspaceSaasOverview.waitFor();
-  assert.equal(await page.locator('[aria-label="Workspace settings sections"] button').first().innerText(), "Customer", "Workspace section navigation must lead with the customer surface before its content");
+  assert.equal(await page.locator('[aria-label="Workspace settings sections"] button').first().innerText(), "Plan & usage", "Workspace section navigation must lead with the plan and usage surface before its content");
   assert.match(await workspaceSaasOverview.innerText(), /Customer workspace[\s\S]*Plan & usage[\s\S]*Onboarding[\s\S]*Requests/i, "Workspace Customer view must unify plan posture, onboarding, and customer operations without duplicate readiness panels");
   assert.equal(await workspaceSaasOverview.getByRole("button", { name: /checkout|payment method|credit card/i }).count(), 0, "Customer operations must not expose payment actions");
   assert.equal(await workspaceSaasOverview.getByRole("link", { name: /checkout|payment method|credit card/i }).count(), 0, "Customer operations must not expose payment links");

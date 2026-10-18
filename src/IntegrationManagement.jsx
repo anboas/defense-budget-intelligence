@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { ControlAsyncState, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlPageHeader, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlMetricStrip, ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
 import sourceHealth from "./data/source-health.json";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
+import SectionedPageHeader from "./SectionedPageHeader.jsx";
 
 function dateTime(value) {
   const date = new Date(value || "");
@@ -78,13 +79,13 @@ export default function IntegrationManagement({ auth, dataset, samOpportunities,
     { key: "count", label: "Current yield", minWidth: 150, value: (row) => row.count, render: (row) => <strong>{row.count}</strong> },
     { key: "health", label: "Health checked", value: () => dateTime(sourceHealth.metadata?.checkedAt) },
   ];
+  const integrationSections = [
+    { id: "coverage", label: "Sources & coverage", count: rows.length },
+    { id: "credentials", label: "Credentials" },
+  ];
   return <section className="ops-panel" data-ops-integrations data-integration-surface={surface}>
-    {!embedded ? <ControlPageHeader compact divided eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." headingLevel={2} actions={surface === "coverage" ? <a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a> : null} /> : null}
+    {!embedded ? <SectionedPageHeader eyebrow="Workspace administration" title="Integrations" summary="Connector health, credentials, refresh cadence, and source coverage." actions={surface === "coverage" ? <a className="if-btn if-btn--secondary" href="#/budget-spend/sources">Open full lineage<ChevronRight size={15} /></a> : null} items={integrationSections} activeId={surface} ariaLabel="Integration surface" onSelect={setSurface} /> : null}
     <ControlPageBody compact>
-      {!embedded ? <nav className="if-tabs__list" aria-label="Integration surface">
-        <button type="button" className={`if-tab${surface === "coverage" ? " is-active" : ""}`} aria-pressed={surface === "coverage"} onClick={() => setSurface("coverage")}>Sources &amp; coverage <span className="if-badge">{rows.length}</span></button>
-        <button type="button" className={`if-tab${surface === "credentials" ? " is-active" : ""}`} aria-pressed={surface === "credentials"} onClick={() => setSurface("credentials")}>Credentials</button>
-      </nav> : null}
       {!embedded && surface === "credentials" ? <OpenAiKeyManagement auth={auth} scope="workspace" embedded /> : <>
         <ControlMetricStrip label="Source health summary" items={[
           { id: "online", label: "Sources online", value: sourceHealth.totals?.online || 0, meta: "Available at last probe", tone: "success" },
