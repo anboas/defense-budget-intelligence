@@ -26,6 +26,33 @@ export const PURSUIT_TASK_PRIORITIES = Object.freeze([
   ["low", "Low"],
 ]);
 
+export const PURSUIT_ACTION_LIBRARY = Object.freeze([
+  ["Review the latest official notice and attachments", "Evidence review"],
+  ["Confirm customer discovery meeting", "Customer engagement"],
+  ["Validate buyer office and decision authority", "Customer qualification"],
+  ["Validate contract vehicle and acquisition path", "Contract strategy"],
+  ["Map incumbent scope and partner roles", "Competitive position"],
+  ["Prepare capture brief", "Capture planning"],
+  ["Resolve open evidence gaps", "Research"],
+  ["Make pursue or no-bid decision", "Decision"],
+]);
+
+export function pursuitActionOptions(watchlist = [], intelligence = null) {
+  const entries = new Map(PURSUIT_ACTION_LIBRARY.map(([value, description]) => [value.toLowerCase(), { value, label: value, description }]));
+  const add = (value, description = "Workspace action") => {
+    const label = text(value, 320);
+    if (label && !entries.has(label.toLowerCase())) entries.set(label.toLowerCase(), { value: label, label, description });
+  };
+  for (const watch of watchlist || []) {
+    add(watch?.pursuit?.nextAction, "Used in this workspace");
+    for (const task of watch?.pursuit?.tasks || []) if (task.status !== "done") add(task.title, "Open workspace task");
+  }
+  for (const report of intelligence?.reports || []) {
+    for (const action of report?.nextActions || []) add(action.action, "Suggested by cited research");
+  }
+  return [...entries.values()];
+}
+
 const STAGES = new Set(PURSUIT_STAGES.map(([value]) => value));
 const TASK_STATUSES = new Set(PURSUIT_TASK_STATUSES.map(([value]) => value));
 const TASK_PRIORITIES = new Set(PURSUIT_TASK_PRIORITIES.map(([value]) => value));

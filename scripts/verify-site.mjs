@@ -128,7 +128,9 @@ async function openSurface(page, route, selector) {
 async function chooseControlSelect(page, label, option) {
   const trigger = page.getByRole("button", { name: new RegExp(`^${label}:`, "i") }).first();
   await trigger.click();
-  await page.getByRole("option", { name: option, exact: true }).click();
+  const exactOption = page.getByRole("option", { name: option, exact: true });
+  if (await exactOption.count()) await exactOption.click();
+  else await page.getByRole("option", { name: new RegExp(`^${String(option).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?:\\s|$)`, "i") }).first().click();
 }
 
 async function chooseSpendAnalysis(page, label) {
@@ -1211,14 +1213,13 @@ try {
   await commandRail.locator(".opportunity-command-rail__setup > summary").click();
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
-  await commandRail.getByLabel("Owner").fill("Adam");
-  await commandRail.getByLabel("Owner").blur();
-  await commandRail.getByLabel("Next action").fill("Confirm customer discovery meeting");
-  await commandRail.getByLabel("Next action").blur();
+  await chooseControlSelect(page, "Owner", "Workspace owner");
+  await chooseControlSelect(page, "Next action", "Confirm customer discovery meeting");
   await commandRail.getByLabel("Checkpoint").fill("2026-10-20");
   await commandRail.locator("[data-pursuit-tasks] > summary").click();
   await commandRail.getByRole("button", { name: "Add task", exact: true }).click();
   await commandRail.getByLabel("Task", { exact: true }).fill("Prepare capture brief");
+  await chooseControlSelect(page, "Task owner", "Workspace owner");
   await chooseControlSelect(page, "Task priority", "High");
   await commandRail.getByLabel("Due").fill("2026-10-18");
   await commandRail.getByRole("button", { name: "Create task", exact: true }).click();
@@ -1226,11 +1227,19 @@ try {
   await commandRail.getByRole("button", { name: "Edit Prepare capture brief", exact: true }).click();
   await commandRail.getByLabel("Due").fill("2026-10-19");
   await commandRail.getByRole("button", { name: "Save task", exact: true }).click();
-  await page.waitForFunction((encodedId) => {
-    const recordId = decodeURIComponent(encodedId);
-    const watch = JSON.parse(localStorage.getItem("dbi:watchlist:v1") || "[]").find((item) => item.recordId === recordId);
-    return watch?.pursuit?.stage === "capture" && watch?.pursuit?.owner === "Adam" && watch?.pursuit?.nextAction === "Confirm customer discovery meeting" && watch?.pursuit?.tasks?.[0]?.title === "Prepare capture brief" && watch?.pursuit?.tasks?.[0]?.dueAt === "2026-10-19" && watch?.reviewAt === "2026-10-20";
-  }, expandedWorkbenchId);
+  try {
+    await page.waitForFunction((encodedId) => {
+      const recordId = decodeURIComponent(encodedId);
+      const watch = JSON.parse(localStorage.getItem("dbi:watchlist:v1") || "[]").find((item) => item.recordId === recordId);
+      return watch?.pursuit?.stage === "capture" && watch?.pursuit?.owner === "Workspace owner" && watch?.pursuit?.nextAction === "Confirm customer discovery meeting" && watch?.pursuit?.tasks?.[0]?.title === "Prepare capture brief" && watch?.pursuit?.tasks?.[0]?.owner === "Workspace owner" && watch?.pursuit?.tasks?.[0]?.dueAt === "2026-10-19" && watch?.reviewAt === "2026-10-20";
+    }, expandedWorkbenchId);
+  } catch (error) {
+    const persisted = await page.evaluate((encodedId) => {
+      const recordId = decodeURIComponent(encodedId);
+      return JSON.parse(localStorage.getItem("dbi:watchlist:v1") || "[]").find((item) => item.recordId === recordId) || null;
+    }, expandedWorkbenchId);
+    throw new Error(`Pursuit picker selections should persist without overwriting adjacent changes. Persisted state: ${JSON.stringify(persisted)}`, { cause: error });
+  }
   await page.screenshot({ path: `${OUT_DIR}/pursuit-controls-tasks-desktop.png`, fullPage: false });
   assert.match(await commandRail.getAttribute("data-tracked"), /true/, "Editing pursuit state should automatically retain the opportunity in the workspace");
   const previewHash = new URL(page.url()).hash;
@@ -1238,6 +1247,17 @@ try {
   await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
   assert.match(decodeURIComponent(new URL(page.url()).hash), new RegExp(`entityType=activity.*entityId=${decodeURIComponent(expandedWorkbenchId)}`), "Preview handoff should preserve the exact stable opportunity identity");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /returnTo=/, "Canonical workspace should preserve its source route for a predictable return");
+  const workspaceHeader = page.locator(".universal-workspace__header");
+  assert.equal(await workspaceHeader.locator('[aria-label="Workspace actions"]').count(), 1, "The canonical workspace should own one action cluster in the header");
+  assert.equal(await page.locator('[data-universal-intelligence-workspace] [aria-label="Selected opportunity actions"]').count(), 0, "Canonical workspace panels should not repeat the opportunity actions");
+  assert.equal(await workspaceHeader.getByRole("link", { name: /^Return to / }).count(), 1, "Return navigation should live in the compact identity line instead of a separate header row");
+  const workspaceHeaderGeometry = await workspaceHeader.evaluate((node) => {
+    const bounds = node.getBoundingClientRect();
+    const actionHeights = [...node.querySelectorAll(".if-btn, .if-icon-btn, summary")].map((item) => item.getBoundingClientRect().height);
+    return { height: bounds.height, maxActionHeight: Math.max(0, ...actionHeights) };
+  });
+  assert.ok(workspaceHeaderGeometry.height <= 82, `Opportunity workspace header should remain compact, got ${workspaceHeaderGeometry.height}px`);
+  assert.ok(workspaceHeaderGeometry.maxActionHeight <= 32, `Opportunity workspace actions should use compact controls, got ${workspaceHeaderGeometry.maxActionHeight}px`);
   const canonicalWorkspaceGeometry = await page.locator("[data-universal-intelligence-workspace]").evaluate((node) => {
     const context = node.querySelector(".universal-workspace__context")?.getBoundingClientRect();
     const analysis = node.querySelector(".universal-workspace__analysis")?.getBoundingClientRect();
@@ -1245,6 +1265,16 @@ try {
   });
   assert.ok(canonicalWorkspaceGeometry.contextWidth <= 430, `Canonical workspace context should remain bounded, got ${canonicalWorkspaceGeometry.contextWidth}px`);
   assert.ok(canonicalWorkspaceGeometry.analysisWidth >= 650, `Canonical workspace analysis should own the desktop canvas, got ${canonicalWorkspaceGeometry.analysisWidth}px`);
+  await page.getByRole("button", { name: "Tasks", exact: true }).click();
+  const workspaceTasks = page.locator('[data-universal-intelligence-workspace][data-workspace-tab="tasks"]');
+  await workspaceTasks.waitFor();
+  assert.equal(await workspaceTasks.locator("[data-opportunity-command-rail]").count(), 1, "Tasks should render one pursuit-control owner instead of repeating it in the context rail");
+  assert.equal(await workspaceTasks.locator('[aria-label="Selected opportunity actions"]').count(), 0, "Tasks should reuse the header action cluster instead of rendering a second action row");
+  assert.equal(await workspaceTasks.getByRole("button", { name: /^Owner:/ }).count(), 1, "Tasks should expose one enhanced workspace-member picker");
+  assert.equal(await workspaceTasks.getByRole("button", { name: /^Next action:/ }).count(), 1, "Tasks should expose one enhanced reusable-action picker");
+  await page.screenshot({ path: `${OUT_DIR}/intelligence-workspace-tasks-desktop.png`, fullPage: false });
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
   await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="timeline"] [data-connected-visual-analysis]');
   assert.match(decodeURIComponent(new URL(page.url()).hash), /workspaceTab=timeline/, "Workspace tabs should persist in the canonical URL state");
