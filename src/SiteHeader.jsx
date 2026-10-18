@@ -8,7 +8,7 @@ import NotificationCenter from "./NotificationCenter.jsx";
 import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
 
 const PRIMARY_IDS = ["watchlist", "timeline", "spend"];
-const MONEY_FLOW_IDS = ["library", "overview", "trends", "lifecycle", "awards", "map", "sources"];
+const MONEY_FLOW_IDS = ["library", "intelligence-graph", "overview", "trends", "lifecycle", "awards", "map", "sources"];
 const WORK_IDS = new Set(["schedule", "tasks", "event-discovery"]);
 const WORKSPACE_ADMIN_IDS = new Set(["connections", "domain-model", "intelligence", "workspace-settings"]);
 const PLATFORM_ADMIN_IDS = new Set(["users", "workspaces"]);
@@ -16,6 +16,7 @@ const MOBILE_TITLES = {
   spend: "Opportunities",
   timeline: "Timeline",
   library: "Library",
+  "intelligence-graph": "Graph",
   map: "Map",
   schedule: "Schedule",
   overview: "PDB Request",
@@ -26,7 +27,7 @@ const MOBILE_TITLES = {
   watchlist: "Today",
   tasks: "Tasks",
   "event-discovery": "Discovery",
-  connections: "Connections",
+  connections: "Integrations",
   "domain-model": "Data Model",
   intelligence: "Intelligence",
   "workspace-settings": "Workspace",
@@ -42,6 +43,7 @@ const MONEY_META = {
   map: { badge: "Geography", description: "Map organizations by contracting activity, opportunity state, and published spend." },
   sources: { badge: "6 stages", description: "Freshness, methodology, join quality, and official-source lineage." },
   library: { badge: "Complete", description: "Every retained record, entity, relationship, identifier, office hierarchy, and source boundary." },
+  "intelligence-graph": { badge: "Traverse", description: "Re-root bounded evidence neighborhoods and continue into records, customers, awards, accounts, classifications, and locations." },
 };
 
 const ADMIN_META = {

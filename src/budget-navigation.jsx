@@ -8,12 +8,13 @@ export const TABS = [
   { id: "spend", label: "Opportunities", icon: BarChart3 },
   { id: "timeline", label: "Timeline", icon: CalendarClock },
   { id: "library", label: "Data Library", icon: Database },
+  { id: "intelligence-graph", label: "Intelligence Graph", icon: Network },
   { id: "map", label: "Opportunity Map", icon: MapPinned },
   { id: "schedule", label: "Schedule", icon: CalendarClock },
   { id: "event-discovery", label: "Event Discovery", icon: SearchCheck },
   { id: "watchlist", label: "Today", icon: ListChecks },
   { id: "tasks", label: "Task Center", icon: ListChecks },
-  { id: "connections", label: "Connections", icon: Database },
+  { id: "connections", label: "Integrations & API", icon: Database },
   { id: "domain-model", label: "Domain Model", icon: Network },
   { id: "intelligence", label: "Intelligence Operations", icon: BrainCircuit },
   { id: "users", label: "Accounts", icon: Building2 },
@@ -26,7 +27,7 @@ export const TABS = [
 ];
 
 export const HASH_ROUTES = {
-  overview: "#/budget-spend", lifecycle: "#/budget-spend/lifecycle", trends: "#/budget-spend/trends", awards: "#/budget-spend/awards", spend: "#/budget-spend/explorer", timeline: "#/budget-spend/timeline", library: "#/budget-spend/library", map: "#/budget-spend/map", schedule: "#/budget-spend/schedule", "event-discovery": "#/budget-spend/event-discovery", directory: "#/workspace/directory", watchlist: "#/budget-spend/watchlist", tasks: "#/budget-spend/tasks", connections: "#/budget-spend/connections", "domain-model": "#/budget-spend/domain-model", intelligence: "#/budget-spend/intelligence", users: "#/budget-spend/users", workspaces: "#/budget-spend/workspaces", "workspace-settings": "#/budget-spend/workspace", sources: "#/budget-spend/sources", profile: "#/profile", security: "#/profile/security", "personal-ai": "#/profile/openai",
+  overview: "#/budget-spend", lifecycle: "#/budget-spend/lifecycle", trends: "#/budget-spend/trends", awards: "#/budget-spend/awards", spend: "#/budget-spend/explorer", timeline: "#/budget-spend/timeline", library: "#/budget-spend/library", "intelligence-graph": "#/budget-spend/intelligence-graph", map: "#/budget-spend/map", schedule: "#/budget-spend/schedule", "event-discovery": "#/budget-spend/event-discovery", directory: "#/workspace/directory", watchlist: "#/budget-spend/watchlist", tasks: "#/budget-spend/tasks", connections: "#/budget-spend/connections", "domain-model": "#/budget-spend/domain-model", intelligence: "#/budget-spend/intelligence", users: "#/budget-spend/users", workspaces: "#/budget-spend/workspaces", "workspace-settings": "#/budget-spend/workspace", sources: "#/budget-spend/sources", profile: "#/profile", security: "#/profile/security", "personal-ai": "#/profile/openai",
 };
 
 export const LEGACY_ROUTE_TARGETS = {

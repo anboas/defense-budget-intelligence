@@ -91,7 +91,6 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
 
   const connected = connection.connected || {};
   const routeLinks = [
-    !fullView ? ["Full view", `#/budget-spend/domain-model?activity=${encodeURIComponent(opportunityId)}`] : null,
     ["Timeline", `#/budget-spend/timeline?capRecord=${encodeURIComponent(opportunityId)}`],
     ["Organization relationships", `#/budget-spend/library?libraryView=relationships&capRecord=${encodeURIComponent(opportunityId)}`],
     primaryLocation ? ["Map", `#/budget-spend/map?mapOrg=${encodeURIComponent(primaryLocation.sourceId)}`] : null,
@@ -106,7 +105,7 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
         <div className="connected-evidence__summary"><div className="connected-evidence__metrics" aria-label="Connected evidence counts">{metrics.slice(0, 4).map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}</div><small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces</small></div>
       </header>
-      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} /></Suspense>
+      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} fullView={fullView} /></Suspense>
       <details className="connected-evidence__related"><summary><strong>Related views</strong><span>{routeLinks.length} ways to continue</span></summary><nav className="connected-evidence__routes" aria-label="Open connected surfaces">{routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}</nav></details>
       <details className="connected-evidence__ledger">
         <summary><strong>Supporting evidence ledger</strong><span>Awards, lineage, organizations, classifications, and conflicts</span></summary>

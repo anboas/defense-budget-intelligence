@@ -374,6 +374,7 @@ button {
 }
 
 .app__content--calendar { gap: 6px; }
+.app__content--timeline { gap: 6px; padding-block-start: 6px !important; }
 
 .ci-budget-app {
   align-content: start;
@@ -3416,8 +3417,6 @@ td .dot {
   cursor: default;
   opacity: 0.45;
 }
-
-.capture-primary-header > :first-child { display: none; }
 
 .capture-command-rail {
   grid-template-columns: minmax(280px, 1fr);

@@ -137,8 +137,8 @@ try {
   await page.locator('[data-nav-group-trigger="work"]').click();
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   assert.equal(await page.locator('[data-nav-group-trigger="workspace-admin"] .ci-header-nav__menu-trigger-label').innerText(), "Workspace", "Workspace navigation must use one compact label");
-  assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count(), 4, "Workspace administration should contain Connections, Domain Model, Intelligence Operations, and Workspace Settings");
-  assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings/i);
+  assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[data-budget-nav]').count(), 4, "Workspace administration should contain Integrations & API, Domain Model, Intelligence Operations, and Workspace Settings");
+  assert.match(await page.locator('[data-budget-nav-menu="workspace-admin"]').innerText(), /Integrations & API[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings/i);
   assert.equal(await page.locator('[data-budget-nav-menu="workspace-admin"] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Workspace administration");
   await page.locator('[data-nav-group-trigger="workspace-admin"]').click();
   await page.locator('[data-nav-group-trigger="platform-admin"]').click();
@@ -1187,8 +1187,8 @@ try {
   await page.getByRole("button", { name: "Agent access", exact: true }).click();
   await page.waitForSelector('[data-operations-hub][data-operations-view="connections"] [data-profile-agents]');
   const activeAdminTrigger = page.locator('[data-nav-group-trigger="workspace-admin"]');
-  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Connections", "Authenticated Workspace trigger should name the consolidated active child");
-  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Connections", "Authenticated Workspace should render the consolidated active child in the lighter context label");
+  assert.equal(await activeAdminTrigger.getAttribute("data-nav-group-active-child"), "Integrations & API", "Authenticated Workspace trigger should name the consolidated active child");
+  assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").innerText(), "Integrations & API", "Authenticated Workspace should render the consolidated active child in the lighter context label");
   assert.equal(await activeAdminTrigger.locator(".ci-header-nav__menu-trigger-context").evaluate((node) => getComputedStyle(node).color), "rgb(183, 229, 255)", "Authenticated Workspace active child should use the established light-blue treatment");
   assert.equal(await page.locator(".ci-header-nav__desktop-groups > .if-operations-topnav__divider").innerText(), "|", "Authenticated header should retain the platform-admin divider");
   await page.getByRole("button", { name: "Add credential" }).click();
@@ -1347,8 +1347,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 19, "Authenticated mobile navigation should expose the three primary surfaces plus bounded work and administration routes in one menu");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Today[\s\S]*Timeline[\s\S]*Opportunities[\s\S]*Budget & Spend[\s\S]*Data Library[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Schedule[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Connections[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 20, "Authenticated mobile navigation should expose the three primary surfaces plus bounded work and administration routes in one menu");
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Primary[\s\S]*Today[\s\S]*Timeline[\s\S]*Opportunities[\s\S]*Budget & Spend[\s\S]*Data Library[\s\S]*Intelligence Graph[\s\S]*Opportunity Map[\s\S]*Work[\s\S]*Schedule[\s\S]*Task Center[\s\S]*Event Discovery[\s\S]*Workspace[\s\S]*Integrations & API[\s\S]*Domain Model[\s\S]*Intelligence Operations[\s\S]*People & Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-research-discovery-dashboard]');

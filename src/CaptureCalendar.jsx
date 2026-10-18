@@ -1,7 +1,7 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./CaptureCalendar.css";
 import { createPortal } from "react-dom";
-import { BarChart3, Bookmark, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Link2, Maximize2, Minimize2, Network, Search, ShieldCheck, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BarChart3, Bookmark, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Layers3, Link2, Maximize2, Minimize2, Network, ShieldCheck, SlidersHorizontal, Sparkles, Star, Trash2, X } from "lucide-react";
 import {
   assembleProcurementRecords,
   applyProcurementChanges,
@@ -17,7 +17,7 @@ import { useRecordDispositions } from "./record-dispositions.js";
 import { emptyProcurementDiscovery, loadProcurementDiscovery } from "./procurement-discovery.js";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
-import { ControlAsyncState, ControlDialog, ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlAutocomplete, ControlDialog, ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import TimelineLinkToolbar from "./TimelineLinkToolbar.jsx";
@@ -30,6 +30,9 @@ import LifecycleGroupPanel from "./LifecycleGroupPanel.jsx";
 import { TimelineProgressiveLoader, useProgressiveTimelineRows } from "./TimelineProgressiveRows.jsx";
 import TimelineScopeNav, { replaceTimelineScope } from "./TimelineScopeNav.jsx";
 import { analysisCanvasStyle, analysisContextStyle, analysisDrawerBodyStyle, analysisDrawerStyle, analysisWorkspaceStyle } from "./analysis-workspace.js";
+import { useAuth } from "./AuthContext.jsx";
+import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
+import { useTimelineRuntimeRecords } from "./timeline-runtime-records.js";
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
 const EMPTY_TIMELINE_ITEMS = Object.freeze([]); const TIMELINE_FIRST_YEAR = 2023;
@@ -545,18 +548,7 @@ function AwardActionHistory({ record, actions, state, onRetry }) {
 
 function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, parentRelations, vehicleRelations, followOnRelations, onSelectRelated }) {
   if (!record) return null;
-  const observed = Number(liveAward?.awardAmountDollars || record.obligatedAmount || 0);
-  const potential = Number(record.potentialAmount || record.valueHigh || 0);
-  const utilization = potential ? Math.min((observed / potential) * 100, 100) : null;
   const durationDays = dateDiffDays(record.start, record.currentEnd);
-  const primaryFacts = [
-    { label: "Company / sponsor", value: liveAward?.recipient || record.party, meta: liveAward ? "Current award analytics match" : "Source record", wide: true },
-    { label: "Reference", value: record.reference || "Not published", meta: record.context },
-    { label: "Reported term", value: `${compactDate(record.start)} to ${compactDate(record.currentEnd)}`, meta: `Potential through ${compactDate(record.potentialEnd)}` },
-    { label: "USAspending money", value: formatMoney(observed), meta: `Potential / high ${formatMoney(potential)}` },
-    { label: "Obligation posture", value: utilization == null ? "Not calculable" : `${Math.round(utilization)}% of potential`, meta: potential ? `${formatMoney(Math.max(potential - observed, 0))} reported headroom` : "No potential value published" },
-    { label: "Type of work", value: WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Other / unclassified", meta: (record.workCategories || []).slice(1).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category)).join(" · ") || record.workCategoryConfidence || "No secondary category", wide: true },
-  ];
   const secondaryFacts = [
     { label: "Technology areas", value: (record.technologyAreas || []).map((area) => TECHNOLOGY_AREA_BY_ID.get(area)?.label || area).join(" · ") || "Not classified", meta: "Deterministic published-record classification", wide: true },
     { label: "DoW hierarchy", value: record.organization?.path?.slice(0, 3).join(" → ") || "Not published", meta: record.organization?.office || "Office not published", wide: true },
@@ -578,7 +570,7 @@ function DetailPanel({ record, liveAward, actions, actionState, onRetryActions, 
   return (
     <aside className="capture-detail capture-detail--workspace" style={analysisWorkspaceStyle} data-capture-detail aria-label={`${record.title} evidence details`}>
       <div className="capture-detail__context" style={analysisContextStyle} data-record-context-panel>
-        <ControlFactGrid label="Primary transaction facts" mobileTwoColumn items={primaryFacts} data-capture-primary-facts />
+        <OpportunityFactSummary record={record} liveAward={liveAward} label="Primary transaction facts" data-capture-primary-facts />
         <ControlDisclosure className="capture-detail__secondary" title="Procurement and provenance details" summary={`${secondaryFacts.length} published fields · offices, competition, instrument, coding, and source posture`}>
           <ControlFactGrid label="Procurement and provenance facts" mobileTwoColumn items={secondaryFacts} data-capture-secondary-facts />
         </ControlDisclosure>
@@ -1023,7 +1015,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
         <div className="capture-timeline__head capture-timeline__years">
           {years.map((year) => <span key={year}><b>{year}</b><small><i>Q1</i><i>Q2</i><i>Q3</i><i>Q4</i></small></span>)}
           {showAsOf ? <em className="capture-timeline__today-label" style={{ left: `${asOfPosition}%` }}>Today · {formatDate(asOf)}</em> : null}
-          {showDataAsOf ? <em className="capture-timeline__data-label" style={{ left: `${dataAsOfPosition}%` }}>Data through · {formatDate(dataAsOf)}</em> : null}
+          {showDataAsOf ? <em className="capture-timeline__data-label" style={{ left: `${dataAsOfPosition}%` }}>Historical snapshot · {formatDate(dataAsOf)}</em> : null}
         </div>
         {visibleGroups.map((group) => (
           <Fragment key={group.id}>
@@ -1082,6 +1074,8 @@ function LifecycleMatrix({ records, portfolios, onSelect }) {
 }
 
 export default function CaptureCalendar({ dataset, awards = [], samOpportunities = { metadata: {}, records: [] }, manualProcurement = { records: [] }, procurementDelta = { records: [], summary: {} }, subawardSnapshot = { metadata: { status: "unavailable" }, primes: [] }, embedded = false, embeddedTabs = null, onOpenRecord = null, primary = false, defaultScope = "all" }) {
+  const auth = useAuth();
+  const runtimeAvailable = Boolean(primary && auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
   const [filters, setFilters] = useCaptureFilters();
   const [discoveryFeed, setDiscoveryFeed] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [selectedId, setSelectedIdState] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
@@ -1108,6 +1102,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     .map((view) => ({ ...view, name: typeof view.name === "string" && view.name.trim() ? view.name : "Saved view", filters: normalizeSavedFilters(view.filters) }))
     .slice(0, 8));
   const [compareNotice, setCompareNotice] = useState("");
+  const { runtime: runtimeAcquisition, effectiveSamOpportunities, effectiveManualProcurement, latestRecordAt: liveAcquisitionDate } = useTimelineRuntimeRecords({ auth, enabled: runtimeAvailable, samOpportunities, manualProcurement });
   useEffect(() => {
     if (filters.capSort !== "added" || discoveryFeed.discovery.length) return undefined;
     let active = true;
@@ -1126,7 +1121,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       subawards: subawardDetails?.byPrime?.[prime.primeAwardId] || [],
     })),
   }), [subawardDetails, subawardSnapshot]);
-  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, dataAsOf, samOpportunities.records || [], manualProcurement.records || [], effectiveSubawardSnapshot), procurementDelta.records || [], discoveryFeed.discovery || []), [awards, dataAsOf, discoveryFeed.discovery, effectiveSubawardSnapshot, manualProcurement.records, procurementDelta.records, samOpportunities.records, sourceRecords]);
+  const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(sourceRecords, awards, dataAsOf, effectiveSamOpportunities.records || [], effectiveManualProcurement.records || [], effectiveSubawardSnapshot), procurementDelta.records || [], discoveryFeed.discovery || []), [awards, dataAsOf, discoveryFeed.discovery, effectiveManualProcurement.records, effectiveSamOpportunities.records, effectiveSubawardSnapshot, procurementDelta.records, sourceRecords]);
   const management = useManagementState(records);
   const dispositions = useRecordDispositions();
   const recordGroups = useRecordGroups(records);
@@ -1314,6 +1309,21 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     ? enriched.filter((record) => record.opportunityId !== selected.opportunityId && record.vehicle === selected.vehicle && !parentRelations.some((related) => related.opportunityId === record.opportunityId)).slice(0, 8)
     : [];
   const followOnRelations = selected ? followOnByOpportunity[selected.opportunityId] || [] : [];
+  const searchSuggestions = useMemo(() => enriched.slice(0, 1200).map((record) => ({
+    id: record.opportunityId,
+    value: record.reference || record.id || record.title,
+    label: record.title,
+    meta: [record.reference || record.id, record.party, record.contractingOffice || record.owner].filter(Boolean).join(" · "),
+    type: record.mode === "acquisition-window" ? "Opportunity" : "Contract",
+  })), [enriched]);
+  const liveRecordCount = Number(effectiveSamOpportunities.metadata?.runtimeRecordCount || 0) + Number(effectiveManualProcurement.metadata?.runtimePortfolioRecords || 0);
+  const liveFreshnessLabel = runtimeAcquisition.status === "loading"
+    ? "Loading live workspace records"
+    : runtimeAcquisition.status === "error"
+      ? "Live workspace unavailable; retained records preserved"
+      : liveRecordCount
+        ? `${liveRecordCount.toLocaleString()} live workspace records · refreshed ${formatDate(String(liveAcquisitionDate).slice(0, 10))}`
+        : "Static public timeline";
 
   function toggleMergeSelection(opportunityId) {
     setMergeSelectedIds((current) => {
@@ -1587,12 +1597,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
     setFilters({ capFeed: serializeMultiValues([...current], "none") });
   }
 
-  const ganttControlGroups = <div className="capture-gantt-tools__grid">
-    <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--time">
-      <legend>Time</legend>
-      <button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Center on {monthYear(asOf)}</button>
-      <div className="capture-gantt-window" aria-label="Timeline windows"><button type="button" onClick={() => setTimelineWindow(0, 0)}>Current</button><button type="button" onClick={() => setTimelineWindow(1, 2)}>3 year</button><button type="button" onClick={() => setTimelineWindow(3, 3)}>7 year</button><button type="button" onClick={() => setFilters({ capFrom: String(TIMELINE_FIRST_YEAR), capTo: String(TIMELINE_LAST_YEAR) })}>All</button></div>
-    </fieldset>
+  const ganttControlGroups = <div className="capture-gantt-tools__grid capture-gantt-tools__grid--display">
     <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--display">
       <legend>Display</legend>
       <SingleSelectFilter title="Density" ariaLabel="Row density" value={filters.capDensity} options={[["comfortable", "Comfortable"], ["compact", "Compact"]]} onChange={(capDensity) => setFilters({ capDensity })} portalTarget={ganttDialogRef} />
@@ -1604,16 +1609,11 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <div role="group" aria-label="Visible Gantt row fields"><p>Choose up to four fields. Full detail remains available on hover or focus.</p>{ROW_FIELD_OPTIONS.map(([id, text]) => { const activeFields = selectedFieldIds(filters.capFields); const checked = activeFields.includes(id); return <label key={id}><input type="checkbox" checked={checked} disabled={!checked && activeFields.length >= MAX_ROW_FIELDS} onChange={() => toggleRowField(id)} /><span>{text}</span></label>; })}</div>
       </details>
     </fieldset>
-    <fieldset className="capture-gantt-toolgroup capture-gantt-toolgroup--data">
-      <legend>Data</legend>
-      <SearchMultiSelect title="Overlays" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={11} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} portalTarget={ganttDialogRef} />
-      <span className="capture-gantt-feed-status" role="status">{feedStatusText}</span>
-    </fieldset>
   </div>;
 
   return (
     <div className="capture-page" data-capture-calendar-page data-transaction-analytics-page data-public-record-count={records.length} data-automatic-record-count={records.filter((record) => record.ingestionMethod === "automated").length}>
-      <ControlWorkbenchHeader className="capture-primary-header" eyebrow={primary ? "Primary control surface" : embedded ? "Spend intelligence" : "Transaction intelligence"} title={primary ? "Timeline" : embedded ? "Spend Timeline" : "Transactions"} summary={primary ? "Orient on contract families, exact source records, milestones, changes, funding, and follow-on activity without losing the complete intelligence library." : embedded ? "A now-first view of reported terms, acquisition events, and public evidence." : "Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence."} meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {samOpportunities.metadata?.status || "unavailable"}</span></span>} tabs={embeddedTabs} />
+      {!primary ? <ControlWorkbenchHeader className="capture-primary-header" eyebrow={embedded ? "Spend intelligence" : "Transaction intelligence"} title={embedded ? "Spend Timeline" : "Transactions"} summary={embedded ? "A now-first view of reported terms, acquisition events, and public evidence." : "Award actions, obligations, reported performance, acquisition events, recipients, buyers, and evidence."} meta={<span className="capture-hero__boundary"><ShieldCheck size={15} aria-hidden="true" /><strong>{records.length.toLocaleString()} public records</strong><span>{dataset.metadata.coverage.publicRows} normalized source rows · {records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automatic feed additions · SAM.gov {effectiveSamOpportunities.metadata?.status || "unavailable"}</span></span>} tabs={embeddedTabs} /> : null}
 
       <SavedViews
         views={savedViews}
@@ -1623,7 +1623,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
 
       <section className={`capture-filters capture-command-rail${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters data-capture-command-rail>
         <div className="capture-filters__heading"><CalendarClock size={17} /><strong>Find Records</strong><span>{filtered.length.toLocaleString()} matches · {activeFilters ? `${activeFilters} filters` : "current window"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}><Filter size={14} />{filtersExpanded ? "Close Filters" : "Filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}<button type="button" onClick={copyLink} aria-label="Copy filtered link"><Copy size={14} />Copy</button><button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)} aria-label={`Export ${filtered.length.toLocaleString()} rows`}><Download size={14} />Export</button><button type="button" onClick={saveCurrentView}><Bookmark size={14} />Save</button>{primary ? <TimelineScopeNav scope={timelineScope} trackedCount={trackedRecordCount} allCount={visible.length} onChange={setTimelineScope} /> : null}</div>
-        <label className="capture-filter capture-filter--search"><span>Search</span><i><Search size={15} /><input value={filters.capQuery} onChange={(event) => setFilters({ capQuery: event.target.value })} placeholder="Program, company, reference, buyer" /></i></label>
+        <ControlAutocomplete className="capture-filter capture-filter--search" label="Search" value={filters.capQuery} items={searchSuggestions} minLength={1} limit={8} onChange={(capQuery) => setFilters({ capQuery })} onSelect={(item) => { setFilters({ capQuery: item.value }); setSelectedId(item.id); }} placeholder="Program, company, reference, buyer" emptyText="No matching records" data-capture-record-autocomplete />
         <div className="capture-quickviews" aria-label="Decision views">
           <span>Focus</span>
           <button type="button" aria-pressed={filters.capHorizon === "all" && filters.capChange === "all" && filters.capTracked === "all"} onClick={() => setFilters({ ...FILTER_DEFAULTS })}>All records</button>
@@ -1634,12 +1634,15 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
           <button type="button" aria-pressed={filters.capHorizon === "upcoming"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capHorizon: "upcoming" })}>Upcoming</button>
           {!primary ? <button type="button" aria-pressed={filters.capTracked === "tracked"} onClick={() => setFilters({ ...FILTER_DEFAULTS, capTracked: "tracked" })}>Tracked</button> : null}
         </div>
+        <div className="capture-advanced-filters" hidden={!filtersExpanded} data-capture-advanced-filters>
+        <h3>Record</h3>
         {!primary ? <SingleSelectFilter className="capture-filter--advanced" title="Tracking" value={filters.capTracked} options={[["all", "All records"], ["tracked", `Tracked only (${management.watchlist.length})`]]} onChange={(capTracked) => setFilters({ capTracked })} /> : null}
         <SearchMultiSelect className="capture-filter--advanced" title="Portfolio" allLabel="All portfolios" value={filters.capPortfolio} options={portfolios} onChange={(values) => setFilters({ capPortfolio: serializeMultiValues(values) })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Record type" value={filters.capMode} options={[["all", "All records"], ["contract-performance", "Contract performance"], ["acquisition-window", "Acquisition windows"]]} onChange={(capMode) => setFilters({ capMode })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Notice type" allLabel="All notice types" value={filters.capNoticeType} options={noticeTypes.map((option) => [option.id, option.label])} onChange={(values) => setFilters({ capNoticeType: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Evidence" allLabel="All evidence" value={filters.capEvidence} options={evidenceTiers.map((tier) => [tier, label(tier)])} onChange={(values) => setFilters({ capEvidence: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Lifecycle" allLabel="All lifecycle states" value={filters.capLifecycle} options={lifecycleStates.map((status) => [status, label(status)])} onChange={(values) => setFilters({ capLifecycle: serializeMultiValues(values) })} />
+        <h3>Buyer &amp; market</h3>
         <SearchMultiSelect className="capture-filter--advanced" title="Company / sponsor" allLabel="All companies and sponsors" value={filters.capParty} options={parties} onChange={(values) => setFilters({ capParty: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Funding / contracting office" allLabel="All offices" value={filters.capOffice} options={offices} onChange={(values) => setFilters({ capOffice: serializeMultiValues(values) })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Vehicle" allLabel="All published vehicles" value={filters.capVehicle} options={vehicles} onChange={(values) => setFilters({ capVehicle: serializeMultiValues(values) })} />
@@ -1648,9 +1651,11 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <SearchMultiSelect className="capture-filter--advanced" title="DoW branch" allLabel="All DoW branches" value={filters.capOrgBranch} options={organizationBranches} onChange={(values) => setFilters({ capOrgBranch: serializeMultiValues(values), capOrgComponent: "all", capOrgOffice: "all" })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Service / component" allLabel="All services and components" value={filters.capOrgComponent} options={organizationComponents} onChange={(values) => setFilters({ capOrgComponent: serializeMultiValues(values), capOrgOffice: "all" })} />
         <SearchMultiSelect className="capture-filter--advanced" title="Buying office" allLabel="All published offices" value={filters.capOrgOffice} options={organizationOffices} onChange={(values) => setFilters({ capOrgOffice: serializeMultiValues(values) })} />
+        <h3>Evidence &amp; change</h3>
         <SearchMultiSelect className="capture-filter--advanced" title="Ingestion provenance" allLabel="All ingestion methods" value={filters.capOrigin} options={ingestionMethods.map((method) => [method.id, method.label])} onChange={(values) => setFilters({ capOrigin: serializeMultiValues(values) })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Changed since refresh" value={filters.capChange} options={[["all", "Any change status"], ["added", "Added"], ["updated", "Updated"], ["unchanged", "No detected change"]]} onChange={(capChange) => setFilters({ capChange })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Validation" value={filters.capValidation} options={[["all", "All validation states"], ["verified", "Verified"], ["corrected", "Corrected"], ["unresolved", "Unresolved"]]} onChange={(capValidation) => setFilters({ capValidation })} />
+        <h3>Timing &amp; activity</h3>
         <SingleSelectFilter className="capture-filter--advanced" title="Schedule horizon" value={filters.capHorizon} options={[["all", "Any schedule posture"], ["active", "Active reported term"], ["soliciting", "Active solicitation"], ["ending12", "Ending within 12 months"], ["ending24", "Ending within 24 months"], ["upcoming", "Future starts / milestones"], ["past", "All endpoints passed"], ["undated", "Schedule not published"]]} onChange={(capHorizon) => setFilters({ capHorizon })} />
         <SingleSelectFilter className="capture-filter--advanced" title="FPDS activity" value={filters.capActivity} options={[["all", "Any action posture"], ["recent", "Action in past 12 months"], ["funding", "Has funding actions"], ["deobligation", "Has deobligations"], ["no-actions", "No exact action history"]]} onChange={(capActivity) => setFilters({ capActivity })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Subaward activity" value={filters.capSubaward} options={[["all", "Any subaward posture"], ["has", "Has reported subawards"], ["recent", "Subaward action in past 12 months"], ["none", "No reported subawards"]]} onChange={(capSubaward) => setFilters({ capSubaward })} />
@@ -1658,6 +1663,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         <SingleSelectFilter className="capture-filter--advanced" title="Through year" value={filters.capTo} options={TIMELINE_YEARS} onChange={(capTo) => setFilters({ capTo })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Minimum value" value={filters.capMin} options={[["all", "Any published value"], ["1m", "$1M+"], ["10m", "$10M+"], ["50m", "$50M+"], ["100m", "$100M+"], ["500m", "$500M+"]]} onChange={(capMin) => setFilters({ capMin })} />
         <SingleSelectFilter className="capture-filter--advanced" title="Sort" value={filters.capSort} options={[["soonest", "Soonest start / milestone"], ["deadline", "Response deadline (soonest)"], ["posted", "Posted date (newest)"], ["added", "Recently added"], ["technology", "Technology area"], ["organization", "DoW hierarchy"], ["value", "Highest potential / value"], ["obligations", "Highest obligations"], ["portfolio", "Portfolio"], ["company", "Company / sponsor"]]} onChange={(capSort) => setFilters({ capSort })} />
+        </div>
       </section>
 
       {compareNotice ? <p className="capture-compare-notice" role="status">{compareNotice}</p> : null}
@@ -1670,16 +1676,16 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       ) : null}
 
       <section className={`capture-section capture-gantt-section${timelineExpanded ? " is-fullscreen" : ""}`} data-capture-gantt-section data-follow-on-count={followOnLinkCount} data-fpds-overlay-state={selectedFeeds.has("fpds") ? (actionDataset ? "ready" : actionState) : "disabled"}>
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Timeline</strong><small>Open a title for the full record · select a bar for evidence · {timelineRecords.length.toLocaleString()} lines · data through {formatDate(dataAsOf)}</small></span></div><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{selectedResearchDates.length ? <><i className="research" />AI research date</> : null}{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("awards") ? <><i className="award" />Refreshed end</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}{parseMultiValues(filters.capFeed).includes("competition") ? <><i className="competition" />Competition</> : null}{parseMultiValues(filters.capFeed).includes("vehicle") ? <><i className="vehicle" />Vehicle</> : null}{parseMultiValues(filters.capFeed).includes("structure") ? <><i className="pricing-fixed-price" />FFP<i className="pricing-cost-reimbursable" />Cost type<i className="pricing-time-materials" />T&amp;M</> : null}{parseMultiValues(filters.capFeed).includes("work") ? <><i className="work" />Work category</> : null}{parseMultiValues(filters.capFeed).includes("provenance") ? <><i className="provenance" />Import source</> : null}{parseMultiValues(filters.capFeed).includes("changes") ? <><i className="change" />Changed</> : null}</span></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Timeline</strong><small>{timelineRecords.length.toLocaleString()} lines · {liveFreshnessLabel} · historical range-bar snapshot through {formatDate(dataAsOf)}</small></span></div><details className="capture-legend-details"><summary>Legend</summary><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{selectedResearchDates.length ? <><i className="research" />AI research date</> : null}{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}</span></details></div>
         <div className="capture-gantt-commandbar" data-capture-gantt-commandbar>
           <div className="capture-gantt-commandbar__group" aria-label="Timeline window"><span>Window</span><button type="button" aria-pressed={timelineStartYear === Number(asOf.slice(0, 4)) && timelineEndYear === Number(asOf.slice(0, 4))} onClick={() => setTimelineWindow(0, 0)}>Current</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 1) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 2)} onClick={() => setTimelineWindow(1, 2)}>3 year</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 3) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 3)} onClick={() => setTimelineWindow(3, 3)}>7 year</button><button type="button" aria-pressed={timelineStartYear === TIMELINE_FIRST_YEAR && timelineEndYear === TIMELINE_LAST_YEAR} onClick={() => setFilters({ capFrom: String(TIMELINE_FIRST_YEAR), capTo: String(TIMELINE_LAST_YEAR) })}>All</button></div>
-          <div className="capture-gantt-commandbar__group" aria-label="Timeline layers"><span>Layers</span><button type="button" aria-pressed={!parseMultiValues(filters.capFeed).length} onClick={() => setFilters({ capFeed: "none" })}>Schedule</button><button type="button" aria-pressed={selectedFeeds.has("changes")} onClick={() => toggleTimelineFeed("changes")}>Changes</button><button type="button" aria-pressed={selectedFeeds.has("followon")} onClick={() => toggleTimelineFeed("followon")}>Follow-ons</button><button type="button" aria-pressed={selectedFeeds.has("fpds") && selectedFeeds.has("fiscal")} onClick={() => toggleTimelineFeed("fpds", "fiscal")}>Funding</button><button type="button" aria-pressed={selectedFeeds.has("subawards")} onClick={() => toggleTimelineFeed("subawards")}>Subawards</button></div>
-          <div className="capture-gantt-commandbar__actions"><button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Today</button><button type="button" aria-pressed={mergeMode} onClick={() => setLinkMode(!mergeMode)}><Link2 size={15} />Link records</button><button type="button" onClick={() => setGanttToolsOpen(true)}>Controls</button><button type="button" aria-pressed={timelineExpanded} onClick={() => setTimelineExpanded((value) => !value)}>{timelineExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{timelineExpanded ? "Exit" : "Expand"}</button></div>
+          <details className="capture-layer-menu"><summary><Layers3 size={14} />Layers <span>{selectedFeeds.size}</span></summary><div><div className="capture-layer-menu__quick"><button type="button" aria-pressed={!selectedFeeds.size} onClick={() => setFilters({ capFeed: "none" })}>Schedule only</button><button type="button" aria-pressed={selectedFeeds.has("changes")} onClick={() => toggleTimelineFeed("changes")}>Changes</button><button type="button" aria-pressed={selectedFeeds.has("followon")} onClick={() => toggleTimelineFeed("followon")}>Follow-ons</button><button type="button" aria-pressed={selectedFeeds.has("fpds") && selectedFeeds.has("fiscal")} onClick={() => toggleTimelineFeed("fpds", "fiscal")}>Funding</button><button type="button" aria-pressed={selectedFeeds.has("subawards")} onClick={() => toggleTimelineFeed("subawards")}>Subawards</button></div><SearchMultiSelect title="Evidence layers" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={11} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} /><small>{feedStatusText}</small></div></details>
+          <div className="capture-gantt-commandbar__actions"><button type="button" onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Today</button><button type="button" aria-pressed={mergeMode} onClick={() => setLinkMode(!mergeMode)}><Link2 size={15} />Link Records</button><button type="button" onClick={() => setGanttToolsOpen(true)}><SlidersHorizontal size={15} />Display</button><button type="button" aria-pressed={timelineExpanded} onClick={() => setTimelineExpanded((value) => !value)}>{timelineExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{timelineExpanded ? "Exit" : "Expand"}</button></div>
         </div>
         {mergeMode ? <TimelineLinkToolbar records={recordById} selectedIds={[...mergeSelectedIds]} intelligenceState={recordIntelligence.state} groupState={recordGroups.state} onToggle={toggleMergeSelection} onLink={linkSelectedWithAi} onGroup={groupSelectedWithAi} onCancel={() => setLinkMode(false)} /> : null}
         {recordGroups.notice ? <p className={`if-alert ${recordGroups.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status">{recordGroups.notice}</p> : null}
         {recordIntelligence.notice ? <p className={`if-alert ${recordIntelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status">{recordIntelligence.notice}</p> : null}
-        {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} dialogRef={ganttDialogRef} title="Timeline controls" eyebrow="Transactions" summary="Adjust the visible time window, row density, grouping, labels, and evidence overlays." size="wide" closeLabel="Close Timeline controls" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
+        {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} dialogRef={ganttDialogRef} title="Timeline Display" eyebrow="View settings" summary="Adjust grouping, density, labels, and visible row fields. Window and evidence layers stay in the Timeline toolbar." size="default" closeLabel="Close Timeline display" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
           <div className="capture-gantt-tools capture-gantt-tools--dialog">{ganttControlGroups}</div>
         </ControlDialog> : null}
         {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} dataAsOf={dataAsOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} researchDates={selectedResearchDates} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title={timelineScope === "tracked" ? "No tracked records match this window" : "No matching transactions"} message={timelineScope === "tracked" ? "Track an opportunity or switch to All intelligence to browse every retained timeline term." : "Adjust or clear filters to restore public transaction records."} />}
