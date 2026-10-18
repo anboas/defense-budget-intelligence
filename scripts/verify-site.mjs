@@ -274,6 +274,7 @@ try {
   const expandedManagerBox = await savedViewManager.boundingBox();
   const savedViewFormBox = await savedViewManager.locator(".spend-saved-views__create").boundingBox();
   assert.ok(expandedManagerBox && savedViewFormBox && savedViewFormBox.x >= expandedManagerBox.x && savedViewFormBox.y >= expandedManagerBox.y && savedViewFormBox.x + savedViewFormBox.width <= expandedManagerBox.x + expandedManagerBox.width && savedViewFormBox.y + savedViewFormBox.height <= expandedManagerBox.y + expandedManagerBox.height, "Saved-view creation must expand inside the owned Workbench popover");
+  assert.match(await savedViewManager.locator(".spend-saved-views__create button").getAttribute("class"), /\bif-btn\b.*\bif-btn--primary\b/, "Saved-view creation must use the shared primary action control rather than a native button fallback");
   await savedViewManager.locator("input").fill("AI and autonomy watch");
   await savedViewManager.locator(".spend-saved-views__create button").click();
   assert.match(await savedViewManager.innerText(), /AI and autonomy watch[\s\S]*(?:\d+ unread changes|No unread changes)/i, "Saved acquisition views should retain the current scope and explicit unread state");
