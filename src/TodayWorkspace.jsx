@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Filter, ListChecks, MoreHorizontal, Network } from "lucide-react";
 import { ControlDialog, ControlMenu, ControlStatusBadge } from "control-surface-ui/react";
 import { useAuth } from "./AuthContext.jsx";
+import { useNotifications } from "./NotificationContext.jsx";
 import { intelligenceGraphRoute, opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
+import { emptyProcurementFeed, loadProcurementFeed } from "./procurement-discovery.js";
 import { normalizePursuit } from "./pursuit-metadata.js";
 import "./TodayWorkspace.css";
 
@@ -161,13 +163,31 @@ function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onReq
 
 export default function TodayWorkspace({ rows, watchlist, events = [], today, savePursuit, children }) {
   const auth = useAuth();
+  const notifications = useNotifications();
+  const [attentionFeed, setAttentionFeed] = useState(emptyProcurementFeed);
+  useEffect(() => {
+    let active = true;
+    loadProcurementFeed().then((payload) => { if (active) setAttentionFeed(payload); }).catch(() => { /* Source attention stays unavailable rather than appearing clear. */ });
+    return () => { active = false; };
+  }, []);
   const recordById = useMemo(() => new Map(rows.map((record) => [recordId(record), record])), [rows]);
   const watchById = useMemo(() => new Map(watchlist.map((watch) => [watch.recordId, watch])), [watchlist]);
   const tasks = useMemo(() => watchlist.flatMap((watch) => normalizePursuit(watch.pursuit).tasks.filter((task) => task.status !== "done").map((task) => ({ ...task, recordId: watch.recordId, record: recordById.get(watch.recordId) }))), [recordById, watchlist]);
   const noActionRecords = useMemo(() => rows.filter((record) => { const pursuit = normalizePursuit(watchById.get(recordId(record))?.pursuit); return !pursuit.nextAction && !pursuit.tasks.some((task) => task.status !== "done"); }), [rows, watchById]);
-  const priorityItems = useMemo(() => [...tasks.map((task) => ({ id: `task:${task.recordId}:${task.id}`, type: "task", recordId: task.recordId, taskId: task.id, title: task.title, meta: [isTaskOverdue(task, today) ? "Overdue" : task.status === "waiting" ? "Waiting" : task.dueAt ? `Due ${compactDate(task.dueAt)}` : "No due date", task.record?.title || task.recordId].join(" · "), tone: isTaskOverdue(task, today) ? "danger" : task.priority === "high" || task.priority === "critical" ? "warning" : task.status === "waiting" ? "neutral" : "info", score: taskScore(task, today) })), ...noActionRecords.map((record) => ({ id: `plan:${recordId(record)}`, type: "plan", recordId: recordId(record), title: "Set a next action", meta: `${record.title || recordId(record)} · Tracked pursuit has no plan`, tone: "warning", score: 18 }))].sort((left, right) => right.score - left.score).slice(0, 5), [noActionRecords, tasks, today]);
+  const sourceIssues = useMemo(() => Object.entries(attentionFeed.metadata?.coverage?.sources || {}).filter(([, source]) => !["current", "gaps-disclosed"].includes(source?.status)), [attentionFeed.metadata?.coverage?.sources]);
+  const taskAttention = useMemo(() => notifications?.notifications?.filter((item) => item.requiresAction || item.active) || [], [notifications?.notifications]);
+  const latestFeed = attentionFeed.history?.[0] || null;
+  const latestFeedDate = latestFeed?.date || "";
+  const changedTodayCount = Number(latestFeed?.summary?.added || 0) + Number(latestFeed?.summary?.updated || 0) + Number(latestFeed?.summary?.removed || 0);
+  const priorityItems = useMemo(() => [
+    ...taskAttention.map((item) => ({ id: item.id, type: "system", href: item.href, title: item.title, meta: item.message, tone: item.tone || "info", score: item.requiresAction ? 110 : 55 })),
+    ...sourceIssues.map(([source, value]) => ({ id: `source:${source}`, type: "system", href: "#/budget-spend/connections?connectionsView=integrations", title: `${source} source issue`, meta: `${value.status}. Missing data is unavailable, not zero.`, tone: "danger", score: 100 })),
+    ...tasks.map((task) => ({ id: `task:${task.recordId}:${task.id}`, type: "task", recordId: task.recordId, taskId: task.id, title: task.title, meta: [isTaskOverdue(task, today) ? "Overdue" : task.status === "waiting" ? "Waiting" : task.dueAt ? `Due ${compactDate(task.dueAt)}` : "No due date", task.record?.title || task.recordId].join(" · "), tone: isTaskOverdue(task, today) ? "danger" : task.priority === "high" || task.priority === "critical" ? "warning" : task.status === "waiting" ? "neutral" : "info", score: taskScore(task, today) })),
+    ...noActionRecords.map((record) => ({ id: `plan:${recordId(record)}`, type: "plan", recordId: recordId(record), title: "Set a next action", meta: `${record.title || recordId(record)} · Tracked pursuit has no plan`, tone: "warning", score: 18 })),
+    ...(changedTodayCount ? [{ id: "changes:today", type: "system", href: "#/budget-spend/explorer?spendView=table&changes=today", title: `${changedTodayCount} record${changedTodayCount === 1 ? "" : "s"} changed`, meta: `${latestFeedDate ? `Latest retained refresh · ${compactDate(latestFeedDate)}` : "Latest retained source refresh"}`, tone: "info", score: 16 }] : []),
+  ].sort((left, right) => right.score - left.score).slice(0, 5), [changedTodayCount, latestFeedDate, noActionRecords, sourceIssues, taskAttention, tasks, today]);
   const timelineItems = useMemo(() => buildTimelineItems(rows, tasks, events, today), [events, rows, tasks, today]);
-  const initialItem = priorityItems[0] || timelineItems[0] || (rows[0] ? { id: `record:${recordId(rows[0])}`, recordId: recordId(rows[0]) } : null);
+  const initialItem = priorityItems.find((item) => item.recordId) || timelineItems.find((item) => item.recordId) || (rows[0] ? { id: `record:${recordId(rows[0])}`, recordId: recordId(rows[0]) } : null);
   const [selectedItemId, setSelectedItemId] = useState(initialItem?.id || "");
   const [selectedRecordId, setSelectedRecordId] = useState(initialItem?.recordId || "");
   const [selectedTaskId, setSelectedTaskId] = useState(initialItem?.taskId || "");
@@ -224,10 +244,11 @@ export default function TodayWorkspace({ rows, watchlist, events = [], today, sa
         { id: "urgent", label: "Needs attention", description: "Urgent and high-impact work", meta: priorityItems.length, href: "#/budget-spend/watchlist?workFocus=urgent" },
         { id: "waiting", label: "Waiting", description: "Blocked or externally owned work", meta: waitingCount, href: "#/budget-spend/watchlist?workFocus=waiting" },
         { id: "no-action", label: "Needs plan", description: "Tracked pursuits without a next action", meta: noActionRecords.length, href: "#/budget-spend/watchlist?workFocus=no-action" },
+        { id: "changes", label: "Changed records", description: "Open the latest retained source-change ledger", meta: changedTodayCount, href: "#/budget-spend/explorer?spendView=table&changes=today" },
       ]}
     /><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table"><ExternalLink size={13} />Find opportunities</a></div>
     <section className="today-workspace__console" data-today-console>
-      <aside className="today-priority" data-today-priority><header><div><small>Priority actions</small><h2>Act now</h2><p>{priorityItems.length} item{priorityItems.length === 1 ? "" : "s"}, ranked by urgency and impact</p></div><span>{priorityItems.length}</span></header><div>{priorityItems.map((item) => <button key={item.id} type="button" className={`today-priority__item is-${item.tone}${activeItemId === item.id ? " is-selected" : ""}`} onClick={() => select(item)} data-my-work-task={item.type === "task" ? true : undefined}><i aria-hidden="true" /><strong>{item.title}</strong><small>{item.meta}</small></button>)}</div></aside>
+      <aside className="today-priority" data-today-priority><header><div><small>Priority actions</small><h2>Act now</h2><p>{priorityItems.length} item{priorityItems.length === 1 ? "" : "s"}, ranked by urgency and impact</p></div><span>{priorityItems.length}</span></header><div>{priorityItems.map((item) => { const content = <><i aria-hidden="true" /><strong>{item.title}</strong><small>{item.meta}</small></>; return item.href ? <a key={item.id} href={item.href} className={`today-priority__item is-${item.tone}`} data-today-system-attention>{content}</a> : <button key={item.id} type="button" className={`today-priority__item is-${item.tone}${activeItemId === item.id ? " is-selected" : ""}`} onClick={() => select(item)} data-my-work-task={item.type === "task" ? true : undefined}>{content}</button>; })}</div></aside>
       <TimelineSurface mode={mode} setMode={setMode} items={timelineItems} selectedId={activeItemId} selectedRecordId={activeRecordId} onSelect={select} today={today} />
       <SelectedOpportunity record={selectedRecord} watch={selectedWatch} selectedTask={selectedTask} lens={lens} setLens={setLens} onRequestComplete={() => { if (selectedTask) setPendingComplete(selectedTask); }} feedback={feedback} today={today} />
     </section>

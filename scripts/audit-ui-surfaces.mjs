@@ -20,7 +20,7 @@ const executablePath = [
 
 const ROUTES = [
   ["spend-radar", "#/budget-spend/explorer?spendView=radar", "[data-opportunity-radar]"],
-  ["spend-brief", "#/budget-spend/explorer?spendView=today", '[data-spend-explorer="today"]'],
+  ["today-workspace", "#/budget-spend/watchlist", "[data-today-workspace]"],
   ["spend-timeline", "#/budget-spend/explorer?spendView=timeline", "[data-capture-calendar-page]"],
   ["intelligence-workspace", "#/intelligence/workspace?entityType=activity&entityId=opp_a8322e15bbd1418561a2&workspaceTab=overview", "[data-universal-intelligence-workspace]"],
   ["spend-table", "#/budget-spend/explorer?spendView=table", '[data-spend-explorer="table"]'],

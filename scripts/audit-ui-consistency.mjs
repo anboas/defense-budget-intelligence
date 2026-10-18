@@ -6,7 +6,7 @@ const BASE_URL = "http://127.0.0.1:4196/";
 const OUT_DIR = "test-results/ui-consistency";
 const VERIFY = process.argv.includes("--verify");
 const ROUTES = [
-  ["brief", "#/budget-spend/explorer?spendView=today", "[data-spend-today]"],
+  ["today", "#/budget-spend/watchlist", "[data-today-workspace]"],
   ["radar", "#/budget-spend/explorer?spendView=radar", "[data-opportunity-radar]"],
   ["visuals", "#/budget-spend/explorer?spendView=visuals", "[data-opportunity-portfolio-visuals]"],
   ["timeline", "#/budget-spend/timeline?timelineScope=all", "[data-capture-timeline]"],

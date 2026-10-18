@@ -29,6 +29,8 @@ assert.match(message.subject, /1 acquisition update/);
 assert.match(message.html, /Official &lt;Notice&gt;/, "Email HTML must escape source-controlled content");
 assert.doesNotMatch(message.html, /<script>/, "Email HTML must not render injected markup");
 assert.match(message.text, /Manage alerts:/, "Every email must expose authenticated preference management");
+assert.match(message.text, /spendView=table&changes=today/, "Acquisition alerts must open the owned Workbench change ledger");
+assert.doesNotMatch(message.text, /spendView=today/, "Acquisition alerts must not revive the retired duplicate Today surface");
 
 const originalFetch = globalThis.fetch;
 let captured;

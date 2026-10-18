@@ -1467,10 +1467,7 @@ try {
   assert.ok(mobileSamBounds && mobileSamBounds.x >= 0 && mobileSamBounds.y >= 0 && mobileSamBounds.x + mobileSamBounds.width <= 390 && mobileSamBounds.y + mobileSamBounds.height <= 844, `Mobile SAM.gov key dialog must stay inside the viewport: ${JSON.stringify(mobileSamBounds)}`);
   await mobileSamDialog.getByRole("button", { name: "Close SAM.gov key form" }).click();
 
-  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
-  const acquisitionSourceDetails = page.locator("[data-acquisition-coverage]");
-  await acquisitionSourceDetails.waitFor();
-  await acquisitionSourceDetails.locator(":scope > summary").click();
+  await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=integrations`, { waitUntil: "domcontentloaded" });
   const acquisitionRuntime = page.locator("[data-acquisition-runtime]");
   await acquisitionRuntime.waitFor();
   await acquisitionRuntime.locator("summary").click();
@@ -1527,7 +1524,7 @@ try {
   await providerDialog.getByRole("button", { name: "Cancel" }).click();
 
   const interactionSurfaces = [
-    ["#/budget-spend/explorer?spendView=today", '[data-spend-explorer="today"]', "Acquisition Today"],
+    ["#/budget-spend/watchlist", "[data-operations-hub]", "Today workspace"],
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],
     ["#/budget-spend/schedule?scheduleView=calendar", "[data-wallboard-calendar]", "Schedule calendar"],
     ["#/budget-spend/explorer?spendView=timeline", "[data-capture-calendar-page]", "Spend timeline"],

@@ -32,8 +32,16 @@ const UniversalIntelligenceWorkspace = lazyWithRefresh(() => import("./Universal
 function tabFromHash(hash = "") {
   const normalized = hash || HASH_ROUTES.watchlist;
   const routePath = normalized.split("?")[0];
+  const routeParams = new URLSearchParams(normalized.split("?")[1] || "");
+  if (routePath === HASH_ROUTES.spend && routeParams.get("spendView") === "today") return "watchlist";
   if (LEGACY_ROUTE_TARGETS[routePath]) return tabFromHash(LEGACY_ROUTE_TARGETS[routePath]);
   return Object.entries(HASH_ROUTES).find(([, route]) => route === routePath)?.[0] || LEGACY_ROUTE_TABS[routePath] || "watchlist";
+}
+
+function legacyQueryTarget(hash = "") {
+  const [routePath, search = ""] = String(hash).split("?");
+  const params = new URLSearchParams(search);
+  return routePath === HASH_ROUTES.spend && params.get("spendView") === "today" ? HASH_ROUTES.watchlist : "";
 }
 
 function useBudgetRoute() {
@@ -44,13 +52,16 @@ function useBudgetRoute() {
 
   useEffect(() => {
     function handleRouteChange() {
-      const nextTab = tabFromHash(window.location.hash);
+      const queryTarget = legacyQueryTarget(window.location.hash);
+      const nextTab = tabFromHash(queryTarget || window.location.hash);
       const routePath = (window.location.hash || HASH_ROUTES.spend).split("?")[0];
       const knownRoute = Object.values(HASH_ROUTES).includes(routePath);
       if (!window.location.hash) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES.watchlist}`);
       }
-      if (LEGACY_ROUTE_TARGETS[routePath]) {
+      if (queryTarget) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${queryTarget}`);
+      } else if (LEGACY_ROUTE_TARGETS[routePath]) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${LEGACY_ROUTE_TARGETS[routePath]}`);
       } else if (LEGACY_ROUTE_TABS[routePath] || (!knownRoute && routePath)) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${HASH_ROUTES[nextTab]}`);
@@ -215,7 +226,7 @@ function App() {
   const activeTitle = activeTab === "directory" ? "Workspace Directory" : TABS.find((tab) => tab.id === activeTab)?.label || "PDB Request";
   const needsCore = CORE_TAB_IDS.has(activeTab);
   const spendView = new URLSearchParams(String(routeHash || "").split("?")[1] || "").get("spendView") || "table";
-  const spendNeedsFullData = activeTab === "spend" && spendView !== "today";
+  const spendNeedsFullData = activeTab === "spend";
   const needsExecution = (EXECUTION_TAB_IDS.has(activeTab) && activeTab !== "map" && (activeTab !== "spend" || spendNeedsFullData)) || activeTab === "sources";
   const needsAccountSpine = activeTab === "lifecycle" || (activeTab === "spend" && spendView === "charts") || activeTab === "sources";
   const needsCaptureCalendar = spendNeedsFullData || activeTab === "timeline" || activeTab === "library" || activeTab === "intelligence-graph" || activeTab === "entity-workspace" || OPERATIONS_TAB_IDS.has(activeTab) || activeTab === "sources";
@@ -305,7 +316,7 @@ function App() {
 
         {coreReady && BUDGET_REQUEST_TAB_IDS.has(activeTab) && (activeTab !== "lifecycle" || accountSpineReady) ? <Suspense fallback={<RuntimeDataState loadingTitle={`Loading ${activeTitle.toLowerCase()}`} loadingMessage="Budget request analysis and money-flow evidence are loading." />}><BudgetRequestRoutes view={activeTab} budgetData={data} accountSpine={ACCOUNT_SPINE} /></Suspense> : null}
         {executionReady && activeTab === "awards" ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading awards" loadingMessage="Award filters, evidence, and market rollups are loading." />}><AwardsRoute awardDrilldown={AWARD_DRILLDOWN} books={data.metadata.sources || []} sourcePackageUrl={data.metadata.dataInventory?.sourcePackageUrl || ""} snapshotGeneratedAt={data.metadata.generatedAt} methodology={data.metadata.methodology} executionCoverage={EXECUTION_COVERAGE} /></Suspense> : null}
-        {activeTab === "spend" && (spendView === "today" || (executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady))) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunities" loadingMessage="Workbench, radar, brief, timeline, and analysis views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
+        {activeTab === "spend" && executionReady && captureCalendarReady && (!needsAccountSpine || accountSpineReady) ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Opportunities" loadingMessage="Workbench, radar, timeline, and analysis views are loading." />}><SpendExplorer dataset={CAPTURE_CALENDAR || { metadata: {}, records: [] }} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} accountSpine={ACCOUNT_SPINE} requestLineCount={data.metadata.recordCount || data.records?.length || 0} /></Suspense> : null}
         {activeTab === "timeline" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Timeline" loadingMessage="Contract families, opportunity terms, milestones, and evidence layers are loading." />}><CaptureCalendar dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} primary defaultScope="tracked" onOpenRecord={(recordId) => { window.location.assign(opportunityRoute(recordId, { returnTo: window.location.hash, origin: "timeline" })); }} /></Suspense> : null}
         {activeTab === "library" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Data Library" loadingMessage="Schema, organizations, people, companies, work, and evidence relationships are loading." />}><DataLibraryPage dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} routeHash={routeHash} /></Suspense> : null}
         {activeTab === "intelligence-graph" && executionReady && captureCalendarReady ? <Suspense fallback={<RuntimeDataState loadingTitle="Loading Intelligence Graph" loadingMessage="Connected evidence, contract families, organizations, awards, accounts, classifications, and locations are loading." />}><IntelligenceGraphPage dataset={CAPTURE_CALENDAR} awards={AWARD_DRILLDOWN.awards || []} samOpportunities={SAM_OPPORTUNITIES} manualProcurement={MANUAL_PROCUREMENT} procurementDelta={PROCUREMENT_DELTA} subawardSnapshot={USASPENDING_SUBAWARDS} routeHash={routeHash} /></Suspense> : null}

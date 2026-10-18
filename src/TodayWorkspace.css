@@ -14,7 +14,7 @@
 .today-workspace__hero p, .today-priority header p, .today-forward header p { margin: 0; }
 .today-priority header > span { margin-left: auto; }
 .today-priority > div { padding: .4rem; }
-.today-priority__item { width: 100%; display: grid; grid-template-columns: .55rem 1fr; gap: .16rem .45rem; padding: .68rem .58rem; border: 1px solid transparent; border-radius: var(--if-control-radius); background: transparent; color: inherit; text-align: left; }
+.today-priority__item { width: 100%; display: grid; grid-template-columns: .55rem 1fr; gap: .16rem .45rem; padding: .68rem .58rem; border: 1px solid transparent; border-radius: var(--if-control-radius); background: transparent; color: inherit; text-align: left; text-decoration: none; cursor: pointer; }
 .today-priority__item.is-selected { border-color: #aebfd0; background: #f1f7fb; box-shadow: inset 3px 0 var(--if-color-info, #315f82); }
 .today-priority__item i { width: .48rem; height: .48rem; margin-top: .27rem; border-radius: 50%; background: var(--if-color-info, #315f82); }
 .today-priority__item.is-danger i { background: var(--if-color-danger, #a64639); }

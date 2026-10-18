@@ -242,13 +242,9 @@ try {
   let transactionRequests = 0;
   let subawardDetailRequests = 0;
   let budgetRequestRouteRequests = 0;
-  let transactionRouteRequests = 0;
-  let profileRouteRequests = 0;
   page.on("response", (response) => {
     const filename = new URL(response.url()).pathname.split("/").at(-1) || "";
     if (filename.startsWith("BudgetRequestRoutes")) budgetRequestRouteRequests += 1;
-    if (filename.startsWith("CaptureCalendar")) transactionRouteRequests += 1;
-    if (filename.startsWith("ProfilePage")) profileRouteRequests += 1;
   });
   await page.route("**/data/capture-transactions.json", async (route) => {
     transactionRequests += 1;
@@ -263,35 +259,31 @@ try {
 
   await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-defense-budget-app]");
-  await page.waitForSelector("[data-spend-today]");
-  assert.equal(await resourceCount(page, "runtime-manifest.json"), 1, "Today should load the compact runtime manifest once");
-  assert.equal(await resourceCount(page, "budget-core.json"), 0, "Today should defer the detailed budget request dataset");
-  assert.equal(await resourceCount(page, "procurement-feed.json"), 1, "Today should load the compact daily feed exactly once");
-  assert.equal(await resourceCount(page, "procurement-discovery.json"), 0, "Today should defer the full discovery index until Table or a saved view requires it");
-  assert.equal(budgetRequestRouteRequests, 0, "Today should defer the PDB Request, Request History, and Account Flow route family");
-  assert.equal(transactionRouteRequests, 0, "Today should defer the full transaction timeline route");
-  assert.equal(profileRouteRequests, 0, "Today should defer personal account surfaces");
-  const initialDecodedDataBytes = await page.evaluate(() => performance.getEntriesByType("resource")
-    .filter((entry) => entry.name.includes("/data/"))
-    .reduce((total, entry) => total + (entry.decodedBodySize || 0), 0));
-  assert.ok(initialDecodedDataBytes <= 2_000_000, `Today should stay below a 2 MB decoded initial data payload, got ${initialDecodedDataBytes.toLocaleString()} bytes`);
-  assert.equal(await page.locator('[data-spend-explorer="today"] .spend-explorer__viewbar').count(), 0, "Decision Brief must rely on Today workspace navigation instead of rendering a second route switcher");
+  await page.waitForFunction(() => window.location.hash === "#/budget-spend/watchlist");
+  await page.waitForSelector("[data-operations-hub]");
+  assert.equal(await page.locator("[data-spend-today], [data-decision-brief]").count(), 0, "Legacy Today must redirect without retaining a second stacked dashboard");
   await assertNavigationContext(page, "today", "Brief");
-  assert.equal(await page.locator("[data-spend-saved-views]").count(), 1, "Decision Brief should expose reusable saved acquisition views with unread state");
-  assert.equal(await page.locator("[data-acquisition-coverage]").count(), 1, "Decision Brief should expose source coverage and automation behind one disclosure");
-  assert.match(await page.locator("[data-decision-brief]").innerText(), /Needs attention[\s\S]*What changed[\s\S]*Due soon[\s\S]*Continue where you left off/i, "Decision Brief should lead with decisions, changes, deadlines, and continuity");
-  assert.match(await page.locator("[data-decision-brief]").innerText(), /source issue/i, "Decision Brief should disclose unavailable sources instead of treating them as empty updates");
-  await page.locator("[data-spend-saved-views] .spend-saved-views__create-panel > summary").click();
-  await page.locator("[data-spend-saved-views] input").fill("AI and autonomy watch");
-  await page.locator("[data-spend-saved-views] .spend-saved-views__create button").click();
-  assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI and autonomy watch[\s\S]*No unread changes/i, "Saved acquisition views should retain the current scope and explicit unread state");
+  await openSurface(page, "#/budget-spend/explorer?spendView=table", '[data-spend-explorer="table"]');
+  await page.getByRole("button", { name: "Manage saved opportunity views" }).click();
+  const savedViewManager = page.locator(".spend-saved-views__manager");
+  assert.equal(await savedViewManager.count(), 1, "Saved-view lifecycle must stay owned by the Opportunity Workbench");
+  const savedViewManagerBox = await savedViewManager.boundingBox();
+  assert.ok(savedViewManagerBox, "Saved-view management must render as a visible Workbench popover");
+  assert.ok(savedViewManagerBox.x >= 8 && savedViewManagerBox.y >= 8 && savedViewManagerBox.x + savedViewManagerBox.width <= 1432 && savedViewManagerBox.y + savedViewManagerBox.height <= 992, "Saved-view management must stay contained inside the desktop viewport");
+  await savedViewManager.locator(".spend-saved-views__create-panel > summary").click();
+  const expandedManagerBox = await savedViewManager.boundingBox();
+  const savedViewFormBox = await savedViewManager.locator(".spend-saved-views__create").boundingBox();
+  assert.ok(expandedManagerBox && savedViewFormBox && savedViewFormBox.x >= expandedManagerBox.x && savedViewFormBox.y >= expandedManagerBox.y && savedViewFormBox.x + savedViewFormBox.width <= expandedManagerBox.x + expandedManagerBox.width && savedViewFormBox.y + savedViewFormBox.height <= expandedManagerBox.y + expandedManagerBox.height, "Saved-view creation must expand inside the owned Workbench popover");
+  await savedViewManager.locator("input").fill("AI and autonomy watch");
+  await savedViewManager.locator(".spend-saved-views__create button").click();
+  assert.match(await savedViewManager.innerText(), /AI and autonomy watch[\s\S]*(?:\d+ unread changes|No unread changes)/i, "Saved acquisition views should retain the current scope and explicit unread state");
   await page.getByRole("button", { name: "Add AI and autonomy watch to favorites" }).click();
-  assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI and autonomy watch[\s\S]*Favorite/i, "Saved views should support a visible favorite state");
+  assert.match(await savedViewManager.innerText(), /AI and autonomy watch[\s\S]*Favorite/i, "Saved views should support a visible favorite state");
   await page.getByRole("button", { name: "Rename saved view AI and autonomy watch" }).click();
   await page.locator(".spend-saved-views__rename input").fill("AI watch");
   await page.getByRole("button", { name: "Save name" }).click();
   await page.getByRole("button", { name: "Duplicate saved view AI watch" }).click();
-  assert.match(await page.locator("[data-spend-saved-views]").innerText(), /AI watch copy/i, "Saved views should duplicate without changing the original scope");
+  assert.match(await savedViewManager.innerText(), /AI watch copy/i, "Saved views should duplicate without changing the original scope");
   await page.getByRole("button", { name: "Delete saved view AI watch", exact: true }).click();
   await page.getByRole("button", { name: "Delete saved view AI watch copy" }).click();
   await openSurface(page, "#/budget-spend/explorer?spendView=radar", "[data-opportunity-radar]");
@@ -1351,6 +1343,8 @@ try {
   assert.equal(await page.locator("[data-today-console] > [data-today-selection]").count(), 1, "Today should keep selected-opportunity context in the right console pane");
   assert.equal(await page.locator("[data-today-lane]").count(), 4, "The default Today timeline should expose Actions, Opportunities, Research, and Team events lanes");
   assert.equal(await page.locator("[data-my-work-task]").count(), 1, "Today should project the pursuit task into its ranked cross-record action queue");
+  assert.ok(await page.locator("[data-today-system-attention]").count() >= 1, "Today should absorb source and workflow attention instead of relying on a second dashboard");
+  assert.match(await page.locator("[data-today-priority]").innerText(), /source issue/i, "Unavailable acquisition sources must remain visible in the canonical Today queue");
   assert.equal(await page.locator("[data-ops-watch-table]").count(), 0, "My Work should defer the portfolio table until the operator requests it");
   const todayComposition = await page.evaluate(() => {
     const rect = (selector) => {
@@ -2705,15 +2699,11 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await installVerificationDate(mobile);
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
-  await mobile.waitForSelector("[data-spend-today]");
+  await mobile.waitForFunction(() => window.location.hash === "#/budget-spend/watchlist");
+  await mobile.waitForSelector("[data-operations-hub]");
   await assertFlowShell(mobile);
-  assert.equal(await mobile.locator('[data-spend-explorer="today"] .spend-explorer__viewbar').count(), 0, "Mobile Decision Brief must not repeat workspace navigation inside the page");
-  assert.ok(await mobile.locator("[data-decision-brief] .decision-brief__record-list > a").count() <= 4, "Mobile Decision Brief should start with a tightly bounded change list");
-  const mobileBriefActions = await mobile.locator('[data-decision-brief] :is(.decision-brief__action, .decision-brief__record-list > a, .decision-brief__compact-list > a)').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
-  assert.ok(mobileBriefActions.length > 0 && mobileBriefActions.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile Decision Brief actions should preserve 44px touch targets: ${JSON.stringify(mobileBriefActions)}`);
-  await assertButtonIntegrity(mobile, "Mobile Decision Brief", '[data-spend-explorer="today"]');
-  await assertNoPageOverflow(mobile, "Mobile Decision Brief");
-  await mobile.screenshot({ path: `${OUT_DIR}/decision-brief-mobile.png`, fullPage: true });
+  assert.equal(await mobile.locator("[data-spend-today], [data-decision-brief]").count(), 0, "Legacy mobile Today must redirect without retaining a second dashboard");
+  await assertNoPageOverflow(mobile, "Canonicalized mobile Today");
   await openSurface(mobile, "#/budget-spend/explorer?spendView=visuals", '[data-spend-explorer="visuals"] [data-strategic-matrix]');
   if (!await mobile.locator("[data-strategy-quadrant]").count()) {
     await mobile.getByRole("button", { name: /^Current buying centers:/ }).click();
