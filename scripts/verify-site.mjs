@@ -524,6 +524,7 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/intelligence-operations-desktop.png`, fullPage: true });
 
   await openSurface(page, "#/budget-spend/map", "[data-opportunity-map]");
+  assert.equal(await page.locator("[data-opportunity-map-autocomplete]").count(), 1, "Opportunity Map should use shared exact-location and opportunity autocomplete");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunity Map", "Opportunity Map should own a first-class route title");
   assert.equal(await page.locator('[data-nav-group-trigger="money"][data-nav-group-active-child="Opportunity Map"]').count(), 1, "Opportunity Map should own the active Budget and Spend group state");
   assert.equal(await resourceCount(page, "opportunity-map-data.json"), 1, "Opportunity Map should load one map-specific factual payload");
@@ -893,6 +894,7 @@ try {
 
   await page.evaluate(() => window.localStorage.setItem("dbi:data-table:award-records", JSON.stringify({ widths: { actions: 720 } })));
   await openSurface(page, "#/budget-spend/awards", "[data-awards-page]");
+  assert.equal(await page.locator("[data-award-autocomplete]").count(), 1, "Awards should use shared exact-award autocomplete");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
   assert.equal(await page.locator("[data-award-filter-bar] .if-picker").count(), 5, "Awards should expose factual filter dimensions");
@@ -949,7 +951,7 @@ try {
   assert.equal(await page.locator("[data-awards-page] > .if-workbench-header").count(), 1, "Awards should consolidate its intro, metrics, actions, and filters into one workbench header");
   assert.doesNotMatch(await page.locator("[data-awards-page] > .if-workbench-header").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
-  const awardSearchGeometry = await page.getByPlaceholder("Search award IDs, vendors, buyers, descriptions").evaluate((input) => {
+  const awardSearchGeometry = await page.locator("[data-award-autocomplete] input[role=combobox]").evaluate((input) => {
     const icon = input.parentElement?.querySelector("svg")?.getBoundingClientRect();
     const bounds = input.getBoundingClientRect();
     return { iconRight: icon?.right || 0, textStart: bounds.left + Number.parseFloat(getComputedStyle(input).paddingLeft) };
@@ -1045,6 +1047,7 @@ try {
   assert.equal(await resourceCount(page, "procurement-discovery.json"), 1, "Spend Explorer views should share one deferred discovery request");
   assert.equal(await page.locator("[data-daily-acquisition-feed]").count(), 0, "Opportunity Workbench should not duplicate the Brief update ledger");
   assert.equal(await page.locator("[data-opportunity-workbench-scope]").count(), 1, "Opportunity Workbench should expose one compact filter owner");
+  assert.equal(await page.locator('[data-table-autocomplete="opportunity-workbench-v1"]').count(), 1, "Opportunity Workbench should use the shared exact-record autocomplete");
   assert.match(await page.locator('[data-spend-explorer="table"] .if-workbench-header h2').innerText(), /Opportunity Workbench/i, "The table route should present the opportunity operating queue as the primary product surface");
   const workbenchScope = page.locator("[data-opportunity-workbench-scope]");
   assert.equal(await workbenchScope.getByText("Filters", { exact: false }).count(), 1, "Opportunity Workbench should expose one filter trigger");
@@ -1056,9 +1059,13 @@ try {
   const workbenchGeometry = await page.evaluate(() => ({
     scopeHeight: document.querySelector("[data-opportunity-workbench-scope]")?.getBoundingClientRect().height || 0,
     firstRowTop: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]')?.getBoundingClientRect().top || 0,
+    searchLeft: document.querySelector('[data-table-autocomplete="opportunity-workbench-v1"]')?.getBoundingClientRect().left || 0,
+    searchRight: document.querySelector('[data-table-autocomplete="opportunity-workbench-v1"]')?.getBoundingClientRect().right || 0,
+    toolsLeft: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"] .dbi-data-table__tools')?.getBoundingClientRect().left || 0,
   }));
   assert.ok(workbenchGeometry.scopeHeight <= 48, `Desktop opportunity filter trigger should remain compact, got ${workbenchGeometry.scopeHeight}px`);
   assert.ok(workbenchGeometry.firstRowTop <= 680, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
+  assert.ok(workbenchGeometry.searchRight <= workbenchGeometry.toolsLeft + 2, `Opportunity search should align in the command flow instead of floating in the table center: ${JSON.stringify(workbenchGeometry)}`);
   await workbenchScope.locator("summary").click();
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 0, "Strategic spend context must remain deferred until the operator opens Visuals");
   await chooseSpendAnalysis(page, "Visuals");
@@ -1180,9 +1187,12 @@ try {
   await openOpportunityFilters(page);
   await chooseControlSelect(page, "Record state", "Active");
   await page.locator("[data-opportunity-workbench-scope] summary").click();
-  await page.locator('[data-spend-explorer="table"] input[type="search"]').fill("Application Arsenal");
+  const workbenchSearch = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] input[role="combobox"]');
+  await workbenchSearch.fill("Application Arsenal");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capQuery=Application\+Arsenal|capQuery=Application%20Arsenal/i, "Spend Explorer search should remain shareable across views");
-  await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().click();
+  const workbenchSuggestion = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [role="option"]').filter({ hasText: "lifecycle follow-on" }).first();
+  await workbenchSuggestion.waitFor();
+  await workbenchSuggestion.click();
   await page.waitForSelector("[data-opportunity-workbench-detail]");
   await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-evidence-state="ready"]');
   await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis]');
@@ -1316,6 +1326,7 @@ try {
   assert.ok(await page.locator("[data-capture-timeline-row]").count() > 1, "All intelligence should restore the complete matching family timeline");
   await page.screenshot({ path: `${OUT_DIR}/timeline-primary-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/library", "[data-data-library-page]");
+  assert.equal(await page.locator("[data-library-autocomplete]").count(), 1, "Data Library should use shared exact-organization autocomplete");
   await page.waitForSelector('[data-organization-relationships="ready"]');
   assert.equal(await page.locator("[data-relationship-lanes]").count(), 1, "Data Library should summarize relationship lanes before rendering every retained item");
   await page.locator("[data-relationship-lanes] > summary").click();
@@ -2269,6 +2280,59 @@ try {
   await fullGraphNode.click();
   assert.match(await page.locator("[data-intelligence-graph-page] [data-evidence-visual-inspector]").innerText(), /Open|Browse|Show|Traverse|Create task/i, "Every selected graph entity should expose a meaningful destination or task action");
   await page.screenshot({ path: `${OUT_DIR}/intelligence-graph-desktop.png` });
+  const crossSurfaceFixtureId = "auto_usaspending_CONT_AWD_N0001917C0001_9700__NONE___NONE_";
+  await openSurface(page, `#/budget-spend/intelligence-graph?graphRecord=${crossSurfaceFixtureId}`, "[data-intelligence-graph-page]");
+  await page.waitForSelector('[data-intelligence-graph-page] [data-connected-evidence-state="ready"]');
+  const graphRouteContracts = [
+    ["organization", /\/library\?.*library(Query|Org)=/],
+    ["award", /\/awards\?query=.*awardId=/],
+    ["account", /\/lifecycle\?selected=/],
+    ["vehicle", /\/timeline\?timelineScope=all&capVehicle=/],
+    ["classification", /\/explorer\?spendView=table&capQuery=/],
+  ];
+  const graphHandoffs = {};
+  for (const [type, pattern] of graphRouteContracts) {
+    const graphNode = page.locator(`[data-intelligence-graph-page] .if-graph-node[data-evidence-node="${type}"]`).first();
+    if (!await graphNode.count()) continue;
+    await graphNode.click();
+    const action = page.locator("[data-intelligence-graph-page] [data-evidence-visual-inspector] a").first();
+    const href = await action.getAttribute("href");
+    graphHandoffs[type] = href;
+    assert.match(decodeURIComponent(href), pattern, `${type} graph handoff should carry exact destination scope`);
+  }
+  const graphLocation = page.locator('[data-intelligence-graph-page] .if-graph-node[data-evidence-node="location"]').first();
+  assert.equal(await graphLocation.count(), 1, "The traversal fixture should retain a mapped location handoff");
+  await graphLocation.click();
+  const mapHandoff = page.getByRole("link", { name: /Show on map/i });
+  assert.match(decodeURIComponent(await mapHandoff.getAttribute("href")), /\/map\?mapOrg=location:/, "Location handoff should carry the canonical location namespace");
+  await mapHandoff.click();
+  await page.waitForSelector("[data-map-focused-location]");
+  await page.waitForFunction(() => Number((document.querySelector('[data-opportunity-map-canvas] output[aria-label="Zoom level"]')?.textContent || "0").replace(/\D/g, "")) >= 235);
+  const focusedLocationId = await page.locator("[data-map-focused-location]").getAttribute("data-map-focused-location");
+  assert.equal(await page.locator(`[data-map-location="${focusedLocationId}"].is-selected`).count(), 1, "Graph-to-map handoff should render and select the exact authoritative location marker");
+  assert.match(await page.locator("[data-map-focused-location]").innerText(), /Focused on[\s\S]*exact handoff target shown and centered/i, "Map handoff should visibly explain the applied location focus");
+  assert.ok(Number((await page.locator('[data-opportunity-map-canvas] output[aria-label="Zoom level"]').textContent()).replace(/\D/g, "")) >= 235, "Map handoff should zoom to the selected target instead of remaining national");
+  await page.screenshot({ path: `${OUT_DIR}/graph-map-focused-desktop.png` });
+
+  const handoffPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  await installVerificationDate(handoffPage);
+  await handoffPage.goto(`${BASE_URL}${graphHandoffs.award}`, { waitUntil: "domcontentloaded" });
+  await handoffPage.waitForSelector("[data-awards-page]");
+  await handoffPage.waitForSelector("[data-evidence-drawer]");
+  assert.match(await handoffPage.locator("[data-evidence-drawer]").innerText(), /N0001917C0001/i, "Award handoff should open the exact award evidence drawer");
+  await handoffPage.goto(`${BASE_URL}${graphHandoffs.account}`, { waitUntil: "domcontentloaded" });
+  await handoffPage.waitForSelector("[data-account-spine-page]");
+  assert.match(await handoffPage.getByRole("button", { name: /^Federal account:/ }).getAttribute("aria-label"), /057-3010/, "Account handoff should preselect the exact federal account");
+  await handoffPage.goto(`${BASE_URL}${graphHandoffs.organization}`, { waitUntil: "domcontentloaded" });
+  await handoffPage.waitForSelector("[data-data-library-page]");
+  assert.match(await handoffPage.locator("[data-library-autocomplete] input[role=combobox]").inputValue(), /Lockheed Martin/i, "Organization handoff should visibly prefilter the customer library");
+  await handoffPage.waitForSelector('[data-organization-relationships="ready"]');
+  assert.match(await handoffPage.locator('[data-organization-relationships="ready"]').innerText(), /Lockheed Martin/i, "Organization handoff should resolve the exact reviewed dossier instead of falling back to the first library record");
+  await handoffPage.goto(`${BASE_URL}${graphHandoffs.classification}`, { waitUntil: "domcontentloaded" });
+  await handoffPage.waitForSelector('[data-dbi-data-table="opportunity-workbench-v1"]');
+  assert.notEqual(await handoffPage.locator('[data-table-autocomplete="opportunity-workbench-v1"] input[role=combobox]').inputValue(), "", "Classification handoff should pre-apply a visible opportunity query");
+  assert.ok(await handoffPage.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "Classification handoff should resolve to a filtered opportunity queue");
+  await handoffPage.close();
 
   await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunities");

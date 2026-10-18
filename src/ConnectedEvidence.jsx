@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from "./intelligence-graph.js";
+import { accountFlowRoute, awardsRoute, dataLibraryRoute, mapLocationRoute, sourceLineageRoute, timelineRoute } from "./cross-surface-routes.js";
 import "./ConnectedEvidence.css";
 
 const ConnectedEvidenceVisual = lazy(() => import("./ConnectedEvidenceVisual.jsx"));
@@ -91,12 +92,12 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
 
   const connected = connection.connected || {};
   const routeLinks = [
-    ["Timeline", `#/budget-spend/timeline?capRecord=${encodeURIComponent(opportunityId)}`],
-    ["Organization relationships", `#/budget-spend/library?libraryView=relationships&capRecord=${encodeURIComponent(opportunityId)}`],
-    primaryLocation ? ["Map", `#/budget-spend/map?mapOrg=${encodeURIComponent(primaryLocation.sourceId)}`] : null,
-    counts.awards ? ["Awards", "#/budget-spend/awards"] : null,
-    counts.federalAccounts ? ["Account flow", "#/budget-spend/lifecycle"] : null,
-    ["Source lineage", "#/budget-spend/sources"],
+    ["Timeline", timelineRoute(opportunityId)],
+    ["Organization relationships", dataLibraryRoute({ recordId: opportunityId })],
+    primaryLocation ? ["Map", mapLocationRoute(primaryLocation.sourceId || primaryLocation.id, primaryLocation.label)] : null,
+    connected.awards?.[0] ? ["Awards", awardsRoute(connected.awards[0].piid || connected.awards[0].id, connected.awards[0].label)] : null,
+    connected.federalAccounts?.[0] ? ["Account flow", accountFlowRoute(connected.federalAccounts[0].federalAccountCode || connected.federalAccounts[0].label)] : null,
+    ["Source lineage", sourceLineageRoute(opportunityId)],
   ].filter(Boolean);
 
   return (

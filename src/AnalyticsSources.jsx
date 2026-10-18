@@ -5,12 +5,15 @@ import sourceHealth from "./data/source-health.json";
 import AnalysisSection from "./AnalysisSection.jsx";
 import { GRAPH_DOWNLOADS, sourceProbeDateTime } from "./analytics-sources-support.js";
 import { loadIntelligenceGraphSummary } from "./intelligence-graph.js";
-export default function AnalyticsSources({ budgetData, accountSpine, captureCalendar, awardSummary, executionCoverage, subawardSnapshot }) {
+import { intelligenceGraphRoute, timelineRoute } from "./cross-surface-routes.js";
+export default function AnalyticsSources({ budgetData, accountSpine, captureCalendar, awardSummary, executionCoverage, subawardSnapshot, routeHash = "" }) {
   const books = budgetData.metadata.sources || [];
   const inventory = budgetData.metadata.dataInventory || {};
   const accountCoverage = accountSpine?.metadata?.coverage || {};
   const transactionCoverage = captureCalendar?.metadata?.coverage || {};
   const healthTotals = sourceHealth.totals || {};
+  const routedRecordId = new URLSearchParams(String(routeHash).split("?")[1] || "").get("capRecord") || "";
+  const routedRecord = (captureCalendar?.records || []).find((record) => [record.opportunityId, record.id, record.reference].filter(Boolean).includes(routedRecordId)) || null;
   const [showAllSourceHealth, setShowAllSourceHealth] = useState(false);
   const [graphSummary, setGraphSummary] = useState(null);
   useEffect(() => {
@@ -100,6 +103,7 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
           <article><strong>{healthTotals.unavailable || 0}</strong><span>unavailable at last probe</span></article>
         </div>
       </section>
+      {routedRecord ? <section className="if-alert if-alert--info analytics-sources__record-focus" role="status" data-source-lineage-record={routedRecordId}><div><strong>Source lineage for {routedRecord.reference || routedRecord.id || routedRecordId}</strong><span>{routedRecord.title}</span></div><nav aria-label="Continue with selected record"><a className="if-btn if-btn--secondary if-btn--sm" href={intelligenceGraphRoute(routedRecord.opportunityId || routedRecordId)}>Intelligence Graph</a><a className="if-btn if-btn--secondary if-btn--sm" href={timelineRoute(routedRecord.opportunityId || routedRecordId)}>Timeline</a></nav></section> : null}
       {graphSummary ? <ControlDisclosure className="analytics-sources__graph-disclosure" icon={<Network size={16} />} title="Cross-surface evidence graph" summary={`${graphSummary.totals.entities.toLocaleString()} typed entities · ${graphSummary.totals.relations.toLocaleString()} evidence-bearing relations`}>
         <div className="if-relationship-bundle-grid" data-intelligence-graph-summary>
           <article className="if-relationship-bundle"><h3>Activity spine</h3><p>{graphSummary.metadata.entityCounts.activity.toLocaleString()} activities · {graphSummary.metadata.coverage.activities.awardLinked.toLocaleString()} award-linked · {graphSummary.metadata.coverage.activities.calendar.toLocaleString()} with canonical calendar records.</p></article>

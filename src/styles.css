@@ -6068,6 +6068,10 @@ td .dot {
 .transaction-viz [role="button"].is-selected text { fill: #6f4d00; font-weight: 900; }
 
 .analytics-mobile-chart-toggle { display: none; }
+.analytics-sources__record-focus { display: flex; align-items: center; gap: 12px; }
+.analytics-sources__record-focus > div { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.analytics-sources__record-focus > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.analytics-sources__record-focus nav { display: flex; flex: 0 0 auto; gap: 6px; }
 
 /* Operational DataTable: shared Control Framework table surface */
 .dbi-data-table {
@@ -6113,14 +6117,13 @@ td .dot {
 
 .dbi-data-table__search {
   position: relative;
-  gap: 6px;
+  display: block;
   width: 100%;
   max-width: 620px;
-  justify-self: center;
+  justify-self: start;
 }
-.dbi-data-table__search > svg { position: absolute; left: 10px; color: var(--if-text-muted); pointer-events: none; }
-.dbi-data-table__search .if-input { width: 100%; min-width: 0; height: 34px; padding: 0 34px 0 31px; }
-.dbi-data-table__search > button { position: absolute; right: 5px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--if-text-muted); cursor: pointer; }
+.dbi-data-table__search > .if-search { width: 100%; }
+.dbi-data-table__search .if-input { width: 100%; min-width: 0; height: 34px; }
 
 .dbi-data-table__columns { position: relative; }
 .dbi-data-table__columns > summary { list-style: none; cursor: pointer; }

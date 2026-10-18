@@ -4,6 +4,7 @@ import OpportunityFitBadge from "./OpportunityFitBadge.jsx";
 import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
 import { useManagementState } from "./management-state.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
+import { dataLibraryRoute, intelligenceGraphRoute, timelineRoute } from "./cross-surface-routes.js";
 import "./OpportunityWorkbenchDetail.css";
 
 function recordId(record) {
@@ -27,7 +28,7 @@ export default function OpportunityWorkbenchDetail({ record, records = [record] 
         <section className="opportunity-workspace__fit"><header><small>Why it fits</small></header><ul>{assessment.reasons.length ? assessment.reasons.slice(0, 4).map((reason) => <li key={reason}>{reason}</li>) : <li>No strong published capability or code signal was found.</li>}</ul><details><summary>Scoring method</summary><p>{assessment.methodology}</p></details></section>
         <details className="opportunity-workspace__scope"><summary><span><small>Published scope</small><strong>{record.naicsCode || record.pscCode || "Review source detail"}</strong></span><span>Review</span></summary><div><p>{record.description || record.scope || record.context || "The retained source did not publish scope text for this record."}</p><dl><div><dt>NAICS</dt><dd>{record.naicsCode || "Not published"}</dd></div><div><dt>PSC</dt><dd>{record.pscCode || "Not published"}</dd></div><div><dt>Set-aside</dt><dd>{record.setAside || "Not published"}</dd></div></dl></div></details>
         <OpportunityCommandRail compact record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} />
-        <nav className="if-button-group" aria-label="Open opportunity evidence surfaces"><a className="if-btn if-btn--ghost if-btn--sm" href={`#/budget-spend/intelligence-graph?graphRecord=${encodeURIComponent(id)}`}>Intelligence Graph</a><a className="if-btn if-btn--ghost if-btn--sm" href={`#/budget-spend/timeline?timelineScope=all&capRecord=${encodeURIComponent(id)}`}>Full Timeline</a><a className="if-btn if-btn--ghost if-btn--sm" href={`#/budget-spend/library?capRecord=${encodeURIComponent(id)}`}>Data Library</a></nav>
+        <nav className="if-button-group" aria-label="Open opportunity evidence surfaces"><a className="if-btn if-btn--ghost if-btn--sm" href={intelligenceGraphRoute(id)}>Intelligence Graph</a><a className="if-btn if-btn--ghost if-btn--sm" href={timelineRoute(id)}>Full Timeline</a><a className="if-btn if-btn--ghost if-btn--sm" href={dataLibraryRoute({ recordId: id })}>Data Library</a></nav>
       </aside>
       <main className="opportunity-workspace__analysis" aria-label="Connected opportunity analysis"><ConnectedEvidence opportunityId={id} record={record} researchReport={intelligence.reports[0]} workspace /></main>
     </div>

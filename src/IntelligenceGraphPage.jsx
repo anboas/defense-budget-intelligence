@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarClock, ExternalLink } from "lucide-react";
 import { ControlAsyncState, ControlAutocomplete } from "control-surface-ui/react";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
+import { intelligenceGraphRoute, opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
 import { applyProcurementChanges, assembleProcurementRecords } from "./procurement-taxonomy.js";
 import "./IntelligenceGraphPage.css";
 
@@ -12,11 +13,7 @@ function recordId(record) {
 
 function updateRoot(record) {
   const id = recordId(record);
-  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-  params.set("graphRecord", id);
-  params.delete("graphNode");
-  params.delete("capVisualItem");
-  window.location.hash = `#/budget-spend/intelligence-graph?${params}`;
+  window.location.hash = intelligenceGraphRoute(id);
 }
 
 function GraphRecordSearch({ selected, suggestions }) {
@@ -45,8 +42,8 @@ export default function IntelligenceGraphPage({ dataset, awards = [], samOpportu
       {selected ? <span className="if-field intelligence-graph-page__root"><small className="if-field__label">Graph root</small><strong>{selected.title || selected.reference || selected.id}</strong></span> : null}
       <div className="if-button-group intelligence-graph-page__actions">
         <a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=table"><ArrowLeft size={15} />Opportunities</a>
-        {selected ? <a className="if-btn if-btn--secondary" href={`#/budget-spend/timeline?timelineScope=all&capRecord=${encodeURIComponent(recordId(selected))}`}><CalendarClock size={15} />Timeline</a> : null}
-        {selected ? <a className="if-btn if-btn--secondary" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(recordId(selected))}`}><ExternalLink size={15} />Open Record</a> : null}
+        {selected ? <a className="if-btn if-btn--secondary" href={timelineRoute(recordId(selected))}><CalendarClock size={15} />Timeline</a> : null}
+        {selected ? <a className="if-btn if-btn--secondary" href={opportunityRoute(recordId(selected))}><ExternalLink size={15} />Open Record</a> : null}
       </div>
     </section>
     {selected ? <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable evidence graph"><ConnectedEvidence key={recordId(selected)} opportunityId={recordId(selected)} record={selected} fullView /></section> : <ControlAsyncState compact state="empty" title="No intelligence record available" message="Return to Opportunities and select a retained record." />}
