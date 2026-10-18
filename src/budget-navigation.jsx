@@ -1,4 +1,5 @@
 import { BarChart3, BrainCircuit, Building2, CalendarClock, Database, FileSpreadsheet, ListChecks, MapPinned, Network, SearchCheck, TrendingUp } from "lucide-react";
+export { MANAGEMENT_NAVIGATION, PRODUCT_WORKSPACES, navigationContext } from "./navigation-architecture.js";
 
 export const TABS = [
   { id: "overview", label: "PDB Request", icon: FileSpreadsheet, stage: "Request" },

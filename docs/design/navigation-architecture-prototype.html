@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DBI navigation architecture prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --navy-950:#071a31;
+      --navy-900:#0b2341;
+      --navy-800:#12365f;
+      --navy-700:#1d4f82;
+      --ink:#11243a;
+      --muted:#607187;
+      --line:#d6dee8;
+      --line-strong:#bdc9d8;
+      --canvas:#edf2f7;
+      --surface:#fff;
+      --surface-2:#f7f9fc;
+      --blue:#1d6ea8;
+      --blue-soft:#e8f3fb;
+      --green:#126c54;
+      --shadow:0 10px 28px rgba(10,35,65,.13);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.4 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button{font:inherit}
+    .prototype-note{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:8px 24px;background:#fff8db;border-bottom:1px solid #ead894;color:#5e4b09;font-size:12px}
+    .prototype-note strong{font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .product-header{height:58px;display:grid;grid-template-columns:250px minmax(560px,1fr) auto;align-items:center;gap:18px;padding:0 22px;background:var(--navy-950);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.22)}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand-mark{display:grid;place-items:center;width:30px;height:30px;border:1px solid #5f7fa4;border-radius:5px;background:#0d2b4f;color:#c8e8ff;font-weight:800}
+    .brand-copy{min-width:0}
+    .brand-copy strong{display:block;font-family:Georgia,serif;font-size:15px;white-space:nowrap}
+    .brand-copy span{display:block;color:#9fb5ce;font-size:10px;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+    .primary-nav{height:100%;display:flex;align-items:stretch;gap:2px;justify-content:flex-start}
+    .primary-nav button{position:relative;border:0;background:transparent;color:#ccdaea;padding:0 15px;font-size:13px;font-weight:650;cursor:pointer}
+    .primary-nav button:hover,.primary-nav button:focus-visible{background:#12365f;color:#fff;outline:0}
+    .primary-nav button.is-active{background:#163b66;color:#fff}
+    .primary-nav button.is-active::after{content:"";position:absolute;left:13px;right:13px;bottom:0;height:3px;background:#62b5e5}
+    .utility{display:flex;align-items:center;gap:7px}
+    .utility button{height:30px;border:1px solid #537292;border-radius:4px;background:#102f52;color:#fff;padding:0 10px;font-size:12px;cursor:pointer}
+    .utility .find{display:flex;gap:8px;align-items:center;min-width:118px;justify-content:space-between;background:#fff;color:var(--ink);border-color:#fff}
+    .utility kbd{padding:1px 5px;border:1px solid #ccd5df;border-radius:3px;background:#edf2f7;color:#607187;font-size:10px}
+    .secondary-bar{height:42px;display:flex;align-items:center;gap:6px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--line-strong);box-shadow:0 2px 8px rgba(21,48,77,.07)}
+    .secondary-bar .workspace-label{display:flex;align-items:center;gap:8px;min-width:154px;margin-right:6px;color:var(--muted);font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+    .secondary-bar .workspace-label strong{color:var(--ink);font-size:12px;letter-spacing:0;text-transform:none}
+    .secondary-bar button{height:30px;border:0;border-radius:4px;background:transparent;color:#53667b;padding:0 12px;font-size:12px;font-weight:650;cursor:pointer}
+    .secondary-bar button:hover,.secondary-bar button:focus-visible{background:#edf3f9;color:var(--ink);outline:0}
+    .secondary-bar button.is-active{background:var(--navy-800);color:#fff}
+    .secondary-bar .journey{margin-left:auto;display:flex;align-items:center;gap:7px;color:#7c8c9f;font-size:11px}
+    .secondary-bar .journey span:last-child{color:var(--green);font-weight:700}
+    .shell{padding:22px 24px 36px}
+    .page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:14px}
+    .page-title small{display:block;margin-bottom:4px;color:var(--blue);font-size:11px;font-weight:750;letter-spacing:.07em;text-transform:uppercase}
+    .page-title h1{margin:0 0 4px;font:700 24px/1.15 Georgia,serif;color:#14375c}
+    .page-title p{margin:0;max-width:720px;color:var(--muted)}
+    .page-actions{display:flex;gap:8px}
+    .page-actions button{height:32px;border:1px solid var(--line-strong);border-radius:4px;background:#fff;color:#263d56;padding:0 11px;font-size:12px;font-weight:650}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);background:#fff;margin-bottom:14px}
+    .metric{padding:12px 15px;border-right:1px solid var(--line)}
+    .metric:last-child{border:0}
+    .metric span{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}
+    .metric strong{font:700 17px Georgia,serif;color:#173d67}
+    .controls{display:grid;grid-template-columns:minmax(230px,1.4fr) repeat(3,minmax(150px,.75fr));gap:10px;padding:11px;border:1px solid var(--line);background:#fff;margin-bottom:14px}
+    .control{display:flex;flex-direction:column;gap:4px}
+    .control label{font-size:10px;color:#5a6c81;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .control div{height:34px;display:flex;align-items:center;padding:0 10px;border:1px solid var(--line-strong);border-radius:4px;color:#334a63;background:#fff}
+    .content-grid{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:14px}
+    .panel{background:#fff;border:1px solid var(--line)}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+    .panel-head strong{font-family:Georgia,serif;color:#173d67}
+    .panel-head span{font-size:11px;color:var(--muted)}
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #e4eaf0;font-size:12px}
+    th{font-size:10px;color:#62758b;letter-spacing:.05em;text-transform:uppercase;background:#fbfcfe}
+    tr:last-child td{border-bottom:0}
+    .status{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:11px;background:var(--blue-soft);color:#175a86;font-size:10px;font-weight:750}
+    .rail-list{padding:6px 12px 12px}
+    .rail-item{padding:10px 0;border-bottom:1px solid #e4eaf0}
+    .rail-item:last-child{border-bottom:0}
+    .rail-item strong{display:block;font-size:12px;margin-bottom:2px}
+    .rail-item span{color:var(--muted);font-size:11px}
+    .manage-popover{position:fixed;right:66px;top:54px;z-index:5;width:310px;padding:8px;background:#fff;border:1px solid var(--line-strong);box-shadow:var(--shadow);display:none}
+    .manage-popover.is-open{display:block}
+    .manage-group{padding:5px}
+    .manage-group + .manage-group{border-top:1px solid var(--line)}
+    .manage-group > strong{display:block;padding:5px 7px;color:#617288;font-size:10px;letter-spacing:.07em;text-transform:uppercase}
+    .manage-group button{width:100%;display:flex;align-items:center;justify-content:space-between;border:0;border-radius:4px;background:transparent;padding:8px 7px;text-align:left;color:var(--ink);font-size:12px}
+    .manage-group button:hover{background:#edf3f9}
+    .manage-group button span{color:var(--muted);font-size:10px}
+    .architecture-key{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;color:#65768a;font-size:11px}
+    .architecture-key span{padding:4px 7px;border:1px solid var(--line);background:#fff;border-radius:3px}
+    @media (max-width:1100px){.product-header{grid-template-columns:190px 1fr auto}.primary-nav button{padding:0 9px}.brand-copy span{display:none}.utility .find{min-width:auto}.utility .find span{display:none}.content-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="prototype-note"><span><strong>Architecture prototype</strong> Production routes remain unchanged. Click the five workspace labels to compare ownership.</span><span>Desktop-first · 2026-10-18</span></div>
+  <header class="product-header">
+    <div class="brand"><div class="brand-mark">DB</div><div class="brand-copy"><strong>Defense Budget Intelligence</strong><span>Acquisition decision system</span></div></div>
+    <nav class="primary-nav" aria-label="Primary workspaces">
+      <button data-workspace="today">Today</button>
+      <button data-workspace="opportunities">Opportunities</button>
+      <button data-workspace="timeline">Timeline</button>
+      <button class="is-active" data-workspace="funding">Funding</button>
+      <button data-workspace="intelligence">Intelligence</button>
+    </nav>
+    <div class="utility"><button class="find">⌕ <span>Find intelligence</span><kbd>⌘K</kbd></button><button aria-label="Notifications">●</button><button id="manageButton">Manage</button><button aria-label="Profile">AB</button></div>
+  </header>
+  <div class="secondary-bar" id="secondaryBar"></div>
+  <main class="shell">
+    <div class="page-header"><div class="page-title"><small id="eyebrow">Funding workspace</small><h1 id="pageTitle">Awards</h1><p id="pageSummary">Review published obligations and contract execution in the same funding lifecycle as requests and accounts.</p></div><div class="page-actions"><button>Copy view</button><button>Export</button></div></div>
+    <section class="metrics"><div class="metric"><span>Obligated value</span><strong>$8.9M</strong></div><div class="metric"><span>Largest buyer</span><strong>Department of the Navy</strong></div><div class="metric"><span>Awards in view</span><strong>234</strong></div><div class="metric"><span>Workspace state</span><strong>Current</strong></div></section>
+    <section class="controls"><div class="control"><label>Find within Awards</label><div>Search award, recipient, office, or reference…</div></div><div class="control"><label>Area</label><div>All areas</div></div><div class="control"><label>Buyer</label><div>All buyers</div></div><div class="control"><label>Work type</label><div>All PSC / NAICS</div></div></section>
+    <div class="content-grid"><section class="panel"><div class="panel-head"><strong id="panelTitle">Award execution</strong><span id="panelMeta">234 retained awards</span></div><table><thead><tr><th>Recipient</th><th>Buyer</th><th>Obligations</th><th>Status</th></tr></thead><tbody><tr><td>Systems Engineering Support</td><td>Naval Air Systems Command</td><td>$2.4M</td><td><span class="status">Current</span></td></tr><tr><td>Mission Software Services</td><td>Department of the Navy</td><td>$1.8M</td><td><span class="status">Modified</span></td></tr><tr><td>Integrated Logistics Support</td><td>Army Contracting Command</td><td>$1.2M</td><td><span class="status">Current</span></td></tr><tr><td>Cyber Operations Support</td><td>Defense Information Systems Agency</td><td>$940K</td><td><span class="status">New</span></td></tr></tbody></table></section><aside class="panel"><div class="panel-head"><strong>Continue the analysis</strong><span>Contextual handoffs</span></div><div class="rail-list"><div class="rail-item"><strong>Open the account path</strong><span>Follow this buyer from request through execution.</span></div><div class="rail-item"><strong>Inspect connected intelligence</strong><span>Traverse recipient, office, vehicle, and location.</span></div><div class="rail-item"><strong>Verify source lineage</strong><span>Review freshness and authoritative evidence.</span></div></div></aside></div>
+    <div class="architecture-key"><span>Primary header = user jobs</span><span>Secondary bar = sibling views</span><span>Page actions = current task</span><span>Manage = governance</span></div>
+  </main>
+  <div class="manage-popover" id="managePopover"><div class="manage-group"><strong>Operations</strong><button>Event Discovery <span>Curate sources</span></button><button>Integrations & API <span>Health and activity</span></button></div><div class="manage-group"><strong>Workspace</strong><button>Data Model <span>Entities and relations</span></button><button>Intelligence Operations <span>Review and publish</span></button><button>Workspace Settings <span>Teams and policy</span></button></div><div class="manage-group"><strong>Access</strong><button>Accounts <span>Users and recovery</span></button><button>Workspaces <span>Membership and access</span></button></div></div>
+  <script>
+    const model = {
+      today:{label:"Today",views:["Brief","Tasks","Schedule"],active:"Brief",title:"Decision brief",summary:"See what changed, what needs attention, and what action should happen next.",panel:"Priority work",meta:"One ordered attention system",search:"Find task, pursuit, owner, or milestone…",metrics:[["Needs attention","12"],["Due soon","8"],["Waiting","5"],["Changed today","19"]]},
+      opportunities:{label:"Opportunities",views:["Workbench","Radar","Portfolio"],active:"Workbench",title:"Opportunity workbench",summary:"Qualify opportunities and move the strongest pursuits into action.",panel:"Opportunity queue",meta:"Decision-ready records",search:"Find opportunity, customer, code, or reference…",metrics:[["Active records","14,403"],["Tracked pursuits","172"],["High fit","86"],["Changed today","31"]]},
+      timeline:{label:"Timeline",views:["Timeline"],active:"Timeline",title:"Intelligence timeline",summary:"Orient around milestones, amendments, changes, and linked contract-family events.",panel:"Contract-family timeline",meta:"Current and historical evidence",search:"Find record, family, milestone, or buyer…",metrics:[["Visible families","328"],["Live records","3,337"],["Changes today","44"],["Review needed","16"]]},
+      funding:{label:"Funding",views:["Request","Changes","Accounts","Awards"],active:"Awards",title:"Awards",summary:"Review published obligations and contract execution in the same funding lifecycle as requests and accounts.",panel:"Award execution",meta:"234 retained awards",search:"Search award, recipient, office, or reference…",metrics:[["Obligated value","$8.9M"],["Largest buyer","Department of the Navy"],["Awards in view","234"],["Workspace state","Current"]]},
+      intelligence:{label:"Intelligence",views:["Library","Graph","Geography","Sources"],active:"Graph",title:"Intelligence graph",summary:"Find entities, traverse evidence-backed relationships, and continue into the right operating surface.",panel:"Connected intelligence",meta:"Bounded evidence neighborhood",search:"Find entity, identifier, relationship, or source…",metrics:[["Entity types","11"],["Reviewed relations","1,846"],["Sources","6 stages"],["Graph state","Bounded"]]}
+    };
+    let workspace="funding";
+    function render(){const item=model[workspace];document.querySelectorAll('[data-workspace]').forEach(b=>b.classList.toggle('is-active',b.dataset.workspace===workspace));const bar=document.getElementById('secondaryBar');bar.innerHTML=`<div class="workspace-label"><span>Workspace</span><strong>${item.label}</strong></div>${item.views.map(view=>`<button class="${view===item.active?'is-active':''}" data-view="${view}">${view}</button>`).join('')}<div class="journey"><span>${item.label}</span><span>›</span><span>${item.active}</span></div>`;document.getElementById('eyebrow').textContent=`${item.label} workspace`;document.getElementById('pageTitle').textContent=item.title;document.getElementById('pageSummary').textContent=item.summary;document.getElementById('panelTitle').textContent=item.panel;document.getElementById('panelMeta').textContent=item.meta;document.querySelector('.controls .control div').textContent=item.search;document.querySelectorAll('.metric').forEach((node,index)=>{const metric=item.metrics[index];node.querySelector('span').textContent=metric[0];node.querySelector('strong').textContent=metric[1]});bar.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{item.active=button.dataset.view;item.title=button.dataset.view;render()}));}
+    document.querySelectorAll('[data-workspace]').forEach(button=>button.addEventListener('click',()=>{workspace=button.dataset.workspace;render()}));
+    const manage=document.getElementById('managePopover');document.getElementById('manageButton').addEventListener('click',()=>manage.classList.toggle('is-open'));document.addEventListener('click',event=>{if(!event.target.closest('#manageButton')&&!event.target.closest('#managePopover'))manage.classList.remove('is-open')});render();
+  </script>
+</body>
+</html>

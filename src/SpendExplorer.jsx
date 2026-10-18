@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, ChevronDown, FileSpreadsheet, Filter, Inbox, MoreHorizontal, Radar as RadarIcon, RotateCcw, ScatterChart } from "lucide-react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, ChevronDown, Filter, MoreHorizontal, RotateCcw, ScatterChart } from "lucide-react";
 import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -193,12 +193,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     updateRoute(next, { noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
   };
   const analysisView = { visuals: "Visuals", timeline: "Timeline", charts: "Analytics" }[view] || "";
-  const tabs = <div className="spend-explorer__viewbar">
-    <nav className="if-tabs__list spend-explorer__tabs" aria-label="Opportunity views">
-      <button type="button" className={`if-tab${["table", "record"].includes(view) ? " is-active" : ""}`} aria-pressed={["table", "record"].includes(view)} onClick={() => select("table")}><FileSpreadsheet size={15} />Workbench</button>
-      <button type="button" className={`if-tab${view === "radar" ? " is-active" : ""}`} aria-pressed={view === "radar"} onClick={() => select("radar")}><RadarIcon size={15} />Radar</button>
-      <button type="button" className={`if-tab${view === "today" ? " is-active" : ""}`} aria-pressed={view === "today"} onClick={() => select("today")}><Inbox size={15} />Brief</button>
-    </nav>
+  const analysisMenu = <div className="spend-explorer__viewbar">
     <details className={`dbi-data-table__columns spend-explorer__analysis-menu${analysisView ? " is-active" : ""}`}>
       <summary className="if-tab" aria-label={analysisView ? `Analysis view: ${analysisView}` : "Open analysis views"}><MoreHorizontal size={15} />{analysisView || "Analyze"}</summary>
       <div role="menu" aria-label="Analysis views">
@@ -208,6 +203,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       </div>
     </details>
   </div>;
+  const tabs = ["visuals", "timeline", "charts"].includes(view) ? analysisMenu : null;
   const rows = useMemo(
     () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], effectiveManualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
     [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveManualProcurement?.records, effectiveSamOpportunities?.records, procurementDelta?.records, subawardSnapshot],
