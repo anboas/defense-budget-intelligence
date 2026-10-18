@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Clock3, Navigation, Search, Star } from "lucide-react";
-import { ControlCommandPalette } from "control-surface-ui/react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import ProfileMenu from "./ProfileMenu.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import WorkspaceMark from "./WorkspaceMark.jsx";
 import NotificationCenter from "./NotificationCenter.jsx";
-import { FAVORITE_NAVIGATION_KEY, RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
+import { RECENT_NAVIGATION_KEY, readNavigationList, writeNavigationList } from "./navigation-history.js";
+
+const UniversalFindDialog = lazy(() => import("./UniversalFindDialog.jsx"));
 
 const PRIMARY_IDS = ["watchlist", "timeline", "spend"];
 const MONEY_FLOW_IDS = ["library", "intelligence-graph", "overview", "trends", "lifecycle", "awards", "map", "sources"];
@@ -77,9 +78,8 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
   const menuRefs = useRef({});
   const triggerRefs = useRef({});
   const [pendingFocus, setPendingFocus] = useState(null);
-  const [commandOpen, setCommandOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   const [recentIds, setRecentIds] = useState(() => readNavigationList(RECENT_NAVIGATION_KEY));
-  const [favoriteIds, setFavoriteIds] = useState(() => readNavigationList(FAVORITE_NAVIGATION_KEY));
   const tabById = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab])), [tabs]);
   const primaryTabs = PRIMARY_IDS.map((id) => tabById.get(id)).filter(Boolean);
   const moneyItems = MONEY_FLOW_IDS.map((id) => {
@@ -125,21 +125,6 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     ...groups,
   ];
   const activeGroup = MONEY_FLOW_IDS.includes(activeTab) ? "money" : WORK_IDS.has(activeTab) ? "work" : WORKSPACE_ADMIN_IDS.has(activeTab) ? "workspace-admin" : PLATFORM_ADMIN_IDS.has(activeTab) ? "platform-admin" : "";
-  const allNavigationItems = [...new Map([...primaryTabs.map((tab) => ({ ...tab, tabId: tab.id, href: routes[tab.id], description: tab.id === "watchlist" ? "Act on overdue work, next actions, and tracked pursuits." : tab.id === "timeline" ? "Orient on tracked contract families and every retained intelligence term." : "Review, qualify, and advance opportunities from one queue." })), ...groups.flatMap((group) => group.items.map((item) => ({ ...item, groupLabel: group.label })))].map((item) => [item.tabId, item])).values()];
-  const itemById = new Map(allNavigationItems.map((item) => [item.tabId, item]));
-  const effectiveRecentIds = [activeTab, ...recentIds.filter((id) => id !== activeTab)].filter(Boolean).slice(0, 6);
-  const command = (item, icon) => ({ id: `route-${item.tabId}`, label: item.label, description: item.description || item.groupLabel || "Open section", href: item.href, tabId: item.tabId, icon });
-  const favoriteCommands = favoriteIds.map((id) => itemById.get(id)).filter(Boolean).map((item) => command(item, <Star size={16} />));
-  const favoriteIdSet = new Set(favoriteCommands.map((item) => item.tabId));
-  const recentCommands = effectiveRecentIds.map((id) => itemById.get(id)).filter((item) => item && !favoriteIdSet.has(item.tabId)).map((item) => command(item, <Clock3 size={16} />));
-  const featuredIds = new Set([...favoriteCommands, ...recentCommands].map((item) => item.tabId));
-  const commandGroups = [
-    ...(favoriteCommands.length ? [{ id: "favorites", label: "Favorites", commands: favoriteCommands }] : []),
-    ...(recentCommands.length ? [{ id: "recent", label: "Recent", commands: recentCommands }] : []),
-    { id: "navigate", label: "Navigate", commands: allNavigationItems.filter((item) => !featuredIds.has(item.tabId)).map((item) => command(item, <Navigation size={16} />)) },
-    { id: "page", label: "Current page", commands: [{ id: "toggle-favorite", label: favoriteIds.includes(activeTab) ? "Remove current page from favorites" : "Add current page to favorites", description: activeTitle, icon: <Star size={16} />, action: "toggle-favorite" }] },
-  ];
-
   function activeChildLabel(group) {
     return group.items.find(isItemActive)?.label || "";
   }
@@ -171,27 +156,12 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
     const openCommands = (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setCommandOpen(true);
+        setFindOpen(true);
       }
     };
     document.addEventListener("keydown", openCommands);
     return () => document.removeEventListener("keydown", openCommands);
   }, []);
-
-  function executeCommand(command) {
-    if (command.action === "toggle-favorite") {
-      setFavoriteIds((current) => {
-        const next = current.includes(activeTab) ? current.filter((id) => id !== activeTab) : [activeTab, ...current].slice(0, 8);
-        writeNavigationList(FAVORITE_NAVIGATION_KEY, next, 8);
-        return next;
-      });
-      return;
-    }
-    if (command.href) {
-      setRecentIds((current) => [command.tabId, ...current.filter((id) => id !== command.tabId)].filter(Boolean).slice(0, 6));
-      window.location.hash = command.href.replace(/^#/, "");
-    }
-  }
 
   function trackRoute(tabId) {
     setRecentIds((current) => [tabId, ...current.filter((id) => id !== tabId)].slice(0, 6));
@@ -267,7 +237,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
           </div>
         </nav>
         <div className="if-cluster if-cluster--nowrap if-utility-cluster if-product-header__account">
-          <button type="button" className="if-btn if-btn--secondary ci-header-command-trigger" aria-label="Search and navigate" title="Search and navigate (Ctrl+K)" onClick={() => setCommandOpen(true)}><Search size={16} aria-hidden="true" /><span>Search</span><kbd>⌘K</kbd></button>
+          <button type="button" className="if-btn if-btn--secondary ci-header-command-trigger" aria-label="Find intelligence" title="Find intelligence (Ctrl+K)" onClick={() => setFindOpen(true)}><Search size={16} aria-hidden="true" /><span>Find</span><kbd>⌘K</kbd></button>
           <button ref={(node) => { triggerRefs.current.mobile = node; }} type="button" className={`ci-header-mobile-trigger${activeGroup ? " is-active" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "mobile"} aria-controls="budget-mobile-navigation-menu" aria-label="Open application navigation" title="Sections" data-mobile-more-menu-button onClick={() => setOpenMenu((current) => current === "mobile" ? "" : "mobile")} onKeyDown={(event) => {
             if (event.key === "ArrowDown") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "first" }); setOpenMenu("mobile"); }
             if (event.key === "ArrowUp") { event.preventDefault(); setPendingFocus({ menu: "mobile", direction: "last" }); setOpenMenu("mobile"); }
@@ -277,7 +247,7 @@ export default function SiteHeader({ tabs, routes, activeTab, activeTitle }) {
         </div>
         {mobileMenu}
       </div>
-      <ControlCommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} groups={commandGroups} onSelect={executeCommand} />
+      {findOpen ? <Suspense fallback={null}><UniversalFindDialog open onClose={() => setFindOpen(false)} /></Suspense> : null}
     </header>
   );
 }

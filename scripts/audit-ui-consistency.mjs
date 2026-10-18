@@ -13,6 +13,7 @@ const ROUTES = [
   ["timeline-embedded", "#/budget-spend/explorer?spendView=timeline", "[data-capture-timeline]"],
   ["workbench", "#/budget-spend/explorer?spendView=table", "[data-spend-explorer='table']"],
   ["workbench-expanded", "#/budget-spend/explorer?spendView=table", "[data-spend-explorer='table']"],
+  ["intelligence-workspace", "#/intelligence/workspace?entityType=activity&entityId=opp_a8322e15bbd1418561a2&workspaceTab=overview", "[data-universal-intelligence-workspace]"],
   ["analytics", "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]"],
   ["map", "#/budget-spend/map", "[data-opportunity-map]"],
   ["request", "#/budget-spend", "[data-pdb-request-page]"],
@@ -147,17 +148,18 @@ async function collect(page, route, viewport) {
     const aboveFoldControls = controls.filter((item) => item.y + item.height > 0 && item.y < innerHeight && item.x + item.width > 0 && item.x < innerWidth).length;
     const headingTexts = elements.filter((item) => item.kind === "heading").map((item) => item.text).filter(Boolean);
     const duplicateHeadings = [...new Set(headingTexts.filter((text, index) => headingTexts.indexOf(text) !== index))];
-    const detail = document.querySelector("[data-opportunity-workbench-detail]");
-    const primarySurface = document.querySelector("[data-opportunity-workbench-detail] [data-connected-visual-analysis]");
+    const detail = document.querySelector("[data-opportunity-workbench-detail], [data-universal-intelligence-workspace]");
+    const primarySurface = document.querySelector("[data-opportunity-workbench-detail] [data-connected-visual-analysis], [data-universal-intelligence-workspace] .universal-workspace__analysis");
     const detailRect = detail?.getBoundingClientRect();
     const primaryRect = primarySurface?.getBoundingClientRect();
+    const analysisOwnerRect = document.querySelector("[data-universal-intelligence-workspace] .universal-workspace__layout")?.getBoundingClientRect() || detailRect;
     return {
       route: routeName,
       viewport: viewportName,
       document: { width: document.documentElement.scrollWidth, viewportWidth: innerWidth, height: document.documentElement.scrollHeight, viewportHeight: innerHeight },
       hierarchy: { aboveFoldControls, duplicateHeadings },
       valueDensity: {
-        detailToAnalysis: detailRect && primaryRect ? primaryRect.top - detailRect.top : null,
+        detailToAnalysis: analysisOwnerRect && primaryRect ? primaryRect.top - analysisOwnerRect.top : null,
         visibleAnalysisHeight: primaryRect ? Math.max(0, Math.min(innerHeight, primaryRect.bottom) - Math.max(0, primaryRect.top)) : null,
         analysisWidth: primaryRect?.width || null,
       },
@@ -181,7 +183,7 @@ try {
       localStorage.setItem("dbi:watchlist:v1", JSON.stringify(watches));
     }, fixtureWatches);
     for (const [routeName, route, selector] of ROUTES) {
-      if (viewportName === "laptop" && routeName !== "workbench-expanded") continue;
+      if (viewportName === "laptop" && !["workbench-expanded", "intelligence-workspace"].includes(routeName)) continue;
       console.error(`[ui-audit] ${viewportName} ${routeName}`);
       await page.goto(`${BASE_URL}${route}`, { waitUntil: "domcontentloaded" });
       await page.waitForSelector("[data-defense-budget-app]");
@@ -194,8 +196,7 @@ try {
       if (routeName === "workbench-expanded") {
         const first = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first();
         if (await first.count()) await first.click();
-        await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-evidence-state="ready"]');
-        await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis]');
+        await page.waitForSelector('[data-opportunity-workbench-detail][data-entity-quick-preview]');
       }
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(80);
@@ -247,6 +248,9 @@ if (VERIFY) {
     if (viewportLengths > maximumViewportLengths) violations.push(`${entry.viewport}/${entry.route}: unbounded page length ${rounded(viewportLengths)} viewports`);
     if (entry.hierarchy.aboveFoldControls > 100) violations.push(`${entry.viewport}/${entry.route}: ${entry.hierarchy.aboveFoldControls} controls compete above the fold`);
     if (entry.route === "workbench-expanded" && ["desktop", "laptop"].includes(entry.viewport)) {
+      if (entry.valueDensity.analysisWidth) violations.push(`${entry.viewport}/${entry.route}: quick preview duplicated a full analysis surface`);
+    }
+    if (entry.route === "intelligence-workspace" && ["desktop", "laptop"].includes(entry.viewport)) {
       if (entry.valueDensity.detailToAnalysis > 150) violations.push(`${entry.viewport}/${entry.route}: analysis begins ${rounded(entry.valueDensity.detailToAnalysis)}px below record context`);
       const minimumVisibleAnalysis = entry.viewport === "laptop" ? 180 : 300;
       const minimumAnalysisWidth = entry.viewport === "laptop" ? 650 : 700;

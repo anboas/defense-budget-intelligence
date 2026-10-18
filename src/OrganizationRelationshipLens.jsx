@@ -27,8 +27,9 @@ function normalized(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function candidateNames(record, connection) {
+function candidateNames(record, connection, organizationQuery = "") {
   return [...new Set([
+    organizationQuery,
     ...(record?.organization?.path || []),
     record?.organization?.branch,
     record?.organization?.component,
@@ -40,9 +41,9 @@ function candidateNames(record, connection) {
   ].filter(Boolean))];
 }
 
-function matchDossier(dossiers, { dossierId, record, connection }) {
+function matchDossier(dossiers, { dossierId, record, connection, organizationQuery }) {
   if (dossierId) return dossiers.find((dossier) => dossier.id === dossierId) || null;
-  const names = candidateNames(record, connection).map(normalized).filter(Boolean);
+  const names = candidateNames(record, connection, organizationQuery).map(normalized).filter(Boolean);
   const exact = dossiers.find((dossier) => names.includes(normalized(dossier.organizationName)) || names.includes(normalized(dossier.label)));
   if (exact) return exact;
   return dossiers.find((dossier) => names.some((name) => name.length > 7 && (normalized(dossier.organizationName).includes(name) || name.includes(normalized(dossier.organizationName))))) || null;
@@ -56,14 +57,14 @@ function RelationshipColumn({ icon, eyebrow, title, items, empty, compact = fals
   return <section style={{ ...styles.column, ...(compact ? { flex: "1 0 220px", maxHeight: 480, overflowY: "auto" } : {}) }}><header style={styles.columnHeader}><span style={styles.icon}>{icon}</span><div><small style={styles.eyebrow}>{eyebrow}</small><h4 style={{ margin: 0, fontSize: 13 }}>{title}</h4></div></header>{items.length ? <div style={styles.cards}>{items.map((item) => <article key={item.id} title={item.fullLabel || undefined} style={styles.card}><strong>{item.label}</strong>{item.meta ? <span style={styles.cardMeta}>{item.meta}</span> : null}{item.note ? <em style={{ ...styles.cardMeta, color: "#6d5476" }}>{item.note}</em> : null}</article>)}</div> : <p style={styles.cardMeta}>{empty}</p>}</section>;
 }
 
-export default function OrganizationRelationshipLens({ record = null, connection = null, dossierId = "", compact = false, embedded = false }) {
+export default function OrganizationRelationshipLens({ record = null, connection = null, dossierId = "", organizationQuery = "", compact = false, embedded = false }) {
   const [state, setState] = useState({ status: "loading", payload: null });
   useEffect(() => {
     let active = true;
     loadOrganizationRelationships().then((payload) => { if (active) setState({ status: "ready", payload }); }).catch((error) => { if (active) setState({ status: "error", error }); });
     return () => { active = false; };
   }, []);
-  const dossier = useMemo(() => matchDossier(state.payload?.organizations?.dossiers || [], { dossierId, record, connection }), [connection, dossierId, record, state.payload]);
+  const dossier = useMemo(() => matchDossier(state.payload?.organizations?.dossiers || [], { dossierId, record, connection, organizationQuery }), [connection, dossierId, organizationQuery, record, state.payload]);
   const rootStyle = embedded ? { ...styles.root, padding: 0, border: 0, borderRadius: 0, background: "transparent" } : styles.root;
   if (state.status === "loading") return <ControlAsyncState compact state="loading" title="Loading organization relationships" message="Resolving customer offices, people, work, and companies." />;
   if (state.status === "error") return <ControlAsyncState compact state="error" title="Organization relationships unavailable" message="The primary record and evidence remain available." />;

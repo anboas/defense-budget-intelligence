@@ -8,8 +8,22 @@ function route(path, values = {}) {
   return `#/budget-spend/${path}${search ? `?${search}` : ""}`;
 }
 
-export function opportunityRoute(recordId, query = "") {
-  return route("explorer", { spendView: "record", capQuery: query, capRecord: recordId });
+export function opportunityRoute(recordId, options = "") {
+  const values = typeof options === "string" ? { query: options } : options || {};
+  return intelligenceWorkspaceRoute({ entityType: "activity", entityId: recordId, ...values });
+}
+
+export function intelligenceWorkspaceRoute({ entityType = "activity", entityId = "", tab = "overview", query = "", returnTo = "", origin = "" } = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries({
+    entityType,
+    entityId,
+    workspaceTab: tab,
+    workspaceQuery: query,
+    returnTo: String(returnTo || "").replace(/^#/, ""),
+    origin,
+  })) if (value != null && value !== "") params.set(key, String(value));
+  return `#/intelligence/workspace?${params}`;
 }
 
 export function timelineRoute(recordId, values = {}) {

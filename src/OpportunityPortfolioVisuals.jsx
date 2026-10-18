@@ -10,6 +10,7 @@ import { useManagementState } from "./management-state.js";
 import { TECHNOLOGY_AREA_BY_ID } from "./procurement-taxonomy.js";
 import { samNoticeTypeLabel } from "./sam-notice-types.js";
 import { fundingStrength, normalizeStrategyConfig, recordSpendFact, scopeSpendSummary, STRATEGY_SPEND_MEASURES, weightedScore } from "./strategic-analysis.js";
+import { intelligenceWorkspaceRoute, opportunityRoute } from "./cross-surface-routes.js";
 import "./OpportunityPortfolioVisuals.css";
 
 const DAY = 86_400_000;
@@ -530,10 +531,10 @@ function OpportunityInspector({ record, tracked, strategyScore, spendFact, spend
       {spendFact ? <article><span>{spendLabel}</span><strong>{spendFact.coverage ? money(spendFact.value) : "Not linked"}</strong><p>{spendFact.count} retained fact{spendFact.count === 1 ? "" : "s"}; measure classes stay separate.</p></article> : null}
     </div>
     <div className="target-workboard__actions" style={{ padding: "10px 12px" }}>
-      <a className="if-btn if-btn--primary" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}`}><LocateFixed size={15} />Open workspace</a>
-      <a className="if-btn if-btn--secondary" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}&capVisual=money`}><Waypoints size={15} />Money Path</a>
+      <a className="if-btn if-btn--primary" href={opportunityRoute(id, { returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "strategy" })}><LocateFixed size={15} />Open workspace</a>
+      <a className="if-btn if-btn--secondary" href={intelligenceWorkspaceRoute({ entityType: "activity", entityId: id, tab: "money", returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "strategy" })}><Waypoints size={15} />Money Path</a>
       <button type="button" className="if-btn if-btn--secondary" onClick={() => void onCreateTask(record, strategyScore)}><CheckSquare2 size={15} />Create task</button>
-      <a className="if-btn if-btn--ai" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}`}><Sparkles size={15} />Research</a>
+      <a className="if-btn if-btn--ai" href={opportunityRoute(id, { returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "strategy" })}><Sparkles size={15} />Research</a>
       <a className="if-btn if-btn--secondary" href={`#/budget-spend/explorer?spendView=table&capRecord=${encodeURIComponent(id)}`}><FileSpreadsheet size={15} />Show in queue</a>
       {record.sourceUrl ? <a className="if-btn if-btn--secondary" href={record.sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}
     </div>

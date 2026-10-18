@@ -32,7 +32,7 @@ const connectedEvidenceVisualStyleBytes = styleAssets.find((asset) => /^Connecte
 const domainModelStyleBytes = styleAssets.find((asset) => /^DomainModelPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const intelligenceProductsStyleBytes = styleAssets.find((asset) => /^IntelligenceProductsPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const researchDiscoveryStyleBytes = styleAssets.find((asset) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset.name))?.bytes || 0;
-const opportunityRecordStyleBytes = styleAssets.find((asset) => /^OpportunityRecordPage-.*\.css$/.test(asset.name))?.bytes || 0;
+const intelligenceWorkspaceStyleBytes = styleAssets.find((asset) => /^UniversalIntelligenceWorkspace-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset.name))?.bytes || 0;
 const spendExplorerStyleBytes = styleAssets.find((asset) => /^SpendExplorer-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityWorkbenchDetailStyleBytes = styleAssets.find((asset) => /^OpportunityWorkbenchDetail-.*\.css$/.test(asset.name))?.bytes || 0;
@@ -46,7 +46,7 @@ assert.ok(connectedEvidenceVisualStyleBytes > 0 && connectedEvidenceVisualStyleB
 assert.ok(domainModelStyleBytes > 0 && domainModelStyleBytes <= 8_000, `Lazy Domain Model CSS must stay within its 8 KB route budget, got ${domainModelStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceProductsStyleBytes > 0 && intelligenceProductsStyleBytes <= 13_000, `Lazy Organization Intelligence CSS must stay within its 13 KB route budget, got ${intelligenceProductsStyleBytes.toLocaleString()} bytes`);
 assert.ok(researchDiscoveryStyleBytes > 0 && researchDiscoveryStyleBytes <= 10_000, `Deferred Discovery Operations CSS must stay within its 10 KB component budget, got ${researchDiscoveryStyleBytes.toLocaleString()} bytes`);
-assert.ok(opportunityRecordStyleBytes > 0 && opportunityRecordStyleBytes <= 4_500, `Lazy record workspace CSS must stay within its 4.5 KB route budget, got ${opportunityRecordStyleBytes.toLocaleString()} bytes`);
+assert.ok(intelligenceWorkspaceStyleBytes > 0 && intelligenceWorkspaceStyleBytes <= 3_000, `Canonical intelligence workspace CSS must stay within its 3 KB route budget, got ${intelligenceWorkspaceStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <= 13_200, `Deferred Strategic Analysis Studio CSS must stay within its 13.2 KB route budget, got ${opportunityPortfolioStyleBytes.toLocaleString()} bytes`);
 assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 13_000, `Lazy Opportunities CSS must stay within its 13 KB route budget, got ${spendExplorerStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityWorkbenchDetailStyleBytes > 0 && opportunityWorkbenchDetailStyleBytes <= 5_000, `Deferred Workbench detail CSS must stay within its 5 KB component budget, got ${opportunityWorkbenchDetailStyleBytes.toLocaleString()} bytes`);
@@ -62,6 +62,8 @@ assert.equal(builtAssets.filter((name) => /^OpportunityPortfolioVisuals-.*\.js$/
 assert.equal(builtAssets.filter((name) => /^OpportunityMap-.*\.js$/.test(name)).length, 1, "Opportunity Map should ship behind its own lazy route boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidence-.*\.js$/.test(name)).length, 1, "Cross-surface evidence should ship behind one shared lazy component boundary");
 assert.equal(builtAssets.filter((name) => /^ConnectedEvidenceVisual-.*\.js$/.test(name)).length, 1, "Record visual analysis should ship behind its own nested lazy boundary");
+assert.equal(builtAssets.filter((name) => /^UniversalIntelligenceWorkspace-.*\.js$/.test(name)).length, 1, "Every entity workspace should ship behind one canonical lazy route boundary");
+assert.equal(builtAssets.filter((name) => /^OpportunityRecordPage-.*\.js$/.test(name)).length, 0, "The retired route-specific record page must not ship as a competing workspace");
 assert.equal(builtAssets.filter((name) => /^MoneyPath-.*\.js$/.test(name)).length, 1, "Money Path should ship behind its own nested lazy boundary");
 assert.equal(builtAssets.filter((name) => /^DomainModelPage-.*\.js$/.test(name)).length, 1, "Domain Model should ship behind its own lazy administration boundary");
 assert.equal(builtAssets.filter((name) => /^ResearchDiscoveryDashboard-.*\.js$/.test(name)).length, 1, "Discovery Operations should ship behind its own deferred administration boundary");
@@ -207,16 +209,17 @@ async function assertActiveGroupState(page, group, childLabel) {
 async function assertFlowShell(page) {
   assert.equal(await page.locator(".ci-header-nav > a[data-budget-nav]").count(), 3, "Header should expose Today, Timeline, and Opportunities as primary links");
   assert.deepEqual(await page.locator(".ci-header-nav > a[data-budget-nav]").allTextContents(), ["Today", "Timeline", "Opportunities"], "Primary navigation should contain the three consolidated operating surfaces");
-  assert.equal(await page.getByRole("button", { name: "Search and navigate" }).count(), 1, "The header should expose one global command trigger");
+  assert.equal(await page.getByRole("button", { name: "Find intelligence" }).count(), 1, "The header should expose one global entity finder");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
-  await page.waitForSelector(".if-command-dialog");
-  const commandPaletteText = await page.locator(".if-command-dialog").innerText();
-  assert.match(commandPaletteText, /Recent[\s\S]*Navigate/i, "The command palette should separate recent and general navigation");
-  for (const primaryLabel of ["Today", "Timeline", "Opportunities"]) assert.match(commandPaletteText, new RegExp(primaryLabel, "i"), `The command palette should expose ${primaryLabel}`);
-  await page.locator(".if-command-dialog input[type=search]").fill("Source Lineage");
-  assert.equal(await page.locator(".if-command-palette__item:visible").count(), 1, "Command search should reduce the visible command set");
-  await page.keyboard.press("Escape");
-  await page.waitForSelector(".if-command-dialog", { state: "detached" });
+  await page.waitForSelector("[data-universal-find-dialog]");
+  await page.waitForSelector("[data-universal-find-autocomplete] input[role=combobox]");
+  assert.match(await page.locator("[data-universal-find-dialog]").innerText(), /One search · every retained entity[\s\S]*Find anything/i, "Global Find should explain its entity-wide scope without duplicating route navigation");
+  await page.locator("[data-universal-find-autocomplete] input[role=combobox]").fill("PMA-263 task order");
+  await page.waitForSelector("[data-universal-find-autocomplete] [role=option]");
+  assert.ok(await page.locator("[data-universal-find-autocomplete] [role=option]").count() >= 1, "Global Find should resolve retained entities through shared autosuggest");
+  assert.equal(await resourceCount(page, "intelligence-search-index.json"), 1, "Global Find should lazy-load its bounded entity index exactly once");
+  await page.getByRole("button", { name: "Close intelligence search", exact: true }).click();
+  await page.waitForSelector("[data-universal-find-dialog]", { state: "detached" });
   assert.ok(await page.locator("[data-nav-group-trigger]").count() >= 2, "Header should expose money-flow and workspace menus");
   assert.equal(await page.locator("[data-budget-nav-menu]").count(), 0, "Workspace menu should be closed by default");
   if (await page.locator('[data-nav-group-trigger="money"]').isVisible()) {
@@ -771,7 +774,7 @@ try {
   await page.waitForFunction(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("mapBranch") === "army");
   await page.locator('[data-opportunity-map-legend] button').first().click();
   await page.waitForFunction(() => !window.location.hash.includes("mapBranch="));
-  await page.getByRole("button", { name: "Find" }).click();
+  await page.getByRole("button", { name: "Find", exact: true }).click();
   await page.locator("[data-opportunity-map-directory] input").fill("Missile Defense");
   const missileDefenseHub = page.locator(".opportunity-map__directory-results button", { hasText: "Spend-backed hub" }).filter({ hasText: "Missile Defense Agency" });
   assert.equal(await missileDefenseHub.count(), 1, "The location directory should distinguish the reviewed spend hub from geographic source results");
@@ -814,7 +817,7 @@ try {
   await assertNoPageOverflow(page, "Desktop Opportunity Map");
   await page.screenshot({ path: `${OUT_DIR}/opportunity-map-desktop.png`, fullPage: true });
 
-  await page.getByRole("button", { name: "Find" }).click();
+  await page.getByRole("button", { name: "Find", exact: true }).click();
   await page.locator("[data-opportunity-map-directory] input").fill("Wright-Patterson");
   const wrightPattersonHub = page.locator(".opportunity-map__directory-results button", { hasText: "Wright-Patterson acquisition cluster" }).filter({ hasText: "Spend-backed hub" });
   assert.equal(await wrightPattersonHub.count(), 1, "The directory should expose the spend-backed Wright-Patterson acquisition cluster");
@@ -1101,7 +1104,7 @@ try {
   await page.locator("[data-win-quadrant] .strategy-quadrant__list > button").first().click();
   await page.waitForSelector("[data-portfolio-inspector]");
   assert.match(await page.locator("[data-portfolio-inspector]").innerText(), /Attractiveness[\s\S]*Ability proxy/i, "Selected win-readiness records should expose their component scores and position gaps");
-  assert.match(await page.getByRole("link", { name: "Money Path", exact: true }).getAttribute("href"), /capVisual=money/, "Strategy inspection should hand off directly to the record Money Path");
+  assert.match(await page.getByRole("link", { name: "Money Path", exact: true }).getAttribute("href"), /\/intelligence\/workspace\?.*workspaceTab=money/, "Strategy inspection should hand off directly to the canonical workspace Money tab");
   const strategyTaskFixture = await page.evaluate(() => {
     const recordId = new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord");
     const rows = JSON.parse(localStorage.getItem("dbi:watchlist:v1") || "[]");
@@ -1194,16 +1197,15 @@ try {
   await workbenchSuggestion.waitFor();
   await workbenchSuggestion.click();
   await page.waitForSelector("[data-opportunity-workbench-detail]");
-  await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-evidence-state="ready"]');
-  await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis]');
   const expandedWorkbenchId = new URL(page.url()).hash.match(/(?:\?|&)capRecord=([^&]+)/)?.[1];
   assert.ok(expandedWorkbenchId, "Opening an opportunity row should persist the selected stable ID in the route");
-  assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*Connected intelligence/i, "Opportunity rows should expand into qualification, source scope, and bounded graph evidence");
+  assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*One workspace, every lens/i, "Opportunity rows should remain a compact preview with one explicit analysis handoff");
+  assert.equal(await page.locator('[data-opportunity-workbench-detail] [data-connected-visual-analysis]').count(), 0, "Opportunity previews should not duplicate the full analytical workspace");
   const commandRail = page.locator("[data-opportunity-workbench-detail] [data-opportunity-command-rail]");
   assert.equal(await commandRail.count(), 1, "Opportunity details should expose one shared contextual command rail");
   assert.equal(await commandRail.getByRole("button", { name: "Build AI decision brief", exact: true }).count(), 1, "The command rail should expose decision research exactly once");
   await commandRail.locator(".pursuit-actions__more > summary").click();
-  assert.equal(await commandRail.getByRole("link", { name: "Open record", exact: true }).count(), 1, "Pursuit controls should progressively disclose the full record workspace");
+  assert.equal(await commandRail.getByRole("link", { name: "Open workspace", exact: true }).count(), 1, "Pursuit controls should progressively disclose the canonical intelligence workspace");
   assert.equal(await commandRail.getByRole("link", { name: "Timeline", exact: true }).count(), 1, "Pursuit controls should progressively disclose Timeline");
   await commandRail.locator(".pursuit-actions__more > summary").click();
   await commandRail.locator(".opportunity-command-rail__setup > summary").click();
@@ -1231,23 +1233,28 @@ try {
   }, expandedWorkbenchId);
   await page.screenshot({ path: `${OUT_DIR}/pursuit-controls-tasks-desktop.png`, fullPage: false });
   assert.match(await commandRail.getAttribute("data-tracked"), /true/, "Editing pursuit state should automatically retain the opportunity in the workspace");
-  const workbenchVisual = page.locator("[data-opportunity-workbench-detail] [data-connected-visual-analysis]");
-  await workbenchVisual.getByRole("button", { name: "Timeline", exact: true }).click();
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisual=timeline/, "Visualization mode should persist in the shareable route");
-  await workbenchVisual.locator("[data-visual-timeline-marker]").first().click();
-  const selectedVisualItem = await workbenchVisual.getAttribute("data-connected-visual-selected");
-  assert.ok(selectedVisualItem, "Selecting a timeline marker should retain an exact visual item identity");
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisualItem=/, "Visual selection should persist in the shareable route");
-  await workbenchVisual.getByRole("button", { name: "Create task", exact: true }).click();
-  assert.equal(await commandRail.locator("[data-task-composer]").count(), 1, "Selected graph or timeline evidence should open the linked task composer");
-  await commandRail.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForSelector('[data-opportunity-workbench-detail] [data-connected-visual-analysis][data-connected-visual-view="timeline"]');
-  assert.equal(await page.locator("[data-opportunity-workbench-detail] [data-connected-visual-analysis]").getAttribute("data-connected-visual-selected"), selectedVisualItem, "Reloading should restore the exact selected timeline item");
-  await page.keyboard.press("Escape");
-  assert.doesNotMatch(decodeURIComponent(new URL(page.url()).hash), /capVisualItem=/, "Escape should clear visual selection from the route");
-  await page.locator("[data-opportunity-workbench-detail] [data-connected-visual-analysis]").getByRole("button", { name: "Connections", exact: true }).click();
-  assert.doesNotMatch(decodeURIComponent(new URL(page.url()).hash), /capVisual=/, "The default connections view should keep the route compact");
+  const previewHash = new URL(page.url()).hash;
+  await page.getByRole("link", { name: "Open Intelligence Workspace", exact: true }).click();
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash), new RegExp(`entityType=activity.*entityId=${decodeURIComponent(expandedWorkbenchId)}`), "Preview handoff should preserve the exact stable opportunity identity");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /returnTo=/, "Canonical workspace should preserve its source route for a predictable return");
+  const canonicalWorkspaceGeometry = await page.locator("[data-universal-intelligence-workspace]").evaluate((node) => {
+    const context = node.querySelector(".universal-workspace__context")?.getBoundingClientRect();
+    const analysis = node.querySelector(".universal-workspace__analysis")?.getBoundingClientRect();
+    return { contextWidth: context?.width || 0, analysisWidth: analysis?.width || 0 };
+  });
+  assert.ok(canonicalWorkspaceGeometry.contextWidth <= 430, `Canonical workspace context should remain bounded, got ${canonicalWorkspaceGeometry.contextWidth}px`);
+  assert.ok(canonicalWorkspaceGeometry.analysisWidth >= 650, `Canonical workspace analysis should own the desktop canvas, got ${canonicalWorkspaceGeometry.analysisWidth}px`);
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="timeline"] [data-connected-visual-analysis]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /workspaceTab=timeline/, "Workspace tabs should persist in the canonical URL state");
+  await page.locator('[data-universal-intelligence-workspace] [data-visual-timeline-marker]').first().click();
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisualItem=/, "Workspace evidence selection should persist in the shareable route");
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("[data-opportunity-workbench-detail]");
+  assert.equal(new URL(page.url()).hash, previewHash, "Browser Back should restore the exact originating preview state");
   const expandedWorkbenchRow = page.locator(`[data-dbi-data-table="opportunity-workbench-v1"] [data-row-key="${decodeURIComponent(expandedWorkbenchId)}"]`);
   await expandedWorkbenchRow.click();
   await page.waitForSelector("[data-opportunity-workbench-detail]", { state: "detached" });
@@ -1893,11 +1900,11 @@ try {
   assert.equal(await page.getByRole("button", { name: "Review & link (1/2)", exact: true }).count(), 1, "The workbench must explain that a relationship needs two records");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await ndmsLifecycle.getByRole("button", { name: /Open NDMS software development support details/i }).click();
-  await page.waitForSelector("[data-opportunity-record-page]");
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /spendView=record.*capRecord=opp_f2a64db1164b5263690b/, "Opening a grouped active-work line must resolve to its current source record workspace");
-  assert.match(await page.locator("[data-opportunity-record-page]").innerText(), /NDMS software development support V/i, "The dedicated record page must preserve the active award identity");
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /\/intelligence\/workspace\?entityType=activity.*entityId=opp_f2a64db1164b5263690b/, "Opening a grouped active-work line must resolve to its canonical intelligence workspace");
+  assert.match(await page.locator("[data-universal-intelligence-workspace]").innerText(), /NDMS software development support V/i, "The canonical workspace must preserve the active award identity");
   assert.equal(await page.locator("[data-record-lifecycle]").count(), 1, "Every record page must expose past, current, and future lifecycle lanes");
-  assert.match(await page.locator("[data-record-lifecycle]").innerText(), /Past \/ incumbent[\s\S]*NDMS software development support IV[\s\S]*This record[\s\S]*Future \/ follow-on/i, "The active NDMS record must expose its exact predecessor while keeping room for the draft-RFP follow-on");
+  assert.match(await page.locator("[data-record-lifecycle]").innerText(), /Predecessor \/ incumbent[\s\S]*NDMS software development support IV[\s\S]*This record[\s\S]*Future \/ follow-on/i, "The active NDMS record must expose its exact predecessor while keeping room for the draft-RFP follow-on");
   const decisionBriefButton = page.getByRole("button", { name: "Build AI decision brief", exact: true });
   assert.equal(await decisionBriefButton.count(), 1, "A specific record must expose official-source AI research from its own workspace");
   assert.ok(await decisionBriefButton.evaluate((node) => node.classList.contains("if-btn--ai") && getComputedStyle(node).backgroundColor !== "rgba(0, 0, 0, 0)"), "Record research must use the shared framework AI action token");
@@ -2469,16 +2476,13 @@ try {
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
   await page.waitForSelector('[data-analytics-record-drawer]');
-  await page.waitForSelector('[data-analytics-record-drawer] [data-connected-evidence-state="ready"]');
   assert.match(new URL(page.url()).hash, /analyticsRecord=/, "Analytical detail should own a shareable URL state");
   assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Observed obligations|Reported potential/i);
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
-  assert.match(await page.locator('[data-analytics-record-drawer] > .if-drawer__footer a').first().getAttribute('href'), /capRecord=/, "Analytical detail should deep-link to the exact Transactions record");
-  assert.equal(await page.locator('[data-analytics-record-drawer] [data-connected-evidence]').count(), 1, "Analytical detail should reuse the canonical cross-surface evidence component");
-  assert.equal(await resourceCount(page, "intelligence-graph-index.json"), 1, "Analytical detail should reuse the session-cached evidence index");
-  assert.equal(await resourceCount(page, "contract-lineage-index.json"), 1, "Analytical detail should reuse the session-cached contract-lineage index");
-  assert.equal(await resourceCount(page, "temporal-evidence-index.json"), 1, "Analytical detail should reuse the session-cached temporal evidence index");
+  assert.match(await page.locator('[data-analytics-record-drawer] > .if-drawer__footer a').first().getAttribute('href'), /\/intelligence\/workspace\?/, "Analytical detail should deep-link to the canonical intelligence workspace");
+  assert.equal(await page.locator('[data-analytics-record-drawer] [data-connected-evidence]').count(), 0, "Analytical detail should remain a lightweight preview instead of duplicating the analysis workspace");
+  assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Continue analysis[\s\S]*Timeline, connections, money, evidence, and tasks/i, "Analytical preview should explain the canonical handoff");
   await page.screenshot({ path: `${OUT_DIR}/analytics-record-detail-desktop.png`, fullPage: true });
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-drawer__actions .if-icon-btn').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
   await page.keyboard.press("Shift+Tab");
@@ -2554,11 +2558,10 @@ try {
   await assertActiveGroupState(page, "workspace-admin", "Domain Model");
 
   assert.equal(await resourceCount(page, "money-path-index.json"), 0, "Money Path must remain deferred until an operator selects the visualization");
-  await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(moneyPathOpportunityId)}`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("[data-opportunity-record-page] [data-connected-visual-analysis]");
   const moneyPathReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/money-path-index.json") && response.ok());
-  const moneyVisual = page.locator("[data-opportunity-record-page] [data-connected-visual-analysis]");
-  await moneyVisual.getByRole("button", { name: "Money Path", exact: true }).click();
+  await page.goto(`${BASE_URL}#/intelligence/workspace?entityType=activity&entityId=${encodeURIComponent(moneyPathOpportunityId)}&workspaceTab=money`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="money"] [data-connected-visual-analysis]');
+  const moneyVisual = page.locator('[data-universal-intelligence-workspace] [data-connected-visual-analysis]');
   await moneyPathReady;
   await moneyVisual.locator("[data-money-path]").waitFor();
   const moneyPathGeometry = await moneyVisual.locator("[data-money-path]").evaluate((node) => ({ nodes: Number(node.dataset.moneyPathNodes), links: Number(node.dataset.moneyPathLinks), year: Number(node.dataset.moneyPathYear), engine: node.dataset.moneyPathEngine }));
@@ -2574,7 +2577,7 @@ try {
   await moneyVisual.screenshot({ path: `${OUT_DIR}/money-path-desktop.png` });
   await moneyVisual.locator('[data-money-path-link="obligation"]').first().click();
   assert.match(await moneyVisual.locator("[data-evidence-visual-inspector]").innerText(), /Exact obligation flow[\s\S]*exact/i, "Selecting a funding flow should open its evidence inspector");
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /capVisual=money.*capVisualItem=/, "Money Path mode and exact selection should persist in the shareable route");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /workspaceTab=money.*capVisualItem=/, "Money Path workspace and exact selection should persist in the shareable route");
   await moneyVisual.screenshot({ path: `${OUT_DIR}/money-path-focused-desktop.png` });
   assert.equal(await resourceCount(page, "money-path-index.json"), 1, "Money Path should load its bounded deferred index exactly once");
   assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Money Path must never load the full integrity graph");
@@ -2751,7 +2754,7 @@ try {
   assert.ok(mobileMapGeometry.mapHeaderHeight <= 112, `Mobile map header should stay compact, got ${mobileMapGeometry.mapHeaderHeight}px`);
   assert.ok(mobileMapGeometry.documentHeight <= 1_400, `Default mobile map should keep the taller atlas within a bounded scroll surface, got ${mobileMapGeometry.documentHeight}px`);
   assert.equal(mobileMapGeometry.advancedFilterCount, 0, "Mobile advanced filters should stay collapsed by default");
-  await mobile.getByRole("button", { name: "Find" }).click();
+  await mobile.getByRole("button", { name: "Find", exact: true }).click();
   assert.equal(await mobile.locator("[data-opportunity-map-directory]").evaluate((node) => getComputedStyle(node).position), "fixed", "Mobile location details should use a contained bottom sheet instead of extending the page");
   await mobile.keyboard.press("Escape");
   assert.equal(await mobile.locator("[data-opportunity-map-directory]").count(), 0, "Escape should close the mobile map drawer");
@@ -2881,11 +2884,12 @@ try {
   assert.ok(await mobileTimelineRecordButton.evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Timeline row titles should provide a 44px touch target");
   await mobileTimelineRecordButton.tap();
   assert.equal(await mobile.locator("[data-capture-hovercard]").count(), 0, "Touch selection should not leave a hover card covering the timeline");
-  await mobile.waitForSelector("[data-opportunity-record-page]");
-  assert.match(decodeURIComponent(new URL(mobile.url()).hash), /spendView=record.*capRecord=/, "Mobile Timeline titles should open the dedicated record workspace");
-  assert.equal(await mobile.locator("[data-record-lifecycle]").count(), 1, "The mobile record workspace should retain the linked lifecycle");
-  await mobile.locator("[data-connected-visual-analysis]").waitFor();
-  const mobileVisual = mobile.locator("[data-connected-visual-analysis]");
+  await mobile.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
+  assert.match(decodeURIComponent(new URL(mobile.url()).hash), /\/intelligence\/workspace\?entityType=activity.*entityId=/, "Mobile Timeline titles should open the canonical intelligence workspace");
+  assert.equal(await mobile.locator("[data-record-lifecycle]").count(), 1, "The mobile intelligence workspace should retain the linked lifecycle");
+  await mobile.getByRole("button", { name: "Connections", exact: true }).click();
+  await mobile.locator('[data-universal-intelligence-workspace][data-workspace-tab="connections"] [data-connected-visual-analysis]').waitFor();
+  const mobileVisual = mobile.locator('[data-universal-intelligence-workspace] [data-connected-visual-analysis]');
   const mobileVisualControls = await mobileVisual.locator("button:visible").evaluateAll((nodes) => nodes.map((node) => ({
     label: node.getAttribute("aria-label") || node.textContent?.trim() || node.className,
     className: node.className,
@@ -2898,9 +2902,11 @@ try {
   const mobileGraphGeometry = await mobileVisual.locator(".connected-visual__control-graph").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileGraphGeometry.scrollWidth > mobileGraphGeometry.clientWidth, `The bounded graph should use a contained horizontal scroller on mobile: ${JSON.stringify(mobileGraphGeometry)}`);
   await mobileVisual.screenshot({ path: `${OUT_DIR}/connected-evidence-graph-mobile.png` });
-  await mobileVisual.getByRole("button", { name: "Timeline", exact: true }).tap();
-  assert.ok(await mobileVisual.locator("[data-visual-timeline-marker]").count() > 0, "Mobile record analysis should retain the linked event rail");
-  await mobileVisual.screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-mobile.png` });
+  await mobile.locator(".universal-workspace__tabs").getByRole("button", { name: "Timeline", exact: true }).tap();
+  await mobile.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="timeline"] [data-visual-timeline-marker]');
+  const mobileTimelineVisual = mobile.locator('[data-universal-intelligence-workspace] [data-connected-visual-analysis]');
+  assert.ok(await mobileTimelineVisual.locator("[data-visual-timeline-marker]").count() > 0, "Mobile record analysis should retain the linked event rail");
+  await mobileTimelineVisual.screenshot({ path: `${OUT_DIR}/connected-evidence-timeline-mobile.png` });
   await assertNoPageOverflow(mobile, "Mobile opportunity record");
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector("[data-capture-timeline]");
@@ -3055,9 +3061,9 @@ try {
   await assertNoPageOverflow(mobile, "Mobile Intelligence Operations");
   await mobile.screenshot({ path: `${OUT_DIR}/intelligence-operations-mobile.png`, fullPage: true });
 
-  await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(moneyPathOpportunityId)}&capVisual=money`, { waitUntil: "domcontentloaded" });
-  await mobile.waitForSelector("[data-opportunity-record-page] [data-money-path]");
-  const mobileMoneyVisual = mobile.locator("[data-opportunity-record-page] [data-connected-visual-analysis]");
+  await mobile.goto(`${BASE_URL}#/intelligence/workspace?entityType=activity&entityId=${encodeURIComponent(moneyPathOpportunityId)}&workspaceTab=money`, { waitUntil: "domcontentloaded" });
+  await mobile.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="money"] [data-money-path]');
+  const mobileMoneyVisual = mobile.locator('[data-universal-intelligence-workspace] [data-connected-visual-analysis]');
   const mobileMoneyGeometry = await mobileMoneyVisual.locator(".connected-visual__scroller").evaluate((node) => ({ clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert.ok(mobileMoneyGeometry.scrollWidth > mobileMoneyGeometry.clientWidth, `Mobile Money Path should use its bounded internal scroller: ${JSON.stringify(mobileMoneyGeometry)}`);
   const mobileMoneyControls = await mobileMoneyVisual.locator("button:visible, select:visible").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
