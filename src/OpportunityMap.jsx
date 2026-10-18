@@ -18,7 +18,7 @@ import {
   Tags,
   X,
 } from "lucide-react";
-import { ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAutocomplete, ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import { useManagementState } from "./management-state.js";
 import { BRANCHES, organizationLocationRules, resolveOrganizationLocation } from "./organization-locations.js";
@@ -757,6 +757,7 @@ export default function OpportunityMap({ dataset }) {
   const [mapResetKey, setMapResetKey] = useState(0);
   const asOf = dataset.metadata.asOf || new Date().toISOString().slice(0, 10);
   const deferredQuery = useDeferredValue(filters.query);
+  const selectedLocationId = filters.organization.startsWith("location:") ? filters.organization.slice(9) : "";
   const locationMetadata = useRuntimeJson(filters.organization.startsWith("location:"), "opportunity-map-location-metadata.json");
 
   const linkedLocationIds = useMemo(() => {
@@ -828,12 +829,15 @@ export default function OpportunityMap({ dataset }) {
       if (locationQuery && ![location.name, location.city, location.state, location.kind, BRANCHES[location.branch]?.label].filter(Boolean).join(" ").toLowerCase().includes(locationQuery)) return false;
       return !linkedLocationIds.has(location.id);
     });
+    const focusedLocation = selectedLocationId ? locations.find((location) => location.id === selectedLocationId) : null;
+    if (focusedLocation && !eligibleLocations.some((location) => location.id === focusedLocation.id)) eligibleLocations.push(focusedLocation);
     const eligibleActivityPoints = filters.evidence === "unbacked" ? [] : eligiblePoints;
     const branchCounts = Object.fromEntries(Object.keys(BRANCHES).map((branch) => [branch, 0]));
     eligibleActivityPoints.forEach((point) => { branchCounts[point.branch] = Number(branchCounts[point.branch] || 0) + 1; });
     eligibleLocations.forEach((location) => { branchCounts[location.branch] = Number(branchCounts[location.branch] || 0) + 1; });
     const points = eligibleActivityPoints.filter((point) => branchIncluded(point.branch));
     const visibleLocations = eligibleLocations.filter((location) => branchIncluded(location.branch));
+    if (focusedLocation && !visibleLocations.some((location) => location.id === focusedLocation.id)) visibleLocations.push(focusedLocation);
     const mappedRecords = points.reduce((total, point) => total + point.records.length, 0);
     const mappedExact = points.reduce((total, point) => total + point.exactOfficeCount, 0);
     return {
@@ -852,10 +856,9 @@ export default function OpportunityMap({ dataset }) {
       totalLocations: locations.length,
       linkedLocationCount: linkedLocationIds.size,
     };
-  }, [asOf, deferredQuery, filters.branch, filters.by, filters.evidence, filters.floor, filters.scope, filters.spend, filters.status, linkedLocationIds, locations, management.watchedIds, records]);
+  }, [asOf, deferredQuery, filters.branch, filters.by, filters.evidence, filters.floor, filters.scope, filters.spend, filters.status, linkedLocationIds, locations, management.watchedIds, records, selectedLocationId]);
 
   const selected = model.points.find((point) => point.id === filters.organization) || null;
-  const selectedLocationId = filters.organization.startsWith("location:") ? filters.organization.slice(9) : "";
   const selectedLocation = locations.find((location) => location.id === selectedLocationId) || null;
   const selectedLocationProfile = selectedLocation ? locationMetadata.data?.locations?.[selectedLocation.id] || null : null;
   useEffect(() => {
@@ -879,6 +882,36 @@ export default function OpportunityMap({ dataset }) {
   }
   const toggleBranch = useCallback((branch) => commit({ branch: updateBranchSelection(filters.branch, branch), organization: "" }), [commit, filters.branch]);
   const advancedFilterCount = activeFilterCount(filters);
+  const searchItems = useMemo(() => {
+    const locationItems = locations.map((location) => ({
+      id: `location:${location.id}`,
+      value: location.name,
+      label: location.name,
+      meta: [[location.city, location.state].filter(Boolean).join(", "), BRANCHES[location.branch]?.label, location.kind?.replaceAll("_", " ")].filter(Boolean).join(" · "),
+      type: "Location",
+      targetKind: "location",
+      targetId: location.id,
+    }));
+    const recordItems = records.map((record) => {
+      const activity = activityName(record, filters.by);
+      const location = resolveOrganizationLocation(activity);
+      const id = record.opportunityId || record.id || record.reference;
+      return location && id ? {
+        id: `record:${id}`,
+        value: record.title || record.reference || record.id || id,
+        label: record.title || record.reference || id,
+        meta: [record.reference || record.id, activity, [location.city, location.state].filter(Boolean).join(", ")].filter(Boolean).join(" · "),
+        type: "Opportunity",
+        targetKind: "activity",
+        targetId: location.id,
+      } : null;
+    }).filter(Boolean);
+    return [...locationItems, ...recordItems];
+  }, [filters.by, locations, records]);
+  const selectSearchItem = useCallback((item) => {
+    const exactFocus = item.targetKind === "location" ? `location:${item.targetId}` : item.targetId;
+    commit({ query: item.value, organization: exactFocus, status: "all", evidence: "all", scope: "all", branch: "all", floor: "0" });
+  }, [commit]);
   const resetAll = useCallback(() => {
     setOpenPanel("");
     setFiltersOpen(false);
@@ -893,7 +926,7 @@ export default function OpportunityMap({ dataset }) {
           <header className="opportunity-map__command-band">
             <div className="opportunity-map__command-primary">
               <div className="opportunity-map__map-title"><Layers3 size={18} /><span><h2>Opportunity Map</h2><small>{model.totalLocations} locations · {model.points.length} activity hubs · {filters.spend === "none" ? "uniform markers" : `${money(model.spend)} ${filters.spend === "potential" ? "potential" : "obligated"}`}</small></span></div>
-              <label className="opportunity-map__search"><Search size={15} /><span className="sr-only">Search organizations and opportunities</span><input type="search" value={filters.query} onChange={(event) => commit({ query: event.target.value, organization: "" })} placeholder="Search offices, records, portfolios…" /></label>
+              <ControlAutocomplete className="opportunity-map__search" ariaLabel="Find a map location or opportunity" value={filters.query} items={searchItems} minLength={1} limit={10} onChange={(query, item) => { if (!item) commit({ query, organization: "" }); }} onSelect={selectSearchItem} placeholder="Find an office, location, or opportunity…" emptyText="No mapped location or opportunity matches" data-opportunity-map-autocomplete />
               <div className="opportunity-map__map-actions" aria-label="Map display tools">
                 <button type="button" className={`opportunity-map__filter-toggle${filtersOpen ? " is-active" : ""}`} aria-label="Filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((current) => !current)}><ListFilter size={14} /><span>Filters</span>{advancedFilterCount ? <b>{advancedFilterCount}</b> : null}</button>
                 <button type="button" aria-label="Callouts" aria-pressed={filters.callouts === "on"} onClick={() => commit({ callouts: filters.callouts === "on" ? "off" : "on" })}><Tags size={14} /><span>Callouts</span></button>
@@ -916,6 +949,7 @@ export default function OpportunityMap({ dataset }) {
               <ControlSelect label="Minimum" value={filters.floor} disabled={filters.spend === "none"} options={[{ value: "0", label: "Any spend" }, { value: "10000000", label: "$10M+" }, { value: "50000000", label: "$50M+" }, { value: "100000000", label: "$100M+" }, { value: "500000000", label: "$500M+" }, { value: "1000000000", label: "$1B+" }]} onChange={(floor) => commit({ floor, organization: "" })} />
             </div> : null}
           </header>
+          {selectedLocation ? <div className="if-alert if-alert--info" style={{ display: "flex", alignItems: "center", gap: 8, margin: 0, borderRadius: 0 }} role="status" data-map-focused-location={selectedLocation.id}><MapPin size={15} /><span style={{ display: "grid", minWidth: 0, flex: 1 }}><strong>Focused on {selectedLocation.name}</strong><small style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[selectedLocation.city, selectedLocation.state].filter(Boolean).join(", ")} · exact handoff target shown and centered</small></span><button type="button" className="if-btn if-btn--secondary if-btn--sm" onClick={() => commit({ organization: "", query: "" })}>Clear focus</button></div> : null}
           {(model.points.length || model.locations.length) ? <MapCanvas key={mapResetKey} points={model.points} locations={model.locations} selectedId={selected ? selected.id : selectedLocation ? `location:${selectedLocation.id}` : ""} onSelect={selectPoint} onSelectLocation={selectLocation} clustersEnabled={filters.clusters === "on"} calloutsEnabled={filters.callouts === "on"} sizeMetric={filters.spend} /> : <div className="opportunity-map__empty"><CircleDollarSign size={28} /><strong>No locations match these filters</strong><p>Widen the lifecycle or evidence scope, reduce the spend floor, or clear the search.</p><button type="button" className="if-btn if-btn--secondary" onClick={resetAll}>Reset map</button></div>}
           <footer className="opportunity-map__coverage"><span><b>{model.totalLocations}</b> source locations</span><span><b>{model.mappedRecords}</b> mapped activities</span><span><b>{model.mappedExact}</b> exact-office matches</span><span><b>{model.unresolved}</b> activity locations unresolved</span><p><Info size={13} />Lifecycle filters apply to activity. The location layer remains independent; “no linked spend” means no relationship is established in this snapshot, not zero spend.</p></footer>
         </section>

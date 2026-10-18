@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, MoreHorizontal, RotateCcw, Search, X } from "lucide-react";
-import { ControlAsyncState, ControlTableSelectionBar } from "control-surface-ui/react";
+import { ControlAsyncState, ControlAutocomplete, ControlTableSelectionBar } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import "./RouteControlConsistency.css";
 
@@ -81,6 +81,9 @@ export default function OperationalDataTable({
   defaultMobilePageSize = 5,
   pageSizeOptions = [5, 10, 25, 50, 100],
   searchPlaceholder = "Filter rows…",
+  searchItems = null,
+  searchEmptyText = "No matching records",
+  onSearchSelect = null,
   empty = "No records match the current table controls.",
   exportFilename = `${id || "records"}.csv`,
   onRowActivate,
@@ -370,7 +373,19 @@ export default function OperationalDataTable({
           <strong>{filteredRows.length.toLocaleString()}</strong><span>of {rows.length.toLocaleString()} records</span>
           {selected.size ? <b>{selected.size.toLocaleString()} selected</b> : null}
         </div>
-        {showSearch ? <label className="if-search dbi-data-table__search">
+        {showSearch ? searchItems ? <ControlAutocomplete
+          className="dbi-data-table__search"
+          ariaLabel={`Search ${label}`}
+          value={query}
+          items={searchItems}
+          minLength={1}
+          limit={10}
+          onChange={(value) => { setQuery(value); setPage(1); }}
+          onSelect={(item) => { onSearchSelect?.(item); setPage(1); }}
+          placeholder={searchPlaceholder}
+          emptyText={searchEmptyText}
+          data-table-autocomplete={id}
+        /> : <label className="if-search dbi-data-table__search">
           <Search size={15} aria-hidden="true" />
           <span className="sr-only">Search {label}</span>
           <input className="if-input" type="search" aria-label={searchPlaceholder} value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={searchPlaceholder} />

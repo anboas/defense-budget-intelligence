@@ -4,9 +4,11 @@
 .opportunity-map__control-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .opportunity-map__control-row--secondary { flex-wrap: wrap; padding: 7px 0 0; border-top: var(--if-divider); }
 .opportunity-map__control-row--secondary > * { min-width: 160px; flex: 1 1 160px; }
-.opportunity-map__search { display: flex; min-width: 230px; min-height: 32px; align-items: center; gap: 7px; padding: 0 9px; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-surface); color: var(--if-text-muted); }
-.opportunity-map__search:focus-within, .opportunity-map__drawer-search:focus-within { border-color: var(--if-border-selected); box-shadow: var(--if-shadow-focus); }
-.opportunity-map__search input, .opportunity-map__drawer-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--if-text); font: inherit; font-size: var(--if-font-size-sm); }
+.opportunity-map__search { display: block; min-width: 230px; min-height: 32px; }
+.opportunity-map__search > .if-search { width: 100%; min-height: 32px; }
+.opportunity-map__search .if-input { width: 100%; min-width: 0; min-height: 32px; font-size: var(--if-font-size-sm); }
+.opportunity-map__drawer-search:focus-within { border-color: var(--if-border-selected); box-shadow: var(--if-shadow-focus); }
+.opportunity-map__drawer-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--if-text); font: inherit; font-size: var(--if-font-size-sm); }
 .opportunity-map__status-tabs, .opportunity-map__evidence-tabs { display: inline-flex; flex: 0 0 auto; gap: 1px; padding: 2px; border: var(--if-divider); border-radius: var(--if-control-radius); background: var(--if-bg-subtle); }
 .opportunity-map__status-tabs button, .opportunity-map__evidence-tabs button, .opportunity-map__reset, .opportunity-map__filter-toggle { min-height: 27px; padding: 3px 7px; border: 1px solid transparent; border-radius: calc(var(--if-control-radius) - 2px); background: transparent; color: var(--if-text-muted); font: inherit; font-size: 10px; cursor: pointer; white-space: nowrap; }
 .opportunity-map__status-tabs button:hover, .opportunity-map__status-tabs button:focus-visible, .opportunity-map__evidence-tabs button:hover, .opportunity-map__evidence-tabs button:focus-visible, .opportunity-map__reset:hover, .opportunity-map__reset:focus-visible, .opportunity-map__filter-toggle:hover, .opportunity-map__filter-toggle:focus-visible { color: var(--if-text-strong); outline: 0; }

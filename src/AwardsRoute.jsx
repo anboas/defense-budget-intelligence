@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { ControlDisclosure, ControlDrawer } from "control-surface-ui/react";
+import { ControlAutocomplete, ControlDisclosure, ControlDrawer } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
-import { BarChart3, ExternalLink, FileSpreadsheet, RotateCcw, Search } from "lucide-react";
+import { BarChart3, ExternalLink, FileSpreadsheet, RotateCcw } from "lucide-react";
 import AnalysisActions from "./AnalysisActions.jsx";
 import Section from "./AnalysisSection.jsx";
 import ControlSelect from "./ControlSelect.jsx";
@@ -89,8 +89,9 @@ function AwardRollup({ title, rows }) {
   );
 }
 
-function AwardTable({ awards, sourceUrl, evidenceProps }) {
-  const [evidenceRecord, setEvidenceRecord] = useState(null);
+function AwardTable({ awards, sourceUrl, evidenceProps, focusedAwardId = "" }) {
+  const focusedAward = useMemo(() => awards.find((award) => [award.id, award.awardId, award.awardNumber].filter(Boolean).includes(focusedAwardId)) || null, [awards, focusedAwardId]);
+  const [evidenceRecord, setEvidenceRecord] = useState(() => focusedAward);
   const columns = [
     { key: "award", label: "Award", required: true, sticky: true, minWidth: 310, value: (award) => award.awardId || award.id, searchValue: (award) => [award.awardId, award.id, award.description, award.contractType], render: (award) => <><strong>{award.awardId || award.id}</strong><small>{award.contractType || "Contract award"} · {award.description || "No description"}</small></> },
     { key: "vendor", label: "Vendor", facet: true, minWidth: 180, value: (award) => award.recipient },
@@ -102,11 +103,13 @@ function AwardTable({ awards, sourceUrl, evidenceProps }) {
     { key: "value", label: "Award value", sortValue: (award) => Number(award.awardAmount || 0), exportValue: (award) => award.awardAmount, render: (award) => <strong>{money(award.awardAmount)}</strong> },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (award) => <div className="dbi-table-actions"><a href={sourceUrl(award)} target="_blank" rel="noreferrer">Source<ExternalLink size={12} /></a><button type="button" onClick={() => setEvidenceRecord(award)}>Details</button></div> },
   ];
-  return <><OperationalDataTable id="award-records" label="Award records" rows={awards} columns={columns} rowKey={(award) => award.id} defaultSort={{ key: "value", direction: "desc" }} searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…" exportFilename="defense-awards.csv" defaultPageSize={10} mobileColumns={["award", "vendor", "buyer", "value", "actions"]} showSearch={false} showFacets={false} wrapperProps={{ "data-award-record-table": true }} /><EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} {...evidenceProps} /></>;
+  return <><OperationalDataTable id="award-records" label="Award records" rows={awards} columns={columns} rowKey={(award) => award.id} defaultSort={{ key: "value", direction: "desc" }} searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…" exportFilename="defense-awards.csv" defaultPageSize={10} mobileColumns={["award", "vendor", "buyer", "value", "actions"]} highlightedRowId={focusedAward?.id || ""} showSearch={false} showFacets={false} wrapperProps={{ "data-award-record-table": true }} /><EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} {...evidenceProps} /></>;
 }
 
 export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, snapshotGeneratedAt, methodology, executionCoverage }) {
   const awards = awardDrilldown.awards;
+  const routedAwardId = new URLSearchParams(window.location.hash.split("?")[1] || "").get("awardId") || "";
+  const [focusedAwardId, setFocusedAwardId] = useState(routedAwardId);
   const defaults = { query: "", area: "all", buyer: "all", vendor: "all", workType: "all", sort: "amount" };
   const [filters, setFilters] = useUrlState(defaults, {
     area: (value) => value === "all" || awards.some((award) => (award.areaIds || []).includes(value)),
@@ -139,11 +142,28 @@ export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, s
   const topWork = aggregateAwards(filteredAwards.filter((award) => award.pscCode || award.naicsCode), (award) => ({ id: award.pscCode || award.naicsCode, label: award.pscCode ? `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` : `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}` })).slice(0, 4);
   const sourceUrl = (row) => sourceUrlForRow(row, books, sourcePackageUrl);
   const evidenceProps = { books, sourcePackageUrl, snapshotGeneratedAt, methodology, executionCoverage };
+  const searchItems = useMemo(() => awards.map((award) => ({
+    id: award.id || award.awardId,
+    value: award.awardId || award.awardNumber || award.id,
+    label: award.awardId || award.awardNumber || award.id,
+    meta: [award.recipient, award.buyerSubAgency, award.description].filter(Boolean).join(" · "),
+    type: "Award",
+    award,
+  })), [awards]);
+  const selectAward = (item) => {
+    setFilters({ ...filters, query: item.value });
+    setFocusedAwardId(item.id);
+    const [path, search = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(search);
+    params.set("query", item.value);
+    params.set("awardId", item.id);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${path}?${params}`);
+  };
   const metrics = [{ id: "awards", label: "Matched awards", value: filteredAwards.length.toLocaleString(), meta: `${awards.length.toLocaleString()} in the sampled dataset`, tone: "info" }, { id: "value", label: "Matched value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" }, { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" }];
 
   return <div className="grid awards-page" data-awards-page>
     <ControlWorkbenchHeader eyebrow="Award-level spend" title="Awards" summary="Search, inspect, and export the complete matched award set from the cached USAspending sample." metrics={metrics} metricLabel="Award filter metrics" actions={<AnalysisActions rows={filteredAwards} filename="filtered-awards" sourceUrlForRow={sourceUrl} exportMetadata={{ snapshotGeneratedAt, methodology }} />} controls={<div className="award-filter-bar" data-award-filter-bar>
-      <label className="if-field searchbox award-search"><span className="if-field__label">Search</span><Search size={15} aria-hidden="true" /><input className="if-input" aria-label="Search awards" placeholder="Search award IDs, vendors, buyers, descriptions" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} /></label>
+      <ControlAutocomplete className="award-search" label="Search" value={filters.query} items={searchItems} minLength={1} limit={10} onChange={(query, item) => { setFilters({ ...filters, query }); if (!item) setFocusedAwardId(""); }} onSelect={selectAward} placeholder="Find an award, vendor, buyer, or description" emptyText="No matching award" data-award-autocomplete />
       <ControlField label="Area" value={filters.area} options={[["all", "All areas"], ...areaOptions.map((option) => [option.id, option.label])]} onChange={(area) => setFilters({ ...filters, area })} />
       <ControlField label="Buyer" searchable value={filters.buyer} options={[["all", "All buyers"], ...buyerOptions.map((option) => [option.id, option.label])]} onChange={(buyer) => setFilters({ ...filters, buyer })} />
       <ControlField label="Vendor" searchable value={filters.vendor} options={[["all", "All vendors"], ...vendorOptions.map((option) => [option.id, option.label])]} onChange={(vendor) => setFilters({ ...filters, vendor })} />
@@ -151,7 +171,7 @@ export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, s
       <ControlField label="Sort" value={filters.sort} options={[["amount", "Award value"], ["end", "End date"], ["start", "Start date"], ["vendor", "Vendor"]]} onChange={(sort) => setFilters({ ...filters, sort })} />
       <ResetFilters filters={filters} defaults={defaults} onReset={() => setFilters(defaults)} />
     </div>} />
-    <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · paginated below`} icon={FileSpreadsheet}><AwardTable awards={filteredAwards} sourceUrl={sourceUrl} evidenceProps={evidenceProps} /></Section>
+    <Section title="Award Records" meta={`${filteredAwards.length.toLocaleString()} matched · paginated below`} icon={FileSpreadsheet}><AwardTable key={focusedAwardId || "award-records"} awards={filteredAwards} sourceUrl={sourceUrl} evidenceProps={evidenceProps} focusedAwardId={focusedAwardId} /></Section>
     <ControlDisclosure className="award-rollup-details" icon={<BarChart3 size={16} />} title="Market rollups" summary="Top buyers, vendors, and coded work types for the current filters"><div className="grid grid--sources"><AwardRollup title="Top Buyers" rows={topBuyer} /><AwardRollup title="Top Vendors" rows={topVendor} /><AwardRollup title="Top Work Types" rows={topWork} /></div></ControlDisclosure>
   </div>;
 }

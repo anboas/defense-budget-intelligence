@@ -7,6 +7,7 @@ import { useManagementState } from "./management-state.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import { samNoticeTypeLabel } from "./sam-notice-types.js";
 import { PURSUIT_TASK_EVENT } from "./pursuit-metadata.js";
+import { opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
 import "./OpportunityRecordPage.css";
 
 function date(value) {
@@ -24,7 +25,7 @@ function money(value) {
 }
 
 function recordHref(opportunityId) {
-  return `#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(opportunityId)}`;
+  return opportunityRoute(opportunityId);
 }
 
 function RelationshipCard({ relationship, related, direction, onRemove }) {
@@ -38,9 +39,12 @@ function RelationshipCard({ relationship, related, direction, onRemove }) {
 
 function researchTimelineHref(recordId, reportId, item) {
   const year = Number(String(item.date || "").slice(0, 4));
-  const params = new URLSearchParams({ spendView: "timeline", capRecord: recordId, capResearch: reportId || "latest", capResearchDate: item.date });
-  if (year) { params.set("capFrom", String(Math.max(2023, year - 1))); params.set("capTo", String(Math.min(2034, year + 1))); }
-  return `#/budget-spend/explorer?${params}`;
+  return timelineRoute(recordId, {
+    research: reportId || "latest",
+    researchDate: item.date,
+    from: year ? Math.max(2023, year - 1) : "",
+    to: year ? Math.min(2034, year + 1) : "",
+  });
 }
 
 function ResearchReport({ report, recordId }) {
