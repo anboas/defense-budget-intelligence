@@ -22,6 +22,7 @@ const TEMPORAL_EVIDENCE_INDEX_FILE = resolve(DATA_DIR, "temporal-evidence-index.
 const TEMPORAL_EVIDENCE_REVIEW_FILE = resolve(DATA_DIR, "temporal-evidence-review.json");
 const MONEY_PATH_INDEX_FILE = resolve(DATA_DIR, "money-path-index.json");
 const STRATEGY_SPEND_INDEX_FILE = resolve(DATA_DIR, "strategy-spend-index.json");
+const INTELLIGENCE_SEARCH_INDEX_FILE = resolve(DATA_DIR, "intelligence-search-index.json");
 const AGENT_GRAPH_DIR = resolve(DATA_DIR, "agent-graph");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
@@ -1714,6 +1715,60 @@ const graphSummary = {
 };
 writeFileSync(SUMMARY_FILE, JSON.stringify(graphSummary));
 
+const SEARCHABLE_ENTITY_TYPES = [
+  "activity",
+  "award",
+  "organization",
+  "contract-vehicle",
+  "federal-account",
+  "classification",
+  "location",
+  "person",
+  "official-role",
+  "defense-program",
+  "program-office",
+];
+const personLabelById = new Map(entities.person.map((item) => [item.id, item.label]));
+function searchFacts(type, item) {
+  if (type === "activity") return [item.reference, item.displayId, item.lifecycle, item.sourceSystem];
+  if (type === "award") return [item.piid, item.recipient, item.obligatedAmount, item.endDate];
+  if (type === "organization") return [item.identity?.class, item.identity?.resolutionState, ...(item.aliases || []).slice(0, 3)];
+  if (type === "contract-vehicle") return [item.piid, item.kind, item.orderCount];
+  if (type === "federal-account") return [item.federalAccountCode, item.bureauName, item.obligatedAmount];
+  if (type === "classification") return [item.namespace, item.code];
+  if (type === "location") return [item.city, item.state, item.kind, item.branch];
+  if (type === "person") return [];
+  if (type === "official-role") return [personLabelById.get(item.personId), item.title, item.organizationName, item.status];
+  if (type === "defense-program") return [item.organization, item.programKind, ...(item.budgetLineCodes || []).slice(0, 3)];
+  if (type === "program-office") return [item.organization, item.roleType];
+  return [];
+}
+function searchLabel(type, item) {
+  if (type === "official-role") return `${personLabelById.get(item.personId) || "Public official"} · ${item.title || "Official role"}`;
+  return item.label || item.title || item.reference || item.piid || item.federalAccountCode || item.code || item.id;
+}
+const intelligenceSearchIndex = {
+  metadata: {
+    schemaVersion: "intelligence-search.v1",
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    asOf: graph.metadata.asOf,
+    title: "Universal intelligence workspace search index",
+    entityTypes: SEARCHABLE_ENTITY_TYPES,
+    resultCount: SEARCHABLE_ENTITY_TYPES.reduce((total, type) => total + entities[type].length, 0),
+    trustBoundary: "Search exposes retained entity identity and compact source facts only. Selecting a result opens the canonical workspace; it does not create or infer relationships.",
+  },
+  items: SEARCHABLE_ENTITY_TYPES.flatMap((type) => entities[type].map((item) => ({
+    id: type === "activity" ? item.opportunityId : item.id,
+    graphId: item.id,
+    entityType: type,
+    label: searchLabel(type, item),
+    facts: searchFacts(type, item).filter((value) => value !== undefined && value !== null && value !== "").slice(0, 5),
+    sourceArtifact: item.sourceArtifact || item.sourceArtifacts?.[0] || "intelligence-graph",
+  }))),
+};
+writeFileSync(INTELLIGENCE_SEARCH_INDEX_FILE, JSON.stringify(intelligenceSearchIndex));
+
 const entityTypeById = new Map(Object.entries(entities).flatMap(([type, rows]) => rows.map((row) => [row.id, type])));
 const relationShards = Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, []]));
 const AGENT_RELATION_PAGE_SIZE = 4_000;
@@ -1766,4 +1821,4 @@ const agentGraphBytes = Object.values(agentGraphManifest.entityTypes).reduce((to
   + readFileSync(resolve(ROOT, `public${item.entityPath}`)).byteLength
   + item.relationPaths.reduce((sum, path) => sum + readFileSync(resolve(ROOT, `public${path}`)).byteLength, 0), readFileSync(resolve(AGENT_GRAPH_DIR, "manifest.json")).byteLength);
 
-console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, agentGraphDirectory: AGENT_GRAPH_DIR, agentGraphBytes, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));
+console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, searchIndex: INTELLIGENCE_SEARCH_INDEX_FILE, searchIndexBytes: readFileSync(INTELLIGENCE_SEARCH_INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, agentGraphDirectory: AGENT_GRAPH_DIR, agentGraphBytes, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

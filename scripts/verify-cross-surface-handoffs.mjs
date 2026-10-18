@@ -6,6 +6,7 @@ import {
   classificationRoute,
   dataLibraryRoute,
   intelligenceGraphRoute,
+  intelligenceWorkspaceRoute,
   mapLocationRoute,
   opportunityRoute,
   sourceLineageRoute,
@@ -26,7 +27,11 @@ assert.equal(params(dataLibraryRoute({ recordId: "record-1" })).get("capRecord")
 assert.equal(params(timelineRoute("record-1")).get("capRecord"), "record-1");
 assert.equal(params(timelineRoute("", { vehicle: "N00019-D-0001" })).get("capVehicle"), "N00019-D-0001");
 assert.equal(params(timelineRoute("record-1", { research: "report-1", researchDate: "2026-10-17", from: 2025, to: 2027 })).get("capResearchDate"), "2026-10-17");
-assert.equal(params(opportunityRoute("record-1")).get("spendView"), "record");
+assert.equal(opportunityRoute("record-1").split("?")[0], "#/intelligence/workspace");
+assert.equal(params(opportunityRoute("record-1")).get("entityId"), "record-1");
+assert.equal(params(opportunityRoute("record-1")).get("entityType"), "activity");
+assert.equal(params(intelligenceWorkspaceRoute({ entityType: "organization", entityId: "org-1", tab: "connections", returnTo: "#/budget-spend/library" })).get("workspaceTab"), "connections");
+assert.equal(params(intelligenceWorkspaceRoute({ entityType: "organization", entityId: "org-1", returnTo: "#/budget-spend/library" })).get("returnTo"), "/budget-spend/library");
 assert.equal(params(intelligenceGraphRoute("record-1")).get("graphRecord"), "record-1");
 assert.equal(params(sourceLineageRoute("record-1")).get("capRecord"), "record-1");
 assert.equal(params(classificationRoute("NAICS 541512")).get("capQuery"), "NAICS 541512");

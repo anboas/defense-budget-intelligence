@@ -8,6 +8,7 @@ const capture = read("src/data/capture-calendar.json");
 const organizations = read("src/data/organization-intelligence.json");
 const roadmap = read("src/data/roadmap-intelligence.json");
 const graph = read("public/data/intelligence-graph-summary.json");
+const search = read("public/data/intelligence-search-index.json");
 
 assert.equal(capture.metadata.schemaVersion, "1.1.0", "Architecture v2 must not replace the capture-calendar schema");
 assert.ok(capture.records.length >= 190, "Architecture v2 must retain the complete capture-calendar source set");
@@ -24,6 +25,9 @@ assert.equal(roadmap.metadata.coverage.officialRoles, roadmap.officialRoles.leng
 assert.equal(roadmap.metadata.coverage.supplierRelationships, roadmap.supplierRelationships.length, "Supplier relationship coverage must match the retained payload");
 assert.ok(organizations.dossiers.some((dossier) => dossier.parentOrganizationName), "Customer hierarchy must include reviewed parent relationships");
 assert.ok(organizations.dossiers.some((dossier) => dossier.personIds?.length && dossier.awardIds?.length && dossier.vendorNames?.length), "At least one customer dossier must connect people, work, and companies");
+assert.equal(search.metadata.schemaVersion, "intelligence-search.v1", "Universal intelligence search must publish an independent schema version");
+assert.equal(search.metadata.resultCount, search.items.length, "Universal intelligence search count must match its retained item index");
+for (const type of ["activity", "award", "organization", "contract-vehicle", "federal-account", "classification", "location", "person", "official-role", "defense-program", "program-office"]) assert.ok(search.items.some((item) => item.entityType === type), `Universal intelligence search must retain ${type} entities`);
 
 console.log(JSON.stringify({
   timelineRecords: capture.records.length,

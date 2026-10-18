@@ -130,6 +130,7 @@ const intelligenceGraphBytes = (await stat(resolve(root, "dist/data/intelligence
 const intelligenceGraphCompressedBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json.gzip"))).size;
 const intelligenceGraphIndexBytes = (await stat(resolve(root, "dist/data/intelligence-graph-index.json"))).size;
 const intelligenceGraphSummaryBytes = (await stat(resolve(root, "dist/data/intelligence-graph-summary.json"))).size;
+const intelligenceSearchIndexBytes = (await stat(resolve(root, "dist/data/intelligence-search-index.json"))).size;
 const roadmapIntelligenceBytes = (await stat(resolve(root, "dist/data/roadmap-intelligence.json"))).size;
 const organizationIntelligenceBytes = (await stat(resolve(root, "dist/data/organization-intelligence.json"))).size;
 const organizationChangeMonitorBytes = (await stat(resolve(root, "dist/data/organization-change-monitor.json"))).size;
@@ -145,6 +146,7 @@ assert.ok(intelligenceGraphCompressedBytes > 0 && intelligenceGraphCompressedByt
 assert.ok(gunzipSync(await readFile(resolve(root, "dist/data/intelligence-graph.json.gzip"))).equals(await readFile(resolve(root, "dist/data/intelligence-graph.json"))), "Compressed integrity graph must decode to the exact canonical JSON artifact");
 assert.ok(intelligenceGraphIndexBytes > 0 && intelligenceGraphIndexBytes <= 3_000_000, `Deferred browser evidence index exceeds its 3MB ceiling, got ${intelligenceGraphIndexBytes} bytes`);
 assert.ok(intelligenceGraphSummaryBytes > 0 && intelligenceGraphSummaryBytes <= 32_000, `Source Lineage graph summary exceeds its 32KB ceiling, got ${intelligenceGraphSummaryBytes} bytes`);
+assert.ok(intelligenceSearchIndexBytes > 0 && intelligenceSearchIndexBytes <= 3_000_000, `Lazy universal intelligence search exceeds its 3MB ceiling, got ${intelligenceSearchIndexBytes} bytes`);
 assert.ok(roadmapIntelligenceBytes > 0 && roadmapIntelligenceBytes <= 3_800_000, `Deferred people, industrial-base, document, and operations intelligence exceeds its 3.8MB route ceiling, got ${roadmapIntelligenceBytes} bytes`);
 assert.ok(organizationIntelligenceBytes > 0 && organizationIntelligenceBytes <= 1_500_000, `Deferred Organization Intelligence dossiers exceed their 1.5MB route ceiling, got ${organizationIntelligenceBytes} bytes`);
 assert.ok(organizationChangeMonitorBytes > 0 && organizationChangeMonitorBytes <= 100_000, `Organization Watch observations and review proposals exceed their 100KB route ceiling, got ${organizationChangeMonitorBytes} bytes`);
@@ -156,6 +158,9 @@ assert.ok(temporalEvidenceReviewBytes > 0 && temporalEvidenceReviewBytes <= 900_
 assert.ok(moneyPathIndexBytes > 0 && moneyPathIndexBytes <= 3_000_000, `Deferred Money Path index exceeds its 3MB ceiling, got ${moneyPathIndexBytes} bytes`);
 assert.ok(strategySpendIndexBytes > 100_000 && strategySpendIndexBytes <= 500_000, `Deferred strategic spend index must remain between 100KB and 500KB, got ${strategySpendIndexBytes} bytes`);
 const organizationIdentityReview = JSON.parse(await read("dist/data/organization-identity-review.json"));
+const intelligenceSearchIndex = JSON.parse(await read("dist/data/intelligence-search-index.json"));
+assert.equal(intelligenceSearchIndex.metadata?.schemaVersion, "intelligence-search.v1", "Universal intelligence search must publish its independent schema version");
+assert.equal(intelligenceSearchIndex.metadata?.resultCount, intelligenceSearchIndex.items?.length, "Universal intelligence search coverage must match its published item count");
 assert.equal(organizationIdentityReview.metadata?.schemaVersion, "1.0.0", "Organization identity review must publish its independent schema version");
 assert.equal(organizationIdentityReview.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Organization identity review must track the canonical graph schema");
 assert.ok(organizationIdentityReview.conflicts?.every((item) => item.status === "needs_review" && item.candidateUeis?.length > 1), "Ambiguous organization labels must remain explicit review items");

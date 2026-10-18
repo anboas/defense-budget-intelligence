@@ -53,7 +53,7 @@ function ConnectionGroup({ title, items, renderItem }) {
   return <section className="connected-evidence__group"><h4>{title}</h4><div>{items.map(renderItem)}</div></section>;
 }
 
-export default function ConnectedEvidence({ opportunityId, record = null, researchReport = null, fullView = false, workspace = false }) {
+export default function ConnectedEvidence({ opportunityId, record = null, researchReport = null, fullView = false, workspace = false, view = "", showViewNavigation = true, ledgerOpen = false }) {
   const [state, setState] = useState({ status: "loading", graph: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -106,9 +106,9 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
         <div className="connected-evidence__summary"><div className="connected-evidence__metrics" aria-label="Connected evidence counts">{metrics.slice(0, 4).map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}</div><small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces</small></div>
       </header>
-      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} fullView={fullView} /></Suspense>
+      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} fullView={fullView} controlledView={view} showViewNavigation={showViewNavigation} /></Suspense>
       <details className="connected-evidence__related"><summary><strong>Related views</strong><span>{routeLinks.length} ways to continue</span></summary><nav className="connected-evidence__routes" aria-label="Open connected surfaces">{routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}</nav></details>
-      <details className="connected-evidence__ledger">
+      <details className="connected-evidence__ledger" open={ledgerOpen || undefined}>
         <summary><strong>Supporting evidence ledger</strong><span>Awards, lineage, organizations, classifications, and conflicts</span></summary>
         <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
