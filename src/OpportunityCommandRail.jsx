@@ -94,7 +94,7 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
   </details>;
 }
 
-export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true }) {
+export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true, compact = false }) {
   const id = recordId(record);
   const sourceUrl = record?.sourceUrl || record?.sourceUrls?.[0] || null;
   const [status, setStatus] = useState("");
@@ -115,6 +115,28 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
     }
   }
 
+  const actions = <nav className="if-panel__footer" style={{ justifyContent: "flex-start", flexWrap: "wrap" }} aria-label="Selected opportunity actions">
+    <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
+    <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
+    {showRecordLink ? <a className="if-btn if-btn--primary if-touch-target" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}`}><ListChecks size={15} />Open record</a> : null}
+    <details className="dbi-data-table__columns pursuit-actions__more"><summary className="if-btn if-btn--secondary if-touch-target"><MoreHorizontal size={15} />More</summary><div><a className="if-btn if-btn--ghost" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(id)}`}><CalendarClock size={15} />Timeline</a>{sourceUrl ? <a className="if-btn if-btn--ghost" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}</div></details>
+  </nav>;
+
+  const compactActions = <nav className="if-panel__footer" aria-label="Selected opportunity actions">
+    <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
+    <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
+    <details className="dbi-data-table__columns pursuit-actions__more"><summary className="if-btn if-btn--secondary if-touch-target"><MoreHorizontal size={15} />More</summary><div>{showRecordLink ? <a className="if-btn if-btn--ghost" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}`}><ListChecks size={15} />Open record</a> : null}<a className="if-btn if-btn--ghost" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(id)}`}><CalendarClock size={15} />Timeline</a>{sourceUrl ? <a className="if-btn if-btn--ghost" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}</div></details>
+  </nav>;
+
+  if (compact) return <section className="opportunity-command-rail opportunity-command-rail--compact" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
+    {compactActions}
+    <details className="opportunity-command-rail__setup">
+      <summary><span><strong>Pursuit setup</strong><small>{watch ? `${normalizePursuit(watch.pursuit).stage} · ${normalizePursuit(watch.pursuit).owner || "Unassigned"}` : "Owner, stage, next action, and tasks"}</small></span><span>{status || (watch ? "Saved" : "Set up")}</span></summary>
+      <div className="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} /><TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} /></div>
+    </details>
+    {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
+  </section>;
+
   return <section className="if-panel" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
     <header className="if-panel__header">
       <div><h3 className="if-panel__title">Pursuit controls</h3><p className="if-panel__subtitle">Assign ownership, stage the work, and keep the next decision visible.</p></div>
@@ -122,12 +144,7 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
     </header>
     <PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} />
     <TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} />
-    <nav className="if-panel__footer" style={{ justifyContent: "flex-start", flexWrap: "wrap" }} aria-label="Selected opportunity actions">
-      <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
-      <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
-      {showRecordLink ? <a className="if-btn if-btn--primary if-touch-target" href={`#/budget-spend/explorer?spendView=record&capRecord=${encodeURIComponent(id)}`}><ListChecks size={15} />Open record</a> : null}
-      <details className="dbi-data-table__columns pursuit-actions__more"><summary className="if-btn if-btn--secondary if-touch-target"><MoreHorizontal size={15} />More</summary><div><a className="if-btn if-btn--ghost" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(id)}`}><CalendarClock size={15} />Timeline</a>{sourceUrl ? <a className="if-btn if-btn--ghost" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}</div></details>
-    </nav>
+    {actions}
     {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
   </section>;
 }

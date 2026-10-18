@@ -9,7 +9,6 @@ import OperationalDataTable from "./OperationalDataTable.jsx";
 import useUrlState from "./urlState.js";
 
 const money = (value) => `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`;
-const percent = (value, digits = 0) => `${Number(value || 0).toFixed(digits)}%`;
 const sum = (rows, key) => rows.reduce((total, row) => total + Number(row?.[key] || 0), 0);
 const dateTime = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Unknown";
 
@@ -103,7 +102,7 @@ function AwardTable({ awards, sourceUrl, evidenceProps }) {
     { key: "value", label: "Award value", sortValue: (award) => Number(award.awardAmount || 0), exportValue: (award) => award.awardAmount, render: (award) => <strong>{money(award.awardAmount)}</strong> },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (award) => <div className="dbi-table-actions"><a href={sourceUrl(award)} target="_blank" rel="noreferrer">Source<ExternalLink size={12} /></a><button type="button" onClick={() => setEvidenceRecord(award)}>Details</button></div> },
   ];
-  return <><OperationalDataTable id="award-records" label="Award records" rows={awards} columns={columns} rowKey={(award) => award.id} defaultSort={{ key: "value", direction: "desc" }} searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…" exportFilename="defense-awards.csv" defaultPageSize={25} mobileColumns={["award", "vendor", "buyer", "value", "actions"]} showSearch={false} showFacets={false} wrapperProps={{ "data-award-record-table": true }} /><EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} {...evidenceProps} /></>;
+  return <><OperationalDataTable id="award-records" label="Award records" rows={awards} columns={columns} rowKey={(award) => award.id} defaultSort={{ key: "value", direction: "desc" }} searchPlaceholder="Search awards, vendors, buyers, PSC, or NAICS…" exportFilename="defense-awards.csv" defaultPageSize={10} mobileColumns={["award", "vendor", "buyer", "value", "actions"]} showSearch={false} showFacets={false} wrapperProps={{ "data-award-record-table": true }} /><EvidenceDrawer record={evidenceRecord} onClose={() => setEvidenceRecord(null)} {...evidenceProps} /></>;
 }
 
 export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, snapshotGeneratedAt, methodology, executionCoverage }) {
@@ -135,13 +134,12 @@ export default function AwardsRoute({ awardDrilldown, books, sourcePackageUrl, s
     return b.awardAmount - a.awardAmount;
   });
   const filteredValue = sum(filteredAwards, "awardAmount");
-  const filteredOfficeCount = filteredAwards.filter((award) => award.fundingOffice || award.awardingOffice).length;
   const topBuyer = aggregateAwards(filteredAwards, (award) => ({ id: award.buyerSubAgency, label: award.buyerSubAgency })).slice(0, 4);
   const topVendor = aggregateAwards(filteredAwards, (award) => ({ id: award.recipient, label: award.recipient })).slice(0, 4);
   const topWork = aggregateAwards(filteredAwards.filter((award) => award.pscCode || award.naicsCode), (award) => ({ id: award.pscCode || award.naicsCode, label: award.pscCode ? `${award.pscCode} · ${award.pscDescription || "Unlabeled PSC"}` : `${award.naicsCode} · ${award.naicsDescription || "Unlabeled NAICS"}` })).slice(0, 4);
   const sourceUrl = (row) => sourceUrlForRow(row, books, sourcePackageUrl);
   const evidenceProps = { books, sourcePackageUrl, snapshotGeneratedAt, methodology, executionCoverage };
-  const metrics = [{ id: "awards", label: "Matched awards", value: filteredAwards.length.toLocaleString(), meta: `${awards.length.toLocaleString()} in the sampled dataset`, tone: "info" }, { id: "value", label: "Matched value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" }, { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" }, { id: "vendor", label: "Largest vendor", value: topVendor[0]?.label || "n/a", meta: topVendor[0] ? `${money(topVendor[0].awardAmount)} · ${topVendor[0].awards} awards` : "No matching awards", tone: "warning" }, { id: "office", label: "Office detail", value: filteredAwards.length ? percent((filteredOfficeCount / filteredAwards.length) * 100, 1) : "0.0%", meta: `${filteredOfficeCount.toLocaleString()} matched awards identify an office`, tone: "success" }];
+  const metrics = [{ id: "awards", label: "Matched awards", value: filteredAwards.length.toLocaleString(), meta: `${awards.length.toLocaleString()} in the sampled dataset`, tone: "info" }, { id: "value", label: "Matched value", value: money(filteredValue), meta: "Deduped award amount from current filters", tone: "success" }, { id: "buyer", label: "Largest buyer", value: topBuyer[0]?.label || "n/a", meta: topBuyer[0] ? `${money(topBuyer[0].awardAmount)} · ${topBuyer[0].awards} awards` : "No matching awards", tone: "purple" }];
 
   return <div className="grid awards-page" data-awards-page>
     <ControlWorkbenchHeader eyebrow="Award-level spend" title="Awards" summary="Search, inspect, and export the complete matched award set from the cached USAspending sample." metrics={metrics} metricLabel="Award filter metrics" actions={<AnalysisActions rows={filteredAwards} filename="filtered-awards" sourceUrlForRow={sourceUrl} exportMetadata={{ snapshotGeneratedAt, methodology }} />} controls={<div className="award-filter-bar" data-award-filter-bar>
