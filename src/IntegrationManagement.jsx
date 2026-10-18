@@ -5,6 +5,7 @@ import sourceHealth from "./data/source-health.json";
 import OpenAiKeyManagement from "./OpenAiKeyManagement.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import SectionedPageHeader from "./SectionedPageHeader.jsx";
+import AcquisitionRuntimePanel from "./AcquisitionRuntimePanel.jsx";
 
 function dateTime(value) {
   const date = new Date(value || "");
@@ -93,6 +94,7 @@ export default function IntegrationManagement({ auth, dataset, samOpportunities,
           { id: "checked", label: "Health checked", value: dateTime(sourceHealth.metadata?.checkedAt), meta: "Point-in-time source probe", tone: "info" },
         ]} />
         <OperationalDataTable id="integrations" label="Integration status" rows={rows} columns={columns} rowKey={(row) => row.name} defaultSort={{ key: "name", direction: "asc" }} searchPlaceholder="Search integrations and feed details…" exportFilename="integration-status.csv" selectable={false} wrapperProps={{ "data-ops-integration-table": true }} />
+        <AcquisitionRuntimePanel />
         <ControlDisclosure
           data-contract-monitor-disclosure
           title="Contract monitor coverage"

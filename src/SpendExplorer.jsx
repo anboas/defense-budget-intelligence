@@ -8,8 +8,6 @@ import { applyProcurementChanges, assembleProcurementRecords, TECHNOLOGY_AREA_BY
 import { useRecordDispositions } from "./record-dispositions.js";
 import { emptyProcurementDiscovery, emptyProcurementFeed, loadProcurementDiscovery, loadProcurementFeed } from "./procurement-discovery.js";
 import SpendSavedViews from "./SpendSavedViews.jsx";
-import SpendToday from "./SpendToday.jsx";
-import AcquisitionRuntimePanel from "./AcquisitionRuntimePanel.jsx";
 import { reportClientError } from "./client-error-reporting.js";
 import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import { useAuth } from "./AuthContext.jsx";
@@ -27,7 +25,7 @@ const UniversalIntelligenceWorkspace = lazyWithRefresh(() => import("./Universal
 const OpportunityPortfolioVisuals = lazyWithRefresh(() => import("./OpportunityPortfolioVisuals.jsx"), "opportunity-portfolio-visuals");
 const OpportunityWorkbenchDetail = lazyWithRefresh(() => import("./OpportunityWorkbenchDetail.jsx"), "opportunity-workbench-detail");
 
-const VIEWS = new Set(["radar", "today", "visuals", "timeline", "table", "charts", "record"]);
+const VIEWS = new Set(["radar", "visuals", "timeline", "table", "charts", "record"]);
 const STRATEGY_SCOPE_KEY = "dbi:strategy-scope:v1";
 
 function readRoute() {
@@ -116,8 +114,6 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const dispositions = useRecordDispositions();
   const [discoveryIndex, setDiscoveryIndex] = useState(() => procurementDelta?.discovery?.length ? procurementDelta : emptyProcurementDiscovery());
   const [dailyFeed, setDailyFeed] = useState(emptyProcurementFeed);
-  const [hasSavedViews, setHasSavedViews] = useState(false);
-  const [savedViewSummary, setSavedViewSummary] = useState({ count: 0, unreadCount: 0, favorites: 0 });
   const [runtimeSamRecords, setRuntimeSamRecords] = useState([]);
   const loadRuntimeRecords = useCallback(async () => {
     if (!runtimeAvailable) { setRuntimeSamRecords([]); return; }
@@ -146,15 +142,15 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     return () => window.removeEventListener("hashchange", sync);
   }, []);
   useEffect(() => {
-    if (!(view === "table" || (view === "today" && hasSavedViews)) || discoveryIndex.discovery.length) return undefined;
+    if (view !== "table" || discoveryIndex.discovery.length) return undefined;
     let active = true;
     loadProcurementDiscovery()
       .then((payload) => { if (active) setDiscoveryIndex(payload); })
       .catch(() => { /* Date-added fields remain explicitly unavailable when the deferred feed cannot load. */ });
     return () => { active = false; };
-  }, [discoveryIndex.discovery.length, hasSavedViews, view]);
+  }, [discoveryIndex.discovery.length, view]);
   useEffect(() => {
-    if (!["today", "table"].includes(view) || dailyFeed.history.length) return undefined;
+    if (view !== "table" || dailyFeed.history.length) return undefined;
     let active = true;
     loadProcurementFeed()
       .then((payload) => { if (active) setDailyFeed(payload); })
@@ -253,7 +249,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     if (key === "branch") { next.component = "all"; next.office = "all"; }
     if (key === "component") next.office = "all";
     setTableFilters(next);
-    updateRoute(view === "today" ? "today" : "table", { customer: next.customer === "all" ? "" : next.customer, stage: next.stage === "all" ? "" : next.stage, trust: next.trust === "all" ? "" : next.trust, technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
+    updateRoute("table", { customer: next.customer === "all" ? "" : next.customer, stage: next.stage === "all" ? "" : next.stage, trust: next.trust === "all" ? "" : next.trust, technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: next.changes === "today" ? "today" : "" });
   };
   const tableColumns = [
     { key: "record", label: "Opportunity", required: true, sticky: true, minWidth: 320, mobilePrimary: true, value: (record) => `${record.title || "Untitled"} ${record.id || record.reference || "Unidentified"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title, record.description].filter(Boolean).join(" "), render: (record) => <><strong>{record.title || "Untitled public record"}</strong><small>{record.id || record.reference || record.sourceRecordId || "Unidentified"}</small></> },
@@ -282,12 +278,6 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     { key: "acquisitionScore", label: "Screening", minWidth: 120, sortValue: (record) => Number(record.acquisitionScore || 0), value: (record) => record.acquisitionScore == null ? "Not assessed" : `${record.acquisitionScore}/100` },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions">{dispositions.canWrite ? dispositions.tombstonedIds.has(record.opportunityId) ? <button type="button" onClick={() => dispositions.restore(record.opportunityId)} aria-label={`Restore ${record.title}`} title="Restore to active opportunities"><ArchiveRestore size={15} /></button> : <button type="button" onClick={() => dispositions.tombstone(record.opportunityId)} aria-label={`Hide ${record.title}`} title="Hide from active opportunities"><ArchiveX size={15} /></button> : null}</div> },
   ];
-  const todayMetrics = [
-    { id: "known", label: "Known records", value: Number(dailyFeed.metadata?.coverage?.knownRecords || dailyFeed.metadata?.discoveryCount || rows.length).toLocaleString(), meta: "Disclosed discovery scope" },
-    { id: "new", label: "New today", value: Number(latestFeed?.summary?.added || 0).toLocaleString(), meta: "First observed by DBI" },
-    { id: "changed", label: "Changed today", value: Number(latestFeed?.summary?.updated || 0).toLocaleString(), meta: "Field-level source changes" },
-    { id: "coverage", label: "Monitor coverage", value: `${Number(dailyFeed.metadata?.coverage?.contractMonitor?.coveragePct || 0).toLocaleString()}%`, meta: `${Number(dailyFeed.metadata?.coverage?.contractMonitor?.gapCount || 0).toLocaleString()} disclosed gaps` },
-  ];
   const radarAssessments = useMemo(() => rows.map((record) => classifyOpportunityFit(record)), [rows]);
   const radarMetrics = [
     { id: "strong", label: "Strong fit", value: radarAssessments.filter((item) => item.score >= 70).length.toLocaleString(), meta: "Explainable 70+ profile score" },
@@ -301,7 +291,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     updateRoute("table", { customer: "", stage: "", trust: "", technology: "", noticeType: "", orgBranch: "", orgComponent: "", orgOffice: "", records: "", changes: "" });
   };
   const savedViewRows = rows.length ? rows : (discoveryIndex.discovery || []);
-  const savedViews = <SpendSavedViews compact={view === "table"} rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onHasViews={setHasSavedViews} onSummary={setSavedViewSummary} onLoad={(saved) => {
+  const savedViews = <SpendSavedViews compact rows={savedViewRows} tombstonedIds={dispositions.tombstonedIds} query={query} filters={tableFilters} onLoad={(saved) => {
     const next = { ...tableFilters, ...(saved.filters || {}), disposition: saved.filters?.disposition === "tombstoned" ? "tombstoned" : "active", changes: "all" };
     setTableFilters(next);
     setQuery(saved.query || "");
@@ -324,10 +314,6 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   if (view === "radar") return <section className="spend-explorer spend-explorer--radar" data-spend-explorer="radar">
     <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Radar" summary="Find applicable work, inspect why it fits, add known SAM.gov notices, and track what matters." metrics={radarMetrics} metricLabel="Opportunity radar summary" tabs={tabs} />
     <ControlPageBody compact><OpportunityRadar rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} runtimeAvailable={runtimeAvailable} onRuntimeRecordsChanged={loadRuntimeRecords} /></ControlPageBody>
-  </section>;
-  if (view === "today") return <section className="spend-explorer spend-explorer--today" data-spend-explorer="today">
-    <ControlWorkbenchHeader eyebrow="Decision support" title="Decision Brief" summary="What changed, what needs attention, and where to continue." metrics={todayMetrics} metricLabel="Decision brief summary" tabs={tabs} />
-    <ControlPageBody compact><SpendToday rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} discoveryFeed={dailyFeed} savedViews={savedViews} savedViewSummary={savedViewSummary} runtimePanel={<AcquisitionRuntimePanel onRefreshComplete={loadRuntimeRecords} />} /></ControlPageBody>
   </section>;
   if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, customer: "all", stage: "all", trust: "all", office, technology, disposition: "active", changes: "all" }; setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", customer: "", stage: "", trust: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "", strategyScope: "" }); }} onQuadrant={(quadrant, ids) => { const scope = { key: quadrant.key || `ansoff-${quadrant.id}`, label: quadrant.label || `${quadrant.code} / ${quadrant.name}`, ids }; window.sessionStorage.setItem(STRATEGY_SCOPE_KEY, JSON.stringify(scope)); setStrategyScope(scope); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", capRecord: "", strategyScope: scope.key }); }} /></Suspense></SpendViewBoundary>;
   if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="Intelligence Workspace" />}><UniversalIntelligenceWorkspace dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} routeHash={`#/intelligence/workspace?entityType=activity&entityId=${encodeURIComponent(focusedRecordId)}&workspaceTab=${new URLSearchParams(window.location.hash.split("?")[1] || "").get("capVisual") === "money" ? "money" : "overview"}&returnTo=${encodeURIComponent("/budget-spend/explorer?spendView=table")}`} /></Suspense></SpendViewBoundary>;

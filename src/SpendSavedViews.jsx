@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bookmark, Copy, Mail, Pencil, Share2, Star, Trash2 } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import { ControlPopover } from "control-surface-ui/react";
 import { samNoticeTypeId, samNoticeTypeLabel } from "./sam-notice-types.js";
 
 const STORAGE_KEY = "dbi:spend-saved-views:v1";
@@ -39,15 +40,13 @@ function viewHref(entry) {
   return `#/budget-spend/explorer?${params}`;
 }
 
-export default function SpendSavedViews({ rows, tombstonedIds, query, filters, onLoad, onHasViews, onSummary, compact = false }) {
+export default function SpendSavedViews({ rows, tombstonedIds, query, filters, onLoad, compact = false }) {
   const auth = useAuth(); const remote = Boolean(auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
   const createPanelRef = useRef(null);
   const [views, setViews] = useState(() => typeof window === "undefined" ? [] : readLocal()); const [name, setName] = useState(""); const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [busy, setBusy] = useState(false); const [emailEnabled, setEmailEnabled] = useState(true); const [favoriteIds, setFavoriteIds] = useState(readFavorites); const [editingId, setEditingId] = useState(""); const [editingName, setEditingName] = useState("");
   const counts = useMemo(() => new Map(views.map((entry) => [entry.id, remote ? Number(entry.unreadCount || 0) : unreadForView(rows, entry, tombstonedIds)])), [remote, rows, tombstonedIds, views]);
   const orderedViews = useMemo(() => [...views].sort((left, right) => Number(favoriteIds.has(right.id)) - Number(favoriteIds.has(left.id)) || String(right.updatedAt || right.savedAt || "").localeCompare(String(left.updatedAt || left.savedAt || ""))), [favoriteIds, views]);
   const unreadCount = useMemo(() => [...counts.values()].reduce((total, value) => total + value, 0), [counts]);
-  useEffect(() => { onHasViews?.(views.length > 0); }, [onHasViews, views.length]);
-  useEffect(() => { onSummary?.({ count: views.length, unreadCount, favorites: favoriteIds.size }); }, [favoriteIds.size, onSummary, unreadCount, views.length]);
   const refresh = useCallback(async () => {
     if (!remote) { setViews(readLocal()); return; }
     const [payload, delivery] = await Promise.all([auth.listAcquisitionSavedViews(), auth.getAcquisitionDeliveryPreferences()]); let next = (payload.views || []).filter((entry) => entry.analysis?.kind !== "strategy"); const local = readLocal();
@@ -86,11 +85,14 @@ export default function SpendSavedViews({ rows, tombstonedIds, query, filters, o
     </>}
   </article>)}</div> : compact ? <p className="spend-saved-views__empty">No saved views yet.</p> : <p className="spend-saved-views__empty">Save a useful filter once, then reopen, share, duplicate, or alert on it from here.</p>;
   const createPanel = <details ref={createPanelRef} className="spend-saved-views__create-panel"><summary className="if-btn if-btn--secondary">Save current view</summary><div className="spend-saved-views__create"><label><span>View name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={`Explorer view ${views.length + 1}`} /></label><button type="button" className="if-button if-button--primary" onClick={() => void createView()} disabled={busy}><Bookmark size={15} />{busy ? "Saving…" : "Save"}</button></div></details>;
-  if (compact) return <>
-    <span className="dbi-data-table__primary-filter" data-spend-saved-views><ControlSelect compact ariaLabel="Saved views" value="" options={[["", views.length ? `Views (${views.length})` : "Views"], ...orderedViews.map((entry) => [entry.id, `${favoriteIds.has(entry.id) ? "★ " : ""}${entry.name}${counts.get(entry.id) ? ` · ${counts.get(entry.id)} new` : ""}`])]} onChange={(id) => { const entry = views.find((item) => item.id === id); if (entry) void load(entry); }} /></span>
+  if (compact) return <div className="spend-saved-views__compact" data-spend-saved-views>
+    <span className="dbi-data-table__primary-filter"><ControlSelect compact ariaLabel="Saved views" value="" options={[["", views.length ? `Views (${views.length})` : "Views"], ...orderedViews.map((entry) => [entry.id, `${favoriteIds.has(entry.id) ? "★ " : ""}${entry.name}${counts.get(entry.id) ? ` · ${counts.get(entry.id)} new` : ""}`])]} onChange={(id) => { const entry = views.find((item) => item.id === id); if (entry) void load(entry); }} /></span>
     <button type="button" className="if-btn if-btn--secondary" onClick={() => void createView()} disabled={busy}><Bookmark size={15} /><span>Save</span></button>
+    <ControlPopover label="Manage views" ariaLabel="Manage saved opportunity views" icon={<Bell size={15} />} triggerClassName="if-btn if-btn--secondary" width={560} popoverProps={{ className: "spend-saved-views__manager" }}>
+      <section className="spend-saved-views spend-saved-views--embedded"><header className="spend-saved-views__header"><span><Bookmark size={17} /><span><strong>Saved views</strong><small>{views.length ? `${unreadCount} unread change${unreadCount === 1 ? "" : "s"} across ${views.length} view${views.length === 1 ? "" : "s"}` : remote ? "Reusable across your signed-in devices" : "Saved in this browser"}</small></span></span>{createPanel}</header>{feedback}{delivery}{list}</section>
+    </ControlPopover>
     {error || notice ? <span className="if-sr-only" role="status">{error || notice}</span> : null}
-  </>;
+  </div>;
   return <section className="spend-saved-views" data-spend-saved-views>
     <header className="spend-saved-views__header"><span><Bookmark size={17} /><span><strong>Saved views</strong><small>{views.length ? `${unreadCount} unread change${unreadCount === 1 ? "" : "s"} across ${views.length} view${views.length === 1 ? "" : "s"}` : remote ? "Reusable across your signed-in devices" : "Saved in this browser"}</small></span></span>{createPanel}</header>
     {feedback}{delivery}{list}

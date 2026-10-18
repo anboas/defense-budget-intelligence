@@ -52,13 +52,9 @@ export const MANAGEMENT_NAVIGATION = [
 
 export function navigationContext(activeTab, routeHash = "") {
   const spendView = activeTab === "spend" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("spendView") || "table" : "";
-  const workspace = activeTab === "spend" && spendView === "today"
-    ? PRODUCT_WORKSPACES.find((entry) => entry.id === "today")
-    : PRODUCT_WORKSPACES.find((entry) => entry.tabIds.includes(activeTab)) || null;
+  const workspace = PRODUCT_WORKSPACES.find((entry) => entry.tabIds.includes(activeTab)) || null;
   if (!workspace) return { workspace: null, view: null };
-  const view = activeTab === "spend" && spendView === "today"
-    ? workspace.views.find((entry) => entry.id === "brief")
-    : activeTab === "entity-workspace"
+  const view = activeTab === "entity-workspace"
     ? { id: "entity", label: "Entity workspace", tabId: activeTab, href: routeHash || ROUTES.workspace }
     : workspace.views.find((entry) => entry.tabId === activeTab && (!entry.spendViews || entry.spendViews.includes(spendView))) || null;
   return { workspace, view };

@@ -19,8 +19,9 @@ for (const tabId of ["event-discovery", "connections", "domain-model", "intellig
 assert.equal(navigationContext("awards").workspace?.id, "funding", "Awards belongs to Funding");
 assert.equal(navigationContext("map").workspace?.id, "intelligence", "Geography belongs to Intelligence");
 assert.equal(navigationContext("tasks").workspace?.id, "today", "Tasks belongs to Today");
+assert.equal(navigationContext("watchlist", "#/budget-spend/watchlist").view?.id, "brief", "The three-pane workspace is the only Today brief owner");
 assert.equal(navigationContext("spend", "#/budget-spend/explorer?spendView=visuals").view?.id, "portfolio", "Opportunity view state must resolve to Portfolio");
-assert.equal(navigationContext("spend", "#/budget-spend/explorer?spendView=today").workspace?.id, "today", "Decision Brief must resolve to Today instead of competing with Opportunities");
+assert.equal(navigationContext("spend", "#/budget-spend/explorer?spendView=today").workspace?.id, "opportunities", "Legacy query state must not create a second Today owner inside Opportunities");
 
 const headerSource = await readFile(new URL("../src/SiteHeader.jsx", import.meta.url), "utf8");
 assert.doesNotMatch(headerSource, /ci-topnav-menu-badge|data-nav-group-trigger|data-budget-nav-menu/, "Header must not restore the mixed-purpose route-card navigation");
