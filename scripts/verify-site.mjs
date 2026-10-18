@@ -1339,18 +1339,53 @@ try {
   assert.match(await page.locator("[data-data-library-page]").innerText(), /Customers & offices[\s\S]*Officials & roles[\s\S]*Programs, awards & accounts[\s\S]*Companies & suppliers/i, "Data Library should connect customer hierarchy, people, work, and companies");
   assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Data Library should load its bounded organization index once");
   await page.screenshot({ path: `${OUT_DIR}/data-library-relationships-desktop.png`, fullPage: true });
+  await page.setViewportSize({ width: 1200, height: 750 });
   await openSurface(page, "#/budget-spend/watchlist", "[data-operations-hub]");
+  await page.evaluate(() => window.scrollTo(0, 0));
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Today", "The masthead should identify the action-oriented workspace surface");
-  assert.equal(await page.locator("[data-my-work-timeline]").count(), 1, "Today should expose a compact tracked Timeline slice");
-  assert.equal(await page.locator("[data-my-work] .my-work__status").count(), 3, "My Work should expose three action-oriented attention states");
-  assert.equal(await page.locator("[data-my-work-task]").count(), 1, "My Work should project the pursuit task into its cross-record action queue");
+  assert.equal(await page.locator("[data-today-workspace]").count(), 1, "Today should render the approved decision workspace rather than a stacked status dashboard");
+  assert.equal(await page.locator("[data-today-console] > [data-today-priority]").count(), 1, "Today should keep ranked action work in the left console pane");
+  assert.equal(await page.locator("[data-today-console] > [data-today-forward-view]").count(), 1, "Today should keep the 14-day working timeline in the center console pane");
+  assert.equal(await page.locator("[data-today-console] > [data-today-selection]").count(), 1, "Today should keep selected-opportunity context in the right console pane");
+  assert.equal(await page.locator("[data-today-lane]").count(), 4, "The default Today timeline should expose Actions, Opportunities, Research, and Team events lanes");
+  assert.equal(await page.locator("[data-my-work-task]").count(), 1, "Today should project the pursuit task into its ranked cross-record action queue");
   assert.equal(await page.locator("[data-ops-watch-table]").count(), 0, "My Work should defer the portfolio table until the operator requests it");
+  const todayComposition = await page.evaluate(() => {
+    const rect = (selector) => {
+      const bounds = document.querySelector(selector)?.getBoundingClientRect();
+      return bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height } : null;
+    };
+    return {
+      console: rect("[data-today-console]"),
+      priority: rect("[data-today-priority]"),
+      forward: rect("[data-today-forward-view]"),
+      selection: rect("[data-today-selection]"),
+    };
+  });
+  assert.ok(todayComposition.priority.right <= todayComposition.forward.left + 1 && todayComposition.forward.right <= todayComposition.selection.left + 1, `Today desktop should preserve the approved action → timeline → context reading order: ${JSON.stringify(todayComposition)}`);
+  assert.ok(todayComposition.forward.width >= 500 && todayComposition.selection.width >= 280, `Today desktop should reserve useful working width for the timeline and selected-opportunity dock at the approved 1200px reference width: ${JSON.stringify(todayComposition)}`);
+  assert.ok(Math.abs(todayComposition.priority.top - todayComposition.forward.top) <= 1 && Math.abs(todayComposition.forward.top - todayComposition.selection.top) <= 1, `All three Today panes should share one working baseline: ${JSON.stringify(todayComposition)}`);
+  assert.ok(todayComposition.console.height >= 500, `Today should retain a real operating canvas rather than collapse into summary cards: ${JSON.stringify(todayComposition)}`);
+  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  assert.equal(await page.locator("[data-today-agenda]").count(), 1, "Today should switch the same retained work into Agenda view");
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  assert.equal(await page.locator("[data-today-calendar] > section").count(), 14, "Today Calendar should retain the complete 14-day window");
+  await page.getByRole("button", { name: "Lanes", exact: true }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: `${OUT_DIR}/today-decision-workspace-desktop.png` });
+  const completeAction = page.getByRole("button", { name: "Complete action…", exact: true });
+  assert.equal(await completeAction.count(), 1, "Selected task completion should stay available beside the decision context");
+  await completeAction.click();
+  assert.equal(await page.locator("[data-today-task-confirmation]").count(), 1, "Today must verify task completion before mutating pursuit state");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  assert.equal(await page.locator("[data-today-task-confirmation]").count(), 0, "Cancel should preserve the selected Today action");
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
   assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "My Work should project the tracked stable-ID working set");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
-  await page.getByRole("button", { name: /Act now 1 .*overdue/i }).click();
+  await page.getByText("Filters", { exact: true }).click();
+  await page.getByRole("link", { name: /Needs attention/ }).click();
   assert.match(decodeURIComponent(new URL(page.url()).hash), /workFocus=urgent/, "My Work attention filters should persist in the shareable route");
-  await page.screenshot({ path: `${OUT_DIR}/my-work-desktop.png`, fullPage: true });
   const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
   await watchRow.click();
   const watchNote = page.locator("[data-ops-watch-table] [data-if-table-detail] textarea");
@@ -2987,18 +3022,20 @@ try {
   }, firstWatchId);
   await openSurface(mobile, "#/budget-spend/watchlist", "[data-operations-hub]");
   assert.equal(await mobile.locator("[data-admin-workspace]").count(), 0, "Mobile work surfaces should not repeat ownership navigation below the masthead");
-  const mobileWorkHeaderHeight = await mobile.locator("[data-ops-watchlist] > .if-page-header").evaluate((node) => node.getBoundingClientRect().height);
-  assert.ok(mobileWorkHeaderHeight <= 120, `Mobile My Work should expose a compact route header before the table, got ${mobileWorkHeaderHeight}px`);
-  assert.equal(await mobile.locator("[data-my-work] .my-work__status").count(), 3, "Mobile My Work should retain the three action-oriented attention states");
-  assert.equal(await mobile.locator("[data-my-work-task]").count(), 1, "Mobile My Work should retain the action queue");
+  const mobileTodayGeometry = await mobile.evaluate(() => {
+    const top = (selector) => document.querySelector(selector)?.getBoundingClientRect().top || 0;
+    return {
+      heroHeight: document.querySelector(".today-workspace__hero")?.getBoundingClientRect().height || 0,
+      priorityTop: top("[data-today-priority]"),
+      forwardTop: top("[data-today-forward-view]"),
+      selectionTop: top("[data-today-selection]"),
+    };
+  });
+  assert.ok(mobileTodayGeometry.heroHeight <= 210, `Mobile Today should keep its identity and attention summary compact, got ${mobileTodayGeometry.heroHeight}px`);
+  assert.ok(mobileTodayGeometry.priorityTop < mobileTodayGeometry.forwardTop && mobileTodayGeometry.forwardTop < mobileTodayGeometry.selectionTop, `Mobile Today should stack action → timeline → context without changing ownership: ${JSON.stringify(mobileTodayGeometry)}`);
+  assert.equal(await mobile.locator("[data-today-lane]").count(), 4, "Mobile Today should retain the four operating lanes inside its contained timeline scroller");
+  assert.equal(await mobile.locator("[data-my-work-task]").count(), 1, "Mobile Today should retain the ranked action queue");
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
-  const mobileWorkboardStatus = mobile.locator(".target-workboard__status");
-  if (await mobileWorkboardStatus.count()) {
-    const statusGeometry = await mobileWorkboardStatus.evaluate((node) => ({ cards: node.children.length, height: node.getBoundingClientRect().height, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }));
-    assert.equal(statusGeometry.cards, 7, "Target workboard should retain all six workflow stages and the due-soon count");
-    assert.ok(statusGeometry.height <= 112, `Mobile target status should stay in one compact rail, got ${statusGeometry.height}px`);
-    assert.ok(statusGeometry.scrollWidth > statusGeometry.clientWidth, "Mobile target status should use contained horizontal scrolling instead of another vertical card wall");
-  }
   await assertNoPageOverflow(mobile, "Mobile My Work");
   await mobile.screenshot({ path: `${OUT_DIR}/my-work-mobile.png`, fullPage: true });
   await openSurface(mobile, "#/budget-spend/timeline?timelineScope=tracked", "[data-capture-timeline]");

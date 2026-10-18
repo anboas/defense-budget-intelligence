@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
-  ArrowRight,
   Bot,
   CalendarDays,
   Building2,
@@ -15,7 +14,6 @@ import {
   Sparkles,
   CircleAlert,
   CircleCheck,
-  Clock3,
   Star,
   Tags,
   Trash2,
@@ -41,7 +39,7 @@ import { useNotifications } from "./NotificationContext.jsx";
 import { directorySelection, openWorkspaceProfile, workspaceTeamHref } from "./workspace-profile-routes.js";
 import { eventDateTimeInputValue } from "./event-date-input.js";
 import "./MyWork.css";
-import TodayTimeline from "./TodayTimeline.jsx";
+import TodayWorkspace from "./TodayWorkspace.jsx";
 const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
 const OpenAiKeyManagement = lazy(() => import("./OpenAiKeyManagement.jsx"));
 const SamGovKeyManagement = lazy(() => import("./SamGovKeyManagement.jsx"));
@@ -470,11 +468,10 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   </ControlDialog>;
 }
 
-function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, updateWatch, savePursuit }) {
+function WatchlistView({ rows, watchlist, events, asOf, query, setQuery, toggleWatch, updateWatch, savePursuit }) {
   const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
   const recordById = new Map(rows.map((record) => [record.opportunityId, record]));
-  const [focus, setFocus] = useState(() => { const saved = new URLSearchParams(window.location.hash.split("?")[1] || "").get("workFocus") || "all"; return ["overdue", "due"].includes(saved) ? "urgent" : ["urgent", "waiting", "no-action"].includes(saved) ? saved : "all"; });
-  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [focus] = useState(() => { const saved = new URLSearchParams(window.location.hash.split("?")[1] || "").get("workFocus") || "all"; return ["overdue", "due"].includes(saved) ? "urgent" : ["urgent", "waiting", "no-action"].includes(saved) ? saved : "all"; });
   const [showTracked, setShowTracked] = useState(false);
   const [referenceTime] = useState(() => Date.now());
   const today = new Date(referenceTime).toISOString().slice(0, 10);
@@ -488,30 +485,8 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
   const noActionRecords = rows.filter((record) => { const watch = watchById.get(record.opportunityId); return !watch?.pursuit?.nextAction && !(watch?.pursuit?.tasks || []).some((task) => task.status !== "done"); });
   const focusRecords = new Set((focus === "urgent" ? urgentTasks.map((task) => task.recordId) : focus === "waiting" ? waitingTasks.map((task) => task.recordId) : focus === "no-action" ? noActionRecords.map((record) => record.opportunityId) : rows.map((record) => record.opportunityId)));
   const filteredRows = rows.filter((record) => focusRecords.has(record.opportunityId));
-  const sortedOpenTasks = [...openTasks].sort((left, right) => Number(left.status === "waiting") - Number(right.status === "waiting") || (left.dueAt || "9999").localeCompare(right.dueAt || "9999"));
-  const visibleTasks = showAllTasks ? sortedOpenTasks : sortedOpenTasks.slice(0, 5);
 
-  function chooseFocus(next) {
-    setFocus(next);
-    if (next !== "all") setShowTracked(true);
-    const [path, search = ""] = window.location.hash.split("?");
-    const params = new URLSearchParams(search);
-    if (next === "all") params.delete("workFocus"); else params.set("workFocus", next);
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${path}?${params}`);
-  }
-
-  function patchTask(task, patch) {
-    const watch = watchById.get(task.recordId);
-    if (!watch) return;
-    const tasksForRecord = watch.pursuit.tasks.map((item) => item.id === task.id ? { ...item, ...patch, completedAt: patch.status === "done" ? new Date().toISOString() : patch.status ? "" : item.completedAt } : item);
-    void savePursuit(task.recordId, { ...watch.pursuit, tasks: tasksForRecord, reviewAt: watch.reviewAt });
-  }
-
-  const cards = [
-    ["urgent", "Act now", urgentTasks.length, `${overdueTasks.length} overdue · ${dueSoonTasks.length} due soon`, overdueTasks.length ? "danger" : "warning"],
-    ["waiting", "Waiting", waitingTasks.length, "Blocked or external", "info"],
-    ["no-action", "Needs a plan", noActionRecords.length, "Tracked without a next action", "neutral"],
-  ];
+  const focusLabel = { urgent: "act now", waiting: "waiting", "no-action": "needs a plan" };
   const columns = [
     { key: "record", label: "Tracked record", required: true, sticky: true, minWidth: 300, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.party, record.portfolio, record.reference], render: (record) => <a className="dbi-table-record-link" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a> },
     { key: "stage", label: "Pursuit", facet: true, minWidth: 140, value: (record) => watchById.get(record.opportunityId)?.pursuit?.stage || "monitor", render: (record) => <ControlStatusBadge status={watchById.get(record.opportunityId)?.pursuit?.stage || "monitor"} /> },
@@ -525,18 +500,12 @@ function WatchlistView({ rows, watchlist, asOf, query, setQuery, toggleWatch, up
   ];
   return (
     <section className="ops-panel my-work" data-ops-watchlist data-my-work>
-      <ControlPageHeader compact divided eyebrow="Workspace work" title="Today" summary="See what needs attention, act on tracked pursuits, and keep every next step tied to evidence." headingLevel={2} actions={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Find opportunities<ArrowRight size={15} /></a>} />
-      <ControlPageBody compact>
-      {rows.length ? <>
-        <nav className="my-work__status-grid" aria-label="Filter My Work by attention status">{cards.map(([id, label, value, detail, tone]) => <button key={id} type="button" className={`my-work__status is-${tone}${focus === id ? " is-active" : ""}`} aria-pressed={focus === id} onClick={() => chooseFocus(focus === id ? "all" : id)}><span>{label}</span><strong>{value}</strong><small>{detail}</small></button>)}</nav>
-        <section className="my-work__agenda" aria-labelledby="my-work-agenda-title"><header><div><small>Action queue</small><h3 id="my-work-agenda-title">What needs to happen next</h3></div><div className="my-work__agenda-summary"><span>{openTasks.length} open task{openTasks.length === 1 ? "" : "s"}</span>{openTasks.length > 5 ? <button type="button" className="if-btn if-btn--ghost" onClick={() => setShowAllTasks((value) => !value)}>{showAllTasks ? "Show priority five" : `Show all ${openTasks.length}`}</button> : null}</div></header>{openTasks.length ? <div>{visibleTasks.map((task) => <article key={`${task.recordId}:${task.id}`} data-my-work-task data-task-status={task.status} data-task-priority={task.priority}><div><strong>{task.title}</strong><a href={opportunityRoute(task.recordId, { returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "today" })}>{task.record?.title || task.recordId}</a><small>{[task.owner || "Unassigned", task.dueAt ? `${task.dueAt.slice(0, 10) < today ? "Overdue" : "Due"} ${compactDate(task.dueAt)}` : "No due date", task.sourceLabel].filter(Boolean).join(" · ")}</small></div><div className="my-work__task-actions"><button type="button" className="if-btn if-btn--secondary my-work__complete" aria-label={`Complete ${task.title}`} onClick={() => patchTask(task, { status: "done" })}><CircleCheck size={16} />Complete</button>{task.status !== "waiting" ? <button type="button" className="if-btn if-btn--secondary" onClick={() => patchTask(task, { status: "waiting" })}><Clock3 size={14} />Wait</button> : <button type="button" className="if-btn if-btn--secondary" onClick={() => patchTask(task, { status: "todo" })}>Resume</button>}</div></article>)}</div> : <ControlAsyncState compact state="empty" icon={<ListChecks size={20} />} title="No open tasks" message="Create a task from Pursuit Controls, AI research, Timeline, Connections, or Money Path." />}</section>
-        <TodayTimeline rows={rows} openTasks={openTasks} today={today} />
+      {rows.length ? <TodayWorkspace rows={rows} watchlist={watchlist} events={events} today={today} savePursuit={savePursuit}>
         <section className="my-work__tracked" data-my-work-tracked>
-          <header><div><small>Portfolio</small><h3>Tracked pursuits</h3><p>{focus === "all" ? `${rows.length} active pursuits` : `${filteredRows.length} match ${cards.find(([id]) => id === focus)?.[1].toLowerCase() || "this focus"}`}</p></div><button type="button" className="if-btn if-btn--secondary" aria-expanded={showTracked} onClick={() => setShowTracked((value) => !value)}>{showTracked ? "Hide portfolio" : "Review pursuits"}</button></header>
+          <header><div><small>Portfolio</small><h3>Tracked pursuits</h3><p>{focus === "all" ? `${rows.length} active pursuits` : `${filteredRows.length} match ${focusLabel[focus] || "this focus"}`}</p></div><button type="button" className="if-btn if-btn--secondary" aria-expanded={showTracked} onClick={() => setShowTracked((value) => !value)}>{showTracked ? "Hide portfolio" : "Review pursuits"}</button></header>
           {showTracked ? <OperationalDataTable id="watchlist" label="Tracked pursuits" rows={filteredRows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "review", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked pursuits…" exportFilename="my-work.csv" mobileColumns={["record", "stage", "next", "review", "actions"]} wrapperProps={{ "data-ops-watch-table": true, "data-work-focus": focus }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <div className="my-work__detail"><div className="my-work__detail-actions"><a className="if-btn if-btn--primary" href={opportunityRoute(record.opportunityId, { returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "today" })}>Open pursuit workspace</a></div><label className="if-field my-work__note"><span className="if-field__label">Private workspace note</span><textarea className="if-textarea" rows={3} key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label></div>; }} /> : <div className="my-work__tracked-summary"><strong>{rows.length} tracked</strong><span>{noActionRecords.length} need a plan</span><span>{waitingTasks.length} waiting</span></div>}
         </section>
-      </> : <ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Track an opportunity to build your status cockpit and action queue." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Find opportunities</a>} />}
-      </ControlPageBody>
+      </TodayWorkspace> : <ControlPageBody compact><ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Track an opportunity to build your decision workspace and 14-day forward view." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Find opportunities</a>} /></ControlPageBody>}
     </section>
   );
 }
@@ -1162,7 +1131,7 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   };
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
-    {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} savePursuit={state.savePursuit} /> : null}
+    {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} savePursuit={state.savePursuit} /> : null}
     {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add-launcher" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "directory" ? <DirectoryView auth={auth} state={state} records={records} teams={calendarTeams} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} onApplyDraft={applyReviewedEvent} onFocusEvent={focusSavedEvent} /> : null}
