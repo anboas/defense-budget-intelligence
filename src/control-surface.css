@@ -4134,6 +4134,115 @@ button.if-chart-bar.is-selected {
 
 /* Performance and scale guard layer. Synthetic large-data demos stay contained and measurable. */
 
+.if-menu {
+  position: absolute;
+  top: calc(100% + var(--if-space-1));
+  left: 0;
+  z-index: var(--if-z-dropdown);
+  display: grid;
+  gap: var(--if-space-1);
+  width: min(18rem, calc(100vw - 2rem));
+  padding: var(--if-space-2);
+  border: var(--if-outline);
+  border-radius: var(--if-radius-2);
+  background: var(--if-bg-surface);
+  box-shadow: var(--if-shadow-lg);
+}
+
+.if-menu[hidden] {
+  display: none;
+}
+
+.if-menu :is(button, a) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--if-space-2);
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: var(--if-space-2);
+  border: 0;
+  border-radius: var(--if-radius-2);
+  background: transparent;
+  color: var(--if-text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.if-menu :is(button, a):hover,
+.if-menu :is(button, a):focus-visible,
+.if-menu :is(button, a).is-selected {
+  background: var(--if-bg-selected);
+  color: var(--if-link);
+  outline: 0;
+}
+
+.if-menu__copy {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.if-menu strong {
+  color: var(--if-text-strong);
+  font-size: var(--if-font-size-xs);
+  line-height: 1.2;
+}
+
+.if-menu em {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+  font-style: normal;
+  line-height: 1.25;
+}
+
+.if-menu--portal {
+  position: fixed;
+  inset: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.if-popover-anchor { display: inline-flex; min-width: 0; }
+.if-popover--portal {
+  position: fixed;
+  inset: auto;
+  z-index: var(--if-z-popover, 80);
+  display: grid;
+  gap: var(--if-space-2, .5rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--if-space-3, .75rem);
+  border: 1px solid var(--if-border-strong, #b7c0ca);
+  border-radius: var(--if-card-radius, .5rem);
+  background: var(--if-bg-surface, #fff);
+  box-shadow: var(--if-shadow-lg, 0 12px 32px rgb(30 42 54 / 18%));
+  color: var(--if-text, #20262d);
+}
+
+.if-menu__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--if-text-muted);
+}
+
+.if-menu__meta {
+  color: var(--if-text-muted);
+  font-size: var(--if-font-size-2xs);
+  white-space: nowrap;
+}
+
+.if-menu :is(button, a)[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.if-menu :is(button, a).is-danger {
+  color: var(--if-danger, #b50909);
+}
+
 .if-btn.is-loading {
   pointer-events: none;
 }
@@ -4176,7 +4285,7 @@ button.if-chart-bar.is-selected {
   min-height: 1.875rem;
   padding-block: 0.25rem;
   padding-inline: 0.625rem;
-  font-size: var(--if-font-size-xs);
+  font-size: var(--if-font-size-sm);
 }
 
 .if-btn--danger {
@@ -5156,6 +5265,11 @@ button.if-chart-bar.is-selected {
 
 .if-content.if-operations-workspace--compact {
   padding-block-start: var(--if-space-3);
+}
+
+.if-menu-anchor {
+  position: relative;
+  display: inline-flex;
 }
 
 .if-operations-signal-section {

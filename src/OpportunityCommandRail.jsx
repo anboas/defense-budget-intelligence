@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarClock, Check, CheckCircle2, ExternalLink, ListChecks, MoreHorizontal, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
-import { ControlDialog } from "control-surface-ui/react";
+import { ControlDialog, ControlMenu } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { PURSUIT_STAGES, PURSUIT_TASK_EVENT, PURSUIT_TASK_PRIORITIES, PURSUIT_TASK_STATUSES, normalizePursuit, pursuitActionOptions } from "./pursuit-metadata.js";
@@ -183,13 +183,20 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
     <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
     <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
     {showRecordLink ? <a className="if-btn if-btn--primary if-touch-target" href={opportunityRoute(id)}><ListChecks size={15} />Open workspace</a> : null}
-    <details className="dbi-data-table__columns pursuit-actions__more"><summary className="if-btn if-btn--secondary if-touch-target"><MoreHorizontal size={15} />More</summary><div><a className="if-btn if-btn--ghost" href={timelineRoute(id)}><CalendarClock size={15} />Timeline</a>{sourceUrl ? <a className="if-btn if-btn--ghost" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}</div></details>
+    <ControlMenu label="More" ariaLabel="More pursuit actions" icon={<MoreHorizontal size={15} />} className="pursuit-actions__more" triggerClassName="if-btn if-btn--secondary if-touch-target" items={[
+      { id: "timeline", label: "Open timeline", description: "Review milestones and family history", href: timelineRoute(id), icon: <CalendarClock size={15} /> },
+      sourceUrl ? { id: "source", label: "Official source", description: "Open the published record", href: sourceUrl, target: "_blank", rel: "noreferrer", icon: <ExternalLink size={15} /> } : null,
+    ]} />
   </nav>;
 
   const compactActions = <nav className="if-panel__footer" aria-label="Selected opportunity actions">
     <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
     <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
-    <details className="dbi-data-table__columns pursuit-actions__more"><summary className="if-btn if-btn--secondary if-touch-target"><MoreHorizontal size={15} />More</summary><div>{showRecordLink ? <a className="if-btn if-btn--ghost" href={opportunityRoute(id)}><ListChecks size={15} />Open workspace</a> : null}<a className="if-btn if-btn--ghost" href={timelineRoute(id)}><CalendarClock size={15} />Timeline</a>{sourceUrl ? <a className="if-btn if-btn--ghost" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Source</a> : null}</div></details>
+    <ControlMenu label="More" ariaLabel="More pursuit actions" icon={<MoreHorizontal size={15} />} className="pursuit-actions__more" triggerClassName="if-btn if-btn--secondary if-touch-target" items={[
+      showRecordLink ? { id: "workspace", label: "Open workspace", description: "Review the full pursuit record", href: opportunityRoute(id), icon: <ListChecks size={15} /> } : null,
+      { id: "timeline", label: "Open timeline", description: "Review milestones and family history", href: timelineRoute(id), icon: <CalendarClock size={15} /> },
+      sourceUrl ? { id: "source", label: "Official source", description: "Open the published record", href: sourceUrl, target: "_blank", rel: "noreferrer", icon: <ExternalLink size={15} /> } : null,
+    ]} />
   </nav>;
 
   if (compact) return <section className="opportunity-command-rail opportunity-command-rail--compact" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>

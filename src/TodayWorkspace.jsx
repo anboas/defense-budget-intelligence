@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Filter, MoreHorizontal } from "lucide-react";
-import { ControlDialog, ControlStatusBadge } from "control-surface-ui/react";
+import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Filter, ListChecks, MoreHorizontal, Network } from "lucide-react";
+import { ControlDialog, ControlMenu, ControlStatusBadge } from "control-surface-ui/react";
 import { useAuth } from "./AuthContext.jsx";
 import { intelligenceGraphRoute, opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
 import { normalizePursuit } from "./pursuit-metadata.js";
@@ -144,7 +144,18 @@ function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onReq
       {lens === "tasks" ? <><h3>Open actions</h3>{openTasks.length ? <ul>{openTasks.map((task) => <li key={task.id}><strong>{task.title}</strong><small>{task.owner || "Unassigned"} · {task.dueAt ? `Due ${compactDate(task.dueAt)}` : "No due date"}</small></li>)}</ul> : <p>No open action is linked to this pursuit.</p>}<a href={opportunityRoute(id, { tab: "tasks", origin: "today" })}>Open task workspace<ArrowRight size={14} /></a></> : null}
       {feedback ? <p className={`today-selection__feedback is-${feedback.tone}`} role={feedback.tone === "danger" ? "alert" : "status"}>{feedback.message}</p> : null}
     </div>
-    <footer><button type="button" className="if-btn if-btn--primary" disabled={!selectedTask} onClick={onRequestComplete}>{selectedTask ? "Complete action…" : "No action selected"}</button><details><summary className="if-btn if-btn--secondary"><MoreHorizontal size={14} />More</summary><div><a href={opportunityRoute(id, { origin: "today" })}>Open workspace</a><a href={intelligenceGraphRoute(id)}>Open graph</a><a href={timelineRoute(id)}>Open timeline</a></div></details></footer>
+    <footer><button type="button" className="if-btn if-btn--primary" disabled={!selectedTask} onClick={onRequestComplete}>{selectedTask ? "Complete action…" : "No action selected"}</button><ControlMenu
+      label="More"
+      ariaLabel="More selected opportunity actions"
+      icon={<MoreHorizontal size={14} />}
+      className="today-selection__more"
+      triggerClassName="if-btn if-btn--secondary"
+      items={[
+        { id: "workspace", label: "Open workspace", description: "Review the full pursuit record", href: opportunityRoute(id, { origin: "today" }), icon: <ListChecks size={15} /> },
+        { id: "graph", label: "Open graph", description: "Traverse connected intelligence", href: intelligenceGraphRoute(id), icon: <Network size={15} /> },
+        { id: "timeline", label: "Open timeline", description: "Review dates and family history", href: timelineRoute(id), icon: <CalendarClock size={15} /> },
+      ]}
+    /></footer>
   </aside>;
 }
 
@@ -203,7 +214,18 @@ export default function TodayWorkspace({ rows, watchlist, events = [], today, sa
 
   return <div className="today-workspace" data-today-workspace>
     <header className="today-workspace__hero"><div><small>Workspace focus</small><h1>Good afternoon, {firstName}</h1><p>Start with the work that needs a decision, then move through time without losing the selected opportunity.</p></div><div className="today-workspace__signals"><span className="if-badge"><strong>{priorityItems.length}</strong> need attention</span><span className="if-badge"><strong>{waitingCount}</strong> waiting</span><span className="if-badge"><strong>{evidenceGapCount}</strong> evidence gap{evidenceGapCount === 1 ? "" : "s"}</span></div></header>
-    <div className="today-workspace__scope"><strong>Scope</strong><span className="if-btn if-btn--secondary if-btn--sm">My tracked work</span><span className="if-btn if-btn--secondary if-btn--sm">Next 14 days</span><span className="if-btn if-btn--secondary if-btn--sm">Owner: {firstName}</span><details><summary className="if-btn if-btn--secondary if-btn--sm"><Filter size={13} />Filters</summary><div>{[["urgent", "Needs attention", priorityItems.length], ["waiting", "Waiting", waitingCount], ["no-action", "Needs plan", noActionRecords.length]].map(([id, label, value]) => <a key={id} href={`#/budget-spend/watchlist?workFocus=${id}`}>{label}<strong>{value}</strong></a>)}</div></details><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table">Find opportunities</a></div>
+    <div className="today-workspace__scope"><strong>Scope</strong><span className="if-btn if-btn--secondary if-btn--sm">My tracked work</span><span className="if-btn if-btn--secondary if-btn--sm">Next 14 days</span><span className="if-btn if-btn--secondary if-btn--sm">Owner: {firstName}</span><ControlMenu
+      label="Filters"
+      ariaLabel="Filter Today work"
+      icon={<Filter size={13} />}
+      className="today-workspace__filters"
+      triggerClassName="if-btn if-btn--secondary if-btn--sm"
+      items={[
+        { id: "urgent", label: "Needs attention", description: "Urgent and high-impact work", meta: priorityItems.length, href: "#/budget-spend/watchlist?workFocus=urgent" },
+        { id: "waiting", label: "Waiting", description: "Blocked or externally owned work", meta: waitingCount, href: "#/budget-spend/watchlist?workFocus=waiting" },
+        { id: "no-action", label: "Needs plan", description: "Tracked pursuits without a next action", meta: noActionRecords.length, href: "#/budget-spend/watchlist?workFocus=no-action" },
+      ]}
+    /><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table"><ExternalLink size={13} />Find opportunities</a></div>
     <section className="today-workspace__console" data-today-console>
       <aside className="today-priority" data-today-priority><header><div><small>Priority actions</small><h2>Act now</h2><p>{priorityItems.length} item{priorityItems.length === 1 ? "" : "s"}, ranked by urgency and impact</p></div><span>{priorityItems.length}</span></header><div>{priorityItems.map((item) => <button key={item.id} type="button" className={`today-priority__item is-${item.tone}${activeItemId === item.id ? " is-selected" : ""}`} onClick={() => select(item)} data-my-work-task={item.type === "task" ? true : undefined}><i aria-hidden="true" /><strong>{item.title}</strong><small>{item.meta}</small></button>)}</div></aside>
       <TimelineSurface mode={mode} setMode={setMode} items={timelineItems} selectedId={activeItemId} selectedRecordId={activeRecordId} onSelect={select} today={today} />

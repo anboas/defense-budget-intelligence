@@ -69,9 +69,6 @@
 .pursuit-task-confirmation { display: grid; gap: .25rem; padding: .75rem; border: 1px solid var(--if-border, #d7dce2); border-radius: .4rem; background: var(--if-bg-subtle, #f7f8fa); }
 .pursuit-task-confirmation span { color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); }
 
-.pursuit-actions__more > div { top: auto; bottom: calc(100% + .35rem); }
-.pursuit-actions__more a { justify-content: flex-start; }
-
 .opportunity-command-rail__setup { border-top: 1px solid var(--if-border, #d7dce2); border-bottom: 1px solid var(--if-border, #d7dce2); background: var(--if-bg-surface, #fff); }
 .opportunity-command-rail__setup > summary { display: grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:.65rem; min-height:2.75rem; padding:.55rem .8rem; cursor:pointer; list-style:none; }
 .opportunity-command-rail__setup > summary::-webkit-details-marker { display:none; }
@@ -84,7 +81,7 @@
 .opportunity-command-rail--compact { container-type:inline-size; }
 .opportunity-command-rail--compact>.if-panel__footer { display:grid; grid-template-columns:1fr 1fr auto; padding:.65rem .75rem; border:0; background:transparent; }
 .opportunity-command-rail--compact>.if-panel__footer>* { min-width:0; }
-.opportunity-command-rail--compact .pursuit-actions__more>summary { width:100%; }
+.opportunity-command-rail--compact .pursuit-actions__more>button { width:100%; }
 .opportunity-command-rail--compact .opportunity-command-rail__setup-body>.if-panel__body { grid-template-columns:1fr!important; padding:.65rem; }
 .opportunity-command-rail--compact .pursuit-tasks__composer { grid-template-columns:minmax(0,1fr); }
 .opportunity-command-rail--compact .pursuit-tasks__title,
@@ -120,8 +117,7 @@
   .pursuit-tasks__composer-actions { justify-content: stretch; }
   .pursuit-tasks__composer-actions > * { flex: 1; }
   .pursuit-actions__more { flex: 1 1 100%; }
-  .pursuit-actions__more > summary { width: 100%; }
-  .pursuit-actions__more > div { right: auto; left: 0; }
+  .pursuit-actions__more > button { width: 100%; }
 }
 
 @media (pointer: coarse) {

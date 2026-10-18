@@ -7,6 +7,9 @@ const root = resolve(import.meta.dirname, "..");
 const commandRailSource = readFileSync(resolve(root, "src/OpportunityCommandRail.jsx"), "utf8");
 const workspaceSource = readFileSync(resolve(root, "src/UniversalIntelligenceWorkspace.jsx"), "utf8");
 const previewSource = readFileSync(resolve(root, "src/OpportunityWorkbenchDetail.jsx"), "utf8");
+const todaySource = readFileSync(resolve(root, "src/TodayWorkspace.jsx"), "utf8");
+const spendExplorerSource = readFileSync(resolve(root, "src/SpendExplorer.jsx"), "utf8");
+const dataTableSource = readFileSync(resolve(root, "src/OperationalDataTable.jsx"), "utf8");
 
 const encoded = encodePursuitNote("Customer context remains readable.", {
   stage: "capture",
@@ -47,5 +50,11 @@ assert.match(commandRailSource, /data-task-confirmation.*delete[\s\S]*Delete act
 assert.doesNotMatch(commandRailSource, /intelligence\?\.notice/, "Research transport feedback must not render inside pursuit controls");
 assert.match(workspaceSource, /RecordIntelligenceNotice/, "The canonical workspace must own record-intelligence feedback outside the action plan");
 assert.match(previewSource, /RecordIntelligenceNotice/, "Opportunity previews must keep record-intelligence feedback outside the action plan");
+assert.match(todaySource, /ControlMenu[\s\S]*More selected opportunity actions/, "Today must use the shared command-menu owner for secondary opportunity actions");
+assert.match(commandRailSource, /ControlMenu[\s\S]*More pursuit actions/, "Pursuit surfaces must use the shared command-menu owner");
+assert.match(workspaceSource, /ControlMenu[\s\S]*More workspace actions/, "Intelligence workspaces must use the shared command-menu owner");
+assert.match(spendExplorerSource, /ControlMenu[\s\S]*Analysis view:/, "Analysis views must use the shared command-menu owner");
+assert.match(dataTableSource, /ControlPopover[\s\S]*table options/, "Table configuration must use the shared popover owner");
+assert.doesNotMatch(`${todaySource}\n${commandRailSource}\n${workspaceSource}\n${spendExplorerSource}`, /<details[^>]*(?:more|analysis-menu)[^>]*>/i, "Command lists must not regress to route-specific details elements");
 
-console.log("Interaction foundation contracts passed", { stage: decoded.pursuit.stage, tasks: decoded.pursuit.tasks.length, boundedBytes: bounded.length, legacyCompatible: true });
+console.log("Interaction foundation contracts passed", { stage: decoded.pursuit.stage, tasks: decoded.pursuit.tasks.length, boundedBytes: bounded.length, legacyCompatible: true, sharedFloatingLayers: true });

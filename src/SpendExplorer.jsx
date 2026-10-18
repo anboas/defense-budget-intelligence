@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, ChevronDown, Filter, MoreHorizontal, RotateCcw, ScatterChart } from "lucide-react";
-import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
+import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Filter, MoreHorizontal, RotateCcw, ScatterChart } from "lucide-react";
+import { ControlAsyncState, ControlErrorBoundary, ControlMenu, ControlPageBody, ControlPopover } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ControlSelect from "./ControlSelect.jsx";
@@ -194,14 +194,18 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   };
   const analysisView = { visuals: "Visuals", timeline: "Timeline", charts: "Analytics" }[view] || "";
   const analysisMenu = <div className="spend-explorer__viewbar">
-    <details className={`dbi-data-table__columns spend-explorer__analysis-menu${analysisView ? " is-active" : ""}`}>
-      <summary className="if-tab" aria-label={analysisView ? `Analysis view: ${analysisView}` : "Open analysis views"}><MoreHorizontal size={15} />{analysisView || "Analyze"}</summary>
-      <div role="menu" aria-label="Analysis views">
-        <button className="if-btn if-btn--ghost" type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); select("visuals"); }}><ScatterChart size={15} /><span><strong>Visuals</strong><small>Portfolio, strategy, and heatmap views</small></span></button>
-        <button className="if-btn if-btn--ghost" type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); select("timeline"); }}><CalendarClock size={15} /><span><strong>Timeline</strong><small>Dates, milestones, and linked research</small></span></button>
-        <button className="if-btn if-btn--ghost" type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); select("charts"); }}><BarChart3 size={15} /><span><strong>Analytics</strong><small>Spend, awards, and comparison charts</small></span></button>
-      </div>
-    </details>
+    <ControlMenu
+      label={analysisView || "Analyze"}
+      ariaLabel={analysisView ? `Analysis view: ${analysisView}` : "Open analysis views"}
+      icon={<MoreHorizontal size={15} />}
+      className={`spend-explorer__analysis-menu${analysisView ? " is-active" : ""}`}
+      triggerClassName="if-tab"
+      items={[
+        { id: "visuals", label: "Visuals", description: "Portfolio, strategy, and heatmap views", icon: <ScatterChart size={15} />, active: view === "visuals", onSelect: () => select("visuals") },
+        { id: "timeline", label: "Timeline", description: "Dates, milestones, and linked research", icon: <CalendarClock size={15} />, active: view === "timeline", onSelect: () => select("timeline") },
+        { id: "charts", label: "Analytics", description: "Spend, awards, and comparison charts", icon: <BarChart3 size={15} />, active: view === "charts", onSelect: () => select("charts") },
+      ]}
+    />
   </div>;
   const tabs = ["visuals", "timeline", "charts"].includes(view) ? analysisMenu : null;
   const rows = useMemo(
@@ -303,9 +307,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     setQuery(saved.query || "");
     updateRoute("table", { capQuery: saved.query || "", customer: next.customer === "all" ? "" : next.customer, stage: next.stage === "all" ? "" : next.stage, trust: next.trust === "all" ? "" : next.trust, technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
   }} />;
-  const scopeFilters = <details className="dbi-data-table__columns spend-explorer__scope-menu" data-opportunity-workbench-scope>
-    <summary className="if-btn if-btn--secondary"><Filter size={15} aria-hidden="true" /><span>Filters{activeScopeFilterCount ? ` · ${activeScopeFilterCount}` : ""}</span><ChevronDown size={13} aria-hidden="true" /></summary>
-    <div><header><strong>Filter opportunities</strong>{activeScopeFilterCount ? <button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetTableFilters}><RotateCcw size={13} />Reset</button> : null}</header><div className="spend-explorer__scope-grid">
+  const scopeFilters = <ControlPopover label={`Filters${activeScopeFilterCount ? ` · ${activeScopeFilterCount}` : ""}`} ariaLabel="Filter opportunities" icon={<Filter size={15} aria-hidden="true" />} className="spend-explorer__scope-menu" triggerClassName="if-btn if-btn--secondary" width={736} popoverProps={{ className: "spend-explorer__scope-popover" }} data-opportunity-workbench-scope>
+    <header><strong>Filter opportunities</strong>{activeScopeFilterCount ? <button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetTableFilters}><RotateCcw size={13} />Reset</button> : null}</header><div className="spend-explorer__scope-grid">
       <ControlSelect compact label="Customer" value={tableFilters.customer} options={[{ value: "all", label: "All customers" }, ...customerOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("customer", value)} />
       <ControlSelect compact label="Stage" value={tableFilters.stage} options={[{ value: "all", label: "All stages" }, ...stageOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("stage", value)} />
       <ControlSelect compact label="Trust" value={tableFilters.trust} options={[{ value: "all", label: "All evidence" }, ...trustOptions.map((value) => ({ value, label: value.replaceAll("-", " ") }))]} onChange={(value) => setTableFilter("trust", value)} />
@@ -315,8 +318,8 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       <ControlSelect compact label="Component" value={tableFilters.component} options={[{ value: "all", label: "All components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
       <ControlSelect compact label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
       <ControlSelect compact label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active" }, { value: "tombstoned", label: `Hidden (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
-    </div></div>
-  </details>;
+    </div>
+  </ControlPopover>;
 
   if (view === "radar") return <section className="spend-explorer spend-explorer--radar" data-spend-explorer="radar">
     <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Radar" summary="Find applicable work, inspect why it fits, add known SAM.gov notices, and track what matters." metrics={radarMetrics} metricLabel="Opportunity radar summary" tabs={tabs} />

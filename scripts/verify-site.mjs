@@ -130,15 +130,15 @@ async function chooseControlSelect(page, label, option) {
 }
 
 async function chooseSpendAnalysis(page, label) {
-  const menu = page.locator(".spend-explorer__analysis-menu");
-  if (await menu.getAttribute("open") === null) await menu.locator("summary").click();
-  await menu.getByRole("menuitem", { name: new RegExp(`^${label}`) }).click();
+  const trigger = page.locator(".spend-explorer__analysis-menu > button");
+  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+  await page.getByRole("menuitem", { name: new RegExp(`^${label}`) }).click();
 }
 
 async function openOpportunityFilters(page) {
-  const filters = page.locator("[data-opportunity-workbench-scope]");
-  if (await filters.getAttribute("open") === null) await filters.locator("summary").click();
-  return filters;
+  const trigger = page.locator("[data-opportunity-workbench-scope] > button");
+  if (await page.locator('[data-if-react-popover][aria-label="Filter opportunities"]').count() === 0) await trigger.click();
+  return page.locator('[data-if-react-popover][aria-label="Filter opportunities"]');
 }
 
 async function assertNoPageOverflow(page, label) {
@@ -854,11 +854,12 @@ try {
   await assertButtonIntegrity(page, "Awards", "[data-awards-page]");
   await assertOpenStateControls(page, "Awards", "[data-awards-page]");
   const awardColumnManager = page.locator("[data-award-record-table] .dbi-data-table__columns");
-  const awardColumnTrigger = awardColumnManager.locator("summary").first();
+  const awardColumnTrigger = awardColumnManager.locator("button").first();
   await awardColumnTrigger.click();
-  assert.equal(await page.locator("[data-award-record-table]").getByRole("button", { name: "Reset layout", exact: true }).count(), 1, "The consolidated table-options menu should expose a one-step layout reset");
+  const awardTableOptions = page.locator("[data-if-react-popover].dbi-data-table__options-popover");
+  assert.equal(await awardTableOptions.getByRole("button", { name: "Reset layout", exact: true }).count(), 1, "The consolidated table-options popover should expose a one-step layout reset");
   await page.keyboard.press("Escape");
-  assert.equal(await awardColumnManager.getAttribute("open"), null, "Escape should close the DataTable column manager");
+  assert.equal(await awardTableOptions.count(), 0, "Escape should close the DataTable column manager");
   assert.equal(await awardColumnTrigger.evaluate((node) => node === document.activeElement), true, "Closing the DataTable column manager should restore focus to its trigger");
   const awardStickyGeometry = await page.locator("[data-award-record-table] .dbi-data-table__wrap").evaluate((wrap) => {
     const identity = wrap.querySelector("th[data-column-key='award']");
@@ -1013,7 +1014,7 @@ try {
   assert.ok(workbenchGeometry.scopeHeight <= 48, `Desktop opportunity filter trigger should remain compact, got ${workbenchGeometry.scopeHeight}px`);
   assert.ok(workbenchGeometry.firstRowTop <= 680, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
   assert.ok(workbenchGeometry.searchRight <= workbenchGeometry.toolsLeft + 2, `Opportunity search should align in the command flow instead of floating in the table center: ${JSON.stringify(workbenchGeometry)}`);
-  await workbenchScope.locator("summary").click();
+  await workbenchScope.locator("button").click();
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 0, "Strategic spend context must remain deferred until the operator opens Visuals");
   await page.locator('[data-workspace-view="portfolio"]').click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
@@ -1134,7 +1135,7 @@ try {
   await restoreButton.click();
   await openOpportunityFilters(page);
   await chooseControlSelect(page, "Record state", "Active");
-  await page.locator("[data-opportunity-workbench-scope] summary").click();
+  await page.locator("[data-opportunity-workbench-scope] > button").click();
   const workbenchSearch = page.locator('[data-dbi-data-table="opportunity-workbench-v1"] input[role="combobox"]');
   await workbenchSearch.fill("Application Arsenal");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capQuery=Application\+Arsenal|capQuery=Application%20Arsenal/i, "Spend Explorer search should remain shareable across views");
@@ -1149,10 +1150,11 @@ try {
   const commandRail = page.locator("[data-opportunity-workbench-detail] [data-opportunity-command-rail]");
   assert.equal(await commandRail.count(), 1, "Opportunity details should expose one shared contextual command rail");
   assert.equal(await commandRail.getByRole("button", { name: "Build AI decision brief", exact: true }).count(), 1, "The command rail should expose decision research exactly once");
-  await commandRail.locator(".pursuit-actions__more > summary").click();
-  assert.equal(await commandRail.getByRole("link", { name: "Open workspace", exact: true }).count(), 1, "Pursuit controls should progressively disclose the canonical intelligence workspace");
-  assert.equal(await commandRail.getByRole("link", { name: "Timeline", exact: true }).count(), 1, "Pursuit controls should progressively disclose Timeline");
-  await commandRail.locator(".pursuit-actions__more > summary").click();
+  const pursuitMore = commandRail.getByRole("button", { name: "More pursuit actions" });
+  await pursuitMore.click();
+  assert.equal(await page.getByRole("menuitem", { name: /^Open workspace/ }).count(), 1, "Pursuit controls should progressively disclose the canonical intelligence workspace");
+  assert.equal(await page.getByRole("menuitem", { name: /^Open timeline/ }).count(), 1, "Pursuit controls should progressively disclose Timeline");
+  await pursuitMore.click();
   await commandRail.locator(".opportunity-command-rail__setup > summary").click();
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
@@ -1373,6 +1375,28 @@ try {
   await page.getByRole("button", { name: "Lanes", exact: true }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${OUT_DIR}/today-decision-workspace-desktop.png` });
+  const todayMore = page.getByRole("button", { name: "More selected opportunity actions" });
+  await todayMore.click();
+  const todayMenu = page.locator('[data-if-react-menu][aria-label="More selected opportunity actions"]');
+  assert.equal(await todayMenu.count(), 1, "Today More should use the shared portaled command menu");
+  assert.equal(await todayMenu.getByRole("menuitem").count(), 3, "Today More should expose its three owned destinations as one command list");
+  const todayMenuGeometry = await page.evaluate(() => {
+    const trigger = document.querySelector('[aria-label="More selected opportunity actions"]')?.getBoundingClientRect();
+    const menu = document.querySelector('[data-if-react-menu][aria-label="More selected opportunity actions"]')?.getBoundingClientRect();
+    return trigger && menu ? { triggerTop: trigger.top, menuTop: menu.top, menuRight: menu.right, menuBottom: menu.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight } : null;
+  });
+  assert.ok(todayMenuGeometry && todayMenuGeometry.menuTop >= 8 && todayMenuGeometry.menuRight <= todayMenuGeometry.viewportWidth - 8 && todayMenuGeometry.menuBottom <= todayMenuGeometry.viewportHeight - 8, `Today More must remain inside the desktop viewport: ${JSON.stringify(todayMenuGeometry)}`);
+  assert.ok(todayMenuGeometry.menuTop >= todayMenuGeometry.triggerTop || todayMenuGeometry.menuBottom <= todayMenuGeometry.triggerTop + 1, `Today More should not overlap its trigger at either valid placement: ${JSON.stringify(todayMenuGeometry)}`);
+  await page.screenshot({ path: `${OUT_DIR}/today-command-menu-desktop.png` });
+  await page.keyboard.press("Escape");
+  assert.equal(await todayMenu.count(), 0, "Escape should close the Today command menu");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "More selected opportunity actions");
+  assert.equal(await todayMore.evaluate((node) => node === document.activeElement), true, "Escape should restore focus to the Today More trigger");
+  await todayMore.click();
+  await page.getByRole("button", { name: "Filter Today work" }).click();
+  assert.equal(await todayMenu.count(), 0, "Opening another command menu should close the already-open Today menu");
+  assert.equal(await page.locator('[data-if-react-menu][aria-label="Filter Today work"]').count(), 1, "Today Filters should use the shared portaled command menu");
+  await page.keyboard.press("Escape");
   const completeAction = page.getByRole("button", { name: "Complete action…", exact: true });
   assert.equal(await completeAction.count(), 1, "Selected task completion should stay available beside the decision context");
   await completeAction.click();
@@ -1383,8 +1407,8 @@ try {
   await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
   assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "My Work should project the tracked stable-ID working set");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
-  await page.getByText("Filters", { exact: true }).click();
-  await page.getByRole("link", { name: /Needs attention/ }).click();
+  await page.getByRole("button", { name: "Filter Today work", exact: true }).click();
+  await page.getByRole("menuitem", { name: /^Needs attention/ }).click();
   assert.match(decodeURIComponent(new URL(page.url()).hash), /workFocus=urgent/, "My Work attention filters should persist in the shareable route");
   const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
   await watchRow.click();
@@ -1988,13 +2012,13 @@ try {
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
 
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   const classificationOverlayTrigger = page.getByRole("button", { name: /^Evidence layers:/ });
   await classificationOverlayTrigger.click();
   await page.getByRole("option", { name: "Type of work" }).click();
   await page.getByRole("option", { name: "Ingestion provenance" }).click();
   await classificationOverlayTrigger.click();
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   await page.getByRole("button", { name: "Display", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Work category");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
@@ -2046,9 +2070,9 @@ try {
   await page.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Agile SSD");
   await page.keyboard.press("Escape");
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   assert.equal(await page.getByRole("button", { name: "Follow-ons", exact: true }).getAttribute("aria-pressed"), "true", "Published follow-on activity should be a default visible layer");
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-followon-activity]").length > 0);
   assert.equal(transactionRequests, 0, "Follow-on relationships should not load the deferred FPDS action payload");
   await page.locator("[data-followon-activity]").first().hover();
@@ -2178,7 +2202,7 @@ try {
   assert.match(applicationDetail, /Cost Plus Fixed Fee \(CPFF\) Level of Effort/i);
   await page.getByRole("button", { name: "Close record details" }).click();
   await page.waitForSelector("[data-capture-detail-modal]", { state: "detached" });
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   const overlayTrigger = page.getByRole("button", { name: /^Evidence layers:/ });
   await overlayTrigger.click();
   await page.getByRole("option", { name: "Competition / set-aside" }).click();
@@ -2186,7 +2210,7 @@ try {
   await page.getByRole("option", { name: "Award / pricing type" }).click();
   await page.getByRole("option", { name: "FPDS annual obligations" }).click();
   await overlayTrigger.click();
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   assert.ok(await page.locator("[data-competition-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct competition classifications");
   assert.ok(await page.locator("[data-vehicle-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct vehicles");
   assert.ok(await page.locator("[data-structure-overlay]").count() >= 2, "Application Arsenal solicitation and incumbent should retain their distinct pricing structures");
@@ -2225,9 +2249,9 @@ try {
   await page.getByPlaceholder("Program, company, reference, buyer").fill("");
   await page.getByPlaceholder("Program, company, reference, buyer").fill("N0002417C2100");
   await page.keyboard.press("Escape");
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   await page.getByRole("button", { name: "Subawards", exact: true }).click();
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   await page.waitForFunction(() => document.querySelectorAll("[data-subaward-overlay]").length > 0);
   assert.equal(subawardDetailRequests, 1, "Enabling the subaward overlay should lazily load recent detail once");
   const subawardMarker = page.locator("[data-subaward-overlay]").first();
@@ -2245,11 +2269,11 @@ try {
   await page.getByPlaceholder("Program, company, reference, buyer").fill("Application Arsenal");
   await page.keyboard.press("Escape");
   const fpdsReady = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/data/capture-transactions.json") && response.ok());
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   const fundingLayer = page.getByRole("button", { name: "Funding", exact: true });
   await fundingLayer.click();
   assert.equal(await fundingLayer.getAttribute("aria-pressed"), "true", "Funding layer should remain selected while its exact action feed loads");
-  await page.locator(".capture-layer-menu > summary").click();
+  await page.locator(".capture-layer-menu > button").click();
   await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') !== 'disabled');
   await fpdsReady;
   await page.waitForFunction(() => document.querySelector('[data-capture-gantt-section]')?.getAttribute('data-fpds-overlay-state') === 'ready', null, { timeout: 60_000 });
@@ -2846,7 +2870,7 @@ try {
   });
   assert.ok(mobileAwardCardLayout.selectRightGap >= 0 && mobileAwardCardLayout.selectRightGap <= 8, `Mobile selection controls should stay in the card's top-right corner: ${JSON.stringify(mobileAwardCardLayout)}`);
   assert.ok(mobileAwardCardLayout.actionWidth >= mobileAwardCardLayout.rowWidth - 24, `Mobile action rows should use the full card width: ${JSON.stringify(mobileAwardCardLayout)}`);
-  const mobileAwardTableControls = await mobile.locator("[data-award-record-table] .dbi-data-table__tools .if-btn, [data-award-record-table] .dbi-data-table__columns > summary, [data-award-record-table] .dbi-data-table__footer .if-page-btn, [data-award-record-table] .dbi-data-table__footer .if-select").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
+  const mobileAwardTableControls = await mobile.locator("[data-award-record-table] .dbi-data-table__tools .if-btn, [data-award-record-table] .dbi-data-table__columns > button, [data-award-record-table] .dbi-data-table__footer .if-page-btn, [data-award-record-table] .dbi-data-table__footer .if-select").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileAwardTableControls.every((height) => height >= 43.5), `Mobile DataTable controls should preserve 44px touch targets: ${mobileAwardTableControls.join(", ")}`);
   assert.ok(await mobile.evaluate(() => document.documentElement.scrollHeight) <= 3000, "Mobile Awards should stay within a bounded five-card working surface");
   await mobile.screenshot({ path: `${OUT_DIR}/awards-mobile.png`, fullPage: true });
@@ -2978,6 +3002,7 @@ try {
   assert.ok(mobileChartMarks.length > 0 && mobileChartMarks.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile chart marks should preserve 44px touch targets: ${JSON.stringify(mobileChartMarks)}`);
   const compactAnalyticsGeometry = await mobile.evaluate(() => ({
     workbench: document.querySelector("[data-transaction-d3-page] > .if-workbench-header")?.getBoundingClientRect().height || 0,
+    viewportHeight: window.innerHeight,
     metricColumns: getComputedStyle(document.querySelector("[data-transaction-d3-page] > .if-workbench-header > .if-management-grid--strip")).gridTemplateColumns.split(" ").filter(Boolean).length,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
     briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
@@ -2985,7 +3010,7 @@ try {
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
   assert.equal(compactAnalyticsGeometry.metricColumns, 3, "Mobile Analytics should retain all six summary metrics in a compact 3×2 grid");
-  assert.ok(compactAnalyticsGeometry.workbench <= 520, `Mobile Analytics title, metrics, tabs, and controls should remain one bounded workbench, got ${compactAnalyticsGeometry.workbench}px`);
+  assert.ok(compactAnalyticsGeometry.workbench > 0 && compactAnalyticsGeometry.workbench <= compactAnalyticsGeometry.viewportHeight * 0.66, `Mobile Analytics title, metrics, tabs, and controls should remain within two-thirds of the viewport: ${JSON.stringify(compactAnalyticsGeometry)}`);
   assert.equal(await mobile.locator("[data-analytics-insight]").count(), 4, "Mobile Analytics should retain the complete factual brief");
   assert.equal(compactAnalyticsGeometry.briefColumns, 2, "Mobile factual signals should use the framework two-column compact grid");
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
