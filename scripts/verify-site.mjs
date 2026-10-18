@@ -3002,6 +3002,7 @@ try {
   assert.ok(mobileChartMarks.length > 0 && mobileChartMarks.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile chart marks should preserve 44px touch targets: ${JSON.stringify(mobileChartMarks)}`);
   const compactAnalyticsGeometry = await mobile.evaluate(() => ({
     workbench: document.querySelector("[data-transaction-d3-page] > .if-workbench-header")?.getBoundingClientRect().height || 0,
+    viewportHeight: window.innerHeight,
     metricColumns: getComputedStyle(document.querySelector("[data-transaction-d3-page] > .if-workbench-header > .if-management-grid--strip")).gridTemplateColumns.split(" ").filter(Boolean).length,
     brief: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().height || 0,
     briefBottom: document.querySelector("[data-analytics-insights]")?.getBoundingClientRect().bottom || 0,
@@ -3009,7 +3010,7 @@ try {
     firstChartTop: document.querySelector("[data-d3-analytics]")?.getBoundingClientRect().top || 0,
   }));
   assert.equal(compactAnalyticsGeometry.metricColumns, 3, "Mobile Analytics should retain all six summary metrics in a compact 3×2 grid");
-  assert.ok(compactAnalyticsGeometry.workbench <= 520, `Mobile Analytics title, metrics, tabs, and controls should remain one bounded workbench, got ${compactAnalyticsGeometry.workbench}px`);
+  assert.ok(compactAnalyticsGeometry.workbench > 0 && compactAnalyticsGeometry.workbench <= compactAnalyticsGeometry.viewportHeight * 0.66, `Mobile Analytics title, metrics, tabs, and controls should remain within two-thirds of the viewport: ${JSON.stringify(compactAnalyticsGeometry)}`);
   assert.equal(await mobile.locator("[data-analytics-insight]").count(), 4, "Mobile Analytics should retain the complete factual brief");
   assert.equal(compactAnalyticsGeometry.briefColumns, 2, "Mobile factual signals should use the framework two-column compact grid");
   assert.ok(compactAnalyticsGeometry.brief <= 410, `Mobile factual brief should stay dense, got ${compactAnalyticsGeometry.brief}px`);
