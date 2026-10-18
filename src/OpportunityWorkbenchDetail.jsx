@@ -1,6 +1,7 @@
 import OpportunityCommandRail from "./OpportunityCommandRail.jsx";
 import OpportunityFitBadge from "./OpportunityFitBadge.jsx";
 import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
+import RecordIntelligenceNotice from "./RecordIntelligenceNotice.jsx";
 import { useManagementState } from "./management-state.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import { intelligenceWorkspaceRoute } from "./cross-surface-routes.js";
@@ -22,6 +23,7 @@ export default function OpportunityWorkbenchDetail({ record, records = [record] 
       <div><small>Decision workspace</small><h3>{record.title || record.id || record.reference || "Untitled public record"}</h3><span>{record.reference || record.noticeId || id}</span></div>
       <OpportunityFitBadge assessment={assessment} />
     </header>
+    <RecordIntelligenceNotice intelligence={intelligence} />
     <div className="opportunity-workspace__preview-layout">
       <section className="opportunity-workspace__context" aria-label="Opportunity context">
         <OpportunityFactSummary record={record} compact />

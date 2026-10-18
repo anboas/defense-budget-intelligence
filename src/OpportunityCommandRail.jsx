@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { CalendarClock, Check, Circle, ExternalLink, ListChecks, MoreHorizontal, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { CalendarClock, Check, CheckCircle2, ExternalLink, ListChecks, MoreHorizontal, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { ControlDialog } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { PURSUIT_STAGES, PURSUIT_TASK_EVENT, PURSUIT_TASK_PRIORITIES, PURSUIT_TASK_STATUSES, normalizePursuit, pursuitActionOptions } from "./pursuit-metadata.js";
@@ -23,7 +24,7 @@ function PursuitFields({ watch, canWrite, onCommit, ownerOptions, actionOptions 
     reviewAtRef.current = nextReviewAt;
     setDraft(nextDraft);
     setReviewAt(nextReviewAt);
-    void onCommit(nextDraft, nextReviewAt);
+    void onCommit(nextDraft, nextReviewAt).catch(() => {});
   }
 
   return <div className="if-panel__body if-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))", gap: "0.5rem" }}>
@@ -40,13 +41,30 @@ function taskId() {
 
 function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
   const [composer, setComposer] = useState(null);
+  const [pendingMutation, setPendingMutation] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [busyTaskId, setBusyTaskId] = useState("");
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const dialogRef = useRef(null);
   const tasks = pursuit.tasks || [];
   const active = tasks.filter((task) => task.status !== "done");
   const [expanded, setExpanded] = useState(active.length > 0);
   const canAdd = canWrite && active.length < 6;
+  const statusOptions = PURSUIT_TASK_STATUSES.map(([value, label]) => [value, value === "done" ? "Complete…" : label]);
 
-  function saveTasks(nextTasks) {
-    return onCommit({ ...pursuit, tasks: nextTasks });
+  async function saveTasks(nextTasks, message = "Action plan saved.", busyId = "action-plan") {
+    setBusyTaskId(busyId);
+    setFeedback(null);
+    try {
+      await onCommit({ ...pursuit, tasks: nextTasks });
+      setFeedback({ tone: "success", message });
+      return true;
+    } catch (error) {
+      setFeedback({ tone: "danger", message: error.message || "The action plan could not be saved." });
+      return false;
+    } finally {
+      setBusyTaskId("");
+    }
   }
 
   function addTask(candidate = {}) {
@@ -64,39 +82,60 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
     return () => window.removeEventListener(PURSUIT_TASK_EVENT, receive);
   });
 
-  function commitTask() {
+  async function commitTask() {
     if (!composer?.title.trim()) return;
     const now = new Date().toISOString();
     const saved = { id: composer.id || taskId(), title: composer.title.trim(), status: composer.status, priority: composer.priority, dueAt: composer.dueAt, owner: composer.owner.trim(), sourceType: composer.sourceType, sourceId: composer.sourceId, sourceLabel: composer.sourceLabel, createdAt: composer.createdAt || now, completedAt: "" };
     const next = composer.id ? tasks.map((task) => task.id === composer.id ? saved : task) : [...active, saved, ...tasks.filter((task) => task.status === "done")].slice(0, 6);
-    void saveTasks(next);
-    setComposer(null);
+    const savedSuccessfully = await saveTasks(next, composer.id ? "Action updated." : "Action created.", composer.id || "new-action");
+    if (savedSuccessfully) setComposer(null);
   }
 
   function patchTask(task, patch) {
+    if (patch.status === "done") {
+      setPendingMutation({ type: "complete", task });
+      return;
+    }
+    void applyTaskPatch(task, patch);
+  }
+
+  async function applyTaskPatch(task, patch, message = "Action updated.") {
     const completedAt = patch.status === "done" ? new Date().toISOString() : patch.status ? "" : task.completedAt;
-    void saveTasks(tasks.map((item) => item.id === task.id ? { ...item, ...patch, completedAt } : item));
+    return saveTasks(tasks.map((item) => item.id === task.id ? { ...item, ...patch, completedAt } : item), message, task.id);
+  }
+
+  async function confirmMutation() {
+    if (!pendingMutation) return;
+    const { task, type } = pendingMutation;
+    const savedSuccessfully = type === "complete"
+      ? await applyTaskPatch(task, { status: "done" }, "Action completed. Restore it from Completed if needed.")
+      : await saveTasks(tasks.filter((item) => item.id !== task.id), "Action deleted.", task.id);
+    if (savedSuccessfully) {
+      if (type === "complete") setCompletedOpen(true);
+      setPendingMutation(null);
+    }
   }
 
   return <details className="pursuit-tasks" data-pursuit-tasks open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
-    <summary><span><strong>Actions</strong><small>{active.length ? `${active.length} open` : "No open tasks"}</small></span><span>{expanded ? "Hide" : "Review"}</span></summary>
+    <summary><span><strong>Action plan</strong><small>{active.length ? `${active.length} open` : "No open actions"}</small></span><span>{expanded ? "Hide" : "Review"}</span></summary>
     <div className="pursuit-tasks__body">
-    <header><p>Keep the next decision tied to an owner, due date, and evidence.</p>{canWrite ? <button type="button" className="if-btn if-btn--secondary if-touch-target" disabled={!canAdd} title={canAdd ? "Add a linked pursuit task" : "Complete or remove a task before adding another"} onClick={() => addTask()}><Plus size={15} />Add task</button> : null}</header>
+    <header><p>Each action has one owner, status, and due date.</p>{canWrite ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={!canAdd || Boolean(busyTaskId)} title={canAdd ? "Add a linked pursuit action" : "Complete or remove an action before adding another"} onClick={() => addTask()}><Plus size={14} />Add action</button> : null}</header>
     {active.length ? <div className="pursuit-tasks__list">{active.slice(0, 5).map((task) => <article key={task.id} data-pursuit-task={task.status} data-task-priority={task.priority}>
-      <button type="button" className="pursuit-tasks__complete" disabled={!canWrite} aria-label={`Complete ${task.title}`} onClick={() => patchTask(task, { status: "done" })}><Circle size={18} /></button>
-      <div><strong>{task.title}</strong><small>{[task.owner || "Unassigned", task.dueAt ? `Due ${task.dueAt.slice(0, 10)}` : "No due date", task.sourceLabel || (task.sourceType === "manual" ? "Manual task" : task.sourceType)].filter(Boolean).join(" · ")}</small></div>
-      <ControlSelect label={`Status for ${task.title}`} value={task.status} options={PURSUIT_TASK_STATUSES} disabled={!canWrite} onChange={(status) => patchTask(task, { status })} triggerProps={{ className: "if-touch-target pursuit-tasks__status" }} />
-      {canWrite ? <div className="pursuit-tasks__row-actions"><button type="button" aria-label={`Edit ${task.title}`} onClick={() => addTask(task)}><Pencil size={15} /></button><button type="button" aria-label={`Delete ${task.title}`} onClick={() => void saveTasks(tasks.filter((item) => item.id !== task.id))}><Trash2 size={15} /></button></div> : null}
+      <div className="pursuit-tasks__identity"><strong>{task.title}</strong><small>{[task.owner || "Unassigned", task.dueAt ? `Due ${task.dueAt.slice(0, 10)}` : "No due date", task.sourceLabel || (task.sourceType === "manual" ? "Manual action" : task.sourceType)].filter(Boolean).join(" · ")}</small></div>
+      <ControlSelect label={`Status for ${task.title}`} value={task.status} options={statusOptions} disabled={!canWrite || busyTaskId === task.id} onChange={(status) => patchTask(task, { status })} triggerProps={{ className: "pursuit-tasks__status" }} />
+      {canWrite ? <div className="pursuit-tasks__row-actions"><button type="button" className="if-btn if-btn--ghost if-btn--sm" disabled={Boolean(busyTaskId)} aria-label={`Edit ${task.title}`} onClick={() => addTask(task)}><Pencil size={13} />Edit</button><button type="button" className="if-btn if-btn--ghost if-btn--sm" disabled={Boolean(busyTaskId)} aria-label={`Delete ${task.title}`} onClick={() => setPendingMutation({ type: "delete", task })}><Trash2 size={13} />Delete</button></div> : null}
     </article>)}</div> : <p className="pursuit-tasks__empty">Turn the next decision, a cited research action, or selected evidence into a dated task.</p>}
     {composer ? <div className="pursuit-tasks__composer" data-task-composer>
       <label className="if-field pursuit-tasks__title"><span className="if-field__label">Task</span><input className="if-input if-touch-target" autoFocus value={composer.title} maxLength="160" placeholder="What needs to happen next?" onChange={(event) => setComposer((current) => ({ ...current, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") commitTask(); if (event.key === "Escape") setComposer(null); }} /></label>
       <div className="if-field"><span className="if-field__label">Priority</span><ControlSelect label="Task priority" value={composer.priority} options={PURSUIT_TASK_PRIORITIES} onChange={(priority) => setComposer((current) => ({ ...current, priority }))} triggerProps={{ className: "if-touch-target" }} /></div>
       <label className="if-field"><span className="if-field__label">Due</span><input className="if-input if-touch-target" type="date" value={composer.dueAt} onChange={(event) => setComposer((current) => ({ ...current, dueAt: event.target.value }))} /></label>
       <div className="if-field"><span className="if-field__label">Owner</span><ControlSelect ariaLabel="Task owner" searchable value={composer.owner} options={ownerOptions} onChange={(owner) => setComposer((current) => ({ ...current, owner }))} triggerProps={{ className: "if-touch-target" }} /></div>
-      <div className="pursuit-tasks__composer-actions"><button type="button" className="if-btn if-btn--primary if-touch-target" disabled={!composer.title.trim()} onClick={commitTask}><Check size={15} />{composer.id ? "Save task" : "Create task"}</button><button type="button" className="if-btn if-btn--secondary if-touch-target" onClick={() => setComposer(null)}>Cancel</button></div>
+      <div className="pursuit-tasks__composer-actions"><button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={!composer.title.trim() || Boolean(busyTaskId)} onClick={() => void commitTask()}><Check size={14} />{busyTaskId ? "Saving…" : composer.id ? "Save action" : "Create action"}</button><button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={Boolean(busyTaskId)} onClick={() => setComposer(null)}>Cancel</button></div>
     </div> : null}
-    {tasks.some((task) => task.status === "done") ? <details className="pursuit-tasks__completed"><summary><Check size={14} />{tasks.filter((task) => task.status === "done").length} completed</summary><div>{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite} onClick={() => patchTask(task, { status: "todo" })}>Restore</button></span>)}</div></details> : null}
+    {feedback ? <div className={`if-alert if-alert--${feedback.tone}`} role={feedback.tone === "danger" ? "alert" : "status"} data-action-plan-feedback>{feedback.message}</div> : null}
+    {tasks.some((task) => task.status === "done") ? <details className="pursuit-tasks__completed" open={completedOpen} onToggle={(event) => setCompletedOpen(event.currentTarget.open)}><summary><Check size={14} />{tasks.filter((task) => task.status === "done").length} completed</summary><div>{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id} data-completed-task={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite || Boolean(busyTaskId)} onClick={() => void applyTaskPatch(task, { status: "todo" }, "Action restored to the open plan.")}>Restore</button></span>)}</div></details> : null}
     </div>
+    {pendingMutation ? <ControlDialog open onClose={() => { if (!busyTaskId) setPendingMutation(null); }} title={pendingMutation.type === "complete" ? "Complete this action?" : "Delete this action?"} eyebrow="Action plan" summary={pendingMutation.type === "complete" ? "This moves the action out of the active plan. You can restore it later from Completed." : "This permanently removes the action from the pursuit plan."} dialogRef={dialogRef} surfaceProps={{ "data-task-confirmation": pendingMutation.type }} footer={<><button type="button" className="if-btn" disabled={Boolean(busyTaskId)} onClick={() => setPendingMutation(null)}>Cancel</button><button type="button" className={pendingMutation.type === "delete" ? "if-btn if-btn--danger" : "if-btn if-btn--primary"} disabled={Boolean(busyTaskId)} onClick={() => void confirmMutation()}>{pendingMutation.type === "complete" ? <CheckCircle2 size={15} /> : <Trash2 size={15} />}{busyTaskId ? "Saving…" : pendingMutation.type === "complete" ? "Complete action" : "Delete action"}</button></>}><div className="pursuit-task-confirmation"><strong>{pendingMutation.task.title}</strong><span>{[pendingMutation.task.owner || "Unassigned", pendingMutation.task.dueAt ? `Due ${pendingMutation.task.dueAt.slice(0, 10)}` : "No due date"].join(" · ")}</span></div></ControlDialog> : null}
   </details>;
 }
 
@@ -136,6 +175,7 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
       window.setTimeout(() => setStatus((current) => current === "Saved" ? "" : current), 1_600);
     } catch (error) {
       setStatus(error.message || "Could not save pursuit state.");
+      throw error;
     }
   }
 
@@ -156,9 +196,8 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
     {showActions ? compactActions : null}
     <details className="opportunity-command-rail__setup">
       <summary><span><strong>Pursuit setup</strong><small>{watch ? `${normalizePursuit(watch.pursuit).stage} · ${normalizePursuit(watch.pursuit).owner || "Unassigned"}` : "Owner, stage, next action, and tasks"}</small></span><span>{status || (watch ? "Saved" : "Set up")}</span></summary>
-      <div className="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} /><TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} /></div>
+      <div className="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} /><TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} /></div>
     </details>
-    {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
   </section>;
 
   return <section className="if-panel" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
@@ -167,8 +206,7 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
       <span className="if-status if-status--sm" role="status" aria-live="polite">{status || (watch ? "Workspace pursuit" : "Not tracked")}</span>
     </header>
     <PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} />
-    <TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} />
+    <TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} />
     {showActions ? actions : null}
-    {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
   </section>;
 }
