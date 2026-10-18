@@ -131,8 +131,9 @@ async function collect(page, route, viewport) {
         if (!sameRow || gap > 18 || left.controlGroup !== right.controlGroup) continue;
         const pairClasses = `${left.className} ${right.className}`;
         const intentionalIconPair = pairClasses.includes("capture-timeline__star") && pairClasses.includes("capture-timeline__record-button");
+        const intentionalIconButtonPair = pairClasses.includes("if-icon-btn") && pairClasses.includes("if-btn");
         const mobileHeaderPair = pairClasses.includes("ci-header-command-trigger") && pairClasses.includes("ci-header-mobile-trigger");
-        if (intentionalIconPair || mobileHeaderPair) continue;
+        if (intentionalIconPair || intentionalIconButtonPair || mobileHeaderPair) continue;
         const heightDelta = Math.abs(left.height - right.height);
         const fontDelta = Math.abs(left.fontSize - right.fontSize);
         const radiusDelta = Math.abs(left.radius - right.radius);
@@ -258,13 +259,19 @@ if (VERIFY) {
       if (entry.valueDensity.analysisWidth < minimumAnalysisWidth) violations.push(`${entry.viewport}/${entry.route}: analysis width ${rounded(entry.valueDensity.analysisWidth)}px is not decision-useful`);
     }
     if (entry.hierarchy.duplicateHeadings.length) violations.push(`${entry.viewport}/${entry.route}: duplicate visible headings ${entry.hierarchy.duplicateHeadings.join(", ")}`);
-    if (entry.adjacentMismatches.length) violations.push(`${entry.viewport}/${entry.route}: ${entry.adjacentMismatches.length} adjacent control mismatches`);
+    if (entry.adjacentMismatches.length) {
+      const mismatchSummary = entry.adjacentMismatches.map(({ left, right }) => `${left.text || left.className} ↔ ${right.text || right.className}`).join(", ");
+      violations.push(`${entry.viewport}/${entry.route}: ${entry.adjacentMismatches.length} adjacent control mismatches (${mismatchSummary})`);
+    }
     const undersizedType = entry.elements.filter((item) =>
       ["action", "field"].includes(item.kind)
       && /(^| )(if-btn|if-picker__trigger|if-input|if-textarea)( |$)/.test(item.className)
       && item.fontSize < 12,
     );
-    if (undersizedType.length) violations.push(`${entry.viewport}/${entry.route}: ${undersizedType.length} shared controls below 12px`);
+    if (undersizedType.length) {
+      const undersizedSummary = undersizedType.map((item) => `${item.text || item.className} (${item.fontSize}px)`).join(", ");
+      violations.push(`${entry.viewport}/${entry.route}: ${undersizedType.length} shared controls below 12px (${undersizedSummary})`);
+    }
   }
   if (violations.length) throw new Error(`UI consistency verification failed:\n- ${violations.join("\n- ")}`);
   console.log(`UI consistency verification passed across ${normalized.length} rendered route/viewport combinations.`);

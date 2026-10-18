@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, MoreHorizontal, RotateCcw, Search, X } from "lucide-react";
-import { ControlAsyncState, ControlAutocomplete, ControlTableSelectionBar } from "control-surface-ui/react";
+import { ControlAsyncState, ControlAutocomplete, ControlPopover, ControlTableSelectionBar } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import "./RouteControlConsistency.css";
 
@@ -131,7 +131,6 @@ export default function OperationalDataTable({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [draggingKey, setDraggingKey] = useState("");
   const resizeRef = useRef(null);
-  const columnsRef = useRef(null);
   const query = queryValue ?? internalQuery;
   const setQuery = onQueryChange ?? setInternalQuery;
   const filters = filterValues ?? internalFilters;
@@ -177,24 +176,6 @@ export default function OperationalDataTable({
   }, [defaultMobilePageSize, defaultPageSize, density, id, orderedKeys, preferences.mobilePageSize, preferences.pageSize, visibleKeys, widths]);
 
   const activeExpandedId = expandedRowId === undefined ? expandedId : expandedRowId || null;
-
-  useEffect(() => {
-    const closeOnOutside = (event) => {
-      if (columnsRef.current?.open && !columnsRef.current.contains(event.target)) columnsRef.current.open = false;
-    };
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape" && columnsRef.current?.open) {
-        columnsRef.current.open = false;
-        columnsRef.current.querySelector("summary")?.focus();
-      }
-    };
-    document.addEventListener("pointerdown", closeOnOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
 
   const facetColumns = columns.filter((column) => column.facet);
   const facetOptions = useMemo(() => Object.fromEntries(facetColumns.map((column) => {
@@ -394,7 +375,7 @@ export default function OperationalDataTable({
         <div className="dbi-data-table__tools">
           {showFacets && primaryFacet ? <div className="dbi-data-table__primary-filter"><span className="sr-only">{primaryFacet.label}</span><ControlSelect ariaLabel={`${primaryFacet.label} filter`} value={filters[primaryFacet.key] || ""} options={[["", primaryFacet.facetAllLabel || `All ${primaryFacet.label.toLowerCase()}`], ...facetOptions[primaryFacet.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [primaryFacet.key]: nextValue })); setPage(1); }} /></div> : null}
           {toolbarActions}
-          <details ref={columnsRef} className="dbi-data-table__columns dbi-data-table__more"><summary className="if-btn if-btn--secondary"><MoreHorizontal size={15} aria-hidden="true" /><span>More</span><ChevronDown size={13} /></summary><div><header><strong>Table options</strong><button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetLayout}><RotateCcw size={13} />Reset layout</button></header><label className="dbi-data-table__more-density"><span>Density</span><ControlSelect compact ariaLabel="Table density" value={density} options={Object.entries(DENSITIES)} onChange={(nextDensity) => { setPreferences((current) => ({ ...current, density: nextDensity })); setPage(1); }} /></label><button className="if-btn if-btn--secondary dbi-data-table__more-export" type="button" onClick={() => downloadCsv(exportFilename, visibleColumns, selectedRows.length ? selectedRows : sortedRows)}><Download size={15} /><span>Export{selectedRows.length ? ` ${selectedRows.length}` : ""}</span></button><div className="dbi-data-table__more-heading"><Columns3 size={14} /><strong>Columns</strong></div>{orderedKeys.map((key, index) => { const column = columnByKey.get(key); return <div className="dbi-data-table__column-option" key={key}><label><input type="checkbox" checked={visibleKeys.includes(key)} disabled={column.required} onChange={() => toggleColumn(key)} /><span>{column.label}</span></label>{column.role === "actions" ? null : <span className="dbi-data-table__column-order"><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, -1)} disabled={index === 0} aria-label={`Move ${column.label} left`}><ChevronLeft size={13} /></button><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, 1)} disabled={index === orderedKeys.length - 1} aria-label={`Move ${column.label} right`}><ChevronRight size={13} /></button></span>}</div>; })}</div></details>
+          <ControlPopover label="More" ariaLabel={`${label} table options`} icon={<MoreHorizontal size={15} aria-hidden="true" />} className="dbi-data-table__columns dbi-data-table__more" triggerClassName="if-btn if-btn--secondary" width={280} popoverProps={{ className: "dbi-data-table__options-popover" }}><header><strong>Table options</strong><button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetLayout}><RotateCcw size={13} />Reset layout</button></header><label className="dbi-data-table__more-density"><span>Density</span><ControlSelect compact ariaLabel="Table density" value={density} options={Object.entries(DENSITIES)} onChange={(nextDensity) => { setPreferences((current) => ({ ...current, density: nextDensity })); setPage(1); }} /></label><button className="if-btn if-btn--secondary dbi-data-table__more-export" type="button" onClick={() => downloadCsv(exportFilename, visibleColumns, selectedRows.length ? selectedRows : sortedRows)}><Download size={15} /><span>Export{selectedRows.length ? ` ${selectedRows.length}` : ""}</span></button><div className="dbi-data-table__more-heading"><Columns3 size={14} /><strong>Columns</strong></div>{orderedKeys.map((key, index) => { const column = columnByKey.get(key); return <div className="dbi-data-table__column-option" key={key}><label><input type="checkbox" checked={visibleKeys.includes(key)} disabled={column.required} onChange={() => toggleColumn(key)} /><span>{column.label}</span></label>{column.role === "actions" ? null : <span className="dbi-data-table__column-order"><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, -1)} disabled={index === 0} aria-label={`Move ${column.label} left`}><ChevronLeft size={13} /></button><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, 1)} disabled={index === orderedKeys.length - 1} aria-label={`Move ${column.label} right`}><ChevronRight size={13} /></button></span>}</div>; })}</ControlPopover>
         </div>
       </div>
       {showFacets && secondaryFacets.length ? <>
