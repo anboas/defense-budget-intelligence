@@ -1326,6 +1326,7 @@ try {
   assert.ok(await page.locator("[data-capture-timeline-row]").count() > 1, "All intelligence should restore the complete matching family timeline");
   await page.screenshot({ path: `${OUT_DIR}/timeline-primary-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/library", "[data-data-library-page]");
+  await page.waitForSelector("[data-library-autocomplete]");
   assert.equal(await page.locator("[data-library-autocomplete]").count(), 1, "Data Library should use shared exact-organization autocomplete");
   await page.waitForSelector('[data-organization-relationships="ready"]');
   assert.equal(await page.locator("[data-relationship-lanes]").count(), 1, "Data Library should summarize relationship lanes before rendering every retained item");
