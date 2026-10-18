@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, Pin, PinOff } from "lucide-react";
+import { ArrowLeft, ExternalLink, MoreHorizontal, Network, Pin, PinOff, Sparkles, Star } from "lucide-react";
 import { ControlAsyncState, ControlFactGrid, ControlStatusBadge } from "control-surface-ui/react";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
 import OpportunityCommandRail from "./OpportunityCommandRail.jsx";
@@ -9,6 +9,7 @@ import { accountFlowRoute, awardsRoute, classificationRoute, dataLibraryRoute, i
 import { readPinnedIntelligence, togglePinnedIntelligence } from "./intelligence-history.js";
 import { intelligenceTypeLabel, loadIntelligenceSearchIndex } from "./intelligence-search.js";
 import { useManagementState } from "./management-state.js";
+import { normalizePursuit } from "./pursuit-metadata.js";
 import { applyProcurementChanges, assembleProcurementRecords } from "./procurement-taxonomy.js";
 import { useRecordIntelligence } from "./record-intelligence.js";
 import "./UniversalIntelligenceWorkspace.css";
@@ -63,6 +64,11 @@ function updateWorkspaceTab(entityType, entityId, tab, params) {
   }));
 }
 
+function returnLabel(origin = "") {
+  const labels = { analytics: "Analytics", library: "Data Library", opportunities: "Opportunities", timeline: "Timeline", today: "Today" };
+  return labels[origin] || "Previous view";
+}
+
 function OpportunityOverview({ record, records, intelligence }) {
   const assessment = record.fitAssessment || { reasons: [], methodology: "No scoring method is published for this record." };
   const facts = [
@@ -115,22 +121,31 @@ export default function UniversalIntelligenceWorkspace({ dataset, awards = [], s
   const backHref = safeReturn(params.get("returnTo"));
   const status = record ? String(record.lifecycleStatus || record.status || "published").replaceAll("-", " ") : intelligenceTypeLabel(entity.entityType);
   const analysisView = tab === "timeline" ? "timeline" : tab === "money" ? "money" : "connections";
+  const researchBusy = Boolean(intelligence?.activeJob || ["queued", "in_progress", "researching"].includes(intelligence?.state));
+  const sourceUrl = record?.sourceUrl || record?.sourceUrls?.[0] || "";
+  const origin = params.get("origin") || "";
+
+  async function toggleTracking() {
+    if (!record || !management.canWrite) return;
+    if (watch) management.toggleWatch(entityId);
+    else await management.savePursuit(entityId, normalizePursuit());
+  }
 
   return <div className="universal-workspace" data-universal-intelligence-workspace data-entity-type={entity.entityType} data-workspace-tab={tab}>
     <header className="universal-workspace__header">
-      <div className="universal-workspace__identity"><a className="universal-workspace__back" href={backHref}><ArrowLeft size={15} />Back</a><small>{intelligenceTypeLabel(entity.entityType)}</small><h1>{entity.label}</h1><p>{record ? [record.reference, record.party, record.contractingOffice || record.owner].filter(Boolean).join(" · ") : entity.facts?.slice(0, 3).join(" · ") || entity.sourceArtifact}</p></div>
-      <div className="universal-workspace__header-actions"><ControlStatusBadge status={status} /><button type="button" className="if-btn if-btn--secondary" aria-pressed={pinned} onClick={() => { togglePinnedIntelligence(entity); setPinRevision((value) => value + 1); }}>{pinned ? <PinOff size={15} /> : <Pin size={15} />}{pinned ? "Unpin" : "Pin"}</button>{record ? <a className="if-btn if-btn--secondary" href={intelligenceGraphRoute(entityId)}>Open graph</a> : <a className="if-btn if-btn--secondary" href={genericDestination(entity)}>Specialist view<ExternalLink size={14} /></a>}</div>
+      <div className="universal-workspace__identity"><div className="universal-workspace__identity-line"><a className="universal-workspace__back" href={backHref} aria-label={`Return to ${returnLabel(origin)}`}><ArrowLeft size={13} />{returnLabel(origin)}</a><small>{intelligenceTypeLabel(entity.entityType)}</small></div><h1>{entity.label}</h1><p>{record ? [record.reference, record.party, record.contractingOffice || record.owner].filter(Boolean).join(" · ") : entity.facts?.slice(0, 3).join(" · ") || entity.sourceArtifact}</p></div>
+      <div className="universal-workspace__header-actions" aria-label="Workspace actions"><ControlStatusBadge status={status} />{record ? <><button type="button" className={watch ? "if-btn if-btn--secondary if-btn--sm is-active" : "if-btn if-btn--secondary if-btn--sm"} aria-pressed={Boolean(watch)} disabled={!management.canWrite} onClick={() => void toggleTracking()}><Star size={13} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button><button type="button" className="if-btn if-btn--ai if-btn--sm" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={13} />{researchBusy ? "Researching…" : "Research"}</button></> : null}<button type="button" className="if-btn if-btn--secondary if-btn--sm" aria-pressed={pinned} onClick={() => { togglePinnedIntelligence(entity); setPinRevision((value) => value + 1); }}>{pinned ? <PinOff size={13} /> : <Pin size={13} />}{pinned ? "Unpin" : "Pin"}</button>{record ? <a className="if-btn if-btn--secondary if-btn--sm" href={intelligenceGraphRoute(entityId)}><Network size={13} />Graph</a> : <a className="if-btn if-btn--secondary if-btn--sm" href={genericDestination(entity)}>Specialist view<ExternalLink size={13} /></a>}{sourceUrl ? <details className="universal-workspace__more"><summary className="if-btn if-btn--secondary if-btn--sm"><MoreHorizontal size={13} />More</summary><div><a className="if-btn if-btn--ghost if-btn--sm" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={13} />Official source</a></div></details> : null}</div>
     </header>
     <nav className="universal-workspace__tabs" aria-label="Intelligence workspace views">{WORKSPACE_TABS.map(([id, label]) => <button type="button" key={id} className={tab === id ? "is-active" : ""} aria-pressed={tab === id} onClick={() => updateWorkspaceTab(entityType, entityId, id, params)}>{label}</button>)}</nav>
     <div className="universal-workspace__layout">
       <aside className="universal-workspace__context" aria-label="Selected entity context">
-        {record ? <><OpportunityFactSummary record={record} compact /><OpportunityCommandRail compact record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} showRecordLink={false} /></> : <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Entity context</h2><p className="if-panel__subtitle">Stable identity across every analysis surface.</p></div></header><div className="if-panel__body"><ControlFactGrid label="Entity context" items={(entity.facts || []).slice(0, 4).map((value, index) => ({ label: ["Primary identifier", "Context", "Status", "Value"][index], value: typeof value === "number" ? value.toLocaleString() : String(value) }))} /></div></section>}
+        {record ? <><OpportunityFactSummary record={record} compact />{tab !== "tasks" ? <OpportunityCommandRail compact record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} showRecordLink={false} showActions={false} workspaceActions={management.watchlist} /> : null}</> : <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Entity context</h2><p className="if-panel__subtitle">Stable identity across every analysis surface.</p></div></header><div className="if-panel__body"><ControlFactGrid label="Entity context" items={(entity.facts || []).slice(0, 4).map((value, index) => ({ label: ["Primary identifier", "Context", "Status", "Value"][index], value: typeof value === "number" ? value.toLocaleString() : String(value) }))} /></div></section>}
       </aside>
       <main className="universal-workspace__analysis" aria-label={`${WORKSPACE_TABS.find(([id]) => id === tab)?.[1]} analysis`}>
         {record && tab === "overview" ? <OpportunityOverview record={record} records={records} intelligence={intelligence} /> : null}
         {record && ["timeline", "connections", "money"].includes(tab) ? <ConnectedEvidence opportunityId={entityId} record={record} researchReport={intelligence.reports[0]} fullView workspace view={analysisView} showViewNavigation={false} /> : null}
         {record && tab === "evidence" ? <div className="universal-workspace__evidence"><ConnectedEvidence opportunityId={entityId} record={record} researchReport={intelligence.reports[0]} fullView workspace view="connections" showViewNavigation={false} ledgerOpen /><section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Cited research brief</h2><p className="if-panel__subtitle">Complete official-source findings, dates, risks, and approved task handoffs.</p></div></header><div className="if-panel__body"><OpportunityResearchReport report={intelligence.reports[0]} recordId={entityId} /></div></section></div> : null}
-        {record && tab === "tasks" ? <OpportunityCommandRail record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} showRecordLink={false} /> : null}
+        {record && tab === "tasks" ? <OpportunityCommandRail record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} showRecordLink={false} showActions={false} workspaceActions={management.watchlist} /> : null}
         {!record ? <GenericWorkspace entity={entity} tab={tab} /> : null}
       </main>
     </div>

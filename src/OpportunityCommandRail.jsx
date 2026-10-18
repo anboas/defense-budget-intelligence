@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarClock, Check, Circle, ExternalLink, ListChecks, MoreHorizontal, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import ControlSelect from "./ControlSelect.jsx";
-import { PURSUIT_STAGES, PURSUIT_TASK_EVENT, PURSUIT_TASK_PRIORITIES, PURSUIT_TASK_STATUSES, normalizePursuit } from "./pursuit-metadata.js";
+import { useAuth } from "./AuthContext.jsx";
+import { PURSUIT_STAGES, PURSUIT_TASK_EVENT, PURSUIT_TASK_PRIORITIES, PURSUIT_TASK_STATUSES, normalizePursuit, pursuitActionOptions } from "./pursuit-metadata.js";
 import { opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
 import "./OpportunityCommandRail.css";
 
@@ -9,13 +10,17 @@ function recordId(record) {
   return record?.opportunityId || record?.sourceRecordId || record?.noticeId || record?.id || record?.reference || "";
 }
 
-function PursuitFields({ watch, canWrite, onCommit }) {
+function PursuitFields({ watch, canWrite, onCommit, ownerOptions, actionOptions }) {
   const [draft, setDraft] = useState(() => normalizePursuit(watch?.pursuit));
   const [reviewAt, setReviewAt] = useState(watch?.reviewAt || "");
+  const draftRef = useRef(draft);
+  const reviewAtRef = useRef(reviewAt);
 
   function commit(patch) {
-    const nextDraft = normalizePursuit({ ...draft, ...patch });
-    const nextReviewAt = patch.reviewAt ?? reviewAt;
+    const nextDraft = normalizePursuit({ ...draftRef.current, ...patch });
+    const nextReviewAt = patch.reviewAt ?? reviewAtRef.current;
+    draftRef.current = nextDraft;
+    reviewAtRef.current = nextReviewAt;
     setDraft(nextDraft);
     setReviewAt(nextReviewAt);
     void onCommit(nextDraft, nextReviewAt);
@@ -23,8 +28,8 @@ function PursuitFields({ watch, canWrite, onCommit }) {
 
   return <div className="if-panel__body if-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))", gap: "0.5rem" }}>
     <div className="if-field"><span className="if-field__label">Stage</span><ControlSelect label="Stage" value={draft.stage} options={PURSUIT_STAGES} disabled={!canWrite} triggerProps={{ style: { minHeight: "2.75rem" } }} onChange={(stage) => commit({ stage })} /></div>
-    <label className="if-field"><span className="if-field__label">Owner</span><input className="if-input if-touch-target" value={draft.owner} disabled={!canWrite} maxLength="80" placeholder="Unassigned" onChange={(event) => setDraft((current) => ({ ...current, owner: event.target.value }))} onBlur={() => { if (draft.owner !== (watch?.pursuit?.owner || "")) commit({ owner: draft.owner }); }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
-    <label className="if-field"><span className="if-field__label">Next action</span><input className="if-input if-touch-target" value={draft.nextAction} disabled={!canWrite} maxLength="320" placeholder="Define the next decision or customer action" onChange={(event) => setDraft((current) => ({ ...current, nextAction: event.target.value }))} onBlur={() => { if (draft.nextAction !== (watch?.pursuit?.nextAction || "")) commit({ nextAction: draft.nextAction }); }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
+    <div className="if-field"><span className="if-field__label">Owner</span><ControlSelect ariaLabel="Owner" searchable value={draft.owner} options={ownerOptions} disabled={!canWrite} triggerProps={{ className: "if-touch-target" }} onChange={(owner) => commit({ owner })} /></div>
+    <div className="if-field"><span className="if-field__label">Next action</span><ControlSelect ariaLabel="Next action" searchable value={draft.nextAction} options={actionOptions} disabled={!canWrite} triggerProps={{ className: "if-touch-target" }} onChange={(nextAction) => commit({ nextAction })} /></div>
     <label className="if-field"><span className="if-field__label">Checkpoint</span><input className="if-input if-touch-target" type="date" value={reviewAt} disabled={!canWrite} onChange={(event) => commit({ reviewAt: event.target.value })} /></label>
   </div>;
 }
@@ -33,7 +38,7 @@ function taskId() {
   return globalThis.crypto?.randomUUID?.() || `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
+function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
   const [composer, setComposer] = useState(null);
   const tasks = pursuit.tasks || [];
   const active = tasks.filter((task) => task.status !== "done");
@@ -87,7 +92,7 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
       <label className="if-field pursuit-tasks__title"><span className="if-field__label">Task</span><input className="if-input if-touch-target" autoFocus value={composer.title} maxLength="160" placeholder="What needs to happen next?" onChange={(event) => setComposer((current) => ({ ...current, title: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") commitTask(); if (event.key === "Escape") setComposer(null); }} /></label>
       <div className="if-field"><span className="if-field__label">Priority</span><ControlSelect label="Task priority" value={composer.priority} options={PURSUIT_TASK_PRIORITIES} onChange={(priority) => setComposer((current) => ({ ...current, priority }))} triggerProps={{ className: "if-touch-target" }} /></div>
       <label className="if-field"><span className="if-field__label">Due</span><input className="if-input if-touch-target" type="date" value={composer.dueAt} onChange={(event) => setComposer((current) => ({ ...current, dueAt: event.target.value }))} /></label>
-      <label className="if-field"><span className="if-field__label">Owner</span><input className="if-input if-touch-target" value={composer.owner} maxLength="80" placeholder="Unassigned" onChange={(event) => setComposer((current) => ({ ...current, owner: event.target.value }))} /></label>
+      <div className="if-field"><span className="if-field__label">Owner</span><ControlSelect ariaLabel="Task owner" searchable value={composer.owner} options={ownerOptions} onChange={(owner) => setComposer((current) => ({ ...current, owner }))} triggerProps={{ className: "if-touch-target" }} /></div>
       <div className="pursuit-tasks__composer-actions"><button type="button" className="if-btn if-btn--primary if-touch-target" disabled={!composer.title.trim()} onClick={commitTask}><Check size={15} />{composer.id ? "Save task" : "Create task"}</button><button type="button" className="if-btn if-btn--secondary if-touch-target" onClick={() => setComposer(null)}>Cancel</button></div>
     </div> : null}
     {tasks.some((task) => task.status === "done") ? <details className="pursuit-tasks__completed"><summary><Check size={14} />{tasks.filter((task) => task.status === "done").length} completed</summary><div>{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite} onClick={() => patchTask(task, { status: "todo" })}>Restore</button></span>)}</div></details> : null}
@@ -95,12 +100,30 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit }) {
   </details>;
 }
 
-export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true, compact = false }) {
+export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true, compact = false, showActions = true, workspaceActions = [] }) {
+  const auth = useAuth();
   const id = recordId(record);
   const sourceUrl = record?.sourceUrl || record?.sourceUrls?.[0] || null;
   const [status, setStatus] = useState("");
+  const [directory, setDirectory] = useState(() => auth?.user ? [{ id: auth.user.id || "current-user", displayName: auth.user.displayName, title: auth.user.title || "" }] : []);
   const saveQueue = useRef(Promise.resolve());
   const researchBusy = Boolean(intelligence?.activeJob || ["queued", "in_progress", "researching"].includes(intelligence?.state));
+  useEffect(() => {
+    if (!auth?.enabled || !auth?.user || !auth?.listDirectory) return undefined;
+    let active = true;
+    void auth.listDirectory().then((payload) => { if (active) setDirectory(payload.users || []); }).catch(() => {});
+    return () => { active = false; };
+  }, [auth]);
+  const currentOwner = watch?.pursuit?.owner || "";
+  const ownerOptions = [
+    { value: "", label: "Unassigned", description: "No workspace owner" },
+    ...directory.map((user) => ({ value: user.displayName, label: user.displayName, description: user.title || user.role || "Workspace member" })),
+  ];
+  if (!auth?.enabled && ownerOptions.length === 1) ownerOptions.push({ value: "Workspace owner", label: "Workspace owner", description: "Local workspace" });
+  if (currentOwner && !ownerOptions.some((option) => option.value === currentOwner)) ownerOptions.push({ value: currentOwner, label: currentOwner, description: "Current assignment" });
+  const actionOptions = pursuitActionOptions(workspaceActions, intelligence);
+  const currentAction = watch?.pursuit?.nextAction || "";
+  if (currentAction && !actionOptions.some((option) => option.value === currentAction)) actionOptions.unshift({ value: currentAction, label: currentAction, description: "Current next action" });
 
   async function commit(nextDraft, nextReviewAt) {
     if (!canWrite || !onSavePursuit) return;
@@ -130,10 +153,10 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
   </nav>;
 
   if (compact) return <section className="opportunity-command-rail opportunity-command-rail--compact" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
-    {compactActions}
+    {showActions ? compactActions : null}
     <details className="opportunity-command-rail__setup">
       <summary><span><strong>Pursuit setup</strong><small>{watch ? `${normalizePursuit(watch.pursuit).stage} · ${normalizePursuit(watch.pursuit).owner || "Unassigned"}` : "Owner, stage, next action, and tasks"}</small></span><span>{status || (watch ? "Saved" : "Set up")}</span></summary>
-      <div className="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} /><TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} /></div>
+      <div className="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} /><TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} /></div>
     </details>
     {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
   </section>;
@@ -143,9 +166,9 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
       <div><h3 className="if-panel__title">Pursuit controls</h3><p className="if-panel__subtitle">Assign ownership, stage the work, and keep the next decision visible.</p></div>
       <span className="if-status if-status--sm" role="status" aria-live="polite">{status || (watch ? "Workspace pursuit" : "Not tracked")}</span>
     </header>
-    <PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} />
-    <TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} />
-    {actions}
+    <PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} />
+    <TaskList key={`${id}:${watch?.updatedAt || "new"}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} />
+    {showActions ? actions : null}
     {intelligence?.notice ? <div className={`if-alert ${intelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status"><span>{intelligence.notice}</span></div> : null}
   </section>;
 }
