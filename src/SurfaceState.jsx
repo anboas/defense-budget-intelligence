@@ -15,5 +15,6 @@ export default function SurfaceState({ owner, state, title, message, onRetry, ac
 
 export function SurfaceFeedback({ owner, state = "success", children }) {
   if (!children) return null;
-  return <p className={`if-alert if-alert--${state === "error" ? "danger" : state === "warning" ? "warning" : "success"}`} role={state === "error" ? "alert" : "status"} data-surface-feedback={state} data-surface-state-owner={owner}>{children}</p>;
+  const tone = state === "error" ? "danger" : state === "warning" ? "warning" : state === "info" ? "info" : "success";
+  return <div className={`if-alert if-alert--${tone}`} role={state === "error" ? "alert" : "status"} data-surface-feedback={state} data-surface-state-owner={owner}>{children}</div>;
 }

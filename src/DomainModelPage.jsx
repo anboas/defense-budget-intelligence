@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ControlAsyncState, ControlPageHeader } from "control-surface-ui/react";
+import { ControlPageHeader } from "control-surface-ui/react";
 import { AlertTriangle, Clock3, Database, Download, GitBranch, Network, ShieldCheck } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
+import SurfaceState from "./SurfaceState.jsx";
 import { loadIntelligenceGraphSummary } from "./intelligence-graph.js";
 import "./DomainModelPage.css";
 
@@ -315,8 +316,8 @@ export default function DomainModelPage({ routeHash = "" }) {
     return types.filter((type) => (RELATION_ENDPOINTS[type] || []).some((endpoint) => ENTITY_META[endpoint]?.[1] === selectedGroup));
   }, [selectedGroup, state.summary]);
 
-  if (!allowed) return <section className="domain-model-page" data-domain-model-page><ControlAsyncState compact state="empty" icon={<ShieldCheck size={22} />} title="Workspace manager access required" message="The domain model is an administrative evidence and integrity surface." /></section>;
-  if (state.status !== "ready") return <section className="domain-model-page" data-domain-model-page><ControlAsyncState compact state={state.status === "error" ? "error" : "loading"} icon={<Network size={22} />} title={state.status === "error" ? "Domain model unavailable" : "Loading domain model"} message={state.error || "Loading the bounded graph summary."} /></section>;
+  if (!allowed) return <section className="domain-model-page" data-domain-model-page><SurfaceState compact owner="domain-model" state="empty" icon={<ShieldCheck size={22} />} title="Workspace manager access required" message="The domain model is an administrative evidence and integrity surface." /></section>;
+  if (state.status !== "ready") return <section className="domain-model-page" data-domain-model-page><SurfaceState compact owner="domain-model" state={state.status === "error" ? "error" : "loading"} icon={<Network size={22} />} title={state.status === "error" ? "Domain model unavailable" : "Loading domain model"} message={state.error || "Loading the bounded graph summary."} /></section>;
 
   const summary = state.summary;
   const counts = summary.metadata.entityCounts || {};

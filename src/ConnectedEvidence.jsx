@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from "./intelligence-graph.js";
 import { accountFlowRoute, awardsRoute, dataLibraryRoute, mapLocationRoute, sourceLineageRoute, timelineRoute } from "./cross-surface-routes.js";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
+import SurfaceState from "./SurfaceState.jsx";
 import "./ConnectedEvidence.css";
 
 const ConnectedEvidenceVisual = lazy(() => import("./ConnectedEvidenceVisual.jsx"));
@@ -86,9 +88,9 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
   ].filter(([value]) => Number(value || 0) > 0) : [];
 
   if (!opportunityId) return null;
-  if (state.status === "loading") return <section className="connected-evidence connected-evidence--state" data-connected-evidence data-connected-evidence-state="loading" role="status"><strong>Connected evidence</strong><span>Resolving exact cross-surface links…</span></section>;
-  if (state.status === "error") return <section className="connected-evidence connected-evidence--state" data-connected-evidence data-connected-evidence-state="error" role="alert"><strong>Connected evidence unavailable</strong><span>The primary record remains usable.</span><button type="button" onClick={() => { setState({ status: "loading", graph: null }); setAttempt((value) => value + 1); }}>Retry</button></section>;
-  if (!connection) return <section className="connected-evidence connected-evidence--state" data-connected-evidence data-connected-evidence-state="empty"><strong>No deterministic cross-surface links</strong><span>This record remains available from its source surface.</span></section>;
+  if (state.status === "loading") return <section className="connected-evidence connected-evidence--state" data-connected-evidence data-connected-evidence-state="loading"><SurfaceState compact owner="connected-evidence" state="loading" title="Connected evidence" message="Resolving exact cross-surface links…" /></section>;
+  if (state.status === "error") return <section className="connected-evidence connected-evidence--state" data-connected-evidence data-connected-evidence-state="error"><SurfaceState compact owner="connected-evidence" state="error" title="Connected evidence unavailable" message="The primary record remains usable." onRetry={() => { setState({ status: "loading", graph: null }); setAttempt((value) => value + 1); }} /></section>;
+  if (!connection) return <section className="connected-evidence connected-evidence--state" data-connected-evidence data-connected-evidence-state="empty"><SurfaceState compact owner="connected-evidence" state="empty" title="No deterministic cross-surface links" message="This record remains available from its source surface." /></section>;
 
   const connected = connection.connected || {};
   const routeLinks = [
@@ -104,9 +106,9 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
     <section className={`connected-evidence${fullView ? " connected-evidence--full" : ""}${workspace ? " connected-evidence--workspace" : ""}`} data-connected-evidence data-connected-evidence-state="ready" data-connected-evidence-id={opportunityId} data-connected-evidence-full-view={fullView || undefined} data-connected-evidence-workspace={workspace || undefined}>
       <header>
         <div><span>Evidence graph</span><h3>Connected intelligence</h3></div>
-        <div className="connected-evidence__summary"><div className="connected-evidence__metrics" aria-label="Connected evidence counts">{metrics.slice(0, 4).map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}</div><small><b className={`connected-evidence__status is-${validityStatus}`} data-temporal-status={validityStatus}>{validityStatus}</b>{connection.surfaces.length} linked surfaces</small></div>
+        <div className="connected-evidence__summary"><div className="connected-evidence__metrics" aria-label="Connected evidence counts">{metrics.slice(0, 4).map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}</div><small><SemanticStatusBadge category="evidence" value={validityStatus === "conflicting" ? "gap" : validityStatus === "current" ? "verified" : "review"} label={validityStatus} data-temporal-status={validityStatus} />{connection.surfaces.length} linked surfaces</small></div>
       </header>
-      <Suspense fallback={<div className="connected-evidence--state" role="status">Loading visual analysis…</div>}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} fullView={fullView} controlledView={view} showViewNavigation={showViewNavigation} /></Suspense>
+      <Suspense fallback={<SurfaceState compact owner="connected-evidence-visual" state="loading" title="Loading visual analysis" message="Preparing the bounded evidence graph." />}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} fullView={fullView} controlledView={view} showViewNavigation={showViewNavigation} /></Suspense>
       <details className="connected-evidence__related"><summary><strong>Related views</strong><span>{routeLinks.length} ways to continue</span></summary><nav className="connected-evidence__routes" aria-label="Open connected surfaces">{routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}</nav></details>
       <details className="connected-evidence__ledger" open={ledgerOpen || undefined}>
         <summary><strong>Supporting evidence ledger</strong><span>Awards, lineage, organizations, classifications, and conflicts</span></summary>
