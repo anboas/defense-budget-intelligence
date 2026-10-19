@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-BRK_XKou.js";import{j as t}from"./react-4wq907cC.js";var n=e();function r(e){return(0,n.jsx)(t,{headingLevel:2,...e})}export{r as t};
