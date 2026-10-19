@@ -3478,7 +3478,7 @@ td .dot {
 .capture-gantt-commandbar__group > span {
   margin-right: 2px;
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -3498,6 +3498,16 @@ td .dot {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.capture-gantt-commandbar button:not(:disabled):hover {
+  border-color: var(--brand);
+  background: #edf6fc;
+}
+
+.capture-gantt-commandbar button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .capture-gantt-commandbar__actions {
@@ -4961,7 +4971,7 @@ td .dot {
   align-items: center;
   border-left: 1px solid var(--border);
   color: var(--brand-dark);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-align: center;
 }
@@ -4977,7 +4987,7 @@ td .dot {
   grid-template-columns: repeat(4, 1fr);
   align-self: end;
   color: var(--quiet);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
 }
 
@@ -4994,7 +5004,7 @@ td .dot {
   border-radius: 3px 3px 0 0;
   background: var(--red);
   color: #fff;
-  font-size: 7px;
+  font-size: 8px;
   font-style: normal;
   font-weight: 800;
   line-height: 1.2;
