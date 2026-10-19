@@ -428,6 +428,8 @@ try {
   assert.equal(await page.locator("[data-document-count]").getAttribute("data-document-count"), String(roadmapCoverage.officialDocuments), "Intelligence Operations should disclose the current official-document total");
   assert.equal(await page.locator("[data-citation-count]").getAttribute("data-citation-count"), String(roadmapCoverage.citations), "Intelligence Operations should disclose the current citation total");
   assert.equal(await page.locator("[data-organization-intelligence-panel]").count(), 1, "Organization Intelligence should be the primary research surface");
+  assert.equal(await page.locator('[data-query-rail-label="organization dossiers"]').count(), 1, "Organization dossiers should use the canonical Query Rail");
+  assert.ok(await page.locator('[data-intelligence-products-page] [data-semantic-status="health"]').count() >= 1, "Organization freshness and source health should use semantic status ownership");
   await page.locator("[data-organization-dossier-link]").first().click();
   await page.locator("[data-organization-dossier]").waitFor({ state: "attached" });
   const dossierText = await page.locator("[data-organization-dossier]").innerText();
@@ -446,6 +448,7 @@ try {
   assert.match(await page.locator("[data-organization-watch-panel]").innerText(), /missing listing never ends a tenure[\s\S]*cannot overwrite a dossier until reviewed/i, "Organization Watch should disclose its fail-closed review policy");
   await page.getByRole("button", { name: "Discovery ops" }).click();
   await page.waitForSelector('[data-research-discovery-dashboard][data-research-discovery-state="primary-only"]');
+  assert.equal(await page.locator('[data-surface-state-owner="research-operations"][data-surface-state="empty"]').count(), 1, "Research Operations fallback should use the shared surface-state owner");
   assert.match(await page.locator("[data-research-discovery-dashboard]").innerText(), /Server-side operations live on Cloudflare[\s\S]*primary authenticated application/i, "The static fallback must direct operators to the authenticated research runtime without simulating run state");
   await page.getByRole("button", { name: "Industrial base" }).click();
   assert.equal(await page.locator("[data-industrial-base-panel]").count(), 1, "Industrial-base evidence should be available on demand");
@@ -1076,7 +1079,7 @@ try {
   await firstQuadrantReview.click();
   await page.waitForSelector('[data-spend-explorer="table"] [data-dbi-data-table="opportunity-workbench-v1"]');
   assert.match(decodeURIComponent(new URL(page.url()).hash), /strategyScope=ansoff-/, "Quadrant review should preserve the exact strategic scope in the workbench route");
-  assert.equal(await page.locator(".spend-explorer__strategy-scope").count(), 1, "The operating queue should disclose its active strategic-matrix handoff");
+  assert.equal(await page.locator('[data-surface-state-owner="strategy-scope"][data-surface-feedback="info"]').count(), 1, "The operating queue should disclose its active strategic-matrix handoff through owned informational feedback");
   assert.ok(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "A populated strategic quadrant should hand off its exact opportunity set to the queue");
   await page.getByRole("button", { name: "Clear scope", exact: true }).click();
   await page.locator('[data-workspace-view="analysis"]').click();
@@ -1112,8 +1115,8 @@ try {
   await dueHeader.locator(".if-table__sort").click();
   assert.equal(await dueHeader.getAttribute("aria-sort"), "ascending", "Response deadline should sort directly in the opportunity queue");
   await page.evaluate(() => { window.location.hash = "#/budget-spend/explorer?spendView=table&changes=today"; });
-  await page.waitForSelector(".spend-explorer__change-scope");
-  assert.match(await page.locator(".spend-explorer__change-scope").innerText(), /Complete daily update ledger/i, "Large daily refreshes should have a complete deferred-ledger route");
+  await page.waitForSelector('[data-surface-state-owner="daily-update-scope"][data-surface-feedback="info"]');
+  assert.match(await page.locator('[data-surface-state-owner="daily-update-scope"]').innerText(), /Complete daily update ledger/i, "Large daily refreshes should have a complete deferred-ledger route");
   assert.equal(await page.getByRole("columnheader", { name: /Last change/i }).count(), 1, "The complete daily ledger should expose field-level change summaries");
   await page.getByRole("button", { name: "Show all records" }).click();
   assert.match(await page.locator('[data-spend-explorer="table"] .query-rail__results').innerText(), /(?:of\s+)?(?:8\d\d|9\d\d|[1-9],\d{3,})\s+records/i, "Spend Explorer Table should retain the complete assembled transaction universe");

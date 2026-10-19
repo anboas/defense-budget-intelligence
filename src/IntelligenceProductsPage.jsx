@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ControlAsyncState, ControlSearch } from "control-surface-ui/react";
 import { Activity, BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, ShieldCheck, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
+import QueryRail from "./QueryRail.jsx";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import SectionedPageHeader from "./SectionedPageHeader.jsx";
+import SurfaceState from "./SurfaceState.jsx";
 import "./IntelligenceProductsPage.css";
 
 const ResearchDiscoveryDashboard = lazy(() => import("./ResearchDiscoveryDashboard.jsx"));
@@ -51,7 +53,7 @@ function setSectionRoute(section) {
 
 function SourceState({ row }) {
   return <article className={`intelligence-products__health is-${row.status}`}>
-    <div><strong>{row.label}</strong><span>{row.status.replaceAll("-", " ")}</span></div>
+    <div><strong>{row.label}</strong><SemanticStatusBadge category="health" value={row.status} /></div>
     <b>{number(row.records)}</b>
     {row.caveat ? <p>{row.caveat}</p> : null}
   </article>;
@@ -68,7 +70,7 @@ function OrganizationDossier({ dossier, data, rolesById, people }) {
   return <article className="intelligence-products__dossier" data-organization-dossier={dossier.id}>
     <header>
       <div><span>{dossier.priorityTier.replaceAll("-", " ")} · {dossier.categories.join(" · ")}</span><h3>{dossier.label}</h3><p>{dossier.parentOrganizationName ? `Parent organization: ${dossier.parentOrganizationName}` : "Parent hierarchy remains unresolved or is not applicable in the retained evidence."}</p></div>
-      <div><span className={`if-badge ${dossier.freshness.status === "current" ? "if-badge--success" : "if-badge--warning"}`}>{dossier.freshness.status.replaceAll("-", " ")}</span><small>Latest evidence {dossier.freshness.latestObservation}</small><small>Review by {dossier.freshness.reviewBy}</small></div>
+      <div><SemanticStatusBadge category="health" value={dossier.freshness.status} /><small>Latest evidence {dossier.freshness.latestObservation}</small><small>Review by {dossier.freshness.reviewBy}</small></div>
     </header>
     <div className="intelligence-products__dossier-stats">
       {[['Leaders', dossier.coverage.people], ['Roles', dossier.coverage.roles], ['Programs', dossier.coverage.programs], ['Awards', dossier.coverage.awards], ['Accounts', dossier.coverage.accounts], ['Vendors', dossier.coverage.vendors], ['Sources', dossier.coverage.sources], ['Open gaps', dossier.coverage.researchGaps]].map(([label, value]) => <div key={label}><strong>{number(value)}</strong><span>{label}</span></div>)}
@@ -79,7 +81,7 @@ function OrganizationDossier({ dossier, data, rolesById, people }) {
       <section data-dossier-finance><h4>Financial evidence</h4>{finances.length ? finances.map((row) => <article key={row.id}><strong>{row.label}</strong><b>{money(row.amountDollars)}</b><span>{row.measureType.replaceAll("-", " ")}</span><p>{row.sourceBoundary}</p></article>) : <p className="is-empty">No organization-scoped financial measure is currently retained.</p>}</section>
       <section data-dossier-portfolio><h4>Programs and awards</h4><h5>Programs</h5><ul>{linkedList(dossier.programIds, data.programLabels, "No linked program")}</ul><h5>Awards</h5><ul>{linkedList(dossier.awardIds, data.awardLabels, "No linked award")}</ul></section>
       <section data-dossier-network><h4>Accounts, vendors, and locations</h4><h5>Federal accounts</h5><ul>{linkedList(dossier.accountIds, data.accountLabels, "No linked account")}</ul><h5>Vendors</h5><ul>{dossier.vendorNames.length ? dossier.vendorNames.map((label) => <li key={label}>{label}</li>) : <li className="is-empty">No linked vendor</li>}</ul><h5>Locations</h5><ul>{linkedList(dossier.locationIds, data.locationLabels, "No linked location")}</ul></section>
-      <section data-dossier-research-gaps><h4>Research queue</h4>{gaps.length ? gaps.map((row) => <article key={row.id}><div><strong>{row.gapType.replaceAll("-", " ")}</strong><span className={`if-badge ${row.priority === "high" ? "if-badge--warning" : ""}`}>{row.priority}</span></div><p>{row.description}</p></article>) : <p className="is-empty">No unresolved gap is currently registered.</p>}</section>
+      <section data-dossier-research-gaps><h4>Research queue</h4>{gaps.length ? gaps.map((row) => <article key={row.id}><div><strong>{row.gapType.replaceAll("-", " ")}</strong><SemanticStatusBadge category="urgency" value={row.priority === "high" ? "urgent" : "monitor"} label={row.priority} /></div><p>{row.description}</p></article>) : <p className="is-empty">No unresolved gap is currently registered.</p>}</section>
       <section data-dossier-timeline><h4>Change timeline</h4>{timeline.length ? timeline.slice(0, 30).map((row) => <article key={row.id}><time>{row.effectiveAt}</time><strong>{row.label}</strong><small>{row.reviewState.replaceAll("-", " ")}</small></article>) : <p className="is-empty">No dated change event is retained.</p>}</section>
       <section data-dossier-sources><h4>Source register</h4>{sourceUrls.length ? <ul>{sourceUrls.slice(0, 50).map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>)}</ul> : <p className="is-empty">No reviewed source is retained.</p>}</section>
     </div>
@@ -121,8 +123,8 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     return rows.find((row) => row.id === organizationId) || filteredDossiers[0] || rows[0] || null;
   }, [filteredDossiers, organizationId, state.organizations]);
 
-  if (!allowed) return <section className="intelligence-products" data-intelligence-products-page><ControlAsyncState compact state="empty" icon={<ShieldCheck size={22} />} title="Workspace manager access required" message="Intelligence operations expose administrative evidence, review boundaries, and reusable workspace templates." /></section>;
-  if (state.status !== "ready") return <section className="intelligence-products" data-intelligence-products-page><ControlAsyncState compact state={state.status === "error" ? "error" : "loading"} icon={<Network size={22} />} title={state.status === "error" ? "Intelligence products unavailable" : "Loading intelligence products"} message={state.error || "Loading people, industrial-base, accountability, document, and operational intelligence."} /></section>;
+  if (!allowed) return <section className="intelligence-products" data-intelligence-products-page><SurfaceState compact owner="organization-intelligence" state="empty" icon={<ShieldCheck size={22} />} title="Workspace manager access required" message="Intelligence operations expose administrative evidence, review boundaries, and reusable workspace templates." /></section>;
+  if (state.status !== "ready") return <section className="intelligence-products" data-intelligence-products-page><SurfaceState compact owner="organization-intelligence" state={state.status === "error" ? "error" : "loading"} icon={<Network size={22} />} title={state.status === "error" ? "Intelligence products unavailable" : "Loading intelligence products"} message={state.error || "Loading people, industrial-base, accountability, document, and operational intelligence."} /></section>;
 
   const data = state.roadmap;
   const organizationData = state.organizations;
@@ -144,8 +146,8 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
 
     {section === "organizations" ? <section className="intelligence-products__organizations" data-organization-intelligence-panel>
       <aside className="intelligence-products__organization-index">
-        <ControlSearch ariaLabel="Search organization dossiers" value={organizationQuery} onChange={setOrganizationQuery} placeholder="Search organizations" />
-        <div><strong>{number(filteredDossiers.length)} dossiers</strong><span>{number(organizationData.metadata.coverage.researchGaps)} open research gaps</span></div>
+        <QueryRail label="organization dossiers" query={organizationQuery} onQueryChange={setOrganizationQuery} searchPlaceholder="Search organizations" resultCount={filteredDossiers.length} totalCount={organizationData.dossiers.length} resultNoun="dossiers" onClear={() => setOrganizationQuery("")} />
+        <div className="intelligence-products__organization-summary"><strong>{number(organizationData.metadata.coverage.researchGaps)} open research gaps</strong><span>Review evidence gaps inside each dossier.</span></div>
         <nav aria-label="Organization dossier list">{filteredDossiers.slice(0, 30).map((row) => <button key={row.id} type="button" className={selectedDossier?.id === row.id ? "is-active" : ""} onClick={() => setOrganizationRoute(row.id)} data-organization-dossier-link={row.id}>
           <strong>{row.label}</strong><span>{row.priorityTier.replaceAll("-", " ")} · {row.categories.join(" · ")}</span><small>{number(row.coverage.roles)} roles · {number(row.coverage.programs)} programs · {number(row.coverage.awards)} awards</small>
         </button>)}</nav>
@@ -157,7 +159,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
       <header><div><span>Public professional roles</span><h3>Official people and role tenure</h3><p>Exact appointment or transition dates are used when an official source states them. Current-directory observations are lower bounds, never inferred appointment dates.</p></div><b>{number(coverage.successions)} sourced successions</b></header>
       <div className="intelligence-products__role-list">{roles.map((role) => <article key={role.id} data-official-role={role.id}>
         <div><strong>{people.get(role.personId)?.label || role.personId}</strong><span>{role.title}</span><small>{role.organizationName}</small></div>
-        <div><b>{dateRange(role)}</b><span className={`if-badge ${role.status === "observed-current" ? "if-badge--success" : ""}`}>{role.status.replaceAll("-", " ")}</span><small>{role.evidenceQuote}</small></div>
+        <div><b>{dateRange(role)}</b><SemanticStatusBadge category="evidence" value={role.status === "observed-current" ? "verified" : "review"} label={role.status.replaceAll("-", " ")} /><small>{role.evidenceQuote}</small></div>
       </article>)}</div>
     </section> : null}
 
@@ -177,11 +179,11 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     </section> : null}
 
     {section === "monitoring" ? <section className="intelligence-products__split" data-organization-watch-panel>
-      <article className="intelligence-products__panel"><header><div><span>Official source registry</span><h3>Organization watch</h3><p>Daily directory and weekly source observations retain content hashes, allowed hosts, dossier coverage, and source state. Unchanged pages are suppressed.</p></div><b>{number(state.monitor.metadata.coverage.monitoredSources)} sources</b></header><div className="intelligence-products__table">{state.monitor.sources.map((row) => <div key={row.id} data-organization-monitor-source={row.sourceId}><span><strong>{row.label}</strong><small>{row.publisher} · {row.cadence} · {number(row.linkedDossierIds.length)} dossiers</small></span><span className={`if-badge ${row.changeState === "changed" ? "if-badge--warning" : "if-badge--success"}`}>{row.changeState.replaceAll("-", " ")}</span></div>)}</div></article>
+      <article className="intelligence-products__panel"><header><div><span>Official source registry</span><h3>Organization watch</h3><p>Daily directory and weekly source observations retain content hashes, allowed hosts, dossier coverage, and source state. Unchanged pages are suppressed.</p></div><b>{number(state.monitor.metadata.coverage.monitoredSources)} sources</b></header><div className="intelligence-products__table">{state.monitor.sources.map((row) => <div key={row.id} data-organization-monitor-source={row.sourceId}><span><strong>{row.label}</strong><small>{row.publisher} · {row.cadence} · {number(row.linkedDossierIds.length)} dossiers</small></span><SemanticStatusBadge category="health" value={row.changeState} /></div>)}</div></article>
       <article className="intelligence-products__panel"><header><div><span>Review-first changes</span><h3>Change proposals</h3><p>A new listing is a lower-bound observation. A missing listing never ends a tenure. Changed source content cannot overwrite a dossier until reviewed.</p></div><b>{number(state.monitor.metadata.coverage.reviewProposals)} pending</b></header>{state.monitor.proposals.length ? <div className="intelligence-products__findings">{state.monitor.proposals.map((row) => <article key={row.id} data-organization-change-proposal={row.id}><strong>{row.label}</strong><p>{row.detail}</p><span className="if-badge if-badge--warning">{row.kind.replaceAll("-", " ")}</span></article>)}</div> : <div className="intelligence-products__organization-empty" data-organization-watch-clear><ShieldCheck size={26} /><h3>No source changes pending</h3><p>The current monitored pages match the last verified baseline. Future differences enter this queue instead of silently changing tenure or dossier facts.</p></div>}</article>
     </section> : null}
 
-    {section === "discovery" ? <Suspense fallback={<ControlAsyncState compact state="loading" icon={<Activity size={22} />} title="Loading discovery operations" message="Loading the server-side research dashboard." />}><ResearchDiscoveryDashboard totalGaps={organizationData.metadata.coverage.researchGaps} totalOrganizations={organizationData.metadata.coverage.dossiers} /></Suspense> : null}
+    {section === "discovery" ? <Suspense fallback={<SurfaceState compact owner="research-operations" state="loading" icon={<Activity size={22} />} title="Loading discovery operations" message="Loading the server-side research dashboard." />}><ResearchDiscoveryDashboard totalGaps={organizationData.metadata.coverage.researchGaps} totalOrganizations={organizationData.metadata.coverage.dossiers} /></Suspense> : null}
 
     {section === "operations" ? <section className="intelligence-products__split" data-operational-products-panel>
       <article className="intelligence-products__panel"><header><div><span>Reusable analysis</span><h3>Saved graph queries</h3><p>Durable definitions for repeatable analyst workflows across the canonical entity model.</p></div><b>{number(coverage.savedQueryTemplates)} templates</b></header><div className="intelligence-products__template-grid">{data.savedQueryTemplates.map((row) => <article key={row.id}><strong>{row.label}</strong><p>{row.entityTypes.join(" · ")}</p><span className="if-badge">{row.scope.replaceAll("-", " ")}</span></article>)}</div></article>

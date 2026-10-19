@@ -15,8 +15,10 @@ import WorkspaceMark from "./WorkspaceMark.jsx";
 import WorkspaceTeams from "./WorkspaceTeams.jsx";
 import SaasControlPlane from "./SaasControlPlane.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import SectionedPageHeader from "./SectionedPageHeader.jsx";
-import { ControlAsyncState, ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, useToast } from "control-surface-ui/react";
+import SurfaceState from "./SurfaceState.jsx";
+import { ControlDialog, ControlIdentityLink, ControlMetricStrip, ControlPageBody, useToast } from "control-surface-ui/react";
 import { ACCESS_ROLES, WORKSPACE_ROLE_LABELS } from "./access-model.js";
 import { workspaceMemberHref } from "./workspace-profile-routes.js";
 const CONTENT_METRICS = [
@@ -196,7 +198,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       </div>)}</section></div> : null}
       {workspace.id === auth.user?.activeWorkspace?.id && ["all", "teams"].includes(section) ? <WorkspaceTeams auth={auth} users={workspace.members} /> : null}
       {section === "ai" ? <section className="workspace-policy-panel if-analytics-panel if-analytics-panel--flat" aria-label={`${workspace.name} AI policy`} data-workspace-ai-policy>
-        <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">AI augmentation policy</h3><p className="if-analytics-panel__summary">Choose whether safe, verified, additive changes wait for review or apply automatically.</p></div><span className={`if-badge ${workspace.autoAcceptAiAugmentations ? "if-badge--success" : "if-badge--info"}`}>{workspace.autoAcceptAiAugmentations ? "Automatic" : "Review required"}</span></header>
+        <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">AI augmentation policy</h3><p className="if-analytics-panel__summary">Choose whether safe, verified, additive changes wait for review or apply automatically.</p></div><SemanticStatusBadge category="workflow" value={workspace.autoAcceptAiAugmentations ? "active" : "waiting"} label={workspace.autoAcceptAiAugmentations ? "Automatic" : "Review required"} /></header>
         <p>Operator-owned fields, conflicts, rejected claims, stale event versions, and uncertain evidence always remain pending for validation.</p>
         <div><button type="button" className="if-btn if-btn--primary" onClick={() => beginEdit(workspace)}><Pencil size={14} />Configure AI policy</button></div>
       </section> : null}
@@ -238,7 +240,7 @@ export default function WorkspaceManagement({ auth, activeOnly = false }) {
       <button className="if-btn if-btn--danger if-btn--sm is-deny" type="button" disabled={busy} onClick={() => void mutate(() => auth.resolveWorkspaceRequest(request.id, { decision: "denied", role: "viewer" }), `${request.displayName} denied.`).catch(() => {})}><X size={14} />Deny</button>
     </article>)}</section> : null}
 
-    {((!activeOnly && platformSection === "workspaces") || (activeOnly && activeSection !== "overview")) ? <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <ControlAsyncState compact state="loading" title="Loading workspaces" message="Reading workspace boundaries, membership, and inventory." /> : visibleWorkspaces.map((workspace) => {
+    {((!activeOnly && platformSection === "workspaces") || (activeOnly && activeSection !== "overview")) ? <div className="workspace-management__list">{busy && !visibleWorkspaces.length ? <SurfaceState compact owner="workspace-management" state="loading" title="Loading workspaces" message="Reading workspace boundaries, membership, and inventory." /> : visibleWorkspaces.map((workspace) => {
       const isCurrent = auth.user?.activeWorkspace?.id === workspace.id;
       const workspacePending = Number(workspace.pendingRequestCount || 0);
       return <article className={`workspace-card${isCurrent ? " is-current" : ""}${activeOnly && activeSection !== "general" ? " is-section-only" : ""}`} key={workspace.id} data-workspace={workspace.id} data-workspace-current={isCurrent ? "true" : "false"}>

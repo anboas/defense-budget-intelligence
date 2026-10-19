@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Activity, AlertTriangle, Bot, CheckCircle2, Gauge, Play, RefreshCcw, Save, SearchCheck, ShieldCheck } from "lucide-react";
-import { ControlAsyncState } from "control-surface-ui/react";
 import { useAuth } from "./AuthContext.jsx";
 import ControlSelect from "./ControlSelect.jsx";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
+import SurfaceState, { SurfaceFeedback } from "./SurfaceState.jsx";
 import "./ResearchDiscoveryDashboard.css";
 
 const number = (value) => Number(value || 0).toLocaleString();
@@ -42,7 +43,7 @@ export default function ResearchDiscoveryDashboard({ totalGaps = 0, totalOrganiz
   const [state, setState] = useState({ status: "loading", data: null, error: "" });
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState("");
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState(null);
 
   const load = useCallback(async (quiet = false) => {
     if (auth?.staticHost) return;
@@ -65,18 +66,18 @@ export default function ResearchDiscoveryDashboard({ totalGaps = 0, totalOrganiz
 
   const update = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
   const save = async (event) => {
-    event.preventDefault(); setBusy("save"); setMessage("");
-    try { const result = await auth.updateResearchOperationsConfig(draft); setDraft(result.config); setMessage("Research controls saved."); await load(true); }
-    catch (error) { setMessage(error.message); } finally { setBusy(""); }
+    event.preventDefault(); setBusy("save"); setFeedback(null);
+    try { const result = await auth.updateResearchOperationsConfig(draft); setDraft(result.config); setFeedback({ state: "success", message: "Research controls saved." }); await load(true); }
+    catch (error) { setFeedback({ state: "error", message: error.message }); } finally { setBusy(""); }
   };
   const runNow = async () => {
-    setBusy("run"); setMessage("");
-    try { const result = await auth.runResearchDiscovery(); setMessage(`Research run ${result.run.status}.`); await load(true); }
-    catch (error) { setMessage(error.message); } finally { setBusy(""); }
+    setBusy("run"); setFeedback(null);
+    try { const result = await auth.runResearchDiscovery(); setFeedback({ state: "success", message: `Research run ${result.run.status}.` }); await load(true); }
+    catch (error) { setFeedback({ state: "error", message: error.message }); } finally { setBusy(""); }
   };
 
-  if (auth?.staticHost) return <section className="research-dashboard" data-research-discovery-dashboard data-research-discovery-state="primary-only"><ControlAsyncState compact state="empty" icon={<Bot size={24} />} title="Server-side operations live on Cloudflare" message="Open the primary authenticated application to configure research speed, run discovery, and inspect live D1 run history." /></section>;
-  if (state.status !== "ready") return <section className="research-dashboard" data-research-discovery-dashboard data-research-discovery-state={state.status}><ControlAsyncState compact state={state.status === "error" ? "error" : "loading"} icon={<Activity size={24} />} title={state.status === "error" ? "Research operations unavailable" : "Loading research operations"} message={state.error || "Loading server-side run history and controls."} /></section>;
+  if (auth?.staticHost) return <section className="research-dashboard" data-research-discovery-dashboard data-research-discovery-state="primary-only"><SurfaceState compact owner="research-operations" state="empty" icon={<Bot size={24} />} title="Server-side operations live on Cloudflare" message="Open the primary authenticated application to configure research speed, run discovery, and inspect live D1 run history." /></section>;
+  if (state.status !== "ready") return <section className="research-dashboard" data-research-discovery-dashboard data-research-discovery-state={state.status}><SurfaceState compact owner="research-operations" state={state.status === "error" ? "error" : "loading"} icon={<Activity size={24} />} title={state.status === "error" ? "Research operations unavailable" : "Loading research operations"} message={state.error || "Loading server-side run history and controls."} onRetry={state.status === "error" ? () => void load() : undefined} /></section>;
 
   const { summary, runs, claims, activeRun, credentialAvailable } = state.data;
   const organizationCoverage = totalOrganizations ? Math.min(1, summary.organizationsExplored / totalOrganizations) : 0;
@@ -90,10 +91,10 @@ export default function ResearchDiscoveryDashboard({ totalGaps = 0, totalOrganiz
   return <section className="research-dashboard" data-research-discovery-dashboard>
     <header className="research-dashboard__hero">
       <div><span>Server-side autonomous research</span><h2>Discovery operations</h2><p>Cloudflare schedules bounded OpenAI Responses API research, verifies official-source citations, and publishes exact additive evidence into the workspace overlay.</p></div>
-      <div className="research-dashboard__actions"><span className={`if-badge ${credentialAvailable ? "if-badge--success" : "if-badge--warning"}`}>{credentialAvailable ? "Credential ready" : "Credential required"}</span><button type="button" className="if-btn if-btn--primary" onClick={runNow} disabled={Boolean(busy) || Boolean(activeRun) || !credentialAvailable}><Play size={15} />{activeRun ? "Run active" : busy === "run" ? "Queuing…" : "Run now"}</button></div>
+      <div className="research-dashboard__actions"><SemanticStatusBadge category="health" value={credentialAvailable ? "ready" : "unavailable"} label={credentialAvailable ? "Credential ready" : "Credential required"} /><button type="button" className="if-btn if-btn--primary" onClick={runNow} disabled={Boolean(busy) || Boolean(activeRun) || !credentialAvailable}><Play size={15} />{activeRun ? "Run active" : busy === "run" ? "Queuing…" : "Run now"}</button></div>
     </header>
 
-    {message || state.error ? <div className="research-dashboard__notice" role="status">{state.error || message}</div> : null}
+    {feedback ? <SurfaceFeedback owner="research-operations" state={feedback.state}>{feedback.message}</SurfaceFeedback> : null}
     {activeRun ? <article className="research-dashboard__active" data-active-research-run={activeRun.id}><RefreshCcw size={20} className="is-spinning" /><div><strong>Run in progress</strong><span>{activeRun.stage.replaceAll("_", " ")} · {activeRun.targetsCompleted} of {activeRun.targetsPlanned || "?"} targets · {duration(activeRun)}</span></div><progress value={activeRun.targetsCompleted} max={Math.max(activeRun.targetsPlanned, 1)} /></article> : null}
 
     <div className="research-dashboard__metrics">
@@ -133,8 +134,8 @@ export default function ResearchDiscoveryDashboard({ totalGaps = 0, totalOrganiz
     </form>
 
     <div className="research-dashboard__lists">
-      <article className="research-dashboard__runs"><header><div><span>Durable run ledger</span><h3>Recent cycles</h3></div><button type="button" className="if-btn" onClick={() => void load()}><RefreshCcw size={14} />Refresh</button></header><div>{recentRuns.length ? recentRuns.map((run) => <div key={run.id} data-research-run={run.id}><span className={`research-dashboard__status is-${run.status}`}>{run.status}</span><span><strong>{compactDate(run.startedAt)}</strong><small>{run.trigger} · {run.model} · {duration(run)}</small></span><b>{Number(run.claimsPublished || 0) + Number(run.entitiesPublished || 0) + Number(run.relationsPublished || 0)} records</b><small>{run.claimsPublished} claims · {run.entitiesPublished || 0} entities · {run.relationsPublished || 0} relations</small></div>) : <p>No completed runs yet.</p>}</div></article>
-      <article className="research-dashboard__claims"><header><div><span>Publication ledger</span><h3>Recent findings</h3></div><b>{number(summary.claimsPublished)} total</b></header><div>{claims.length ? claims.slice(0, 20).map((claim) => <article key={claim.id} data-research-claim={claim.id}><div><span className={`if-badge ${claim.status === "published" ? "if-badge--success" : "if-badge--warning"}`}>{claim.status}</span><small>{claim.claimType} · {claim.confidence}</small></div><strong>{claim.label}</strong><p>{claim.value?.value || claim.value?.label || "Structured evidence"}</p><footer><span>{claim.dossierId}</span><time>{compactDate(claim.createdAt)}</time></footer></article>) : <p>No findings recorded yet.</p>}</div></article>
+      <article className="research-dashboard__runs"><header><div><span>Durable run ledger</span><h3>Recent cycles</h3></div><button type="button" className="if-btn" onClick={() => void load()}><RefreshCcw size={14} />Refresh</button></header><div>{recentRuns.length ? recentRuns.map((run) => <div key={run.id} data-research-run={run.id}><SemanticStatusBadge category="health" value={run.status === "completed" || run.status === "succeeded" ? "healthy" : run.status} label={run.status} /><span><strong>{compactDate(run.startedAt)}</strong><small>{run.trigger} · {run.model} · {duration(run)}</small></span><b>{Number(run.claimsPublished || 0) + Number(run.entitiesPublished || 0) + Number(run.relationsPublished || 0)} records</b><small>{run.claimsPublished} claims · {run.entitiesPublished || 0} entities · {run.relationsPublished || 0} relations</small></div>) : <p>No completed runs yet.</p>}</div></article>
+      <article className="research-dashboard__claims"><header><div><span>Publication ledger</span><h3>Recent findings</h3></div><b>{number(summary.claimsPublished)} total</b></header><div>{claims.length ? claims.slice(0, 20).map((claim) => <article key={claim.id} data-research-claim={claim.id}><div><SemanticStatusBadge category="evidence" value={claim.status === "published" ? "verified" : "review"} label={claim.status} /><small>{claim.claimType} · {claim.confidence}</small></div><strong>{claim.label}</strong><p>{claim.value?.value || claim.value?.label || "Structured evidence"}</p><footer><span>{claim.dossierId}</span><time>{compactDate(claim.createdAt)}</time></footer></article>) : <p>No findings recorded yet.</p>}</div></article>
     </div>
   </section>;
 }
