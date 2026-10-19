@@ -1,11 +1,3 @@
-.capture-targeting__mode,
-.strategy-matrix__switch { display: inline-flex; width: max-content; padding: 3px; border: 1px solid #b9cbd8; border-radius: 6px; background: #eaf2f7; }
-.capture-targeting__mode button,
-.strategy-matrix__switch button { min-height: var(--if-control-height); padding: 6px 12px; border: 0; border-radius: var(--if-control-radius); background: transparent; color: #526b7d; font-size: var(--if-font-size-sm); font-weight: var(--if-font-weight-semibold); cursor: pointer; }
-.capture-targeting__mode button[aria-pressed="true"],
-.strategy-matrix__switch button[aria-pressed="true"] { background: #fff; color: var(--brand-dark); box-shadow: 0 1px 4px rgba(16, 45, 68, 0.14); }
-.capture-targeting__mode button:focus-visible,
-.strategy-matrix__switch button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .strategy-matrix { min-width: 0; overflow: hidden; border: 1px solid #88a9be; border-radius: 8px; background: #fff; }
 .strategy-matrix__header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; padding: 16px 18px 13px; border-bottom: 1px solid #d5e1e9; }
 .strategy-matrix__header > div:first-child { min-width: 0; }
@@ -110,8 +102,6 @@
 .strategy-matrix__footer { display: flex; justify-content: space-between; gap: 12px; padding: 8px 18px; border-top: 1px solid #d5e1e9; color: #61778a; font-size: var(--if-font-size-2xs); }
 
 @media (max-width: 760px) {
-  .capture-targeting__mode { width: 100%; }
-  .capture-targeting__mode button { flex: 1 1 50%; min-height: 44px; }
   .strategy-matrix__header { align-items: stretch; flex-direction: column; padding: 12px; }
   .strategy-studio__toolbar { align-items: stretch; flex-direction: column; }
   .strategy-saved-views { display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; }
@@ -125,8 +115,6 @@
   .strategy-config > footer { align-items: stretch; flex-direction: column; }
   .strategy-config > footer .if-btn { width: 100%; min-height: 44px; }
   .strategy-matrix__controls { align-items: stretch; flex-direction: column; }
-  .strategy-matrix__switch { width: 100%; }
-  .strategy-matrix__switch button { flex: 1 1 50%; min-height: 44px; }
   .strategy-matrix__controls > .if-btn { width: 100%; min-height: 44px; }
   .strategy-matrix__baseline { padding: 8px 12px; }
   .strategy-matrix__baseline small { width: 100%; margin-left: 0; }

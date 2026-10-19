@@ -53,7 +53,7 @@ assert.match(previewSource, /RecordIntelligenceNotice/, "Opportunity previews mu
 assert.match(todaySource, /ControlMenu[\s\S]*More selected opportunity actions/, "Today must use the shared command-menu owner for secondary opportunity actions");
 assert.match(commandRailSource, /ControlMenu[\s\S]*More pursuit actions/, "Pursuit surfaces must use the shared command-menu owner");
 assert.match(workspaceSource, /ControlMenu[\s\S]*More workspace actions/, "Intelligence workspaces must use the shared command-menu owner");
-assert.match(spendExplorerSource, /data-analysis-studio-tabs[\s\S]*Capture targets[\s\S]*Spend analysis/, "Analysis Studio must own its visible lens navigation");
+assert.match(spendExplorerSource, /ControlTabs[\s\S]*ariaLabel="Analysis Studio lenses"[\s\S]*Capture targets[\s\S]*Spend analysis[\s\S]*data-analysis-studio-tabs/, "Analysis Studio must delegate its visible lenses to the shared tab owner");
 assert.match(dataTableSource, /QueryRailUtilities[\s\S]*Table options/, "Table configuration must use the Query Rail utility owner");
 assert.doesNotMatch(`${todaySource}\n${commandRailSource}\n${workspaceSource}\n${spendExplorerSource}`, /<details[^>]*(?:more|analysis-menu)[^>]*>/i, "Command lists must not regress to route-specific details elements");
 

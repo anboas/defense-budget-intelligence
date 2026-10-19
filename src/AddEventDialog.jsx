@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { CalendarDays, CircleAlert, MapPin, Search, Sparkles, Tags, X } from "lucide-react";
-import { ControlAsyncState, ControlDialog, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDialog, ControlStatusBadge, ControlTabs } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import EventLocationLink from "./EventLocationLink.jsx";
 import EventPlacementSettings from "./EventPlacementSettings.jsx";
@@ -132,10 +132,7 @@ export default function AddEventDialog({ catalog, existingEvents, categories, te
     : <button type="button" className="if-btn" disabled={Boolean(busyId)} onClick={onClose}>Close</button>;
 
   return <ControlDialog open onClose={requestClose} title="Add event" eyebrow="Workspace schedule" summary="Find a curated event or create one from whatever details you have." size="wide" className="event-dialog-shell" dialogRef={dialogRef} closeLabel="Close add event" bodyProps={{ className: "event-dialog__body" }} surfaceProps={{ className: "event-dialog event-dialog--add", "data-add-event-dialog": mode }} footer={footer}>
-    <nav className="if-tabs__list event-dialog__tabs" aria-label="Add event method">
-      <button type="button" className={`if-tab${mode === "catalog" ? " is-active" : ""}`} aria-pressed={mode === "catalog"} onClick={() => selectMode("catalog")}>Search catalog</button>
-      <button type="button" className={`if-tab${mode === "manual" ? " is-active" : ""}`} aria-pressed={mode === "manual"} onClick={() => selectMode("manual")}>Add manually</button>
-    </nav>
+    <ControlTabs className="event-dialog__tabs" ariaLabel="Add event method" activeId={mode} onSelect={selectMode} items={[["catalog", "Search catalog"], ["manual", "Add manually"]]} />
     {error ? <div role="alert" className="if-alert if-alert--danger event-dialog__alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Could not complete that action</strong><p>{error}</p></div></div> : null}
     {mode === "catalog" ? <div className="event-catalog-browser">
       <div className="event-catalog-browser__controls">

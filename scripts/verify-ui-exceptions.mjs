@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 const read = async (name) => readFile(new URL(`../src/${name}`, import.meta.url), "utf8");
+const sourceRoot = new URL("../src/", import.meta.url);
+
+async function readSources(directory = sourceRoot) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const sources = [];
+  for (const entry of entries) {
+    const url = new URL(entry.name, directory);
+    if (entry.isDirectory()) sources.push(...await readSources(new URL(`${entry.name}/`, directory)));
+    else if (/\.(?:jsx|css)$/.test(entry.name) && entry.name !== "control-surface.css") sources.push([url.pathname, await readFile(url, "utf8")]);
+  }
+  return sources;
+}
 const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState, today, todayCss, wallboardCalendar] = await Promise.all([
   read("IntelligenceProductsPage.jsx"),
   read("ResearchDiscoveryDashboard.jsx"),
@@ -63,4 +75,13 @@ assert.doesNotMatch(today, /today-calendar if-management-grid|today-forward__(?:
 assert.doesNotMatch(todayCss, /today-forward__(?:header|modes|footer)/, "Today must not retain dead local calendar-shell CSS");
 assert.match(wallboardCalendar, /ControlCalendarDay/, "The operational month calendar must share the framework day-cell anatomy");
 
-console.log("UI exception guard verified: queries, calendars, semantic statuses, async states, and local feedback have one shared owner.");
+const sources = await readSources();
+for (const [name, source] of sources) {
+  assert.doesNotMatch(source, /className=(?:"[^"]*|\{`[^`]*)(?:if-tabs__list|if-tab\b)/, `${name} must consume ControlTabs instead of rebuilding framework tab markup`);
+  assert.doesNotMatch(source, /__(?:tabs|switch|mode)\s+(?:button|\.if-tab)|__(?:tabs|switch|mode)>button/, `${name} must not restyle shared tab anatomy`);
+}
+for (const file of ["SectionedPageHeader.jsx", "SpendExplorer.jsx", "TodayWorkspace.jsx", "AddEventDialog.jsx", "UniversalIntelligenceWorkspace.jsx", "TransactionAnalytics.jsx", "OperationsHub.jsx", "ConnectedEvidenceVisual.jsx", "OpportunityPortfolioVisuals.jsx"]) {
+  assert.match(await read(file), /\bControlTabs\b/, `${file} must delegate its second-layer views to ControlTabs`);
+}
+
+console.log("UI exception guard verified: queries, calendars, tabs, semantic statuses, async states, and local feedback have one shared owner.");

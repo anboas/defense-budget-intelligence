@@ -10,6 +10,7 @@ import {
   ControlCalendarViewSwitcher,
   ControlDialog,
   ControlMenu,
+  ControlTabs,
 } from "control-surface-ui/react";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import { useAuth } from "./AuthContext.jsx";
@@ -156,7 +157,7 @@ function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onReq
   return <aside className="today-selection" data-today-selection data-selected-record={id}>
     <header><div><small>Selected opportunity</small><h2>{record.title || id}</h2><p>{[record.party || record.portfolio, record.sourceSystem || record.noticeType].filter(Boolean).join(" · ") || "Tracked opportunity"}</p></div></header>
     <dl className="today-selection__facts if-fact-grid if-fact-grid--mobile-two"><div className="if-fact-grid__item"><dt>Pursuit</dt><dd><SemanticStatusBadge category="workflow" value={pursuit.stage} /></dd></div><div className="if-fact-grid__item"><dt>Owner</dt><dd>{pursuit.owner || "Unassigned"}</dd></div><div className="if-fact-grid__item"><dt>Next milestone</dt><dd>{milestone.label}</dd></div><div className="if-fact-grid__item"><dt>Evidence</dt><dd><SemanticStatusBadge category="evidence" value={record.evidenceTier || "supported"} /><small>{evidenceLabel(record)}</small></dd></div></dl>
-    <nav className="today-selection__tabs" aria-label="Selected opportunity"><div className="if-tabs__list">{LENSES.map((item) => <button className={`if-tab${lens === item.toLowerCase() ? " is-active" : ""}`} key={item} type="button" aria-pressed={lens === item.toLowerCase()} onClick={() => setLens(item.toLowerCase())}>{item}</button>)}</div></nav>
+    <ControlTabs className="today-selection__tabs" ariaLabel="Selected opportunity" activeId={lens} onSelect={setLens} items={LENSES.map((item) => ({ id: item.toLowerCase(), label: item }))} />
     <div className="today-selection__body">
       {lens === "summary" ? <><h3>Decision summary</h3><p>{summary}</p><div className="today-selection__next"><small>Next action</small><strong>{selectedTask?.title || pursuit.nextAction || "Set a named next action"}</strong></div></> : null}
       {lens === "timeline" ? <><h3>Timeline context</h3><p>{milestone.date ? `${milestone.label} is the next retained date for this record.` : "No future official date is retained for this record."}</p><a href={timelineRoute(id)}>Open complete family timeline<ArrowRight size={14} /></a></> : null}

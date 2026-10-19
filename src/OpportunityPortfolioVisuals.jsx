@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { forceCollide, forceSimulation, forceX, forceY, max, scaleLinear, scaleSqrt } from "d3";
 import { BrainCircuit, CheckSquare2, ExternalLink, FileSpreadsheet, LocateFixed, RotateCcw, Settings2, Sparkles, Waypoints } from "lucide-react";
-import { ControlPageBody } from "control-surface-ui/react";
+import { ControlPageBody, ControlTabs } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import SearchMultiSelect from "./SearchMultiSelect.jsx";
@@ -223,10 +223,7 @@ function StrategicMatrix({ records, watchedIds, watchlist, selectedId, onSelect,
     <header className="strategy-matrix__header">
       <div><span>Growth architecture</span><h3>Ansoff strategic matrix</h3><p>{view === "customer" ? "Customers and the work required to expand." : "Capabilities and service offers positioned for growth."}</p></div>
       <div className="strategy-matrix__controls">
-        <div className="strategy-matrix__switch" role="group" aria-label="Strategy matrix view">
-          <button type="button" aria-pressed={view === "customer"} onClick={() => onConfig({ ...config, view: "customer" })}>Customer view</button>
-          <button type="button" aria-pressed={view === "capability"} onClick={() => onConfig({ ...config, view: "capability" })}>Capability view</button>
-        </div>
+        <ControlTabs fill className="strategy-matrix__switch" ariaLabel="Strategy matrix view" activeId={view} onSelect={(next) => onConfig({ ...config, view: next })} items={[["customer", "Customer view"], ["capability", "Capability view"]]} />
         <button type="button" className="if-btn if-btn--secondary" aria-expanded={editing} onClick={() => setEditing((value) => !value)}><Settings2 size={15} />Baseline</button>
       </div>
     </header>
@@ -621,10 +618,7 @@ export default function OpportunityPortfolioVisuals({ records, selectedId, tabs,
           <div><span>Portfolio decision surface</span><h2>{visualMode === "strategy" ? strategyConfig.lens === "ansoff" ? "Where to grow" : "What to pursue now" : "Where to focus pursuit effort"}</h2><p>{visualMode === "strategy" ? strategyConfig.lens === "ansoff" ? "Classify active opportunities against an explicit customer and capability baseline, then review comparable spend and next actions." : "Compare evidence-weighted attractiveness with an explainable ability-to-win proxy. Scores never represent win probability." : "Fit, timing, reported value, customer demand, and evidence remain separate signals. These views direct analyst attention; they do not invent market whitespace."}</p></div>
           <div className="capture-targeting__lanes"><span><b>{tracked.length}</b>Tracked</span><span><b>{strong.length}</b>Strong fit</span><span><b>{nearTerm.length}</b>Due soon</span><span><b>{valued.length}</b>Valued</span></div>
         </div>
-        <div className="capture-targeting__mode" role="group" aria-label="Portfolio visualization mode">
-          <button type="button" aria-pressed={visualMode === "strategy"} onClick={() => updateVisualMode("strategy")}>Strategic matrix</button>
-          <button type="button" aria-pressed={visualMode === "portfolio"} onClick={() => updateVisualMode("portfolio")}>Analytical maps</button>
-        </div>
+        <ControlTabs fill className="capture-targeting__mode" ariaLabel="Portfolio visualization mode" activeId={visualMode} onSelect={updateVisualMode} items={[["strategy", "Strategic matrix"], ["portfolio", "Analytical maps"]]} />
         {visualMode === "strategy" ? <>
           <div className="strategy-studio__toolbar"><StrategySavedViews analysis={strategyConfig} onLoad={(view) => applyStrategyConfig(view.analysis)} />{["idle", "loading"].includes(spendState.status) ? <span role="status">Loading spend context…</span> : spendState.status === "error" ? <span role="alert">{spendState.error}</span> : <span><BrainCircuit size={14} />{strategyConfig.lens === "ansoff" ? "Growth direction" : "Pursuit priority"} · spend {spendState.data.metadata?.status || "unknown"}</span>}</div>
           <StrategyConfiguration config={strategyConfig} onChange={applyStrategyConfig} buyerOptions={buyerOptions} capabilityOptions={capabilityOptions} spendMeta={spendState.data.metadata} />
