@@ -1435,6 +1435,7 @@ try {
   const clearTrackedSearch = page.getByRole("button", { name: "Clear Search Tracked pursuits" });
   await clearTrackedSearch.click();
   assert.equal(await trackedSearch.inputValue(), "", "Shared search clear should restore the complete tracked pursuit set");
+  await page.waitForFunction(() => document.activeElement?.matches('input[type="search"][aria-label="Search Tracked pursuits"]'));
   assert.equal(await trackedSearch.evaluate((node) => node === document.activeElement), true, "Clearing a shared search should restore focus to its input");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
   await page.getByRole("button", { name: "Filter Today work", exact: true }).click();
