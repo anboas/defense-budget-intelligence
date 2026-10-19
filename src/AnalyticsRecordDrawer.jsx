@@ -1,7 +1,8 @@
-import { ControlDisclosure, ControlDrawer, ControlFactGrid, ControlRecordHeader, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlDisclosure, ControlDrawer, ControlFactGrid } from "control-surface-ui/react";
 import { WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
 import { intelligenceWorkspaceRoute, timelineRoute } from "./cross-surface-routes.js";
-import { analysisCanvasStyle, analysisContextStyle, analysisDrawerBodyStyle, analysisDrawerStyle, analysisWorkspaceStyle } from "./analysis-workspace.js";
+import { analysisDrawerBodyStyle, analysisDrawerStyle } from "./analysis-workspace.js";
+import EntityPreview from "./EntityPreview.jsx";
 
 function money(value) {
   const amount = Number(value || 0);
@@ -30,17 +31,12 @@ export default function AnalyticsRecordDrawer({ record, onClose }) {
     open
     onClose={onClose}
     title={record.title}
-    header={<ControlRecordHeader eyebrow={record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"} title={record.title} summary="Published analytical facts, schedule, structure, and provenance." status={<ControlStatusBadge status={record.lifecycleStatus || record.status || "active"} />} meta={[{ label: "Record", value: record.id }, { label: "Portfolio", value: record.portfolio || "Not classified" }, { label: "Recipient", value: record.party || "Not published" }]} />}
     size="detail"
     className="analysis-workspace-drawer"
     closeLabel="Close analytical detail"
     drawerProps={{ "data-analytics-record-drawer": "", "data-analysis-workspace": true, style: analysisDrawerStyle }}
     bodyProps={{ className: "if-record-detail if-record-detail--intelligence analysis-workspace-drawer__body", style: analysisDrawerBodyStyle }}
-    footer={<><a className="if-btn if-btn--primary" href={intelligenceWorkspaceRoute({ entityType: "activity", entityId: record.opportunityId, returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "analytics" })}>Open Intelligence Workspace</a><a className="if-btn if-btn--secondary" href={timelineRoute(record.opportunityId)}>Timeline</a>{(record.sourceUrls || []).slice(0, 1).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</>}
   >
-    <div className="analytics-record-workspace" style={analysisWorkspaceStyle}>
-      <div className="analytics-record-workspace__context" style={analysisContextStyle}><ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} /><ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}><ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} /></ControlDisclosure></div>
-      <div className="analytics-record-workspace__analysis" style={analysisCanvasStyle}><section className="if-panel"><header className="if-panel__header"><div><h3 className="if-panel__title">Continue analysis</h3><p className="if-panel__subtitle">Open the canonical workspace for Timeline, Connections, Money, Evidence, and Tasks.</p></div></header></section></div>
-    </div>
+    <EntityPreview eyebrow={record.mode === "acquisition-window" ? "Acquisition record" : "Contract record"} title={record.title} reference={record.id} summary="Published analytical facts, schedule, structure, and provenance." statusCategory="workflow" status={record.lifecycleStatus || record.status || "monitor"} facts={<ControlFactGrid label="Primary analytical record facts" mobileTwoColumn items={primaryFacts} />} evidence={record.ingestionLabel || record.sourceSystem || "Retained public-source evidence"} primaryHref={intelligenceWorkspaceRoute({ entityType: "activity", entityId: record.opportunityId, returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "analytics" })} secondaryActions={<><a className="if-btn if-btn--secondary" href={timelineRoute(record.opportunityId)}>Timeline</a>{(record.sourceUrls || []).slice(0, 1).map((url, index) => <a className="if-btn if-btn--secondary" key={url} href={url} target="_blank" rel="noreferrer">Source {index + 1}</a>)}</>}><ControlDisclosure title="Schedule, structure, and provenance" summary={`${secondaryFacts.length} supporting record facts`}><ControlFactGrid label="Supporting analytical record facts" mobileTwoColumn items={secondaryFacts} /></ControlDisclosure></EntityPreview>
   </ControlDrawer>;
 }

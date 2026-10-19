@@ -1,10 +1,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ControlAsyncState, ControlErrorBoundary, ToastProvider } from "control-surface-ui/react";
+import { ControlErrorBoundary, ToastProvider } from "control-surface-ui/react";
 import { installClientErrorReporting, reportClientError } from "./client-error-reporting.js";
 import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import "./control-surface.css";
-import { RefreshCcw } from "lucide-react";
+import SurfaceState from "./SurfaceState.jsx";
 import AuthProvider, { useAuth } from "./AuthContext.jsx";
 import NotificationProvider from "./NotificationContext.jsx";
 import ProductMark from "./ProductMark.jsx";
@@ -196,15 +196,7 @@ function ensureCaptureCalendarData() {
 }
 
 function RuntimeDataState({ error = "", loadingTitle, loadingMessage, errorTitle, onRetry, ...props }) {
-  return <ControlAsyncState
-    {...props}
-    compact
-    state={error ? "error" : "loading"}
-    icon={<RefreshCcw size={18} />}
-    title={error ? errorTitle : loadingTitle}
-    message={error || loadingMessage}
-    action={error ? <button type="button" className="if-btn if-btn--secondary" onClick={onRetry}>Retry</button> : null}
-  />;
+  return <SurfaceState {...props} owner="route" state={error ? "error" : "loading"} title={error ? errorTitle : loadingTitle} message={error || loadingMessage} onRetry={onRetry} />;
 }
 
 function App() {

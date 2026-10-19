@@ -14,8 +14,7 @@ export const PRODUCT_WORKSPACES = [
   ] },
   { id: "opportunities", label: "Opportunities", href: `${ROUTES.spend}?spendView=table`, tabIds: ["spend"], views: [
     { id: "workbench", label: "Workbench", tabId: "spend", href: `${ROUTES.spend}?spendView=table`, spendViews: ["table", "record"] },
-    { id: "radar", label: "Radar", tabId: "spend", href: `${ROUTES.spend}?spendView=radar`, spendViews: ["radar"] },
-    { id: "portfolio", label: "Portfolio", tabId: "spend", href: `${ROUTES.spend}?spendView=visuals`, spendViews: ["visuals", "timeline", "charts"] },
+    { id: "analysis", label: "Analysis", tabId: "spend", href: `${ROUTES.spend}?spendView=analysis&analysisMode=portfolio`, spendViews: ["analysis", "radar", "visuals", "charts"] },
   ] },
   { id: "timeline", label: "Timeline", href: ROUTES.timeline, tabIds: ["timeline"], views: [
     { id: "timeline", label: "Timeline", tabId: "timeline", href: ROUTES.timeline },
@@ -51,7 +50,8 @@ export const MANAGEMENT_NAVIGATION = [
 ];
 
 export function navigationContext(activeTab, routeHash = "") {
-  const spendView = activeTab === "spend" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("spendView") || "table" : "";
+  const rawSpendView = activeTab === "spend" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("spendView") || "table" : "";
+  const spendView = ["radar", "visuals", "charts"].includes(rawSpendView) ? "analysis" : rawSpendView;
   const workspace = PRODUCT_WORKSPACES.find((entry) => entry.tabIds.includes(activeTab)) || null;
   if (!workspace) return { workspace: null, view: null };
   const view = activeTab === "entity-workspace"

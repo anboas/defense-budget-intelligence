@@ -18,7 +18,6 @@ import {
   CircleDollarSign,
   Database,
   Download,
-  Filter,
   Grid3X3,
   Layers3,
   Network,
@@ -26,11 +25,12 @@ import {
   TableProperties,
   X,
 } from "lucide-react";
-import { ControlDisclosure, ControlSearch } from "control-surface-ui/react";
+import { ControlDisclosure } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import SearchMultiSelect, { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
+import QueryRail from "./QueryRail.jsx";
 import "./RouteControlConsistency.css";
 const AnalyticsRecordDrawer = lazy(() => import("./AnalyticsRecordDrawer.jsx"));
 
@@ -1976,61 +1976,27 @@ export default function TransactionAnalytics({
     { id: "subawards", label: "Subawards", value: totals.subawards.toLocaleString() },
     { id: "filters", label: "Filters", value: activeFilters, tone: activeFilters ? "warning" : "neutral" },
   ];
+  const analyticsFilterControls = <div className="query-rail__filter-grid analytics-query-filters">
+    <div><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>
+    <div><span>Dimension</span><ControlSelect ariaLabel="Dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
+    <div><span>Measure</span><ControlSelect ariaLabel="Measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
+    {filterDefinitions.map((definition) => <SearchMultiSelect key={definition.id} className="analytics-multiselect" title={definition.title} allLabel={definition.allLabel} value={filterValues[definition.id]} options={definition.options} onChange={(values) => setFilterValues((current) => ({ ...current, [definition.id]: serializeMultiValues(values) }))} />)}
+    <SearchMultiSelect className="analytics-multiselect analytics-chart-manager" title="Visible charts" allLabel="All charts visible" value={serializeMultiValues(activeChartIds)} options={chartOptions} onChange={(values) => setVisibleCharts((current) => ({ ...current, [activeView]: values.length ? values : DEFAULT_VISIBLE_CHARTS[activeView] }))} />
+  </div>;
+  const activeFilterChips = activeFilters ? <>
+    {facet ? <button type="button" className="if-badge if-badge--info" onClick={() => setFacet(null)}>{DIMENSIONS.find((item) => item.id === facet.dimensionId)?.label}: {facet.value}<X size={12} /></button> : null}
+    {endYear ? <button type="button" className="if-badge if-badge--info" onClick={() => setEndYear(null)}>Reported endpoint: {endYear}<X size={12} /></button> : null}
+    {endMonth !== null ? <button type="button" className="if-badge if-badge--info" onClick={() => setEndMonth(null)}>Endpoint month: {new Intl.DateTimeFormat(undefined, { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, endMonth, 1)))}<X size={12} /></button> : null}
+    {valueBand ? <button type="button" className="if-badge if-badge--info" onClick={() => setValueBand(null)}>{VALUE_BANDS.find((item) => item.id === valueBand)?.label}<X size={12} /></button> : null}
+    {durationBand ? <button type="button" className="if-badge if-badge--info" onClick={() => setDurationBand(null)}>Term: {DURATION_BANDS.find((item) => item.id === durationBand)?.label}<X size={12} /></button> : null}
+    {evidenceCell ? <button type="button" className="if-badge if-badge--info" onClick={() => setEvidenceCell(null)}>{evidenceCell.gaps ? `${evidenceCell.gaps} evidence gap${evidenceCell.gaps === 1 ? "" : "s"}` : "Complete evidence"} · {VALUE_BANDS.find((item) => item.id === evidenceCell.bandId)?.label}<X size={12} /></button> : null}
+    {filterDefinitions.map((definition) => { const selected = parseMultiValues(filterValues[definition.id]); return selected.length ? <button className="if-badge if-badge--info" key={definition.id} type="button" onClick={() => setFilterValues((current) => ({ ...current, [definition.id]: "all" }))}>{definition.title}: {selected.length}<X size={12} /></button> : null; })}
+  </> : null;
   return (
     <div className="transaction-analytics-page" data-transaction-d3-page>
-      <ControlWorkbenchHeader eyebrow={embedded ? "Opportunity intelligence" : "Factual analytical workbench"} title={embedded ? "Opportunity Analysis" : "Contract & Transaction Analytics"} summary={embedded ? "Timeline and charts share one public-data scope with the opportunity queue." : "Cross-filter schedules, reported values, recipients, offices, acquisition structure, provenance, FPDS actions, and exact prime-to-subaward counts."} metrics={metrics} metricLabel="Current analytical scope" tabs={<>{embeddedTabs}<nav className="analytics-view-tabs" aria-label="Analytics view">
+      <ControlWorkbenchHeader eyebrow={embedded ? "Opportunity intelligence" : "Factual analytical workbench"} title={embedded ? "Analysis Studio" : "Contract & Transaction Analytics"} summary={embedded ? "Portfolio, capture, and spend lenses share one opportunity scope and one control grammar." : "Cross-filter schedules, reported values, recipients, offices, acquisition structure, provenance, FPDS actions, and exact prime-to-subaward counts."} metrics={metrics} metricLabel="Current analytical scope" tabs={<>{embeddedTabs}<nav className="analytics-view-tabs" aria-label="Analytics view">
           {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => { setActiveView(id); updateAnalyticsView(id); }}><Icon size={15} aria-hidden="true" />{label}</button>)}
-        </nav></>} controls={<div className="analytics-commandbar__controls">
-          <ControlSearch className="analytics-search" ariaLabel="Search analytical records" value={query} onChange={setQuery} placeholder="Search title, award, office, recipient…" />
-          <div className="analytics-commandbar__secondary">
-            <div className="analytics-mobile-chart-picker"><span>Chart</span><ControlSelect ariaLabel="Visible mobile chart" value={mobileChartId} options={chartOptions.filter(([id]) => activeChartIds.includes(id))} onChange={(chartId) => setMobileChartByView((current) => ({ ...current, [activeView]: chartId }))} /></div>
-            <div className="analytics-record-type"><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>
-            <div className="analytics-dimension"><span>Dimension</span><ControlSelect ariaLabel="Dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
-            <div className="analytics-measure"><span>Measure</span><ControlSelect ariaLabel="Measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
-            <button type="button" className="if-btn if-btn--secondary analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
-            {activeFilters ? <button type="button" className="if-btn if-btn--secondary analytics-reset" onClick={clearFilters}><X size={14} aria-hidden="true" />Clear {activeFilters}</button> : null}
-          </div>
-        </div>} secondaryControls={<><details className="analytics-manager" data-analytics-manager>
-          <summary><Filter size={14} aria-hidden="true" /><strong>Filter data & manage charts</strong><span>{activeFilters ? `${activeFilters} active filters` : "All records"} · {activeChartIds.length} of {chartOptions.length} charts</span></summary>
-          <div className="analytics-manager__grid">
-            <div className="analytics-manager__mobile-actions">
-              <div><span>Dimension</span><ControlSelect ariaLabel="Mobile dimension" value={dimensionId} options={DIMENSIONS.map((item) => [item.id, item.label])} onChange={(nextDimension) => { setDimensionId(nextDimension); setFacet(null); }} /></div>
-              <div><span>Measure</span><ControlSelect ariaLabel="Mobile measure" value={metricId} options={METRICS.map((item) => [item.id, item.label])} onChange={setMetricId} /></div>
-              <button type="button" className="if-btn if-btn--secondary analytics-export" onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export {scopedRecords.length.toLocaleString()}</button>
-            </div>
-            {filterDefinitions.map((definition) => (
-              <SearchMultiSelect
-                key={definition.id}
-                className="analytics-multiselect"
-                title={definition.title}
-                allLabel={definition.allLabel}
-                value={filterValues[definition.id]}
-                options={definition.options}
-                onChange={(values) => setFilterValues((current) => ({ ...current, [definition.id]: serializeMultiValues(values) }))}
-              />
-            ))}
-            <SearchMultiSelect
-              className="analytics-multiselect analytics-chart-manager"
-              title="Visible charts"
-              allLabel="All charts visible"
-              value={serializeMultiValues(activeChartIds)}
-              options={chartOptions}
-              onChange={(values) => setVisibleCharts((current) => ({ ...current, [activeView]: values.length ? values : DEFAULT_VISIBLE_CHARTS[activeView] }))}
-            />
-          </div>
-        </details>
-        {activeFilters ? <div className="analytics-active-filters" aria-label="Active analytical filters">
-          {facet ? <button type="button" onClick={() => setFacet(null)}><Filter size={13} aria-hidden="true" />{DIMENSIONS.find((item) => item.id === facet.dimensionId)?.label}: {facet.value}<X size={13} aria-hidden="true" /></button> : null}
-          {endYear ? <button type="button" onClick={() => setEndYear(null)}><CalendarClock size={13} aria-hidden="true" />Reported endpoint: {endYear}<X size={13} aria-hidden="true" /></button> : null}
-          {endMonth !== null ? <button type="button" onClick={() => setEndMonth(null)}><CalendarClock size={13} aria-hidden="true" />Endpoint month: {new Date(2026, endMonth, 1).toLocaleString(undefined, { month: "short" })}<X size={13} aria-hidden="true" /></button> : null}
-          {valueBand ? <button type="button" onClick={() => setValueBand(null)}><CircleDollarSign size={13} aria-hidden="true" />{VALUE_BANDS.find((item) => item.id === valueBand)?.label}<X size={13} aria-hidden="true" /></button> : null}
-          {durationBand ? <button type="button" onClick={() => setDurationBand(null)}><CalendarClock size={13} aria-hidden="true" />{DURATION_BANDS.find((item) => item.id === durationBand)?.label}<X size={13} aria-hidden="true" /></button> : null}
-          {evidenceCell ? <button type="button" onClick={() => setEvidenceCell(null)}><Database size={13} aria-hidden="true" />{VALUE_BANDS.find((item) => item.id === evidenceCell.bandId)?.label} · {evidenceCell.gaps === 0 ? "complete evidence" : `${evidenceCell.gaps} evidence gap${evidenceCell.gaps === 1 ? "" : "s"}`}<X size={13} aria-hidden="true" /></button> : null}
-          {filterDefinitions.map((definition) => {
-            const selected = parseMultiValues(filterValues[definition.id]);
-            return selected.length ? <button key={definition.id} type="button" onClick={() => setFilterValues((current) => ({ ...current, [definition.id]: "all" }))}><Filter size={13} aria-hidden="true" />{definition.title}: {selected.length}<X size={13} aria-hidden="true" /></button> : null;
-          })}
-        </div> : null}</>} />
+        </nav></>} controls={<QueryRail label="analytical records" query={query} onQueryChange={setQuery} searchPlaceholder="Search title, award, office, recipient…" filters={analyticsFilterControls} activeFilterCount={activeFilters} activeFilterSummary={activeFilterChips} onClear={clearFilters} resultCount={scopedRecords.length} totalCount={records.length}><div className="analytics-mobile-chart-picker"><span className="sr-only">Chart</span><ControlSelect compact ariaLabel="Visible chart" value={mobileChartId} options={chartOptions.filter(([id]) => activeChartIds.includes(id))} onChange={(chartId) => setMobileChartByView((current) => ({ ...current, [activeView]: chartId }))} /></div><button type="button" className="if-btn if-btn--secondary if-touch-target analytics-export" style={{ minHeight: "2.75rem" }} onClick={() => exportAnalyticsSlice(scopedRecords, metric, { snapshot: dataset.metadata.asOf, view: activeView, dimension: dimensionLabel })}><Download size={14} aria-hidden="true" />Export</button></QueryRail>} />
 
       <AnalyticsBrief insights={insights} activeView={activeView} onAction={applyInsight} />
 

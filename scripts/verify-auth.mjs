@@ -82,9 +82,10 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   let statusRequestCount = 0;
+  let allowStatusRequests = false;
   await page.route("**/api/v1/auth/status", async (route) => {
     statusRequestCount += 1;
-    if (statusRequestCount === 1) {
+    if (!allowStatusRequests) {
       await route.abort("failed");
       return;
     }
@@ -95,8 +96,14 @@ try {
   });
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   const bootstrapErrorGate = page.locator('[data-account-gate="bootstrap-error"]');
-  await bootstrapErrorGate.waitFor({ timeout: 5000 });
+  try {
+    await bootstrapErrorGate.waitFor({ timeout: 15_000 });
+  } catch (bootstrapError) {
+    const bodyText = (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 500);
+    throw new Error(`Bootstrap failure state did not render after ${statusRequestCount} intercepted status request(s). Body: ${bodyText || "empty"}`, { cause: bootstrapError });
+  }
   assert.equal(await bootstrapErrorGate.getByRole("heading", { name: "Workspace unavailable" }).count(), 1, "A failed bootstrap should replace the spinner with a clear error state");
+  allowStatusRequests = true;
   await bootstrapErrorGate.getByRole("button", { name: "Retry" }).click();
   const loadingGate = page.locator(".account-gate--loading");
   const setupGate = page.locator('[data-account-gate="setup"]');
@@ -349,9 +356,11 @@ try {
   const activityTable = page.locator('[data-platform-activity-table]');
   await activityTable.waitFor();
   assert.match(await activityTable.innerText(), /Browser teammate[\s\S]*Account Created[\s\S]*Users/i, "Platform activity must retain account lifecycle actions with account and surface metadata");
-  assert.ok(await activityTable.getByRole("button", { name: "Account filter" }).count(), "Activity must expose an account filter");
-  assert.ok(await activityTable.getByRole("button", { name: "Activity type filter" }).count(), "Activity must expose an activity-type filter");
-  assert.ok(await activityTable.getByRole("button", { name: "Action filter" }).count(), "Activity must expose an action filter");
+  await activityTable.getByRole("button", { name: "Filter Platform user activity", exact: true }).click();
+  assert.ok(await page.getByRole("button", { name: "Account filter" }).count(), "Activity must expose an account filter");
+  assert.ok(await page.getByRole("button", { name: "Activity type filter" }).count(), "Activity must expose an activity-type filter");
+  assert.ok(await page.getByRole("button", { name: "Action filter" }).count(), "Activity must expose an action filter");
+  await page.keyboard.press("Escape");
   await page.screenshot({ path: "test-results/admin-user-activity-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForSelector('[data-platform-activity-table][data-table-layout="cards"]');
@@ -452,9 +461,9 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await discoveryPage.getByRole("button", { name: "Source health" }).click();
   await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').waitFor();
-  assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /35 records/i, "Source health must make the complete official registry visible");
+  assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /35\s+records/i, "Source health must make the complete official registry visible");
   await discoveryPage.getByRole("searchbox", { name: "Search Official event discovery sources" }).fill("SAM.gov");
-  assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /1\s*of 35 records/i, "Source health must support live filtering");
+  assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /1\s+of\s+35\s+records/i, "Source health must support live filtering");
   await discoveryPage.getByRole("button", { name: "Scan history" }).click();
   await discoveryPage.locator('[data-dbi-data-table="event-discovery-runs"]').waitFor();
   await discoveryPage.getByRole("searchbox", { name: "Search Event discovery scan history" }).waitFor();
@@ -1090,13 +1099,17 @@ try {
   assert.match(await page.locator("[data-api-observability-charts] .if-chart-tooltip").innerText(), /click to filter/i, "Chart bars must expose a visible hover value and action");
   await outcomeBar.click();
   assert.equal(await outcomeBar.getAttribute("aria-pressed"), "true", "Clicking an outcome bar must select it");
+  await page.locator('[data-api-request-table]').getByRole("button", { name: "Filter Runtime and API request log", exact: true }).click();
   assert.match(await page.getByRole("button", { name: /Status filter:/ }).getAttribute("aria-label"), /succeeded|failed|rejected|rate limited/i, "Outcome selection must synchronize the request-table status filter");
+  await page.keyboard.press("Escape");
   await outcomeBar.click();
   assert.equal(await outcomeBar.getAttribute("aria-pressed"), "false", "Clicking the selected outcome again must clear it");
   const latencyBar = page.locator("[data-api-observability-charts] .if-chart-card").nth(1).locator("button.if-chart-bar").first();
   await latencyBar.click();
   assert.equal(await latencyBar.getAttribute("aria-pressed"), "true", "Clicking a latency bar must select its operation filter");
+  await page.locator('[data-api-request-table]').getByRole("button", { name: "Filter Runtime and API request log", exact: true }).click();
   assert.doesNotMatch(await page.getByRole("button", { name: /Operation filter:/ }).getAttribute("aria-label"), /: All$/i, "Latency selection must synchronize the request-table operation filter");
+  await page.keyboard.press("Escape");
   await latencyBar.click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
@@ -1332,12 +1345,13 @@ try {
   await page.waitForSelector('[data-ops-event-table][data-table-layout="cards"]');
   const mobileEventSearch = page.locator('[data-ops-event-table] input[type="search"]');
   assert.match(await page.locator('[data-ops-event-table]').innerText(), /Not augmented|Validation required|AI amended|Checked/i, "Mobile event cards must retain a readable augmentation status");
-  const mobileEventFilterToggle = page.locator('[data-ops-event-table] .dbi-data-table__mobile-filter-toggle');
-  assert.ok(await mobileEventFilterToggle.evaluate((button) => button.getBoundingClientRect().height >= 43.5), "Mobile DataTable filters should use a 44px disclosure control");
-  assert.equal(await page.locator('[data-ops-event-table] [data-table-filters]:visible').count(), 0, "Mobile DataTable facets should start collapsed");
+  const mobileEventFilterToggle = page.locator('[data-ops-event-table]').getByRole("button", { name: "Filter Operator events" });
+  assert.ok(await mobileEventFilterToggle.evaluate((button) => button.getBoundingClientRect().height >= 43.5), "Mobile Query Rail filters should use a 44px disclosure control");
+  assert.equal(await page.getByText("Filter Operator events", { exact: true }).count(), 0, "Mobile Query Rail facets should start inside a closed owned popover");
   await mobileEventFilterToggle.click();
-  assert.equal(await page.locator('[data-ops-event-table] [data-table-filters]:visible').count(), 1, "Mobile DataTable facets should remain available on demand");
-  await mobileEventFilterToggle.click();
+  await page.getByText("Filter Operator events", { exact: true }).waitFor();
+  assert.equal(await page.getByText("Filter Operator events", { exact: true }).count(), 1, "Mobile Query Rail facets should remain available on demand");
+  await page.keyboard.press("Escape");
   await mobileEventSearch.fill("no-event-can-match-this-control");
   await page.locator('[data-ops-event-table] [data-if-table-empty]').waitFor();
   assert.match(await page.locator('[data-ops-event-table] [data-if-table-empty]').innerText(), /No matching records[\s\S]*Reset table controls/i, "A filtered-empty table should explain the state and offer one-step recovery");

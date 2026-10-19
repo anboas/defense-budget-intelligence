@@ -129,12 +129,6 @@ async function chooseControlSelect(page, label, option) {
   else await page.getByRole("option", { name: new RegExp(`^${String(option).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?:\\s|$)`, "i") }).first().click();
 }
 
-async function chooseSpendAnalysis(page, label) {
-  const trigger = page.locator(".spend-explorer__analysis-menu > button");
-  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${label}`) }).click();
-}
-
 async function openOpportunityFilters(page) {
   const trigger = page.locator("[data-opportunity-workbench-scope] > button");
   if (await page.locator('[data-if-react-popover][aria-label="Filter opportunities"]').count() === 0) await trigger.click();
@@ -387,7 +381,7 @@ try {
   assert.equal(await manageTrigger.evaluate((node) => document.activeElement === node), true, "Escape should return focus to Manage");
 
   await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
-  await assertNavigationContext(page, "opportunities", "Portfolio");
+  await assertNavigationContext(page, "opportunities", "Analysis");
   await openSurface(page, "#/budget-spend/sources", "[data-analytics-sources-page]");
   await assertNavigationContext(page, "intelligence", "Sources");
   await openSurface(page, "#/budget-spend/connections", "[data-connections-surface]");
@@ -768,7 +762,7 @@ try {
   await mauasRecordLink.click();
   await page.waitForSelector('[data-spend-explorer="table"]');
   assert.equal(await page.locator('[data-spend-explorer="table"] input[type="search"]').inputValue(), "FA862222F8449", "Map-to-table navigation should preserve the readable award PIID");
-  assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /^1\s+of\s+/i, "The award PIID should resolve to its exact Spend Explorer table record");
+  assert.match(await page.locator('[data-spend-explorer="table"] .query-rail__results').innerText(), /^1\s+(?:of\s+\d+\s+)?records?/i, "The award PIID should resolve to its exact Spend Explorer table record");
   const mauasTableRow = page.locator('[data-spend-explorer="table"] [data-row-key="opp_26b736189b1e1357bc2f"]');
   assert.equal(await mauasTableRow.count(), 1, "The map record should resolve through its stable internal identity");
   assert.equal(await mauasTableRow.getAttribute("data-row-highlighted"), "true", "The table should highlight the record selected from the map");
@@ -795,7 +789,8 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-pdb-request-page]");
   assert.equal(await page.getByPlaceholder("Search line items, accounts, organizations").inputValue(), "artificial intelligence", "Request filters should survive a reload through the URL");
-  await page.getByRole("button", { name: "Reset" }).click();
+  await page.getByRole("button", { name: "Filter budget line items" }).click();
+  await page.getByRole("button", { name: "Clear all", exact: true }).click();
   assert.equal(await page.getByPlaceholder("Search line items, accounts, organizations").inputValue(), "");
 
   await openSurface(page, "#/budget-spend/trends", "[data-request-history-page]");
@@ -835,12 +830,14 @@ try {
 
   await page.evaluate(() => window.localStorage.setItem("dbi:data-table:award-records", JSON.stringify({ widths: { actions: 720 } })));
   await openSurface(page, "#/budget-spend/awards", "[data-awards-page]");
-  assert.equal(await page.locator("[data-award-autocomplete]").count(), 1, "Awards should use shared exact-award autocomplete");
+  assert.equal(await page.locator('[data-table-autocomplete="award-records"]').count(), 1, "Awards should use shared exact-award autocomplete");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Awards");
   assert.equal(await resourceCount(page, "budget-execution.json"), 1, "Awards should load the factual execution payload once");
-  assert.equal(await page.locator("[data-award-filter-bar] .if-picker").count(), 5, "Awards should expose factual filter dimensions");
+  await page.locator("[data-award-filter-bar] > button").click();
+  assert.equal(await page.locator('[data-if-react-popover][aria-label="Filter awards"] .if-picker').count(), 5, "Awards should expose factual filter dimensions inside one owned filter surface");
+  await page.keyboard.press("Escape");
   assert.equal(await page.locator("[data-award-record-table] [data-if-table-row]").count(), 10, "Awards should lead with ten decision-useful records without rendering hundreds of DOM rows at once");
-  const awardStatusText = await page.locator("[data-award-record-table] .dbi-data-table__status").innerText();
+  const awardStatusText = await page.locator("[data-award-record-table] .query-rail__results").innerText();
   const awardStatusCounts = awardStatusText.match(/([\d,]+)\s+of ([\d,]+) records/i)?.slice(1).map((value) => Number(value.replaceAll(",", ""))) || [];
   assert.ok(awardStatusCounts[0] >= 689 && awardStatusCounts[0] === awardStatusCounts[1], `Awards should preserve the complete growing corpus in pagination and export, got ${awardStatusText}`);
   assert.equal(await page.locator("[data-award-record-table] [data-table-filters]").count(), 0, "Awards should not duplicate the page-level filter deck inside the record table");
@@ -882,7 +879,7 @@ try {
   const awardContentOrder = await page.evaluate(() => ({
     records: document.querySelector("[data-award-record-table]")?.getBoundingClientRect().top || 0,
     rollups: document.querySelector(".award-rollup-details")?.getBoundingClientRect().top || 0,
-    filterBottoms: [...document.querySelectorAll("[data-award-filter-bar] input, [data-award-filter-bar] .if-picker__trigger, [data-award-filter-bar] > button")].map((node) => Math.round(node.getBoundingClientRect().bottom)),
+    filterBottoms: [...document.querySelectorAll("[data-award-record-table] .query-rail > :not(.query-rail__summary)")].filter((node) => getComputedStyle(node).display !== "none").map((node) => Math.round(node.getBoundingClientRect().bottom)),
     metricTops: [...document.querySelectorAll('[aria-label="Award filter metrics"] > .if-management-card')].map((node) => Math.round(node.getBoundingClientRect().top)),
   }));
   assert.ok(awardContentOrder.records < awardContentOrder.rollups, `Award records should precede secondary rollups: ${JSON.stringify(awardContentOrder)}`);
@@ -893,7 +890,7 @@ try {
   assert.equal(await page.locator("[data-awards-page] > .if-workbench-header").count(), 1, "Awards should consolidate its intro, metrics, actions, and filters into one workbench header");
   assert.doesNotMatch(await page.locator("[data-awards-page] > .if-workbench-header").innerText(), /Stage\s+4/i, "Awards should not repeat numbered phase navigation");
   assert.doesNotMatch(await page.locator("[data-awards-page]").innerText(), /Pursuit score|recommended action|Target execution brief|Target workboard/i);
-  const awardSearchGeometry = await page.locator("[data-award-autocomplete] input[role=combobox]").evaluate((input) => {
+  const awardSearchGeometry = await page.locator('[data-table-autocomplete="award-records"] input[role=combobox]').evaluate((input) => {
     const icon = input.parentElement?.querySelector("svg")?.getBoundingClientRect();
     const bounds = input.getBoundingClientRect();
     return { iconRight: icon?.right || 0, textStart: bounds.left + Number.parseFloat(getComputedStyle(input).paddingLeft) };
@@ -995,7 +992,7 @@ try {
   assert.equal(await workbenchScope.getByText("Filters", { exact: false }).count(), 1, "Opportunity Workbench should expose one filter trigger");
   await openOpportunityFilters(page);
   for (const label of ["Customer", "Stage", "Trust", "Technology", "Notice type", "Branch", "Component", "Buying office", "Record state"]) assert.equal(await page.getByRole("button", { name: new RegExp(`^${label}:`, "i") }).count(), 1, `Opportunity Workbench should expose the ${label} filter exactly once`);
-  for (const [key, label] of [["record", "Opportunity"], ["customer", "Customer"], ["stage", "Stage"], ["fit", "Fit"], ["trust", "Trust"], ["deadline", "Due"], ["obligations", "Value"], ["change", "Last change"]]) assert.equal(await page.locator(`[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="${key}"]`).count(), 1, `Opportunity Workbench should expose the ${label} operating column by default`);
+  for (const [key, label] of [["record", "Opportunity"], ["customer", "Customer"], ["stage", "Stage"], ["fit", "Fit"], ["trust", "Evidence"], ["deadline", "Due"], ["obligations", "Value"], ["change", "Last change"]]) assert.equal(await page.locator(`[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="${key}"]`).count(), 1, `Opportunity Workbench should expose the ${label} operating column by default`);
   assert.equal(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] th[data-column-key="source"]').count(), 0, "Opportunity Workbench should keep source available without showing it in the default decision view");
   assert.equal(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] tbody tr[data-row-expandable="true"] a').count(), 0, "Opportunity rows should use one inline review action instead of a duplicate workspace link");
   const workbenchGeometry = await page.evaluate(() => ({
@@ -1003,14 +1000,14 @@ try {
     firstRowTop: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]')?.getBoundingClientRect().top || 0,
     searchLeft: document.querySelector('[data-table-autocomplete="opportunity-workbench-v1"]')?.getBoundingClientRect().left || 0,
     searchRight: document.querySelector('[data-table-autocomplete="opportunity-workbench-v1"]')?.getBoundingClientRect().right || 0,
-    toolsLeft: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"] .dbi-data-table__tools')?.getBoundingClientRect().left || 0,
+    toolsLeft: document.querySelector('[data-dbi-data-table="opportunity-workbench-v1"] .query-rail__actions')?.getBoundingClientRect().left || 0,
   }));
   assert.ok(workbenchGeometry.scopeHeight <= 48, `Desktop opportunity filter trigger should remain compact, got ${workbenchGeometry.scopeHeight}px`);
   assert.ok(workbenchGeometry.firstRowTop <= 680, `The first opportunity row should remain high in the working surface, got ${workbenchGeometry.firstRowTop}px`);
   assert.ok(workbenchGeometry.searchRight <= workbenchGeometry.toolsLeft + 2, `Opportunity search should align in the command flow instead of floating in the table center: ${JSON.stringify(workbenchGeometry)}`);
   await workbenchScope.locator("button").click();
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 0, "Strategic spend context must remain deferred until the operator opens Visuals");
-  await page.locator('[data-workspace-view="portfolio"]').click();
+  await page.locator('[data-workspace-view="analysis"]').click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
   await page.waitForFunction(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("strategy-spend-index.json")));
   assert.equal(await resourceCount(page, "strategy-spend-index.json"), 1, "Strategic Analysis Studio should load its compact spend index exactly once");
@@ -1082,7 +1079,8 @@ try {
   assert.equal(await page.locator(".spend-explorer__strategy-scope").count(), 1, "The operating queue should disclose its active strategic-matrix handoff");
   assert.ok(await page.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "A populated strategic quadrant should hand off its exact opportunity set to the queue");
   await page.getByRole("button", { name: "Clear scope", exact: true }).click();
-  await page.locator('[data-workspace-view="portfolio"]').click();
+  await page.locator('[data-workspace-view="analysis"]').click();
+  await page.getByRole("button", { name: "Portfolio", exact: true }).click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-strategic-matrix]');
   await page.getByRole("button", { name: "Analytical maps", exact: true }).click();
   await page.waitForSelector('[data-spend-explorer="visuals"] [data-opportunity-portfolio-map]');
@@ -1118,7 +1116,7 @@ try {
   assert.match(await page.locator(".spend-explorer__change-scope").innerText(), /Complete daily update ledger/i, "Large daily refreshes should have a complete deferred-ledger route");
   assert.equal(await page.getByRole("columnheader", { name: /Last change/i }).count(), 1, "The complete daily ledger should expose field-level change summaries");
   await page.getByRole("button", { name: "Show all records" }).click();
-  assert.match(await page.locator('[data-spend-explorer="table"] .dbi-data-table__status').innerText(), /of (?:8\d\d|9\d\d|[1-9],\d{3,}) records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
+  assert.match(await page.locator('[data-spend-explorer="table"] .query-rail__results').innerText(), /(?:of\s+)?(?:8\d\d|9\d\d|[1-9],\d{3,})\s+records/i, "Spend Explorer Table should retain the complete assembled transaction universe");
   const tombstoneButton = page.locator('[data-spend-explorer="table"] button[title="Hide from active opportunities"]').first();
   await tombstoneButton.click();
   await openOpportunityFilters(page);
@@ -1139,17 +1137,22 @@ try {
   await page.waitForSelector("[data-opportunity-workbench-detail]");
   const expandedWorkbenchId = new URL(page.url()).hash.match(/(?:\?|&)capRecord=([^&]+)/)?.[1];
   assert.ok(expandedWorkbenchId, "Opening an opportunity row should persist the selected stable ID in the route");
-  assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Why it fits[\s\S]*Published scope[\s\S]*One workspace, every lens/i, "Opportunity rows should remain a compact preview with one explicit analysis handoff");
+  assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Opportunity preview[\s\S]*Why it fits[\s\S]*Open Intelligence Workspace/i, "Opportunity rows should remain a compact preview with one explicit analysis handoff");
   assert.equal(await page.locator('[data-opportunity-workbench-detail] [data-connected-visual-analysis]').count(), 0, "Opportunity previews should not duplicate the full analytical workspace");
-  const commandRail = page.locator("[data-opportunity-workbench-detail] [data-opportunity-command-rail]");
-  assert.equal(await commandRail.count(), 1, "Opportunity details should expose one shared contextual command rail");
-  assert.equal(await commandRail.getByRole("button", { name: "Build AI decision brief", exact: true }).count(), 1, "The command rail should expose decision research exactly once");
-  const pursuitMore = commandRail.getByRole("button", { name: "More pursuit actions" });
-  await pursuitMore.click();
-  assert.equal(await page.getByRole("menuitem", { name: /^Open workspace/ }).count(), 1, "Pursuit controls should progressively disclose the canonical intelligence workspace");
-  assert.equal(await page.getByRole("menuitem", { name: /^Open timeline/ }).count(), 1, "Pursuit controls should progressively disclose Timeline");
-  await pursuitMore.click();
-  await commandRail.locator(".opportunity-command-rail__setup > summary").click();
+  assert.equal(await page.locator('[data-opportunity-workbench-detail] [data-opportunity-command-rail]').count(), 0, "Opportunity previews must not recreate the canonical Tasks workspace");
+  const previewTrack = page.locator('[data-opportunity-workbench-detail] button[aria-pressed]').filter({ hasText: /Track/ }).first();
+  await previewTrack.click();
+  assert.equal(await previewTrack.getAttribute("aria-pressed"), "true", "The compact preview should retain one immediate tracking action");
+  const previewHash = new URL(page.url()).hash;
+  await page.getByRole("link", { name: "Open Intelligence Workspace", exact: true }).click();
+  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash), new RegExp(`entityType=activity.*entityId=${decodeURIComponent(expandedWorkbenchId)}`), "Preview handoff should preserve the exact stable opportunity identity");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /returnTo=/, "Canonical workspace should preserve its source route for a predictable return");
+  await page.getByRole("button", { name: "Tasks", exact: true }).click();
+  const workspaceTasks = page.locator('[data-universal-intelligence-workspace][data-workspace-tab="tasks"]');
+  await workspaceTasks.waitFor();
+  const commandRail = workspaceTasks.locator("[data-opportunity-command-rail]");
+  assert.equal(await commandRail.count(), 1, "The canonical Tasks tab should own pursuit controls exactly once");
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
   await chooseControlSelect(page, "Owner", "Workspace owner");
@@ -1204,11 +1207,6 @@ try {
   }
   await page.screenshot({ path: `${OUT_DIR}/pursuit-controls-tasks-desktop.png`, fullPage: false });
   assert.match(await commandRail.getAttribute("data-tracked"), /true/, "Editing pursuit state should automatically retain the opportunity in the workspace");
-  const previewHash = new URL(page.url()).hash;
-  await page.getByRole("link", { name: "Open Intelligence Workspace", exact: true }).click();
-  await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
-  assert.match(decodeURIComponent(new URL(page.url()).hash), new RegExp(`entityType=activity.*entityId=${decodeURIComponent(expandedWorkbenchId)}`), "Preview handoff should preserve the exact stable opportunity identity");
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /returnTo=/, "Canonical workspace should preserve its source route for a predictable return");
   const workspaceHeader = page.locator(".universal-workspace__header");
   assert.equal(await workspaceHeader.locator('[aria-label="Workspace actions"]').count(), 1, "The canonical workspace should own one action cluster in the header");
   assert.equal(await page.locator('[data-universal-intelligence-workspace] [aria-label="Selected opportunity actions"]').count(), 0, "Canonical workspace panels should not repeat the opportunity actions");
@@ -1227,9 +1225,6 @@ try {
   });
   assert.ok(canonicalWorkspaceGeometry.contextWidth <= 430, `Canonical workspace context should remain bounded, got ${canonicalWorkspaceGeometry.contextWidth}px`);
   assert.ok(canonicalWorkspaceGeometry.analysisWidth >= 650, `Canonical workspace analysis should own the desktop canvas, got ${canonicalWorkspaceGeometry.analysisWidth}px`);
-  await page.getByRole("button", { name: "Tasks", exact: true }).click();
-  const workspaceTasks = page.locator('[data-universal-intelligence-workspace][data-workspace-tab="tasks"]');
-  await workspaceTasks.waitFor();
   assert.equal(await workspaceTasks.locator("[data-opportunity-command-rail]").count(), 1, "Tasks should render one pursuit-control owner instead of repeating it in the context rail");
   assert.equal(await workspaceTasks.locator('[aria-label="Selected opportunity actions"]').count(), 0, "Tasks should reuse the header action cluster instead of rendering a second action row");
   assert.equal(await workspaceTasks.getByRole("button", { name: /^Owner:/ }).count(), 1, "Tasks should expose one enhanced workspace-member picker");
@@ -1258,14 +1253,17 @@ try {
     await page.keyboard.press("Escape");
     await page.locator(".if-backdrop").waitFor({ state: "detached" });
   }
-  const restoredCommandRail = page.locator("[data-opportunity-workbench-detail] [data-opportunity-command-rail]");
-  await restoredCommandRail.getByRole("button", { name: "Tracked", exact: true }).click();
-  await page.waitForFunction(() => document.querySelector("[data-opportunity-command-rail]")?.getAttribute("data-tracked") === "false");
+  const restoredTrack = page.locator('[data-opportunity-workbench-detail] button[aria-pressed]').filter({ hasText: "Tracked" }).first();
+  await restoredTrack.click();
+  await page.waitForFunction(() => document.querySelector('[data-opportunity-workbench-detail] button[aria-pressed]')?.getAttribute("aria-pressed") === "false");
   assert.equal(await resourceCount(page, "intelligence-graph.json"), 0, "Opportunity Workbench details must not load the complete integrity graph into the browser");
   await page.screenshot({ path: `${OUT_DIR}/opportunity-workbench-desktop.png` });
-  await page.locator('[data-workspace-view="portfolio"]').click();
+  await page.locator('[data-workspace-view="analysis"]').click();
   await page.waitForSelector('[data-spend-explorer="visuals"]');
-  await chooseSpendAnalysis(page, "Timeline");
+  await page.getByRole("button", { name: "Spend analysis", exact: true }).click();
+  await page.waitForSelector("[data-transaction-d3-page]");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /spendView=analysis.*analysisMode=transactions|analysisMode=transactions.*spendView=analysis/, "Analysis lenses should share one canonical Studio route");
+  await page.evaluate(({ recordId }) => { window.location.hash = `#/budget-spend/explorer?spendView=timeline&capQuery=Application+Arsenal&capRecord=${recordId}`; }, { recordId: expandedWorkbenchId });
   await page.waitForSelector("[data-capture-timeline]");
   await page.waitForSelector("[data-capture-detail-modal]");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capRecord=/, "Changing workbench views should carry the selected opportunity into the Timeline inspector");
@@ -2431,9 +2429,9 @@ try {
   assert.equal(await page.locator("[data-analytics-legend]").count(), 2, "Every visible chart should explain its visual encoding");
   const insightScopeBefore = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-analytics-insight="top-work"]').click();
-  assert.match(await page.locator(".analytics-active-filters").innerText(), /Type of work:/, "Actionable factual signals should open their supporting slice");
+  assert.match(await page.locator("[data-transaction-d3-page] .query-rail__summary").innerText(), /Type of work:/, "Actionable factual signals should open their supporting slice in the shared Query Rail");
   assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < insightScopeBefore, "Insight drilldown should reduce the analytical universe");
-  await page.locator('.analytics-active-filters button').click();
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   const analyticsAccessibility = await page.evaluate(() => [...document.querySelectorAll("[data-d3-analytics]")].map((chart) => {
     const interactive = [...chart.querySelectorAll('[role="button"]')];
     const marks = [...chart.querySelectorAll('[role="button"][data-analytics-mark]')];
@@ -2461,16 +2459,18 @@ try {
   const firstDimensionLabel = await firstDimensionMark.getAttribute("aria-label");
   await page.keyboard.press("ArrowDown");
   assert.notEqual(await page.evaluate(() => document.activeElement?.getAttribute("aria-label")), firstDimensionLabel, "Arrow keys should move through chart marks using one roving tab stop");
-  await page.locator(".analytics-search input").focus();
+  await page.getByRole("searchbox", { name: "Search analytical records", exact: true }).focus();
   await page.waitForSelector("[data-analytics-hovercard]", { state: "detached" });
-  await page.locator("[data-analytics-manager] summary").click();
-  assert.equal(await page.locator("[data-analytics-manager] .if-picker__trigger").count(), 11, "Analytics should retain mobile dimension and measure controls alongside eight searchable data facets and one chart manager");
+  await page.getByRole("button", { name: "Filter analytical records", exact: true }).click();
+  const analyticsFilterPopover = page.locator('[data-if-react-popover][aria-label="Filter analytical records"]');
+  assert.equal(await analyticsFilterPopover.locator(".if-picker__trigger").count(), 12, "Analytics should retain record type, dimension, measure, eight searchable data facets, and one chart manager");
   await page.getByRole("button", { name: /^Type of work:/ }).click();
   await page.getByLabel("Search Type of work").fill("software");
   await page.locator('[data-if-picker-menu] [role="option"]').first().click();
   await page.keyboard.press("Escape");
-  assert.match(await page.locator(".analytics-active-filters").innerText(), /Type of work: 1/, "Searchable multi-select facets should filter the analytical universe");
-  await page.locator(".analytics-active-filters button").filter({ hasText: "Type of work" }).click();
+  assert.match(await page.locator("[data-transaction-d3-page] .query-rail__summary").innerText(), /Type of work: 1/, "Searchable multi-select facets should filter the analytical universe");
+  await page.locator("[data-transaction-d3-page] .query-rail__summary button").filter({ hasText: "Type of work" }).click();
+  await page.getByRole("button", { name: "Filter analytical records", exact: true }).click();
   await page.getByRole("button", { name: /^Visible charts:/ }).click();
   await page.locator('[data-if-picker-menu] [role="option"]').filter({ hasText: "Reported value distribution" }).click();
   await page.keyboard.press("Escape");
@@ -2478,14 +2478,14 @@ try {
   assert.equal(await page.locator("[data-d3-analytics]").count(), 3, "Adding one optional Overview graph should preserve the two decision defaults");
   const overviewScopeBefore = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   await page.locator('[data-d3-analytics="value-distribution"] [role="button"]').filter({ hasText: "Under $1M" }).click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /Under \$1M/, "Value bands should filter every analytical view");
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /Under \$1M/, "Value bands should filter every analytical view");
   assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Value-band filtering should reduce the record scope");
-  await page.locator('.analytics-active-filters button').click();
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   await page.locator('[data-d3-analytics="dimension-explorer"] [role="button"]').first().click();
-  assert.equal(await page.locator('.analytics-active-filters button').count(), 1, "A dimension bar should cross-filter the analytical workspace");
+  assert.equal(await page.locator('[data-transaction-d3-page] .query-rail__summary button').count(), 1, "A dimension bar should cross-filter the analytical workspace");
   const overviewScopeAfter = Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, ""));
   assert.ok(overviewScopeAfter < overviewScopeBefore, "Chart-driven filtering should reduce the record scope");
-  await page.locator('.analytics-active-filters button').click();
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   await page.getByRole("button", { name: "Schedule" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 5, "Schedule should expose five focused temporal views");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Busiest endpoint year[\s\S]*Median reported term[\s\S]*Undated schedule/i, "Schedule signals should summarize timing concentration and completeness");
@@ -2494,20 +2494,20 @@ try {
   assert.equal(await page.locator('[data-d3-analytics="endpoint-seasonality"]').count(), 1, "Schedule should include calendar-month endpoint seasonality");
   assert.equal(await page.locator('[data-d3-analytics="duration-distribution"]').count(), 1, "Schedule should include reported term-duration bands");
   await page.locator('[data-d3-analytics="endpoint-seasonality"] [role="button"]').first().click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /Endpoint month: Jan/, "Month selection should filter the full analytical workspace");
-  await page.locator('.analytics-active-filters button').click();
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /Endpoint month: Jan/, "Month selection should filter the full analytical workspace");
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   const scheduleYear = page.locator('[data-d3-analytics="schedule-horizon"] [role="button"]').filter({ hasText: "2026" }).first();
   await scheduleYear.click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /Reported endpoint: 2026/, "Schedule-year selection should cross-filter every analytical view");
-  await page.locator('.analytics-active-filters button').click();
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /Reported endpoint: 2026/, "Schedule-year selection should cross-filter every analytical view");
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   await page.getByRole("button", { name: "Spend & structure" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 7, "Spend should expose seven focused value, concentration, and structure views");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Leading funding office[\s\S]*Acquisition structure[\s\S]*Subaward-bearing primes/i, "Spend signals should summarize concentration, structure, and subaward attachment");
   assert.equal(await page.locator('[data-d3-analytics="concentration-pareto"]').count(), 1, "Spend should expose recipient and funding-office concentration as a Pareto view");
   assert.match(await page.locator('[data-d3-analytics="concentration-pareto"] [data-analytics-legend]').innerText(), /cumulative share[\s\S]*80% concentration threshold/i, "Pareto should explain its obligation and cumulative-share encodings");
   await page.locator('[data-d3-analytics="concentration-pareto"] [role="button"]').first().click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /Recipient \/ sponsor:/, "Pareto bars should filter the full workspace to their supporting recipient slice");
-  await page.locator('.analytics-active-filters button').click();
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /Recipient \/ sponsor:/, "Pareto bars should filter the full workspace to their supporting recipient slice");
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   await page.locator('[data-d3-analytics="concentration-pareto"] .transaction-viz__segmented button').filter({ hasText: "Funding offices" }).click();
   assert.match(await page.locator('[data-d3-analytics="concentration-pareto"]').innerText(), /Funding offices/i, "Pareto should switch between recipient and funding-office concentration");
   await page.screenshot({ path: `${OUT_DIR}/analytics-pareto-desktop.png`, fullPage: true });
@@ -2516,15 +2516,19 @@ try {
   assert.equal(await page.locator('[data-d3-analytics="fiscal-trend"]').count(), 1, "Spend should expose annual obligation history by the selected dimension");
   assert.equal(await page.locator('[data-d3-analytics="vehicle-pricing"]').count(), 1, "Spend should expose vehicle and pricing composition separately");
   await page.locator('[data-d3-analytics="vehicle-pricing"] [role="button"]').first().click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /Contract vehicle:/, "Vehicle marks should drive the shared contract-vehicle filter");
-  await page.locator('.analytics-active-filters button').click();
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /Contract vehicle:/, "Vehicle marks should drive the shared contract-vehicle filter");
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
+  await page.getByRole("button", { name: "Filter analytical records", exact: true }).click();
   await chooseControlSelect(page, "Dimension", "Pricing type");
   await chooseControlSelect(page, "Measure", "Records");
+  await page.keyboard.press("Escape");
   assert.match(await page.locator('[data-d3-analytics="dimension-explorer"] header').innerText(), /Pricing type by records/i, "Dimension and measure controls should reconfigure the shared ranking");
-  await page.locator('.analytics-search input').fill('Application Arsenal');
+  await page.getByRole("searchbox", { name: "Search analytical records", exact: true }).fill('Application Arsenal');
   assert.ok(Number((await page.locator('[data-analytics-records] > summary > span').innerText()).replace(/\D/g, "")) < overviewScopeBefore, "Search should cross-filter the record explorer and charts");
   assert.match(await page.locator('.analytics-export:visible').innerText(), /Export/, "Filtered analytical slices should be exportable");
-  await page.locator('.analytics-reset').click();
+  await page.getByRole("button", { name: "Filter analytical records", exact: true }).click();
+  await page.getByRole("button", { name: "Clear all", exact: true }).click();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Coverage & lineage" }).click();
   assert.equal(await page.locator("[data-d3-analytics]").count(), 6, "Coverage should expose six focused evidence, provenance, and quality views");
   assert.match(await page.locator("[data-analytics-insights]").innerText(), /Source-link coverage[\s\S]*Specific work coding[\s\S]*Snapshot changes/i, "Coverage signals should summarize factual completeness and change detection");
@@ -2539,12 +2543,12 @@ try {
   const evidenceCellId = await evidenceCells.evaluateAll((nodes) => nodes.find((node) => Number(node.dataset.recordCount || 0) > 0)?.dataset.evidenceCell || "");
   assert.ok(evidenceCellId, "Evidence matrix should contain at least one populated supporting slice");
   await page.locator(`[data-d3-analytics="evidence-risk"] [data-evidence-cell="${evidenceCellId}"]`).click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /evidence gap|complete evidence/i, "Evidence cells should filter every view to their supporting records");
-  await page.locator('.analytics-active-filters button').click();
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /evidence gap|complete evidence/i, "Evidence cells should filter every view to their supporting records");
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   await page.screenshot({ path: `${OUT_DIR}/analytics-evidence-risk-desktop.png`, fullPage: true });
   await page.locator('[data-d3-analytics="source-coverage"] [role="button"]').first().click();
-  assert.match(await page.locator('.analytics-active-filters').innerText(), /Source system:/, "Coverage cells should filter the record universe by source system");
-  await page.locator('.analytics-active-filters button').click();
+  assert.match(await page.locator('[data-transaction-d3-page] .query-rail__summary').innerText(), /Source system:/, "Coverage cells should filter the record universe by source system");
+  await page.locator('[data-transaction-d3-page] .query-rail__summary button').click();
   await page.locator('[data-analytics-records] > summary').click();
   const analyticalDetailTrigger = page.locator('[data-analytics-records] tbody button').first();
   await analyticalDetailTrigger.click();
@@ -2553,9 +2557,9 @@ try {
   assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Observed obligations|Reported potential/i);
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-fact-grid').first().locator(':scope > .if-fact-grid__item').count(), 4, "Analytical detail should lead with four decision-critical facts");
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-disclosure').getAttribute('open'), null, "Supporting analytical facts should stay collapsed by default");
-  assert.match(await page.locator('[data-analytics-record-drawer] > .if-drawer__footer a').first().getAttribute('href'), /\/intelligence\/workspace\?/, "Analytical detail should deep-link to the canonical intelligence workspace");
+  assert.match(await page.locator('[data-analytics-record-drawer] [data-entity-preview]').getByRole('link', { name: 'Open Intelligence Workspace', exact: true }).getAttribute('href'), /\/intelligence\/workspace\?/, "Analytical detail should deep-link to the canonical intelligence workspace");
   assert.equal(await page.locator('[data-analytics-record-drawer] [data-connected-evidence]').count(), 0, "Analytical detail should remain a lightweight preview instead of duplicating the analysis workspace");
-  assert.match(await page.locator('[data-analytics-record-drawer]').innerText(), /Continue analysis[\s\S]*Timeline, connections, money, evidence, and tasks/i, "Analytical preview should explain the canonical handoff");
+  assert.equal(await page.locator('[data-analytics-record-drawer] [data-entity-preview]').getByRole('link', { name: 'Open Intelligence Workspace', exact: true }).count(), 1, "Analytical preview should expose one canonical handoff");
   await page.screenshot({ path: `${OUT_DIR}/analytics-record-detail-desktop.png`, fullPage: true });
   assert.equal(await page.locator('[data-analytics-record-drawer] .if-drawer__actions .if-icon-btn').evaluate((node) => node === document.activeElement), true, "Analytical detail should focus its close control on open");
   await page.keyboard.press("Shift+Tab");
@@ -2791,13 +2795,13 @@ try {
   await assertNoPageOverflow(mobile, "Mobile Opportunity Workbench");
   await mobile.screenshot({ path: `${OUT_DIR}/opportunity-workbench-mobile.png`, fullPage: true });
   await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().tap();
-  await mobile.waitForSelector("[data-opportunity-command-rail]");
-  const mobileCommandControls = await mobile.locator('[data-opportunity-command-rail] :is(button,a,input,summary):visible').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
-  assert.ok(mobileCommandControls.length >= 4 && mobileCommandControls.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile contextual command controls should preserve 44px touch targets: ${JSON.stringify(mobileCommandControls)}`);
+  await mobile.waitForSelector("[data-entity-preview]");
+  const mobileCommandControls = await mobile.locator('[data-entity-preview] :is(button,a,summary):visible').evaluateAll((nodes) => nodes.map((node) => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height })));
+  assert.ok(mobileCommandControls.length >= 2 && mobileCommandControls.every(({ width, height }) => width >= 43.5 && height >= 43.5), `Mobile preview controls should preserve 44px touch targets: ${JSON.stringify(mobileCommandControls)}`);
   await assertNoPageOverflow(mobile, "Mobile contextual opportunity workspace");
   await mobile.locator("[data-opportunity-workbench-detail]").screenshot({ path: `${OUT_DIR}/opportunity-workbench-command-mobile.png` });
   await mobile.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').first().tap();
-  await mobile.waitForSelector("[data-opportunity-command-rail]", { state: "detached" });
+  await mobile.waitForSelector("[data-entity-preview]", { state: "detached" });
   const mobileShellHeights = await mobile.locator("[data-mobile-more-menu-button], [data-notification-center-button], [data-profile-menu-trigger]").evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== "none").map((node) => node.getBoundingClientRect().height));
   assert.ok(mobileShellHeights.every((height) => height >= 43.5), `Mobile shell controls should preserve 44px touch targets: ${mobileShellHeights.join(", ")}`);
   assert.ok(await mobile.locator(".if-product-header__brand").evaluate((node) => node.getBoundingClientRect().height) >= 43.5, "Mobile product branding should preserve a 44px interaction target");
@@ -3030,12 +3034,13 @@ try {
   assert.ok(compactAnalyticsChartGap >= 0 && compactAnalyticsChartGap <= 24, `Mobile Analytics should place the first chart immediately after the factual brief, got a ${compactAnalyticsChartGap}px gap`);
   const mobileWorkbenchControls = await mobile.locator('.if-workbench-header button:visible').evaluateAll((nodes) => nodes.map((node) => ({ label: node.getAttribute("aria-label") || node.textContent.trim(), height: node.getBoundingClientRect().height, className: node.className })));
   assert.ok(mobileWorkbenchControls.every(({ height }) => height >= 43.5), `Mobile analytics controls should meet the 44px touch contract: ${JSON.stringify(mobileWorkbenchControls)}`);
-  await mobile.locator("[data-analytics-manager] summary").click();
-  const mobileAnalyticsManagerHeights = await mobile.locator("[data-analytics-manager] .if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
-  assert.equal(mobileAnalyticsManagerHeights.length, 11, "Mobile should retain dimension, measure, every data facet, and the chart manager");
+  await mobile.getByRole("button", { name: "Filter analytical records", exact: true }).click();
+  const mobileAnalyticsFilters = mobile.locator('[data-if-react-popover][aria-label="Filter analytical records"]');
+  const mobileAnalyticsManagerHeights = await mobileAnalyticsFilters.locator(".if-picker__trigger").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.equal(mobileAnalyticsManagerHeights.length, 12, "Mobile should retain record type, dimension, measure, every data facet, and the chart manager");
   assert.ok(mobileAnalyticsManagerHeights.every((height) => height >= 43.5), `Mobile analytics manager controls should be 44px: ${mobileAnalyticsManagerHeights.join(", ")}`);
   await assertNoPageOverflow(mobile, "Expanded mobile analytics manager");
-  await mobile.locator("[data-analytics-manager] summary").click();
+  await mobile.keyboard.press("Escape");
   assert.ok((await mobile.locator("[data-d3-analytics]").first().evaluate((node) => node.scrollWidth > node.clientWidth || node.querySelector(".transaction-viz__scroller")?.scrollWidth > node.querySelector(".transaction-viz__scroller")?.clientWidth)), "Mobile D3 charts should use contained horizontal scrolling");
   await assertNoPageOverflow(mobile, "Mobile D3 analytics");
   await mobile.screenshot({ path: `${OUT_DIR}/transactions-d3-mobile.png`, fullPage: true });

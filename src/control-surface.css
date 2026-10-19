@@ -1951,7 +1951,7 @@ code {
   background: var(--if-bg-surface);
 }
 
-:where(.if-panel__header, .if-chart-card__header, .if-table-toolbar) {
+:where(.if-panel__header, .if-chart-card__header) {
   min-width: 0;
 }
 
@@ -3103,16 +3103,6 @@ button.if-chart-bar.is-selected {
   display: grid;
   gap: var(--if-space-2);
   min-width: 0;
-}
-
-.if-table-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--if-space-2);
-  min-width: 0;
-  padding-block: 0.125rem;
 }
 
 .if-table-footer {

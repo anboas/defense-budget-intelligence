@@ -53,8 +53,8 @@ assert.match(previewSource, /RecordIntelligenceNotice/, "Opportunity previews mu
 assert.match(todaySource, /ControlMenu[\s\S]*More selected opportunity actions/, "Today must use the shared command-menu owner for secondary opportunity actions");
 assert.match(commandRailSource, /ControlMenu[\s\S]*More pursuit actions/, "Pursuit surfaces must use the shared command-menu owner");
 assert.match(workspaceSource, /ControlMenu[\s\S]*More workspace actions/, "Intelligence workspaces must use the shared command-menu owner");
-assert.match(spendExplorerSource, /ControlMenu[\s\S]*Analysis view:/, "Analysis views must use the shared command-menu owner");
-assert.match(dataTableSource, /ControlPopover[\s\S]*table options/, "Table configuration must use the shared popover owner");
+assert.match(spendExplorerSource, /data-analysis-studio-tabs[\s\S]*Capture targets[\s\S]*Spend analysis/, "Analysis Studio must own its visible lens navigation");
+assert.match(dataTableSource, /QueryRailUtilities[\s\S]*Table options/, "Table configuration must use the Query Rail utility owner");
 assert.doesNotMatch(`${todaySource}\n${commandRailSource}\n${workspaceSource}\n${spendExplorerSource}`, /<details[^>]*(?:more|analysis-menu)[^>]*>/i, "Command lists must not regress to route-specific details elements");
 
 console.log("Interaction foundation contracts passed", { stage: decoded.pursuit.stage, tasks: decoded.pursuit.tasks.length, boundedBytes: bounded.length, legacyCompatible: true, sharedFloatingLayers: true });

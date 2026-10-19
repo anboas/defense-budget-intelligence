@@ -20,7 +20,10 @@ assert.equal(navigationContext("awards").workspace?.id, "funding", "Awards belon
 assert.equal(navigationContext("map").workspace?.id, "intelligence", "Geography belongs to Intelligence");
 assert.equal(navigationContext("tasks").workspace?.id, "today", "Tasks belongs to Today");
 assert.equal(navigationContext("watchlist", "#/budget-spend/watchlist").view?.id, "brief", "The three-pane workspace is the only Today brief owner");
-assert.equal(navigationContext("spend", "#/budget-spend/explorer?spendView=visuals").view?.id, "portfolio", "Opportunity view state must resolve to Portfolio");
+for (const legacyView of ["visuals", "radar", "charts"]) {
+  assert.equal(navigationContext("spend", `#/budget-spend/explorer?spendView=${legacyView}`).view?.id, "analysis", `${legacyView} must resolve into Analysis Studio`);
+}
+assert.equal(navigationContext("spend", "#/budget-spend/explorer?spendView=analysis&analysisMode=portfolio").view?.id, "analysis", "Analysis Studio must own its canonical route");
 assert.equal(navigationContext("spend", "#/budget-spend/explorer?spendView=today").workspace?.id, "opportunities", "Legacy query state must not create a second Today owner inside Opportunities");
 
 const headerSource = await readFile(new URL("../src/SiteHeader.jsx", import.meta.url), "utf8");
