@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, MoreHorizontal, RotateCcw, Search, X } from "lucide-react";
-import { ControlAsyncState, ControlAutocomplete, ControlPopover, ControlTableSelectionBar } from "control-surface-ui/react";
+import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, MoreHorizontal, RotateCcw } from "lucide-react";
+import { ControlAsyncState, ControlAutocomplete, ControlPopover, ControlSearch, ControlTableSelectionBar } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import "./RouteControlConsistency.css";
 
@@ -366,12 +366,14 @@ export default function OperationalDataTable({
           placeholder={searchPlaceholder}
           emptyText={searchEmptyText}
           data-table-autocomplete={id}
-        /> : <label className="if-search dbi-data-table__search">
-          <Search size={15} aria-hidden="true" />
-          <span className="sr-only">Search {label}</span>
-          <input className="if-input" type="search" aria-label={searchPlaceholder} value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={searchPlaceholder} />
-          {query ? <button className="if-icon-btn" type="button" onClick={() => { setQuery(""); setPage(1); }} aria-label="Clear table search"><X size={14} /></button> : null}
-        </label> : <div className="dbi-data-table__toolbar-spacer" aria-hidden="true" />}
+        /> : <ControlSearch
+          className="dbi-data-table__search"
+          ariaLabel={`Search ${label}`}
+          placeholder={searchPlaceholder}
+          value={query}
+          onChange={(value) => { setQuery(value); setPage(1); }}
+          data-table-search={id}
+        /> : <div className="dbi-data-table__toolbar-spacer" aria-hidden="true" />}
         <div className="dbi-data-table__tools">
           {showFacets && primaryFacet ? <div className="dbi-data-table__primary-filter"><span className="sr-only">{primaryFacet.label}</span><ControlSelect ariaLabel={`${primaryFacet.label} filter`} value={filters[primaryFacet.key] || ""} options={[["", primaryFacet.facetAllLabel || `All ${primaryFacet.label.toLowerCase()}`], ...facetOptions[primaryFacet.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [primaryFacet.key]: nextValue })); setPage(1); }} /></div> : null}
           {toolbarActions}

@@ -83,7 +83,7 @@
   "dependencies": {
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/static": "^10.1.3",
-    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/dad6d13aae9f1c60e786b24d52d90c0090da4ce2.tar.gz",
+    "control-surface-ui": "https://github.com/anboas/control-surface-ui/archive/1599a57cac16c77fe630fb6214150f039f1eef48.tar.gz",
     "d3-sankey": "^0.12.3",
     "fastify": "^5.12.5",
     "pg": "^8.23.0",

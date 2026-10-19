@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ControlAsyncState } from "control-surface-ui/react";
-import { Activity, BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, Search, ShieldCheck, UsersRound } from "lucide-react";
+import { ControlAsyncState, ControlSearch } from "control-surface-ui/react";
+import { Activity, BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, ShieldCheck, UsersRound } from "lucide-react";
 import { useAuth } from "./AuthContext.jsx";
 import SectionedPageHeader from "./SectionedPageHeader.jsx";
 import "./IntelligenceProductsPage.css";
@@ -144,7 +144,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
 
     {section === "organizations" ? <section className="intelligence-products__organizations" data-organization-intelligence-panel>
       <aside className="intelligence-products__organization-index">
-        <label><Search size={15} /><input aria-label="Search organization dossiers" value={organizationQuery} onChange={(event) => setOrganizationQuery(event.target.value)} placeholder="Search organizations" /></label>
+        <ControlSearch ariaLabel="Search organization dossiers" value={organizationQuery} onChange={setOrganizationQuery} placeholder="Search organizations" />
         <div><strong>{number(filteredDossiers.length)} dossiers</strong><span>{number(organizationData.metadata.coverage.researchGaps)} open research gaps</span></div>
         <nav aria-label="Organization dossier list">{filteredDossiers.slice(0, 30).map((row) => <button key={row.id} type="button" className={selectedDossier?.id === row.id ? "is-active" : ""} onClick={() => setOrganizationRoute(row.id)} data-organization-dossier-link={row.id}>
           <strong>{row.label}</strong><span>{row.priorityTier.replaceAll("-", " ")} · {row.categories.join(" · ")}</span><small>{number(row.coverage.roles)} roles · {number(row.coverage.programs)} programs · {number(row.coverage.awards)} awards</small>

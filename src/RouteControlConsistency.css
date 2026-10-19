@@ -11,7 +11,7 @@
 .award-filter-bar { align-items: end; }
 .award-filter-bar label > span,
 .award-filter-bar .control-field > span,
-.analytics-commandbar__controls > label,
+.analytics-commandbar__controls > :where(label, .if-search-control),
 .analytics-commandbar__secondary > div,
 .analytics-manager__grid .capture-filter > span {
   color: var(--if-text-muted);
@@ -40,7 +40,6 @@
 .analytics-commandbar__controls,
 .analytics-commandbar__secondary { align-items: end; }
 .analytics-commandbar__secondary { display: contents; }
-.analytics-search > svg { bottom: calc((var(--if-control-height) - 15px) / 2); }
 .analytics-reset,
 .analytics-export {
   min-height: var(--if-control-height);
@@ -79,13 +78,6 @@
   height: var(--if-control-height);
   font-size: var(--if-font-size-sm);
 }
-.dbi-data-table__search > .if-icon-btn {
-  right: 0;
-  width: var(--if-control-height);
-  height: var(--if-control-height);
-  border: 0;
-  background: transparent;
-}
 .dbi-data-table__columns > div > header .if-btn,
 .dbi-data-table__column-order .if-icon-btn {
   min-height: 1.875rem;
@@ -114,7 +106,7 @@
   .analytics-commandbar__secondary { display: grid; }
   .award-filter-bar label > span,
   .award-filter-bar .control-field > span,
-  .analytics-commandbar__controls > label,
+  .analytics-commandbar__controls > :where(label, .if-search-control),
   .analytics-commandbar__secondary > div { font-size: var(--if-font-size-xs); }
   .award-filter-bar input,
   .award-filter-bar select,

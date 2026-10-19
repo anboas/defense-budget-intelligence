@@ -1134,6 +1134,10 @@ code {
   max-width: 100%;
 }
 
+.if-search-control > .if-search {
+  display: block;
+}
+
 .if-autocomplete {
   position: relative;
 }
@@ -1162,6 +1166,10 @@ code {
   padding-left: 2.25rem;
 }
 
+.if-search--clearable .if-input {
+  padding-right: 2.25rem;
+}
+
 .if-search__icon {
   position: absolute;
   left: 0.75rem;
@@ -1171,6 +1179,38 @@ code {
   color: var(--if-text-subtle);
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+.if-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 0.25rem;
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--if-radius-sm);
+  background: transparent;
+  color: var(--if-text-muted);
+  place-items: center;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.if-search__clear:hover {
+  background: var(--if-bg-muted);
+  color: var(--if-text-strong);
+}
+
+.if-search__clear:focus-visible {
+  outline: var(--if-focus-ring);
+  outline-offset: 0;
+}
+
+.if-search__clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .if-autocomplete__menu {
