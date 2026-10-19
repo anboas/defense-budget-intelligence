@@ -42,6 +42,7 @@ const [result] = await new PurgeCSS().purge({
       "if-toast--warning",
       "if-toast--danger",
       "if-toast--error",
+      "if-month-calendar--range",
     ],
   },
 });

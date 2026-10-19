@@ -1368,7 +1368,20 @@ try {
   await page.getByRole("button", { name: "Agenda", exact: true }).click();
   assert.equal(await page.locator("[data-today-agenda]").count(), 1, "Today should switch the same retained work into Agenda view");
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
-  assert.equal(await page.locator("[data-today-calendar] > section").count(), 14, "Today Calendar should retain the complete 14-day window");
+  assert.equal(await page.locator("[data-today-calendar][data-if-calendar-grid][data-calendar-layout=range][data-calendar-rows='2']").count(), 1, "Today Calendar should use the shared bounded-range calendar frame");
+  assert.equal(await page.locator("[data-today-calendar] [data-if-calendar-day]").count(), 14, "Today Calendar should retain the complete 14-day window");
+  assert.equal(await page.locator("[data-today-calendar] .if-month-calendar__weekdays > span").count(), 7, "Today Calendar should retain the shared seven-column weekday frame");
+  assert.equal(await page.locator("[data-today-calendar] .if-management-card").count(), 0, "Today Calendar must not restore generic management cards as date cells");
+  const todayCalendarGeometry = await page.locator("[data-today-calendar]").evaluate((calendar) => {
+    const weekGrid = calendar.querySelector(".if-month-calendar__weeks");
+    const styles = weekGrid ? getComputedStyle(weekGrid) : null;
+    const bounds = calendar.getBoundingClientRect();
+    return { columns: styles?.gridTemplateColumns.split(" ").length || 0, rows: styles?.gridTemplateRows.split(" ").length || 0, width: bounds.width, scrollWidth: calendar.scrollWidth };
+  });
+  assert.equal(todayCalendarGeometry.columns, 7, `Today Calendar should render seven shared calendar columns: ${JSON.stringify(todayCalendarGeometry)}`);
+  assert.equal(todayCalendarGeometry.rows, 2, `Today Calendar should render two shared calendar rows: ${JSON.stringify(todayCalendarGeometry)}`);
+  assert.ok(todayCalendarGeometry.scrollWidth <= todayCalendarGeometry.width + 1, `Today Calendar should remain contained at the desktop reference width: ${JSON.stringify(todayCalendarGeometry)}`);
+  await page.screenshot({ path: `${OUT_DIR}/today-calendar-desktop.png` });
   await page.getByRole("button", { name: "Lanes", exact: true }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${OUT_DIR}/today-decision-workspace-desktop.png` });
@@ -3080,6 +3093,12 @@ try {
   assert.ok(mobileTodayGeometry.priorityTop < mobileTodayGeometry.forwardTop && mobileTodayGeometry.forwardTop < mobileTodayGeometry.selectionTop, `Mobile Today should stack action → timeline → context without changing ownership: ${JSON.stringify(mobileTodayGeometry)}`);
   assert.equal(await mobile.locator("[data-today-lane]").count(), 4, "Mobile Today should retain the four operating lanes inside its contained timeline scroller");
   assert.equal(await mobile.locator("[data-my-work-task]").count(), 1, "Mobile Today should retain the ranked action queue");
+  const mobileCalendarSwitcherHeights = await mobile.locator("[data-today-forward-view] .if-calendar-view-switcher button").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
+  assert.equal(mobileCalendarSwitcherHeights.length, 3, "Mobile Today should retain the three shared calendar views");
+  assert.ok(mobileCalendarSwitcherHeights.every((height) => height >= 43.5), `Mobile calendar view controls should meet the 44px touch contract: ${mobileCalendarSwitcherHeights.join(", ")}`);
+  await mobile.getByRole("button", { name: "Calendar", exact: true }).click();
+  assert.ok(await mobile.locator("[data-today-calendar]").evaluate((node) => node.scrollWidth > node.clientWidth), "Mobile Today Calendar should contain its two-week frame in the shared horizontal scroller");
+  await assertNoPageOverflow(mobile, "Mobile Today Calendar");
   assert.equal(await mobile.locator(".operations-tabs").count(), 0, "Admin pages should not repeat route navigation inside the working surface");
   await assertNoPageOverflow(mobile, "Mobile My Work");
   await mobile.screenshot({ path: `${OUT_DIR}/my-work-mobile.png`, fullPage: true });
