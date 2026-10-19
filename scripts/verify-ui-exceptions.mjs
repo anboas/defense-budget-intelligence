@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = async (name) => readFile(new URL(`../src/${name}`, import.meta.url), "utf8");
-const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState] = await Promise.all([
+const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState, today, todayCss, wallboardCalendar] = await Promise.all([
   read("IntelligenceProductsPage.jsx"),
   read("ResearchDiscoveryDashboard.jsx"),
   read("ResearchDiscoveryDashboard.css"),
@@ -14,6 +14,9 @@ const [organizations, research, researchCss, evidence, evidenceCss, spend, analy
   read("IntegrationManagement.jsx"),
   read("WorkspaceManagement.jsx"),
   read("SurfaceState.jsx"),
+  read("TodayWorkspace.jsx"),
+  read("TodayWorkspace.css"),
+  read("WallboardCalendar.jsx"),
 ]);
 
 for (const [label, source] of [
@@ -52,4 +55,12 @@ assert.match(domain, /SurfaceState[\s\S]*owner="domain-model"/, "Domain Model ac
 
 assert.match(surfaceState, /state === "info" \? "info"/, "SurfaceFeedback must retain an explicit informational state");
 
-console.log("UI exception guard verified: collection queries, semantic statuses, async states, and local feedback have one shared owner.");
+for (const component of ["ControlCalendarSurface", "ControlCalendarHeader", "ControlCalendarViewSwitcher", "ControlCalendarGrid", "ControlCalendarDay", "ControlCalendarItem", "ControlCalendarFooter"]) {
+  assert.match(today, new RegExp(`\\b${component}\\b`), `Today forward view must use ${component}`);
+}
+assert.match(today, /ControlCalendarGrid[\s\S]*layout="range"[\s\S]*rows=\{2\}/, "Today calendar must use the shared two-row range layout");
+assert.doesNotMatch(today, /today-calendar if-management-grid|today-forward__(?:header|modes|footer)/, "Today must not restore its local calendar shell, switcher, or footer");
+assert.doesNotMatch(todayCss, /today-forward__(?:header|modes|footer)/, "Today must not retain dead local calendar-shell CSS");
+assert.match(wallboardCalendar, /ControlCalendarDay/, "The operational month calendar must share the framework day-cell anatomy");
+
+console.log("UI exception guard verified: queries, calendars, semantic statuses, async states, and local feedback have one shared owner.");

@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Filter, ListChecks, MoreHorizontal, Network } from "lucide-react";
-import { ControlDialog, ControlMenu } from "control-surface-ui/react";
+import {
+  ControlCalendarDay,
+  ControlCalendarFooter,
+  ControlCalendarGrid,
+  ControlCalendarHeader,
+  ControlCalendarItem,
+  ControlCalendarSurface,
+  ControlCalendarViewSwitcher,
+  ControlDialog,
+  ControlMenu,
+} from "control-surface-ui/react";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
@@ -115,16 +125,24 @@ function TimelineSurface({ mode, setMode, items, selectedId, selectedRecordId, o
     return { key: date.toISOString().slice(0, 10), label: index === 0 ? "Today" : date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", timeZone: "UTC" }) };
   });
   const dates = Array.from({ length: 14 }, (_, index) => new Date(Date.parse(`${today}T00:00:00Z`) + index * DAY).toISOString().slice(0, 10));
-  return <section className="today-forward" data-today-forward-view data-timeline-mode={mode}>
-    <header className="today-forward__header"><div><small>Forward view</small><h2>Next 14 days</h2><p>Tasks, opportunity dates, research, and team events</p></div><div className="today-forward__modes" role="group" aria-label="Today timeline view">{[["agenda", "Agenda"], ["lanes", "Lanes"], ["calendar", "Calendar"]].map(([id, label]) => <button className={`if-btn if-btn--sm${mode === id ? " if-btn--primary" : " if-btn--secondary"}`} key={id} type="button" aria-pressed={mode === id} onClick={() => setMode(id)}>{label}</button>)}</div></header>
+  const weekdays = dates.slice(0, 7).map((date) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }));
+  const attentionCount = items.filter((item) => item.tone === "danger" || item.tone === "warning").length;
+  return <ControlCalendarSurface className="today-forward" data-today-forward-view data-timeline-mode={mode}>
+    <ControlCalendarHeader
+      eyebrow="Forward view"
+      title="Next 14 days"
+      compactTitle="Next 14 days"
+      description="Tasks, opportunity dates, research, and team events"
+      navigation={<ControlCalendarViewSwitcher value={mode} onChange={setMode} label="Today timeline view" />}
+    />
     {mode === "lanes" ? <div className="today-lanes" data-today-lanes>
       <div className="today-lanes__axis"><span>Lane</span>{ticks.map((tick) => <time key={tick.key} dateTime={tick.key}>{tick.label}</time>)}</div>
       {["actions", "opportunities", "research", "events"].map((lane) => { const laneItems = items.filter((item) => item.lane === lane); return <div className="today-lanes__row" key={lane} data-today-lane={lane}><div className="today-lanes__label"><strong>{laneLabel(lane)}</strong><small>{laneItems.length} {lane === "events" ? "event" : lane === "opportunities" ? "date" : "item"}{laneItems.length === 1 ? "" : "s"}</small></div><div className="today-lanes__track"><i className="today-lanes__now" aria-hidden="true" />{laneItems.map((item) => <button key={item.id} type="button" className={`today-event is-${item.tone}${selectedId === item.id ? " is-selected" : ""}`} style={eventStyle(item, today)} onClick={() => onSelect(item)}><strong>{item.label}</strong><small>{item.meta}</small></button>)}</div></div>; })}
     </div> : null}
     {mode === "agenda" ? <div className="today-agenda if-action-row-list" data-today-agenda>{items.length ? items.map((item) => <button key={item.id} type="button" className={`if-action-row${selectedId === item.id ? " is-selected" : ""}`} onClick={() => onSelect(item)}><time dateTime={item.date}>{compactDate(item.date)}</time><span><strong>{item.label}</strong><small>{laneLabel(item.lane)} · {item.meta}</small></span></button>) : <p>No dated work in this window.</p>}</div> : null}
-    {mode === "calendar" ? <div className="today-calendar if-management-grid" data-today-calendar>{dates.map((date) => <section className="if-management-card" key={date}><header><time dateTime={date}>{compactDate(date)}</time></header>{items.filter((item) => item.date === date).map((item) => <button key={item.id} type="button" className={`if-btn if-btn--secondary if-btn--sm${selectedId === item.id ? " is-active" : ""}`} onClick={() => onSelect(item)}>{item.label}</button>)}</section>)}</div> : null}
-    <footer className="today-forward__footer"><span><strong>{items.length} visible event{items.length === 1 ? "" : "s"}</strong> · {items.filter((item) => item.tone === "danger" || item.tone === "warning").length} need attention</span><a className="if-btn if-btn--secondary if-btn--sm" href={timelineRoute(selectedRecordId, { from: today })}>Open full Timeline<ArrowRight size={14} /></a></footer>
-  </section>;
+    {mode === "calendar" ? <ControlCalendarGrid label="Next 14 days calendar" weekdays={weekdays} layout="range" rows={2} className="today-calendar" data-today-calendar>{dates.map((date) => <ControlCalendarDay key={date} date={date} label={compactDate(date)} current={date === today} meta={date === today ? "Today" : null}>{items.filter((item) => item.date === date).map((item) => <ControlCalendarItem key={item.id} label={item.label} meta={laneLabel(item.lane)} tone={item.tone} selected={selectedId === item.id} aria-label={`${item.label}, ${item.meta}`} onClick={() => onSelect(item)} />)}</ControlCalendarDay>)}</ControlCalendarGrid> : null}
+    <ControlCalendarFooter actions={<a className="if-btn if-btn--secondary if-btn--sm" href={timelineRoute(selectedRecordId, { from: today })}>Open full Timeline<ArrowRight size={14} /></a>}><strong>{items.length} visible event{items.length === 1 ? "" : "s"}</strong> · {attentionCount} need attention</ControlCalendarFooter>
+  </ControlCalendarSurface>;
 }
 
 function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onRequestComplete, feedback, today }) {

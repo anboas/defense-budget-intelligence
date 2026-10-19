@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, Link2 } from "lucide-react";
 import {
+  ControlCalendarDay,
   ControlCalendarGrid,
   ControlCalendarHeader,
   ControlCalendarOverlayRail,
@@ -305,9 +306,7 @@ export default function WallboardCalendar({ events, categories, teams = [], mont
         const busyDayIndexes = new Set(busyDays.map((day) => day.dayIndex));
         const displaySegments = visibleSegments.filter((segment) => !(segment.lane > 0 && segment.startColumn === segment.endColumn && busyDayIndexes.has(segment.startColumn)));
         return <section className="ops-wall-calendar__week" key={week[0].key} style={{ "--calendar-lanes": MAX_VISIBLE_CALENDAR_LANES }}>
-          <div className="ops-wall-calendar__days">{week.map((day) => <article key={day.key} className={`${day.inMonth ? "is-in-month" : "is-outside-month"}${day.key === today ? " is-today" : ""}`} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"}>
-            <header><time dateTime={day.key}>{day.day}</time><span>{day.key === today ? "Today" : null}</span></header>
-          </article>)}</div>
+          <div className="ops-wall-calendar__days">{week.map((day) => <ControlCalendarDay key={day.key} date={day.key} label={day.day} meta={day.key === today ? "Today" : null} current={day.key === today} outside={!day.inMonth} className={day.inMonth ? "is-in-month" : ""} data-calendar-day={day.key} data-in-month={day.inMonth ? "true" : "false"} />)}</div>
           <div className="ops-wall-calendar__bars">{displaySegments.map((item) => {
             const { event, milestone, startColumn, endColumn, lane, startsBefore, endsAfter } = item;
             const countdown = eventCountdown(event, now);
