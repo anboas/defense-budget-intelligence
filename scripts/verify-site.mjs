@@ -1383,6 +1383,17 @@ try {
   assert.ok(todayCalendarGeometry.scrollWidth <= todayCalendarGeometry.width + 1, `Today Calendar should remain contained at the desktop reference width: ${JSON.stringify(todayCalendarGeometry)}`);
   await page.screenshot({ path: `${OUT_DIR}/today-calendar-desktop.png` });
   await page.getByRole("button", { name: "Lanes", exact: true }).click();
+  const opportunityTabs = page.locator('[data-if-control-tabs][aria-label="Selected opportunity"]');
+  assert.equal(await opportunityTabs.locator("[data-if-control-tab]").count(), 5, "Selected opportunity lenses must use the complete shared ControlTabs owner");
+  const summaryTab = opportunityTabs.locator('[data-if-control-tab="summary"]');
+  const timelineTab = opportunityTabs.locator('[data-if-control-tab="timeline"]');
+  await summaryTab.focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await timelineTab.evaluate((node) => node === document.activeElement), true, "ControlTabs should move focus with ArrowRight");
+  assert.equal(await summaryTab.getAttribute("aria-pressed"), "true", "Manual ControlTabs navigation should preserve selection until activation");
+  await page.keyboard.press("Enter");
+  assert.equal(await timelineTab.getAttribute("aria-pressed"), "true", "Keyboard activation should select the focused ControlTabs item");
+  await summaryTab.click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${OUT_DIR}/today-decision-workspace-desktop.png` });
   const todayMore = page.getByRole("button", { name: "More selected opportunity actions" });
@@ -1864,10 +1875,22 @@ try {
       return { width: box.width, height: box.height };
     });
     const calendarSummary = node.querySelector(".if-calendar-header__summary");
+    const toolbarNav = node.querySelector(".ops-wallboard__toolbar nav").getBoundingClientRect();
+    const toolbarActions = node.querySelector(".ops-wallboard__toolbar > div").getBoundingClientRect();
+    const toolbarButtons = [...node.querySelectorAll(".ops-wallboard__toolbar button")].map((button) => {
+      const box = button.getBoundingClientRect();
+      return { label: button.getAttribute("aria-label") || button.textContent.trim(), top: box.top, height: box.height, tab: button.hasAttribute("data-if-control-tab") };
+    });
+    const toolbarButtonTops = toolbarButtons.map(({ top }) => top);
     return {
       mastheadVisible: getComputedStyle(masthead).display !== "none",
       toolbarHeight: toolbar.height,
-      toolbarRows: new Set([...node.querySelectorAll(".ops-wallboard__toolbar button")].map((button) => Math.round(button.getBoundingClientRect().top))).size,
+      toolbarTopSpread: Math.max(...toolbarButtonTops) - Math.min(...toolbarButtonTops),
+      toolbarButtons,
+      toolbarGroups: {
+        nav: { top: toolbarNav.top, height: toolbarNav.height },
+        actions: { top: toolbarActions.top, height: toolbarActions.height },
+      },
       calendarHeaderHeight: calendarHeader.height,
       overlayHeight: overlays.height,
       chromeBeforeCalendar: calendarViewport.top - bounds.top,
@@ -1879,7 +1902,7 @@ try {
   });
   assert.equal(mobileWallboardChrome.mastheadVisible, false, "The routed mobile wallboard must not repeat product identity below the application masthead");
   assert.ok(mobileWallboardChrome.toolbarHeight <= 53, `Mobile wallboard modes and actions should share one compact row, got ${mobileWallboardChrome.toolbarHeight}px`);
-  assert.equal(mobileWallboardChrome.toolbarRows, 1, "Mobile wallboard navigation must not create a second action row");
+  assert.ok(mobileWallboardChrome.toolbarTopSpread <= 1, `Mobile wallboard navigation must stay on one visual row: ${JSON.stringify(mobileWallboardChrome)}`);
   assert.ok(mobileWallboardChrome.calendarHeaderHeight <= 53, `Mobile month navigation should stay in one command row, got ${mobileWallboardChrome.calendarHeaderHeight}px`);
   assert.ok(mobileWallboardChrome.overlayHeight <= 53, `Mobile overlays should stay in one compact rail, got ${mobileWallboardChrome.overlayHeight}px`);
   assert.ok(mobileWallboardChrome.chromeBeforeCalendar <= 160, `The month grid should begin within 160px of the routed wallboard, got ${mobileWallboardChrome.chromeBeforeCalendar}px`);

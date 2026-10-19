@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ArchiveRestore, ArchiveX, BarChart3, Radar, ScatterChart } from "lucide-react";
-import { ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
+import { ControlErrorBoundary, ControlPageBody, ControlTabs } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ControlSelect from "./ControlSelect.jsx";
@@ -199,13 +199,18 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     setAnalysisMode(mode);
     updateRoute("analysis", { analysisMode: mode, noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
   };
-  const analysisTabs = <nav className="if-tabs__list spend-explorer__analysis-tabs" aria-label="Analysis Studio lenses" data-analysis-studio-tabs>
-    {[
-      ["portfolio", "Portfolio", ScatterChart],
-      ["radar", "Capture targets", Radar],
-      ["transactions", "Spend analysis", BarChart3],
-    ].map(([id, label, Icon]) => <button type="button" key={id} className={`if-tab${analysisMode === id ? " is-active" : ""}`} aria-pressed={analysisMode === id} onClick={() => selectAnalysisMode(id)}><Icon size={14} />{label}</button>)}
-  </nav>;
+  const analysisTabs = <ControlTabs
+    className="spend-explorer__analysis-tabs"
+    ariaLabel="Analysis Studio lenses"
+    activeId={analysisMode}
+    onSelect={selectAnalysisMode}
+    items={[
+      { id: "portfolio", label: "Portfolio", icon: <ScatterChart size={14} /> },
+      { id: "radar", label: "Capture targets", icon: <Radar size={14} /> },
+      { id: "transactions", label: "Spend analysis", icon: <BarChart3 size={14} /> },
+    ]}
+    data-analysis-studio-tabs
+  />;
   const tabs = view === "analysis" ? analysisTabs : null;
   const rows = useMemo(
     () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], effectiveManualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),

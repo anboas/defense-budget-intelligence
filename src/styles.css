@@ -85,13 +85,6 @@
   max-width: 100%;
 }
 
-.dbi-section-tabs .if-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--if-space-1);
-  text-decoration: none;
-}
-
 .dbi-section-tabs .if-badge {
   min-width: 1.25rem;
   justify-content: center;
@@ -5946,33 +5939,7 @@ td .dot {
 }
 
 .analytics-view-tabs {
-  display: flex;
-  gap: 4px;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.analytics-view-tabs button {
-  display: inline-flex;
-  min-height: 34px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border: var(--if-divider);
-  border-radius: var(--if-radius-1);
-  background: var(--if-bg-surface);
-  color: var(--if-text-muted);
-  font: inherit;
-  font-size: 10px;
-  font-weight: 850;
-}
-
-.analytics-view-tabs button.is-active {
-  border-color: var(--if-border-selected);
-  background: var(--if-bg-selected);
-  color: var(--if-accent);
 }
 
 .if-workbench-header__controls > .analytics-commandbar__controls {
@@ -7072,8 +7039,6 @@ td .dot {
   backdrop-filter: blur(8px);
 }
 
-.task-review-tabs .if-tab { min-height: 40px; }
-
 .task-exchange {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7222,7 +7187,7 @@ td .dot {
 
 .operations-hub { display: grid; gap: 12px; }
 
-.ops-wallboard button {
+.ops-wallboard button:not([data-if-control-tab]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -7263,7 +7228,6 @@ td .dot {
 .event-dialog-shell { width: min(68rem, calc(100vw - 2rem)); }
 .event-dialog__body { overscroll-behavior: contain; }
 .event-dialog__tabs { position: sticky; z-index: 3; top: calc(-1 * var(--if-panel-padding)); margin: calc(-1 * var(--if-panel-padding)) calc(-1 * var(--if-panel-padding)) var(--if-space-4); padding: 0 var(--if-panel-padding); overflow-x: auto; background: var(--if-bg-surface); scrollbar-width: thin; }
-.event-dialog__tabs .if-tab { flex: 0 0 auto; min-height: 2.5rem; }
 .event-dialog__alert { margin-bottom: var(--if-space-3); }
 .event-dialog__note { align-items: flex-start; }
 .event-dialog__inline-alert { margin-top: var(--if-space-1); }
@@ -7330,14 +7294,11 @@ td .dot {
 @media (max-width: 640px) {
   .event-dialog-shell { width: 100vw; }
   .event-dialog__tabs { margin-bottom: var(--if-space-3); }
-  .event-dialog__tabs .if-tab { min-height: 2.75rem; }
   .event-catalog-browser { gap: var(--if-space-3); }
   .event-catalog-browser__clear { width: 38px; height: 38px; }
   .event-catalog-browser__status { align-items: flex-start; flex-wrap: wrap; }
   .event-catalog-browser__status .if-btn { min-height: 2.75rem; }
   .event-discovery-views .if-btn { min-height: 2.75rem; }
-  .operations-hub--event-discovery .if-tabs__list .if-tab { min-height: 2.75rem; }
-
   .operations-hub--event-discovery .if-tabs__list {
     flex-wrap: wrap;
     overflow: visible;
@@ -7445,10 +7406,10 @@ td .dot {
   color: #294259;
   font-size: clamp(10px, .52vw, 14px);
 }
-.ops-wallboard button:hover,
-.ops-wallboard button:focus-visible { border-color: var(--wallboard-blue); background: #edf6fc; color: #063f68; outline: none; box-shadow: inset 0 0 0 2px #8fc8e8; }
-.ops-wallboard button.is-active,
-.ops-wallboard button[aria-pressed="true"] { border-color: var(--wallboard-blue); background: var(--wallboard-blue); color: #fff; }
+.ops-wallboard button:not([data-if-control-tab]):hover,
+.ops-wallboard button:not([data-if-control-tab]):focus-visible { border-color: var(--wallboard-blue); background: #edf6fc; color: #063f68; outline: none; box-shadow: inset 0 0 0 2px #8fc8e8; }
+.ops-wallboard button.is-active:not([data-if-control-tab]),
+.ops-wallboard button[aria-pressed="true"]:not([data-if-control-tab]) { border-color: var(--wallboard-blue); background: var(--wallboard-blue); color: #fff; }
 .ops-wallboard__metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -8083,7 +8044,7 @@ td .dot {
   .ops-wallboard__toolbar { align-items: stretch; flex-direction: column; gap: 7px; padding: 8px 9px; }
   .ops-wallboard__toolbar nav,
   .ops-wallboard__toolbar > div { overflow-x: auto; }
-  .ops-wallboard__toolbar button { flex: 0 0 auto; min-height: 44px; }
+  .ops-wallboard__toolbar button:not([data-if-control-tab]) { flex: 0 0 auto; min-height: 44px; }
   .ops-wallboard__metrics { display: flex; gap: 0; overflow-x: auto; padding: 0 9px; }
   .ops-wallboard__metrics article { flex: 0 0 174px; padding: 9px 11px; }
   .ops-wallboard__metrics strong { font-size: 31px; }
@@ -8456,12 +8417,6 @@ td .dot {
 
 .ci-header-mobile-trigger {
   display: none;
-}
-
-@media (max-width: 719px) {
-  .analytics-view-tabs button {
-    min-height: 44px;
-  }
 }
 
 @media (max-width: 980px) {
@@ -8977,22 +8932,26 @@ td .dot {
     flex-flow: row nowrap;
     align-items: center;
     gap: 6px;
-    padding: 4px 8px;
+    padding: 3px 8px;
     overflow: hidden;
     background: #fff;
   }
 
   .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav {
     flex: 1 1 auto;
+    align-items: center;
+    height: 44px;
     min-width: 0;
     gap: 4px;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar .if-control-tabs { border-bottom: 0; }
+
   .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav::-webkit-scrollbar { display: none; }
-  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar > div { flex: 0 0 auto; gap: 4px; }
-  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar button { min-height: 44px; padding: 5px 10px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar > div { flex: 0 0 auto; align-items: center; height: 44px; gap: 4px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar button:not([data-if-control-tab]) { min-height: 44px; padding: 5px 10px; }
   .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar [data-wallboard-action] {
     width: 44px;
     min-width: 44px;
@@ -9119,7 +9078,7 @@ td .dot {
 }
 
 @media (max-width: 420px) {
-  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav button { padding-inline: 9px; }
+  .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wallboard__toolbar nav button:not([data-if-control-tab]) { padding-inline: 9px; }
   .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity { min-width: 112px; }
   .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__identity strong { font-size: 15px; }
   .ops-wallboard[data-wallboard-fullscreen="false"] .ops-wall-calendar__controls .if-picker { width: 76px; min-width: 76px; }
