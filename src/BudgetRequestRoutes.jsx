@@ -1,9 +1,8 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import {
   ControlAsyncState,
   ControlDisclosure,
   ControlMetricStrip,
-  ControlSearch,
 } from "control-surface-ui/react";
 import {
   BarChart3,
@@ -16,7 +15,6 @@ import {
   GitBranch,
   Layers,
   Network,
-  RotateCcw,
   TrendingUp,
 } from "lucide-react";
 import Section from "./AnalysisSection.jsx";
@@ -24,6 +22,8 @@ import AnalysisActions from "./AnalysisActions.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import PhaseIntro from "./PhaseIntro.jsx";
 import useUrlState from "./urlState.js";
+
+const QueryRail = lazy(() => import("./QueryRail.jsx"));
 
 const EMPTY_ROWS = Object.freeze([]);
 const FILTER_DEFAULTS = { query: "", book: "all", group: "all", signal: "all", org: "all" };
@@ -197,27 +197,20 @@ function AccountLifecycle({ accountSpine }) {
   </div>;
 }
 
-function ResetFilters({ filters, onReset }) {
-  const active = Object.keys(FILTER_DEFAULTS).some((key) => filters[key] !== FILTER_DEFAULTS[key]);
-  return <button type="button" className="reset-filters" onClick={onReset} disabled={!active}><RotateCcw size={14} aria-hidden="true" /> Reset</button>;
-}
-
 function ControlField({ label, value, options, onChange, ariaLabel = label, searchable }) {
   return <div className="control-field"><span>{label}</span><ControlSelect value={value} options={options} onChange={onChange} ariaLabel={ariaLabel} searchable={searchable} /></div>;
 }
 
-function FilterShell({ filters, setFilters, data, books, signals }) {
+function FilterShell({ filters, setFilters, data, books, signals, resultCount, actions }) {
   const orgs = useMemo(() => aggregate(data.records, (record) => ({ id: record.org, label: record.orgName })).slice(0, 40), [data.records]);
-  return <div className="if-control-bar filters" aria-label="Budget filters" data-budget-filter-bar>
-    <ControlSearch className="searchbox" ariaLabel="Search budget line items" placeholder="Search line items, accounts, organizations" value={filters.query} onChange={(query) => setFilters({ ...filters, query })} />
-    <div className="filters__secondary">
+  const activeFilterCount = Number(Boolean(filters.query)) + [filters.book, filters.group, filters.signal, filters.org].filter((value) => value !== "all").length;
+  const filterContent = <div className="query-rail__filter-grid">
       <ControlField label="Color" value={filters.book} options={[["all", "All colors"], ...books.map((book) => [book.id, `${book.short} · ${book.color}`])]} onChange={(book) => setFilters({ ...filters, book })} />
       <ControlField label="Org type" value={filters.group} options={[["all", "All DoD"], ["service", "Services"], ["fourth-estate", "Fourth Estate"], ["other", "Other / Reconciliation"]]} onChange={(group) => setFilters({ ...filters, group })} />
       <ControlField label="Signal" value={filters.signal} options={[["all", "All signals"], ...signals.map((signal) => [signal.id, signal.label])]} onChange={(signal) => setFilters({ ...filters, signal })} />
       <ControlField label="Organization" searchable value={filters.org} options={[["all", "All organizations"], ...orgs.map((org) => [org.id, org.label])]} onChange={(org) => setFilters({ ...filters, org })} />
-      <ResetFilters filters={filters} onReset={() => setFilters(FILTER_DEFAULTS)} />
-    </div>
-  </div>;
+    </div>;
+  return <div data-budget-filter-bar><Suspense fallback={<ControlAsyncState compact state="loading" title="Loading budget controls" />}><QueryRail label="budget line items" query={filters.query} onQueryChange={(query) => setFilters({ ...filters, query })} searchPlaceholder="Search line items, accounts, organizations" filters={filterContent} filterAriaLabel="Filter budget line items" activeFilterCount={activeFilterCount} onClear={() => setFilters(FILTER_DEFAULTS)} resultCount={resultCount} totalCount={data.records.length} showTotal>{actions}</QueryRail></Suspense></div>;
 }
 
 function useFilteredRecords(filters, sourceRecords = []) {
@@ -312,7 +305,7 @@ export default function BudgetRequestRoutes({ view, budgetData, accountSpine }) 
   const sourcePackageUrl = dataInventory.sourcePackageUrl || "";
 
   return <>
-    <FilterShell filters={filters} setFilters={setFilters} data={budgetData} books={books} signals={signals} />
+    <FilterShell filters={filters} setFilters={setFilters} data={budgetData} books={books} signals={signals} resultCount={records.length} actions={<AnalysisActions rows={records} filename="overview-budget-records" sourceUrlForRow={(row) => sourceUrlForRow(row, books, sourcePackageUrl)} exportMetadata={{ snapshotGeneratedAt: budgetData.metadata.generatedAt, methodology: budgetData.metadata.methodology }} />} />
     <ControlMetricStrip data-budget-metrics label="Filtered budget metrics" compactMobile items={[
       { id: "request", label: "Filtered FY2027 request", value: money(total.fy2027), meta: `${total.records} line records · ${pct(growth(total))} since FY2025`, tone: "info" },
       { id: "ai", label: "AI / autonomy signal", value: money(ai.fy2027), meta: `${ai.records} matched source lines`, tone: "purple" },
@@ -320,7 +313,6 @@ export default function BudgetRequestRoutes({ view, budgetData, accountSpine }) 
       { id: "depth", label: "Data depth", value: `${budgetData.records.length.toLocaleString()} lines`, meta: "M-1, O-1, P-1, R-1, RF-1, C-1", tone: "warning" },
       { id: "narrative", label: "Narrative coverage", value: records.length ? percent((evidenceRecords.length / records.length) * 100, 1) : "0.0%", meta: `${evidenceRecords.length.toLocaleString()} source-matched · ${confirmedEvidenceRecords.length.toLocaleString()} narrative-confirmed`, tone: "success" },
     ]} />
-    <AnalysisActions rows={records} filename="overview-budget-records" sourceUrlForRow={(row) => sourceUrlForRow(row, books, sourcePackageUrl)} exportMetadata={{ snapshotGeneratedAt: budgetData.metadata.generatedAt, methodology: budgetData.metadata.methodology }} />
     <Overview records={records} signals={signals} />
   </>;
 }

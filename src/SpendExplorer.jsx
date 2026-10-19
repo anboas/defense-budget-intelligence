@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ArchiveRestore, ArchiveX, BarChart3, CalendarClock, Filter, MoreHorizontal, RotateCcw, ScatterChart } from "lucide-react";
-import { ControlAsyncState, ControlErrorBoundary, ControlMenu, ControlPageBody, ControlPopover } from "control-surface-ui/react";
+import { ArchiveRestore, ArchiveX, BarChart3, Radar, ScatterChart } from "lucide-react";
+import { ControlAsyncState, ControlErrorBoundary, ControlPageBody } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import ControlSelect from "./ControlSelect.jsx";
@@ -12,10 +12,11 @@ import { reportClientError } from "./client-error-reporting.js";
 import { lazyWithRefresh } from "./lazy-with-refresh.js";
 import { useAuth } from "./AuthContext.jsx";
 import { SAM_NOTICE_TYPE_OPTIONS, samNoticeTypeId, samNoticeTypeLabel } from "./sam-notice-types.js";
-import { parseMultiValues, serializeMultiValues } from "./SearchMultiSelect.jsx";
+import { parseMultiValues } from "./SearchMultiSelect.jsx";
 import OpportunityRadar from "./OpportunityRadar.jsx";
 import { classifyOpportunityFit } from "./opportunity-fit.js";
 import OpportunityFitBadge from "./OpportunityFitBadge.jsx";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import { opportunityRoute } from "./cross-surface-routes.js";
 import "./SpendExplorer.css";
 
@@ -25,13 +26,23 @@ const UniversalIntelligenceWorkspace = lazyWithRefresh(() => import("./Universal
 const OpportunityPortfolioVisuals = lazyWithRefresh(() => import("./OpportunityPortfolioVisuals.jsx"), "opportunity-portfolio-visuals");
 const OpportunityWorkbenchDetail = lazyWithRefresh(() => import("./OpportunityWorkbenchDetail.jsx"), "opportunity-workbench-detail");
 
-const VIEWS = new Set(["radar", "visuals", "timeline", "table", "charts", "record"]);
+const VIEWS = new Set(["analysis", "timeline", "table", "record"]);
+const LEGACY_ANALYSIS_VIEWS = new Set(["radar", "visuals", "charts"]);
+const ANALYSIS_MODES = new Set(["radar", "portfolio", "transactions"]);
 const STRATEGY_SCOPE_KEY = "dbi:strategy-scope:v1";
 
 function readRoute() {
   const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
   const value = params.get("spendView");
+  if (LEGACY_ANALYSIS_VIEWS.has(value)) return "analysis";
   return VIEWS.has(value) ? value : "table";
+}
+
+function readAnalysisMode() {
+  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const legacy = params.get("spendView");
+  const value = params.get("analysisMode") || (legacy === "radar" ? "radar" : legacy === "charts" ? "transactions" : "portfolio");
+  return ANALYSIS_MODES.has(value) ? value : "portfolio";
 }
 
 function readTableNoticeType(params) {
@@ -107,6 +118,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const auth = useAuth();
   const runtimeAvailable = Boolean(auth?.authVersion === "dbi-pages-auth-v1" && auth?.enabled && auth?.user && !auth?.staticHost);
   const [view, setView] = useState(readRoute);
+  const [analysisMode, setAnalysisMode] = useState(readAnalysisMode);
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capQuery") || "");
   const [focusedRecordId, setFocusedRecordId] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capRecord") || "");
   const [tableFilters, setTableFilters] = useState(() => readTableFilters(new URLSearchParams(window.location.hash.split("?")[1] || "")));
@@ -132,6 +144,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   useEffect(() => {
     const sync = () => {
       setView(readRoute());
+      setAnalysisMode(readAnalysisMode());
       const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
       setQuery(params.get("capQuery") || "");
       setFocusedRecordId(params.get("capRecord") || "");
@@ -180,30 +193,19 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     const imported = runtimeSamRecords.filter((record) => record.recordKind === "acquisition-portfolio");
     return { ...(manualProcurement || {}), metadata: { ...(manualProcurement?.metadata || {}), runtimePortfolioRecords: imported.length }, records: [...(manualProcurement?.records || []), ...imported] };
   }, [manualProcurement, runtimeSamRecords]);
-  const select = (next) => {
-    setView(next);
-    if (next === "timeline") {
-      updateRoute(next, { capNoticeType: tableFilters.noticeType === "all" ? "" : serializeMultiValues([tableFilters.noticeType]) });
-      return;
-    }
-    updateRoute(next, { noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
+  const selectAnalysisMode = (mode) => {
+    setView("analysis");
+    setAnalysisMode(mode);
+    updateRoute("analysis", { analysisMode: mode, noticeType: tableFilters.noticeType === "all" ? "" : tableFilters.noticeType });
   };
-  const analysisView = { visuals: "Visuals", timeline: "Timeline", charts: "Analytics" }[view] || "";
-  const analysisMenu = <div className="spend-explorer__viewbar">
-    <ControlMenu
-      label={analysisView || "Analyze"}
-      ariaLabel={analysisView ? `Analysis view: ${analysisView}` : "Open analysis views"}
-      icon={<MoreHorizontal size={15} />}
-      className={`spend-explorer__analysis-menu${analysisView ? " is-active" : ""}`}
-      triggerClassName="if-tab"
-      items={[
-        { id: "visuals", label: "Visuals", description: "Portfolio, strategy, and heatmap views", icon: <ScatterChart size={15} />, active: view === "visuals", onSelect: () => select("visuals") },
-        { id: "timeline", label: "Timeline", description: "Dates, milestones, and linked research", icon: <CalendarClock size={15} />, active: view === "timeline", onSelect: () => select("timeline") },
-        { id: "charts", label: "Analytics", description: "Spend, awards, and comparison charts", icon: <BarChart3 size={15} />, active: view === "charts", onSelect: () => select("charts") },
-      ]}
-    />
-  </div>;
-  const tabs = ["visuals", "timeline", "charts"].includes(view) ? analysisMenu : null;
+  const analysisTabs = <nav className="if-tabs__list spend-explorer__analysis-tabs" aria-label="Analysis Studio lenses" data-analysis-studio-tabs>
+    {[
+      ["portfolio", "Portfolio", ScatterChart],
+      ["radar", "Capture targets", Radar],
+      ["transactions", "Spend analysis", BarChart3],
+    ].map(([id, label, Icon]) => <button type="button" key={id} className={`if-tab${analysisMode === id ? " is-active" : ""}`} aria-pressed={analysisMode === id} onClick={() => selectAnalysisMode(id)}><Icon size={14} />{label}</button>)}
+  </nav>;
+  const tabs = view === "analysis" ? analysisTabs : null;
   const rows = useMemo(
     () => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards || [], dataset.metadata?.asOf, effectiveSamOpportunities?.records || [], effectiveManualProcurement?.records || [], subawardSnapshot), procurementDelta?.records || [], discoveryIndex.discovery || []),
     [awards, dataset.metadata?.asOf, dataset.records, discoveryIndex.discovery, effectiveManualProcurement?.records, effectiveSamOpportunities?.records, procurementDelta?.records, subawardSnapshot],
@@ -254,9 +256,9 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
   const tableColumns = [
     { key: "record", label: "Opportunity", required: true, sticky: true, minWidth: 320, mobilePrimary: true, value: (record) => `${record.title || "Untitled"} ${record.id || record.reference || "Unidentified"}`, searchValue: (record) => [record.opportunityId, record.id, record.reference, record.sourceRecordId, record.liveAward?.id, record.liveAward?.generatedAwardId, record.title, record.description].filter(Boolean).join(" "), render: (record) => <><strong>{record.title || "Untitled public record"}</strong><small>{record.id || record.reference || record.sourceRecordId || "Unidentified"}</small></> },
     { key: "customer", label: "Customer", facet: true, minWidth: 210, value: customer, render: (record) => <><strong>{customer(record)}</strong><small>{[record.organization?.branch, record.organization?.component, record.party, record.recipient].find((value) => value && value !== customer(record) && !/not published/i.test(value)) || ""}</small></> },
-    { key: "stage", label: "Stage", facet: true, minWidth: 160, value: (record) => samNoticeTypeLabel(record.noticeType) },
+    { key: "stage", label: "Stage", facet: true, minWidth: 160, value: (record) => samNoticeTypeLabel(record.noticeType), render: (record) => <SemanticStatusBadge category="workflow" value={samNoticeTypeId(record.noticeType) === "r" ? "qualify" : samNoticeTypeLabel(record.noticeType)} label={samNoticeTypeLabel(record.noticeType)} /> },
     { key: "fit", label: "Fit", minWidth: 145, sortValue: (record) => record.fitAssessment.score, value: (record) => `${record.fitAssessment.score} ${record.fitAssessment.level}`, render: (record) => <OpportunityFitBadge assessment={record.fitAssessment} /> },
-    { key: "trust", label: "Trust", facet: true, minWidth: 135, value: (record) => record.evidenceTier || "unclassified", render: (record) => <span className={`opportunity-trust opportunity-trust--${record.evidenceTier || "unclassified"}`}><strong>{String(record.evidenceTier || "unclassified").replaceAll("-", " ")}</strong><small>{record.sourceRoleCount ? `${record.sourceRoleCount} source roles` : "Source backed"}</small></span> },
+    { key: "trust", label: "Evidence", facet: true, minWidth: 135, value: (record) => record.evidenceTier || "unclassified", render: (record) => <span className={`opportunity-trust opportunity-trust--${record.evidenceTier || "unclassified"}`}><SemanticStatusBadge category="evidence" value={record.evidenceTier || "unclassified"} /><small>{record.sourceRoleCount ? `${record.sourceRoleCount} source roles` : "Source backed"}</small></span> },
     { key: "deadline", label: "Due", minWidth: 145, value: (record) => record.solicitationEnd || "", sortValue: (record) => record.solicitationEnd || "9999-12-31", render: (record) => date(record.solicitationEnd) },
     { key: "obligations", label: "Value", minWidth: 110, sortValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), exportValue: (record) => Number(record.obligatedAmount || record.fpdsObligatedAmount || 0), render: (record) => <strong>{money(record.obligatedAmount || record.fpdsObligatedAmount)}</strong> },
     { key: "change", label: "Last change", minWidth: 190, value: (record) => [record.lastChangeType, ...(record.changedFields || []).map((field) => field.label)].filter(Boolean).join(" "), render: (record) => <><strong>{record.lastChangeType === "added" ? "Added" : record.lastChangeType === "removed" ? "Removed" : record.lastChangeType === "updated" ? "Updated" : "No retained change"}</strong>{record.changedFields?.length ? <small>{record.changedFields.slice(0, 2).map((field) => field.label).join(" · ")}{record.changedFields.length > 2 ? ` +${record.changedFields.length - 2}` : ""}</small> : null}</> },
@@ -297,8 +299,7 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
     setQuery(saved.query || "");
     updateRoute("table", { capQuery: saved.query || "", customer: next.customer === "all" ? "" : next.customer, stage: next.stage === "all" ? "" : next.stage, trust: next.trust === "all" ? "" : next.trust, technology: next.technology === "all" ? "" : next.technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: next.office === "all" ? "" : next.office, records: next.disposition === "tombstoned" ? "tombstoned" : "", changes: "" });
   }} />;
-  const scopeFilters = <ControlPopover label={`Filters${activeScopeFilterCount ? ` · ${activeScopeFilterCount}` : ""}`} ariaLabel="Filter opportunities" icon={<Filter size={15} aria-hidden="true" />} className="spend-explorer__scope-menu" triggerClassName="if-btn if-btn--secondary" width={736} popoverProps={{ className: "spend-explorer__scope-popover" }} data-opportunity-workbench-scope>
-    <header><strong>Filter opportunities</strong>{activeScopeFilterCount ? <button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetTableFilters}><RotateCcw size={13} />Reset</button> : null}</header><div className="spend-explorer__scope-grid">
+  const scopeFilters = <div className="query-rail__filter-grid spend-explorer__scope-grid">
       <ControlSelect compact label="Customer" value={tableFilters.customer} options={[{ value: "all", label: "All customers" }, ...customerOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("customer", value)} />
       <ControlSelect compact label="Stage" value={tableFilters.stage} options={[{ value: "all", label: "All stages" }, ...stageOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("stage", value)} />
       <ControlSelect compact label="Trust" value={tableFilters.trust} options={[{ value: "all", label: "All evidence" }, ...trustOptions.map((value) => ({ value, label: value.replaceAll("-", " ") }))]} onChange={(value) => setTableFilter("trust", value)} />
@@ -308,24 +309,23 @@ export default function SpendExplorer({ dataset, awards, samOpportunities, manua
       <ControlSelect compact label="Component" value={tableFilters.component} options={[{ value: "all", label: "All components" }, ...componentOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("component", value)} />
       <ControlSelect compact label="Buying office" value={tableFilters.office} options={[{ value: "all", label: "All offices" }, ...officeOptions.map((value) => ({ value, label: value }))]} onChange={(value) => setTableFilter("office", value)} />
       <ControlSelect compact label="Record state" value={tableFilters.disposition} options={[{ value: "active", label: "Active" }, { value: "tombstoned", label: `Hidden (${dispositions.rows.length})` }]} onChange={(value) => setTableFilter("disposition", value)} />
-    </div>
-  </ControlPopover>;
+  </div>;
 
-  if (view === "radar") return <section className="spend-explorer spend-explorer--radar" data-spend-explorer="radar">
-    <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Radar" summary="Find applicable work, inspect why it fits, add known SAM.gov notices, and track what matters." metrics={radarMetrics} metricLabel="Opportunity radar summary" tabs={tabs} />
+  if (view === "analysis" && analysisMode === "radar") return <section className="spend-explorer spend-explorer--radar" data-spend-explorer="analysis" data-analysis-mode="radar">
+    <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Analysis Studio" summary="Find capture targets, compare strategic position, and explore spend without leaving the current opportunity scope." metrics={radarMetrics} metricLabel="Opportunity radar summary" tabs={tabs} />
     <ControlPageBody compact><OpportunityRadar rows={rows.filter((record) => !dispositions.tombstonedIds.has(record.opportunityId))} runtimeAvailable={runtimeAvailable} onRuntimeRecordsChanged={loadRuntimeRecords} /></ControlPageBody>
   </section>;
-  if (view === "visuals") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("visuals", { capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, customer: "all", stage: "all", trust: "all", office, technology, disposition: "active", changes: "all" }; setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", customer: "", stage: "", trust: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "", strategyScope: "" }); }} onQuadrant={(quadrant, ids) => { const scope = { key: quadrant.key || `ansoff-${quadrant.id}`, label: quadrant.label || `${quadrant.code} / ${quadrant.name}`, ids }; window.sessionStorage.setItem(STRATEGY_SCOPE_KEY, JSON.stringify(scope)); setStrategyScope(scope); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", capRecord: "", strategyScope: scope.key }); }} /></Suspense></SpendViewBoundary>;
+  if (view === "analysis" && analysisMode === "portfolio") return <SpendViewBoundary view="visuals"><Suspense fallback={<RouteLoading label="portfolio visuals" />}><OpportunityPortfolioVisuals records={tableRows} selectedId={focusedRecordId} tabs={tabs} asOf={dataset.metadata?.asOf || dataset.metadata?.generatedAt} onSelect={(recordId) => { setFocusedRecordId(recordId); updateRoute("analysis", { analysisMode: "portfolio", capRecord: recordId }); }} onScope={(office, technology) => { const next = { ...tableFilters, customer: "all", stage: "all", trust: "all", office, technology, disposition: "active", changes: "all" }; setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); setTableFilters(next); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", customer: "", stage: "", trust: "", technology, noticeType: next.noticeType === "all" ? "" : next.noticeType, orgBranch: next.branch === "all" ? "" : next.branch, orgComponent: next.component === "all" ? "" : next.component, orgOffice: office, records: "", changes: "", capRecord: "", strategyScope: "" }); }} onQuadrant={(quadrant, ids) => { const scope = { key: quadrant.key || `ansoff-${quadrant.id}`, label: quadrant.label || `${quadrant.code} / ${quadrant.name}`, ids }; window.sessionStorage.setItem(STRATEGY_SCOPE_KEY, JSON.stringify(scope)); setStrategyScope(scope); setQuery(""); setFocusedRecordId(""); updateRoute("table", { capQuery: "", capRecord: "", strategyScope: scope.key }); }} /></Suspense></SpendViewBoundary>;
   if (view === "record") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="Intelligence Workspace" />}><UniversalIntelligenceWorkspace dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} routeHash={`#/intelligence/workspace?entityType=activity&entityId=${encodeURIComponent(focusedRecordId)}&workspaceTab=${new URLSearchParams(window.location.hash.split("?")[1] || "").get("capVisual") === "money" ? "money" : "overview"}&returnTo=${encodeURIComponent("/budget-spend/explorer?spendView=table")}`} /></Suspense></SpendViewBoundary>;
   if (view === "timeline") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="timeline" />}><CaptureCalendar embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} onOpenRecord={(recordId) => window.location.assign(opportunityRoute(recordId, { returnTo: window.location.hash, origin: "timeline" }))} /></Suspense></SpendViewBoundary>;
-  if (view === "charts") return <SpendViewBoundary view={view}><Suspense fallback={<RouteLoading label="charts" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
+  if (view === "analysis" && analysisMode === "transactions") return <SpendViewBoundary view="charts"><Suspense fallback={<RouteLoading label="spend analysis" />}><TransactionAnalytics embedded embeddedTabs={tabs} dataset={dataset} awards={awards} samOpportunities={effectiveSamOpportunities} manualProcurement={effectiveManualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} accountSpine={accountSpine} requestLineCount={requestLineCount} /></Suspense></SpendViewBoundary>;
   return <section className="spend-explorer spend-explorer--table" data-spend-explorer="table">
     <ControlWorkbenchHeader eyebrow="Opportunity intelligence" title="Opportunity Workbench" summary="Review the best-fit opportunities, inspect evidence, and move promising work into action." meta={<span className="spend-explorer__snapshot"><strong>{tableRows.length.toLocaleString()} {tableFilters.disposition === "tombstoned" ? "hidden" : "active"}</strong><span>{Number(runtimeSamRecords.length || 0).toLocaleString()} live workspace records · historical core through {dataset.metadata?.asOf || "current snapshot"}</span></span>} tabs={tabs} />
     <ControlPageBody compact>
       {strategyScope ? <div className="if-alert if-alert--info spend-explorer__strategy-scope" role="status"><span><strong>Strategic matrix scope</strong>Showing {strategyScope.label} opportunities from the current Ansoff baseline.</span><button type="button" className="if-button if-button--secondary" onClick={() => { setStrategyScope(null); window.sessionStorage.removeItem(STRATEGY_SCOPE_KEY); updateRoute("table", { strategyScope: "" }); }}>Clear scope</button></div> : null}
       {tableFilters.changes === "today" ? <div className="if-alert if-alert--info spend-explorer__change-scope" role="status"><span><strong>Complete daily update ledger</strong>Showing every retained record changed on {date(latestFeedDate)}.</span><button type="button" className="if-button if-button--secondary" onClick={() => setTableFilter("changes", "all")}>Show all records</button></div> : null}
       {dispositions.error ? <p className="if-alert if-alert--warning" role="status">{dispositions.error}</p> : null}
-      <OperationalDataTable id="opportunity-workbench-v1" label="Opportunity workbench" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "fit", direction: "desc" }} defaultPageSize={10} pageSizeOptions={[5, 10, 25, 50, 100]} defaultVisibleColumns={["record", "customer", "stage", "fit", "trust", "deadline", "obligations", "change", "actions"]} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchItems={tableSearchItems} onSearchSelect={(item) => { const id = item.id || item.record?.opportunityId || ""; setQuery(item.value); setFocusedRecordId(id); updateRoute("table", { capQuery: item.value, capRecord: id }); }} searchPlaceholder="Find an opportunity, customer, code, or reference…" exportFilename="opportunity-workbench.csv" showFacets={false} toolbarActions={<>{scopeFilters}{savedViews}</>} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "fit", "actions"] : ["record", "customer", "fit", "deadline", "actions"]} highlightedRowId={focusedRecordId} initialExpandedId={focusedRecordId || null} expandedRowId={focusedRecordId || null} onRowActivate={(record, expanded) => { const id = expanded ? record.opportunityId || record.id || record.reference : ""; setFocusedRecordId(id); updateRoute("table", { capRecord: id }); }} renderDetail={(record) => <Suspense fallback={<ControlAsyncState compact state="loading" title="Opening decision workspace" message="Loading evidence and pursuit controls." />}><OpportunityWorkbenchDetail record={record} records={rows} /></Suspense>} detailLabel="Review opportunity" detailCloseLabel="Close workspace" bulkActions={dispositions.canWrite ? (selectedRows, clear) => <button type="button" className="if-btn if-btn--secondary" onClick={() => { selectedRows.forEach((record) => tableFilters.disposition === "tombstoned" ? dispositions.restore(record.opportunityId) : dispositions.tombstone(record.opportunityId)); clear(); }}>{tableFilters.disposition === "tombstoned" ? <ArchiveRestore size={15} /> : <ArchiveX size={15} />}{tableFilters.disposition === "tombstoned" ? "Restore selected" : "Hide selected"}</button> : null} empty={tableFilters.disposition === "tombstoned" ? "No hidden records. Records you remove from the active queue remain recoverable here." : "No active opportunities match the current workbench controls."} />
+      <OperationalDataTable id="opportunity-workbench-v1" label="Opportunity workbench" rows={tableRows} columns={tableColumns} rowKey={(record) => record.opportunityId || record.id || record.reference} defaultSort={{ key: "fit", direction: "desc" }} defaultPageSize={10} pageSizeOptions={[5, 10, 25, 50, 100]} defaultVisibleColumns={["record", "customer", "stage", "fit", "trust", "deadline", "obligations", "change", "actions"]} queryValue={query} onQueryChange={(value) => { setQuery(value); setFocusedRecordId(""); updateRoute("table", { capQuery: value, capRecord: "" }); }} searchItems={tableSearchItems} onSearchSelect={(item) => { const id = item.id || item.record?.opportunityId || ""; setQuery(item.value); setFocusedRecordId(id); updateRoute("table", { capQuery: item.value, capRecord: id }); }} searchPlaceholder="Find an opportunity, customer, code, or reference…" exportFilename="opportunity-workbench.csv" showFacets={false} filterContent={scopeFilters} filterCount={activeScopeFilterCount} onClearFilters={resetTableFilters} filterAriaLabel="Filter opportunities" filterOwnerProps={{ "data-opportunity-workbench-scope": true }} savedViews={savedViews} mobileColumns={tableFilters.changes === "today" ? ["record", "change", "fit", "actions"] : ["record", "customer", "fit", "deadline", "actions"]} highlightedRowId={focusedRecordId} initialExpandedId={focusedRecordId || null} expandedRowId={focusedRecordId || null} onRowActivate={(record, expanded) => { const id = expanded ? record.opportunityId || record.id || record.reference : ""; setFocusedRecordId(id); updateRoute("table", { capRecord: id }); }} renderDetail={(record) => <Suspense fallback={<ControlAsyncState compact state="loading" title="Opening decision workspace" message="Loading evidence and pursuit controls." />}><OpportunityWorkbenchDetail record={record} records={rows} /></Suspense>} detailLabel="Review opportunity" detailCloseLabel="Close workspace" bulkActions={dispositions.canWrite ? (selectedRows, clear) => <button type="button" className="if-btn if-btn--secondary" onClick={() => { selectedRows.forEach((record) => tableFilters.disposition === "tombstoned" ? dispositions.restore(record.opportunityId) : dispositions.tombstone(record.opportunityId)); clear(); }}>{tableFilters.disposition === "tombstoned" ? <ArchiveRestore size={15} /> : <ArchiveX size={15} />}{tableFilters.disposition === "tombstoned" ? "Restore selected" : "Hide selected"}</button> : null} empty={tableFilters.disposition === "tombstoned" ? "No hidden records. Records you remove from the active queue remain recoverable here." : "No active opportunities match the current workbench controls."} />
     </ControlPageBody>
   </section>;
 }

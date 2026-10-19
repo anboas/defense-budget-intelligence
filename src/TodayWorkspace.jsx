@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Filter, ListChecks, MoreHorizontal, Network } from "lucide-react";
-import { ControlDialog, ControlMenu, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlDialog, ControlMenu } from "control-surface-ui/react";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
 import { intelligenceGraphRoute, opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
@@ -136,7 +137,7 @@ function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onReq
   const moneyValue = Number(record.amount || record.value || record.ceiling || record.obligatedAmount);
   return <aside className="today-selection" data-today-selection data-selected-record={id}>
     <header><div><small>Selected opportunity</small><h2>{record.title || id}</h2><p>{[record.party || record.portfolio, record.sourceSystem || record.noticeType].filter(Boolean).join(" · ") || "Tracked opportunity"}</p></div></header>
-    <dl className="today-selection__facts if-fact-grid if-fact-grid--mobile-two"><div className="if-fact-grid__item"><dt>Pursuit</dt><dd><ControlStatusBadge status={pursuit.stage} /></dd></div><div className="if-fact-grid__item"><dt>Owner</dt><dd>{pursuit.owner || "Unassigned"}</dd></div><div className="if-fact-grid__item"><dt>Next milestone</dt><dd>{milestone.label}</dd></div><div className="if-fact-grid__item"><dt>Evidence</dt><dd>{evidenceLabel(record)}</dd></div></dl>
+    <dl className="today-selection__facts if-fact-grid if-fact-grid--mobile-two"><div className="if-fact-grid__item"><dt>Pursuit</dt><dd><SemanticStatusBadge category="workflow" value={pursuit.stage} /></dd></div><div className="if-fact-grid__item"><dt>Owner</dt><dd>{pursuit.owner || "Unassigned"}</dd></div><div className="if-fact-grid__item"><dt>Next milestone</dt><dd>{milestone.label}</dd></div><div className="if-fact-grid__item"><dt>Evidence</dt><dd><SemanticStatusBadge category="evidence" value={record.evidenceTier || "supported"} /><small>{evidenceLabel(record)}</small></dd></div></dl>
     <nav className="today-selection__tabs" aria-label="Selected opportunity"><div className="if-tabs__list">{LENSES.map((item) => <button className={`if-tab${lens === item.toLowerCase() ? " is-active" : ""}`} key={item} type="button" aria-pressed={lens === item.toLowerCase()} onClick={() => setLens(item.toLowerCase())}>{item}</button>)}</div></nav>
     <div className="today-selection__body">
       {lens === "summary" ? <><h3>Decision summary</h3><p>{summary}</p><div className="today-selection__next"><small>Next action</small><strong>{selectedTask?.title || pursuit.nextAction || "Set a named next action"}</strong></div></> : null}

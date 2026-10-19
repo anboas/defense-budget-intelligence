@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsLeft, ChevronsRight, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, MoreHorizontal, RotateCcw } from "lucide-react";
-import { ControlAsyncState, ControlAutocomplete, ControlPopover, ControlSearch, ControlTableSelectionBar } from "control-surface-ui/react";
+import { ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Columns3, Download, GripVertical, RotateCcw } from "lucide-react";
+import { ControlAsyncState, ControlTableSelectionBar } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
+import QueryRail, { QueryRailUtilities } from "./QueryRail.jsx";
 import "./RouteControlConsistency.css";
 
 const DENSITIES = {
@@ -94,6 +95,13 @@ export default function OperationalDataTable({
   expandedRowId,
   selectable = true,
   toolbarActions = null,
+  savedViews = null,
+  filterContent = null,
+  filterCount,
+  onClearFilters,
+  filterAriaLabel,
+  filterOwnerProps,
+  totalCount,
   className = "",
   recordListAt = 720,
   wrapperProps = {},
@@ -102,6 +110,7 @@ export default function OperationalDataTable({
   filterValues,
   onFilterChange,
   showSearch = true,
+  showQueryRail = true,
   showFacets = true,
   mobileColumns = null,
   bulkActions = null,
@@ -128,7 +137,6 @@ export default function OperationalDataTable({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(() => new Set());
   const [expandedId, setExpandedId] = useState(initialExpandedId);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [draggingKey, setDraggingKey] = useState("");
   const resizeRef = useRef(null);
   const query = queryValue ?? internalQuery;
@@ -182,8 +190,6 @@ export default function OperationalDataTable({
     const values = [...new Set(rows.map((row) => searchableValue(column.filterValue?.(row) ?? column.value?.(row) ?? row[column.key])).filter(Boolean))];
     return [column.key, values.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))];
   })), [facetColumns, rows]);
-  const primaryFacet = facetColumns[0] || null;
-  const secondaryFacets = facetColumns.slice(1);
 
   const filteredRows = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -336,7 +342,14 @@ export default function OperationalDataTable({
     onRowActivate?.(row, next !== null);
   }
 
-  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const activeFilterCount = filterCount ?? Object.values(filters).filter(Boolean).length;
+  const facetControls = showFacets && facetColumns.length ? <div className="query-rail__filter-grid">{facetColumns.map((column) => <div className="dbi-data-table__filter" key={column.key}><span>{column.label}</span><ControlSelect ariaLabel={`${column.label} filter`} value={filters[column.key] || ""} options={[["", column.facetAllLabel || `All ${column.label.toLowerCase()}`], ...facetOptions[column.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [column.key]: nextValue })); setPage(1); }} /></div>)}</div> : null;
+  const clearAll = () => {
+    if (onClearFilters) onClearFilters();
+    else setFilters({});
+    setPage(1);
+  };
+  const tableUtilities = <QueryRailUtilities label="More" ariaLabel={`${label} table options`} width={280} className="dbi-data-table__columns dbi-data-table__more" popoverClassName="dbi-data-table__options-popover"><header><strong>Table options</strong><button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetLayout}><RotateCcw size={13} />Reset layout</button></header><label className="dbi-data-table__more-density"><span>Density</span><ControlSelect compact ariaLabel="Table density" value={density} options={Object.entries(DENSITIES)} onChange={(nextDensity) => { setPreferences((current) => ({ ...current, density: nextDensity })); setPage(1); }} /></label><button className="if-btn if-btn--secondary dbi-data-table__more-export" type="button" onClick={() => downloadCsv(exportFilename, visibleColumns, selectedRows.length ? selectedRows : sortedRows)}><Download size={15} /><span>Export{selectedRows.length ? ` ${selectedRows.length}` : ""}</span></button><div className="dbi-data-table__more-heading"><Columns3 size={14} /><strong>Columns</strong></div>{orderedKeys.map((key, index) => { const column = columnByKey.get(key); return <div className="dbi-data-table__column-option" key={key}><label><input type="checkbox" checked={visibleKeys.includes(key)} disabled={column.required} onChange={() => toggleColumn(key)} /><span>{column.label}</span></label>{column.role === "actions" ? null : <span className="dbi-data-table__column-order"><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, -1)} disabled={index === 0} aria-label={`Move ${column.label} left`}><ChevronLeft size={13} /></button><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, 1)} disabled={index === orderedKeys.length - 1} aria-label={`Move ${column.label} right`}><ChevronRight size={13} /></button></span>}</div>; })}</QueryRailUtilities>;
   return (
     <section
       {...wrapperProps}
@@ -349,41 +362,27 @@ export default function OperationalDataTable({
       data-table-layout={compactTable ? "cards" : "table"}
       style={{ "--dbi-table-card-breakpoint": `${recordListAt}px` }}
     >
-      <div className="if-table-toolbar dbi-data-table__toolbar">
-        <div className="dbi-data-table__status" aria-live="polite">
-          <strong>{filteredRows.length.toLocaleString()}</strong><span>of {rows.length.toLocaleString()} records</span>
-          {selected.size ? <b>{selected.size.toLocaleString()} selected</b> : null}
-        </div>
-        {showSearch ? searchItems ? <ControlAutocomplete
-          className="dbi-data-table__search"
-          ariaLabel={`Search ${label}`}
-          value={query}
-          items={searchItems}
-          minLength={1}
-          limit={10}
-          onChange={(value) => { setQuery(value); setPage(1); }}
-          onSelect={(item) => { onSearchSelect?.(item); setPage(1); }}
-          placeholder={searchPlaceholder}
-          emptyText={searchEmptyText}
-          data-table-autocomplete={id}
-        /> : <ControlSearch
-          className="dbi-data-table__search"
-          ariaLabel={`Search ${label}`}
-          placeholder={searchPlaceholder}
-          value={query}
-          onChange={(value) => { setQuery(value); setPage(1); }}
-          data-table-search={id}
-        /> : <div className="dbi-data-table__toolbar-spacer" aria-hidden="true" />}
-        <div className="dbi-data-table__tools">
-          {showFacets && primaryFacet ? <div className="dbi-data-table__primary-filter"><span className="sr-only">{primaryFacet.label}</span><ControlSelect ariaLabel={`${primaryFacet.label} filter`} value={filters[primaryFacet.key] || ""} options={[["", primaryFacet.facetAllLabel || `All ${primaryFacet.label.toLowerCase()}`], ...facetOptions[primaryFacet.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [primaryFacet.key]: nextValue })); setPage(1); }} /></div> : null}
-          {toolbarActions}
-          <ControlPopover label="More" ariaLabel={`${label} table options`} icon={<MoreHorizontal size={15} aria-hidden="true" />} className="dbi-data-table__columns dbi-data-table__more" triggerClassName="if-btn if-btn--secondary" width={280} popoverProps={{ className: "dbi-data-table__options-popover" }}><header><strong>Table options</strong><button className="if-btn if-btn--secondary if-btn--sm" type="button" onClick={resetLayout}><RotateCcw size={13} />Reset layout</button></header><label className="dbi-data-table__more-density"><span>Density</span><ControlSelect compact ariaLabel="Table density" value={density} options={Object.entries(DENSITIES)} onChange={(nextDensity) => { setPreferences((current) => ({ ...current, density: nextDensity })); setPage(1); }} /></label><button className="if-btn if-btn--secondary dbi-data-table__more-export" type="button" onClick={() => downloadCsv(exportFilename, visibleColumns, selectedRows.length ? selectedRows : sortedRows)}><Download size={15} /><span>Export{selectedRows.length ? ` ${selectedRows.length}` : ""}</span></button><div className="dbi-data-table__more-heading"><Columns3 size={14} /><strong>Columns</strong></div>{orderedKeys.map((key, index) => { const column = columnByKey.get(key); return <div className="dbi-data-table__column-option" key={key}><label><input type="checkbox" checked={visibleKeys.includes(key)} disabled={column.required} onChange={() => toggleColumn(key)} /><span>{column.label}</span></label>{column.role === "actions" ? null : <span className="dbi-data-table__column-order"><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, -1)} disabled={index === 0} aria-label={`Move ${column.label} left`}><ChevronLeft size={13} /></button><button className="if-icon-btn" type="button" onClick={() => moveColumn(key, 1)} disabled={index === orderedKeys.length - 1} aria-label={`Move ${column.label} right`}><ChevronRight size={13} /></button></span>}</div>; })}</ControlPopover>
-        </div>
-      </div>
-      {showFacets && secondaryFacets.length ? <>
-        <button type="button" className="if-btn if-btn--secondary dbi-data-table__mobile-filter-toggle" aria-expanded={mobileFiltersOpen} onClick={() => setMobileFiltersOpen((open) => !open)}><span>More filters{activeFilterCount ? ` · ${activeFilterCount} active` : ""}</span><ChevronDown size={14} aria-hidden="true" /></button>
-        <div className="dbi-data-table__filters" data-table-filters data-mobile-expanded={mobileFiltersOpen ? "true" : "false"}>{secondaryFacets.map((column) => <div className="dbi-data-table__filter" key={column.key}><span>{column.label}</span><ControlSelect ariaLabel={`${column.label} filter`} value={filters[column.key] || ""} options={[["", "All"], ...facetOptions[column.key].map((value) => [value, value])]} onChange={(nextValue) => { setFilters((current) => ({ ...current, [column.key]: nextValue })); setPage(1); }} /></div>)}{activeFilterCount ? <button type="button" className="if-btn if-btn--secondary" onClick={() => { setFilters({}); setPage(1); }}>Clear {activeFilterCount}</button> : null}</div>
-      </> : null}
+      {showQueryRail ? <QueryRail
+        label={label}
+        query={showSearch ? query : ""}
+        onQueryChange={showSearch ? (value) => { setQuery(value); setPage(1); } : undefined}
+        searchItems={showSearch ? searchItems : null}
+        onSearchSelect={(item) => { onSearchSelect?.(item); setPage(1); }}
+        searchPlaceholder={showSearch ? searchPlaceholder : `${label} search is owned by this page`}
+        searchEmptyText={searchEmptyText}
+        searchProps={searchItems ? { "data-table-autocomplete": id } : { "data-table-search": id }}
+        filters={filterContent || facetControls}
+        filterAriaLabel={filterAriaLabel}
+        filterOwnerProps={filterOwnerProps}
+        activeFilterCount={activeFilterCount}
+        onClear={clearAll}
+        resultCount={filteredRows.length}
+        totalCount={totalCount ?? rows.length}
+        showTotal={totalCount != null || filteredRows.length !== rows.length}
+        savedViews={savedViews}
+        utilities={tableUtilities}
+        className={!showSearch ? "query-rail--external-search" : ""}
+      >{selected.size ? <span className="if-badge if-badge--info">{selected.size.toLocaleString()} selected</span> : null}{toolbarActions}</QueryRail> : null}
       <ControlTableSelectionBar
         count={selected.size}
         label={`${selected.size.toLocaleString()} selected across this table`}
