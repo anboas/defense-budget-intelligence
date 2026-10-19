@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-19T14:09:13.970Z",
+    "generatedAt": "2026-10-19T16:56:08.036Z",
     "observedAt": "2026-10-15",
     "status": "current",
     "coverage": {
@@ -17,7 +17,7 @@
       "absentRoles": 0
     },
     "evidenceBoundary": "Source changes create review proposals only. A missing directory entry never closes a tenure, and changed page content never overwrites a dossier without explicit review.",
-    "contentHash": "bd5ea631fd598be0670c"
+    "contentHash": "4d20c52b30c2f14e0204"
   },
   "sources": [
     {
