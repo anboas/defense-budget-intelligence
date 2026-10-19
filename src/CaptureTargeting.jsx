@@ -11,7 +11,7 @@ import {
   treemap,
 } from "d3";
 import { useEffect, useMemo, useState } from "react";
-import { ControlAsyncState, ControlMetricStrip } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlMetricStrip } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 
 const DAY = 86_400_000;
@@ -624,7 +624,7 @@ export default function CaptureTargeting({ records, asOf, selectedId, onSelect, 
         </div>
       </section>
 
-      <details className="capture-targeting__method"><summary>How the attention score works</summary><p>Timing contributes up to 30 points using the nearest future published event or reported endpoint. Reported potential or high value contributes up to 20. Evidence quality contributes up to 20. A published buyer, vehicle, or parent route contributes up to 15. Recent funding actions or a near-term acquisition event contribute up to 15. Evidence gaps and near-term records without a published route enter the Verify lane. The model does not estimate probability of win, available workshare, revenue, or an unpublished recompete.</p></details>
+      <ControlDisclosure compact className="capture-targeting__method" title="How the attention score works" summary="Transparent factors, thresholds, and evidence limits"><p>Timing contributes up to 30 points using the nearest future published event or reported endpoint. Reported potential or high value contributes up to 20. Evidence quality contributes up to 20. A published buyer, vehicle, or parent route contributes up to 15. Recent funding actions or a near-term acquisition event contribute up to 15. Evidence gaps and near-term records without a published route enter the Verify lane. The model does not estimate probability of win, available workshare, revenue, or an unpublished recompete.</p></ControlDisclosure>
     </section>
   );
 }

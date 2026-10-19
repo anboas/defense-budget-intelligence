@@ -15,4 +15,4 @@
 @media(max-width:760px){.intelligence-products__organizations{grid-template-columns:1fr;height:auto;min-height:0}.intelligence-products__organization-index nav{max-height:280px}.intelligence-products__dossier-grid{display:flex;overflow:auto}.intelligence-products__dossier-grid>section{flex:0 0 86%;max-height:440px}}
 
 @media(max-width:560px){.intelligence-products__dossier>header{display:grid;padding:12px}.intelligence-products__dossier>header>div:last-child{justify-items:start}.intelligence-products__dossier-stats{grid-template-columns:1fr 1fr}.intelligence-products__dossier-stats div:nth-child(2n){border-right:0}}
-.intelligence-products__coverage>summary>span:last-child{color:var(--brand);font-size:10px;font-weight:750}.intelligence-products__coverage-body{display:grid;gap:10px}
+.intelligence-products__coverage .if-disclosure__meta{color:var(--brand)}.intelligence-products__coverage-body{display:grid;gap:10px}

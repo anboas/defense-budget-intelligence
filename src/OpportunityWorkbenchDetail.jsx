@@ -1,4 +1,5 @@
 import OpportunityFitBadge from "./OpportunityFitBadge.jsx";
+import { ControlDisclosure } from "control-surface-ui/react";
 import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
 import { intelligenceWorkspaceRoute } from "./cross-surface-routes.js";
 import EntityPreview from "./EntityPreview.jsx";
@@ -35,5 +36,5 @@ export default function OpportunityWorkbenchDetail({ record, records = [record] 
     evidence={record.sourceRoleCount ? `${record.sourceRoleCount} retained source roles` : "Source-backed record; open the workspace for provenance and conflicts."}
     primaryHref={intelligenceWorkspaceRoute({ entityType: "activity", entityId: id, returnTo, origin: "opportunities" })}
     secondaryActions={<><button type="button" className="if-btn if-btn--secondary" aria-pressed={Boolean(watch)} disabled={!management.canWrite} onClick={() => void toggleTracking()}>{watch ? "Tracked" : "Track"}</button><OpportunityFitBadge assessment={assessment} /></>}
-  ><details className="opportunity-workspace__fit"><summary>Why it fits</summary><ul>{assessment.reasons.length ? assessment.reasons.slice(0, 4).map((reason) => <li key={reason}>{reason}</li>) : <li>No strong published capability or code signal was found.</li>}</ul><p>{assessment.methodology}</p></details></EntityPreview></div>;
+  ><ControlDisclosure compact flush className="opportunity-workspace__fit" title="Why it fits" summary="Published capability and classification signals"><ul>{assessment.reasons.length ? assessment.reasons.slice(0, 4).map((reason) => <li key={reason}>{reason}</li>) : <li>No strong published capability or code signal was found.</li>}</ul><p>{assessment.methodology}</p></ControlDisclosure></EntityPreview></div>;
 }

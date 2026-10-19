@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, MoreHorizontal, Network, Pin, PinOff, Sparkles, Star } from "lucide-react";
-import { ControlAsyncState, ControlFactGrid, ControlMenu, ControlTabs } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlFactGrid, ControlMenu, ControlTabs } from "control-surface-ui/react";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import ConnectedEvidence from "./ConnectedEvidence.jsx";
 import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
@@ -83,7 +83,7 @@ function OpportunityOverview({ record, records, intelligence }) {
   ];
   return <div className="universal-workspace__overview" data-workspace-overview>
     <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Decision context</h2><p className="if-panel__subtitle">The essential facts, fit rationale, and latest cited research in one place.</p></div></header><div className="if-panel__body"><ControlFactGrid label="Opportunity facts" mobileTwoColumn items={facts} /></div></section>
-    <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Why it fits</h2><p className="if-panel__subtitle">Published capability and classification signals, not a win probability.</p></div></header><div className="if-panel__body"><ul>{assessment.reasons?.length ? assessment.reasons.slice(0, 6).map((reason) => <li key={reason}>{reason}</li>) : <li>No strong retained fit signal is published.</li>}</ul><details><summary>Scoring method</summary><p>{assessment.methodology}</p></details></div></section>
+    <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Why it fits</h2><p className="if-panel__subtitle">Published capability and classification signals, not a win probability.</p></div></header><div className="if-panel__body"><ul>{assessment.reasons?.length ? assessment.reasons.slice(0, 6).map((reason) => <li key={reason}>{reason}</li>) : <li>No strong retained fit signal is published.</li>}</ul><ControlDisclosure compact title="Scoring method" summary="Explainable fit factors and evidence boundary"><p>{assessment.methodology}</p></ControlDisclosure></div></section>
     <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Latest research</h2><p className="if-panel__subtitle">Official-source decision support remains tied to its cited report.</p></div></header><div className="if-panel__body">{intelligence.reports[0] ? <><p>{intelligence.reports[0].summary}</p><ControlFactGrid label="Research coverage" mobileTwoColumn items={[{ label: "Findings", value: intelligence.reports[0].findings?.length || 0 }, { label: "Key dates", value: intelligence.reports[0].keyDates?.length || 0 }, { label: "Risks", value: intelligence.reports[0].risks?.length || 0 }]} /></> : <ControlAsyncState compact state="empty" title="No AI research yet" message="Run research from the context rail to build a cited brief." />}</div></section>
     <OpportunityLifecycle record={record} records={records} intelligence={intelligence} />
   </div>;

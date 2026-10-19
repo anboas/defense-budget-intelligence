@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { ControlDisclosure } from "control-surface-ui/react";
 import { loadContractLineage, loadIntelligenceGraph, loadTemporalEvidence } from "./intelligence-graph.js";
 import { accountFlowRoute, awardsRoute, dataLibraryRoute, mapLocationRoute, sourceLineageRoute, timelineRoute } from "./cross-surface-routes.js";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
@@ -109,9 +110,8 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         <div className="connected-evidence__summary"><div className="connected-evidence__metrics" aria-label="Connected evidence counts">{metrics.slice(0, 4).map(([value, singular, plural]) => <span key={singular}><strong>{Number(value).toLocaleString()}</strong><small>{Number(value) === 1 ? singular : plural || `${singular}s`}</small></span>)}</div><small><SemanticStatusBadge category="evidence" value={validityStatus === "conflicting" ? "gap" : validityStatus === "current" ? "verified" : "review"} label={validityStatus} data-temporal-status={validityStatus} />{connection.surfaces.length} linked surfaces</small></div>
       </header>
       <Suspense fallback={<SurfaceState compact owner="connected-evidence-visual" state="loading" title="Loading visual analysis" message="Preparing the bounded evidence graph." />}><ConnectedEvidenceVisual connection={connection} lineage={contractLineage} temporal={temporalEvidence} record={record} researchReport={researchReport} opportunityId={opportunityId} fullView={fullView} controlledView={view} showViewNavigation={showViewNavigation} /></Suspense>
-      <details className="connected-evidence__related"><summary><strong>Related views</strong><span>{routeLinks.length} ways to continue</span></summary><nav className="connected-evidence__routes" aria-label="Open connected surfaces">{routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}</nav></details>
-      <details className="connected-evidence__ledger" open={ledgerOpen || undefined}>
-        <summary><strong>Supporting evidence ledger</strong><span>Awards, lineage, organizations, classifications, and conflicts</span></summary>
+      <ControlDisclosure compact flush className="connected-evidence__related" title="Related views" summary="Continue in the owning workspace" meta={`${routeLinks.length} destinations`}><nav className="connected-evidence__routes" aria-label="Open connected surfaces">{routeLinks.map(([label, href]) => <a key={label} href={href}>{label}<span aria-hidden="true">→</span></a>)}</nav></ControlDisclosure>
+      <ControlDisclosure compact flush className="connected-evidence__ledger" defaultOpen={ledgerOpen} title="Supporting evidence ledger" summary="Awards, lineage, organizations, classifications, and conflicts" meta={`${metrics.length} evidence classes`}>
         <div className="connected-evidence__connections">
         <ConnectionGroup title="Awards" items={connected.awards} renderItem={(award) => <article key={award.id}><strong>{award.piid || award.label}</strong><span>{award.label}</span><em>{money(award.obligatedAmount)} obligated</em></article>} />
         <ConnectionGroup title="Exact parent vehicles" items={contractLineage?.vehicles} renderItem={(vehicle) => <article key={vehicle.id} data-contract-vehicle><strong>{vehicle.piid}</strong><span>{countLabel(vehicle.orderCount, "linked order")}</span><em>Exact USAspending parent IDV</em></article>} />
@@ -131,14 +131,13 @@ export default function ConnectedEvidence({ opportunityId, record = null, resear
         <ConnectionGroup title="Federal accounts" items={connected.federalAccounts} renderItem={(account) => <article key={account.id}><strong>{account.federalAccountCode}</strong><span>{account.label}</span><em>Exact award transaction funding</em></article>} />
         <ConnectionGroup title="Classifications" items={connected.classifications} renderItem={(classification) => <article key={classification.id}><strong>{classification.label}</strong><span>{classification.namespace.replaceAll("-", " ")}</span><em>Deterministic taxonomy</em></article>} />
         </div>
-      </details>
-      <details className="connected-evidence__evidence">
-        <summary><strong>Evidence and join policy</strong><span>{connection.evidenceSummary.length} relation methods</span></summary>
+      </ControlDisclosure>
+      <ControlDisclosure compact flush className="connected-evidence__evidence" title="Evidence and join policy" summary="How retained sources become typed relationships" meta={`${connection.evidenceSummary.length} methods`}>
         <div>
           {connection.evidenceSummary.map((evidence) => <article key={`${evidence.type}-${evidence.basis}-${evidence.sourceArtifact}`}><strong>{RELATION_LABELS[evidence.type] || evidence.type}</strong><span>{evidence.basis.replaceAll("-", " ")} · {evidence.confidence.replaceAll("_", " ")}</span><em>{countLabel(evidence.count, "edge")} · {evidence.sourceArtifact}</em></article>)}
         </div>
         <p>Exact identifiers and source-declared relationships are authoritative. Temporal state uses source observation and effective dates; newer current evidence may supersede an older value, while stale or ambiguous claims remain unresolved. No fuzzy identity merge or unsupported budget-line-to-award link is asserted.</p>
-      </details>
+      </ControlDisclosure>
       <footer>
         <div>{connection.surfaces.map((surface) => <span key={surface}>{SURFACE_LABELS[surface] || surface}</span>)}</div>
         <div>{connected.sources.slice(0, 6).map((source, index) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.publisher || `Source ${index + 1}`}<span aria-hidden="true">↗</span></a>)}</div>

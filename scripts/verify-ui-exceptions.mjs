@@ -76,12 +76,26 @@ assert.doesNotMatch(todayCss, /today-forward__(?:header|modes|footer)/, "Today m
 assert.match(wallboardCalendar, /ControlCalendarDay/, "The operational month calendar must share the framework day-cell anatomy");
 
 const sources = await readSources();
+const specializedDetails = new Map([
+  ["AnalyticsSources.jsx", [/className={`source-health-card/]],
+  ["CaptureTargeting.jsx", [/<details defaultOpen=\{index === 0\}>/]],
+  ["OpportunityPortfolioVisuals.jsx", [/className="strategy-config"/]],
+]);
 for (const [name, source] of sources) {
   assert.doesNotMatch(source, /className=(?:"[^"]*|\{`[^`]*)(?:if-tabs__list|if-tab\b)/, `${name} must consume ControlTabs instead of rebuilding framework tab markup`);
   assert.doesNotMatch(source, /__(?:tabs|switch|mode)\s+(?:button|\.if-tab)|__(?:tabs|switch|mode)>button/, `${name} must not restyle shared tab anatomy`);
+  const rawDetails = source.match(/<details\b/g) || [];
+  if (!rawDetails.length) continue;
+  const file = name.split("/").at(-1);
+  const allowed = specializedDetails.get(file) || [];
+  assert.equal(rawDetails.length, allowed.length, `${name} must use ControlDisclosure unless it is one of the reviewed record-row disclosure owners`);
+  for (const pattern of allowed) assert.match(source, pattern, `${name} must retain only its reviewed specialized disclosure owner`);
+}
+for (const file of ["ConnectedEvidence.jsx", "WorkspaceManagement.jsx", "IntelligenceProductsPage.jsx", "OpportunityWorkbenchDetail.jsx", "BudgetRequestRoutes.jsx", "TransactionAnalytics.jsx", "AnalyticsSources.jsx", "UniversalIntelligenceWorkspace.jsx", "CaptureTargeting.jsx", "OpportunityPortfolioVisuals.jsx", "AcquisitionRuntimePanel.jsx", "OpportunityCommandRail.jsx", "OrganizationRelationshipLens.jsx", "SpendSavedViews.jsx", "OpportunityRadar.jsx", "CaptureCalendar.jsx"]) {
+  assert.match(await read(file), /\bControlDisclosure\b/, `${file} must delegate ordinary reveal controls to ControlDisclosure`);
 }
 for (const file of ["SectionedPageHeader.jsx", "SpendExplorer.jsx", "TodayWorkspace.jsx", "AddEventDialog.jsx", "UniversalIntelligenceWorkspace.jsx", "TransactionAnalytics.jsx", "OperationsHub.jsx", "ConnectedEvidenceVisual.jsx", "OpportunityPortfolioVisuals.jsx"]) {
   assert.match(await read(file), /\bControlTabs\b/, `${file} must delegate its second-layer views to ControlTabs`);
 }
 
-console.log("UI exception guard verified: queries, calendars, tabs, semantic statuses, async states, and local feedback have one shared owner.");
+console.log("UI exception guard verified: queries, calendars, tabs, disclosures, semantic statuses, async states, and local feedback have one shared owner.");
