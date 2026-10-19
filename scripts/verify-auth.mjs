@@ -438,7 +438,7 @@ try {
   await discoveryPage.locator('[aria-label="Discovery queue"]').waitFor();
   assert.match(await discoveryPage.innerText(), /Event Discovery[\s\S]*Needs review[\s\S]*Ready to publish[\s\S]*Undated leads[\s\S]*Likely noise[\s\S]*Healthy sources/i, "Discovery management must expose review and ingestion status at a glance");
   for (const view of ["Needs review", "Ready", "Undated leads", "Updates", "Likely noise", "Duplicates", "Published", "Rejected"]) assert.equal(await discoveryPage.getByRole("button", { name: new RegExp(`^${view}`) }).count(), 1, `Discovery management must expose the ${view} queue`);
-  await discoveryPage.getByLabel("Search candidate titles, summaries, sources, branches, and dates…").waitFor();
+  await discoveryPage.getByRole("searchbox", { name: "Search Event discovery candidates" }).waitFor();
   assert.equal(await discoveryPage.getByRole("button", { name: /Candidate/ }).count() > 0, true, "Discovery candidates must be sortable in a data table");
   await page.screenshot({ path: "test-results/event-discovery-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -453,11 +453,11 @@ try {
   await discoveryPage.getByRole("button", { name: "Source health" }).click();
   await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').waitFor();
   assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /35 records/i, "Source health must make the complete official registry visible");
-  await discoveryPage.getByLabel("Search official sources, branches, and adapters…").fill("SAM.gov");
+  await discoveryPage.getByRole("searchbox", { name: "Search Official event discovery sources" }).fill("SAM.gov");
   assert.match(await discoveryPage.locator('[data-dbi-data-table="event-discovery-sources"]').innerText(), /1\s*of 35 records/i, "Source health must support live filtering");
   await discoveryPage.getByRole("button", { name: "Scan history" }).click();
   await discoveryPage.locator('[data-dbi-data-table="event-discovery-runs"]').waitFor();
-  await discoveryPage.getByLabel("Search scan history by source, status, or diagnostic…").waitFor();
+  await discoveryPage.getByRole("searchbox", { name: "Search Event discovery scan history" }).waitFor();
   let verifiedDiscoveryDraft = null;
   await page.route("**/api/v1/auth/event-discovery?view=leads&limit=200", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({

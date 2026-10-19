@@ -12,13 +12,12 @@ import {
   MapPin,
   Minus,
   Plus,
-  Search,
   ShieldCheck,
   Star,
   Tags,
   X,
 } from "lucide-react";
-import { ControlAutocomplete, ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAutocomplete, ControlPageBody, ControlSearch, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import { useManagementState } from "./management-state.js";
 import { BRANCHES, organizationLocationRules, resolveOrganizationLocation } from "./organization-locations.js";
@@ -717,7 +716,7 @@ function DirectoryPanel({ points, locations, spendMetric, onSelect, onSelectLoca
   const locationResults = locations.filter((location) => [location.name, location.city, location.state, location.kind, BRANCHES[location.branch]?.label].join(" ").toLowerCase().includes(normalizedQuery));
   return <aside className="opportunity-map__drawer opportunity-map__directory" data-opportunity-map-directory aria-label="Location directory">
     <DrawerHeader eyebrow="Location directory" onClose={onClose}><h3>Find a location or activity hub</h3><p>{locations.length} sourced locations · {points.length} spend-backed hubs</p></DrawerHeader>
-    <label className="opportunity-map__drawer-search"><Search size={15} /><span className="sr-only">Search map locations</span><input autoFocus type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Office, organization, city…" /></label>
+    <ControlSearch className="opportunity-map__drawer-search" ariaLabel="Search map locations" autoFocus value={query} onChange={setQuery} placeholder="Office, organization, city…" />
     <div className="opportunity-map__directory-results">
       {activityResults.map((point) => <button type="button" key={`activity-${point.id}`} onClick={() => onSelect(point.id)}><span><strong>{point.label}</strong><small>Spend-backed hub · {point.city}</small></span><span><b>{money(point.spend)}</b><small>{point.records.length} records</small></span></button>)}
       {locationResults.map((location) => <button type="button" key={`location-${location.id}`} onClick={() => onSelectLocation(location.id)}><span><strong>{location.name}</strong><small>{BRANCHES[location.branch]?.label || "Defense location"} · {[location.city, location.state].filter(Boolean).join(", ") || location.kind}</small></span><span><b>Location</b><small>{location.inventoryStatus === "active_inventory" ? "Active inventory" : "Reviewed"}</small></span></button>)}

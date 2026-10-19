@@ -424,6 +424,7 @@ try {
 
   await openSurface(page, "#/budget-spend/intelligence", "[data-intelligence-products-page]");
   await assertNavigationContext(page, null, "Intelligence Operations");
+  await page.waitForSelector("[data-organization-dossier-count]", { state: "attached" });
   assert.equal(await resourceCount(page, "roadmap-intelligence.json"), 1, "Intelligence Operations should load its bounded route artifact once");
   assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Organization Intelligence should load its bounded dossier artifact once");
   assert.equal(await resourceCount(page, "organization-change-monitor.json"), 1, "Organization Watch should load its bounded monitoring artifact once");
@@ -1401,6 +1402,26 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
   assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "My Work should project the tracked stable-ID working set");
+  const trackedSearch = page.getByRole("searchbox", { name: "Search Tracked pursuits" });
+  const trackedSearchGeometry = await trackedSearch.evaluate((input) => {
+    const root = input.closest("[data-if-control-search]");
+    const search = root?.querySelector(".if-search");
+    const icon = root?.querySelector(".if-search__icon");
+    const rect = (node) => {
+      const bounds = node?.getBoundingClientRect();
+      return bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height, centerY: bounds.top + bounds.height / 2 } : null;
+    };
+    return { root: rect(root), search: rect(search), input: rect(input), icon: rect(icon), iconPosition: icon ? getComputedStyle(icon).position : null, searchDisplay: search ? getComputedStyle(search).display : null };
+  });
+  assert.equal(trackedSearchGeometry.iconPosition, "absolute", `Tracked pursuits must use the owned search-icon lane: ${JSON.stringify(trackedSearchGeometry)}`);
+  assert.equal(trackedSearchGeometry.searchDisplay, "block", `Tracked pursuits search anatomy must own one complete control row: ${JSON.stringify(trackedSearchGeometry)}`);
+  assert.ok(trackedSearchGeometry.root.height <= 36 && trackedSearchGeometry.search.height === trackedSearchGeometry.input.height, `Tracked pursuits search must not stack its icon above the input: ${JSON.stringify(trackedSearchGeometry)}`);
+  assert.ok(trackedSearchGeometry.icon.left >= trackedSearchGeometry.input.left && trackedSearchGeometry.icon.right <= trackedSearchGeometry.input.right && Math.abs(trackedSearchGeometry.icon.centerY - trackedSearchGeometry.input.centerY) <= 1, `Tracked pursuits search icon must be vertically centered inside its input: ${JSON.stringify(trackedSearchGeometry)}`);
+  await trackedSearch.fill("PMA-263");
+  const clearTrackedSearch = page.getByRole("button", { name: "Clear Search Tracked pursuits" });
+  await clearTrackedSearch.click();
+  assert.equal(await trackedSearch.inputValue(), "", "Shared search clear should restore the complete tracked pursuit set");
+  assert.equal(await trackedSearch.evaluate((node) => node === document.activeElement), true, "Clearing a shared search should restore focus to its input");
   assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
   await page.getByRole("button", { name: "Filter Today work", exact: true }).click();
   await page.getByRole("menuitem", { name: /^Needs attention/ }).click();

@@ -22,12 +22,11 @@ import {
   Grid3X3,
   Layers3,
   Network,
-  Search,
   SlidersHorizontal,
   TableProperties,
   X,
 } from "lucide-react";
-import { ControlDisclosure } from "control-surface-ui/react";
+import { ControlDisclosure, ControlSearch } from "control-surface-ui/react";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
@@ -1982,7 +1981,7 @@ export default function TransactionAnalytics({
       <ControlWorkbenchHeader eyebrow={embedded ? "Opportunity intelligence" : "Factual analytical workbench"} title={embedded ? "Opportunity Analysis" : "Contract & Transaction Analytics"} summary={embedded ? "Timeline and charts share one public-data scope with the opportunity queue." : "Cross-filter schedules, reported values, recipients, offices, acquisition structure, provenance, FPDS actions, and exact prime-to-subaward counts."} metrics={metrics} metricLabel="Current analytical scope" tabs={<>{embeddedTabs}<nav className="analytics-view-tabs" aria-label="Analytics view">
           {ANALYTICS_VIEWS.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={activeView === id ? "is-active" : ""} aria-pressed={activeView === id} onClick={() => { setActiveView(id); updateAnalyticsView(id); }}><Icon size={15} aria-hidden="true" />{label}</button>)}
         </nav></>} controls={<div className="analytics-commandbar__controls">
-          <label className="analytics-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search analytical records</span><input className="if-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, award, office, recipient…" /></label>
+          <ControlSearch className="analytics-search" ariaLabel="Search analytical records" value={query} onChange={setQuery} placeholder="Search title, award, office, recipient…" />
           <div className="analytics-commandbar__secondary">
             <div className="analytics-mobile-chart-picker"><span>Chart</span><ControlSelect ariaLabel="Visible mobile chart" value={mobileChartId} options={chartOptions.filter(([id]) => activeChartIds.includes(id))} onChange={(chartId) => setMobileChartByView((current) => ({ ...current, [activeView]: chartId }))} /></div>
             <div className="analytics-record-type"><span>Record type</span><ControlSelect ariaLabel="Record type" value={mode} options={[["all", "All records"], ["contract-performance", "Contracts"], ["acquisition-window", "Acquisition activity"]]} onChange={setMode} /></div>

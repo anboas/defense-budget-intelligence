@@ -3,6 +3,7 @@ import {
   ControlAsyncState,
   ControlDisclosure,
   ControlMetricStrip,
+  ControlSearch,
 } from "control-surface-ui/react";
 import {
   BarChart3,
@@ -16,7 +17,6 @@ import {
   Layers,
   Network,
   RotateCcw,
-  Search,
   TrendingUp,
 } from "lucide-react";
 import Section from "./AnalysisSection.jsx";
@@ -209,7 +209,7 @@ function ControlField({ label, value, options, onChange, ariaLabel = label, sear
 function FilterShell({ filters, setFilters, data, books, signals }) {
   const orgs = useMemo(() => aggregate(data.records, (record) => ({ id: record.org, label: record.orgName })).slice(0, 40), [data.records]);
   return <div className="if-control-bar filters" aria-label="Budget filters" data-budget-filter-bar>
-    <label className="searchbox"><Search size={15} aria-hidden="true" /><input placeholder="Search line items, accounts, organizations" value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} /></label>
+    <ControlSearch className="searchbox" ariaLabel="Search budget line items" placeholder="Search line items, accounts, organizations" value={filters.query} onChange={(query) => setFilters({ ...filters, query })} />
     <div className="filters__secondary">
       <ControlField label="Color" value={filters.book} options={[["all", "All colors"], ...books.map((book) => [book.id, `${book.short} · ${book.color}`])]} onChange={(book) => setFilters({ ...filters, book })} />
       <ControlField label="Org type" value={filters.group} options={[["all", "All DoD"], ["service", "Services"], ["fourth-estate", "Fourth Estate"], ["other", "Other / Reconciliation"]]} onChange={(group) => setFilters({ ...filters, group })} />

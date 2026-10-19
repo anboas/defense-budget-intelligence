@@ -154,6 +154,26 @@ async function collect(page, route, viewport) {
     const detailRect = detail?.getBoundingClientRect();
     const primaryRect = primarySurface?.getBoundingClientRect();
     const analysisOwnerRect = document.querySelector("[data-universal-intelligence-workspace] .universal-workspace__layout")?.getBoundingClientRect() || detailRect;
+    const searchControls = [...document.querySelectorAll("[data-if-control-search]")].filter(visible).map((root) => {
+      const search = root.querySelector(".if-search");
+      const input = root.querySelector("input[type='search']");
+      const icon = root.querySelector(".if-search__icon");
+      const clear = root.querySelector(".if-search__clear");
+      const rect = (node) => {
+        const bounds = node?.getBoundingClientRect();
+        return bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height, centerY: bounds.top + bounds.height / 2 } : null;
+      };
+      return {
+        label: input?.getAttribute("aria-label") || input?.getAttribute("placeholder") || "Search",
+        root: rect(root),
+        search: rect(search),
+        input: rect(input),
+        icon: rect(icon),
+        clear: clear && visible(clear) ? rect(clear) : null,
+        iconPosition: icon ? getComputedStyle(icon).position : null,
+        searchDisplay: search ? getComputedStyle(search).display : null,
+      };
+    });
     return {
       route: routeName,
       viewport: viewportName,
@@ -166,6 +186,7 @@ async function collect(page, route, viewport) {
       },
       elements,
       clusters,
+      searchControls,
       adjacentMismatches: adjacentMismatches.slice(0, 100),
     };
   }, { routeName: route, viewportName: viewport });
@@ -262,6 +283,15 @@ if (VERIFY) {
     if (entry.adjacentMismatches.length) {
       const mismatchSummary = entry.adjacentMismatches.map(({ left, right }) => `${left.text || left.className} ↔ ${right.text || right.className}`).join(", ");
       violations.push(`${entry.viewport}/${entry.route}: ${entry.adjacentMismatches.length} adjacent control mismatches (${mismatchSummary})`);
+    }
+    for (const search of entry.searchControls) {
+      const iconContained = search.input && search.icon && search.icon.left >= search.input.left - 1 && search.icon.right <= search.input.right + 1;
+      const iconCentered = search.input && search.icon && Math.abs(search.icon.centerY - search.input.centerY) <= 1;
+      const clearContained = !search.clear || (search.input && search.clear.left >= search.input.left - 1 && search.clear.right <= search.input.right + 1 && Math.abs(search.clear.centerY - search.input.centerY) <= 1);
+      const singleRow = search.search && search.input && Math.abs(search.search.height - search.input.height) <= 1;
+      if (search.iconPosition !== "absolute" || search.searchDisplay !== "block" || !iconContained || !iconCentered || !clearContained || !singleRow) {
+        violations.push(`${entry.viewport}/${entry.route}: malformed shared search ${search.label} (${JSON.stringify(search)})`);
+      }
     }
     const undersizedType = entry.elements.filter((item) =>
       ["action", "field"].includes(item.kind)

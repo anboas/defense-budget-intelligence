@@ -1143,7 +1143,7 @@ button {
   font-weight: 700;
 }
 
-.filters input {
+.filters input:not(.if-input) {
   padding: 6px 9px 6px 30px;
 }
 
@@ -1151,30 +1151,7 @@ button {
   padding: 6px 8px;
 }
 
-.searchbox {
-  position: relative;
-}
-
-.searchbox svg {
-  position: absolute;
-  left: 9px;
-  bottom: 9px;
-  color: #565c65;
-  pointer-events: none;
-}
-
-/* Keep the leading icon in its own lane when a page-specific input rule wins
-   the cascade. This is the award search shown in the compact filter bar. */
-.award-filter-bar .searchbox input {
-  padding-left: 38px;
-}
-
-.award-filter-bar .searchbox svg {
-  top: 50%;
-  bottom: auto;
-  left: 12px;
-  transform: translateY(-50%);
-}
+.searchbox { min-width: 0; }
 
 .panel {
   border: 1px solid var(--border);
@@ -3084,7 +3061,7 @@ td .dot {
   .filters input,
   .filters select {
     min-height: 44px;
-    font-size: 11.5px;
+    font-size: var(--if-font-size-sm);
   }
 
   .award-filter-bar input,
@@ -6017,7 +5994,7 @@ td .dot {
   align-items: end;
 }
 
-.analytics-commandbar__controls > label,
+.analytics-commandbar__controls > :where(label, .if-search-control),
 .analytics-commandbar__secondary > div {
   display: grid;
   gap: 3px;
@@ -6030,9 +6007,8 @@ td .dot {
 }
 
 .analytics-commandbar__controls select { width: 100%; padding: 4px 26px 4px 8px; font-size: 11px; font-weight: 750; }
-.analytics-search { position: relative; display: block !important; }
-.analytics-search > svg { position: absolute; z-index: 1; left: 10px; bottom: 9px; color: var(--quiet); }
-.analytics-search input { width: 100%; padding: 5px 10px 5px 34px; font-size: 11px; font-weight: 650; text-transform: none; }
+.analytics-search { display: block !important; }
+.analytics-search .if-input { width: 100%; font-size: 11px; font-weight: 650; text-transform: none; }
 .analytics-reset,
 .analytics-export { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 9px; font-size: 10px; font-weight: 850; white-space: nowrap; }
 
@@ -6283,7 +6259,7 @@ td .dot {
   .dbi-data-table__tools .if-btn,
   .dbi-data-table__columns > :is(summary, button) { width: 44px; min-width: 44px; min-height: 44px; justify-content: center; padding-inline: 0; }
   .dbi-data-table__search .if-input { height: 44px; }
-  .dbi-data-table__search > button { width: 38px; height: 38px; }
+  .dbi-data-table__search .if-search__clear { width: 38px; height: 38px; }
   .dbi-data-table__options-popover { width: auto !important; }
   .dbi-data-table__options-popover > header button,
   .dbi-data-table__options-popover label,
@@ -6351,7 +6327,7 @@ td .dot {
 
 @media (max-width: 1100px) {
   .analytics-commandbar__controls { grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(150px, 1fr)); }
-  .analytics-commandbar__controls > label:nth-child(4) { grid-column: auto; }
+  .analytics-commandbar__controls > :where(label, .if-search-control):nth-child(4) { grid-column: auto; }
   .analytics-manager__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .capture-filters {
@@ -6385,10 +6361,9 @@ td .dot {
   .analytics-commandbar select,
   .analytics-commandbar input { min-height: 44px !important; }
   .analytics-commandbar__controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .analytics-commandbar__controls > label:first-child { grid-column: 1 / -1; }
+  .analytics-commandbar__controls > :where(label, .if-search-control):first-child { grid-column: 1 / -1; }
   .analytics-reset { grid-column: 1 / -1; }
-  .analytics-search input { min-height: 44px; }
-  .analytics-search > svg { bottom: 14px; }
+  .analytics-search .if-input { min-height: 44px; }
   .analytics-manager > summary { min-height: 44px !important; }
   .analytics-manager input { min-height: 44px !important; }
   .analytics-manager > summary span { max-width: 46%; text-align: right; }
@@ -8713,7 +8688,7 @@ td .dot {
     gap: 5px;
   }
 
-  .analytics-commandbar__controls > label:first-child {
+  .analytics-commandbar__controls > :where(label, .if-search-control):first-child {
     grid-column: 1;
   }
 
