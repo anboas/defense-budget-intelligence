@@ -2008,9 +2008,19 @@ try {
   assert.ok(barBox && barBox.height >= 20 && barBox.height <= 24, `Timeline bars should stay precisely formatted, got ${barBox?.height}px`);
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__years small i").count() >= 12, "The default current window should expose at least three years of quarter guides");
   assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__today").first().count(), 1, "Timeline should expose a true current-date marker");
-  assert.equal(await page.locator("[data-capture-timeline] .capture-timeline__data-as-of").first().count(), 1, "Timeline should separately expose the source-data cutoff");
-  assert.equal(await page.getByText("Today · Sep 13, 2026", { exact: true }).count(), 1, "The red line must state the full current date instead of an ambiguous month/year label");
-  assert.equal(await page.getByText("Historical snapshot · Sep 11, 2026", { exact: true }).count(), 1, "The historical snapshot boundary must remain explicit and separate from Today and live workspace refreshes");
+  assert.equal(await page.locator("[data-capture-timeline] :is(.capture-timeline__data-label, .capture-timeline__data-as-of)").count(), 0, "Source freshness should not duplicate the Timeline header as a floating axis annotation");
+  const timelineBoundary = page.locator("[data-timeline-publication-boundary]");
+  assert.match((await timelineBoundary.innerText()).replace(/\s+/g, " "), /Public data through Sep 11, 2026 · Static public timeline/i, "The Timeline header should state public-data freshness and the fixture's owned runtime state once, without obscuring the axis");
+  const todayLabel = page.getByText("Today · Sep 13, 2026", { exact: true });
+  assert.equal(await todayLabel.count(), 1, "The red line must state the full current date instead of an ambiguous month/year label");
+  assert.ok(await todayLabel.evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 8), "The Today marker should retain readable dense-label typography");
+  const timelineToolbar = page.getByRole("toolbar", { name: "Timeline controls" });
+  assert.equal(await timelineToolbar.count(), 1, "Timeline controls should have one explicit toolbar owner");
+  assert.equal(await timelineToolbar.getByRole("group", { name: "Timeline window" }).count(), 1, "Window presets should expose one labeled control group");
+  for (const label of ["Current year", "Near term", "7 years", "All years"]) assert.equal(await timelineToolbar.getByRole("button", { name: label, exact: true }).count(), 1, `Timeline window control should use explicit copy: ${label}`);
+  assert.equal(await timelineToolbar.getByRole("button", { name: /Timeline evidence layers/i }).count(), 1, "Evidence layers should have one accessible owner");
+  assert.equal(await timelineToolbar.getByRole("button", { name: "View options", exact: true }).count(), 1, "Display settings should use an explicit View options label");
+  assert.equal(await timelineToolbar.getByRole("button", { name: "Open timeline full screen", exact: true }).count(), 1, "Full-screen behavior should expose its exact action");
   assert.equal(await page.locator("[data-capture-record-autocomplete]").count(), 1, "Timeline record search should use the shared autosuggest control");
   const timelineSearch = page.getByPlaceholder("Program, company, reference, buyer");
   await timelineSearch.fill("ndms");
@@ -2018,7 +2028,7 @@ try {
   assert.equal(await ndmsLifecycle.count(), 1, "Exact lifecycle evidence should automatically place NDMS support IV and V on one row");
   assert.equal(await ndmsLifecycle.locator(".capture-timeline__bar--base").count(), 2, "The grouped NDMS line must preserve separate IV and V award segments");
   assert.match(await ndmsLifecycle.locator(".capture-timeline__fields").textContent(), /47QFAA24F0008.*47QFAA25F0006/s, "The grouped line must retain both award identities");
-  await page.getByRole("button", { name: "Link Records", exact: true }).click();
+  await page.getByRole("button", { name: "Link records", exact: true }).click();
   assert.equal(await page.locator("[data-lifecycle-group-toolbar]").count(), 1, "Record linking should expose the checkbox and AI review workflow");
   assert.ok(await page.locator("[data-capture-timeline-row] input[type=checkbox]").count() >= 2, "Grouped and ungrouped records should remain selectable for AI relationship review");
   const relationshipReviewButton = page.getByRole("button", { name: "Review & link (0/2)", exact: true });
@@ -2045,7 +2055,7 @@ try {
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   await page.getByRole("button", { name: /^Grouping:/ }).click();
   assert.equal(await page.locator('[data-if-picker-menu] [role="option"]').count(), 20, "Gantt should expose decision-priority grouping alongside acquisition source, work area, route, priority, set-aside, and the existing factual modes");
@@ -2079,7 +2089,7 @@ try {
   assert.match(hoverText, /Latest FPDS action/i);
   await firstTimelineBar.focus();
   assert.equal(await page.locator("[data-capture-hovercard]").count(), 1, "Keyboard focus on an actual Gantt bar should expose contextual evidence");
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Funding office");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   assert.ok(await page.locator("[data-capture-timeline] .capture-timeline__group").count() > 1, "Funding-office grouping should render factual group bands");
@@ -2091,7 +2101,7 @@ try {
   await page.getByRole("option", { name: "Ingestion provenance" }).click();
   await classificationOverlayTrigger.click();
   await page.locator(".capture-layer-menu > button").click();
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
   await chooseControlSelect(page, "Grouping", "Work category");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
   const workOverlayCount = await page.locator("[data-work-category-overlay]").count();
@@ -2383,7 +2393,7 @@ try {
   await page.goto(`${BASE_URL}#/budget-spend/transactions?capGroup=unsupported&capLabels=unsupported&capFields=unsupported&capFeed=unsupported`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-transaction-analytics-page]");
   await page.waitForFunction(() => !window.location.hash.includes("unsupported"));
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   assert.match(await page.getByRole("button", { name: /^Grouping:/ }).getAttribute("aria-label"), /Decision priority/, "Malformed grouping should canonicalize to the decision-first default");
   await page.locator("[data-capture-field-picker] summary").click();
@@ -2393,7 +2403,7 @@ try {
   assert.match(new URL(page.url()).hash, /capFields=none/, "Title-only field state should be shareable");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline]");
-  await page.getByRole("button", { name: "Display", exact: true }).click();
+  await page.getByRole("button", { name: "View options", exact: true }).click();
   await page.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal((await page.locator("[data-capture-field-picker] summary").textContent())?.trim(), "Row fields (0)", "Title-only field state should survive reload");
   await page.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).click();
@@ -2974,7 +2984,7 @@ try {
   await mobile.getByRole("button", { name: "Close Filters", exact: true }).click();
   assert.equal(await mobile.locator("[data-targeting-chart]").count(), 0);
   assert.equal(await mobile.locator("[data-capture-workboard]").count(), 0);
-  await mobile.getByRole("button", { name: "Display", exact: true }).click();
+  await mobile.getByRole("button", { name: "View options", exact: true }).click();
   await mobile.waitForSelector("[data-capture-gantt-dialog]");
   assert.equal(await mobile.locator("[data-capture-gantt-dialog]").evaluate((surface) => surface.closest("dialog")?.open), true, "Mobile Timeline display settings should open in a focused dialog instead of pushing the Gantt below the viewport");
   const mobileGanttControlHeights = await mobile.locator("[data-capture-gantt-dialog] .if-picker__trigger, [data-capture-gantt-dialog] [data-capture-field-picker] summary").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height));
@@ -3005,10 +3015,10 @@ try {
   assert.ok(Math.abs(mobileStickyTimelineHeader.yearsTop - mobileStickyTimelineHeader.timelineTop) <= 1, `The mobile Gantt year and quarter scale should stay pinned to the scroller top: ${JSON.stringify(mobileStickyTimelineHeader)}`);
   await mobile.locator("[data-capture-gantt-dialog]").getByRole("button", { name: "Done" }).evaluate((button) => button.click());
   await mobile.waitForSelector("[data-capture-gantt-dialog]", { state: "detached" });
-  await mobile.getByRole("button", { name: "Expand", exact: true }).click();
+  await mobile.getByRole("button", { name: "Open timeline full screen", exact: true }).click();
   const fullscreenBounds = await mobile.locator("[data-capture-gantt-section]").evaluate((node) => { const bounds = node.getBoundingClientRect(); return { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height, viewportWidth: innerWidth, viewportHeight: innerHeight }; });
   assert.ok(fullscreenBounds.top <= 1 && fullscreenBounds.left <= 1 && fullscreenBounds.width >= fullscreenBounds.viewportWidth - 1 && fullscreenBounds.height >= fullscreenBounds.viewportHeight - 1, `Mobile Timeline expand should use the full viewport: ${JSON.stringify(fullscreenBounds)}`);
-  await mobile.getByRole("button", { name: "Exit", exact: true }).click();
+  await mobile.getByRole("button", { name: "Exit full screen", exact: true }).click();
   await mobile.locator("[data-capture-timeline]").evaluate((node) => { node.scrollTop = 0; });
   const mobileTimelineRecordButton = mobile.locator("[data-capture-timeline] .capture-timeline__record-button").first();
   assert.ok(await mobileTimelineRecordButton.evaluate((node) => node.getBoundingClientRect().height >= 43.5), "Mobile Timeline row titles should provide a 44px touch target");
