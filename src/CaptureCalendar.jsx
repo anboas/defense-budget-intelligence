@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./CaptureCalendar.css";
 import { createPortal } from "react-dom";
 import { BarChart3, Bookmark, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Layers3, Link2, Maximize2, Minimize2, Network, ShieldCheck, SlidersHorizontal, Sparkles, Star, Trash2, X } from "lucide-react";
@@ -34,6 +34,7 @@ import { useAuth } from "./AuthContext.jsx";
 import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
 import { useTimelineRuntimeRecords } from "./timeline-runtime-records.js";
 import { opportunityRoute } from "./cross-surface-routes.js";
+import TimelineGroupDisclosure, { useTimelineGroupDisclosure } from "./TimelineGroupDisclosure.jsx";
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
 const EMPTY_TIMELINE_ITEMS = Object.freeze([]); const TIMELINE_FIRST_YEAR = 2023;
@@ -955,6 +956,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
   }, [feedMode]);
   const overlayLanes = useMemo(() => Object.fromEntries(categoricalFeeds.map((feed, index) => [feed, index])), [categoricalFeeds]);
   const hasClassificationLanes = categoricalFeeds.length > 0;
+  const { collapsedGroups, toggleGroup } = useTimelineGroupDisclosure({ groups, groupBy, selectedId });
   const openFollowOn = useCallback((detail) => { hoverTargetRef.current = null; setHover(null); setFollowOnDetail(detail); }, []);
   function showHover(record, target, clientX, clientY, context = null) {
     const bounds = target.getBoundingClientRect();
@@ -1018,9 +1020,11 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
           {showAsOf ? <em className="capture-timeline__today-label" style={{ left: `${asOfPosition}%` }}>Today · {formatDate(asOf)}</em> : null}
           {showDataAsOf ? <em className="capture-timeline__data-label" style={{ left: `${dataAsOfPosition}%` }}>Historical snapshot · {formatDate(dataAsOf)}</em> : null}
         </div>
-        {visibleGroups.map((group) => (
-          <Fragment key={group.id}>
-            {group.label ? <div className="capture-timeline__group"><strong>{group.label}</strong><span>{group.records.length} {group.records.length === 1 ? "row" : "rows"} · {formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · {group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions</span></div> : null}
+        {visibleGroups.map((group, groupIndex) => {
+          const groupKey = `${groupBy}:${group.id}`;
+          const collapsed = Boolean(group.label && collapsedGroups.has(groupKey));
+          const summary = `${group.records.length} ${group.records.length === 1 ? "row" : "rows"} · ${formatMoney(group.records.reduce((sum, record) => sum + recordObligations(record), 0))} obligated · ${group.records.reduce((sum, record) => sum + Number(record.transactionSummary?.actions || 0), 0).toLocaleString()} actions`;
+          return <TimelineGroupDisclosure key={group.id} group={group} groupBy={groupBy} index={groupIndex} summary={summary} collapsed={collapsed} onToggle={toggleGroup}>
             {group.visibleRecords.map((record) => {
               const actionableRecordId = record.primaryOpportunityId || record.opportunityId;
               return (
@@ -1040,8 +1044,8 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
                 </span>
               </div>
             ); })}
-          </Fragment>
-        ))}
+          </TimelineGroupDisclosure>;
+        })}
         <TimelineProgressiveLoader rendered={progressive.rendered} total={progressive.total} batchSize={batchSize} hasMore={progressive.hasMore} onLoadMore={progressive.loadMore} onShowAll={progressive.showAll} />
       </div>
       <TimelineHoverCard hover={hover} />
