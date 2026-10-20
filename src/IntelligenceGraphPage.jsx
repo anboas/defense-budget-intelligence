@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CalendarClock, Network, X } from "lucide-react";
-import { ControlAsyncState, ControlAutocomplete, ControlStatusBadge } from "control-surface-ui/react";
+import { ArrowLeft, CalendarClock, Network, Waypoints, X } from "lucide-react";
+import { ControlAsyncState, ControlAutocomplete, ControlPopover, ControlStatusBadge } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { intelligenceGraphRoute, timelineRoute } from "./cross-surface-routes.js";
 import { loadLinkedIntelligence } from "./intelligence-graph.js";
@@ -62,10 +62,27 @@ function EntitySearch({ selected, suggestions, onSelect }) {
 function ConnectionSearch({ root, selected, suggestions, onSelect, onClear }) {
   const [query, setQuery] = useState(() => selected?.label || "");
   const items = useMemo(() => suggestions.filter((item) => item.entity.id !== root.id), [root.id, suggestions]);
-  return <div className="intelligence-graph-page__trace-control" data-intelligence-graph-trace-control>
+  return <div className="intelligence-graph-page__trace-search" data-intelligence-graph-trace-control>
     <ControlAutocomplete label="Trace connection to" value={query} items={items} minLength={1} limit={12} onChange={setQuery} onSelect={(item) => onSelect(item.entity)} placeholder="Account, command, program, award, opportunity" emptyText="No retained linked entity matches" />
     {selected ? <button type="button" className="if-icon-btn" title="Clear connection trace" aria-label="Clear connection trace" onClick={onClear}><X size={15} /></button> : null}
   </div>;
+}
+
+function TraceControl({ root, selected, suggestions, onSelect, onClear }) {
+  const label = selected ? `Trace to ${selected.label}` : "Trace connection";
+  return <ControlPopover
+    label={label}
+    ariaLabel={selected ? `Change connection target from ${root.label} to ${selected.label}` : `Trace a connection from ${root.label}`}
+    icon={<Waypoints size={15} aria-hidden="true" />}
+    triggerClassName={`if-btn ${selected ? "if-btn--primary" : "if-btn--secondary"}`}
+    align="start"
+    width={430}
+    popoverProps={{ className: "intelligence-graph-page__trace-popover" }}
+    data-intelligence-graph-trace-popover
+  >
+    <header className="if-stack if-stack--xs"><span className="if-field__label">Evidence-backed path</span><strong>{root.label}</strong><span className="if-text-muted if-text-xs">Choose a target. The graph will use only retained relationships and stop after four steps.</span></header>
+    <ConnectionSearch key={`${root.id}:${selected?.id || "none"}`} root={root} selected={selected} suggestions={suggestions} onSelect={onSelect} onClear={onClear} />
+  </ControlPopover>;
 }
 
 export default function IntelligenceGraphPage({ routeHash = "" }) {
@@ -125,18 +142,16 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
     write("orgOverlay", view.workOverlay, "opportunities");
     write("orgWorkScope", view.workScope, "subtree");
     if (view.workOnly) params.set("orgWorkOnly", "1"); else params.delete("orgWorkOnly");
-    window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
+    window.history.replaceState(window.history.state, "", `${path}${params.size ? `?${params}` : ""}`);
   };
 
   return <div className="if-stack intelligence-graph-page" data-intelligence-graph-page>
     <ControlWorkbenchHeader eyebrow="Investigate linked intelligence" title="Graph Explorer" summary="Drill through reviewed Department of War structure, then pivot from departments, services, commands, components, agencies, accounts, awards, programs, and opportunities into their retained work, money, people, places, evidence, and Timeline." />
     {state.status === "loading" ? <ControlAsyncState state="loading" title="Loading linked intelligence" message="Opening the bounded relationship index and universal entity search." /> : state.status === "error" ? <ControlAsyncState state="error" title="Linked intelligence unavailable" message="The graph index could not be opened. Other intelligence workspaces remain available." /> : selected ? <>
       <section className="if-panel intelligence-graph-page__rail" aria-label="Graph Explorer controls">
-        <div className="intelligence-graph-page__searches">
-          <EntitySearch key={`root:${selected.id}`} selected={selected} suggestions={suggestions} onSelect={updateRoot} />
-          <ConnectionSearch key={`target:${selected.id}:${target?.id || "none"}`} root={selected} selected={target} suggestions={suggestions} onSelect={updateTarget} onClear={clearTarget} />
-        </div>
-        <span className="if-field intelligence-graph-page__root"><small className="if-field__label">Graph root</small><strong>{selected.label}</strong><span className="if-cluster"><ControlStatusBadge category="evidence" status={selected.reviewState || "source_declared"}>{selected.reviewState === "reviewed" ? "Reviewed identity" : "Retained identity"}</ControlStatusBadge><small className="if-text-muted if-text-xs">{intelligenceTypeLabel(selected.type)}</small></span></span>
+        <EntitySearch key={`root:${selected.id}`} selected={selected} suggestions={suggestions} onSelect={updateRoot} />
+        <TraceControl key={`target:${selected.id}:${target?.id || "none"}`} root={selected} selected={target} suggestions={suggestions} onSelect={updateTarget} onClear={clearTarget} />
+        <span className="if-field intelligence-graph-page__root"><small className="if-field__label">Graph root</small><strong className="if-truncate">{selected.label}</strong><span className="if-cluster"><ControlStatusBadge category="evidence" status={selected.reviewState || "source_declared"}>{selected.reviewState === "reviewed" ? "Reviewed identity" : "Retained identity"}</ControlStatusBadge><small className="if-text-muted if-text-xs">{intelligenceTypeLabel(selected.type)}</small></span></span>
         <div className="if-button-group intelligence-graph-page__actions">
           <a className="if-btn if-btn--secondary" href="#/budget-spend/library"><ArrowLeft size={15} />Organizations</a>
           {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small className="if-text-xs">{timelineCount.toLocaleString()}</small></a> : null}
