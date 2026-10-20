@@ -25,11 +25,19 @@ function routedEntity(routeHash) {
       type: params.get("graphTargetType") || "",
       label: params.get("graphTargetLabel") || "",
     },
+    view: {
+      depth: params.get("orgDepth") || "2",
+      group: params.get("orgGroup") || "services",
+      status: params.get("orgStatus") || "current",
+      workOnly: params.get("orgWorkOnly") === "1",
+      workOverlay: params.get("orgOverlay") || "opportunities",
+    },
   };
 }
 
 function defaultRoot(index) {
-  return Object.values(index?.nodes || {}).find((item) => item.type === "organization" && item.label === "Department of the Navy")
+  return Object.values(index?.nodes || {}).find((item) => item.type === "organization" && item.label === "Department of War")
+    || Object.values(index?.nodes || {}).find((item) => item.type === "organization" && item.label === "Department of the Navy")
     || Object.values(index?.nodes || {}).find((item) => item.type === "organization")
     || null;
 }
@@ -106,9 +114,20 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
   const updateRoot = (entity) => { window.location.hash = graphRoute(entity); };
   const updateTarget = (entity) => { window.location.hash = graphRoute(selected, entity); };
   const clearTarget = () => { window.location.hash = graphRoute(selected); };
+  const updateStructureView = (view) => {
+    const [path, query = ""] = String(routeHash || "#/budget-spend/intelligence-graph").split("?");
+    const params = new URLSearchParams(query);
+    const write = (name, value, fallback) => { if (value === fallback) params.delete(name); else params.set(name, value); };
+    write("orgDepth", view.depth, "2");
+    write("orgGroup", view.group, "services");
+    write("orgStatus", view.status, "current");
+    write("orgOverlay", view.workOverlay, "opportunities");
+    if (view.workOnly) params.set("orgWorkOnly", "1"); else params.delete("orgWorkOnly");
+    window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
+  };
 
   return <div className="if-stack intelligence-graph-page" data-intelligence-graph-page>
-    <ControlWorkbenchHeader eyebrow="Investigate linked intelligence" title="Graph Explorer" summary="Root the graph on an organization, federal account, program, award, or opportunity. Traverse reviewed hierarchy and retained work, money, people, and place relationships without treating raw acquisition taxonomy as command structure." />
+    <ControlWorkbenchHeader eyebrow="Investigate linked intelligence" title="Graph Explorer" summary="Drill through reviewed Department of War structure, then pivot from departments, services, commands, components, agencies, accounts, awards, programs, and opportunities into their retained work, money, people, places, evidence, and Timeline." />
     {state.status === "loading" ? <ControlAsyncState state="loading" title="Loading linked intelligence" message="Opening the bounded relationship index and universal entity search." /> : state.status === "error" ? <ControlAsyncState state="error" title="Linked intelligence unavailable" message="The graph index could not be opened. Other intelligence workspaces remain available." /> : selected ? <>
       <section className="if-panel intelligence-graph-page__rail" aria-label="Graph Explorer controls">
         <div className="intelligence-graph-page__searches">
@@ -121,7 +140,7 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
           {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small className="if-text-xs">{timelineCount.toLocaleString()}</small></a> : null}
         </div>
       </section>
-      <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable linked intelligence graph"><Suspense fallback={<ControlAsyncState state="loading" title="Opening linked graph" message="Preparing the bounded relationship canvas." />}><LinkedIntelligenceGraph key={`${selected.id}:${target?.id || "neighborhood"}`} index={state.index} rootId={selected.id} targetId={target?.id || ""} onRootChange={updateRoot} /></Suspense></section>
+      <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable linked intelligence graph"><Suspense fallback={<ControlAsyncState state="loading" title="Opening linked graph" message="Preparing the bounded relationship canvas." />}><LinkedIntelligenceGraph key={`${selected.id}:${target?.id || "neighborhood"}:${routed.view.depth}:${routed.view.group}:${routed.view.status}:${routed.view.workOnly}:${routed.view.workOverlay}`} index={state.index} rootId={selected.id} targetId={target?.id || ""} initialStructure={routed.view} onStructureChange={updateStructureView} onRootChange={updateRoot} /></Suspense></section>
     </> : <ControlAsyncState state="empty" title="No linked entity available" message="Return to Organizations or Opportunities and choose a retained entity." action={<a className="if-btn if-btn--secondary" href="#/budget-spend/library"><Network size={15} />Open organizations</a>} />}
   </div>;
 }

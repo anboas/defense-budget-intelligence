@@ -1,118 +1,98 @@
 {
   "metadata": {
-    "schemaVersion": "1.0.0",
+    "schemaVersion": "2.0.0",
     "asOf": "2026-10-20",
-    "title": "Reviewed naval organization hierarchy",
-    "authorityBoundary": "Only relationships explicitly supported by the cited official organization pages are promoted. Acquisition-system organization paths remain separate source-declared taxonomy and are not treated as command hierarchy."
+    "title": "Reviewed Department of War organization hierarchy",
+    "authorityBoundary": "Only relationships explicitly supported by cited official organization sources are promoted. Department of War is retained as a time-aware secondary title while Department of Defense remains the statutory legal name. Acquisition-system organization paths remain separate source-declared taxonomy and are not treated as command hierarchy.",
+    "coverageStatement": "Reviewed coverage includes principal staff organizations, all military departments and services, all eleven unified combatant commands, selected defense agencies, major service commands, and deeper Navy acquisition-command structure. Omission does not imply that an organization is outside the department."
   },
   "organizations": [
-    {
-      "key": "department-of-the-navy",
-      "label": "Department of the Navy",
-      "aliases": ["U.S. Navy", "Navy"],
-      "kind": "military-department",
-      "sourceUrl": "https://www.navy.mil/About/Our-Organization/"
-    },
-    {
-      "key": "navair",
-      "label": "Naval Air Systems Command",
-      "aliases": ["NAVAIR"],
-      "kind": "systems-command",
-      "sourceUrl": "https://www.navair.navy.mil/organization-landing-page"
-    },
-    {
-      "key": "nawcad",
-      "label": "Naval Air Warfare Center Aircraft Division",
-      "aliases": ["NAWCAD"],
-      "kind": "warfare-center",
-      "sourceUrl": "https://www.navair.navy.mil/organization/NAWCAD"
-    },
-    {
-      "key": "nawcwd",
-      "label": "Naval Air Warfare Center Weapons Division",
-      "aliases": ["NAWCWD"],
-      "kind": "warfare-center",
-      "sourceUrl": "https://www.navair.navy.mil/nawcwd/"
-    },
-    {
-      "key": "navwar",
-      "label": "Naval Information Warfare Systems Command",
-      "aliases": ["NAVWAR", "NAVWAR Systems Command"],
-      "kind": "systems-command",
-      "sourceUrl": "https://www.navwar.navy.mil/About/"
-    },
-    {
-      "key": "navwar-headquarters",
-      "label": "NAVWAR Headquarters",
-      "aliases": ["NAVWAR HQ"],
-      "kind": "headquarters",
-      "sourceUrl": "https://www.navwar.navy.mil/About/"
-    },
-    {
-      "key": "niwc-pacific",
-      "label": "Naval Information Warfare Center Pacific",
-      "aliases": ["NIWC Pacific", "NIWC PACIFIC"],
-      "kind": "warfare-center",
-      "sourceUrl": "https://www.niwcpacific.navy.mil/About/"
-    },
-    {
-      "key": "niwc-atlantic",
-      "label": "Naval Information Warfare Center Atlantic",
-      "aliases": ["NIWC Atlantic", "NIWC ATLANTIC"],
-      "kind": "warfare-center",
-      "sourceUrl": "https://www.niwcatlantic.navy.mil/"
-    }
+    { "key": "department-of-war", "label": "Department of War", "legalName": "Department of Defense", "aliases": ["Department of Defense", "DoD", "DoW"], "kind": "executive-department", "tier": "department", "family": "department", "status": "current-secondary-title", "effectiveFrom": "2025-09-05", "summary": "Department of War is a secondary title; Department of Defense remains the statutory legal name.", "sourceUrl": "https://www.whitehouse.gov/presidential-actions/2025/09/restoring-the-united-states-department-of-war/" },
+    { "key": "osd", "label": "Office of the Secretary of Defense", "aliases": ["OSD"], "kind": "principal-staff", "tier": "principal-component", "family": "department" },
+    { "key": "joint-chiefs", "label": "Joint Chiefs of Staff", "aliases": ["JCS", "Joint Staff"], "kind": "joint-staff", "tier": "principal-component", "family": "joint" },
+    { "key": "dod-ig", "label": "Department of Defense Office of Inspector General", "aliases": ["DoD OIG"], "kind": "inspector-general", "tier": "principal-component", "family": "department" },
+    { "key": "department-of-the-army", "label": "Department of the Army", "aliases": ["DA"], "kind": "military-department", "tier": "military-department", "family": "army" },
+    { "key": "department-of-the-navy", "label": "Department of the Navy", "aliases": ["DON"], "kind": "military-department", "tier": "military-department", "family": "navy" },
+    { "key": "department-of-the-air-force", "label": "Department of the Air Force", "aliases": ["DAF"], "kind": "military-department", "tier": "military-department", "family": "air-force" },
+    { "key": "us-army", "label": "United States Army", "aliases": ["U.S. Army", "Army"], "kind": "military-service", "tier": "service", "family": "army" },
+    { "key": "us-navy", "label": "United States Navy", "aliases": ["U.S. Navy", "Navy"], "kind": "military-service", "tier": "service", "family": "navy" },
+    { "key": "us-marine-corps", "label": "United States Marine Corps", "aliases": ["U.S. Marine Corps", "Marine Corps", "USMC"], "kind": "military-service", "tier": "service", "family": "marine-corps" },
+    { "key": "us-air-force", "label": "United States Air Force", "aliases": ["U.S. Air Force", "Air Force", "USAF"], "kind": "military-service", "tier": "service", "family": "air-force" },
+    { "key": "us-space-force", "label": "United States Space Force", "aliases": ["U.S. Space Force", "Space Force", "USSF"], "kind": "military-service", "tier": "service", "family": "space-force" },
+
+    { "key": "africa-command", "label": "United States Africa Command", "aliases": ["USAFRICOM", "AFRICOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "central-command", "label": "United States Central Command", "aliases": ["USCENTCOM", "CENTCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "cyber-command", "label": "United States Cyber Command", "aliases": ["USCYBERCOM", "CYBERCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "european-command", "label": "United States European Command", "aliases": ["USEUCOM", "EUCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "indo-pacific-command", "label": "United States Indo-Pacific Command", "aliases": ["USINDOPACOM", "INDOPACOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "northern-command", "label": "United States Northern Command", "aliases": ["USNORTHCOM", "NORTHCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "southern-command", "label": "United States Southern Command", "aliases": ["USSOUTHCOM", "SOUTHCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "space-command", "label": "United States Space Command", "aliases": ["USSPACECOM", "SPACECOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "special-operations-command", "label": "United States Special Operations Command", "aliases": ["USSOCOM", "SOCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "strategic-command", "label": "United States Strategic Command", "aliases": ["USSTRATCOM", "STRATCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+    { "key": "transportation-command", "label": "United States Transportation Command", "aliases": ["USTRANSCOM", "TRANSCOM"], "kind": "combatant-command", "tier": "combatant-command", "family": "joint" },
+
+    { "key": "dla", "label": "Defense Logistics Agency", "aliases": ["DLA"], "kind": "defense-agency", "tier": "defense-agency", "family": "defense-wide" },
+    { "key": "disa", "label": "Defense Information Systems Agency", "aliases": ["DISA"], "kind": "defense-agency", "tier": "defense-agency", "family": "defense-wide" },
+    { "key": "darpa", "label": "Defense Advanced Research Projects Agency", "aliases": ["DARPA"], "kind": "defense-agency", "tier": "defense-agency", "family": "defense-wide" },
+    { "key": "mda", "label": "Missile Defense Agency", "aliases": ["MDA"], "kind": "defense-agency", "tier": "defense-agency", "family": "defense-wide" },
+    { "key": "dcma", "label": "Defense Contract Management Agency", "aliases": ["DCMA"], "kind": "defense-agency", "tier": "defense-agency", "family": "defense-wide" },
+    { "key": "dha", "label": "Defense Health Agency", "aliases": ["DHA"], "kind": "defense-agency", "tier": "defense-agency", "family": "defense-wide" },
+
+    { "key": "army-forces-command", "label": "United States Army Forces Command", "aliases": ["FORSCOM"], "kind": "army-command", "tier": "major-command", "family": "army" },
+    { "key": "army-futures-command", "label": "United States Army Futures Command", "aliases": ["AFC"], "kind": "army-command", "tier": "major-command", "family": "army" },
+    { "key": "army-materiel-command", "label": "United States Army Materiel Command", "aliases": ["AMC"], "kind": "army-command", "tier": "major-command", "family": "army" },
+    { "key": "army-training-doctrine-command", "label": "United States Army Training and Doctrine Command", "aliases": ["TRADOC"], "kind": "army-command", "tier": "major-command", "family": "army" },
+
+    { "key": "us-fleet-forces", "label": "United States Fleet Forces Command", "aliases": ["USFFC", "Fleet Forces Command"], "kind": "fleet-command", "tier": "major-command", "family": "navy" },
+    { "key": "us-pacific-fleet", "label": "United States Pacific Fleet", "aliases": ["PACFLT", "Pacific Fleet"], "kind": "fleet-command", "tier": "major-command", "family": "navy" },
+    { "key": "naval-forces-europe-africa", "label": "United States Naval Forces Europe-Africa", "aliases": ["NAVEUR-NAVAF"], "kind": "fleet-command", "tier": "major-command", "family": "navy" },
+    { "key": "navy-reserve-forces", "label": "United States Navy Reserve Forces Command", "aliases": ["RESFOR"], "kind": "reserve-command", "tier": "major-command", "family": "navy" },
+    { "key": "navair", "label": "Naval Air Systems Command", "aliases": ["NAVAIR"], "kind": "systems-command", "tier": "major-command", "family": "navy", "sourceUrl": "https://www.navair.navy.mil/organization-landing-page" },
+    { "key": "navwar", "label": "Naval Information Warfare Systems Command", "aliases": ["NAVWAR", "NAVWAR Systems Command"], "kind": "systems-command", "tier": "major-command", "family": "navy", "sourceUrl": "https://www.navwar.navy.mil/About/" },
+    { "key": "navsea", "label": "Naval Sea Systems Command", "aliases": ["NAVSEA"], "kind": "systems-command", "tier": "major-command", "family": "navy" },
+    { "key": "navfac", "label": "Naval Facilities Engineering Systems Command", "aliases": ["NAVFAC"], "kind": "systems-command", "tier": "major-command", "family": "navy" },
+    { "key": "navsup", "label": "Naval Supply Systems Command", "aliases": ["NAVSUP"], "kind": "systems-command", "tier": "major-command", "family": "navy" },
+    { "key": "nawcad", "label": "Naval Air Warfare Center Aircraft Division", "aliases": ["NAWCAD"], "kind": "warfare-center", "tier": "component", "family": "navy", "sourceUrl": "https://www.navair.navy.mil/organization/NAWCAD" },
+    { "key": "nawcwd", "label": "Naval Air Warfare Center Weapons Division", "aliases": ["NAWCWD"], "kind": "warfare-center", "tier": "component", "family": "navy", "sourceUrl": "https://www.navair.navy.mil/nawcwd/" },
+    { "key": "navwar-headquarters", "label": "NAVWAR Headquarters", "aliases": ["NAVWAR HQ"], "kind": "headquarters", "tier": "component", "family": "navy", "sourceUrl": "https://www.navwar.navy.mil/About/" },
+    { "key": "niwc-pacific", "label": "Naval Information Warfare Center Pacific", "aliases": ["NIWC Pacific", "NIWC PACIFIC"], "kind": "warfare-center", "tier": "component", "family": "navy", "sourceUrl": "https://www.niwcpacific.navy.mil/About/" },
+    { "key": "niwc-atlantic", "label": "Naval Information Warfare Center Atlantic", "aliases": ["NIWC Atlantic", "NIWC ATLANTIC"], "kind": "warfare-center", "tier": "component", "family": "navy", "sourceUrl": "https://www.niwcatlantic.navy.mil/" },
+
+    { "key": "marine-forces-command", "label": "United States Marine Corps Forces Command", "aliases": ["MARFORCOM"], "kind": "marine-force", "tier": "major-command", "family": "marine-corps" },
+    { "key": "marine-forces-pacific", "label": "United States Marine Corps Forces, Pacific", "aliases": ["MARFORPAC"], "kind": "marine-force", "tier": "major-command", "family": "marine-corps" },
+    { "key": "marine-forces-reserve", "label": "Marine Forces Reserve", "aliases": ["MARFORRES"], "kind": "reserve-command", "tier": "major-command", "family": "marine-corps" },
+
+    { "key": "air-combat-command", "label": "Air Combat Command", "aliases": ["ACC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "air-education-training-command", "label": "Air Education and Training Command", "aliases": ["AETC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "air-force-global-strike-command", "label": "Air Force Global Strike Command", "aliases": ["AFGSC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "air-force-materiel-command", "label": "Air Force Materiel Command", "aliases": ["AFMC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "air-force-reserve-command", "label": "Air Force Reserve Command", "aliases": ["AFRC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "air-force-special-operations-command", "label": "Air Force Special Operations Command", "aliases": ["AFSOC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "air-mobility-command", "label": "Air Mobility Command", "aliases": ["AMC"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "pacific-air-forces", "label": "Pacific Air Forces", "aliases": ["PACAF"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+    { "key": "usafe-afafrica", "label": "United States Air Forces in Europe-Air Forces Africa", "aliases": ["USAFE-AFAFRICA"], "kind": "major-command", "tier": "major-command", "family": "air-force" },
+
+    { "key": "space-combat-forces-command", "label": "Space Forces-Space", "aliases": ["S4S", "Combat Forces Command"], "kind": "field-command", "tier": "major-command", "family": "space-force" },
+    { "key": "space-systems-command", "label": "Space Systems Command", "aliases": ["SSC"], "kind": "field-command", "tier": "major-command", "family": "space-force" },
+    { "key": "space-training-readiness-command", "label": "Space Training and Readiness Command", "aliases": ["STARCOM"], "kind": "field-command", "tier": "major-command", "family": "space-force", "sourceUrl": "https://www.starcom.spaceforce.mil/About-Us/About-STARCOM/" }
   ],
-  "relationships": [
-    {
-      "child": "navair",
-      "parent": "department-of-the-navy",
-      "basis": "official-department-acquisition-command",
-      "sourceUrl": "https://www.navwar.navy.mil/About/",
-      "evidenceSummary": "NAVWAR identifies NAVAIR as another major Department of Navy acquisition command."
-    },
-    {
-      "child": "navwar",
-      "parent": "department-of-the-navy",
-      "basis": "official-department-acquisition-command",
-      "sourceUrl": "https://www.navwar.navy.mil/About/",
-      "evidenceSummary": "NAVWAR identifies itself as one of six major Department of Navy acquisition commands."
-    },
-    {
-      "child": "nawcad",
-      "parent": "navair",
-      "basis": "official-command-organization",
-      "sourceUrl": "https://www.navair.navy.mil/organization-landing-page",
-      "evidenceSummary": "The official NAVAIR organization page lists NAWCAD within the command."
-    },
-    {
-      "child": "nawcwd",
-      "parent": "navair",
-      "basis": "official-command-organization",
-      "sourceUrl": "https://www.navair.navy.mil/organization-landing-page",
-      "evidenceSummary": "The official NAVAIR organization page lists NAWCWD within the command."
-    },
-    {
-      "child": "navwar-headquarters",
-      "parent": "navwar",
-      "basis": "official-command-headquarters",
-      "sourceUrl": "https://www.navwar.navy.mil/About/",
-      "evidenceSummary": "The official command page distinguishes NAVWAR command headquarters from its reporting warfare centers."
-    },
-    {
-      "child": "niwc-pacific",
-      "parent": "navwar",
-      "basis": "official-reporting-warfare-center",
-      "sourceUrl": "https://www.navwar.navy.mil/About/",
-      "evidenceSummary": "NAVWAR states that the command consists of bicoastal reporting Naval Information Warfare Centers."
-    },
-    {
-      "child": "niwc-atlantic",
-      "parent": "navwar",
-      "basis": "official-reporting-warfare-center",
-      "sourceUrl": "https://www.navwar.navy.mil/About/",
-      "evidenceSummary": "NAVWAR states that the command consists of bicoastal reporting Naval Information Warfare Centers."
-    }
+  "hierarchyGroups": [
+    { "parent": "department-of-war", "children": ["osd", "joint-chiefs", "dod-ig"], "basis": "official-principal-component", "relationshipClass": "principal-component", "sourceUrl": "https://dam.defense.gov/OLD/ABOUT-OLD-v2/Organization-OLD/OPDS/OPDSfunctions/OPDSOrganizationalSupport/DoDOrgandFunctions/", "evidenceSummary": "Official department organization material identifies this principal component." },
+    { "parent": "department-of-war", "children": ["department-of-the-army", "department-of-the-navy", "department-of-the-air-force"], "basis": "official-military-department", "relationshipClass": "military-department", "sourceUrl": "https://www.war.gov/Resources/Military-Departments/Area-Commands/", "evidenceSummary": "The official department directory lists this military department." },
+    { "parent": "department-of-the-army", "children": ["us-army"], "basis": "official-service-component", "relationshipClass": "military-service", "sourceUrl": "https://www.army.mil/organization/?from=org", "evidenceSummary": "The official Army organization page identifies the service within its military department." },
+    { "parent": "department-of-the-navy", "children": ["us-navy", "us-marine-corps"], "basis": "official-service-component", "relationshipClass": "military-service", "sourceUrl": "https://www.navy.mil/About/Our-Organization/", "evidenceSummary": "The official Navy organization page identifies the naval services within the military department." },
+    { "parent": "department-of-the-air-force", "children": ["us-air-force", "us-space-force"], "basis": "official-service-component", "relationshipClass": "military-service", "sourceUrl": "https://www.spaceforce.mil/News/Article-Display/Article/2242267/ussf-field-command-structure-reduces-command-layers-focuses-on-space-warfighter/", "evidenceSummary": "Official service organization material identifies the Air Force and Space Force within the military department." },
+    { "parent": "department-of-war", "children": ["africa-command", "central-command", "cyber-command", "european-command", "indo-pacific-command", "northern-command", "southern-command", "space-command", "special-operations-command", "strategic-command", "transportation-command"], "basis": "official-unified-command", "relationshipClass": "combatant-command", "sourceUrl": "https://www.war.gov/About/Organization/Unified-Commands/", "evidenceSummary": "The official unified command directory lists this combatant command." },
+    { "parent": "department-of-war", "children": ["dla", "disa", "darpa", "mda", "dcma", "dha"], "basis": "official-defense-agency", "relationshipClass": "defense-agency", "sourceUrl": "https://dam.defense.gov/OLD/ABOUT-OLD-v2/Organization-OLD/OPDS/OPDSfunctions/OPDSOrganizationalSupport/DoDOrgandFunctions/DoDOrgCharts/", "evidenceSummary": "The official organization chart identifies this defense agency." },
+    { "parent": "us-army", "children": ["army-forces-command", "army-futures-command", "army-materiel-command", "army-training-doctrine-command"], "basis": "official-army-command", "relationshipClass": "major-command", "sourceUrl": "https://www.army.mil/organization/?from=org", "evidenceSummary": "The official Army organization page lists this Army Command." },
+    { "parent": "us-navy", "children": ["us-fleet-forces", "us-pacific-fleet", "naval-forces-europe-africa", "navy-reserve-forces"], "basis": "official-navy-command", "relationshipClass": "major-command", "sourceUrl": "https://www.navy.mil/About/Our-Organization/", "evidenceSummary": "The official Navy organization directory lists this command." },
+    { "parent": "department-of-the-navy", "children": ["navair", "navwar", "navsea", "navfac", "navsup"], "basis": "official-department-acquisition-command", "relationshipClass": "systems-command", "sourceUrl": "https://www.navy.mil/About/Our-Organization/", "evidenceSummary": "Official Navy organization material identifies this Department of the Navy systems command." },
+    { "parent": "navair", "children": ["nawcad", "nawcwd"], "basis": "official-command-organization", "relationshipClass": "component", "sourceUrl": "https://www.navair.navy.mil/organization-landing-page", "evidenceSummary": "The official NAVAIR organization page lists this warfare center within the command." },
+    { "parent": "navwar", "children": ["navwar-headquarters", "niwc-pacific", "niwc-atlantic"], "basis": "official-reporting-component", "relationshipClass": "component", "sourceUrl": "https://www.navwar.navy.mil/About/", "evidenceSummary": "The official NAVWAR page identifies this headquarters or reporting warfare center." },
+    { "parent": "us-marine-corps", "children": ["marine-forces-command", "marine-forces-pacific", "marine-forces-reserve"], "basis": "official-marine-command", "relationshipClass": "major-command", "sourceUrl": "https://www.marines.mil/News/Publications/MCPEL/Electronic-Library-Display/Article/900696/mcrp-1-101/", "evidenceSummary": "The official Marine Corps organization reference identifies this force command." },
+    { "parent": "us-air-force", "children": ["air-combat-command", "air-education-training-command", "air-force-global-strike-command", "air-force-materiel-command", "air-force-reserve-command", "air-force-special-operations-command", "air-mobility-command", "pacific-air-forces", "usafe-afafrica"], "basis": "official-air-force-major-command", "relationshipClass": "major-command", "sourceUrl": "https://www.af.mil/About-Us/Major-Commands/", "evidenceSummary": "The official Air Force directory lists this major command." },
+    { "parent": "us-space-force", "children": ["space-combat-forces-command", "space-systems-command", "space-training-readiness-command"], "basis": "official-space-force-field-command", "relationshipClass": "major-command", "sourceUrl": "https://www.spaceforce.mil/News/Article-Display/Article/2242267/ussf-field-command-structure-reduces-command-layers-focuses-on-space-warfighter/", "evidenceSummary": "Official Space Force organization material identifies this field command." }
   ],
   "offices": [
     { "label": "NAVWAR Headquarters contracting", "parent": "navwar-headquarters", "sourceUrl": "https://www.navwar.navy.mil/About/" },
