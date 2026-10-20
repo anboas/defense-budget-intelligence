@@ -73,6 +73,8 @@
 .if-graph-viewport {
   position: absolute;
   inset: 0;
+  width: 100%;
+  min-height: inherit;
   transform: translate(var(--graph-pan-x, 0), var(--graph-pan-y, 0)) scale(var(--graph-zoom, 1));
   transform-origin: 50% 50%;
   transition: transform var(--if-duration-fast) var(--if-ease-standard);

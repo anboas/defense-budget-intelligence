@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, LINKED_INTELLIGENCE_SCHEMA_VERSION } from "../src/intelligence-graph.js";
+import { findEvidencePath, relationLabel, summarizeRelationshipCoverage } from "../src/linked-intelligence-path.js";
 import { CONFLICT_STATUS_VALUES, TEMPORAL_EVIDENCE_SCHEMA_VERSION, TEMPORAL_STATUS_VALUES } from "./temporal-evidence-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -301,6 +302,33 @@ assert.ok(linkedHierarchy.some((relation) => relation.from === niwcAtlantic.id &
 for (const [organization, minimum] of [[navy, 100], [navair, 20], [navwar, 5], [niwcPacific, 1], [niwcAtlantic, 1]]) {
   assert.ok((linkedIntelligence.indices?.byEntity?.[organization.id]?.timelineActivityIds || []).length >= minimum, `${organization.label} must retain a useful entity-scoped Timeline`);
 }
+const operationsNavy = linkedNodes.find((node) => node.type === "federal-account" && node.federalAccountCode === "017-1804");
+assert.ok(operationsNavy, "Operation and Maintenance, Navy must remain a rootable linked account");
+const navairCoverage = summarizeRelationshipCoverage(linkedIntelligence, navair.id);
+assert.ok(navairCoverage.relationships >= 70 && navairCoverage.neighborCounts.hierarchy >= 3 && navairCoverage.neighborCounts.work >= 40, "Graph lens counts must describe NAVAIR's complete retained neighborhood rather than only visible slices");
+const navairMoneyPath = findEvidencePath(linkedIntelligence, navair.id, operationsNavy.id);
+assert.equal(navairMoneyPath?.hops, 3, "NAVAIR should trace to Operation and Maintenance, Navy through one activity and its exact award");
+assert.deepEqual(navairMoneyPath?.relations.map((relation) => relation.type), ["activity-funding-organization", "activity-awarded-as", "award-funded-by-account"], "NAVAIR's account trace must preserve the retained work-to-award-to-account chain");
+assert.equal(relationLabel(navairMoneyPath.relations[0], navairMoneyPath.nodeIds[0]), "funded activity", "Connection traces must render relationship direction from each path step");
+const niwcNavairPath = findEvidencePath(linkedIntelligence, niwcPacific.id, navair.id);
+assert.equal(niwcNavairPath?.hops, 2, "NIWC Pacific should expose its retained two-step activity connection to NAVAIR");
+assert.ok(niwcNavairPath.relations.every((relation) => relation.evidence?.basis && relation.evidence?.confidence && relation.evidence?.reviewState), "Every connection-trace step must retain evidence basis, confidence, and review state");
+const weightedPathFixture = {
+  nodes: Object.fromEntries(["start", "first", "best", "target"].map((id) => [id, { id, type: "organization" }])),
+  relations: [
+    { id: "start-first", from: "start", to: "first", type: "organization-part-of", evidence: { sourceArtifact: "reviewed-organization-hierarchy" } },
+    { id: "first-target", from: "first", to: "target", type: "organization-part-of", evidence: { confidence: "source_declared" } },
+    { id: "start-best", from: "start", to: "best", type: "organization-part-of", evidence: { confidence: "exact" } },
+    { id: "best-target", from: "best", to: "target", type: "organization-part-of", evidence: { sourceArtifact: "reviewed-organization-hierarchy", confidence: "reviewed", reviewState: "reviewed" } },
+  ],
+  indices: { byEntity: {
+    start: { relationIds: [0, 2] },
+    first: { relationIds: [0, 1] },
+    best: { relationIds: [2, 3] },
+    target: { relationIds: [1, 3] },
+  } },
+};
+assert.deepEqual(findEvidencePath(weightedPathFixture, "start", "target")?.relations.map((relation) => relation.id), ["start-best", "best-target"], "Connection search must return the best evidence-weighted target path, not the first target path discovered");
 
 assert.equal(agentGraphManifest.metadata?.schemaVersion, "1.1.0", "Agent graph directory schema changed");
 assert.equal(agentGraphManifest.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Agent graph directory must track the canonical graph schema");

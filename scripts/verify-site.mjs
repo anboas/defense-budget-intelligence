@@ -2468,7 +2468,48 @@ try {
   await openSurface(page, "#/budget-spend/intelligence-graph?graphType=organization&graphLabel=Naval%20Air%20Systems%20Command", "[data-intelligence-graph-page]");
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="organization"]');
   assert.match(await page.locator(".intelligence-graph-page__root").innerText(), /Naval Air Systems Command[\s\S]*Reviewed/i, "Label-only dossier handoffs should resolve to the reviewed NAVAIR identity");
-  await page.getByRole("button", { name: "Hierarchy", exact: true }).click();
+  assert.match(await page.locator('[data-if-control-tab="hierarchy"]').innerText(), /Hierarchy\s+3/i, "Relationship lenses should disclose NAVAIR's complete retained hierarchy count");
+  assert.match(await page.locator('[data-if-control-tab="work"]').innerText(), /Work\s+41/i, "Relationship lenses should disclose NAVAIR's complete retained work count");
+  const traceSearch = page.locator("[data-intelligence-graph-trace-control] input[role=combobox]");
+  await traceSearch.fill("Operation and Maintenance, Navy");
+  await page.getByRole("option", { name: /^Operation and Maintenance, Navy\b/i }).first().click();
+  await page.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="connection"][data-connection-hops="3"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash).replaceAll("+", " "), /graphTarget=account:017-1804[\s\S]*graphTargetLabel=Operation and Maintenance, Navy/i, "Connection traces should remain shareable with an exact target identity");
+  assert.equal(await page.locator("[data-connection-path] [data-connection-step]").count(), 3, "NAVAIR's account trace should expose three evidence-backed steps");
+  assert.equal(await page.locator("[data-linked-graph-canvas] .if-graph-node").count(), 4, "The connection canvas should show only the start, two retained intermediates, and target");
+  assert.match(await page.locator("[data-connection-path]").innerText(), /Naval Air Systems Command[\s\S]*funded activity[\s\S]*awarded as[\s\S]*funded by account[\s\S]*Operation and Maintenance, Navy/i, "Connection trace should explain the retained work-to-award-to-account path in order");
+  assert.equal(await page.locator("[data-connection-path] .if-status-pill").count(), 3, "Every connection step should disclose its evidence confidence");
+  await page.waitForFunction(() => {
+    const nodes = [...document.querySelectorAll("[data-linked-graph-canvas] .if-graph-node")]
+      .map((node) => node.getBoundingClientRect());
+    return nodes.length === 4 && nodes.every((node, index) => !index || nodes[index - 1].right < node.left);
+  });
+  const connectionGeometry = await page.locator("[data-linked-graph-canvas]").evaluate((graph) => {
+    const canvas = graph.querySelector(".if-graph-canvas");
+    const viewport = graph.querySelector(".if-graph-viewport");
+    const nodes = [...graph.querySelectorAll(".if-graph-node")].map((node) => {
+      const rect = node.getBoundingClientRect();
+      const styles = getComputedStyle(node);
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, x: styles.getPropertyValue("--x"), y: styles.getPropertyValue("--y") };
+    });
+    const viewportStyles = viewport ? getComputedStyle(viewport) : null;
+    return {
+      canvas: canvas?.getBoundingClientRect().toJSON(),
+      viewport: viewport?.getBoundingClientRect().toJSON(),
+      viewportHeight: viewportStyles?.height,
+      viewportMinHeight: viewportStyles?.minHeight,
+      transform: viewportStyles?.transform || "",
+      zoom: canvas?.dataset.graphZoom,
+      nodes,
+      ordered: nodes.every((node, index) => !index || nodes[index - 1].right < node.left),
+    };
+  });
+  assert.equal(connectionGeometry.nodes.length, 4, `Connection trace should retain four measurable graph nodes: ${JSON.stringify(connectionGeometry)}`);
+  assert.equal(connectionGeometry.ordered, true, `Connection nodes must form one non-overlapping left-to-right evidence chain: ${JSON.stringify(connectionGeometry)}`);
+  await page.screenshot({ path: `${OUT_DIR}/linked-intelligence-connection-trace-desktop.png` });
+  await page.getByRole("button", { name: "Clear connection trace" }).click();
+  await page.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="neighborhood"]');
+  await page.locator('[data-if-control-tab="hierarchy"]').click();
   await page.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
     const rect = (selector) => graph?.querySelector(selector)?.getBoundingClientRect();
@@ -2516,7 +2557,7 @@ try {
   const niwcOption = page.getByRole("option", { name: /Naval Information Warfare Center Pacific/i }).first();
   await niwcOption.click();
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-id="org:754405b63603f670ceb8"]');
-  await page.getByRole("button", { name: "Hierarchy", exact: true }).click();
+  await page.locator('[data-if-control-tab="hierarchy"]').click();
   assert.equal(await page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-id="org:e21815d39b4a9363127b"]').count(), 1, "NIWC Pacific should expose its reviewed NAVWAR parent");
   const navwarNode = page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-id="org:e21815d39b4a9363127b"]');
   await navwarNode.click();
@@ -2526,9 +2567,9 @@ try {
 
   await openSurface(page, "#/budget-spend/intelligence-graph?graphType=federal-account&graphEntity=account%3A017-1804&graphLabel=Operation%20and%20Maintenance%2C%20Navy", "[data-intelligence-graph-page]");
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="federal-account"]');
-  await page.getByRole("button", { name: "Money", exact: true }).click();
+  await page.locator('[data-if-control-tab="money"]').click();
   assert.ok(await page.locator('[data-linked-graph-canvas] .if-graph-node[data-linked-node="award"]').count() > 0, "Federal-account graphs should expose the exact funded awards behind the account");
-  assert.match(await page.locator("[data-linked-intelligence-graph]").innerText(), /50 Timeline records in this reviewed scope/i, "Operation and Maintenance, Navy should retain its linked work scope");
+  assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /Timeline\s+50/i, "Operation and Maintenance, Navy should retain its linked work scope");
 
   await openSurface(page, "#/budget-spend/intelligence-graph?graphType=organization&graphLabel=Naval%20Air%20Systems%20Command", "[data-intelligence-graph-page]");
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-id="org:54825302e8c22bf1e3cf"]');
@@ -2852,6 +2893,16 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await installVerificationDate(mobile);
+  await mobile.goto(`${BASE_URL}#/budget-spend/intelligence-graph?graphType=organization&graphEntity=org%3A54825302e8c22bf1e3cf&graphLabel=Naval%20Air%20Systems%20Command&graphTargetType=federal-account&graphTarget=account%3A017-1804&graphTargetLabel=Operation%20and%20Maintenance%2C%20Navy`, { waitUntil: "domcontentloaded" });
+  await mobile.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="connection"][data-path-orientation="vertical"]');
+  await mobile.waitForFunction(() => {
+    const graph = document.querySelector("[data-linked-graph-canvas]");
+    const nodes = [...(graph?.querySelectorAll(".if-graph-node") || [])].map((node) => node.getBoundingClientRect());
+    return graph?.dataset.ifGraphLayoutState === "success" && nodes.length === 4 && nodes.every((node, index) => !index || nodes[index - 1].bottom < node.top);
+  });
+  assert.equal(await mobile.locator("[data-connection-path] [data-connection-step]").count(), 3, "Mobile connection traces should retain every evidence step");
+  await assertButtonIntegrity(mobile, "Mobile linked-intelligence trace", "[data-intelligence-graph-page]");
+  await assertNoPageOverflow(mobile, "Mobile linked-intelligence trace");
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await mobile.waitForFunction(() => window.location.hash === "#/budget-spend/watchlist");
   await mobile.waitForSelector("[data-operations-hub]");

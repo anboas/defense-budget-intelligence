@@ -48,6 +48,9 @@ export function intelligenceGraphRoute(recordOrEntity, nodeId = "") {
       graphEntity: recordOrEntity.entityId,
       graphLabel: recordOrEntity.entityLabel,
       graphNode: recordOrEntity.nodeId || nodeId,
+      graphTargetType: recordOrEntity.targetType,
+      graphTarget: recordOrEntity.targetId,
+      graphTargetLabel: recordOrEntity.targetLabel,
     });
   }
   return route("intelligence-graph", { graphRecord: recordOrEntity, graphNode: nodeId });

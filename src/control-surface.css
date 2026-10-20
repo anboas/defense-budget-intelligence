@@ -1892,6 +1892,12 @@ code {
   color: var(--if-warning);
 }
 
+.if-badge--danger {
+  border-color: #fca5a5;
+  background: var(--if-danger-soft);
+  color: var(--if-danger);
+}
+
 .if-badge--info,
 .if-status--info {
   border-color: #93c5fd;
@@ -3388,6 +3394,12 @@ button.if-chart-bar.is-selected {
   font-weight: var(--if-font-weight-black);
 }
 
+.if-activity-trail__item.is-warning .if-activity-trail__marker {
+  border-color: color-mix(in srgb, var(--if-warning) 48%, var(--if-border));
+  background: var(--if-warning-soft);
+  color: var(--if-warning);
+}
+
 .if-activity-trail__item.is-danger .if-activity-trail__marker {
   border-color: color-mix(in srgb, var(--if-danger) 42%, var(--if-border));
   background: var(--if-danger-soft);
@@ -3541,6 +3553,13 @@ button.if-chart-bar.is-selected {
   color: var(--if-accent);
   font-size: var(--if-font-size-2xs);
   font-weight: var(--if-font-weight-black);
+}
+
+.if-activity-inspector__stage.is-warning .if-activity-inspector__marker,
+.if-activity-inspector__panel.is-warning .if-activity-inspector__marker {
+  border-color: color-mix(in srgb, var(--if-warning) 48%, var(--if-border));
+  background: var(--if-warning-soft);
+  color: var(--if-warning);
 }
 
 .if-activity-inspector__stage.is-danger .if-activity-inspector__marker,
@@ -4776,6 +4795,7 @@ button.if-chart-bar.is-selected {
 .if-calendar-item > * { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .if-calendar-item strong { font-size: var(--if-font-size-2xs); }
 .if-calendar-item small { color: var(--if-text-muted); font-size: var(--if-font-size-2xs); }
+.if-calendar-item.is-warning { border-left-color: var(--if-warning); background: var(--if-warning-soft); }
 .if-calendar-item.is-danger { border-left-color: var(--if-danger); background: var(--if-danger-soft); }
 .if-calendar-item:hover,
 .if-calendar-item:focus-visible,
@@ -5807,6 +5827,12 @@ button.if-chart-bar.is-selected {
   border-color: #fca5a5;
   background: var(--if-danger-soft);
   color: var(--if-danger);
+}
+
+.if-status-pill.is-warning {
+  border-color: color-mix(in srgb, var(--if-warning) 48%, var(--if-border));
+  background: var(--if-warning-soft);
+  color: var(--if-warning);
 }
 
 .if-code-block {
