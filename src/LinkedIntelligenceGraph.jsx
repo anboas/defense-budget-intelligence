@@ -1,15 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, ExternalLink, Network, RotateCcw } from "lucide-react";
 import { ControlGraph } from "control-surface-ui/react/graph";
 import { ControlStatusBadge, ControlTabs } from "control-surface-ui/react";
 import { accountFlowRoute, awardsRoute, intelligenceWorkspaceRoute, mapLocationRoute, opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
 import { intelligenceTypeLabel } from "./intelligence-search.js";
+import { compactRelationship, findEvidencePath, relationCategory, relationLabel, summarizeRelationshipCoverage } from "./linked-intelligence-path.js";
 import "./control-graph.css";
 import "./LinkedIntelligenceGraph.css";
 
 const ROOTABLE_TYPES = new Set(["organization", "federal-account", "defense-program", "program-office", "activity", "award"]);
 const LENSES = new Set(["overview", "hierarchy", "work", "money", "organization"]);
-const LENS_ITEMS = [["overview", "Overview"], ["hierarchy", "Hierarchy"], ["work", "Work"], ["money", "Money"], ["organization", "People & places"]];
 const NODE_TYPES = Object.freeze({
   organization: { className: "org", color: "#0369a1", icon: "department", label: "Organization", data: { linkedNode: "organization" } },
   activity: { className: "opportunity", color: "#0f766e", icon: "star", label: "Opportunity", data: { linkedNode: "activity" } },
@@ -25,10 +25,6 @@ const NODE_TYPES = Object.freeze({
 
 const CATEGORY_LIMITS = { hierarchy: 10, work: 12, money: 8, program: 8, people: 6, places: 5, other: 4 };
 
-function compact(value, fallback = "Not published") {
-  return String(value || fallback).replaceAll("_", " ").replaceAll("-", " ");
-}
-
 function short(value, limit = 38) {
   const text = String(value || "");
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
@@ -42,16 +38,6 @@ function money(value) {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
-function relationCategory(type) {
-  if (["organization-part-of", "organization-equivalent-to"].includes(type)) return "hierarchy";
-  if (["activity-awarded-as", "activity-contracting-organization", "activity-funding-organization", "activity-recipient", "activity-ordered-under-vehicle"].includes(type)) return "work";
-  if (["award-recipient", "award-awarding-organization", "award-funding-organization", "award-funded-by-account"].includes(type)) return "money";
-  if (["defense-program-owned-by-program-office", "program-office-part-of-organization"].includes(type)) return "program";
-  if (["official-role-at-organization", "person-holds-official-role"].includes(type)) return "people";
-  if (["organization-located-at", "organization-operates-at-location", "contracting-activity-at", "funding-activity-at"].includes(type)) return "places";
-  return "other";
-}
-
 function lensAllows(lens, category) {
   if (lens === "overview") return ["hierarchy", "work", "money", "program"].includes(category);
   if (lens === "hierarchy") return ["hierarchy", "program"].includes(category);
@@ -60,40 +46,15 @@ function lensAllows(lens, category) {
   return ["people", "places"].includes(category);
 }
 
-function relationLabel(relation, rootId) {
-  const outbound = relation.from === rootId;
-  return ({
-    "organization-part-of": outbound ? "part of" : "contains",
-    "organization-equivalent-to": "same reviewed organization",
-    "activity-awarded-as": outbound ? "awarded as" : "supports activity",
-    "activity-recipient": outbound ? "recipient" : "performed activity",
-    "activity-contracting-organization": outbound ? "contracting organization" : "contracting activity",
-    "activity-funding-organization": outbound ? "funding organization" : "funded activity",
-    "activity-ordered-under-vehicle": outbound ? "ordered under" : "order",
-    "award-recipient": outbound ? "recipient" : "received award",
-    "award-awarding-organization": outbound ? "awarding organization" : "awarded",
-    "award-funding-organization": outbound ? "funding organization" : "funded award",
-    "award-funded-by-account": outbound ? "funded by account" : "funded award",
-    "organization-located-at": outbound ? "located at" : "hosts organization",
-    "organization-operates-at-location": outbound ? "operates at" : "contracting office",
-    "contracting-activity-at": outbound ? "contracting location" : "contracting activity",
-    "funding-activity-at": outbound ? "funding location" : "funded activity",
-    "defense-program-owned-by-program-office": outbound ? "owned by" : "program",
-    "program-office-part-of-organization": outbound ? "part of" : "program office",
-    "official-role-at-organization": outbound ? "at organization" : "official role",
-    "person-holds-official-role": outbound ? "holds role" : "held by",
-  })[relation.type] || compact(relation.type);
-}
-
 function nodeDetail(node) {
-  if (node.type === "organization") return [compact(node.kind), node.identity?.identifiers?.officeCode ? `DoDAAC ${node.identity.identifiers.officeCode}` : "", compact(node.reviewState)].filter(Boolean).join(" · ");
-  if (node.type === "activity") return [node.reference, compact(node.lifecycle), compact(node.mode)].filter(Boolean).join(" · ");
+  if (node.type === "organization") return [compactRelationship(node.kind), node.identity?.identifiers?.officeCode ? `DoDAAC ${node.identity.identifiers.officeCode}` : "", compactRelationship(node.reviewState)].filter(Boolean).join(" · ");
+  if (node.type === "activity") return [node.reference, compactRelationship(node.lifecycle), compactRelationship(node.mode)].filter(Boolean).join(" · ");
   if (node.type === "award") return [node.piid, node.recipient, money(node.obligatedAmount), node.endDate].filter(Boolean).join(" · ");
   if (node.type === "federal-account") return [node.federalAccountCode, node.bureauName, money(node.obligatedAmount)].filter(Boolean).join(" · ");
-  if (node.type === "defense-program") return [compact(node.programKind), node.organization, ...(node.budgetLineCodes || [])].filter(Boolean).join(" · ");
-  if (node.type === "program-office") return [node.organization, compact(node.roleType)].filter(Boolean).join(" · ");
-  if (node.type === "official-role") return [node.title, node.organizationName, compact(node.status)].filter(Boolean).join(" · ");
-  if (node.type === "location") return [node.city, node.state, compact(node.kind)].filter(Boolean).join(" · ");
+  if (node.type === "defense-program") return [compactRelationship(node.programKind), node.organization, ...(node.budgetLineCodes || [])].filter(Boolean).join(" · ");
+  if (node.type === "program-office") return [node.organization, compactRelationship(node.roleType)].filter(Boolean).join(" · ");
+  if (node.type === "official-role") return [node.title, node.organizationName, compactRelationship(node.status)].filter(Boolean).join(" · ");
+  if (node.type === "location") return [node.city, node.state, compactRelationship(node.kind)].filter(Boolean).join(" · ");
   if (node.type === "contract-vehicle") return [node.piid, `${node.orderCount || 0} retained orders`].filter(Boolean).join(" · ");
   return intelligenceTypeLabel(node.type);
 }
@@ -152,6 +113,43 @@ function linkedLayout({ nodes = [] }) {
   return { coordinateSpace: "percent", layout: "linked-lanes", nodes: [root ? { id: root.id, x: 50, y: 50 } : null, ...placed].filter(Boolean) };
 }
 
+function pathLayout({ nodes = [] }) {
+  const span = nodes.length > 1 ? 76 / (nodes.length - 1) : 0;
+  return {
+    coordinateSpace: "percent",
+    layout: "linked-path-horizontal",
+    nodes: nodes.map((node, index) => ({
+      id: node.id,
+      x: 12 + span * index,
+      y: 50,
+    })),
+  };
+}
+
+function compactPathLayout({ nodes = [] }) {
+  const span = nodes.length > 1 ? 72 / (nodes.length - 1) : 0;
+  return {
+    coordinateSpace: "percent",
+    layout: "linked-path-vertical",
+    nodes: nodes.map((node, index) => ({
+      id: node.id,
+      x: 50,
+      y: 14 + span * index,
+    })),
+  };
+}
+
+function lensItems(summary) {
+  const count = (categories) => categories.reduce((total, category) => total + (summary.neighborCounts[category] || 0), 0);
+  return [
+    ["overview", `Overview ${count(["hierarchy", "work", "money", "program"])}`],
+    ["hierarchy", `Hierarchy ${count(["hierarchy", "program"])}`],
+    ["work", `Work ${count(["work"])}`],
+    ["money", `Money ${count(["money"])}`],
+    ["organization", `People & places ${count(["people", "places"])}`],
+  ];
+}
+
 function selectRelations(index, rootId, lens) {
   const canonicalId = index.indices?.byEntity?.[rootId]?.canonicalId || rootId;
   const relationIds = index.indices?.byEntity?.[canonicalId]?.relationIds || [];
@@ -170,11 +168,24 @@ function selectRelations(index, rootId, lens) {
     .slice(0, CATEGORY_LIMITS[category] || 4));
 }
 
-export default function LinkedIntelligenceGraph({ index, rootId, onRootChange }) {
+export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", onRootChange }) {
   const canonicalRootId = index.indices?.byEntity?.[rootId]?.canonicalId || rootId;
+  const canonicalTargetId = index.indices?.byEntity?.[targetId]?.canonicalId || targetId;
   const root = index.nodes?.[canonicalRootId];
+  const target = canonicalTargetId ? index.nodes?.[canonicalTargetId] : null;
+  const connectionPath = useMemo(() => target ? findEvidencePath(index, canonicalRootId, canonicalTargetId) : null, [canonicalRootId, canonicalTargetId, index, target]);
+  const traceMode = Boolean(target);
+  const coverage = useMemo(() => summarizeRelationshipCoverage(index, canonicalRootId), [canonicalRootId, index]);
   const [lens, setLens] = useState("overview");
-  const [selectedId, setSelectedId] = useState(canonicalRootId);
+  const [selectedId, setSelectedId] = useState(canonicalTargetId || canonicalRootId);
+  const [compactTrace, setCompactTrace] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 760px)");
+    const update = () => setCompactTrace(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   const relations = useMemo(() => selectRelations(index, canonicalRootId, lens), [canonicalRootId, index, lens]);
   const neighbors = useMemo(() => {
     const seen = new Set();
@@ -185,51 +196,87 @@ export default function LinkedIntelligenceGraph({ index, rootId, onRootChange })
       return [{ node: index.nodes[id], relation }];
     });
   }, [canonicalRootId, index.nodes, relations]);
-  const graphNodes = useMemo(() => [root, ...neighbors.map((item) => item.node)].filter(Boolean).map((item) => {
-    const related = neighbors.find((candidate) => candidate.node.id === item.id);
-    return { id: item.id, kind: item.type, label: short(item.label), meta: intelligenceTypeLabel(item.type), description: nodeDetail(item), primary: item.id === canonicalRootId, relation: related ? relationLabel(related.relation, canonicalRootId) : "graph root", data: { category: related ? relationCategory(related.relation.type) : "root", direction: related?.relation?.from === canonicalRootId ? "outbound" : "inbound" } };
-  }), [canonicalRootId, neighbors, root]);
-  const graphEdges = useMemo(() => neighbors.map(({ node: item, relation }) => ({ id: relation.id, from: canonicalRootId, to: item.id, type: relationCategory(relation.type), label: relationLabel(relation, canonicalRootId), evidence: relation.evidence?.basis })), [canonicalRootId, neighbors]);
+  const graphNodes = useMemo(() => {
+    if (traceMode) {
+      const nodeIds = connectionPath?.nodeIds || [canonicalRootId, canonicalTargetId].filter(Boolean);
+      return nodeIds.map((id, indexValue) => {
+        const item = index.nodes?.[id];
+        const relation = indexValue ? connectionPath?.relations?.[indexValue - 1] : null;
+        const priorId = indexValue ? nodeIds[indexValue - 1] : "";
+        return item ? { id: item.id, kind: item.type, label: short(item.label), meta: intelligenceTypeLabel(item.type), description: nodeDetail(item), primary: item.id === canonicalRootId, relation: relation ? relationLabel(relation, priorId) : "trace origin", data: { category: relation ? relationCategory(relation.type) : "root", direction: relation?.from === priorId ? "outbound" : "inbound", pathStep: indexValue } } : null;
+      }).filter(Boolean);
+    }
+    return [root, ...neighbors.map((item) => item.node)].filter(Boolean).map((item) => {
+      const related = neighbors.find((candidate) => candidate.node.id === item.id);
+      return { id: item.id, kind: item.type, label: short(item.label), meta: intelligenceTypeLabel(item.type), description: nodeDetail(item), primary: item.id === canonicalRootId, relation: related ? relationLabel(related.relation, canonicalRootId) : "graph root", data: { category: related ? relationCategory(related.relation.type) : "root", direction: related?.relation?.from === canonicalRootId ? "outbound" : "inbound" } };
+    });
+  }, [canonicalRootId, canonicalTargetId, connectionPath, index.nodes, neighbors, root, traceMode]);
+  const graphEdges = useMemo(() => {
+    if (traceMode) return (connectionPath?.relations || []).map((relation, indexValue) => ({ id: relation.id, from: connectionPath.nodeIds[indexValue], to: connectionPath.nodeIds[indexValue + 1], type: relationCategory(relation.type), label: relationLabel(relation, connectionPath.nodeIds[indexValue]), evidence: relation.evidence?.basis }));
+    return neighbors.map(({ node: item, relation }) => ({ id: relation.id, from: canonicalRootId, to: item.id, type: relationCategory(relation.type), label: relationLabel(relation, canonicalRootId), evidence: relation.evidence?.basis }));
+  }, [canonicalRootId, connectionPath, neighbors, traceMode]);
   const selected = index.nodes?.[selectedId] || root;
-  const selectedRelation = neighbors.find((item) => item.node.id === selected?.id)?.relation || null;
+  const selectedPathIndex = connectionPath?.nodeIds?.indexOf(selected?.id) ?? -1;
+  const selectedPathRelation = selectedPathIndex > 0 ? connectionPath.relations[selectedPathIndex - 1] : null;
+  const selectedPathOriginId = selectedPathIndex > 0 ? connectionPath.nodeIds[selectedPathIndex - 1] : canonicalRootId;
+  const selectedRelation = traceMode ? selectedPathRelation : neighbors.find((item) => item.node.id === selected?.id)?.relation || null;
+  const relationOriginId = traceMode ? selectedPathOriginId : canonicalRootId;
   const timelineCount = index.indices?.byEntity?.[selected?.id]?.timelineActivityIds?.length || 0;
   const rootTimelineCount = index.indices?.byEntity?.[canonicalRootId]?.timelineActivityIds?.length || 0;
   const selectedRoute = selected ? canonicalRoute(selected) : "";
   const selectNode = ({ nodeId }) => setSelectedId(nodeId);
   const selectEdge = ({ to }) => setSelectedId(to);
   const changeLens = (next) => { if (LENSES.has(next)) { setLens(next); setSelectedId(canonicalRootId); } };
-  const graphHeight = Math.max(520, Math.ceil(Math.max(1, neighbors.length) / 4) * 120);
+  const graphHeight = traceMode ? (compactTrace ? 620 : 480) : Math.max(520, Math.ceil(Math.max(1, neighbors.length) / 4) * 120);
+  const availableInLens = lens === "overview"
+    ? ["hierarchy", "work", "money", "program"].reduce((total, category) => total + coverage.neighborCounts[category], 0)
+    : lens === "hierarchy"
+      ? coverage.neighborCounts.hierarchy + coverage.neighborCounts.program
+      : lens === "organization"
+        ? coverage.neighborCounts.people + coverage.neighborCounts.places
+        : coverage.neighborCounts[lens] || 0;
 
   if (!root) return null;
-  return <section className="linked-intelligence" data-linked-intelligence-graph data-root-type={root.type} data-root-id={canonicalRootId} data-lens={lens}>
+  return <section className="linked-intelligence" data-linked-intelligence-graph data-root-type={root.type} data-root-id={canonicalRootId} data-lens={traceMode ? "connection" : lens} data-graph-mode={traceMode ? "connection" : "neighborhood"} data-path-orientation={traceMode ? (compactTrace ? "vertical" : "horizontal") : undefined} data-connection-hops={connectionPath?.hops ?? "none"}>
     <header className="linked-intelligence__header">
-      <div><small>Linked intelligence</small><strong>{neighbors.length} visible relationships</strong><span>{rootTimelineCount.toLocaleString()} Timeline records in this reviewed scope</span></div>
-      <ControlTabs className="linked-intelligence__lenses" ariaLabel="Choose relationship lens" activeId={lens} onSelect={changeLens} items={LENS_ITEMS} />
+      {traceMode ? <div><small>Connection trace</small><strong>{connectionPath ? `${connectionPath.hops} evidence-backed ${connectionPath.hops === 1 ? "step" : "steps"}` : "No retained path within four steps"}</strong><span>{root.label} → {target.label}</span></div> : <div><small>Linked intelligence</small><strong>{neighbors.length} of {availableInLens.toLocaleString()} linked entities shown</strong><span>{coverage.relationships.toLocaleString()} retained relationships · {rootTimelineCount.toLocaleString()} Timeline records</span></div>}
+      {!traceMode ? <ControlTabs className="linked-intelligence__lenses" ariaLabel="Choose relationship lens" activeId={lens} onSelect={changeLens} items={lensItems(coverage)} /> : null}
     </header>
     <ControlGraph
       className="linked-intelligence__graph"
       style={{ "--linked-intelligence-height": `${graphHeight}px` }}
       nodes={graphNodes}
       edges={graphEdges}
-      selected={selected?.id}
-      layout="linked-lanes"
-      layoutEngine={linkedLayout}
-      layoutOptions={{ deconflictPasses: 24, deconflictStrength: 0.82 }}
+      selected={traceMode ? null : selected?.id}
+      layout={traceMode ? (compactTrace ? "linked-path-vertical" : "linked-path-horizontal") : "linked-lanes"}
+      layoutEngine={traceMode ? (compactTrace ? compactPathLayout : pathLayout) : linkedLayout}
+      layoutOptions={traceMode ? { deconflictPasses: 18, deconflictStrength: 0.72 } : { deconflictPasses: 24, deconflictStrength: 0.82 }}
       nodeTypes={NODE_TYPES}
       panelMode="external"
       a11yMode="screenreader"
       edgeLabelMode="pill"
       canvasLabel="Linked intelligence graph"
       a11yLabel="Linked intelligence relationship index"
-      emptyLabel="No retained relationships in this lens"
+      emptyLabel={traceMode ? "No retained connection within four evidence-backed steps" : "No retained relationships in this lens"}
       onNodeSelect={selectNode}
       onEdgeSelect={selectEdge}
       data-linked-graph-canvas
       data-node-count={graphNodes.length}
     />
+    {traceMode ? <section className="linked-intelligence__path" aria-label="Connection evidence path" data-connection-path>
+      {connectionPath ? <ol>{connectionPath.relations.map((relation, indexValue) => {
+        const from = index.nodes[connectionPath.nodeIds[indexValue]];
+        const to = index.nodes[connectionPath.nodeIds[indexValue + 1]];
+        return <li key={relation.id} data-connection-step>
+          <span className="linked-intelligence__path-index">{indexValue + 1}</span>
+          <div><strong>{from.label}</strong><span>{relationLabel(relation, from.id)}</span><strong>{to.label}</strong></div>
+          <div className="linked-intelligence__path-evidence"><ControlStatusBadge category="evidence" status={relation.evidence?.confidence || "source_declared"}>{compactRelationship(relation.evidence?.confidence)}</ControlStatusBadge><span>{compactRelationship(relation.evidence?.basis)} · {compactRelationship(relation.evidence?.reviewState)}</span>{relation.evidence?.sourceUrl ? <a href={relation.evidence.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Open source for step ${indexValue + 1}`}><ExternalLink size={13} />Source</a> : null}</div>
+        </li>;
+      })}</ol> : <div className="linked-intelligence__path-empty"><strong>No retained connection found</strong><span>Try a different target. The trace stops after four evidence-backed steps and never invents missing links.</span></div>}
+    </section> : null}
     <article className="linked-intelligence__inspector" data-linked-graph-inspector>
       <div className="linked-intelligence__identity"><small>{intelligenceTypeLabel(selected.type)}</small><strong>{selected.label}</strong><span>{nodeDetail(selected)}</span></div>
-      {selectedRelation ? <div className="linked-intelligence__evidence"><ControlStatusBadge category="evidence" status={selectedRelation.evidence?.confidence || "source_declared"}>{compact(selectedRelation.evidence?.confidence)}</ControlStatusBadge><span><strong>{relationLabel(selectedRelation, canonicalRootId)}</strong> · {compact(selectedRelation.evidence?.basis)} · {compact(selectedRelation.evidence?.reviewState)}</span>{selectedRelation.validity?.status ? <em>{compact(selectedRelation.validity.status)} · review by {selectedRelation.validity.reviewBy || "not scheduled"}</em> : null}</div> : <p>This entity anchors the visible, bounded relationship neighborhood. Switch lenses to change the relationship class without changing the root.</p>}
+      {selectedRelation ? <div className="linked-intelligence__evidence"><ControlStatusBadge category="evidence" status={selectedRelation.evidence?.confidence || "source_declared"}>{compactRelationship(selectedRelation.evidence?.confidence)}</ControlStatusBadge><span><strong>{relationLabel(selectedRelation, relationOriginId)}</strong> · {compactRelationship(selectedRelation.evidence?.basis)} · {compactRelationship(selectedRelation.evidence?.reviewState)}</span>{selectedRelation.validity?.status ? <em>{compactRelationship(selectedRelation.validity.status)} · review by {selectedRelation.validity.reviewBy || "not scheduled"}</em> : null}</div> : <p>{traceMode ? "The trace prefers the fewest retained steps, then stronger evidence and less ambiguous intermediate hubs." : "This entity anchors the visible, bounded relationship neighborhood. Switch lenses to change the relationship class without changing the root."}</p>}
       <nav className="if-button-group" aria-label="Selected linked entity actions">
         {selected.id !== canonicalRootId && ROOTABLE_TYPES.has(selected.type) ? <button type="button" className="if-btn if-btn--primary" onClick={() => onRootChange(selected)}><Network size={15} />Explore from here</button> : null}
         {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small>{timelineCount.toLocaleString()}</small></a> : null}
@@ -238,6 +285,6 @@ export default function LinkedIntelligenceGraph({ index, rootId, onRootChange })
         {selected.id !== canonicalRootId ? <button type="button" className="if-btn if-btn--secondary" onClick={() => setSelectedId(canonicalRootId)}><RotateCcw size={15} />Reset</button> : null}
       </nav>
     </article>
-    <footer><span>Only retained relationships are shown. Reviewed command hierarchy is visually and semantically distinct from source-declared acquisition taxonomy.</span><span>{index.metadata?.asOf ? `Evidence as of ${index.metadata.asOf}` : ""}</span></footer>
+    <footer><span>{traceMode ? "Connection traces use only retained relationships and stop after four steps. Each step exposes its evidence basis." : "Only retained relationships are shown. Reviewed command hierarchy is visually and semantically distinct from source-declared acquisition taxonomy."}</span><span>{index.metadata?.asOf ? `Evidence as of ${index.metadata.asOf}` : ""}</span></footer>
   </section>;
 }
