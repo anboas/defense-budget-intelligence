@@ -1035,6 +1035,24 @@ for (const connection of Object.values(byActivity)) {
   };
 }
 
+const reviewedHierarchyRelationships = [
+  ...(reviewedOrganizationHierarchy.relationships || []),
+  ...(reviewedOrganizationHierarchy.hierarchyGroups || []).flatMap((group) => (group.children || []).map((child) => ({
+    child,
+    parent: group.parent,
+    basis: group.basis,
+    relationshipClass: group.relationshipClass,
+    sourceUrl: group.sourceUrl,
+    evidenceSummary: group.evidenceSummary,
+    effectiveFrom: group.effectiveFrom || null,
+    effectiveTo: group.effectiveTo || null,
+  }))),
+];
+const reviewedSourceByKey = new Map();
+for (const item of reviewedHierarchyRelationships) {
+  if (!reviewedSourceByKey.has(item.child)) reviewedSourceByKey.set(item.child, item.sourceUrl);
+  if (!reviewedSourceByKey.has(item.parent)) reviewedSourceByKey.set(item.parent, item.sourceUrl);
+}
 const reviewedOrganizationIdByKey = new Map();
 const canonicalOrganizationByEntityId = new Map();
 for (const item of reviewedOrganizationHierarchy.organizations || []) {
@@ -1044,12 +1062,20 @@ for (const item of reviewedOrganizationHierarchy.organizations || []) {
   const entity = entities.organization.find((candidate) => candidate.id === id);
   if (entity) {
     entity.kind = item.kind;
+    entity.legalName = item.legalName || item.label;
+    entity.tier = item.tier || item.kind;
+    entity.family = item.family || "unclassified";
+    entity.status = item.status || "current";
+    entity.effectiveFrom = item.effectiveFrom || null;
+    entity.effectiveTo = item.effectiveTo || null;
+    entity.summary = item.summary || "";
     entity.reviewState = "reviewed";
-    entity.hierarchySourceUrl = item.sourceUrl;
+    entity.hierarchySourceUrl = item.sourceUrl || reviewedSourceByKey.get(item.key) || "";
     entity.aliases = [...new Set([...(entity.aliases || []), ...(item.aliases || [])])];
   }
-  const sourceId = source(item.sourceUrl, "reviewed-organization-hierarchy", `${item.label} official organization page`);
-  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("reviewed-organization-hierarchy", "official-organization-page", "reviewed", item.sourceUrl, "reviewed"));
+  const sourceUrl = item.sourceUrl || reviewedSourceByKey.get(item.key) || "";
+  const sourceId = source(sourceUrl, "reviewed-organization-hierarchy", `${item.label} official organization page`);
+  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("reviewed-organization-hierarchy", "official-organization-page", "reviewed", sourceUrl, "reviewed"));
 }
 for (const item of reviewedOrganizationHierarchy.organizations || []) {
   const canonicalId = reviewedOrganizationIdByKey.get(item.key);
@@ -1060,10 +1086,16 @@ for (const item of reviewedOrganizationHierarchy.organizations || []) {
     addRelation("organization-equivalent-to", candidate.id, canonicalId, evidence("reviewed-organization-hierarchy", "reviewed-official-alias", "reviewed", item.sourceUrl, "reviewed"));
   }
 }
-for (const item of reviewedOrganizationHierarchy.relationships || []) {
+for (const item of reviewedHierarchyRelationships) {
   const childId = reviewedOrganizationIdByKey.get(item.child);
   const parentId = reviewedOrganizationIdByKey.get(item.parent);
-  addRelation("organization-part-of", childId, parentId, evidence("reviewed-organization-hierarchy", item.basis, "reviewed", item.sourceUrl, "reviewed"), { hierarchy: "command", evidenceSummary: item.evidenceSummary });
+  addRelation("organization-part-of", childId, parentId, evidence("reviewed-organization-hierarchy", item.basis, "reviewed", item.sourceUrl, "reviewed"), {
+    hierarchy: "command",
+    relationshipClass: item.relationshipClass || "component",
+    evidenceSummary: item.evidenceSummary,
+    effectiveFrom: item.effectiveFrom || null,
+    effectiveTo: item.effectiveTo || null,
+  });
 }
 for (const item of reviewedOrganizationHierarchy.offices || []) {
   const office = entities.organization.find((candidate) => normalized(candidate.label) === normalized(item.label));
@@ -1848,7 +1880,7 @@ function compactLinkedEntity(type, item) {
   const base = { id: item.id, type, label: rawLabel.length > 160 ? `${rawLabel.slice(0, 157)}…` : rawLabel };
   if (type === "activity") return { ...base, opportunityId: item.opportunityId, reference: item.reference, lifecycle: item.lifecycle, mode: item.mode };
   if (type === "award") return { ...base, piid: item.piid, recipient: item.recipient, obligatedAmount: Number(item.obligatedAmount || item.awardAmount || 0), endDate: item.endDate };
-  if (type === "organization") return { ...base, aliases: (item.aliases || []).slice(0, 6), kind: item.kind || item.identity?.class, identity: { method: item.identity?.method, resolutionState: item.identity?.resolutionState, identifiers: item.identity?.identifiers || {} }, reviewState: item.reviewState || item.identity?.resolutionState };
+  if (type === "organization") return { ...base, aliases: (item.aliases || []).slice(0, 8), legalName: item.legalName, kind: item.kind || item.identity?.class, tier: item.tier, family: item.family, status: item.status, effectiveFrom: item.effectiveFrom, effectiveTo: item.effectiveTo, summary: item.summary, hierarchySourceUrl: item.hierarchySourceUrl, identity: { method: item.identity?.method, resolutionState: item.identity?.resolutionState, identifiers: item.identity?.identifiers || {} }, reviewState: item.reviewState || item.identity?.resolutionState };
   if (type === "federal-account") return { ...base, federalAccountCode: item.federalAccountCode, bureauName: item.bureauName, obligatedAmount: Number(item.obligatedAmount || 0) };
   if (type === "defense-program") return { ...base, programKind: item.programKind, organization: item.organization, budgetLineCodes: (item.budgetLineCodes || []).slice(0, 4), reviewState: item.reviewState };
   if (type === "program-office") return { ...base, organization: item.organization, roleType: item.roleType, reviewState: item.reviewState };
@@ -1895,7 +1927,7 @@ for (const relation of relations) {
       sourceUrl: relation.evidence?.sourceUrl || "",
     },
     validity: { status: relation.validity?.status, effectiveFrom: relation.validity?.effectiveFrom, effectiveTo: relation.validity?.effectiveTo, reviewBy: relation.validity?.reviewBy },
-    ...(relation.attributes ? { attributes: Object.fromEntries(Object.entries(relation.attributes).filter(([key]) => ["role", "hierarchy", "evidenceSummary"].includes(key))) } : {}),
+    ...(relation.attributes ? { attributes: Object.fromEntries(Object.entries(relation.attributes).filter(([key]) => ["role", "hierarchy", "relationshipClass", "evidenceSummary", "effectiveFrom", "effectiveTo"].includes(key))) } : {}),
   });
 }
 const linkedByEntity = Object.fromEntries([...linkedNodeById.keys()].map((id) => [id, { relationIds: [], timelineActivityIds: [] }]));
@@ -1915,8 +1947,10 @@ for (const relation of linkedRelations) {
   if (relation.type === "award-funded-by-account") awardIdsByAccount.set(relation.to, [...(awardIdsByAccount.get(relation.to) || []), relation.from]);
 }
 const reviewedChildrenByOrganization = new Map();
+const reviewedParentsByOrganization = new Map();
 for (const relation of linkedRelations.filter((item) => item.type === "organization-part-of" && item.evidence.sourceArtifact === "reviewed-organization-hierarchy")) {
   reviewedChildrenByOrganization.set(relation.to, [...(reviewedChildrenByOrganization.get(relation.to) || []), relation.from]);
+  reviewedParentsByOrganization.set(relation.from, [...(reviewedParentsByOrganization.get(relation.from) || []), relation.to]);
 }
 function reviewedDescendants(rootId) {
   const found = new Set([rootId]);
@@ -1930,6 +1964,24 @@ function reviewedDescendants(rootId) {
   }
   return [...found];
 }
+function reviewedAncestors(rootId) {
+  const found = new Set();
+  const queue = [rootId];
+  while (queue.length) {
+    for (const parentId of reviewedParentsByOrganization.get(queue.shift()) || []) {
+      if (found.has(parentId)) continue;
+      found.add(parentId);
+      queue.push(parentId);
+    }
+  }
+  return [...found];
+}
+const awardIdsByActivity = new Map();
+const accountIdsByAward = new Map();
+for (const relation of linkedRelations) {
+  if (relation.type === "activity-awarded-as") awardIdsByActivity.set(relation.from, [...(awardIdsByActivity.get(relation.from) || []), relation.to]);
+  if (relation.type === "award-funded-by-account") accountIdsByAward.set(relation.from, [...(accountIdsByAward.get(relation.from) || []), relation.to]);
+}
 for (const node of linkedNodeById.values()) {
   let activityIds = [];
   if (node.type === "activity") activityIds = [node.id];
@@ -1937,10 +1989,30 @@ for (const node of linkedNodeById.values()) {
   else if (node.type === "federal-account") activityIds = (awardIdsByAccount.get(node.id) || []).flatMap((awardId) => activityIdsByAward.get(awardId) || []);
   else if (node.type === "organization") activityIds = reviewedDescendants(node.id).flatMap((organizationId) => directActivityIdsByOrganization.get(organizationId) || []);
   linkedByEntity[node.id].timelineActivityIds = [...new Set(activityIds.map((id) => opportunityIdByActivityId.get(id)).filter(Boolean))].sort();
+  if (node.type === "organization" && node.reviewState === "reviewed") {
+    const descendantIds = reviewedDescendants(node.id);
+    const directActivityIds = [...new Set(directActivityIdsByOrganization.get(node.id) || [])];
+    const subtreeActivityIds = [...new Set(descendantIds.flatMap((organizationId) => directActivityIdsByOrganization.get(organizationId) || []))];
+    const awardIds = [...new Set(subtreeActivityIds.flatMap((activityId) => awardIdsByActivity.get(activityId) || []))];
+    const accountIds = [...new Set(awardIds.flatMap((awardId) => accountIdsByAward.get(awardId) || []))];
+    linkedByEntity[node.id].hierarchy = {
+      parentIds: [...new Set(reviewedParentsByOrganization.get(node.id) || [])],
+      childIds: [...new Set(reviewedChildrenByOrganization.get(node.id) || [])],
+      ancestorIds: reviewedAncestors(node.id),
+      descendantIds: descendantIds.filter((id) => id !== node.id),
+    };
+    linkedByEntity[node.id].workSummary = {
+      directOpportunities: directActivityIds.length,
+      opportunities: subtreeActivityIds.length,
+      awards: awardIds.length,
+      accounts: accountIds.length,
+      obligatedAmount: awardIds.reduce((sum, awardId) => sum + Number(linkedNodeById.get(awardId)?.obligatedAmount || 0), 0),
+    };
+  }
 }
 for (const [aliasId, canonicalId] of canonicalOrganizationByEntityId) {
   if (aliasId === canonicalId || !linkedByEntity[canonicalId]) continue;
-  linkedByEntity[aliasId] = { canonicalId, relationIds: linkedByEntity[canonicalId].relationIds, timelineActivityIds: linkedByEntity[canonicalId].timelineActivityIds };
+  linkedByEntity[aliasId] = { canonicalId, relationIds: linkedByEntity[canonicalId].relationIds, timelineActivityIds: linkedByEntity[canonicalId].timelineActivityIds, hierarchy: linkedByEntity[canonicalId].hierarchy, workSummary: linkedByEntity[canonicalId].workSummary };
 }
 const linkedIntelligenceIndex = {
   metadata: {
@@ -1953,8 +2025,9 @@ const linkedIntelligenceIndex = {
     trustBoundary: "Reviewed command hierarchy remains distinct from raw acquisition-system organization paths. Every visible edge retains its source basis, confidence, review state, and temporal status. Timeline scope expands only through reviewed hierarchy relationships.",
     reviewedHierarchy: {
       organizations: reviewedOrganizationHierarchy.organizations.length,
-      relationships: reviewedOrganizationHierarchy.relationships.length,
+      relationships: reviewedHierarchyRelationships.length,
       offices: reviewedOrganizationHierarchy.offices.length,
+      coverageStatement: reviewedOrganizationHierarchy.metadata.coverageStatement,
     },
   },
   nodes: Object.fromEntries([...linkedNodeById.entries()]),

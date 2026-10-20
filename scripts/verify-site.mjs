@@ -38,6 +38,7 @@ const spendExplorerStyleBytes = styleAssets.find((asset) => /^SpendExplorer-.*\.
 const opportunityWorkbenchDetailStyleBytes = styleAssets.find((asset) => /^OpportunityWorkbenchDetail-.*\.css$/.test(asset.name))?.bytes || 0;
 const intelligenceGraphPageStyleBytes = styleAssets.find((asset) => /^IntelligenceGraphPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const linkedIntelligenceGraphStyleBytes = styleAssets.find((asset) => /^LinkedIntelligenceGraph-.*\.css$/.test(asset.name))?.bytes || 0;
+const organizationStructureControlsStyleBytes = styleAssets.find((asset) => /^OrganizationStructureControls-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
@@ -53,6 +54,7 @@ assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 13_000, `Laz
 assert.ok(opportunityWorkbenchDetailStyleBytes > 0 && opportunityWorkbenchDetailStyleBytes <= 5_000, `Deferred Workbench detail CSS must stay within its 5 KB component budget, got ${opportunityWorkbenchDetailStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceGraphPageStyleBytes > 0 && intelligenceGraphPageStyleBytes <= 1_200, `Lazy Intelligence Graph route CSS must stay within its 1.2 KB budget, got ${intelligenceGraphPageStyleBytes.toLocaleString()} bytes`);
 assert.ok(linkedIntelligenceGraphStyleBytes > 0 && linkedIntelligenceGraphStyleBytes <= 5_000, `Deferred linked graph CSS must stay within its 5 KB budget, got ${linkedIntelligenceGraphStyleBytes.toLocaleString()} bytes`);
+assert.ok(organizationStructureControlsStyleBytes > 0 && organizationStructureControlsStyleBytes <= 1_500, `Nested organization-structure controls CSS must stay within its 1.5 KB budget, got ${organizationStructureControlsStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
 assert.ok(compiledStyleBytes <= 471_200, `Total scoped CSS must stay below 471.2 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
@@ -2465,6 +2467,49 @@ try {
   await activityNeighbor.click();
   assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /Open workspace|Explore from here|Timeline/i, "Every selected graph entity should expose a meaningful handoff");
 
+  await openSurface(page, "#/budget-spend/intelligence-graph", "[data-intelligence-graph-page]");
+  await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="organization"][data-lens="structure"]');
+  assert.match(await page.locator(".intelligence-graph-page__root").innerText(), /Department of War[\s\S]*Reviewed/i, "Graph Explorer should default to the reviewed department root");
+  assert.equal(await page.locator("[data-organization-structure-controls]").count(), 1, "Reviewed organization roots should expose first-class drill-down controls");
+  assert.equal(await page.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "9", "The default two-level departments-and-services drill-down should show one root, three departments, and five services");
+  const departmentStructureText = await page.locator("[data-linked-intelligence-graph]").innerText();
+  assert.match(departmentStructureText, /Department of the Army[\s\S]*Department of the Navy[\s\S]*Department of the Air Force/i, "Department drill-down must expose all three military departments");
+  assert.match(departmentStructureText, /United States Army[\s\S]*United States Navy[\s\S]*United States Marine Corps[\s\S]*United States Air Force[\s\S]*United States Space Force/i, "Department drill-down must expose all five military services");
+  assert.match(departmentStructureText, /424 linked Timeline records/i, "Department drill-down must disclose its complete retained Timeline scope");
+  await page.waitForFunction(() => {
+    const graph = document.querySelector("[data-linked-graph-canvas]");
+    const nodes = [...(graph?.querySelectorAll(".if-graph-node") || [])].map((node) => node.getBoundingClientRect());
+    const overlaps = nodes.some((left, index) => nodes.slice(index + 1).some((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top));
+    return graph?.dataset.ifGraphLayoutState === "success" && nodes.length === 9 && !overlaps;
+  });
+  await chooseControlSelect(page, "Organization work overlay", "Awards");
+  assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /awards/i, "Work overlays should annotate hierarchy nodes with retained award counts");
+  await chooseControlSelect(page, "Organization component filter", "Joint & combatant");
+  assert.equal(await page.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "13", "Joint drill-down should show the department root, Joint Chiefs, and all eleven combatant commands");
+  assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /United States Cyber Command[\s\S]*United States Indo-Pacific Command[\s\S]*United States Special Operations Command/i, "Joint drill-down must retain the reviewed combatant-command inventory");
+  await chooseControlSelect(page, "Organization component filter", "Commands & components");
+  await chooseControlSelect(page, "Hierarchy depth", "All reviewed");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /orgDepth=all[\s\S]*orgGroup=commands|orgGroup=commands[\s\S]*orgDepth=all/i, "Organization drill-down filters should remain shareable in the route");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /orgOverlay=awards/i, "Organization work overlays should remain shareable in the route");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector('[data-linked-intelligence-graph][data-lens="structure"]');
+  assert.match(await page.getByRole("button", { name: /^Hierarchy depth:/i }).innerText(), /All reviewed/i, "Hierarchy depth should survive reload");
+  assert.match(await page.getByRole("button", { name: /^Organization component filter:/i }).innerText(), /Commands & components/i, "Component filters should survive reload");
+  assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /Naval Air Systems Command|Air Combat Command|Army Futures Command/i, "Command drill-down should expose reviewed major commands below their contextual ancestors");
+  await page.waitForFunction(() => {
+    const graph = document.querySelector("[data-linked-graph-canvas]");
+    const nodes = [...(graph?.querySelectorAll(".if-graph-node") || [])].map((node) => node.getBoundingClientRect());
+    const overlaps = nodes.some((left, index) => nodes.slice(index + 1).some((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top));
+    return graph?.dataset.ifGraphLayoutState === "success" && nodes.length > 20 && !overlaps;
+  });
+  const departmentNavyNode = page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-label="Department of the Navy"]');
+  if (await departmentNavyNode.count()) {
+    await departmentNavyNode.evaluate((node) => node.scrollIntoView({ block: "center", inline: "center" }));
+    await departmentNavyNode.click();
+    assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /175 opportunities[\s\S]*165 awards[\s\S]*19 accounts[\s\S]*Cited source/i, "Organization inspector should explain descendant work and retain the official hierarchy source");
+  }
+  assert.match(await page.locator("[data-linked-intelligence-graph] > footer").innerText(), /Omission does not imply/i, "Organization drill-down must disclose reviewed coverage gaps instead of implying completeness");
+
   await openSurface(page, "#/budget-spend/intelligence-graph?graphType=organization&graphLabel=Naval%20Air%20Systems%20Command", "[data-intelligence-graph-page]");
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="organization"]');
   assert.match(await page.locator(".intelligence-graph-page__root").innerText(), /Naval Air Systems Command[\s\S]*Reviewed/i, "Label-only dossier handoffs should resolve to the reviewed NAVAIR identity");
@@ -2903,6 +2948,12 @@ try {
   assert.equal(await mobile.locator("[data-connection-path] [data-connection-step]").count(), 3, "Mobile connection traces should retain every evidence step");
   await assertButtonIntegrity(mobile, "Mobile linked-intelligence trace", "[data-intelligence-graph-page]");
   await assertNoPageOverflow(mobile, "Mobile linked-intelligence trace");
+  await mobile.goto(`${BASE_URL}#/budget-spend/intelligence-graph`, { waitUntil: "domcontentloaded" });
+  await mobile.waitForSelector('[data-linked-intelligence-graph][data-lens="structure"]');
+  assert.equal(await mobile.locator("[data-organization-structure-controls]").count(), 1, "Mobile organization drill-down should retain every structural filter");
+  assert.equal(await mobile.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "9", "Mobile organization drill-down should retain the default departments-and-services structure");
+  await assertButtonIntegrity(mobile, "Mobile organization drill-down", "[data-intelligence-graph-page]");
+  await assertNoPageOverflow(mobile, "Mobile organization drill-down");
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });
   await mobile.waitForFunction(() => window.location.hash === "#/budget-spend/watchlist");
   await mobile.waitForSelector("[data-operations-hub]");
