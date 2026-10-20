@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, LINKED_INTELLIGENCE_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 import { findEvidencePath, relationLabel, summarizeRelationshipCoverage } from "../src/linked-intelligence-path.js";
+import { reviewedHierarchyPeers, reviewedHierarchyTrail } from "../src/reviewed-hierarchy-navigation.js";
 import { CONFLICT_STATUS_VALUES, TEMPORAL_EVIDENCE_SCHEMA_VERSION, TEMPORAL_STATUS_VALUES } from "./temporal-evidence-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -322,6 +323,8 @@ assert.ok(navairWorkIndex?.workHighlights?.subtree?.accountIds?.every((id) => li
 assert.ok(linkedHierarchy.some((relation) => relation.from === navair.id && relation.to === navy.id), "NAVAIR must retain its reviewed Department of the Navy parent");
 assert.ok(linkedHierarchy.some((relation) => relation.from === niwcPacific.id && relation.to === navwar.id), "NIWC Pacific must retain its reviewed NAVWAR parent");
 assert.ok(linkedHierarchy.some((relation) => relation.from === niwcAtlantic.id && relation.to === navwar.id), "NIWC Atlantic must retain its reviewed NAVWAR parent");
+assert.deepEqual(reviewedHierarchyTrail(linkedIntelligence, niwcPacific.id).map((node) => node.label), ["Department of War", "Department of the Navy", "Naval Information Warfare Systems Command", "Naval Information Warfare Center Pacific"], "Reviewed hierarchy navigation must expose the complete canonical path to NIWC Pacific");
+assert.deepEqual(reviewedHierarchyPeers(linkedIntelligence, niwcPacific.id).map((node) => node.label), ["Naval Information Warfare Center Atlantic", "NAVWAR Headquarters"], "Reviewed hierarchy navigation must expose NIWC Pacific's reviewed peer organizations");
 for (const [organization, minimum] of [[navy, 100], [navair, 20], [navwar, 5], [niwcPacific, 1], [niwcAtlantic, 1]]) {
   assert.ok((linkedIntelligence.indices?.byEntity?.[organization.id]?.timelineActivityIds || []).length >= minimum, `${organization.label} must retain a useful entity-scoped Timeline`);
 }
