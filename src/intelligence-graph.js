@@ -1,4 +1,5 @@
-export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.4.0";
+export const INTELLIGENCE_GRAPH_SCHEMA_VERSION = "2.5.0";
+export const LINKED_INTELLIGENCE_SCHEMA_VERSION = "1.0.0";
 export const CONTRACT_LINEAGE_SCHEMA_VERSION = "1.0.0";
 export const TEMPORAL_EVIDENCE_SCHEMA_VERSION = "1.0.0";
 export const MONEY_PATH_SCHEMA_VERSION = "1.0.0";
@@ -115,6 +116,7 @@ export const INTELLIGENCE_RELATION_TYPES = Object.freeze([
   "organization-located-at",
   "organization-operates-at-location",
   "organization-part-of",
+  "organization-equivalent-to",
   "organization-has-identifier",
   "transaction-recipient",
   "spending-observation-measures-entity",
@@ -227,6 +229,8 @@ let cachedTemporalEvidence = null;
 let pendingTemporalEvidence = null;
 let cachedMoneyPath = null;
 let pendingMoneyPath = null;
+let cachedLinkedIntelligence = null;
+let pendingLinkedIntelligence = null;
 
 export function emptyIntelligenceGraph() {
   return EMPTY_GRAPH;
@@ -250,6 +254,32 @@ export async function loadIntelligenceGraph() {
       .finally(() => { pending = null; });
   }
   return pending;
+}
+
+export async function loadLinkedIntelligence() {
+  if (cachedLinkedIntelligence) return cachedLinkedIntelligence;
+  if (!pendingLinkedIntelligence) {
+    pendingLinkedIntelligence = (async () => {
+      if (typeof DecompressionStream !== "undefined") {
+        const compressed = await fetch(`${import.meta.env.BASE_URL}data/linked-intelligence-index.json.gzip`);
+        if (compressed.ok && compressed.body) {
+          return new Response(compressed.body.pipeThrough(new DecompressionStream("gzip"))).json();
+        }
+      }
+      const response = await fetch(`${import.meta.env.BASE_URL}data/linked-intelligence-index.json`);
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json();
+    })()
+      .then((payload) => {
+        if (payload?.metadata?.schemaVersion !== LINKED_INTELLIGENCE_SCHEMA_VERSION) {
+          throw new Error(`Linked intelligence requires schema ${LINKED_INTELLIGENCE_SCHEMA_VERSION}`);
+        }
+        cachedLinkedIntelligence = payload;
+        return cachedLinkedIntelligence;
+      })
+      .finally(() => { pendingLinkedIntelligence = null; });
+  }
+  return pendingLinkedIntelligence;
 }
 
 export async function loadIntelligenceGraphSummary() {

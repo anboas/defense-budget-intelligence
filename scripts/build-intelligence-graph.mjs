@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
-import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, MONEY_PATH_SCHEMA_VERSION } from "../src/intelligence-graph.js";
+import { INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, LINKED_INTELLIGENCE_SCHEMA_VERSION, MONEY_PATH_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 import { buildContractLineageRegistry, CONTRACT_LINEAGE_SCHEMA_VERSION } from "./contract-lineage-resolver.mjs";
 import { buildOrganizationIdentityRegistry, splitOfficeCodes } from "./organization-identity-resolver.mjs";
 import { buildTemporalEvidenceRegistry } from "./temporal-evidence-resolver.mjs";
@@ -23,6 +23,8 @@ const TEMPORAL_EVIDENCE_REVIEW_FILE = resolve(DATA_DIR, "temporal-evidence-revie
 const MONEY_PATH_INDEX_FILE = resolve(DATA_DIR, "money-path-index.json");
 const STRATEGY_SPEND_INDEX_FILE = resolve(DATA_DIR, "strategy-spend-index.json");
 const INTELLIGENCE_SEARCH_INDEX_FILE = resolve(DATA_DIR, "intelligence-search-index.json");
+const LINKED_INTELLIGENCE_INDEX_FILE = resolve(DATA_DIR, "linked-intelligence-index.json");
+const LINKED_INTELLIGENCE_INDEX_GZIP_FILE = resolve(DATA_DIR, "linked-intelligence-index.json.gzip");
 const AGENT_GRAPH_DIR = resolve(DATA_DIR, "agent-graph");
 const read = (name) => JSON.parse(readFileSync(resolve(DATA_DIR, name), "utf8"));
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex").slice(0, 20);
@@ -48,6 +50,7 @@ const programIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/prog
 const roadmapIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
 const organizationIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/organization-intelligence.json"), "utf8"));
 const organizationChangeMonitor = JSON.parse(readFileSync(resolve(ROOT, "src/data/organization-change-monitor.json"), "utf8"));
+const reviewedOrganizationHierarchy = JSON.parse(readFileSync(resolve(ROOT, "src/data/reviewed-organization-hierarchy.json"), "utf8"));
 const map = read("opportunity-map-data.json");
 const locationMetadata = read("opportunity-map-location-metadata.json");
 const monitor = read("contract-monitor.json");
@@ -1032,6 +1035,43 @@ for (const connection of Object.values(byActivity)) {
   };
 }
 
+const reviewedOrganizationIdByKey = new Map();
+const canonicalOrganizationByEntityId = new Map();
+for (const item of reviewedOrganizationHierarchy.organizations || []) {
+  const id = organization(item.label, "reviewed-organization-hierarchy", {}, { identityClass: "government" });
+  reviewedOrganizationIdByKey.set(item.key, id);
+  canonicalOrganizationByEntityId.set(id, id);
+  const entity = entities.organization.find((candidate) => candidate.id === id);
+  if (entity) {
+    entity.kind = item.kind;
+    entity.reviewState = "reviewed";
+    entity.hierarchySourceUrl = item.sourceUrl;
+    entity.aliases = [...new Set([...(entity.aliases || []), ...(item.aliases || [])])];
+  }
+  const sourceId = source(item.sourceUrl, "reviewed-organization-hierarchy", `${item.label} official organization page`);
+  if (sourceId) addRelation("supported-by-source", id, sourceId, evidence("reviewed-organization-hierarchy", "official-organization-page", "reviewed", item.sourceUrl, "reviewed"));
+}
+for (const item of reviewedOrganizationHierarchy.organizations || []) {
+  const canonicalId = reviewedOrganizationIdByKey.get(item.key);
+  const names = new Set([item.label, ...(item.aliases || [])].map(normalized));
+  for (const candidate of entities.organization.filter((entity) => names.has(normalized(entity.label)) || (entity.aliases || []).some((alias) => names.has(normalized(alias))))) {
+    canonicalOrganizationByEntityId.set(candidate.id, canonicalId);
+    if (candidate.id === canonicalId) continue;
+    addRelation("organization-equivalent-to", candidate.id, canonicalId, evidence("reviewed-organization-hierarchy", "reviewed-official-alias", "reviewed", item.sourceUrl, "reviewed"));
+  }
+}
+for (const item of reviewedOrganizationHierarchy.relationships || []) {
+  const childId = reviewedOrganizationIdByKey.get(item.child);
+  const parentId = reviewedOrganizationIdByKey.get(item.parent);
+  addRelation("organization-part-of", childId, parentId, evidence("reviewed-organization-hierarchy", item.basis, "reviewed", item.sourceUrl, "reviewed"), { hierarchy: "command", evidenceSummary: item.evidenceSummary });
+}
+for (const item of reviewedOrganizationHierarchy.offices || []) {
+  const office = entities.organization.find((candidate) => normalized(candidate.label) === normalized(item.label));
+  const parentId = reviewedOrganizationIdByKey.get(item.parent);
+  if (!office || !parentId) continue;
+  addRelation("organization-part-of", office.id, parentId, evidence("reviewed-organization-hierarchy", "reviewed-contracting-office", "reviewed", item.sourceUrl, "reviewed"), { hierarchy: "contracting-office" });
+}
+
 for (const item of entities.organization) item.aliases.sort((left, right) => left.localeCompare(right));
 const organizationCoverage = {
   total: entities.organization.length,
@@ -1761,6 +1801,7 @@ const intelligenceSearchIndex = {
   items: SEARCHABLE_ENTITY_TYPES.flatMap((type) => entities[type].map((item) => ({
     id: type === "activity" ? item.opportunityId : item.id,
     graphId: item.id,
+    ...(type === "organization" && canonicalOrganizationByEntityId.get(item.id) && canonicalOrganizationByEntityId.get(item.id) !== item.id ? { canonicalGraphId: canonicalOrganizationByEntityId.get(item.id) } : {}),
     entityType: type,
     label: searchLabel(type, item),
     facts: searchFacts(type, item).filter((value) => value !== undefined && value !== null && value !== "").slice(0, 5),
@@ -1768,6 +1809,160 @@ const intelligenceSearchIndex = {
   }))),
 };
 writeFileSync(INTELLIGENCE_SEARCH_INDEX_FILE, JSON.stringify(intelligenceSearchIndex));
+
+const LINKED_NODE_TYPES = new Set([
+  "activity",
+  "award",
+  "organization",
+  "federal-account",
+  "defense-program",
+  "program-office",
+  "official-role",
+  "person",
+  "location",
+  "contract-vehicle",
+]);
+const LINKED_RELATION_TYPES = new Set([
+  "organization-part-of",
+  "organization-equivalent-to",
+  "activity-awarded-as",
+  "activity-recipient",
+  "activity-contracting-organization",
+  "activity-funding-organization",
+  "activity-ordered-under-vehicle",
+  "award-recipient",
+  "award-awarding-organization",
+  "award-funding-organization",
+  "award-funded-by-account",
+  "organization-located-at",
+  "organization-operates-at-location",
+  "contracting-activity-at",
+  "funding-activity-at",
+  "defense-program-owned-by-program-office",
+  "program-office-part-of-organization",
+  "official-role-at-organization",
+  "person-holds-official-role",
+]);
+function compactLinkedEntity(type, item) {
+  const rawLabel = String(searchLabel(type, item) || item.id);
+  const base = { id: item.id, type, label: rawLabel.length > 160 ? `${rawLabel.slice(0, 157)}…` : rawLabel };
+  if (type === "activity") return { ...base, opportunityId: item.opportunityId, reference: item.reference, lifecycle: item.lifecycle, mode: item.mode };
+  if (type === "award") return { ...base, piid: item.piid, recipient: item.recipient, obligatedAmount: Number(item.obligatedAmount || item.awardAmount || 0), endDate: item.endDate };
+  if (type === "organization") return { ...base, aliases: (item.aliases || []).slice(0, 6), kind: item.kind || item.identity?.class, identity: { method: item.identity?.method, resolutionState: item.identity?.resolutionState, identifiers: item.identity?.identifiers || {} }, reviewState: item.reviewState || item.identity?.resolutionState };
+  if (type === "federal-account") return { ...base, federalAccountCode: item.federalAccountCode, bureauName: item.bureauName, obligatedAmount: Number(item.obligatedAmount || 0) };
+  if (type === "defense-program") return { ...base, programKind: item.programKind, organization: item.organization, budgetLineCodes: (item.budgetLineCodes || []).slice(0, 4), reviewState: item.reviewState };
+  if (type === "program-office") return { ...base, organization: item.organization, roleType: item.roleType, reviewState: item.reviewState };
+  if (type === "official-role") return { ...base, title: item.title, organizationName: item.organizationName, status: item.status, effectiveFrom: item.effectiveFrom, effectiveTo: item.effectiveTo, reviewState: item.reviewState };
+  if (type === "person") return base;
+  if (type === "location") return { ...base, sourceId: item.sourceId, city: item.city, state: item.state, kind: item.kind, branch: item.branch };
+  if (type === "contract-vehicle") return { ...base, piid: item.piid, kind: item.kind, orderCount: item.orderCount };
+  return base;
+}
+const linkedEntityTypeById = new Map(Object.entries(entities).flatMap(([type, rows]) => rows.map((item) => [item.id, type])));
+const linkedNodeById = new Map();
+for (const [type, rows] of Object.entries(entities)) {
+  if (!LINKED_NODE_TYPES.has(type)) continue;
+  for (const item of rows) {
+    const canonicalId = type === "organization" ? canonicalOrganizationByEntityId.get(item.id) || item.id : item.id;
+    if (canonicalId !== item.id) continue;
+    linkedNodeById.set(item.id, compactLinkedEntity(type, item));
+  }
+}
+const linkedRelationKeys = new Set();
+const linkedRelations = [];
+for (const relation of relations) {
+  if (!LINKED_RELATION_TYPES.has(relation.type)) continue;
+  if (relation.type === "organization-part-of" && relation.evidence?.sourceArtifact !== "reviewed-organization-hierarchy") continue;
+  const fromType = linkedEntityTypeById.get(relation.from);
+  const toType = linkedEntityTypeById.get(relation.to);
+  if (!LINKED_NODE_TYPES.has(fromType) || !LINKED_NODE_TYPES.has(toType)) continue;
+  const from = fromType === "organization" ? canonicalOrganizationByEntityId.get(relation.from) || relation.from : relation.from;
+  const to = toType === "organization" ? canonicalOrganizationByEntityId.get(relation.to) || relation.to : relation.to;
+  if (from === to || !linkedNodeById.has(from) || !linkedNodeById.has(to)) continue;
+  const key = `${relation.type}|${from}|${to}|${relation.attributes?.role || ""}|${relation.attributes?.hierarchy || ""}`;
+  if (linkedRelationKeys.has(key)) continue;
+  linkedRelationKeys.add(key);
+  linkedRelations.push({
+    id: `linked:${hash(key)}`,
+    type: relation.type,
+    from,
+    to,
+    evidence: {
+      basis: relation.evidence?.basis,
+      confidence: relation.evidence?.confidence,
+      reviewState: relation.evidence?.reviewState,
+      sourceArtifact: relation.evidence?.sourceArtifact,
+      sourceUrl: relation.evidence?.sourceUrl || "",
+    },
+    validity: { status: relation.validity?.status, effectiveFrom: relation.validity?.effectiveFrom, effectiveTo: relation.validity?.effectiveTo, reviewBy: relation.validity?.reviewBy },
+    ...(relation.attributes ? { attributes: Object.fromEntries(Object.entries(relation.attributes).filter(([key]) => ["role", "hierarchy", "evidenceSummary"].includes(key))) } : {}),
+  });
+}
+const linkedByEntity = Object.fromEntries([...linkedNodeById.keys()].map((id) => [id, { relationIds: [], timelineActivityIds: [] }]));
+for (const [index, relation] of linkedRelations.entries()) {
+  linkedByEntity[relation.from]?.relationIds.push(index);
+  linkedByEntity[relation.to]?.relationIds.push(index);
+}
+const opportunityIdByActivityId = new Map(entities.activity.map((item) => [item.id, item.opportunityId]));
+const directActivityIdsByOrganization = new Map();
+const activityIdsByAward = new Map();
+const awardIdsByAccount = new Map();
+for (const relation of linkedRelations) {
+  if (["activity-contracting-organization", "activity-funding-organization"].includes(relation.type)) {
+    directActivityIdsByOrganization.set(relation.to, [...(directActivityIdsByOrganization.get(relation.to) || []), relation.from]);
+  }
+  if (relation.type === "activity-awarded-as") activityIdsByAward.set(relation.to, [...(activityIdsByAward.get(relation.to) || []), relation.from]);
+  if (relation.type === "award-funded-by-account") awardIdsByAccount.set(relation.to, [...(awardIdsByAccount.get(relation.to) || []), relation.from]);
+}
+const reviewedChildrenByOrganization = new Map();
+for (const relation of linkedRelations.filter((item) => item.type === "organization-part-of" && item.evidence.sourceArtifact === "reviewed-organization-hierarchy")) {
+  reviewedChildrenByOrganization.set(relation.to, [...(reviewedChildrenByOrganization.get(relation.to) || []), relation.from]);
+}
+function reviewedDescendants(rootId) {
+  const found = new Set([rootId]);
+  const queue = [rootId];
+  while (queue.length) {
+    for (const childId of reviewedChildrenByOrganization.get(queue.shift()) || []) {
+      if (found.has(childId)) continue;
+      found.add(childId);
+      queue.push(childId);
+    }
+  }
+  return [...found];
+}
+for (const node of linkedNodeById.values()) {
+  let activityIds = [];
+  if (node.type === "activity") activityIds = [node.id];
+  else if (node.type === "award") activityIds = activityIdsByAward.get(node.id) || [];
+  else if (node.type === "federal-account") activityIds = (awardIdsByAccount.get(node.id) || []).flatMap((awardId) => activityIdsByAward.get(awardId) || []);
+  else if (node.type === "organization") activityIds = reviewedDescendants(node.id).flatMap((organizationId) => directActivityIdsByOrganization.get(organizationId) || []);
+  linkedByEntity[node.id].timelineActivityIds = [...new Set(activityIds.map((id) => opportunityIdByActivityId.get(id)).filter(Boolean))].sort();
+}
+for (const [aliasId, canonicalId] of canonicalOrganizationByEntityId) {
+  if (aliasId === canonicalId || !linkedByEntity[canonicalId]) continue;
+  linkedByEntity[aliasId] = { canonicalId, relationIds: linkedByEntity[canonicalId].relationIds, timelineActivityIds: linkedByEntity[canonicalId].timelineActivityIds };
+}
+const linkedIntelligenceIndex = {
+  metadata: {
+    schemaVersion: LINKED_INTELLIGENCE_SCHEMA_VERSION,
+    graphSchemaVersion: INTELLIGENCE_GRAPH_SCHEMA_VERSION,
+    generatedAt: graph.metadata.generatedAt,
+    asOf: graph.metadata.asOf,
+    title: "Bounded linked intelligence browser index",
+    rootTypes: ["organization", "federal-account", "defense-program", "program-office", "activity", "award"],
+    trustBoundary: "Reviewed command hierarchy remains distinct from raw acquisition-system organization paths. Every visible edge retains its source basis, confidence, review state, and temporal status. Timeline scope expands only through reviewed hierarchy relationships.",
+    reviewedHierarchy: {
+      organizations: reviewedOrganizationHierarchy.organizations.length,
+      relationships: reviewedOrganizationHierarchy.relationships.length,
+      offices: reviewedOrganizationHierarchy.offices.length,
+    },
+  },
+  nodes: Object.fromEntries([...linkedNodeById.entries()]),
+  relations: linkedRelations,
+  indices: { byEntity: linkedByEntity },
+};
+writeFileSync(LINKED_INTELLIGENCE_INDEX_FILE, JSON.stringify(linkedIntelligenceIndex));
+writeFileSync(LINKED_INTELLIGENCE_INDEX_GZIP_FILE, gzipSync(JSON.stringify(linkedIntelligenceIndex), { level: 9 }));
 
 const entityTypeById = new Map(Object.entries(entities).flatMap(([type, rows]) => rows.map((row) => [row.id, type])));
 const relationShards = Object.fromEntries(INTELLIGENCE_ENTITY_TYPES.map((type) => [type, []]));
@@ -1821,4 +2016,4 @@ const agentGraphBytes = Object.values(agentGraphManifest.entityTypes).reduce((to
   + readFileSync(resolve(ROOT, `public${item.entityPath}`)).byteLength
   + item.relationPaths.reduce((sum, path) => sum + readFileSync(resolve(ROOT, `public${path}`)).byteLength, 0), readFileSync(resolve(AGENT_GRAPH_DIR, "manifest.json")).byteLength);
 
-console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, searchIndex: INTELLIGENCE_SEARCH_INDEX_FILE, searchIndexBytes: readFileSync(INTELLIGENCE_SEARCH_INDEX_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, agentGraphDirectory: AGENT_GRAPH_DIR, agentGraphBytes, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));
+console.log(JSON.stringify({ output: OUT_FILE, bytes: readFileSync(OUT_FILE).byteLength, compressedOutput: OUT_GZIP_FILE, compressedBytes: readFileSync(OUT_GZIP_FILE).byteLength, index: INDEX_FILE, indexBytes: readFileSync(INDEX_FILE).byteLength, searchIndex: INTELLIGENCE_SEARCH_INDEX_FILE, searchIndexBytes: readFileSync(INTELLIGENCE_SEARCH_INDEX_FILE).byteLength, linkedIntelligenceIndex: LINKED_INTELLIGENCE_INDEX_FILE, linkedIntelligenceIndexBytes: readFileSync(LINKED_INTELLIGENCE_INDEX_FILE).byteLength, linkedIntelligenceIndexGzip: LINKED_INTELLIGENCE_INDEX_GZIP_FILE, linkedIntelligenceIndexGzipBytes: readFileSync(LINKED_INTELLIGENCE_INDEX_GZIP_FILE).byteLength, contractLineageIndex: CONTRACT_LINEAGE_INDEX_FILE, contractLineageIndexBytes: readFileSync(CONTRACT_LINEAGE_INDEX_FILE).byteLength, temporalEvidenceIndex: TEMPORAL_EVIDENCE_INDEX_FILE, temporalEvidenceIndexBytes: readFileSync(TEMPORAL_EVIDENCE_INDEX_FILE).byteLength, summary: SUMMARY_FILE, summaryBytes: readFileSync(SUMMARY_FILE).byteLength, agentGraphDirectory: AGENT_GRAPH_DIR, agentGraphBytes, organizationReview: ORGANIZATION_REVIEW_FILE, organizationReviewBytes: readFileSync(ORGANIZATION_REVIEW_FILE).byteLength, contractLineageReview: CONTRACT_LINEAGE_REVIEW_FILE, contractLineageReviewBytes: readFileSync(CONTRACT_LINEAGE_REVIEW_FILE).byteLength, temporalEvidenceReview: TEMPORAL_EVIDENCE_REVIEW_FILE, temporalEvidenceReviewBytes: readFileSync(TEMPORAL_EVIDENCE_REVIEW_FILE).byteLength, metadata: graph.metadata }, null, 2));

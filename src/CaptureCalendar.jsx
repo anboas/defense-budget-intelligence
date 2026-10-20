@@ -33,7 +33,8 @@ import { analysisCanvasStyle, analysisContextStyle, analysisDrawerBodyStyle, ana
 import { useAuth } from "./AuthContext.jsx";
 import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
 import { useTimelineRuntimeRecords } from "./timeline-runtime-records.js";
-import { opportunityRoute } from "./cross-surface-routes.js";
+import { intelligenceGraphRoute, opportunityRoute } from "./cross-surface-routes.js";
+import { loadLinkedIntelligence } from "./intelligence-graph.js";
 import TimelineGroupDisclosure, { useTimelineGroupDisclosure } from "./TimelineGroupDisclosure.jsx";
 import { TIMELINE_CATEGORICAL_LAYER_IDS, TIMELINE_LAYER_OPTIONS, TimelineLayerControl, TimelineLegend } from "./TimelineEvidenceControls.jsx";
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
@@ -1016,7 +1017,9 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [ganttToolsOpen, setGanttToolsOpen] = useState(false);
   const [timelineExpanded, setTimelineExpanded] = useState(false);
-  const [timelineScope, setTimelineScopeState] = useState(() => { const routed = new URLSearchParams(window.location.hash.split("?")[1] || "").get("timelineScope"); return ["tracked", "all"].includes(routed) ? routed : defaultScope; });
+  const timelineEntity = useMemo(() => { const params = new URLSearchParams(window.location.hash.split("?")[1] || ""); return { id: params.get("timelineEntityId") || "", type: params.get("timelineEntityType") || "", label: params.get("timelineEntityLabel") || "" }; }, []);
+  const [entityScopeState, setEntityScopeState] = useState({ status: timelineEntity.id ? "loading" : "idle", activityIds: new Set() });
+  const [timelineScope, setTimelineScopeState] = useState(() => { const routed = new URLSearchParams(window.location.hash.split("?")[1] || "").get("timelineScope"); return ["tracked", "all", "entity"].includes(routed) && (routed !== "entity" || timelineEntity.id) ? routed : defaultScope; });
   const [mergeMode, setMergeMode] = useState(() => new URLSearchParams(window.location.hash.split("?")[1] || "").get("capLink") === "1");
   const [mergeSelectedIds, setMergeSelectedIds] = useState(() => { const params = new URLSearchParams(window.location.hash.split("?")[1] || ""); const seed = params.get("capSeed"); return params.get("capLink") === "1" && seed ? new Set([seed]) : new Set(); });
   const ganttDialogRef = useRef(null);
@@ -1041,6 +1044,18 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   const dataAsOf = dataset.metadata.asOf;
   const asOf = currentUtcDate();
   const sourceRecords = useMemo(() => dataset.records || [], [dataset]);
+  useEffect(() => {
+    if (!timelineEntity.id) return undefined;
+    let active = true;
+    loadLinkedIntelligence()
+      .then((payload) => {
+        if (!active) return;
+        const canonicalId = payload.indices?.byEntity?.[timelineEntity.id]?.canonicalId || timelineEntity.id;
+        setEntityScopeState({ status: "ready", activityIds: new Set(payload.indices?.byEntity?.[canonicalId]?.timelineActivityIds || []) });
+      })
+      .catch(() => { if (active) setEntityScopeState({ status: "error", activityIds: new Set() }); });
+    return () => { active = false; };
+  }, [timelineEntity.id]);
   const effectiveSubawardSnapshot = useMemo(() => ({
     ...subawardSnapshot,
     primes: (subawardSnapshot.primes || []).map((prime) => ({
@@ -1222,7 +1237,12 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   }, [activeMultiFilters, asOf, dispositions.tombstonedIds, enriched, filters, management.watchedIds, timelineEndYear, timelineStartYear]);
 
   const visible = filtered;
-  const scopedVisible = useMemo(() => timelineScope === "tracked" ? visible.filter((record) => management.watchedIds.has(record.opportunityId) || record.opportunityId === selectedId) : visible, [management.watchedIds, selectedId, timelineScope, visible]);
+  const entityRecordCount = useMemo(() => visible.filter((record) => entityScopeState.activityIds.has(record.opportunityId)).length, [entityScopeState.activityIds, visible]);
+  const scopedVisible = useMemo(() => timelineScope === "tracked"
+    ? visible.filter((record) => management.watchedIds.has(record.opportunityId) || record.opportunityId === selectedId)
+    : timelineScope === "entity"
+      ? visible.filter((record) => entityScopeState.activityIds.has(record.opportunityId))
+      : visible, [entityScopeState.activityIds, management.watchedIds, selectedId, timelineScope, visible]);
   const timelineRecords = useMemo(() => collapseLifecycleRecords(scopedVisible, recordGroups.groups), [recordGroups.groups, scopedVisible]);
   const trackedRecordCount = useMemo(() => visible.filter((record) => management.watchedIds.has(record.opportunityId)).length, [management.watchedIds, visible]);
   const selected = timelineRecords.find((record) => record.opportunityId === selectedId) || recordById.get(selectedId) || null;
@@ -1479,7 +1499,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       />
 
       <section className={`capture-filters capture-command-rail${filtersExpanded ? " is-expanded" : ""}`} data-capture-filters data-capture-command-rail>
-        <div className="capture-filters__heading"><CalendarClock size={17} /><strong>Find Records</strong><span>{filtered.length.toLocaleString()} matches · {activeFilters ? `${activeFilters} filters` : "current window"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}><Filter size={14} />{filtersExpanded ? "Close Filters" : "Filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}<button type="button" onClick={copyLink} aria-label="Copy filtered link"><Copy size={14} />Copy</button><button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)} aria-label={`Export ${filtered.length.toLocaleString()} rows`}><Download size={14} />Export</button><button type="button" onClick={saveCurrentView}><Bookmark size={14} />Save</button>{primary ? <TimelineScopeNav scope={timelineScope} trackedCount={trackedRecordCount} allCount={visible.length} onChange={setTimelineScope} /> : null}</div>
+        <div className="capture-filters__heading"><CalendarClock size={17} /><strong>Find Records</strong><span>{filtered.length.toLocaleString()} matches · {activeFilters ? `${activeFilters} filters` : "current window"}</span><button type="button" className="capture-filter-toggle" onClick={() => setFiltersExpanded((value) => !value)}><Filter size={14} />{filtersExpanded ? "Close Filters" : "Filters"}</button>{activeFilters ? <button type="button" onClick={() => setFilters(FILTER_DEFAULTS)}>Reset</button> : null}<button type="button" onClick={copyLink} aria-label="Copy filtered link"><Copy size={14} />Copy</button><button type="button" onClick={() => downloadCsv(filtered, dataset.metadata)} aria-label={`Export ${filtered.length.toLocaleString()} rows`}><Download size={14} />Export</button><button type="button" onClick={saveCurrentView}><Bookmark size={14} />Save</button>{primary ? <TimelineScopeNav scope={timelineScope} trackedCount={trackedRecordCount} allCount={visible.length} entity={timelineEntity} entityCount={entityRecordCount} graphHref={timelineEntity.id ? intelligenceGraphRoute({ entityType: timelineEntity.type, entityId: timelineEntity.id, entityLabel: timelineEntity.label }) : ""} onChange={setTimelineScope} /> : null}</div>
         <ControlAutocomplete className="capture-filter capture-filter--search" label="Search" value={filters.capQuery} items={searchSuggestions} minLength={1} limit={8} onChange={(capQuery) => setFilters({ capQuery })} onSelect={(item) => { setFilters({ capQuery: item.value }); setSelectedId(item.id); }} placeholder="Program, company, reference, buyer" emptyText="No matching records" data-capture-record-autocomplete />
         <div className="capture-quickviews" aria-label="Decision views">
           <span>Focus</span>
@@ -1546,7 +1566,7 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
         {ganttToolsOpen ? <ControlDialog open onClose={() => setGanttToolsOpen(false)} dialogRef={ganttDialogRef} title="Timeline view options" eyebrow="Display" summary="Adjust grouping, density, bar labels, and visible row fields. Window and evidence layers stay in the Timeline toolbar." size="default" closeLabel="Close Timeline view options" surfaceProps={{ "data-capture-gantt-dialog": true }} footer={<button type="button" className="if-btn if-btn--primary" onClick={() => setGanttToolsOpen(false)}>Done</button>}>
           <div className="capture-gantt-tools capture-gantt-tools--dialog">{ganttControlGroups}</div>
         </ControlDialog> : null}
-        {timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} researchDates={selectedResearchDates} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title={timelineScope === "tracked" ? "No tracked records match this window" : "No matching transactions"} message={timelineScope === "tracked" ? "Track an opportunity or switch to All intelligence to browse every retained timeline term." : "Adjust or clear filters to restore public transaction records."} />}
+        {timelineScope === "entity" && entityScopeState.status === "loading" ? <ControlAsyncState compact state="loading" title={`Loading ${timelineEntity.label || "entity"} Timeline`} message="Resolving retained activities through reviewed hierarchy and exact account or award links." /> : timelineScope === "entity" && entityScopeState.status === "error" ? <ControlAsyncState compact state="error" title="Linked Timeline scope unavailable" message="Switch to All Intelligence while the relationship index is unavailable." /> : timelineRecords.length ? <CaptureTimeline records={timelineRecords} startYear={timelineStartYear} endYear={timelineEndYear} selectedId={selectedId} onSelect={setSelectedId} onOpenRecord={onOpenRecord} asOf={asOf} density={filters.capDensity} groupBy={filters.capGroup} labelMode={filters.capLabels} rowFields={filters.capFields} feedMode={filters.capFeed} actionsByOpportunity={actionDataset?.byOpportunity || {}} followOnByOpportunity={followOnByOpportunity} researchDates={selectedResearchDates} watchedIds={management.watchedIds} onToggleWatch={management.toggleWatch} mergeMode={mergeMode} mergeSelectedIds={mergeSelectedIds} onToggleMergeSelect={toggleMergeSelection} batchSize={Number(filters.capRows)} /> : <CaptureEmpty title={timelineScope === "tracked" ? "No tracked records match this window" : timelineScope === "entity" ? `No ${timelineEntity.label || "entity"} records match this window` : "No matching transactions"} message={timelineScope === "tracked" ? "Track an opportunity or switch to All intelligence to browse every retained timeline term." : timelineScope === "entity" ? "This scope uses only exact retained links and reviewed descendants. Adjust the time window or switch to All Intelligence." : "Adjust or clear filters to restore public transaction records."} />}
       </section>
 
     </div>

@@ -30,6 +30,9 @@ export function timelineRoute(recordId, values = {}) {
   return route("timeline", {
     timelineScope: values.scope || "all",
     capRecord: recordId,
+    timelineEntityType: values.entityType,
+    timelineEntityId: values.entityId,
+    timelineEntityLabel: values.entityLabel,
     capVehicle: values.vehicle,
     capResearch: values.research,
     capResearchDate: values.researchDate,
@@ -38,8 +41,16 @@ export function timelineRoute(recordId, values = {}) {
   });
 }
 
-export function intelligenceGraphRoute(recordId, nodeId = "") {
-  return route("intelligence-graph", { graphRecord: recordId, graphNode: nodeId });
+export function intelligenceGraphRoute(recordOrEntity, nodeId = "") {
+  if (recordOrEntity && typeof recordOrEntity === "object") {
+    return route("intelligence-graph", {
+      graphType: recordOrEntity.entityType,
+      graphEntity: recordOrEntity.entityId,
+      graphLabel: recordOrEntity.entityLabel,
+      graphNode: recordOrEntity.nodeId || nodeId,
+    });
+  }
+  return route("intelligence-graph", { graphRecord: recordOrEntity, graphNode: nodeId });
 }
 
 export function dataLibraryRoute({ organizationId = "", query = "", recordId = "", view = "relationships" } = {}) {

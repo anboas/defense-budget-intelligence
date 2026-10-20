@@ -1,0 +1,123 @@
+{
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "asOf": "2026-10-20",
+    "title": "Reviewed naval organization hierarchy",
+    "authorityBoundary": "Only relationships explicitly supported by the cited official organization pages are promoted. Acquisition-system organization paths remain separate source-declared taxonomy and are not treated as command hierarchy."
+  },
+  "organizations": [
+    {
+      "key": "department-of-the-navy",
+      "label": "Department of the Navy",
+      "aliases": ["U.S. Navy", "Navy"],
+      "kind": "military-department",
+      "sourceUrl": "https://www.navy.mil/About/Our-Organization/"
+    },
+    {
+      "key": "navair",
+      "label": "Naval Air Systems Command",
+      "aliases": ["NAVAIR"],
+      "kind": "systems-command",
+      "sourceUrl": "https://www.navair.navy.mil/organization-landing-page"
+    },
+    {
+      "key": "nawcad",
+      "label": "Naval Air Warfare Center Aircraft Division",
+      "aliases": ["NAWCAD"],
+      "kind": "warfare-center",
+      "sourceUrl": "https://www.navair.navy.mil/organization/NAWCAD"
+    },
+    {
+      "key": "nawcwd",
+      "label": "Naval Air Warfare Center Weapons Division",
+      "aliases": ["NAWCWD"],
+      "kind": "warfare-center",
+      "sourceUrl": "https://www.navair.navy.mil/nawcwd/"
+    },
+    {
+      "key": "navwar",
+      "label": "Naval Information Warfare Systems Command",
+      "aliases": ["NAVWAR", "NAVWAR Systems Command"],
+      "kind": "systems-command",
+      "sourceUrl": "https://www.navwar.navy.mil/About/"
+    },
+    {
+      "key": "navwar-headquarters",
+      "label": "NAVWAR Headquarters",
+      "aliases": ["NAVWAR HQ"],
+      "kind": "headquarters",
+      "sourceUrl": "https://www.navwar.navy.mil/About/"
+    },
+    {
+      "key": "niwc-pacific",
+      "label": "Naval Information Warfare Center Pacific",
+      "aliases": ["NIWC Pacific", "NIWC PACIFIC"],
+      "kind": "warfare-center",
+      "sourceUrl": "https://www.niwcpacific.navy.mil/About/"
+    },
+    {
+      "key": "niwc-atlantic",
+      "label": "Naval Information Warfare Center Atlantic",
+      "aliases": ["NIWC Atlantic", "NIWC ATLANTIC"],
+      "kind": "warfare-center",
+      "sourceUrl": "https://www.niwcatlantic.navy.mil/"
+    }
+  ],
+  "relationships": [
+    {
+      "child": "navair",
+      "parent": "department-of-the-navy",
+      "basis": "official-department-acquisition-command",
+      "sourceUrl": "https://www.navwar.navy.mil/About/",
+      "evidenceSummary": "NAVWAR identifies NAVAIR as another major Department of Navy acquisition command."
+    },
+    {
+      "child": "navwar",
+      "parent": "department-of-the-navy",
+      "basis": "official-department-acquisition-command",
+      "sourceUrl": "https://www.navwar.navy.mil/About/",
+      "evidenceSummary": "NAVWAR identifies itself as one of six major Department of Navy acquisition commands."
+    },
+    {
+      "child": "nawcad",
+      "parent": "navair",
+      "basis": "official-command-organization",
+      "sourceUrl": "https://www.navair.navy.mil/organization-landing-page",
+      "evidenceSummary": "The official NAVAIR organization page lists NAWCAD within the command."
+    },
+    {
+      "child": "nawcwd",
+      "parent": "navair",
+      "basis": "official-command-organization",
+      "sourceUrl": "https://www.navair.navy.mil/organization-landing-page",
+      "evidenceSummary": "The official NAVAIR organization page lists NAWCWD within the command."
+    },
+    {
+      "child": "navwar-headquarters",
+      "parent": "navwar",
+      "basis": "official-command-headquarters",
+      "sourceUrl": "https://www.navwar.navy.mil/About/",
+      "evidenceSummary": "The official command page distinguishes NAVWAR command headquarters from its reporting warfare centers."
+    },
+    {
+      "child": "niwc-pacific",
+      "parent": "navwar",
+      "basis": "official-reporting-warfare-center",
+      "sourceUrl": "https://www.navwar.navy.mil/About/",
+      "evidenceSummary": "NAVWAR states that the command consists of bicoastal reporting Naval Information Warfare Centers."
+    },
+    {
+      "child": "niwc-atlantic",
+      "parent": "navwar",
+      "basis": "official-reporting-warfare-center",
+      "sourceUrl": "https://www.navwar.navy.mil/About/",
+      "evidenceSummary": "NAVWAR states that the command consists of bicoastal reporting Naval Information Warfare Centers."
+    }
+  ],
+  "offices": [
+    { "label": "NAVWAR Headquarters contracting", "parent": "navwar-headquarters", "sourceUrl": "https://www.navwar.navy.mil/About/" },
+    { "label": "NIWC Pacific contracting", "parent": "niwc-pacific", "sourceUrl": "https://www.niwcpacific.navy.mil/About/Locations/" },
+    { "label": "NIWC Atlantic contracting", "parent": "niwc-atlantic", "sourceUrl": "https://www.niwcatlantic.navy.mil/" },
+    { "label": "NAWCWD Contracts Department", "parent": "nawcwd", "sourceUrl": "https://www.navair.navy.mil/nawcwd/" }
+  ]
+}
