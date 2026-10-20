@@ -132,7 +132,10 @@ async function chooseControlSelect(page, label, option) {
   await trigger.click();
   const exactOption = page.getByRole("option", { name: option, exact: true });
   if (await exactOption.count()) await exactOption.click();
-  else await page.getByRole("option", { name: new RegExp(`^${String(option).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?:\\s|$)`, "i") }).first().click();
+  else {
+    const escaped = String(option).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await page.getByRole("option", { name: new RegExp(`^${escaped}(?:\\s|$)`, "i") }).first().click();
+  }
 }
 
 async function openOpportunityFilters(page) {
@@ -2494,12 +2497,23 @@ try {
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="organization"][data-lens="structure"]');
   assert.match(await page.locator(".intelligence-graph-page__root").innerText(), /Department of War[\s\S]*Reviewed/i, "Graph Explorer should default to the reviewed department root");
   assert.equal(await page.locator("[data-organization-structure-controls]").count(), 1, "Reviewed organization roots should expose first-class drill-down controls");
+  const structureControls = page.locator("[data-organization-structure-controls]");
+  assert.equal(await structureControls.locator(".if-picker").count(), 4, "Primary structure decisions must use four shared picker owners");
+  assert.equal(await page.locator("[data-intelligence-graph-trace-control]").count(), 0, "Connection search must remain hidden until requested");
+  assert.equal(await page.locator("[data-intelligence-graph-trace-popover]").count(), 1, "Connection tracing must use the shared popover owner");
+  assert.equal(await page.getByRole("button", { name: "Reset graph view controls" }).isDisabled(), true, "Default graph controls should not offer a meaningless reset");
+  await page.getByRole("button", { name: "Organization structure filters" }).click();
+  await page.getByRole("button", { name: "All reviewed", exact: true }).click();
+  await page.getByRole("checkbox", { name: /Only with linked work/i }).check();
+  assert.equal(await structureControls.getAttribute("data-active-adjustments"), "2", "Advanced structure filters should disclose their active adjustment count");
+  await page.getByRole("button", { name: "Reset graph view controls" }).click();
+  assert.equal(await structureControls.getAttribute("data-active-adjustments"), "0", "Reset should restore the complete URL-owned graph view model");
   assert.equal(await page.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "9", "The default two-level departments-and-services drill-down should show one root, three departments, and five services");
   const departmentStructureText = await page.locator("[data-linked-intelligence-graph]").innerText();
   assert.match(departmentStructureText, /Department of the Army[\s\S]*Department of the Navy[\s\S]*Department of the Air Force/i, "Department drill-down must expose all three military departments");
   assert.match(departmentStructureText, /United States Army[\s\S]*United States Navy[\s\S]*United States Marine Corps[\s\S]*United States Air Force[\s\S]*United States Space Force/i, "Department drill-down must expose all five military services");
   assert.match(departmentStructureText, /8 of 8 matching descendants shown[\s\S]*Root included/i, "Structure coverage must not count the root against a descendant-only denominator");
-  assert.match(departmentStructureText, /Direct links 24[\s\S]*Direct work 0[\s\S]*Direct money 0/i, "Structure relationship lenses must distinguish direct links from descendant work rollups");
+  assert.match(departmentStructureText, /Direct links\s+24[\s\S]*Direct work\s+0[\s\S]*Direct money\s+0/i, "Structure relationship lenses must distinguish direct links from descendant work rollups");
   assert.match(departmentStructureText, /424 linked Timeline records/i, "Department drill-down must disclose its complete retained Timeline scope");
   await page.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
@@ -2507,7 +2521,7 @@ try {
     const overlaps = nodes.some((left, index) => nodes.slice(index + 1).some((right) => left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top));
     return graph?.dataset.ifGraphLayoutState === "success" && nodes.length === 9 && !overlaps;
   });
-  await chooseControlSelect(page, "Organization work overlay", "Awards");
+  await chooseControlSelect(page, "Work overlay", "Awards");
   assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /awards/i, "Work overlays should annotate hierarchy nodes with retained award counts");
   const workDistribution = page.locator('[data-organization-work-distribution]');
   await workDistribution.waitFor();
@@ -2516,22 +2530,22 @@ try {
   assert.ok(await workDistribution.locator('[data-organization-work-evidence] a').count() >= 4, "Organization work distribution should expose exact record and Timeline handoffs");
   await workDistribution.getByRole("button", { name: /Department of the Navy/i }).click();
   assert.match(await workDistribution.locator('[data-organization-work-evidence]').innerText(), /Department of the Navy[\s\S]*175 opportunities[\s\S]*165 awards[\s\S]*19 accounts/i, "Descendant-aware evidence should retain Department of the Navy work totals");
-  await chooseControlSelect(page, "Organization work scope", "Directly owned only");
+  await chooseControlSelect(page, "Work scope", "Directly owned only");
   assert.equal(await workDistribution.getAttribute("data-work-scope"), "direct", "Direct-work scope should update the distribution owner");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /orgWorkScope=direct/i, "Organization work scope should remain shareable in the route");
   assert.doesNotMatch(await page.locator('[data-linked-graph-inspector]').innerText(), /175 opportunities[\s\S]*165 awards[\s\S]*19 accounts/i, "Direct-work scope must not leak descendant totals into the graph inspector");
-  await chooseControlSelect(page, "Organization work scope", "Organization + descendants");
-  await chooseControlSelect(page, "Organization component filter", "Joint & combatant");
+  await chooseControlSelect(page, "Work scope", "Organization + descendants");
+  await chooseControlSelect(page, "Organization components", "Joint & combatant");
   assert.equal(await page.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "13", "Joint drill-down should show the department root, Joint Chiefs, and all eleven combatant commands");
   assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /United States Cyber Command[\s\S]*United States Indo-Pacific Command[\s\S]*United States Special Operations Command/i, "Joint drill-down must retain the reviewed combatant-command inventory");
-  await chooseControlSelect(page, "Organization component filter", "Commands & components");
+  await chooseControlSelect(page, "Organization components", "Commands & components");
   await chooseControlSelect(page, "Hierarchy depth", "All reviewed");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /orgDepth=all[\s\S]*orgGroup=commands|orgGroup=commands[\s\S]*orgDepth=all/i, "Organization drill-down filters should remain shareable in the route");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /orgOverlay=awards/i, "Organization work overlays should remain shareable in the route");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-linked-intelligence-graph][data-lens="structure"]');
   assert.match(await page.getByRole("button", { name: /^Hierarchy depth:/i }).innerText(), /All reviewed/i, "Hierarchy depth should survive reload");
-  assert.match(await page.getByRole("button", { name: /^Organization component filter:/i }).innerText(), /Commands & components/i, "Component filters should survive reload");
+  assert.match(await page.getByRole("button", { name: /^Organization components:/i }).innerText(), /Commands & components/i, "Component filters should survive reload");
   assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /Naval Air Systems Command|Air Combat Command|Army Futures Command/i, "Command drill-down should expose reviewed major commands below their contextual ancestors");
   await page.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
@@ -2543,7 +2557,10 @@ try {
   if (await departmentNavyNode.count()) {
     await departmentNavyNode.evaluate((node) => node.scrollIntoView({ block: "center", inline: "center" }));
     await departmentNavyNode.click();
-    assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /175 opportunities[\s\S]*165 awards[\s\S]*19 accounts[\s\S]*Cited source/i, "Organization inspector should explain descendant work and retain the official hierarchy source");
+    assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /175 opportunities[\s\S]*165 awards[\s\S]*19 accounts/i, "Organization inspector should explain descendant work");
+    await page.getByRole("button", { name: /More actions for Department of the Navy/i }).click();
+    assert.equal(await page.getByRole("menuitem", { name: /Cited source/i }).count(), 1, "Secondary inspector evidence should live in the shared command menu");
+    await page.keyboard.press("Escape");
   }
   assert.match(await page.locator("[data-linked-intelligence-graph] > footer").innerText(), /Omission does not imply/i, "Organization drill-down must disclose reviewed coverage gaps instead of implying completeness");
 
@@ -2552,10 +2569,14 @@ try {
   assert.match(await page.locator(".intelligence-graph-page__root").innerText(), /Naval Air Systems Command[\s\S]*Reviewed/i, "Label-only dossier handoffs should resolve to the reviewed NAVAIR identity");
   assert.match(await page.locator('[data-if-control-tab="hierarchy"]').innerText(), /Hierarchy\s+3/i, "Relationship lenses should disclose NAVAIR's complete retained hierarchy count");
   assert.match(await page.locator('[data-if-control-tab="work"]').innerText(), /Work\s+41/i, "Relationship lenses should disclose NAVAIR's complete retained work count");
+  assert.equal(await page.locator('[data-if-control-tab="work"] .if-badge').innerText(), "41", "Relationship counts must use the framework badge slot instead of being concatenated into labels");
+  assert.equal(await page.locator("[data-intelligence-graph-trace-control]").count(), 0, "Trace target search should remain collapsed until requested");
+  await page.getByRole("button", { name: /Trace a connection from Naval Air Systems Command/i }).click();
   const traceSearch = page.locator("[data-intelligence-graph-trace-control] input[role=combobox]");
   await traceSearch.fill("Operation and Maintenance, Navy");
   await page.getByRole("option", { name: /^Operation and Maintenance, Navy\b/i }).first().click();
   await page.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="connection"][data-connection-hops="3"]');
+  assert.equal(await page.locator("[data-organization-structure-controls]").count(), 0, "Connection traces must not retain irrelevant organization-structure controls");
   assert.match(decodeURIComponent(new URL(page.url()).hash).replaceAll("+", " "), /graphTarget=account:017-1804[\s\S]*graphTargetLabel=Operation and Maintenance, Navy/i, "Connection traces should remain shareable with an exact target identity");
   assert.equal(await page.locator("[data-connection-path] [data-connection-step]").count(), 3, "NAVAIR's account trace should expose three evidence-backed steps");
   assert.equal(await page.locator("[data-linked-graph-canvas] .if-graph-node").count(), 4, "The connection canvas should show only the start, two retained intermediates, and target");
@@ -2589,6 +2610,7 @@ try {
   assert.equal(connectionGeometry.nodes.length, 4, `Connection trace should retain four measurable graph nodes: ${JSON.stringify(connectionGeometry)}`);
   assert.equal(connectionGeometry.ordered, true, `Connection nodes must form one non-overlapping left-to-right evidence chain: ${JSON.stringify(connectionGeometry)}`);
   await page.screenshot({ path: `${OUT_DIR}/linked-intelligence-connection-trace-desktop.png` });
+  await page.getByRole("button", { name: /Change connection target from Naval Air Systems Command/i }).click();
   await page.getByRole("button", { name: "Clear connection trace" }).click();
   await page.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="neighborhood"]');
   await page.locator('[data-if-control-tab="hierarchy"]').click();
@@ -2622,7 +2644,10 @@ try {
   assert.equal(hierarchyGeometry.childOverlap, false, `Reviewed hierarchy nodes must not overlap: ${JSON.stringify(hierarchyGeometry)}`);
   const navyNode = page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-label="Department of the Navy"]');
   await navyNode.click();
-  assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /official department acquisition command[\s\S]*reviewed[\s\S]*Cited source/i, "Reviewed hierarchy edges should expose their evidence basis and official source");
+  assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /official department acquisition command[\s\S]*reviewed/i, "Reviewed hierarchy edges should expose their evidence basis");
+  await page.getByRole("button", { name: /More actions for Department of the Navy/i }).click();
+  assert.equal(await page.getByRole("menuitem", { name: /Cited source/i }).count(), 1, "Reviewed hierarchy sources should remain available in the shared command menu");
+  await page.keyboard.press("Escape");
   await page.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
     const rect = (selector) => graph?.querySelector(selector)?.getBoundingClientRect();
@@ -2977,6 +3002,7 @@ try {
   await installVerificationDate(mobile);
   await mobile.goto(`${BASE_URL}#/budget-spend/intelligence-graph?graphType=organization&graphEntity=org%3A54825302e8c22bf1e3cf&graphLabel=Naval%20Air%20Systems%20Command&graphTargetType=federal-account&graphTarget=account%3A017-1804&graphTargetLabel=Operation%20and%20Maintenance%2C%20Navy`, { waitUntil: "domcontentloaded" });
   await mobile.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="connection"][data-path-orientation="vertical"]');
+  assert.equal(await mobile.locator("[data-organization-structure-controls]").count(), 0, "Mobile connection traces must not retain irrelevant structure controls");
   await mobile.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
     const nodes = [...(graph?.querySelectorAll(".if-graph-node") || [])].map((node) => node.getBoundingClientRect());
@@ -2991,6 +3017,14 @@ try {
   assert.equal(await mobile.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "9", "Mobile organization drill-down should retain the default departments-and-services structure");
   assert.equal(await mobile.locator('[data-organization-work-distribution][data-work-scope="subtree"]').count(), 1, "Mobile organization drill-down should retain descendant-aware work distribution");
   assert.ok(await mobile.locator('[data-organization-work-evidence] section').count() === 3, "Mobile work distribution should retain opportunity, award, and account evidence lanes");
+  assert.equal(await mobile.locator("[data-organization-structure-controls] .if-picker__trigger").count(), 4, "Mobile structure controls should retain the four shared picker owners");
+  await mobile.getByRole("button", { name: "Organization structure filters" }).click();
+  const mobileStructureFilters = mobile.locator('[data-if-react-popover][aria-label="Organization structure filters"]');
+  await mobileStructureFilters.waitFor();
+  const mobileFilterBounds = await mobileStructureFilters.boundingBox();
+  assert.ok(mobileFilterBounds && mobileFilterBounds.x >= 7 && mobileFilterBounds.x + mobileFilterBounds.width <= 383, `Mobile structure filters must stay inside the viewport: ${JSON.stringify(mobileFilterBounds)}`);
+  await assertButtonIntegrity(mobile, "Mobile organization filter popover", '[data-if-react-popover][aria-label="Organization structure filters"]');
+  await mobile.keyboard.press("Escape");
   await assertButtonIntegrity(mobile, "Mobile organization drill-down", "[data-intelligence-graph-page]");
   await assertNoPageOverflow(mobile, "Mobile organization drill-down");
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });

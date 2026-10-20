@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = async (name) => readFile(new URL(`../src/${name}`, import.meta.url), "utf8");
-const [table, awards, budget, spend, analytics, navigation, preview, analyticsPreview, workspace, today, main] = await Promise.all([
-  read("OperationalDataTable.jsx"), read("AwardsRoute.jsx"), read("BudgetRequestRoutes.jsx"), read("SpendExplorer.jsx"), read("TransactionAnalytics.jsx"), read("navigation-architecture.js"), read("OpportunityWorkbenchDetail.jsx"), read("AnalyticsRecordDrawer.jsx"), read("UniversalIntelligenceWorkspace.jsx"), read("TodayWorkspace.jsx"), read("main.jsx"),
+const [table, awards, budget, spend, analytics, navigation, preview, analyticsPreview, workspace, today, main, graphPage, graph, structureControls] = await Promise.all([
+  read("OperationalDataTable.jsx"), read("AwardsRoute.jsx"), read("BudgetRequestRoutes.jsx"), read("SpendExplorer.jsx"), read("TransactionAnalytics.jsx"), read("navigation-architecture.js"), read("OpportunityWorkbenchDetail.jsx"), read("AnalyticsRecordDrawer.jsx"), read("UniversalIntelligenceWorkspace.jsx"), read("TodayWorkspace.jsx"), read("main.jsx"), read("IntelligenceGraphPage.jsx"), read("LinkedIntelligenceGraph.jsx"), read("OrganizationStructureControls.jsx"),
 ]);
 
 for (const [label, source] of [["operational tables", table], ["analytics", analytics]]) {
@@ -23,5 +23,10 @@ assert.match(spend, /SemanticStatusBadge category="evidence"/, "Opportunity evid
 assert.match(today, /SemanticStatusBadge category="workflow"[\s\S]*SemanticStatusBadge category="evidence"/, "Today must distinguish workflow and evidence status");
 assert.match(workspace, /SemanticStatusBadge category=/, "The Intelligence Workspace must use semantic status categories");
 assert.match(main, /SurfaceState[\s\S]*owner="route"/, "Route loading and errors must use the shared surface-state owner");
+assert.match(graphPage, /ControlPopover[\s\S]*TraceControl/, "Graph connection tracing must use the shared popover owner instead of a permanently open second search field");
+assert.match(graphPage, /updateStructureView[\s\S]*history\.replaceState/, "Graph view controls must preserve the mounted canvas while updating their shareable URL state");
+assert.match(graph, /ControlTabs[\s\S]*badge:[\s\S]*ControlMenu/, "Graph lenses and secondary inspector actions must use shared tabs, badges, and menu owners");
+assert.match(structureControls, /ControlPicker[\s\S]*ControlPopover[\s\S]*ControlTabs/, "Organization drill-down must compose framework pickers, popovers, and tabs");
+assert.doesNotMatch(structureControls, /ControlSelect|<select\b/, "Organization drill-down must not restore route-local select anatomy");
 
-console.log("UX consolidation verified: one Query Rail, one Analysis Studio, one preview anatomy, semantic statuses, and owned route feedback.");
+console.log("UX consolidation verified: canonical query, analysis, preview, graph-control, status, and route-feedback owners.");
