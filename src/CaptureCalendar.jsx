@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./CaptureCalendar.css";
 import { createPortal } from "react-dom";
-import { Bookmark, CalendarClock, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Layers3, Link2, Maximize2, Minimize2, ShieldCheck, SlidersHorizontal, Sparkles, Star, Trash2, X } from "lucide-react";
+import { Bookmark, CalendarClock, ChevronRight, Copy, Download, ExternalLink, Filter, GitCompareArrows, GitMerge, Link2, Maximize2, Minimize2, ShieldCheck, SlidersHorizontal, Sparkles, Star, Trash2, X } from "lucide-react";
 import {
   assembleProcurementRecords,
   applyProcurementChanges,
@@ -35,6 +35,7 @@ import OpportunityFactSummary from "./OpportunityFactSummary.jsx";
 import { useTimelineRuntimeRecords } from "./timeline-runtime-records.js";
 import { opportunityRoute } from "./cross-surface-routes.js";
 import TimelineGroupDisclosure, { useTimelineGroupDisclosure } from "./TimelineGroupDisclosure.jsx";
+import { TIMELINE_CATEGORICAL_LAYER_IDS, TIMELINE_LAYER_OPTIONS, TimelineLayerControl, TimelineLegend } from "./TimelineEvidenceControls.jsx";
 const COMPARISON_STORAGE_KEY = "dbi:capture-comparison:v1";
 const SAVED_VIEWS_STORAGE_KEY = "dbi:capture-saved-views:v1";
 const EMPTY_TIMELINE_ITEMS = Object.freeze([]); const TIMELINE_FIRST_YEAR = 2023;
@@ -118,20 +119,7 @@ const GROUP_BY_IDS = new Set(GROUP_BY_OPTIONS.map(([id]) => id));
 const ROW_FIELD_IDS = new Set(ROW_FIELD_OPTIONS.map(([id]) => id));
 const MAX_ROW_FIELDS = 4;
 const BAR_LABEL_IDS = new Set(["dates", "obligations", "potential", "utilization", "actions", "none"]);
-const FEED_OPTIONS = [
-  ["fpds", "FPDS action pulses"],
-  ["fiscal", "FPDS annual obligations"],
-  ["awards", "USAspending refreshed end"],
-  ["followon", "Published follow-on activity"],
-  ["competition", "Competition / set-aside"],
-  ["vehicle", "Contract vehicle"],
-  ["structure", "Award / pricing type"],
-  ["work", "Type of work"],
-  ["provenance", "Ingestion provenance"],
-  ["changes", "Changed since refresh"],
-  ["subawards", "USAspending subaward actions"],
-];
-const FEED_IDS = new Set(FEED_OPTIONS.map(([id]) => id));
+const FEED_IDS = new Set(TIMELINE_LAYER_OPTIONS.map(([id]) => id));
 function normalizeMultiValue(value, options, emptyValue = "all") {
   const available = new Set(options);
   return serializeMultiValues(parseMultiValues(value).filter((item) => available.has(item)), emptyValue);
@@ -169,6 +157,21 @@ const LABELS = {
   "schedule-not-published": "Schedule not published",
   "official-record": "Official public record",
   automated: "Automated",
+};
+const EVIDENCE_TIER_COLORS = {
+  corroborated: "#1f78a8",
+  "official-announcement": "#087f8c",
+  "source-reviewed": "#73559b",
+  "prior-evidence": "#c27819",
+  "evidence-gap": "#bb2e2e",
+  "official-record": "#248642",
+};
+const VALIDATION_STATUS_COLORS = {
+  verified: "#248642",
+  automated: "#1f78a8",
+  corrected: "#d17a00",
+  unresolved: "#bb2e2e",
+  manual: "#73559b",
 };
 
 function label(value) {
@@ -779,6 +782,8 @@ const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf
   const categoryLabels = (record.workCategories || []).map((category) => WORK_CATEGORY_BY_ID.get(category)?.label || label(category));
   const primaryCategory = WORK_CATEGORY_BY_ID.get(record.workCategory) || WORK_CATEGORY_BY_ID.get("other-unclassified");
   const workElement = feeds.has("work") && classificationVisible ? <i role="button" tabIndex="0" key={`work-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--work" data-work-category-overlay data-work-category={record.workCategory} data-timeline-context="Type of work" data-timeline-detail={`${categoryLabels.join(" · ") || "Other / unclassified"} · ${record.workCategoryBasis || "classification basis not published"}`} style={{ ...laneStyle("work"), "--capture-category-color": primaryCategory?.color || "#6c7b88" }} aria-label={`Type of work overlay: ${categoryLabels.join(", ") || "Other / unclassified"}`} /> : null;
+  const evidenceElement = feeds.has("evidence") && classificationVisible ? <i role="button" tabIndex="0" key={`evidence-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--evidence" data-evidence-tier-overlay data-evidence-tier={record.evidenceTier} data-timeline-context="Evidence tier" data-timeline-detail={`${label(record.evidenceTier)} · ${record.sourceRoleCount || 0} source role${record.sourceRoleCount === 1 ? "" : "s"}`} style={{ ...laneStyle("evidence"), "--capture-evidence-color": EVIDENCE_TIER_COLORS[record.evidenceTier] || "#667b8d" }} aria-label={`Evidence tier overlay: ${label(record.evidenceTier)}`} /> : null;
+  const validationElement = feeds.has("validation") && classificationVisible ? <i role="button" tabIndex="0" key={`validation-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--validation" data-validation-status-overlay data-validation-status={record.validationStatus} data-timeline-context="Validation status" data-timeline-detail={`${label(record.validationStatus)}${record.validationCheckedAt ? ` · checked ${formatDate(String(record.validationCheckedAt).slice(0, 10))}` : ""}`} style={{ ...laneStyle("validation"), "--capture-validation-color": VALIDATION_STATUS_COLORS[record.validationStatus] || "#667b8d" }} aria-label={`Validation status overlay: ${label(record.validationStatus)}`} /> : null;
   const provenanceMethod = INGESTION_METHOD_BY_ID.get(record.ingestionMethod) || INGESTION_METHOD_BY_ID.get("source-file");
   const provenanceElement = feeds.has("provenance") && classificationVisible ? <i role="button" tabIndex="0" key={`provenance-${record.opportunityId}`} className="capture-timeline__classification capture-timeline__classification--provenance" data-ingestion-provenance-overlay data-ingestion-method={record.ingestionMethod} data-timeline-context="Ingestion provenance" data-timeline-detail={`${record.ingestionLabel || provenanceMethod?.label} · ${(record.ingestionChannels || []).map((channel) => channel.label).join(" · ") || record.sourceSystem || "source channel not published"}`} style={{ ...laneStyle("provenance"), "--capture-provenance-color": provenanceMethod?.color || "#647a8b" }} aria-label={`Ingestion provenance overlay: ${record.ingestionLabel || provenanceMethod?.label}`} /> : null;
   const changeElement = feeds.has("changes") && classificationVisible && record.changeStatus !== "unchanged" ? <i role="button" tabIndex="0" key={`change-${record.opportunityId}`} className={`capture-timeline__classification capture-timeline__classification--change capture-timeline__classification--change-${record.changeStatus}`} data-procurement-change-overlay data-change-status={record.changeStatus} data-timeline-context="Changed since prior snapshot" data-timeline-detail={`${label(record.changeStatus)} in ${record.changeSourceSystem || "public feed"}`} style={laneStyle("changes")} aria-label={`Changed since prior snapshot: ${label(record.changeStatus)}`} /> : null;
@@ -849,6 +854,8 @@ const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf
         {vehicleElement}
         {structureElement}
         {workElement}
+        {evidenceElement}
+        {validationElement}
         {provenanceElement}
         {changeElement}
         {followOnElements}
@@ -856,7 +863,7 @@ const TimelineBar = memo(function TimelineBar({ record, startYear, endYear, asOf
       </>
     );
   }
-  return [solicitationElement, competitionElement, vehicleElement, structureElement, workElement, provenanceElement, changeElement].filter(Boolean).concat(record.milestones.map((milestone) => {
+  return [solicitationElement, competitionElement, vehicleElement, structureElement, workElement, evidenceElement, validationElement, provenanceElement, changeElement].filter(Boolean).concat(record.milestones.map((milestone) => {
     const left = positionFor(milestone.start, startYear, endYear);
     const right = positionFor(milestone.end, startYear, endYear);
     return milestone.precision === "day" ? (
@@ -893,7 +900,7 @@ function CaptureTimeline({ records, startYear, endYear, selectedId, onSelect, on
   const activeFields = useMemo(() => selectedFieldIds(rowFields), [rowFields]);
   const categoricalFeeds = useMemo(() => {
     const activeFeeds = new Set(parseMultiValues(feedMode));
-    return ["competition", "vehicle", "structure", "work", "provenance", "changes"].filter((feed) => activeFeeds.has(feed));
+    return TIMELINE_CATEGORICAL_LAYER_IDS.filter((feed) => activeFeeds.has(feed));
   }, [feedMode]);
   const overlayLanes = useMemo(() => Object.fromEntries(categoricalFeeds.map((feed, index) => [feed, index])), [categoricalFeeds]);
   const hasClassificationLanes = categoricalFeeds.length > 0;
@@ -1382,6 +1389,16 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   if (selectedFeeds.has("vehicle")) feedStatusParts.push(`${dataset.metadata.coverage.rowsWithVehicle} vehicle rows`);
   if (selectedFeeds.has("competition")) feedStatusParts.push(`${dataset.metadata.coverage.rowsWithCompetition} competition / set-aside rows`);
   if (selectedFeeds.has("work")) feedStatusParts.push(`${records.filter((record) => record.workCategory && record.workCategory !== "other-unclassified").length.toLocaleString()} classified work records · ${workCategories.length} categories`);
+  if (selectedFeeds.has("evidence")) {
+    const corroborated = records.filter((record) => record.evidenceTier === "corroborated").length;
+    const gaps = records.filter((record) => record.evidenceTier === "evidence-gap").length;
+    feedStatusParts.push(`${corroborated.toLocaleString()} corroborated · ${gaps.toLocaleString()} evidence gaps`);
+  }
+  if (selectedFeeds.has("validation")) {
+    const corrected = records.filter((record) => record.validationStatus === "corrected").length;
+    const unresolved = records.filter((record) => record.validationStatus === "unresolved").length;
+    feedStatusParts.push(`${corrected.toLocaleString()} corrected · ${unresolved.toLocaleString()} unresolved validations`);
+  }
   if (selectedFeeds.has("provenance")) feedStatusParts.push(`${records.filter((record) => record.ingestionMethod === "automated").length.toLocaleString()} automated · ${records.filter((record) => record.ingestionMethod !== "automated").length.toLocaleString()} imported / curated`);
   if (selectedFeeds.has("changes")) feedStatusParts.push(`${Number(procurementDelta.summary?.added || 0).toLocaleString()} added · ${Number(procurementDelta.summary?.updated || 0).toLocaleString()} updated since prior snapshot`);
   if (selectedFeeds.has("fiscal")) {
@@ -1392,6 +1409,21 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
   if (selectedFeeds.has("fpds")) feedStatusParts.push(actionDataset ? `${dataset.metadata.coverage.fpdsActions.toLocaleString()} exact FPDS actions loaded` : actionState === "error" ? "FPDS overlay unavailable" : "Loading FPDS action feed…");
   if (selectedFeeds.has("subawards")) feedStatusParts.push(subawardSnapshot.metadata?.status === "unavailable" ? "Subaward feed unavailable" : subawardDetailState === "error" ? "Subaward summaries loaded · recent detail unavailable" : `${Number(subawardSnapshot.metadata?.reportedSubawardCount || 0).toLocaleString()} reported subawards · ${Number(subawardSnapshot.metadata?.primeWithSubawardsCount || 0).toLocaleString()} indexed primes${subawardDetails ? " · recent detail loaded" : " · loading recent detail…"}`);
   const feedStatusText = feedStatusParts.length ? feedStatusParts.join(" · ") : "Reported schedule remains the baseline";
+  const layerCoverage = {
+    followon: `${followOnLinkCount.toLocaleString()} links`,
+    awards: `${records.filter((record) => record.liveAward?.endDate).length.toLocaleString()} records`,
+    fpds: `${Number(dataset.metadata.coverage.fpdsActions || 0).toLocaleString()} actions`,
+    fiscal: `${records.filter((record) => record.fiscalValues?.length).length.toLocaleString()} records`,
+    subawards: `${Number(subawardSnapshot.metadata?.primeWithSubawardsCount || 0).toLocaleString()} primes`,
+    competition: `${records.filter((record) => record.competitionType || record.setAside || record.eligibility).length.toLocaleString()} records`,
+    vehicle: `${records.filter((record) => record.vehicle).length.toLocaleString()} records`,
+    structure: `${records.filter((record) => record.pricingType || record.awardType).length.toLocaleString()} records`,
+    work: `${records.filter((record) => record.workCategory && record.workCategory !== "other-unclassified").length.toLocaleString()} classified`,
+    evidence: `${records.length.toLocaleString()} records`,
+    validation: `${records.filter((record) => ["corrected", "unresolved"].includes(record.validationStatus)).length.toLocaleString()} flags`,
+    provenance: `${records.length.toLocaleString()} records`,
+    changes: `${(Number(procurementDelta.summary?.added || 0) + Number(procurementDelta.summary?.updated || 0)).toLocaleString()} changed`,
+  };
   function scrollTimelineToToday() {
     if (asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`) return;
     const scroller = document.querySelector("[data-capture-timeline]");
@@ -1419,6 +1451,10 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       else current.delete(feed);
     }
     setFilters({ capFeed: serializeMultiValues([...current], "none") });
+  }
+
+  function setTimelineFeeds(feedIds) {
+    setFilters({ capFeed: serializeMultiValues(feedIds, "none") });
   }
 
   const ganttControlGroups = <div className="capture-gantt-tools__grid capture-gantt-tools__grid--display">
@@ -1497,12 +1533,13 @@ export default function CaptureCalendar({ dataset, awards = [], samOpportunities
       ) : null}
 
       <section className={`capture-section capture-gantt-section${timelineExpanded ? " is-fullscreen" : ""}`} data-capture-gantt-section data-follow-on-count={followOnLinkCount} data-fpds-overlay-state={selectedFeeds.has("fpds") ? (actionDataset ? "ready" : actionState) : "disabled"}>
-        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Timeline</strong><small data-timeline-publication-boundary>{timelineRecords.length.toLocaleString()} records · Public data through {formatDate(dataAsOf)} · {liveFreshnessLabel}</small></span></div><ControlPopover label="Legend" ariaLabel="Timeline legend" className="capture-legend-details" triggerClassName="if-btn if-btn--ghost if-btn--sm" width={620} popoverProps={{ className: "capture-legend-popover" }}><span className="capture-legend"><i className="base" />Reported term<i className="potential" />Potential<i className="window" />Published window<i className="solicitation" />Solicitation open<i className="milestone" />Milestone{selectedResearchDates.length ? <><i className="research" />AI research date</> : null}{parseMultiValues(filters.capFeed).includes("fpds") ? <><i className="action" />FPDS action</> : null}{parseMultiValues(filters.capFeed).includes("subawards") ? <><i className="subaward" />Subaward action</> : null}{parseMultiValues(filters.capFeed).includes("fiscal") ? <><i className="fiscal" />FY obligation intensity</> : null}{parseMultiValues(filters.capFeed).includes("followon") ? <><i className="followon" />Follow-on activity</> : null}</span></ControlPopover></div>
+        <div className="capture-section__heading capture-gantt-heading"><div><CalendarClock size={18} /><span><strong>Timeline</strong><small data-timeline-publication-boundary>{timelineRecords.length.toLocaleString()} records · Public data through {formatDate(dataAsOf)} · {liveFreshnessLabel}</small></span></div></div>
         <div className="capture-gantt-commandbar" data-capture-gantt-commandbar role="toolbar" aria-label="Timeline controls">
           <div className="capture-gantt-commandbar__group" role="group" aria-label="Timeline window"><span>Window</span><button type="button" aria-pressed={timelineStartYear === Number(asOf.slice(0, 4)) && timelineEndYear === Number(asOf.slice(0, 4))} onClick={() => setTimelineWindow(0, 0)}>Current year</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 1) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 2)} onClick={() => setTimelineWindow(1, 2)}>Near term</button><button type="button" aria-pressed={timelineStartYear === Math.max(TIMELINE_FIRST_YEAR, Number(asOf.slice(0, 4)) - 3) && timelineEndYear === Math.min(TIMELINE_LAST_YEAR, Number(asOf.slice(0, 4)) + 3)} onClick={() => setTimelineWindow(3, 3)}>7 years</button><button type="button" aria-pressed={timelineStartYear === TIMELINE_FIRST_YEAR && timelineEndYear === TIMELINE_LAST_YEAR} onClick={() => setFilters({ capFrom: String(TIMELINE_FIRST_YEAR), capTo: String(TIMELINE_LAST_YEAR) })}>All years</button></div>
-          <ControlPopover label={`Layers (${selectedFeeds.size})`} ariaLabel="Timeline evidence layers" icon={<Layers3 size={14} />} align="start" width={320} className="capture-layer-menu" triggerClassName="if-btn if-btn--secondary if-btn--sm" popoverProps={{ className: "capture-layer-popover" }}><div className="capture-layer-menu__quick"><button type="button" aria-pressed={!selectedFeeds.size} onClick={() => setFilters({ capFeed: "none" })}>Schedule only</button><button type="button" aria-pressed={selectedFeeds.has("changes")} onClick={() => toggleTimelineFeed("changes")}>Changes</button><button type="button" aria-pressed={selectedFeeds.has("followon")} onClick={() => toggleTimelineFeed("followon")}>Follow-ons</button><button type="button" aria-pressed={selectedFeeds.has("fpds") && selectedFeeds.has("fiscal")} onClick={() => toggleTimelineFeed("fpds", "fiscal")}>Funding</button><button type="button" aria-pressed={selectedFeeds.has("subawards")} onClick={() => toggleTimelineFeed("subawards")}>Subawards</button></div><SearchMultiSelect title="Evidence layers" allLabel="Schedule only" value={filters.capFeed} options={FEED_OPTIONS} maxSelected={11} onChange={(values) => setFilters({ capFeed: serializeMultiValues(values, "none") })} /><small>{feedStatusText}</small></ControlPopover>
+          <TimelineLayerControl selectedFeeds={selectedFeeds} coverage={layerCoverage} statusText={feedStatusText} onToggle={toggleTimelineFeed} onSet={setTimelineFeeds} />
           <div className="capture-gantt-commandbar__actions" role="group" aria-label="Timeline actions"><button type="button" aria-label="Scroll timeline to today" title={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31` ? "Today is outside the selected window" : undefined} onClick={scrollTimelineToToday} disabled={asOf < `${timelineStartYear}-01-01` || asOf > `${timelineEndYear}-12-31`}>Today</button><button type="button" aria-pressed={mergeMode} onClick={() => setLinkMode(!mergeMode)}><Link2 size={15} />Link records</button><button type="button" onClick={() => setGanttToolsOpen(true)}><SlidersHorizontal size={15} />View options</button><button type="button" aria-label={timelineExpanded ? "Exit full screen" : "Open timeline full screen"} aria-pressed={timelineExpanded} onClick={() => setTimelineExpanded((value) => !value)}>{timelineExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{timelineExpanded ? "Exit full screen" : "Full screen"}</button></div>
         </div>
+        <TimelineLegend selectedFeeds={selectedFeeds} showResearch={selectedResearchDates.length > 0} />
         {mergeMode ? <TimelineLinkToolbar records={recordById} selectedIds={[...mergeSelectedIds]} intelligenceState={recordIntelligence.state} groupState={recordGroups.state} onToggle={toggleMergeSelection} onLink={linkSelectedWithAi} onGroup={groupSelectedWithAi} onCancel={() => setLinkMode(false)} /> : null}
         {recordGroups.notice ? <p className={`if-alert ${recordGroups.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status">{recordGroups.notice}</p> : null}
         {recordIntelligence.notice ? <p className={`if-alert ${recordIntelligence.state === "failed" ? "if-alert--warning" : "if-alert--info"}`} role="status">{recordIntelligence.notice}</p> : null}
