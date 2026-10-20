@@ -1,43 +1,43 @@
-.pursuit-tasks {
-  border-top: 1px solid var(--if-border, #d7dce2);
-  background: var(--if-bg-subtle, #f7f8fa);
-}
+.opportunity-command-rail { min-width: 0; }
+.opportunity-command-rail--workspace { display: grid; gap: .75rem; }
+.opportunity-command-rail__workspace-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 20rem); align-items: start; gap: .75rem; min-width: 0; }
+.opportunity-command-rail__setup-panel { position: sticky; top: 4.75rem; min-width: 0; }
+.opportunity-command-rail--workspace > .if-panel__footer { flex-wrap: wrap; justify-content: flex-start; border: 1px solid var(--if-border, #d7dce2); border-radius: var(--if-card-radius, .5rem); background: var(--if-bg-surface, #fff); }
 
-.pursuit-tasks__body > header,
+.pursuit-setup__fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: .7rem; padding: .75rem; }
+
+.pursuit-tasks { min-width: 0; background: var(--if-bg-surface, #fff); }
+.pursuit-tasks__header { align-items: center; }
+.pursuit-tasks__header-actions,
 .pursuit-tasks__composer-actions,
 .pursuit-tasks__completed span,
-.pursuit-tasks__row-actions {
-  display: flex;
-  align-items: center;
-}
-
+.pursuit-tasks__row-actions { display: flex; align-items: center; }
+.pursuit-tasks__header-actions { justify-content: flex-end; gap: .5rem; }
+.pursuit-tasks__body { display: grid; gap: .75rem; padding: .75rem; }
 .pursuit-tasks__empty,
 .pursuit-tasks article small { color: var(--if-text-muted, #5f6873); }
-.pursuit-tasks__body { display: grid; gap: .55rem; padding: 0 .85rem .75rem; }
-.pursuit-tasks__body > header { justify-content: space-between; gap: .75rem; }
-.pursuit-tasks__body > header p { margin: 0; color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); }
-.pursuit-tasks__empty { margin: 0; font-size: .78rem; }
-.pursuit-tasks__list { display: grid; gap: .35rem; }
+.pursuit-tasks__empty { margin: 0; padding: 1rem; border: 1px dashed var(--if-border, #d7dce2); border-radius: .4rem; font-size: .82rem; text-align: center; }
+.pursuit-tasks__list { display: grid; gap: .5rem; }
 
 .pursuit-tasks article {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(8.75rem, auto) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(8.75rem, 9.5rem) auto;
   align-items: center;
-  gap: .55rem;
+  gap: .65rem;
   min-width: 0;
-  padding: .45rem;
+  padding: .7rem .75rem;
   border: 1px solid var(--if-border, #d7dce2);
   border-left: 3px solid var(--if-color-info, #315f82);
-  border-radius: .35rem;
+  border-radius: .4rem;
   background: var(--if-bg-surface, #fff);
 }
 
 .pursuit-tasks article[data-task-priority="critical"] { border-left-color: var(--if-color-danger, #a64639); }
 .pursuit-tasks article[data-task-priority="high"] { border-left-color: var(--if-color-warning, #b66b2b); }
-.pursuit-tasks__identity { display: grid; gap: .15rem; min-width: 0; }
-.pursuit-tasks article strong,
-.pursuit-tasks article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pursuit-tasks__row-actions { gap: .15rem; }
+.pursuit-tasks__identity { display: grid; gap: .2rem; min-width: 0; }
+.pursuit-tasks article strong { overflow-wrap: anywhere; line-height: 1.25; }
+.pursuit-tasks article small { overflow-wrap: anywhere; line-height: 1.35; }
+.pursuit-tasks__row-actions { justify-content: flex-end; gap: .2rem; }
 .pursuit-tasks__row-actions button:last-child:hover,
 .pursuit-tasks__row-actions button:last-child:focus-visible { color: var(--if-color-danger, #a64639); }
 .pursuit-tasks__status { min-width: 8.75rem; }
@@ -45,55 +45,39 @@
 .pursuit-tasks__composer {
   display: grid;
   grid-template-columns: minmax(14rem, 2fr) minmax(8rem, .7fr) minmax(9rem, .7fr) minmax(10rem, .8fr);
-  gap: .55rem;
-  padding: .65rem;
+  gap: .65rem;
+  padding: .75rem;
   border: 1px solid var(--if-color-info, #315f82);
   border-radius: .4rem;
-  background: var(--if-bg-surface, #fff);
+  background: var(--if-bg-subtle, #f7f8fa);
 }
 .pursuit-tasks__composer-actions { grid-column: 1 / -1; justify-content: flex-end; gap: .45rem; }
 .pursuit-tasks__completed { font-size: .75rem; }
-.pursuit-tasks__completed-list { display: grid; gap: .25rem; }
+.pursuit-tasks__completed-list { display: grid; gap: .35rem; }
 .pursuit-tasks__completed span { justify-content: space-between; gap: .75rem; }
 .pursuit-tasks__completed button { border: 0; background: transparent; color: var(--if-link, #315f82); }
 .pursuit-task-confirmation { display: grid; gap: .25rem; padding: .75rem; border: 1px solid var(--if-border, #d7dce2); border-radius: .4rem; background: var(--if-bg-subtle, #f7f8fa); }
 .pursuit-task-confirmation span { color: var(--if-text-muted, #5f6873); font-size: var(--if-font-size-xs); }
 
-.opportunity-command-rail__setup { border-right: 0; border-left: 0; border-radius: 0; background: var(--if-bg-surface, #fff); }
-.opportunity-command-rail__setup-body { display:grid; }
-.opportunity-command-rail--compact { container-type:inline-size; }
-.opportunity-command-rail--compact>.if-panel__footer { display:grid; grid-template-columns:1fr 1fr auto; padding:.65rem .75rem; border:0; background:transparent; }
-.opportunity-command-rail--compact>.if-panel__footer>* { min-width:0; }
-.opportunity-command-rail--compact .pursuit-actions__more>button { width:100%; }
-.opportunity-command-rail--compact .opportunity-command-rail__setup-body>.if-panel__body { grid-template-columns:1fr!important; padding:.65rem; }
-.opportunity-command-rail--compact .pursuit-tasks__composer { grid-template-columns:minmax(0,1fr); }
-.opportunity-command-rail--compact .pursuit-tasks__title,
-.opportunity-command-rail--compact .pursuit-tasks__composer-actions { grid-column:auto; }
-.opportunity-command-rail--compact .pursuit-tasks__composer-actions { justify-content:stretch; }
-.opportunity-command-rail--compact .pursuit-tasks__composer-actions>* { flex:1; }
-.opportunity-command-rail--compact .pursuit-tasks article { grid-template-columns:minmax(0,1fr) auto; }
-.opportunity-command-rail--compact .pursuit-tasks__identity { grid-column:1/-1; }
-.opportunity-command-rail--compact .pursuit-tasks__status { min-width:0; width:100%; }
-
-@container (min-width: 44rem) {
-  .opportunity-command-rail--compact .opportunity-command-rail__setup-body>.if-panel__body { grid-template-columns:repeat(4,minmax(0,1fr))!important; }
-  .opportunity-command-rail--compact .pursuit-tasks article { grid-template-columns:minmax(12rem,1fr) minmax(8.75rem,auto) auto; }
-  .opportunity-command-rail--compact .pursuit-tasks__identity { grid-column:auto; }
-  .opportunity-command-rail--compact .pursuit-tasks__composer { grid-template-columns:minmax(14rem,2fr) minmax(8rem,.7fr) minmax(9rem,.7fr) minmax(10rem,.8fr); }
-  .opportunity-command-rail--compact .pursuit-tasks__composer-actions { grid-column:1/-1; justify-content:flex-end; }
-  .opportunity-command-rail--compact .pursuit-tasks__composer-actions>* { flex:0 0 auto; }
+@media (max-width: 900px) {
+  .opportunity-command-rail__workspace-layout { grid-template-columns: minmax(0, 1fr); }
+  .opportunity-command-rail__setup-panel { position: static; }
 }
 
 @media (max-width: 720px) {
+  .pursuit-tasks__header { align-items: flex-start; }
+  .pursuit-tasks__header-actions { flex-wrap: wrap; }
   .pursuit-tasks article { grid-template-columns: minmax(0, 1fr) auto; }
   .pursuit-tasks__identity { grid-column: 1 / -1; }
-  .pursuit-tasks article .if-select { width: 100%; }
+  .pursuit-tasks article .if-select,
   .pursuit-tasks__status { width: 100%; }
   .pursuit-tasks__composer { grid-template-columns: 1fr 1fr; }
   .pursuit-tasks__title { grid-column: 1 / -1; }
 }
 
 @media (max-width: 480px) {
+  .pursuit-tasks__header { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .pursuit-tasks__header-actions { justify-content: space-between; }
   .pursuit-tasks__composer { grid-template-columns: 1fr; }
   .pursuit-tasks__title,
   .pursuit-tasks__composer-actions { grid-column: auto; }
@@ -104,7 +88,7 @@
 }
 
 @media (pointer: coarse) {
+  .pursuit-tasks__header-actions .if-btn,
   .pursuit-tasks__row-actions .if-btn,
-  .pursuit-tasks__body > header .if-btn,
-  .pursuit-tasks__composer-actions .if-btn { min-height:2.75rem; }
+  .pursuit-tasks__composer-actions .if-btn { min-height: 2.75rem; }
 }

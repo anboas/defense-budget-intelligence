@@ -140,10 +140,10 @@ export default function UniversalIntelligenceWorkspace({ dataset, awards = [], s
     </header>
     <ControlTabs className="universal-workspace__tabs" ariaLabel="Intelligence workspace views" activeId={tab} onSelect={(id) => updateWorkspaceTab(entityType, entityId, id, params)} items={WORKSPACE_TABS} />
     {record ? <RecordIntelligenceNotice intelligence={intelligence} /> : null}
-    <div className="universal-workspace__layout">
-      <aside className="universal-workspace__context" aria-label="Selected entity context">
-        {record ? <><OpportunityFactSummary record={record} compact />{tab !== "tasks" ? <Suspense fallback={<ControlAsyncState compact state="loading" title="Loading pursuit controls" />}><OpportunityCommandRail compact record={record} watch={watch} canWrite={management.canWrite} onSavePursuit={management.savePursuit} onToggleTrack={management.toggleWatch} intelligence={intelligence} showRecordLink={false} showActions={false} workspaceActions={management.watchlist} /></Suspense> : null}</> : <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Entity context</h2><p className="if-panel__subtitle">Stable identity across every analysis surface.</p></div></header><div className="if-panel__body"><ControlFactGrid label="Entity context" items={(entity.facts || []).slice(0, 4).map((value, index) => ({ label: ["Primary identifier", "Context", "Status", "Value"][index], value: typeof value === "number" ? value.toLocaleString() : String(value) }))} /></div></section>}
-      </aside>
+    <div className={tab === "tasks" ? "universal-workspace__layout universal-workspace__layout--actions" : "universal-workspace__layout"}>
+      {tab !== "tasks" ? <aside className="universal-workspace__context" aria-label="Selected entity context">
+        {record ? <OpportunityFactSummary record={record} compact /> : <section className="if-panel"><header className="if-panel__header"><div><h2 className="if-panel__title">Entity context</h2><p className="if-panel__subtitle">Stable identity across every analysis surface.</p></div></header><div className="if-panel__body"><ControlFactGrid label="Entity context" items={(entity.facts || []).slice(0, 4).map((value, index) => ({ label: ["Primary identifier", "Context", "Status", "Value"][index], value: typeof value === "number" ? value.toLocaleString() : String(value) }))} /></div></section>}
+      </aside> : null}
       <main className="universal-workspace__analysis" aria-label={`${WORKSPACE_TABS.find(([id]) => id === tab)?.[1]} analysis`}>
         {record && tab === "overview" ? <OpportunityOverview record={record} records={records} intelligence={intelligence} /> : null}
         {record && ["timeline", "connections", "money"].includes(tab) ? <ConnectedEvidence opportunityId={entityId} record={record} researchReport={intelligence.reports[0]} fullView workspace view={analysisView} showViewNavigation={false} /> : null}

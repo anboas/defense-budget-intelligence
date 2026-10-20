@@ -47,6 +47,10 @@ assert.equal(decodePursuitNote(bounded).pursuit.tasks.length, 6, "Task storage s
 assert.doesNotMatch(commandRailSource, /className="pursuit-tasks__complete"|onClick=\{\(\) => patchTask\(task, \{ status: "done" \}\)\}/, "Action plans must not expose silent one-click completion");
 assert.match(commandRailSource, /data-task-confirmation.*complete[\s\S]*Complete action/, "Task completion must require an explicit confirmation surface");
 assert.match(commandRailSource, /data-task-confirmation.*delete[\s\S]*Delete action/, "Task deletion must require an explicit confirmation surface");
+assert.match(commandRailSource, /data-action-plan-panel[\s\S]*data-pursuit-setup-panel/, "The primary action plan must precede the secondary pursuit-setup sidecar");
+assert.doesNotMatch(commandRailSource, /ControlDisclosure[^>]*className="opportunity-command-rail__setup"|meta=\{expanded \? "Hide"/, "Pursuit setup must not own or collapse the action plan");
+assert.match(workspaceSource, /universal-workspace__layout--actions[\s\S]*tab !== "tasks" \? <aside/, "The Actions workspace must own the full analysis width without the bottom-left context rail");
+assert.doesNotMatch(workspaceSource, /OpportunityCommandRail compact/, "Editable pursuit controls must not repeat inside the compact context rail");
 assert.doesNotMatch(commandRailSource, /intelligence\?\.notice/, "Research transport feedback must not render inside pursuit controls");
 assert.match(workspaceSource, /RecordIntelligenceNotice/, "The canonical workspace must own record-intelligence feedback outside the action plan");
 assert.match(previewSource, /RecordIntelligenceNotice/, "Opportunity previews must keep record-intelligence feedback outside the action plan");

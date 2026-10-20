@@ -27,7 +27,7 @@ function PursuitFields({ watch, canWrite, onCommit, ownerOptions, actionOptions 
     void onCommit(nextDraft, nextReviewAt).catch(() => {});
   }
 
-  return <div className="if-panel__body if-form-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))", gap: "0.5rem" }}>
+  return <div className="if-panel__body pursuit-setup__fields">
     <div className="if-field"><span className="if-field__label">Stage</span><ControlSelect label="Stage" value={draft.stage} options={PURSUIT_STAGES} disabled={!canWrite} triggerProps={{ style: { minHeight: "2.75rem" } }} onChange={(stage) => commit({ stage })} /></div>
     <div className="if-field"><span className="if-field__label">Owner</span><ControlSelect ariaLabel="Owner" searchable value={draft.owner} options={ownerOptions} disabled={!canWrite} triggerProps={{ className: "if-touch-target" }} onChange={(owner) => commit({ owner })} /></div>
     <div className="if-field"><span className="if-field__label">Next action</span><ControlSelect ariaLabel="Next action" searchable value={draft.nextAction} options={actionOptions} disabled={!canWrite} triggerProps={{ className: "if-touch-target" }} onChange={(nextAction) => commit({ nextAction })} /></div>
@@ -48,7 +48,6 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
   const dialogRef = useRef(null);
   const tasks = pursuit.tasks || [];
   const active = tasks.filter((task) => task.status !== "done");
-  const [expanded, setExpanded] = useState(active.length > 0);
   const canAdd = canWrite && active.length < 6;
   const statusOptions = PURSUIT_TASK_STATUSES.map(([value, label]) => [value, value === "done" ? "Complete…" : label]);
 
@@ -69,7 +68,6 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
 
   function addTask(candidate = {}) {
     const title = String(candidate.title || pursuit.nextAction || "").trim();
-    setExpanded(true);
     setComposer({ id: candidate.id || "", title, priority: candidate.priority || "normal", dueAt: candidate.dueAt || "", owner: candidate.owner || pursuit.owner || "", sourceType: candidate.sourceType || "manual", sourceId: candidate.sourceId || "", sourceLabel: candidate.sourceLabel || "", status: candidate.status || "todo", createdAt: candidate.createdAt || "" });
   }
 
@@ -116,18 +114,13 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
     }
   }
 
-  return <ControlDisclosure
-    className="pursuit-tasks"
-    data-pursuit-tasks
-    open={expanded}
-    onOpenChange={setExpanded}
-    title="Action plan"
-    summary={active.length ? `${active.length} open` : "No open actions"}
-    meta={expanded ? "Hide" : "Review"}
-    bodyClassName="pursuit-tasks__body"
-  >
-    <header><p>Each action has one owner, status, and due date.</p>{canWrite ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={!canAdd || Boolean(busyTaskId)} title={canAdd ? "Add a linked pursuit action" : "Complete or remove an action before adding another"} onClick={() => addTask()}><Plus size={14} />Add action</button> : null}</header>
-    {active.length ? <div className="pursuit-tasks__list">{active.slice(0, 5).map((task) => <article key={task.id} data-pursuit-task={task.status} data-task-priority={task.priority}>
+  return <section className="if-panel pursuit-tasks" data-pursuit-tasks data-action-plan-panel>
+    <header className="if-panel__header pursuit-tasks__header">
+      <div><h2 className="if-panel__title">Action plan</h2><p className="if-panel__subtitle">Owned next steps, due dates, and completion state for this pursuit.</p></div>
+      <div className="pursuit-tasks__header-actions"><span className="if-status if-status--sm">{active.length ? `${active.length} open` : "No open actions"}</span>{canWrite ? <button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={!canAdd || Boolean(busyTaskId)} title={canAdd ? "Add a linked pursuit action" : "Complete or remove an action before adding another"} onClick={() => addTask()}><Plus size={14} />Add action</button> : null}</div>
+    </header>
+    <div className="if-panel__body pursuit-tasks__body">
+    {active.length ? <div className="pursuit-tasks__list">{active.map((task) => <article key={task.id} data-pursuit-task={task.status} data-task-priority={task.priority}>
       <div className="pursuit-tasks__identity"><strong>{task.title}</strong><small>{[task.owner || "Unassigned", task.dueAt ? `Due ${task.dueAt.slice(0, 10)}` : "No due date", task.sourceLabel || (task.sourceType === "manual" ? "Manual action" : task.sourceType)].filter(Boolean).join(" · ")}</small></div>
       <ControlSelect label={`Status for ${task.title}`} value={task.status} options={statusOptions} disabled={!canWrite || busyTaskId === task.id} onChange={(status) => patchTask(task, { status })} triggerProps={{ className: "pursuit-tasks__status" }} />
       {canWrite ? <div className="pursuit-tasks__row-actions"><button type="button" className="if-btn if-btn--ghost if-btn--sm" disabled={Boolean(busyTaskId)} aria-label={`Edit ${task.title}`} onClick={() => addTask(task)}><Pencil size={13} />Edit</button><button type="button" className="if-btn if-btn--ghost if-btn--sm" disabled={Boolean(busyTaskId)} aria-label={`Delete ${task.title}`} onClick={() => setPendingMutation({ type: "delete", task })}><Trash2 size={13} />Delete</button></div> : null}
@@ -141,11 +134,12 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
     </div> : null}
     {feedback ? <div className={`if-alert if-alert--${feedback.tone}`} role={feedback.tone === "danger" ? "alert" : "status"} data-action-plan-feedback>{feedback.message}</div> : null}
     {tasks.some((task) => task.status === "done") ? <ControlDisclosure compact flush className="pursuit-tasks__completed" open={completedOpen} onOpenChange={setCompletedOpen} icon={<Check size={14} />} title="Completed actions" summary="Retained outside the active plan" meta={tasks.filter((task) => task.status === "done").length}><div className="pursuit-tasks__completed-list">{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id} data-completed-task={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite || Boolean(busyTaskId)} onClick={() => void applyTaskPatch(task, { status: "todo" }, "Action restored to the open plan.")}>Restore</button></span>)}</div></ControlDisclosure> : null}
+    </div>
     {pendingMutation ? <ControlDialog open onClose={() => { if (!busyTaskId) setPendingMutation(null); }} title={pendingMutation.type === "complete" ? "Complete this action?" : "Delete this action?"} eyebrow="Action plan" summary={pendingMutation.type === "complete" ? "This moves the action out of the active plan. You can restore it later from Completed." : "This permanently removes the action from the pursuit plan."} dialogRef={dialogRef} surfaceProps={{ "data-task-confirmation": pendingMutation.type }} footer={<><button type="button" className="if-btn" disabled={Boolean(busyTaskId)} onClick={() => setPendingMutation(null)}>Cancel</button><button type="button" className={pendingMutation.type === "delete" ? "if-btn if-btn--danger" : "if-btn if-btn--primary"} disabled={Boolean(busyTaskId)} onClick={() => void confirmMutation()}>{pendingMutation.type === "complete" ? <CheckCircle2 size={15} /> : <Trash2 size={15} />}{busyTaskId ? "Saving…" : pendingMutation.type === "complete" ? "Complete action" : "Delete action"}</button></>}><div className="pursuit-task-confirmation"><strong>{pendingMutation.task.title}</strong><span>{[pendingMutation.task.owner || "Unassigned", pendingMutation.task.dueAt ? `Due ${pendingMutation.task.dueAt.slice(0, 10)}` : "No due date"].join(" · ")}</span></div></ControlDialog> : null}
-  </ControlDisclosure>;
+  </section>;
 }
 
-export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true, compact = false, showActions = true, workspaceActions = [] }) {
+export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true, showActions = true, workspaceActions = [] }) {
   const auth = useAuth();
   const id = recordId(record);
   const sourceUrl = record?.sourceUrl || record?.sourceUrls?.[0] || null;
@@ -195,28 +189,14 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
     ]} />
   </nav>;
 
-  const compactActions = <nav className="if-panel__footer" aria-label="Selected opportunity actions">
-    <button type="button" className={watch ? "if-btn if-btn--secondary if-touch-target is-active" : "if-btn if-btn--secondary if-touch-target"} disabled={!canWrite} onClick={() => watch ? onToggleTrack?.(id) : void commit(normalizePursuit(), "")}><Star size={15} fill={watch ? "currentColor" : "none"} />{watch ? "Tracked" : "Track"}</button>
-    <button type="button" className="if-btn if-btn--ai if-touch-target" disabled={!intelligence?.canWrite || researchBusy} aria-label="Build AI decision brief" aria-busy={researchBusy} onClick={() => { void intelligence?.research().catch(() => {}); }}><Sparkles size={15} />{researchBusy ? "Research running…" : "Research"}</button>
-    <ControlMenu label="More" ariaLabel="More pursuit actions" icon={<MoreHorizontal size={15} />} className="pursuit-actions__more" triggerClassName="if-btn if-btn--secondary if-touch-target" items={[
-      showRecordLink ? { id: "workspace", label: "Open workspace", description: "Review the full pursuit record", href: opportunityRoute(id), icon: <ListChecks size={15} /> } : null,
-      { id: "timeline", label: "Open timeline", description: "Review milestones and family history", href: timelineRoute(id), icon: <CalendarClock size={15} /> },
-      sourceUrl ? { id: "source", label: "Official source", description: "Open the published record", href: sourceUrl, target: "_blank", rel: "noreferrer", icon: <ExternalLink size={15} /> } : null,
-    ]} />
-  </nav>;
-
-  if (compact) return <section className="opportunity-command-rail opportunity-command-rail--compact" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
-    {showActions ? compactActions : null}
-    <ControlDisclosure className="opportunity-command-rail__setup" title="Pursuit setup" summary={watch ? `${normalizePursuit(watch.pursuit).stage} · ${normalizePursuit(watch.pursuit).owner || "Unassigned"}` : "Owner, stage, next action, and action plan"} meta={status || (watch ? "Saved" : "Set up")} bodyClassName="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} /><TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} /></ControlDisclosure>
-  </section>;
-
-  return <section className="if-panel" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
-    <header className="if-panel__header">
-      <div><h3 className="if-panel__title">Pursuit controls</h3><p className="if-panel__subtitle">Assign ownership, stage the work, and keep the next decision visible.</p></div>
-      <span className="if-status if-status--sm" role="status" aria-live="polite">{status || (watch ? "Workspace pursuit" : "Not tracked")}</span>
-    </header>
-    <PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} />
-    <TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} />
+  return <section className="opportunity-command-rail opportunity-command-rail--workspace" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
+    <div className="opportunity-command-rail__workspace-layout">
+      <TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} />
+      <section className="if-panel opportunity-command-rail__setup-panel" data-pursuit-setup-panel>
+        <header className="if-panel__header"><div><h2 className="if-panel__title">Pursuit setup</h2><p className="if-panel__subtitle">Stage, ownership, next decision, and checkpoint.</p></div><span className="if-status if-status--sm" role="status" aria-live="polite">{status || (watch ? "Saved" : "Set up")}</span></header>
+        <PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} />
+      </section>
+    </div>
     {showActions ? actions : null}
   </section>;
 }
