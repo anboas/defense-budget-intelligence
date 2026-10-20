@@ -6,20 +6,21 @@ const expectedWorkspaces = ["Today", "Opportunities", "Timeline", "Funding", "In
 assert.deepEqual(PRODUCT_WORKSPACES.map(({ label }) => label), expectedWorkspaces, "Primary navigation must remain five stable user-job workspaces");
 
 const ownedTabs = PRODUCT_WORKSPACES.flatMap(({ id, tabIds }) => tabIds.map((tabId) => ({ id, tabId })));
-for (const tabId of ["watchlist", "tasks", "schedule", "spend", "timeline", "overview", "trends", "lifecycle", "awards", "library", "intelligence-graph", "map", "sources", "entity-workspace"]) {
+for (const tabId of ["watchlist", "actions", "schedule", "spend", "timeline", "overview", "trends", "lifecycle", "awards", "library", "intelligence-graph", "map", "sources", "entity-workspace"]) {
   assert.equal(ownedTabs.filter((entry) => entry.tabId === tabId).length, 1, `${tabId} must have exactly one product-workspace owner`);
 }
 
 const managedTabs = MANAGEMENT_NAVIGATION.flatMap(({ id, items }) => items.map((item) => ({ group: id, ...item })));
-for (const tabId of ["event-discovery", "connections", "domain-model", "intelligence", "workspace-settings", "users", "workspaces"]) {
+for (const tabId of ["tasks", "event-discovery", "connections", "domain-model", "intelligence", "workspace-settings", "users", "workspaces"]) {
   assert.equal(managedTabs.filter((entry) => entry.tabId === tabId).length, 1, `${tabId} must have exactly one management owner`);
   assert.equal(ownedTabs.some((entry) => entry.tabId === tabId), false, `${tabId} must not compete with a primary workspace`);
 }
 
 assert.equal(navigationContext("awards").workspace?.id, "funding", "Awards belongs to Funding");
 assert.equal(navigationContext("map").workspace?.id, "intelligence", "Geography belongs to Intelligence");
-assert.equal(navigationContext("tasks").workspace?.id, "today", "Tasks belongs to Today");
-assert.equal(navigationContext("watchlist", "#/budget-spend/watchlist").view?.id, "brief", "The three-pane workspace is the only Today brief owner");
+assert.equal(navigationContext("actions").workspace?.id, "today", "Human Actions belongs to Today");
+assert.equal(navigationContext("tasks").workspace, null, "Technical Automation Runs belongs to Manage, not a product workspace");
+assert.equal(navigationContext("watchlist", "#/budget-spend/watchlist").view?.id, "focus", "The three-pane workspace is the only Today focus owner");
 for (const legacyView of ["visuals", "radar", "charts"]) {
   assert.equal(navigationContext("spend", `#/budget-spend/explorer?spendView=${legacyView}`).view?.id, "analysis", `${legacyView} must resolve into Analysis Studio`);
 }

@@ -2,14 +2,14 @@ const ROUTES = {
   overview: "#/budget-spend", trends: "#/budget-spend/trends", lifecycle: "#/budget-spend/lifecycle", awards: "#/budget-spend/awards",
   spend: "#/budget-spend/explorer", timeline: "#/budget-spend/timeline", library: "#/budget-spend/library", graph: "#/budget-spend/intelligence-graph",
   workspace: "#/intelligence/workspace", map: "#/budget-spend/map", sources: "#/budget-spend/sources", watchlist: "#/budget-spend/watchlist",
-  tasks: "#/budget-spend/tasks", schedule: "#/budget-spend/schedule", discovery: "#/budget-spend/event-discovery", connections: "#/budget-spend/connections",
+  actions: "#/budget-spend/actions", tasks: "#/budget-spend/tasks", schedule: "#/budget-spend/schedule", discovery: "#/budget-spend/event-discovery", connections: "#/budget-spend/connections",
   model: "#/budget-spend/domain-model", intelligence: "#/budget-spend/intelligence", settings: "#/budget-spend/workspace", users: "#/budget-spend/users", workspaces: "#/budget-spend/workspaces",
 };
 
 export const PRODUCT_WORKSPACES = [
-  { id: "today", label: "Today", href: ROUTES.watchlist, tabIds: ["watchlist", "tasks", "schedule"], views: [
-    { id: "brief", label: "Brief", tabId: "watchlist", href: ROUTES.watchlist },
-    { id: "tasks", label: "Tasks", tabId: "tasks", href: ROUTES.tasks },
+  { id: "today", label: "Today", href: ROUTES.watchlist, tabIds: ["watchlist", "actions", "schedule"], views: [
+    { id: "focus", label: "Focus", tabId: "watchlist", href: ROUTES.watchlist },
+    { id: "actions", label: "Actions", tabId: "actions", href: ROUTES.actions },
     { id: "schedule", label: "Schedule", tabId: "schedule", href: ROUTES.schedule },
   ] },
   { id: "opportunities", label: "Opportunities", href: `${ROUTES.spend}?spendView=table`, tabIds: ["spend"], views: [
@@ -35,6 +35,7 @@ export const PRODUCT_WORKSPACES = [
 
 export const MANAGEMENT_NAVIGATION = [
   { id: "operations", label: "Operations", items: [
+    { id: "automation-runs", label: "Automation Runs", description: "API and AI run history", tabId: "tasks", href: ROUTES.tasks },
     { id: "event-discovery", label: "Event Discovery", description: "Curate official sources", tabId: "event-discovery", href: ROUTES.discovery, capability: "super" },
     { id: "connections", label: "Integrations & API", description: "Health and activity", tabId: "connections", href: ROUTES.connections },
   ] },

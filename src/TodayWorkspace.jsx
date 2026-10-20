@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, Filter, ListChecks, MoreHorizontal, Network } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, ListChecks, MoreHorizontal, Network } from "lucide-react";
 import {
   ControlCalendarDay,
   ControlCalendarFooter,
@@ -13,16 +13,13 @@ import {
   ControlTabs,
 } from "control-surface-ui/react";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
-import { useAuth } from "./AuthContext.jsx";
-import { useNotifications } from "./NotificationContext.jsx";
 import { intelligenceGraphRoute, opportunityRoute, timelineRoute } from "./cross-surface-routes.js";
-import { emptyProcurementFeed, loadProcurementFeed } from "./procurement-discovery.js";
 import { normalizePursuit } from "./pursuit-metadata.js";
 import "./TodayWorkspace.css";
 
 const DAY = 86_400_000;
 const PRIORITY_SCORE = { critical: 50, high: 35, normal: 20, low: 10 };
-const LENSES = ["Summary", "Timeline", "Evidence", "Money", "Tasks"];
+const LENSES = ["Summary", "Timeline", "Evidence", "Money", "Actions"];
 
 function dayKey(value) {
   if (!value) return "";
@@ -133,7 +130,7 @@ function TimelineSurface({ mode, setMode, items, selectedId, selectedRecordId, o
       eyebrow="Forward view"
       title="Next 14 days"
       compactTitle="Next 14 days"
-      description="Tasks, opportunity dates, research, and team events"
+      description="Pursuit actions, opportunity dates, and team events"
       navigation={<ControlCalendarViewSwitcher value={mode} onChange={setMode} label="Today timeline view" />}
     />
     {mode === "lanes" ? <div className="today-lanes" data-today-lanes>
@@ -157,16 +154,16 @@ function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onReq
   return <aside className="today-selection" data-today-selection data-selected-record={id}>
     <header><div><small>Selected opportunity</small><h2>{record.title || id}</h2><p>{[record.party || record.portfolio, record.sourceSystem || record.noticeType].filter(Boolean).join(" · ") || "Tracked opportunity"}</p></div></header>
     <dl className="today-selection__facts if-fact-grid if-fact-grid--mobile-two"><div className="if-fact-grid__item"><dt>Pursuit</dt><dd><SemanticStatusBadge category="workflow" value={pursuit.stage} /></dd></div><div className="if-fact-grid__item"><dt>Owner</dt><dd>{pursuit.owner || "Unassigned"}</dd></div><div className="if-fact-grid__item"><dt>Next milestone</dt><dd>{milestone.label}</dd></div><div className="if-fact-grid__item"><dt>Evidence</dt><dd><SemanticStatusBadge category="evidence" value={record.evidenceTier || "supported"} /><small>{evidenceLabel(record)}</small></dd></div></dl>
-    <ControlTabs className="today-selection__tabs" ariaLabel="Selected opportunity" activeId={lens} onSelect={setLens} items={LENSES.map((item) => ({ id: item.toLowerCase(), label: item }))} />
+    <ControlTabs fill className="today-selection__tabs" ariaLabel="Selected opportunity" activeId={lens} onSelect={setLens} items={LENSES.map((item) => ({ id: item.toLowerCase(), label: item }))} />
     <div className="today-selection__body">
       {lens === "summary" ? <><h3>Decision summary</h3><p>{summary}</p><div className="today-selection__next"><small>Next action</small><strong>{selectedTask?.title || pursuit.nextAction || "Set a named next action"}</strong></div></> : null}
       {lens === "timeline" ? <><h3>Timeline context</h3><p>{milestone.date ? `${milestone.label} is the next retained date for this record.` : "No future official date is retained for this record."}</p><a href={timelineRoute(id)}>Open complete family timeline<ArrowRight size={14} /></a></> : null}
       {lens === "evidence" ? <><h3>Evidence posture</h3><p>{evidenceLabel(record)}. Missing scope, dates, or acquisition details remain unavailable rather than inferred.</p><a href={opportunityRoute(id, { tab: "evidence", origin: "today" })}>Review evidence workspace<ArrowRight size={14} /></a></> : null}
       {lens === "money" ? <><h3>Money context</h3><p>{Number.isFinite(moneyValue) && moneyValue > 0 ? `Published record value: ${moneyValue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}.` : "No comparable published value is retained on this opportunity record."}</p><a href={opportunityRoute(id, { tab: "money", origin: "today" })}>Open Money workspace<ArrowRight size={14} /></a></> : null}
-      {lens === "tasks" ? <><h3>Open actions</h3>{openTasks.length ? <ul>{openTasks.map((task) => <li key={task.id}><strong>{task.title}</strong><small>{task.owner || "Unassigned"} · {task.dueAt ? `Due ${compactDate(task.dueAt)}` : "No due date"}</small></li>)}</ul> : <p>No open action is linked to this pursuit.</p>}<a href={opportunityRoute(id, { tab: "tasks", origin: "today" })}>Open task workspace<ArrowRight size={14} /></a></> : null}
+      {lens === "actions" ? <><h3>Open actions</h3>{openTasks.length ? <ul>{openTasks.map((task) => <li key={task.id}><strong>{task.title}</strong><small>{task.owner || "Unassigned"} · {task.dueAt ? `Due ${compactDate(task.dueAt)}` : "No due date"}</small></li>)}</ul> : <p>No open action is linked to this pursuit.</p>}<a href={opportunityRoute(id, { tab: "tasks", origin: "today" })}>Open action plan<ArrowRight size={14} /></a></> : null}
       {feedback ? <p className={`today-selection__feedback is-${feedback.tone}`} role={feedback.tone === "danger" ? "alert" : "status"}>{feedback.message}</p> : null}
     </div>
-    <footer><button type="button" className="if-btn if-btn--primary" disabled={!selectedTask} onClick={onRequestComplete}>{selectedTask ? "Complete action…" : "No action selected"}</button><ControlMenu
+    <footer>{selectedTask ? <button type="button" className="if-btn if-btn--primary" onClick={onRequestComplete}>Complete action…</button> : <a className="if-btn if-btn--primary" href={opportunityRoute(id, { tab: "tasks", origin: "today" })}>Open action plan</a>}<ControlMenu
       label="More"
       ariaLabel="More selected opportunity actions"
       icon={<MoreHorizontal size={14} />}
@@ -181,31 +178,15 @@ function SelectedOpportunity({ record, watch, selectedTask, lens, setLens, onReq
   </aside>;
 }
 
-export default function TodayWorkspace({ rows, watchlist, events = [], today, savePursuit, children }) {
-  const auth = useAuth();
-  const notifications = useNotifications();
-  const [attentionFeed, setAttentionFeed] = useState(emptyProcurementFeed);
-  useEffect(() => {
-    let active = true;
-    loadProcurementFeed().then((payload) => { if (active) setAttentionFeed(payload); }).catch(() => { /* Source attention stays unavailable rather than appearing clear. */ });
-    return () => { active = false; };
-  }, []);
+export default function TodayWorkspace({ rows, watchlist, events = [], today, savePursuit }) {
   const recordById = useMemo(() => new Map(rows.map((record) => [recordId(record), record])), [rows]);
   const watchById = useMemo(() => new Map(watchlist.map((watch) => [watch.recordId, watch])), [watchlist]);
   const tasks = useMemo(() => watchlist.flatMap((watch) => normalizePursuit(watch.pursuit).tasks.filter((task) => task.status !== "done").map((task) => ({ ...task, recordId: watch.recordId, record: recordById.get(watch.recordId) }))), [recordById, watchlist]);
   const noActionRecords = useMemo(() => rows.filter((record) => { const pursuit = normalizePursuit(watchById.get(recordId(record))?.pursuit); return !pursuit.nextAction && !pursuit.tasks.some((task) => task.status !== "done"); }), [rows, watchById]);
-  const sourceIssues = useMemo(() => Object.entries(attentionFeed.metadata?.coverage?.sources || {}).filter(([, source]) => !["current", "gaps-disclosed"].includes(source?.status)), [attentionFeed.metadata?.coverage?.sources]);
-  const taskAttention = useMemo(() => notifications?.notifications?.filter((item) => item.requiresAction || item.active) || [], [notifications?.notifications]);
-  const latestFeed = attentionFeed.history?.[0] || null;
-  const latestFeedDate = latestFeed?.date || "";
-  const changedTodayCount = Number(latestFeed?.summary?.added || 0) + Number(latestFeed?.summary?.updated || 0) + Number(latestFeed?.summary?.removed || 0);
   const priorityItems = useMemo(() => [
-    ...taskAttention.map((item) => ({ id: item.id, type: "system", href: item.href, title: item.title, meta: item.message, tone: item.tone || "info", score: item.requiresAction ? 110 : 55 })),
-    ...sourceIssues.map(([source, value]) => ({ id: `source:${source}`, type: "system", href: "#/budget-spend/connections?connectionsView=integrations", title: `${source} source issue`, meta: `${value.status}. Missing data is unavailable, not zero.`, tone: "danger", score: 100 })),
     ...tasks.map((task) => ({ id: `task:${task.recordId}:${task.id}`, type: "task", recordId: task.recordId, taskId: task.id, title: task.title, meta: [isTaskOverdue(task, today) ? "Overdue" : task.status === "waiting" ? "Waiting" : task.dueAt ? `Due ${compactDate(task.dueAt)}` : "No due date", task.record?.title || task.recordId].join(" · "), tone: isTaskOverdue(task, today) ? "danger" : task.priority === "high" || task.priority === "critical" ? "warning" : task.status === "waiting" ? "neutral" : "info", score: taskScore(task, today) })),
     ...noActionRecords.map((record) => ({ id: `plan:${recordId(record)}`, type: "plan", recordId: recordId(record), title: "Set a next action", meta: `${record.title || recordId(record)} · Tracked pursuit has no plan`, tone: "warning", score: 18 })),
-    ...(changedTodayCount ? [{ id: "changes:today", type: "system", href: "#/budget-spend/explorer?spendView=table&changes=today", title: `${changedTodayCount} record${changedTodayCount === 1 ? "" : "s"} changed`, meta: `${latestFeedDate ? `Latest retained refresh · ${compactDate(latestFeedDate)}` : "Latest retained source refresh"}`, tone: "info", score: 16 }] : []),
-  ].sort((left, right) => right.score - left.score).slice(0, 5), [changedTodayCount, latestFeedDate, noActionRecords, sourceIssues, taskAttention, tasks, today]);
+  ].sort((left, right) => right.score - left.score).slice(0, 5), [noActionRecords, tasks, today]);
   const timelineItems = useMemo(() => buildTimelineItems(rows, tasks, events, today), [events, rows, tasks, today]);
   const initialItem = priorityItems.find((item) => item.recordId) || timelineItems.find((item) => item.recordId) || (rows[0] ? { id: `record:${recordId(rows[0])}`, recordId: recordId(rows[0]) } : null);
   const [selectedItemId, setSelectedItemId] = useState(initialItem?.id || "");
@@ -223,8 +204,6 @@ export default function TodayWorkspace({ rows, watchlist, events = [], today, sa
   const selectedWatch = watchById.get(recordId(selectedRecord));
   const selectedTask = normalizePursuit(selectedWatch?.pursuit).tasks.find((task) => task.id === activeTaskId && task.status !== "done") || null;
   const waitingCount = tasks.filter((task) => task.status === "waiting").length;
-  const evidenceGapCount = rows.filter((record) => /gap|partial|unavailable/i.test(`${record.evidenceStatus || ""} ${record.coverageStatus || ""}`)).length;
-  const firstName = String(auth?.user?.displayName || "").trim().split(/\s+/)[0] || "there";
 
   function select(item) {
     setSelectedItemId(item.id);
@@ -242,7 +221,7 @@ export default function TodayWorkspace({ rows, watchlist, events = [], today, sa
       const pursuit = normalizePursuit(selectedWatch.pursuit);
       const nextTasks = pursuit.tasks.map((task) => task.id === pendingComplete.id ? { ...task, status: "done", completedAt: new Date().toISOString() } : task);
       await savePursuit(activeRecordId, { ...pursuit, tasks: nextTasks, reviewAt: selectedWatch.reviewAt });
-      setFeedback({ tone: "success", message: "Action completed. Restore it from the opportunity Tasks workspace if needed." });
+      setFeedback({ tone: "success", message: "Action completed. Restore it from the opportunity Actions workspace if needed." });
       setSelectedTaskId("");
       setPendingComplete(null);
     } catch (error) {
@@ -253,27 +232,13 @@ export default function TodayWorkspace({ rows, watchlist, events = [], today, sa
   }
 
   return <div className="today-workspace" data-today-workspace>
-    <header className="today-workspace__hero"><div><small>Workspace focus</small><h1>Good afternoon, {firstName}</h1><p>Start with the work that needs a decision, then move through time without losing the selected opportunity.</p></div><div className="today-workspace__signals"><span className="if-badge"><strong>{priorityItems.length}</strong> need attention</span><span className="if-badge"><strong>{waitingCount}</strong> waiting</span><span className="if-badge"><strong>{evidenceGapCount}</strong> evidence gap{evidenceGapCount === 1 ? "" : "s"}</span></div></header>
-    <div className="today-workspace__scope"><strong>Scope</strong><span className="if-btn if-btn--secondary if-btn--sm">My tracked work</span><span className="if-btn if-btn--secondary if-btn--sm">Next 14 days</span><span className="if-btn if-btn--secondary if-btn--sm">Owner: {firstName}</span><ControlMenu
-      label="Filters"
-      ariaLabel="Filter Today work"
-      icon={<Filter size={13} />}
-      className="today-workspace__filters"
-      triggerClassName="if-btn if-btn--secondary if-btn--sm"
-      items={[
-        { id: "urgent", label: "Needs attention", description: "Urgent and high-impact work", meta: priorityItems.length, href: "#/budget-spend/watchlist?workFocus=urgent" },
-        { id: "waiting", label: "Waiting", description: "Blocked or externally owned work", meta: waitingCount, href: "#/budget-spend/watchlist?workFocus=waiting" },
-        { id: "no-action", label: "Needs plan", description: "Tracked pursuits without a next action", meta: noActionRecords.length, href: "#/budget-spend/watchlist?workFocus=no-action" },
-        { id: "changes", label: "Changed records", description: "Open the latest retained source-change ledger", meta: changedTodayCount, href: "#/budget-spend/explorer?spendView=table&changes=today" },
-      ]}
-    /><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table"><ExternalLink size={13} />Find opportunities</a></div>
+    <header className="today-workspace__hero"><div><small>Decision focus</small><h1>What needs your attention</h1><p>Work the next decision, scan the next 14 days, and keep the selected opportunity in context.</p></div><div className="today-workspace__signals"><span className="if-badge"><strong>{tasks.length}</strong> open action{tasks.length === 1 ? "" : "s"}</span><span className="if-badge"><strong>{waitingCount}</strong> waiting</span><span className="if-badge"><strong>{noActionRecords.length}</strong> need a plan</span></div></header>
+    <div className="today-workspace__scope"><div className="today-workspace__scope-context"><strong>Tracked pursuits</strong><span>Next 14 days</span></div><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/actions"><ListChecks size={13} />Open all actions</a><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table"><ExternalLink size={13} />Find opportunities</a></div>
     <section className="today-workspace__console" data-today-console>
-      <aside className="today-priority" data-today-priority><header><div><small>Priority actions</small><h2>Act now</h2><p>{priorityItems.length} item{priorityItems.length === 1 ? "" : "s"}, ranked by urgency and impact</p></div><span>{priorityItems.length}</span></header><div>{priorityItems.map((item) => { const content = <><i aria-hidden="true" /><strong>{item.title}</strong><small>{item.meta}</small></>; return item.href ? <a key={item.id} href={item.href} className={`today-priority__item is-${item.tone}`} data-today-system-attention>{content}</a> : <button key={item.id} type="button" className={`today-priority__item is-${item.tone}${activeItemId === item.id ? " is-selected" : ""}`} onClick={() => select(item)} data-my-work-task={item.type === "task" ? true : undefined}>{content}</button>; })}</div></aside>
+      <aside className="today-priority" data-today-priority><header><div><small>Priority actions</small><h2>Act now</h2><p>{priorityItems.length} human-owned item{priorityItems.length === 1 ? "" : "s"}, ranked by urgency</p></div><span>{priorityItems.length}</span></header><div>{priorityItems.map((item) => { const content = <><i aria-hidden="true" /><strong>{item.title}</strong><small>{item.meta}</small></>; return <button key={item.id} type="button" className={`today-priority__item is-${item.tone}${activeItemId === item.id ? " is-selected" : ""}`} onClick={() => select(item)} data-my-work-task={item.type === "task" ? true : undefined}>{content}</button>; })}</div></aside>
       <TimelineSurface mode={mode} setMode={setMode} items={timelineItems} selectedId={activeItemId} selectedRecordId={activeRecordId} onSelect={select} today={today} />
       <SelectedOpportunity record={selectedRecord} watch={selectedWatch} selectedTask={selectedTask} lens={lens} setLens={setLens} onRequestComplete={() => { if (selectedTask) setPendingComplete(selectedTask); }} feedback={feedback} today={today} />
     </section>
-    <section className="if-management-grid if-management-grid--strip" aria-label="Operating loop">{[["Signal", "Dates and changes"], ["Orient", "Evidence and money"], ["Decide", "Pursuit posture"], ["Act", "Owner and task"], ["Learn", "Outcome and refresh"]].map(([label, value]) => <span className="if-management-card" key={label}><small className="if-management-card__label">{label}</small><strong className="if-management-card__value">{value}</strong></span>)}</section>
-    {children}
-    {pendingComplete ? <ControlDialog open onClose={() => { if (!busy) setPendingComplete(null); }} eyebrow="Today action" title="Complete this action?" summary="This moves the action out of the active queue. You can restore it later from the opportunity Tasks workspace." surfaceProps={{ "data-today-task-confirmation": true }} footer={<><button type="button" className="if-btn" disabled={busy} onClick={() => setPendingComplete(null)}>Cancel</button><button type="button" className="if-btn if-btn--primary" disabled={busy} onClick={() => void confirmComplete()}><CheckCircle2 size={15} />{busy ? "Saving…" : "Complete action"}</button></>}><div className="today-workspace__confirmation"><strong>{pendingComplete.title}</strong><span>{[pendingComplete.owner || "Unassigned", pendingComplete.dueAt ? `Due ${compactDate(pendingComplete.dueAt)}` : "No due date"].join(" · ")}</span></div></ControlDialog> : null}
+    {pendingComplete ? <ControlDialog open onClose={() => { if (!busy) setPendingComplete(null); }} eyebrow="Today action" title="Complete this action?" summary="This moves the action out of the active queue. You can restore it later from the opportunity Actions workspace." surfaceProps={{ "data-today-task-confirmation": true }} footer={<><button type="button" className="if-btn" disabled={busy} onClick={() => setPendingComplete(null)}>Cancel</button><button type="button" className="if-btn if-btn--primary" disabled={busy} onClick={() => void confirmComplete()}><CheckCircle2 size={15} />{busy ? "Saving…" : "Complete action"}</button></>}><div className="today-workspace__confirmation"><strong>{pendingComplete.title}</strong><span>{[pendingComplete.owner || "Unassigned", pendingComplete.dueAt ? `Due ${compactDate(pendingComplete.dueAt)}` : "No due date"].join(" · ")}</span></div></ControlDialog> : null}
   </div>;
 }

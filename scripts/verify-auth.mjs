@@ -138,10 +138,10 @@ try {
   await page.getByRole("button", { name: "Create super-user account" }).click();
   await page.waitForSelector("[data-defense-budget-app]");
   assert.equal(await page.locator('[data-primary-workspace="today"]').count(), 1, "Today must remain the primary action workspace");
-  assert.deepEqual(await page.locator('[data-workspace-nav="today"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/watchlist", "#/budget-spend/tasks", "#/budget-spend/schedule"], "Today must visibly own Brief, Tasks, and Schedule");
+  assert.deepEqual(await page.locator('[data-workspace-nav="today"] a[data-budget-nav]').evaluateAll((links) => links.map((link) => link.getAttribute("href"))), ["#/budget-spend/watchlist", "#/budget-spend/actions", "#/budget-spend/schedule"], "Today must visibly own Focus, Actions, and Schedule");
   await page.locator('[data-manage-menu-button]').click();
-  assert.equal(await page.locator('[data-manage-menu] a[data-budget-nav]').count(), 7, "Super-user Manage should expose seven bounded operational, workspace, and access capabilities");
-  assert.match(await page.locator('[data-manage-menu]').innerText(), /Operations[\s\S]*Event Discovery[\s\S]*Integrations & API[\s\S]*Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings[\s\S]*Access[\s\S]*Accounts[\s\S]*Workspaces/i);
+  assert.equal(await page.locator('[data-manage-menu] a[data-budget-nav]').count(), 8, "Super-user Manage should expose eight bounded operational, workspace, and access capabilities");
+  assert.match(await page.locator('[data-manage-menu]').innerText(), /Operations[\s\S]*Automation Runs[\s\S]*Event Discovery[\s\S]*Integrations & API[\s\S]*Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings[\s\S]*Access[\s\S]*Accounts[\s\S]*Workspaces/i);
   assert.equal(await page.locator('[data-manage-menu] a[href="#/profile"]').count(), 0, "Profile should remain owned by the account control rather than duplicated in Manage");
   assert.doesNotMatch(await page.locator('[data-manage-menu]').innerText(), /PDB Request|Request History|Account Flow|Awards|Intelligence Graph|Opportunity Map/, "Manage must not duplicate product views");
   await page.locator('[data-manage-menu-button]').click();
@@ -945,8 +945,8 @@ try {
   assert.match(await notificationCenter.innerText(), /Needs attention[\s\S]*(Verified additions are ready for your review|resolve the remaining validation issue)/i, "Completed background work must remain in the notification tray until reviewed");
   await notificationCenter.getByText(/Browser AI assisted event (is ready|needs review)/, { exact: true }).click();
   await page.waitForSelector("[data-task-center]");
-  assert.equal(await page.locator('[data-task-center] > .if-page-header').count(), 0, "Selected Task Center detail should remove the redundant route header");
-  assert.equal(await page.locator('[data-task-center] > .if-page-body').count(), 1, "Task Center content must use the shared page-body gutter");
+  assert.equal(await page.locator('[data-task-center] > .if-page-header').count(), 0, "Selected Automation Runs detail should remove the redundant route header");
+  assert.equal(await page.locator('[data-task-center] > .if-page-body').count(), 1, "Automation Runs content must use the shared page-body gutter");
   await page.waitForSelector('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   const aiReview = page.locator('[data-event-ai-review="completed"], [data-event-ai-review="needs_review"]');
   assert.match(await aiReview.innerText(), /(Verified draft ready|Operator validation required)[\s\S]*Research: gpt-5\.4-mini · Verification: gpt-5\.4[\s\S]*Verified changes[\s\S]*Evidence & exclusions/i, "The dedicated review workspace must disclose stages, selected models, unified changes, and evidence");
@@ -974,7 +974,7 @@ try {
   assert.equal(await taskInspector.locator('[role="tab"][aria-selected="true"]').count(), 1, "Arrow keys must retain one selected activity stage");
   assert.notEqual(await researchStage.getAttribute("aria-selected"), "true", "Arrow keys must move selection to the next retained activity stage");
   await taskInspector.getByRole("tab", { name: /Research/ }).click();
-  await assertPageBodyGutter(page, "[data-task-center]", "Task Center");
+  await assertPageBodyGutter(page, "[data-task-center]", "Automation Runs");
   assert.doesNotMatch(await aiReview.innerText(), /sk-browser|authorization|request body|response body/i, "AI review must never expose secrets or raw provider payloads");
   await page.screenshot({ path: "test-results/task-center-activity-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1255,8 +1255,8 @@ try {
   const dispositionRestoreStatus = await page.evaluate(async (recordId) => (await fetch(`/api/v1/agent/record-dispositions/${encodeURIComponent(recordId)}`, { method: "DELETE" })).status, visibleRecordId);
   assert.equal(dispositionRestoreStatus, 204, "Authenticated D1 users should restore a workspace tombstone");
   await page.goto(`${BASE_URL}#/budget-spend/watchlist`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
-  await page.locator(`[data-ops-watch-table] [data-row-key="${workspaceSeed.recordId}"]`).waitFor();
+  await page.locator(`[data-today-selection][data-selected-record="${workspaceSeed.recordId}"]`).waitFor();
+  assert.equal(await page.locator("[data-my-work-tracked], [data-ops-watch-table]").count(), 0, "Today Focus must not recreate a second tracked-portfolio owner");
   assert.equal(await page.locator(".operations-boundary").count(), 0, "Working routes should not repeat the storage contract as persistent page chrome");
   await page.goto(`${BASE_URL}#/budget-spend/schedule?scheduleView=list`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-ops-events]");
@@ -1367,8 +1367,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Authenticated mobile navigation should expose five workspaces, the three current owned views, and seven bounded management capabilities");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Timeline[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Today views[\s\S]*Brief[\s\S]*Tasks[\s\S]*Schedule[\s\S]*Manage · Operations[\s\S]*Event Discovery[\s\S]*Integrations & API[\s\S]*Manage · Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings[\s\S]*Manage · Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Authenticated mobile navigation should expose five workspaces, the three current owned views, and eight bounded management capabilities");
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Timeline[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Today views[\s\S]*Focus[\s\S]*Actions[\s\S]*Schedule[\s\S]*Manage · Operations[\s\S]*Automation Runs[\s\S]*Event Discovery[\s\S]*Integrations & API[\s\S]*Manage · Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings[\s\S]*Manage · Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-research-discovery-dashboard]');
@@ -1539,12 +1539,13 @@ try {
 
   const interactionSurfaces = [
     ["#/budget-spend/watchlist", "[data-operations-hub]", "Today workspace"],
+    ["#/budget-spend/actions", "[data-actions-workspace]", "Actions workspace"],
     ["#/budget-spend/schedule?scheduleView=list", "[data-schedule-surface]", "Schedule list"],
     ["#/budget-spend/schedule?scheduleView=calendar", "[data-wallboard-calendar]", "Schedule calendar"],
     ["#/budget-spend/explorer?spendView=timeline", "[data-capture-calendar-page]", "Spend timeline"],
     ["#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]", "Spend charts"],
     ["#/budget-spend/awards", "[data-awards-page]", "Awards"],
-    ["#/budget-spend/tasks", "[data-task-center]", "Task Center"],
+    ["#/budget-spend/tasks", "[data-task-center]", "Automation Runs"],
     ["#/budget-spend/connections?connectionsView=integrations", "[data-connections-surface]", "Connections integrations"],
     ["#/budget-spend/connections?connectionsView=credentials", "[data-connections-surface]", "Connections credentials"],
     ["#/budget-spend/connections?connectionsView=activity", "[data-connections-surface]", "Connections activity"],

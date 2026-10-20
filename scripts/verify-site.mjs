@@ -200,8 +200,8 @@ async function assertFlowShell(page) {
   assert.equal(await page.locator("[data-manage-menu]").count(), 0, "Manage menu should be closed by default");
   if (await page.locator("[data-manage-menu-button]").isVisible()) {
     await page.locator("[data-manage-menu-button]").click();
-    assert.equal(await page.locator("[data-manage-menu] a[data-budget-nav]").count(), 3, "Standard Manage should contain bounded operational and workspace administration only");
-    assert.match(await page.locator("[data-manage-menu]").innerText(), /Operations[\s\S]*Integrations & API[\s\S]*Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations/i, "Manage should group capabilities by operating responsibility");
+    assert.equal(await page.locator("[data-manage-menu] a[data-budget-nav]").count(), 4, "Standard Manage should contain bounded operational and workspace administration only");
+    assert.match(await page.locator("[data-manage-menu]").innerText(), /Operations[\s\S]*Automation Runs[\s\S]*Integrations & API[\s\S]*Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations/i, "Manage should group capabilities by operating responsibility");
     assert.doesNotMatch(await page.locator("[data-manage-menu]").innerText(), /PDB Request|Request History|Account Flow|Awards|Intelligence Graph|Opportunity Map/, "Manage must not duplicate product views");
     await page.locator("[data-manage-menu-button]").click();
   } else {
@@ -256,7 +256,7 @@ try {
   await page.waitForFunction(() => window.location.hash === "#/budget-spend/watchlist");
   await page.waitForSelector("[data-operations-hub]");
   assert.equal(await page.locator("[data-spend-today], [data-decision-brief]").count(), 0, "Legacy Today must redirect without retaining a second stacked dashboard");
-  await assertNavigationContext(page, "today", "Brief");
+  await assertNavigationContext(page, "today", "Focus");
   await openSurface(page, "#/budget-spend/explorer?spendView=table", '[data-spend-explorer="table"]');
   await page.getByRole("button", { name: "Manage saved opportunity views" }).click();
   const savedViewManager = page.locator(".spend-saved-views__manager");
@@ -373,7 +373,9 @@ try {
   await manageTrigger.focus();
   await page.keyboard.press("ArrowDown");
   assert.equal(await manageTrigger.getAttribute("aria-expanded"), "true", "Arrow Down should open Manage");
-  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Integrations & API")), true, "Arrow Down should focus the first available management capability");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Automation Runs")), true, "Arrow Down should focus the first available management capability");
+  await page.keyboard.press("ArrowDown");
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Integrations & API")), true, "Arrow keys should move through operational capabilities");
   await page.keyboard.press("ArrowDown");
   assert.equal(await page.evaluate(() => document.activeElement?.textContent.includes("Data Model")), true, "Arrow keys should move through management capabilities");
   await page.keyboard.press("Escape");
@@ -1142,7 +1144,7 @@ try {
   assert.ok(expandedWorkbenchId, "Opening an opportunity row should persist the selected stable ID in the route");
   assert.match(await page.locator("[data-opportunity-workbench-detail]").innerText(), /Opportunity preview[\s\S]*Why it fits[\s\S]*Open Intelligence Workspace/i, "Opportunity rows should remain a compact preview with one explicit analysis handoff");
   assert.equal(await page.locator('[data-opportunity-workbench-detail] [data-connected-visual-analysis]').count(), 0, "Opportunity previews should not duplicate the full analytical workspace");
-  assert.equal(await page.locator('[data-opportunity-workbench-detail] [data-opportunity-command-rail]').count(), 0, "Opportunity previews must not recreate the canonical Tasks workspace");
+  assert.equal(await page.locator('[data-opportunity-workbench-detail] [data-opportunity-command-rail]').count(), 0, "Opportunity previews must not recreate the canonical Actions workspace");
   const previewTrack = page.locator('[data-opportunity-workbench-detail] button[aria-pressed]').filter({ hasText: /Track/ }).first();
   await previewTrack.click();
   assert.equal(await previewTrack.getAttribute("aria-pressed"), "true", "The compact preview should retain one immediate tracking action");
@@ -1151,11 +1153,11 @@ try {
   await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
   assert.match(decodeURIComponent(new URL(page.url()).hash), new RegExp(`entityType=activity.*entityId=${decodeURIComponent(expandedWorkbenchId)}`), "Preview handoff should preserve the exact stable opportunity identity");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /returnTo=/, "Canonical workspace should preserve its source route for a predictable return");
-  await page.getByRole("button", { name: "Tasks", exact: true }).click();
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
   const workspaceTasks = page.locator('[data-universal-intelligence-workspace][data-workspace-tab="tasks"]');
   await workspaceTasks.waitFor();
   const commandRail = workspaceTasks.locator("[data-opportunity-command-rail]");
-  assert.equal(await commandRail.count(), 1, "The canonical Tasks tab should own pursuit controls exactly once");
+  assert.equal(await commandRail.count(), 1, "The canonical Actions tab should own pursuit controls exactly once");
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
   await chooseControlSelect(page, "Owner", "Workspace owner");
@@ -1163,9 +1165,9 @@ try {
   await commandRail.getByLabel("Checkpoint").fill("2026-10-20");
   await commandRail.locator("[data-pursuit-tasks] > summary").click();
   await commandRail.getByRole("button", { name: "Add action", exact: true }).click();
-  await commandRail.getByLabel("Task", { exact: true }).fill("Prepare capture brief");
-  await chooseControlSelect(page, "Task owner", "Workspace owner");
-  await chooseControlSelect(page, "Task priority", "High");
+  await commandRail.getByLabel("Action", { exact: true }).fill("Prepare capture brief");
+  await chooseControlSelect(page, "Action owner", "Workspace owner");
+  await chooseControlSelect(page, "Action priority", "High");
   await commandRail.getByLabel("Due").fill("2026-10-18");
   await commandRail.getByRole("button", { name: "Create action", exact: true }).click();
   assert.equal(await commandRail.locator('[data-pursuit-task="todo"]').count(), 1, "Pursuit Controls should create a dated task without leaving the analysis flow");
@@ -1228,11 +1230,11 @@ try {
   });
   assert.ok(canonicalWorkspaceGeometry.contextWidth <= 430, `Canonical workspace context should remain bounded, got ${canonicalWorkspaceGeometry.contextWidth}px`);
   assert.ok(canonicalWorkspaceGeometry.analysisWidth >= 650, `Canonical workspace analysis should own the desktop canvas, got ${canonicalWorkspaceGeometry.analysisWidth}px`);
-  assert.equal(await workspaceTasks.locator("[data-opportunity-command-rail]").count(), 1, "Tasks should render one pursuit-control owner instead of repeating it in the context rail");
-  assert.equal(await workspaceTasks.locator('[aria-label="Selected opportunity actions"]').count(), 0, "Tasks should reuse the header action cluster instead of rendering a second action row");
-  assert.equal(await workspaceTasks.getByRole("button", { name: /^Owner:/ }).count(), 1, "Tasks should expose one enhanced workspace-member picker");
-  assert.equal(await workspaceTasks.getByRole("button", { name: /^Next action:/ }).count(), 1, "Tasks should expose one enhanced reusable-action picker");
-  await page.screenshot({ path: `${OUT_DIR}/intelligence-workspace-tasks-desktop.png`, fullPage: false });
+  assert.equal(await workspaceTasks.locator("[data-opportunity-command-rail]").count(), 1, "Actions should render one pursuit-control owner instead of repeating it in the context rail");
+  assert.equal(await workspaceTasks.locator('[aria-label="Selected opportunity actions"]').count(), 0, "Actions should reuse the header action cluster instead of rendering a second action row");
+  assert.equal(await workspaceTasks.getByRole("button", { name: /^Owner:/ }).count(), 1, "Actions should expose one enhanced workspace-member picker");
+  assert.equal(await workspaceTasks.getByRole("button", { name: /^Next action:/ }).count(), 1, "Actions should expose one enhanced reusable-action picker");
+  await page.screenshot({ path: `${OUT_DIR}/intelligence-workspace-actions-desktop.png`, fullPage: false });
   await page.goBack({ waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
@@ -1346,9 +1348,11 @@ try {
   assert.equal(await page.locator("[data-today-console] > [data-today-selection]").count(), 1, "Today should keep selected-opportunity context in the right console pane");
   assert.equal(await page.locator("[data-today-lane]").count(), 4, "The default Today timeline should expose Actions, Opportunities, Research, and Team events lanes");
   assert.equal(await page.locator("[data-my-work-task]").count(), 1, "Today should project the pursuit task into its ranked cross-record action queue");
-  assert.ok(await page.locator("[data-today-system-attention]").count() >= 1, "Today should absorb source and workflow attention instead of relying on a second dashboard");
-  assert.match(await page.locator("[data-today-priority]").innerText(), /source issue/i, "Unavailable acquisition sources must remain visible in the canonical Today queue");
-  assert.equal(await page.locator("[data-ops-watch-table]").count(), 0, "My Work should defer the portfolio table until the operator requests it");
+  assert.equal(await page.locator("[data-today-system-attention]").count(), 0, "Today must keep technical source and automation health out of the human action queue");
+  assert.doesNotMatch(await page.locator("[data-today-priority]").innerText(), /source issue|api|provider|trace|augmentation/i, "Today priority work must contain human pursuit actions, not technical operations");
+  assert.equal(await page.locator("[data-my-work-tracked], [data-ops-watch-table]").count(), 0, "Today Focus must not recreate the Opportunities portfolio below the decision console");
+  assert.equal(await page.locator('[aria-label="Operating loop"]').count(), 0, "Today Focus must not retain a decorative process strip after the working console");
+  assert.equal(await page.getByText("My tracked work", { exact: true }).count(), 0, "Today Focus must not render static metadata as fake buttons");
   const todayComposition = await page.evaluate(() => {
     const rect = (selector) => {
       const bounds = document.querySelector(selector)?.getBoundingClientRect();
@@ -1361,9 +1365,10 @@ try {
       selection: rect("[data-today-selection]"),
     };
   });
-  assert.ok(todayComposition.priority.right <= todayComposition.forward.left + 1 && todayComposition.forward.right <= todayComposition.selection.left + 1, `Today desktop should preserve the approved action → timeline → context reading order: ${JSON.stringify(todayComposition)}`);
-  assert.ok(todayComposition.forward.width >= 500 && todayComposition.selection.width >= 280, `Today desktop should reserve useful working width for the timeline and selected-opportunity dock at the approved 1200px reference width: ${JSON.stringify(todayComposition)}`);
-  assert.ok(Math.abs(todayComposition.priority.top - todayComposition.forward.top) <= 1 && Math.abs(todayComposition.forward.top - todayComposition.selection.top) <= 1, `All three Today panes should share one working baseline: ${JSON.stringify(todayComposition)}`);
+  assert.ok(todayComposition.priority.right <= todayComposition.forward.left + 1, `Today desktop should preserve the action → timeline reading order: ${JSON.stringify(todayComposition)}`);
+  assert.ok(todayComposition.forward.width >= 700, `Today desktop should reserve useful working width for the forward view at the 1200px reference width: ${JSON.stringify(todayComposition)}`);
+  assert.ok(Math.abs(todayComposition.priority.top - todayComposition.forward.top) <= 1, `Today priority and forward panes should share one working baseline: ${JSON.stringify(todayComposition)}`);
+  assert.ok(todayComposition.selection.top >= todayComposition.priority.bottom - 1 && todayComposition.selection.width >= todayComposition.console.width - 2, `Selected-opportunity context should move to a full-width second row instead of becoming a cramped third column at 1200px: ${JSON.stringify(todayComposition)}`);
   assert.ok(todayComposition.console.height >= 500, `Today should retain a real operating canvas rather than collapse into summary cards: ${JSON.stringify(todayComposition)}`);
   await page.getByRole("button", { name: "Agenda", exact: true }).click();
   assert.equal(await page.locator("[data-today-agenda]").count(), 1, "Today should switch the same retained work into Agenda view");
@@ -1385,6 +1390,8 @@ try {
   await page.getByRole("button", { name: "Lanes", exact: true }).click();
   const opportunityTabs = page.locator('[data-if-control-tabs][aria-label="Selected opportunity"]');
   assert.equal(await opportunityTabs.locator("[data-if-control-tab]").count(), 5, "Selected opportunity lenses must use the complete shared ControlTabs owner");
+  const opportunityTabsGeometry = await opportunityTabs.evaluate((tabs) => ({ width: tabs.clientWidth, scrollWidth: tabs.scrollWidth }));
+  assert.ok(opportunityTabsGeometry.scrollWidth <= opportunityTabsGeometry.width + 1, `All selected-opportunity lenses must remain visible without horizontal scrolling at 1200px: ${JSON.stringify(opportunityTabsGeometry)}`);
   const summaryTab = opportunityTabs.locator('[data-if-control-tab="summary"]');
   const timelineTab = opportunityTabs.locator('[data-if-control-tab="timeline"]');
   await summaryTab.focus();
@@ -1413,11 +1420,6 @@ try {
   assert.equal(await todayMenu.count(), 0, "Escape should close the Today command menu");
   await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "More selected opportunity actions");
   assert.equal(await todayMore.evaluate((node) => node === document.activeElement), true, "Escape should restore focus to the Today More trigger");
-  await todayMore.click();
-  await page.getByRole("button", { name: "Filter Today work" }).click();
-  assert.equal(await todayMenu.count(), 0, "Opening another command menu should close the already-open Today menu");
-  assert.equal(await page.locator('[data-if-react-menu][aria-label="Filter Today work"]').count(), 1, "Today Filters should use the shared portaled command menu");
-  await page.keyboard.press("Escape");
   const completeAction = page.getByRole("button", { name: "Complete action…", exact: true });
   assert.equal(await completeAction.count(), 1, "Selected task completion should stay available beside the decision context");
   await completeAction.click();
@@ -1425,39 +1427,13 @@ try {
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   assert.equal(await page.locator("[data-today-task-confirmation]").count(), 0, "Cancel should preserve the selected Today action");
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("button", { name: "Review pursuits", exact: true }).click();
-  assert.equal(await page.locator("[data-ops-watch-table] [data-if-table-row]").count(), 1, "My Work should project the tracked stable-ID working set");
-  const trackedSearch = page.getByRole("searchbox", { name: "Search Tracked pursuits" });
-  const trackedSearchGeometry = await trackedSearch.evaluate((input) => {
-    const root = input.closest("[data-if-control-search]");
-    const search = root?.querySelector(".if-search");
-    const icon = root?.querySelector(".if-search__icon");
-    const rect = (node) => {
-      const bounds = node?.getBoundingClientRect();
-      return bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height, centerY: bounds.top + bounds.height / 2 } : null;
-    };
-    return { root: rect(root), search: rect(search), input: rect(input), icon: rect(icon), iconPosition: icon ? getComputedStyle(icon).position : null, searchDisplay: search ? getComputedStyle(search).display : null };
-  });
-  assert.equal(trackedSearchGeometry.iconPosition, "absolute", `Tracked pursuits must use the owned search-icon lane: ${JSON.stringify(trackedSearchGeometry)}`);
-  assert.equal(trackedSearchGeometry.searchDisplay, "block", `Tracked pursuits search anatomy must own one complete control row: ${JSON.stringify(trackedSearchGeometry)}`);
-  assert.ok(trackedSearchGeometry.root.height <= 36 && trackedSearchGeometry.search.height === trackedSearchGeometry.input.height, `Tracked pursuits search must not stack its icon above the input: ${JSON.stringify(trackedSearchGeometry)}`);
-  assert.ok(trackedSearchGeometry.icon.left >= trackedSearchGeometry.input.left && trackedSearchGeometry.icon.right <= trackedSearchGeometry.input.right && Math.abs(trackedSearchGeometry.icon.centerY - trackedSearchGeometry.input.centerY) <= 1, `Tracked pursuits search icon must be vertically centered inside its input: ${JSON.stringify(trackedSearchGeometry)}`);
-  await trackedSearch.fill("PMA-263");
-  const clearTrackedSearch = page.getByRole("button", { name: "Clear Search Tracked pursuits" });
-  await clearTrackedSearch.click();
-  assert.equal(await trackedSearch.inputValue(), "", "Shared search clear should restore the complete tracked pursuit set");
-  await page.waitForFunction(() => document.activeElement?.matches('input[type="search"][aria-label="Search Tracked pursuits"]'));
-  assert.equal(await trackedSearch.evaluate((node) => node === document.activeElement), true, "Clearing a shared search should restore focus to its input");
-  assert.equal(await page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`).count(), 1, "My Work should preserve the exact Gantt stable ID");
-  await page.getByRole("button", { name: "Filter Today work", exact: true }).click();
-  await page.getByRole("menuitem", { name: /^Needs attention/ }).click();
-  assert.match(decodeURIComponent(new URL(page.url()).hash), /workFocus=urgent/, "My Work attention filters should persist in the shareable route");
-  const watchRow = page.locator(`[data-ops-watch-table] [data-row-key="${firstWatchId}"]`);
-  await watchRow.click();
-  const watchNote = page.locator("[data-ops-watch-table] [data-if-table-detail] textarea");
-  await watchNote.fill("Verify public record details before the next review.");
-  await watchNote.blur();
-  await watchRow.locator('input[type="date"]').fill("2026-10-01");
+  await openSurface(page, "#/budget-spend/actions", "[data-actions-workspace]");
+  assert.equal(await page.locator('[data-primary-workspace="today"][aria-current="page"]').count(), 1, "Actions must remain inside the active Today workspace");
+  assert.match(await page.locator("[data-actions-workspace]").innerText(), /Actions[\s\S]*Open[\s\S]*Overdue[\s\S]*Due soon[\s\S]*Waiting[\s\S]*Needs plan/i, "Actions must summarize human pursuit work by urgency and planning state");
+  assert.doesNotMatch(await page.locator("[data-actions-workspace]").innerText(), /API request|provider|trace|augmentation/i, "Actions must not expose technical automation diagnostics");
+  assert.equal(await page.locator("[data-actions-table] [data-if-table-row]").count(), 1, "Actions must project the tracked human action into one owned work queue");
+  assert.equal(await page.locator('[data-actions-table] a[href*="workspaceTab=tasks"]').count(), 1, "Every human action must hand off to its canonical opportunity action plan");
+  await page.screenshot({ path: `${OUT_DIR}/today-actions-desktop.png`, fullPage: true });
   await openSurface(page, "#/budget-spend/schedule?scheduleView=list", "[data-ops-events]");
   await page.getByRole("button", { name: "Add event" }).click();
   const addEventDialog = page.getByRole("dialog", { name: "Add event" });

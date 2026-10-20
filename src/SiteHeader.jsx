@@ -12,7 +12,7 @@ const UniversalFindDialog = lazy(() => import("./UniversalFindDialog.jsx"));
 const MOBILE_TITLES = {
   spend: "Opportunities", timeline: "Timeline", library: "Library", "intelligence-graph": "Graph", map: "Geography",
   schedule: "Schedule", overview: "Request", trends: "Changes", lifecycle: "Accounts", awards: "Awards", sources: "Sources",
-  watchlist: "Today", tasks: "Tasks", "event-discovery": "Discovery", connections: "Integrations", "domain-model": "Data Model",
+  watchlist: "Today", actions: "Actions", tasks: "Automation", "event-discovery": "Discovery", connections: "Integrations", "domain-model": "Data Model",
   intelligence: "Intelligence", "workspace-settings": "Workspace", users: "Accounts", workspaces: "Workspaces", directory: "Directory",
   "entity-workspace": "Entity",
 };

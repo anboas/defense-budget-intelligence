@@ -23,7 +23,7 @@ const WORKSPACE_TABS = [
   ["connections", "Connections"],
   ["money", "Money"],
   ["evidence", "Evidence"],
-  ["tasks", "Tasks"],
+  ["tasks", "Actions"],
 ];
 
 function recordId(record) {
