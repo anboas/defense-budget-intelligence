@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES } from "../src/intelligence-graph.js";
+import { gunzipSync } from "node:zlib";
+import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, LINKED_INTELLIGENCE_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 import { CONFLICT_STATUS_VALUES, TEMPORAL_EVIDENCE_SCHEMA_VERSION, TEMPORAL_STATUS_VALUES } from "./temporal-evidence-resolver.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -21,6 +22,9 @@ const legislativeTraceability = JSON.parse(readFileSync(resolve(ROOT, "src/data/
 const roadmapIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/roadmap-intelligence.json"), "utf8"));
 const strategicIntelligence = JSON.parse(readFileSync(resolve(ROOT, "src/data/strategic-intelligence.json"), "utf8"));
 const agentGraphManifest = JSON.parse(readFileSync(resolve(ROOT, "public/data/agent-graph/manifest.json"), "utf8"));
+const linkedIntelligenceBytes = readFileSync(resolve(ROOT, "public/data/linked-intelligence-index.json"));
+const linkedIntelligenceGzipBytes = readFileSync(resolve(ROOT, "public/data/linked-intelligence-index.json.gzip"));
+const linkedIntelligence = JSON.parse(linkedIntelligenceBytes.toString("utf8"));
 const entities = new Set(Object.values(graph.entities || {}).flatMap((rows) => rows.map((row) => row.id)));
 const relations = graph.relations || [];
 
@@ -31,6 +35,7 @@ assert.equal(graphSummary.totals.entities, Object.values(graph.metadata.entityCo
 assert.deepEqual(graph.domain?.entityTypes, INTELLIGENCE_ENTITY_TYPES);
 assert.deepEqual(graph.domain?.relationTypes, INTELLIGENCE_RELATION_TYPES);
 assert.equal(graph.entities?.activity?.length, 888, "All stable activities must exist in the graph");
+assert.equal(graph.entities?.organization?.length, 2932, "Reviewed command identities must join the canonical organization graph");
 assert.equal(graph.entities?.award?.length, 1905, "All activity-linked and ranked USAspending awards must exist in the graph");
 assert.equal(graph.entities?.event?.length, 502, "All normalized public events must exist in the graph");
 assert.equal(graph.entities?.transaction?.length, 3085, "All exact FPDS actions must exist in the graph");
@@ -180,7 +185,7 @@ assert.equal(graph.metadata.coverage.organizations.reviewedOfficeCodeIdentities,
 assert.equal(graph.metadata.coverage.organizations.cageIdentities, 0, "CAGE coverage must remain explicit until published evidence enters the retained corpus");
 assert.equal(graph.metadata.coverage.organizations.resolvedAliasGroups, 23, "Known UEI-resolved alias coverage changed");
 assert.equal(graph.metadata.coverage.organizations.ambiguousNormalizedLabels, 11, "Known ambiguous normalized-label queue changed");
-assert.equal(graph.metadata.coverage.organizations.hierarchyRelations, 93, "Source-declared organization hierarchy coverage changed");
+assert.equal(graph.metadata.coverage.organizations.hierarchyRelations, 104, "Source-declared and reviewed organization hierarchy coverage changed");
 assert.equal(graph.metadata.coverage.organizations.officeLocationRelations, 52, "Reviewed office-code/location coverage changed");
 assert.equal(graph.metadata.coverage.organizations.transactionRecipientRelations, 3085, "Every exact FPDS transaction must retain its recipient identity edge");
 assert.equal(graph.metadata.coverage.contracts.exactParentVehicles, graph.entities?.["contract-vehicle"]?.length, "Every exact parent vehicle must exist once");
@@ -273,6 +278,29 @@ assert.deepEqual(unsafeSources, [], "Source entities must use safe public HTTP(S
 assert.equal(graphIndex.metadata?.schemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION);
 assert.equal(Object.keys(graphIndex.indices?.byActivity || {}).length, 888, "The deferred activity graph index must cover every canonical activity");
 assert.ok(readFileSync(resolve(ROOT, "public/data/intelligence-graph-index.json")).byteLength < 3_000_000, "Deferred record graph index exceeds the 3 MB route-on-demand budget");
+
+assert.equal(linkedIntelligence.metadata?.schemaVersion, LINKED_INTELLIGENCE_SCHEMA_VERSION, "Linked browser index schema changed");
+assert.equal(linkedIntelligence.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Linked browser index must track the canonical graph schema");
+assert.deepEqual(gunzipSync(linkedIntelligenceGzipBytes), linkedIntelligenceBytes, "Compressed linked browser index must be byte-identical after decompression");
+assert.ok(linkedIntelligenceGzipBytes.byteLength < 1_200_000, "Compressed linked browser index exceeds its 1.2 MB route-on-demand budget");
+const linkedNodes = Object.values(linkedIntelligence.nodes || {});
+const linkedRelations = linkedIntelligence.relations || [];
+const linkedOrganization = (label) => linkedNodes.find((node) => node.type === "organization" && node.label === label);
+const navy = linkedOrganization("Department of the Navy");
+const navair = linkedOrganization("Naval Air Systems Command");
+const navwar = linkedOrganization("Naval Information Warfare Systems Command");
+const niwcPacific = linkedOrganization("Naval Information Warfare Center Pacific");
+const niwcAtlantic = linkedOrganization("Naval Information Warfare Center Atlantic");
+for (const organization of [navy, navair, navwar, niwcPacific, niwcAtlantic]) assert.ok(organization, "Every reviewed Navy command must remain addressable in linked intelligence");
+const linkedHierarchy = linkedRelations.filter((relation) => relation.type === "organization-part-of");
+assert.equal(linkedHierarchy.length, 11, "Linked intelligence must expose the seven reviewed command and four reviewed office hierarchy edges");
+assert.ok(linkedHierarchy.every((relation) => relation.evidence?.sourceArtifact === "reviewed-organization-hierarchy" && relation.evidence?.reviewState === "reviewed"), "Source-declared taxonomy must never be presented as reviewed command hierarchy");
+assert.ok(linkedHierarchy.some((relation) => relation.from === navair.id && relation.to === navy.id), "NAVAIR must retain its reviewed Department of the Navy parent");
+assert.ok(linkedHierarchy.some((relation) => relation.from === niwcPacific.id && relation.to === navwar.id), "NIWC Pacific must retain its reviewed NAVWAR parent");
+assert.ok(linkedHierarchy.some((relation) => relation.from === niwcAtlantic.id && relation.to === navwar.id), "NIWC Atlantic must retain its reviewed NAVWAR parent");
+for (const [organization, minimum] of [[navy, 100], [navair, 20], [navwar, 5], [niwcPacific, 1], [niwcAtlantic, 1]]) {
+  assert.ok((linkedIntelligence.indices?.byEntity?.[organization.id]?.timelineActivityIds || []).length >= minimum, `${organization.label} must retain a useful entity-scoped Timeline`);
+}
 
 assert.equal(agentGraphManifest.metadata?.schemaVersion, "1.1.0", "Agent graph directory schema changed");
 assert.equal(agentGraphManifest.metadata?.graphSchemaVersion, INTELLIGENCE_GRAPH_SCHEMA_VERSION, "Agent graph directory must track the canonical graph schema");

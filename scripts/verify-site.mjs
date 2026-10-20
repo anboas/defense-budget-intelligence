@@ -37,6 +37,7 @@ const opportunityPortfolioStyleBytes = styleAssets.find((asset) => /^Opportunity
 const spendExplorerStyleBytes = styleAssets.find((asset) => /^SpendExplorer-.*\.css$/.test(asset.name))?.bytes || 0;
 const opportunityWorkbenchDetailStyleBytes = styleAssets.find((asset) => /^OpportunityWorkbenchDetail-.*\.css$/.test(asset.name))?.bytes || 0;
 const intelligenceGraphPageStyleBytes = styleAssets.find((asset) => /^IntelligenceGraphPage-.*\.css$/.test(asset.name))?.bytes || 0;
+const linkedIntelligenceGraphStyleBytes = styleAssets.find((asset) => /^LinkedIntelligenceGraph-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
@@ -51,6 +52,7 @@ assert.ok(opportunityPortfolioStyleBytes > 0 && opportunityPortfolioStyleBytes <
 assert.ok(spendExplorerStyleBytes > 0 && spendExplorerStyleBytes <= 13_000, `Lazy Opportunities CSS must stay within its 13 KB route budget, got ${spendExplorerStyleBytes.toLocaleString()} bytes`);
 assert.ok(opportunityWorkbenchDetailStyleBytes > 0 && opportunityWorkbenchDetailStyleBytes <= 5_000, `Deferred Workbench detail CSS must stay within its 5 KB component budget, got ${opportunityWorkbenchDetailStyleBytes.toLocaleString()} bytes`);
 assert.ok(intelligenceGraphPageStyleBytes > 0 && intelligenceGraphPageStyleBytes <= 1_200, `Lazy Intelligence Graph route CSS must stay within its 1.2 KB budget, got ${intelligenceGraphPageStyleBytes.toLocaleString()} bytes`);
+assert.ok(linkedIntelligenceGraphStyleBytes > 0 && linkedIntelligenceGraphStyleBytes <= 5_000, `Deferred linked graph CSS must stay within its 5 KB budget, got ${linkedIntelligenceGraphStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
 assert.ok(compiledStyleBytes <= 471_200, `Total scoped CSS must stay below 471.2 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
@@ -400,7 +402,7 @@ try {
   assert.equal(await page.locator("[data-domain-diagram]").count(), 1, "Domain Model should expose one integrated architecture diagram");
   assert.equal(await page.locator("[data-domain-diagram-node]").count(), 14, "The architecture diagram should group the graph into fourteen readable domains");
   assert.equal(await page.locator("[data-domain-entity-card]").count(), 83, "Domain Model should inventory every canonical entity type");
-  assert.equal(await page.locator("[data-domain-relation-row]").count(), 124, "Domain Model should inventory every canonical relationship type");
+  assert.equal(await page.locator("[data-domain-relation-row]").count(), 125, "Domain Model should inventory every canonical relationship type");
   const domainOverviewText = await page.locator("[data-domain-model-page]").innerText();
   assert.match(domainOverviewText, new RegExp(`${graphNumber(intelligenceGraphSummary.totals?.entities)}[\\s\\S]*typed entities[\\s\\S]*${graphNumber(intelligenceGraphSummary.totals?.relations)}[\\s\\S]*evidence relations`, "i"), "Domain Model should disclose canonical graph totals");
   assert.match(domainOverviewText, new RegExp(`${graphNumber(graphCoverage.temporal?.current)}[\\s\\S]*current relations[\\s\\S]*${graphNumber(graphCoverage.temporal?.needs_review)}[\\s\\S]*review required`, "i"), "Domain Model should disclose temporal and conflict totals");
@@ -1336,6 +1338,7 @@ try {
   assert.equal(await page.locator("[data-relationship-lanes]").count(), 1, "Data Library should summarize relationship lanes before rendering every retained item");
   await page.locator("[data-relationship-lanes] > summary").click();
   assert.match(await page.locator("[data-data-library-page]").innerText(), /Customers & offices[\s\S]*Officials & roles[\s\S]*Programs, awards & accounts[\s\S]*Companies & suppliers/i, "Data Library should connect customer hierarchy, people, work, and companies");
+  assert.match(decodeURIComponent(await page.getByRole("link", { name: /Open in Graph Explorer/i }).getAttribute("href")).replaceAll("+", " "), /intelligence-graph\?graphType=organization[\s\S]*graphLabel=/i, "Reviewed organization dossiers should hand off to the universal Graph Explorer");
   assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Data Library should load its bounded organization index once");
   await page.screenshot({ path: `${OUT_DIR}/data-library-relationships-desktop.png`, fullPage: true });
   await page.setViewportSize({ width: 1200, height: 750 });
@@ -2454,72 +2457,89 @@ try {
   await page.screenshot({ path: `${OUT_DIR}/transactions-gantt-desktop.png` });
 
   await openSurface(page, `#/budget-spend/intelligence-graph?graphRecord=${connectedActivityId}`, "[data-intelligence-graph-page]");
-  await page.waitForSelector('[data-intelligence-graph-page] [data-connected-evidence-state="ready"]');
-  assert.equal(await page.locator("[data-intelligence-graph-search]").count(), 1, "The full Intelligence Graph should use the shared record autosuggest control");
-  assert.ok(Number(await page.locator("[data-intelligence-graph-page] [data-evidence-visual-graph]").getAttribute("data-node-count")) >= 4, "The full Intelligence Graph should preserve the bounded evidence neighborhood");
-  const fullGraphPredecessor = page.locator('[data-intelligence-graph-page] .if-graph-node[data-evidence-node="predecessor"]');
-  if (await fullGraphPredecessor.count()) {
-    await fullGraphPredecessor.click();
-    const traverseLink = page.getByRole("link", { name: /Traverse from predecessor/i });
-    assert.match(await traverseLink.getAttribute("href"), /intelligence-graph\?graphRecord=/, "Contract-family nodes should re-root the Intelligence Graph instead of dead-ending in an inspector");
-  }
-  const fullGraphNode = page.locator("[data-intelligence-graph-page] .if-graph-node[data-evidence-node]").nth(1);
-  await fullGraphNode.click();
-  assert.match(await page.locator("[data-intelligence-graph-page] [data-evidence-visual-inspector]").innerText(), /Open|Browse|Show|Traverse|Create task/i, "Every selected graph entity should expose a meaningful destination or task action");
-  await page.screenshot({ path: `${OUT_DIR}/intelligence-graph-desktop.png` });
-  const crossSurfaceFixtureId = "auto_usaspending_CONT_AWD_N0001917C0001_9700__NONE___NONE_";
-  await openSurface(page, `#/budget-spend/intelligence-graph?graphRecord=${crossSurfaceFixtureId}`, "[data-intelligence-graph-page]");
-  await page.waitForSelector('[data-intelligence-graph-page] [data-connected-evidence-state="ready"]');
-  const graphRouteContracts = [
-    ["organization", /\/library\?.*library(Query|Org)=/],
-    ["award", /\/awards\?query=.*awardId=/],
-    ["account", /\/lifecycle\?selected=/],
-    ["vehicle", /\/timeline\?timelineScope=all&capVehicle=/],
-    ["classification", /\/explorer\?spendView=table&capQuery=/],
-  ];
-  const graphHandoffs = {};
-  for (const [type, pattern] of graphRouteContracts) {
-    const graphNode = page.locator(`[data-intelligence-graph-page] .if-graph-node[data-evidence-node="${type}"]`).first();
-    if (!await graphNode.count()) continue;
-    await graphNode.click();
-    const action = page.locator("[data-intelligence-graph-page] [data-evidence-visual-inspector] a").first();
-    const href = await action.getAttribute("href");
-    graphHandoffs[type] = href;
-    assert.match(decodeURIComponent(href), pattern, `${type} graph handoff should carry exact destination scope`);
-  }
-  const graphLocation = page.locator('[data-intelligence-graph-page] .if-graph-node[data-evidence-node="location"]').first();
-  assert.equal(await graphLocation.count(), 1, "The traversal fixture should retain a mapped location handoff");
-  await graphLocation.click();
-  const mapHandoff = page.getByRole("link", { name: /Show on map/i });
-  assert.match(decodeURIComponent(await mapHandoff.getAttribute("href")), /\/map\?mapOrg=location:/, "Location handoff should carry the canonical location namespace");
-  await mapHandoff.click();
-  await page.waitForSelector("[data-map-focused-location]");
-  await page.waitForFunction(() => Number((document.querySelector('[data-opportunity-map-canvas] output[aria-label="Zoom level"]')?.textContent || "0").replace(/\D/g, "")) >= 235);
-  const focusedLocationId = await page.locator("[data-map-focused-location]").getAttribute("data-map-focused-location");
-  assert.equal(await page.locator(`[data-map-location="${focusedLocationId}"].is-selected`).count(), 1, "Graph-to-map handoff should render and select the exact authoritative location marker");
-  assert.match(await page.locator("[data-map-focused-location]").innerText(), /Focused on[\s\S]*exact handoff target shown and centered/i, "Map handoff should visibly explain the applied location focus");
-  assert.ok(Number((await page.locator('[data-opportunity-map-canvas] output[aria-label="Zoom level"]').textContent()).replace(/\D/g, "")) >= 235, "Map handoff should zoom to the selected target instead of remaining national");
-  await page.screenshot({ path: `${OUT_DIR}/graph-map-focused-desktop.png` });
+  await page.waitForSelector("[data-linked-intelligence-graph]");
+  assert.equal(await page.locator("[data-intelligence-graph-search]").count(), 1, "Graph Explorer should use the shared entity autosuggest control");
+  assert.equal(await page.locator('[data-linked-intelligence-graph][data-root-type="activity"]').count(), 1, "Legacy opportunity graph links should resolve into the universal linked graph");
+  assert.ok(Number(await page.locator("[data-linked-graph-canvas]").getAttribute("data-node-count")) >= 2, "Opportunity roots should retain a bounded relationship neighborhood");
+  const activityNeighbor = page.locator('[data-linked-graph-canvas] .if-graph-node[data-linked-node]').nth(1);
+  await activityNeighbor.click();
+  assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /Open workspace|Explore from here|Timeline/i, "Every selected graph entity should expose a meaningful handoff");
 
-  const handoffPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
-  await installVerificationDate(handoffPage);
-  await handoffPage.goto(`${BASE_URL}${graphHandoffs.award}`, { waitUntil: "domcontentloaded" });
-  await handoffPage.waitForSelector("[data-awards-page]");
-  await handoffPage.waitForSelector("[data-evidence-drawer]");
-  assert.match(await handoffPage.locator("[data-evidence-drawer]").innerText(), /N0001917C0001/i, "Award handoff should open the exact award evidence drawer");
-  await handoffPage.goto(`${BASE_URL}${graphHandoffs.account}`, { waitUntil: "domcontentloaded" });
-  await handoffPage.waitForSelector("[data-account-spine-page]");
-  assert.match(await handoffPage.getByRole("button", { name: /^Federal account:/ }).getAttribute("aria-label"), /057-3010/, "Account handoff should preselect the exact federal account");
-  await handoffPage.goto(`${BASE_URL}${graphHandoffs.organization}`, { waitUntil: "domcontentloaded" });
-  await handoffPage.waitForSelector("[data-data-library-page]");
-  assert.match(await handoffPage.locator("[data-library-autocomplete] input[role=combobox]").inputValue(), /Lockheed Martin/i, "Organization handoff should visibly prefilter the customer library");
-  await handoffPage.waitForSelector('[data-organization-relationships="ready"]');
-  assert.match(await handoffPage.locator('[data-organization-relationships="ready"]').innerText(), /Lockheed Martin/i, "Organization handoff should resolve the exact reviewed dossier instead of falling back to the first library record");
-  await handoffPage.goto(`${BASE_URL}${graphHandoffs.classification}`, { waitUntil: "domcontentloaded" });
-  await handoffPage.waitForSelector('[data-dbi-data-table="opportunity-workbench-v1"]');
-  assert.notEqual(await handoffPage.locator('[data-table-autocomplete="opportunity-workbench-v1"] input[role=combobox]').inputValue(), "", "Classification handoff should pre-apply a visible opportunity query");
-  assert.ok(await handoffPage.locator('[data-dbi-data-table="opportunity-workbench-v1"] [data-if-table-row]').count() > 0, "Classification handoff should resolve to a filtered opportunity queue");
-  await handoffPage.close();
+  await openSurface(page, "#/budget-spend/intelligence-graph?graphType=organization&graphLabel=Naval%20Air%20Systems%20Command", "[data-intelligence-graph-page]");
+  await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="organization"]');
+  assert.match(await page.locator(".intelligence-graph-page__root").innerText(), /Naval Air Systems Command[\s\S]*Reviewed/i, "Label-only dossier handoffs should resolve to the reviewed NAVAIR identity");
+  await page.getByRole("button", { name: "Hierarchy", exact: true }).click();
+  await page.waitForFunction(() => {
+    const graph = document.querySelector("[data-linked-graph-canvas]");
+    const rect = (selector) => graph?.querySelector(selector)?.getBoundingClientRect();
+    const root = rect('[data-node-label="Naval Air Systems Command"]');
+    const parent = rect('[data-node-label="Department of the Navy"]');
+    const children = [...(graph?.querySelectorAll('[data-node-label^="Naval Air Warfare Center"]') || [])].map((node) => node.getBoundingClientRect());
+    const separated = children.length === 2 && (children[0].bottom <= children[1].top || children[1].bottom <= children[0].top);
+    return graph?.dataset.ifGraphLayoutState === "success" && parent?.right < root?.left && children.length === 2 && children.every((child) => child.left > root.right) && separated;
+  });
+  const hierarchyText = await page.locator("[data-linked-intelligence-graph]").innerText();
+  assert.match(hierarchyText, /Department of the Navy[\s\S]*Naval Air Warfare Center Aircraft Div[\s\S]*Naval Air Warfare Center Weapons Div/i, "NAVAIR hierarchy should expose its reviewed department parent and warfare-center children");
+  assert.doesNotMatch(hierarchyText, /Navy Mission Engineering|Test and Evaluation/i, "Source-declared activity taxonomy must not masquerade as reviewed command hierarchy");
+  const hierarchyGeometry = await page.locator("[data-linked-graph-canvas]").evaluate((graph) => {
+    const rect = (selector) => graph.querySelector(selector)?.getBoundingClientRect();
+    const root = rect('[data-node-label="Naval Air Systems Command"]');
+    const parent = rect('[data-node-label="Department of the Navy"]');
+    const children = [...graph.querySelectorAll('[data-node-label^="Naval Air Warfare Center"]')].map((node) => node.getBoundingClientRect());
+    const overlaps = (left, right) => left && right && left.left < right.right && left.right > right.left && left.top < right.bottom && left.bottom > right.top;
+    return {
+      root: root ? { left: root.left, right: root.right } : null,
+      parent: parent ? { left: parent.left, right: parent.right } : null,
+      children: children.map((child) => ({ left: child.left, right: child.right, top: child.top, bottom: child.bottom })),
+      childOverlap: children.length === 2 ? overlaps(children[0], children[1]) : true,
+    };
+  });
+  assert.ok(hierarchyGeometry.parent?.right < hierarchyGeometry.root?.left, `Reviewed parent should occupy the parent lane left of the graph root: ${JSON.stringify(hierarchyGeometry)}`);
+  assert.ok(hierarchyGeometry.children.every((child) => child.left > hierarchyGeometry.root.right), `Reviewed children should occupy the child lane right of the graph root: ${JSON.stringify(hierarchyGeometry)}`);
+  assert.equal(hierarchyGeometry.childOverlap, false, `Reviewed hierarchy nodes must not overlap: ${JSON.stringify(hierarchyGeometry)}`);
+  const navyNode = page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-label="Department of the Navy"]');
+  await navyNode.click();
+  assert.match(await page.locator("[data-linked-graph-inspector]").innerText(), /official department acquisition command[\s\S]*reviewed[\s\S]*Cited source/i, "Reviewed hierarchy edges should expose their evidence basis and official source");
+  await page.waitForFunction(() => {
+    const graph = document.querySelector("[data-linked-graph-canvas]");
+    const rect = (selector) => graph?.querySelector(selector)?.getBoundingClientRect();
+    const root = rect('[data-node-label="Naval Air Systems Command"]');
+    const parent = rect('[data-node-label="Department of the Navy"]');
+    const children = [...(graph?.querySelectorAll('[data-node-label^="Naval Air Warfare Center"]') || [])].map((node) => node.getBoundingClientRect());
+    const separated = children.length === 2 && (children[0].bottom <= children[1].top || children[1].bottom <= children[0].top);
+    return parent?.right < root?.left && children.length === 2 && children.every((child) => child.left > root.right) && separated;
+  });
+  await page.screenshot({ path: `${OUT_DIR}/linked-intelligence-navair-desktop.png` });
+
+  const graphSearch = page.locator("[data-intelligence-graph-search] input[role=combobox]");
+  await graphSearch.fill("NIWC Pacific");
+  const niwcOption = page.getByRole("option", { name: /Naval Information Warfare Center Pacific/i }).first();
+  await niwcOption.click();
+  await page.waitForSelector('[data-linked-intelligence-graph][data-root-id="org:754405b63603f670ceb8"]');
+  await page.getByRole("button", { name: "Hierarchy", exact: true }).click();
+  assert.equal(await page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-id="org:e21815d39b4a9363127b"]').count(), 1, "NIWC Pacific should expose its reviewed NAVWAR parent");
+  const navwarNode = page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-id="org:e21815d39b4a9363127b"]');
+  await navwarNode.click();
+  await page.getByRole("button", { name: /Explore from here/i }).click();
+  await page.waitForSelector('[data-linked-intelligence-graph][data-root-id="org:e21815d39b4a9363127b"]');
+  assert.match(decodeURIComponent(new URL(page.url()).hash).replaceAll("+", " "), /graphEntity=org:e21815d39b4a9363127b[\s\S]*graphLabel=Naval Information Warfare Systems Command/i, "Graph traversal should preserve the exact reviewed entity in the URL");
+
+  await openSurface(page, "#/budget-spend/intelligence-graph?graphType=federal-account&graphEntity=account%3A017-1804&graphLabel=Operation%20and%20Maintenance%2C%20Navy", "[data-intelligence-graph-page]");
+  await page.waitForSelector('[data-linked-intelligence-graph][data-root-type="federal-account"]');
+  await page.getByRole("button", { name: "Money", exact: true }).click();
+  assert.ok(await page.locator('[data-linked-graph-canvas] .if-graph-node[data-linked-node="award"]').count() > 0, "Federal-account graphs should expose the exact funded awards behind the account");
+  assert.match(await page.locator("[data-linked-intelligence-graph]").innerText(), /50 Timeline records in this reviewed scope/i, "Operation and Maintenance, Navy should retain its linked work scope");
+
+  await openSurface(page, "#/budget-spend/intelligence-graph?graphType=organization&graphLabel=Naval%20Air%20Systems%20Command", "[data-intelligence-graph-page]");
+  await page.waitForSelector('[data-linked-intelligence-graph][data-root-id="org:54825302e8c22bf1e3cf"]');
+  const navairTimeline = page.locator(".intelligence-graph-page__actions").getByRole("link", { name: /Timeline/ });
+  assert.match(decodeURIComponent(await navairTimeline.getAttribute("href")).replaceAll("+", " "), /timelineScope=entity[\s\S]*timelineEntityLabel=Naval Air Systems Command/i, "Organization Timeline handoffs should carry the exact linked entity scope");
+  await navairTimeline.click();
+  await page.waitForSelector('[data-capture-calendar-page] [data-timeline-scope="entity"]');
+  assert.match(await page.locator('[data-timeline-scope="entity"]').innerText(), /Naval Air Systems Command[\s\S]*41/i, "Entity Timeline should expose the reviewed organization scope and retained count");
+  assert.ok(await page.locator("[data-capture-timeline] [data-capture-timeline-row]").count() > 0, "Entity Timeline should render linked records rather than a label-only scope");
+  const graphReturn = page.getByRole("link", { name: /Open Naval Air Systems Command in Graph Explorer/i });
+  assert.match(decodeURIComponent(await graphReturn.getAttribute("href")), /intelligence-graph\?graphType=organization[\s\S]*graphEntity=org:54825302e8c22bf1e3cf/i, "Entity Timeline should preserve a bidirectional graph handoff");
 
   await openSurface(page, "#/budget-spend/explorer?spendView=charts", "[data-transaction-d3-page]");
   assert.equal(await page.locator("[data-active-page-title]").innerText(), "Opportunities");

@@ -119,6 +119,7 @@ const RELATION_ENDPOINTS = {
   "organization-located-at": ["organization", "location"],
   "organization-operates-at-location": ["organization", "location"],
   "organization-part-of": ["organization", "organization"],
+  "organization-equivalent-to": ["organization", "organization"],
   "organization-has-identifier": ["organization", "organization-identifier"],
   "transaction-recipient": ["transaction", "organization"],
   "spending-observation-measures-entity": ["spending-observation", "organization"],
