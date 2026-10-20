@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-orFEIgcX.js";import{I as t}from"./react-BAyazybQ.js";var n=e();function r(e){return(0,n.jsx)(t,{headingLevel:2,...e})}export{r as t};
