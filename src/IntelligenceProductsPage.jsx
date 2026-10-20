@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Activity, BookOpenText, BriefcaseBusiness, Building2, Download, FileSearch, Network, RefreshCcw, ShieldCheck, UsersRound } from "lucide-react";
+import { ControlDisclosure } from "control-surface-ui/react";
 import { useAuth } from "./AuthContext.jsx";
 import QueryRail from "./QueryRail.jsx";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
@@ -132,7 +133,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
   return <section className="intelligence-products" data-intelligence-products-page data-roadmap-schema={data.metadata.schemaVersion} data-organization-schema={organizationData.metadata.schemaVersion}>
     <SectionedPageHeader eyebrow="Workspace intelligence" title="Organization intelligence" summary="Investigate source-backed organization identity, hierarchy, mission, people and tenure, finances, programs, awards, vendors, locations, changes, and unresolved research gaps." meta={<span className="if-badge if-badge--info">Evidence bounded</span>} actions={<><a className="if-btn if-btn--secondary" href="#/budget-spend/domain-model">Domain model</a><a className="if-btn if-btn--primary" href={`${import.meta.env.BASE_URL}data/organization-intelligence.json`} download><Download size={14} />Dossier artifact</a></>} items={SECTIONS.map(([id, label]) => ({ id, label }))} activeId={section} ariaLabel="Intelligence product sections" onSelect={setSectionRoute} />
 
-    <details className="if-disclosure intelligence-products__coverage"><summary className="if-disclosure__summary"><span className="if-disclosure__heading"><span className="if-disclosure__copy"><strong className="if-disclosure__title">Coverage and source health</strong><small className="if-disclosure__description">{number(organizationData.metadata.coverage.dossiers)} dossiers · {number(coverage.citations)} exact citations · {number(state.monitor.metadata.coverage.monitoredSources)} monitored sources</small></span></span><span>Review</span></summary><div className="if-disclosure__body intelligence-products__coverage-body"><div className="intelligence-products__metrics" aria-label="Roadmap intelligence totals">
+    <ControlDisclosure className="intelligence-products__coverage" title="Coverage and source health" summary={`${number(organizationData.metadata.coverage.dossiers)} dossiers · ${number(coverage.citations)} exact citations · ${number(state.monitor.metadata.coverage.monitoredSources)} monitored sources`} meta="Review" bodyClassName="intelligence-products__coverage-body"><div className="intelligence-products__metrics" aria-label="Roadmap intelligence totals">
       <article data-organization-dossier-count={organizationData.metadata.coverage.dossiers}><Building2 size={18} /><strong>{number(organizationData.metadata.coverage.dossiers)}</strong><span>organization dossiers</span></article>
       <article data-official-role-count={coverage.officialRoles}><UsersRound size={18} /><strong>{number(coverage.officialRoles)}</strong><span>official roles</span></article>
       <article data-monitored-source-count={state.monitor.metadata.coverage.monitoredSources}><RefreshCcw size={18} /><strong>{number(state.monitor.metadata.coverage.monitoredSources)}</strong><span>monitored sources</span></article>
@@ -142,7 +143,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
       <article data-operational-template-count={coverage.savedQueryTemplates + coverage.briefTemplates}><BriefcaseBusiness size={18} /><strong>{number(coverage.savedQueryTemplates + coverage.briefTemplates)}</strong><span>operational templates</span></article>
     </div>
 
-    <div className="intelligence-products__health-grid" data-source-health>{data.sourceHealth.map((row) => <SourceState key={row.id} row={row} />)}</div></div></details>
+    <div className="intelligence-products__health-grid" data-source-health>{data.sourceHealth.map((row) => <SourceState key={row.id} row={row} />)}</div></ControlDisclosure>
 
     {section === "organizations" ? <section className="intelligence-products__organizations" data-organization-intelligence-panel>
       <aside className="intelligence-products__organization-index">

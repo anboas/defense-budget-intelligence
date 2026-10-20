@@ -2037,8 +2037,7 @@ export default function TransactionAnalytics({
       </MobileChartContext.Provider>
 
       <RecordExplorer records={scopedRecords} metricId={metricId} onSelect={selectRecord} />
-      <details className="transaction-analytics-note if-detail-card if-detail-card--neutral">
-        <summary>Coverage boundary</summary>
+      <ControlDisclosure compact className="transaction-analytics-note" title="Coverage boundary" summary="Interpretation limits for the active analytical scope">
         <p>
           These views currently show {scopedRecords.length.toLocaleString()} of {records.length.toLocaleString()} public records:{" "}
           {dataset.metadata.coverage.publicRows} normalized capture rows plus{" "}
@@ -2055,7 +2054,7 @@ export default function TransactionAnalytics({
           PDB-to-account relationship remains derived; no universal public
           crosswalk connects every request line, award, and action.
         </p>
-      </details>
+      </ControlDisclosure>
       {selectedRecord ? <Suspense fallback={null}><AnalyticsRecordDrawer record={selectedRecord} onClose={() => selectRecord(null)} /></Suspense> : null}
     </div>
   );

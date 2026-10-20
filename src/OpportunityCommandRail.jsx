@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarClock, Check, CheckCircle2, ExternalLink, ListChecks, MoreHorizontal, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
-import { ControlDialog, ControlMenu } from "control-surface-ui/react";
+import { ControlDialog, ControlDisclosure, ControlMenu } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import { useAuth } from "./AuthContext.jsx";
 import { PURSUIT_STAGES, PURSUIT_TASK_EVENT, PURSUIT_TASK_PRIORITIES, PURSUIT_TASK_STATUSES, normalizePursuit, pursuitActionOptions } from "./pursuit-metadata.js";
@@ -116,9 +116,16 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
     }
   }
 
-  return <details className="pursuit-tasks" data-pursuit-tasks open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
-    <summary><span><strong>Action plan</strong><small>{active.length ? `${active.length} open` : "No open actions"}</small></span><span>{expanded ? "Hide" : "Review"}</span></summary>
-    <div className="pursuit-tasks__body">
+  return <ControlDisclosure
+    className="pursuit-tasks"
+    data-pursuit-tasks
+    open={expanded}
+    onOpenChange={setExpanded}
+    title="Action plan"
+    summary={active.length ? `${active.length} open` : "No open actions"}
+    meta={expanded ? "Hide" : "Review"}
+    bodyClassName="pursuit-tasks__body"
+  >
     <header><p>Each action has one owner, status, and due date.</p>{canWrite ? <button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={!canAdd || Boolean(busyTaskId)} title={canAdd ? "Add a linked pursuit action" : "Complete or remove an action before adding another"} onClick={() => addTask()}><Plus size={14} />Add action</button> : null}</header>
     {active.length ? <div className="pursuit-tasks__list">{active.slice(0, 5).map((task) => <article key={task.id} data-pursuit-task={task.status} data-task-priority={task.priority}>
       <div className="pursuit-tasks__identity"><strong>{task.title}</strong><small>{[task.owner || "Unassigned", task.dueAt ? `Due ${task.dueAt.slice(0, 10)}` : "No due date", task.sourceLabel || (task.sourceType === "manual" ? "Manual action" : task.sourceType)].filter(Boolean).join(" · ")}</small></div>
@@ -133,10 +140,9 @@ function TaskList({ recordId: id, pursuit, canWrite, onCommit, ownerOptions }) {
       <div className="pursuit-tasks__composer-actions"><button type="button" className="if-btn if-btn--primary if-btn--sm" disabled={!composer.title.trim() || Boolean(busyTaskId)} onClick={() => void commitTask()}><Check size={14} />{busyTaskId ? "Saving…" : composer.id ? "Save action" : "Create action"}</button><button type="button" className="if-btn if-btn--secondary if-btn--sm" disabled={Boolean(busyTaskId)} onClick={() => setComposer(null)}>Cancel</button></div>
     </div> : null}
     {feedback ? <div className={`if-alert if-alert--${feedback.tone}`} role={feedback.tone === "danger" ? "alert" : "status"} data-action-plan-feedback>{feedback.message}</div> : null}
-    {tasks.some((task) => task.status === "done") ? <details className="pursuit-tasks__completed" open={completedOpen} onToggle={(event) => setCompletedOpen(event.currentTarget.open)}><summary><Check size={14} />{tasks.filter((task) => task.status === "done").length} completed</summary><div>{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id} data-completed-task={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite || Boolean(busyTaskId)} onClick={() => void applyTaskPatch(task, { status: "todo" }, "Action restored to the open plan.")}>Restore</button></span>)}</div></details> : null}
-    </div>
+    {tasks.some((task) => task.status === "done") ? <ControlDisclosure compact flush className="pursuit-tasks__completed" open={completedOpen} onOpenChange={setCompletedOpen} icon={<Check size={14} />} title="Completed actions" summary="Retained outside the active plan" meta={tasks.filter((task) => task.status === "done").length}><div className="pursuit-tasks__completed-list">{tasks.filter((task) => task.status === "done").map((task) => <span key={task.id} data-completed-task={task.id}><s>{task.title}</s><button type="button" disabled={!canWrite || Boolean(busyTaskId)} onClick={() => void applyTaskPatch(task, { status: "todo" }, "Action restored to the open plan.")}>Restore</button></span>)}</div></ControlDisclosure> : null}
     {pendingMutation ? <ControlDialog open onClose={() => { if (!busyTaskId) setPendingMutation(null); }} title={pendingMutation.type === "complete" ? "Complete this action?" : "Delete this action?"} eyebrow="Action plan" summary={pendingMutation.type === "complete" ? "This moves the action out of the active plan. You can restore it later from Completed." : "This permanently removes the action from the pursuit plan."} dialogRef={dialogRef} surfaceProps={{ "data-task-confirmation": pendingMutation.type }} footer={<><button type="button" className="if-btn" disabled={Boolean(busyTaskId)} onClick={() => setPendingMutation(null)}>Cancel</button><button type="button" className={pendingMutation.type === "delete" ? "if-btn if-btn--danger" : "if-btn if-btn--primary"} disabled={Boolean(busyTaskId)} onClick={() => void confirmMutation()}>{pendingMutation.type === "complete" ? <CheckCircle2 size={15} /> : <Trash2 size={15} />}{busyTaskId ? "Saving…" : pendingMutation.type === "complete" ? "Complete action" : "Delete action"}</button></>}><div className="pursuit-task-confirmation"><strong>{pendingMutation.task.title}</strong><span>{[pendingMutation.task.owner || "Unassigned", pendingMutation.task.dueAt ? `Due ${pendingMutation.task.dueAt.slice(0, 10)}` : "No due date"].join(" · ")}</span></div></ControlDialog> : null}
-  </details>;
+  </ControlDisclosure>;
 }
 
 export default function OpportunityCommandRail({ record, watch = null, canWrite = false, onSavePursuit, onToggleTrack, intelligence, showRecordLink = true, compact = false, showActions = true, workspaceActions = [] }) {
@@ -201,10 +207,7 @@ export default function OpportunityCommandRail({ record, watch = null, canWrite 
 
   if (compact) return <section className="opportunity-command-rail opportunity-command-rail--compact" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>
     {showActions ? compactActions : null}
-    <details className="opportunity-command-rail__setup">
-      <summary><span><strong>Pursuit setup</strong><small>{watch ? `${normalizePursuit(watch.pursuit).stage} · ${normalizePursuit(watch.pursuit).owner || "Unassigned"}` : "Owner, stage, next action, and tasks"}</small></span><span>{status || (watch ? "Saved" : "Set up")}</span></summary>
-      <div className="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} /><TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} /></div>
-    </details>
+    <ControlDisclosure className="opportunity-command-rail__setup" title="Pursuit setup" summary={watch ? `${normalizePursuit(watch.pursuit).stage} · ${normalizePursuit(watch.pursuit).owner || "Unassigned"}` : "Owner, stage, next action, and tasks"} meta={status || (watch ? "Saved" : "Set up")} bodyClassName="opportunity-command-rail__setup-body"><PursuitFields key={`${id}:${watch?.updatedAt || "new"}`} watch={watch} canWrite={canWrite} onCommit={commit} ownerOptions={ownerOptions} actionOptions={actionOptions} /><TaskList key={`${id}:tasks`} recordId={id} pursuit={normalizePursuit(watch?.pursuit)} canWrite={canWrite} onCommit={(next) => commit(next, watch?.reviewAt || "")} ownerOptions={ownerOptions} /></ControlDisclosure>
   </section>;
 
   return <section className="if-panel" data-opportunity-command-rail data-tracked={watch ? "true" : "false"}>

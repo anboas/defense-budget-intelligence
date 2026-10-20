@@ -130,7 +130,7 @@ export default function AnalyticsSources({ budgetData, accountSpine, captureCale
           <article className="if-relationship-bundle"><h3>Evidence policy</h3><p>Exact, reviewed, source-declared, deterministic, and derived joins remain distinct. Fuzzy identity and unsupported budget-line-to-award links are prohibited.</p></article>
         </div>
         <p className="lifecycle-caveat">The graph is a projection of retained evidence, not a scoring system. <a href={`${import.meta.env.BASE_URL}data/intelligence-graph.json.gzip`} download>Download the complete integrity graph</a>.</p>
-        <details className="source-downloads"><summary>Additional machine-readable exports</summary><ul>{GRAPH_DOWNLOADS.map(([label, path]) => <li key={path}><a href={`${import.meta.env.BASE_URL}data/${path}`} download>{label}</a></li>)}</ul></details>
+        <ControlDisclosure compact className="source-downloads" title="Additional machine-readable exports" summary="Download retained graph and evidence artifacts" meta={`${GRAPH_DOWNLOADS.length} files`}><ul>{GRAPH_DOWNLOADS.map(([label, path]) => <li key={path}><a href={`${import.meta.env.BASE_URL}data/${path}`} download>{label}</a></li>)}</ul></ControlDisclosure>
       </ControlDisclosure> : null}
       <AnalysisSection title="Money-flow lineage" meta="left to right from request to public subaward actions" icon={Database}>
         <div className="if-ingest-flow" data-source-flow>

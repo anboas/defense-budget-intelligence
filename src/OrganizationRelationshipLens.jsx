@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Network, UserRound, BriefcaseBusiness } from "lucide-react";
-import { ControlAsyncState, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlDisclosure, ControlStatusBadge } from "control-surface-ui/react";
 import { loadOrganizationRelationships } from "./organization-intelligence-client.js";
 
 const styles = {
@@ -18,9 +18,6 @@ const styles = {
   card: { display: "grid", gap: 2, minWidth: 0, overflowWrap: "anywhere", padding: 7, border: "1px solid var(--if-border-soft,#e7eaee)", borderRadius: 5, background: "#fff", fontSize: 11 },
   cardMeta: { color: "var(--if-text-muted,#5f6873)", fontSize: 10, fontStyle: "normal", lineHeight: 1.35 },
   footer: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 6, color: "var(--if-text-muted,#5f6873)", fontSize: 10 },
-  disclosure: { border: "1px solid var(--if-border,#d7dce2)", borderRadius: 7, overflow: "hidden" },
-  disclosureSummary: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 44, padding: "8px 10px", cursor: "pointer", fontSize: 12, fontWeight: 750 },
-  disclosureBody: { padding: "0 10px 10px" },
 };
 
 function normalized(value) {
@@ -100,7 +97,7 @@ export default function OrganizationRelationshipLens({ record = null, connection
 
   return <section style={rootStyle} data-organization-relationships="ready" data-organization-dossier={dossier.id} data-compact={compact || undefined} data-embedded={embedded || undefined}>
     <header style={styles.heading}><div style={styles.headingCopy}><span style={styles.eyebrow}>Organizations &amp; relationships</span><h3 style={{ margin: 0, fontSize: 18 }}>{dossier.label}</h3><p style={styles.summary}>Customer hierarchy, official people, work, companies, and supplier samples connected through retained evidence.</p></div><ControlStatusBadge status={dossier.reviewState || "reviewed"} /></header>
-    {compact && !embedded ? <details style={styles.disclosure} data-relationship-lanes><summary style={styles.disclosureSummary}><span>Explore relationship lanes</span><small style={styles.cardMeta}>{linkedItemCount} linked items · 4 lanes</small></summary><div style={styles.disclosureBody}><div style={styles.flow} aria-label={`Relationships for ${dossier.label}`}>{relationshipColumns}</div></div></details> : <div style={compact && embedded ? styles.compactFlow : styles.flow} aria-label={`Relationships for ${dossier.label}`}>{relationshipColumns}</div>}
+    {compact && !embedded ? <ControlDisclosure compact data-relationship-lanes title="Explore relationship lanes" summary="Customer, people, work, and industrial-base evidence" meta={`${linkedItemCount} linked · 4 lanes`}><div style={styles.flow} aria-label={`Relationships for ${dossier.label}`}>{relationshipColumns}</div></ControlDisclosure> : <div style={compact && embedded ? styles.compactFlow : styles.flow} aria-label={`Relationships for ${dossier.label}`}>{relationshipColumns}</div>}
     <footer style={styles.footer}><span>Exact IDs and reviewed/source-declared relationships only.</span><span>Supplier evidence is sampled and never treated as a complete registry.</span></footer>
   </section>;
 }
