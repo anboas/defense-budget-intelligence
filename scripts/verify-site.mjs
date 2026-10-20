@@ -1353,6 +1353,9 @@ try {
   assert.equal(await page.locator("[data-my-work-tracked], [data-ops-watch-table]").count(), 0, "Today Focus must not recreate the Opportunities portfolio below the decision console");
   assert.equal(await page.locator('[aria-label="Operating loop"]').count(), 0, "Today Focus must not retain a decorative process strip after the working console");
   assert.equal(await page.getByText("My tracked work", { exact: true }).count(), 0, "Today Focus must not render static metadata as fake buttons");
+  assert.equal(await page.locator(".today-workspace__scope").count(), 0, "Today Focus must not retain a redundant scope bar between its decision header and working console");
+  assert.equal(await page.locator(".today-workspace__hero").getByRole("link", { name: "Open actions" }).count(), 1, "Today Focus should keep its human-work handoff with the decision header");
+  assert.equal(await page.locator(".today-workspace__hero").getByRole("link", { name: "Find opportunities" }).count(), 1, "Today Focus should keep its discovery handoff with the decision header");
   const todayComposition = await page.evaluate(() => {
     const rect = (selector) => {
       const bounds = document.querySelector(selector)?.getBoundingClientRect();
@@ -1429,11 +1432,64 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openSurface(page, "#/budget-spend/actions", "[data-actions-workspace]");
   assert.equal(await page.locator('[data-primary-workspace="today"][aria-current="page"]').count(), 1, "Actions must remain inside the active Today workspace");
-  assert.match(await page.locator("[data-actions-workspace]").innerText(), /Actions[\s\S]*Open[\s\S]*Overdue[\s\S]*Due soon[\s\S]*Waiting[\s\S]*Needs plan/i, "Actions must summarize human pursuit work by urgency and planning state");
+  assert.match(await page.locator("[data-actions-workspace]").innerText(), /Actions[\s\S]*1 open[\s\S]*1 overdue/i, "Actions must summarize the current human queue without rendering zero-value KPI tiles");
   assert.doesNotMatch(await page.locator("[data-actions-workspace]").innerText(), /API request|provider|trace|augmentation/i, "Actions must not expose technical automation diagnostics");
-  assert.equal(await page.locator("[data-actions-table] [data-if-table-row]").count(), 1, "Actions must project the tracked human action into one owned work queue");
-  assert.equal(await page.locator('[data-actions-table] a[href*="workspaceTab=tasks"]').count(), 1, "Every human action must hand off to its canonical opportunity action plan");
+  assert.equal(await page.locator("[data-actions-table]").count(), 0, "The human action queue must not inherit database-table sorting, export, and pagination chrome");
+  assert.equal(await page.locator("[data-actions-queue] [data-action-queue-row]").count(), 1, "Actions must project the tracked human action into one owned work queue");
+  assert.equal(await page.locator('[data-actions-queue] a[href*="workspaceTab=tasks"]').count(), 1, "Every human action must hand off to its canonical opportunity action plan");
+  assert.equal(await page.locator('[data-actions-queue] [data-action-group="overdue"]').count(), 1, "Only the nonempty overdue group should render for the current action fixture");
+  assert.equal(await page.locator('[data-actions-queue] [data-action-group="due-soon"], [data-actions-queue] [data-action-group="waiting"], [data-actions-queue] [data-action-group="upcoming"], [data-actions-queue] [data-action-group="unscheduled"], [data-actions-queue] [data-action-group="needs-plan"]').count(), 0, "Empty action groups must not consume vertical space");
+  assert.equal(await page.getByRole("searchbox", { name: "Search actions" }).count(), 0, "Small action queues must not render search until it earns its place");
+  assert.equal(await page.locator("[data-actions-workspace] .if-pagination").count(), 0, "Small action queues must not render disabled pagination controls");
   await page.screenshot({ path: `${OUT_DIR}/today-actions-desktop.png`, fullPage: true });
+  const actionQueueFixture = await page.evaluate(() => localStorage.getItem("dbi:watchlist:v1") || "[]");
+  await page.evaluate((recordIds) => {
+    const key = "dbi:watchlist:v1";
+    const at = "2026-09-10T12:00:00.000Z";
+    const next = recordIds.map((recordId, index) => ({
+      recordId,
+      starredAt: at,
+      updatedAt: at,
+      reviewAt: "",
+      note: "",
+      wallboard: true,
+      pursuit: {
+        stage: "capture",
+        owner: "Adam",
+        nextAction: "",
+        tasks: [{
+          id: `task-search-${index + 1}`,
+          title: `Adaptive queue action ${index + 1}`,
+          status: "todo",
+          priority: "high",
+          dueAt: "2026-09-12",
+          owner: "Adam",
+          sourceType: "timeline",
+          sourceId: "timeline-marker-1",
+          sourceLabel: "Published response deadline",
+          createdAt: at,
+          completedAt: "",
+        }],
+      },
+    }));
+    localStorage.setItem(key, JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent("dbi:management-state-changed", { detail: { key } }));
+  }, wallboardRecordIds);
+  await page.reload();
+  await page.waitForSelector("[data-actions-workspace]");
+  const actionSearch = page.getByRole("searchbox", { name: "Search actions" });
+  await actionSearch.waitFor();
+  assert.equal(await actionSearch.count(), 1, "Larger action queues must reveal one owned search control");
+  await actionSearch.fill("action 8");
+  assert.equal(await page.locator("[data-actions-queue] [data-action-queue-row]").count(), 1, "Action search should reduce a larger queue without introducing table controls");
+  await page.evaluate((fixture) => {
+    const key = "dbi:watchlist:v1";
+    localStorage.setItem(key, fixture);
+    window.dispatchEvent(new CustomEvent("dbi:management-state-changed", { detail: { key } }));
+  }, actionQueueFixture);
+  await page.reload();
+  await page.waitForSelector("[data-actions-workspace]");
+  await page.waitForFunction(() => !document.querySelector('[role="searchbox"][aria-label="Search actions"]'));
   await openSurface(page, "#/budget-spend/schedule?scheduleView=list", "[data-ops-events]");
   await page.getByRole("button", { name: "Add event" }).click();
   const addEventDialog = page.getByRole("dialog", { name: "Add event" });

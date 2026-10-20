@@ -14,7 +14,7 @@ async function readSources(directory = sourceRoot) {
   }
   return sources;
 }
-const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState, today, todayCss, wallboardCalendar, navigation, operations, opportunityActions] = await Promise.all([
+const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState, today, todayCss, wallboardCalendar, navigation, operations, actions, opportunityActions] = await Promise.all([
   read("IntelligenceProductsPage.jsx"),
   read("ResearchDiscoveryDashboard.jsx"),
   read("ResearchDiscoveryDashboard.css"),
@@ -31,6 +31,7 @@ const [organizations, research, researchCss, evidence, evidenceCss, spend, analy
   read("WallboardCalendar.jsx"),
   read("navigation-architecture.js"),
   read("OperationsHub.jsx"),
+  read("ActionsWorkspace.jsx"),
   read("OpportunityCommandRail.jsx"),
 ]);
 
@@ -81,7 +82,8 @@ assert.match(wallboardCalendar, /ControlCalendarDay/, "The operational month cal
 assert.match(navigation, /label: "Focus"[\s\S]*label: "Actions"[\s\S]*label: "Schedule"/, "Today must expose Focus, Actions, and Schedule as its owned human-work views");
 assert.match(navigation, /label: "Automation Runs"[\s\S]*tabId: "tasks"/, "Technical API and AI history must live under the Automation Runs management owner");
 assert.doesNotMatch(today, /useNotifications|loadProcurementFeed|data-today-system-attention|Operating loop|My tracked work/, "Today Focus must not mix technical operations, decorative process chrome, or fake scope controls into human decision work");
-assert.match(operations, /data-actions-workspace[\s\S]*title="Actions"[\s\S]*Human-owned actions/, "The Today Actions view must own human pursuit work explicitly");
+assert.match(operations, /view === "actions"[\s\S]*<ActionsWorkspace/, "Operations Hub must delegate human work to the owned Actions workspace");
+assert.match(actions, /data-actions-workspace[\s\S]*title="Actions"[\s\S]*Human-owned next steps across tracked pursuits/, "The Today Actions view must own human pursuit work explicitly");
 assert.match(operations, /title="Automation Runs"[\s\S]*AI, provider, and authenticated API run history/, "Automation Runs must identify its technical diagnostic scope explicitly");
 assert.doesNotMatch(operations, /title="Task Center"|Open complete task history/, "The generic Task Center label must not return");
 assert.match(opportunityActions, /if-field__label">Action<[\s\S]*label="Action priority"[\s\S]*ariaLabel="Action owner"/, "Opportunity planning must use human-facing action language consistently");

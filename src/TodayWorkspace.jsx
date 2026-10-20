@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarClock, CheckCircle2, ExternalLink, ListChecks, MoreHorizontal, Network } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, ListChecks, MoreHorizontal, Network } from "lucide-react";
 import {
   ControlCalendarDay,
   ControlCalendarFooter,
@@ -231,9 +231,20 @@ export default function TodayWorkspace({ rows, watchlist, events = [], today, sa
     }
   }
 
+  const signals = [
+    tasks.length ? `${tasks.length} open action${tasks.length === 1 ? "" : "s"}` : "",
+    waitingCount ? `${waitingCount} waiting` : "",
+    noActionRecords.length ? `${noActionRecords.length} need a plan` : "",
+  ].filter(Boolean);
+
   return <div className="today-workspace" data-today-workspace>
-    <header className="today-workspace__hero"><div><small>Decision focus</small><h1>What needs your attention</h1><p>Work the next decision, scan the next 14 days, and keep the selected opportunity in context.</p></div><div className="today-workspace__signals"><span className="if-badge"><strong>{tasks.length}</strong> open action{tasks.length === 1 ? "" : "s"}</span><span className="if-badge"><strong>{waitingCount}</strong> waiting</span><span className="if-badge"><strong>{noActionRecords.length}</strong> need a plan</span></div></header>
-    <div className="today-workspace__scope"><div className="today-workspace__scope-context"><strong>Tracked pursuits</strong><span>Next 14 days</span></div><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/actions"><ListChecks size={13} />Open all actions</a><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table"><ExternalLink size={13} />Find opportunities</a></div>
+    <header className="today-workspace__hero">
+      <div><small>Decision focus</small><h1>What needs your attention</h1><p>Work the next decision, scan the next 14 days, and keep the selected opportunity in context.</p></div>
+      <div className="today-workspace__hero-rail">
+        <div className="today-workspace__signals" aria-label="Today status">{signals.length ? signals.map((signal) => <span className="if-badge" key={signal}>{signal}</span>) : <span className="if-badge if-badge--success">No open attention</span>}</div>
+        <div className="today-workspace__actions"><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/actions"><ListChecks size={13} />Open actions</a><a className="if-btn if-btn--secondary if-btn--sm" href="#/budget-spend/explorer?spendView=table">Find opportunities</a></div>
+      </div>
+    </header>
     <section className="today-workspace__console" data-today-console>
       <aside className="today-priority" data-today-priority><header><div><small>Priority actions</small><h2>Act now</h2><p>{priorityItems.length} human-owned item{priorityItems.length === 1 ? "" : "s"}, ranked by urgency</p></div><span>{priorityItems.length}</span></header><div>{priorityItems.map((item) => { const content = <><i aria-hidden="true" /><strong>{item.title}</strong><small>{item.meta}</small></>; return <button key={item.id} type="button" className={`today-priority__item is-${item.tone}${activeItemId === item.id ? " is-selected" : ""}`} onClick={() => select(item)} data-my-work-task={item.type === "task" ? true : undefined}>{content}</button>; })}</div></aside>
       <TimelineSurface mode={mode} setMode={setMode} items={timelineItems} selectedId={activeItemId} selectedRecordId={activeRecordId} onSelect={select} today={today} />
