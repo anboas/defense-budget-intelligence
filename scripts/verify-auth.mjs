@@ -1367,8 +1367,8 @@ try {
   await page.screenshot({ path: "test-results/events-table-mobile.png", fullPage: true });
   await page.evaluate(async (eventId) => { await fetch(`/api/v1/agent/events/${encodeURIComponent(eventId)}`, { method: "DELETE" }); }, mobileEventId);
   await page.locator("[data-mobile-more-menu-button]").click();
-  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 16, "Authenticated mobile navigation should expose five workspaces, the three current owned views, and eight bounded management capabilities");
-  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Timeline[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Today views[\s\S]*Focus[\s\S]*Actions[\s\S]*Schedule[\s\S]*Manage · Operations[\s\S]*Automation Runs[\s\S]*Event Discovery[\s\S]*Integrations & API[\s\S]*Manage · Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings[\s\S]*Manage · Access[\s\S]*Accounts[\s\S]*Workspaces/);
+  assert.equal(await page.locator("[data-mobile-more-menu] a[data-budget-nav]").count(), 15, "Authenticated mobile navigation should expose four workspaces, the three current owned views, and eight bounded management capabilities");
+  assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Today views[\s\S]*Focus[\s\S]*Actions[\s\S]*Schedule[\s\S]*Manage · Operations[\s\S]*Automation Runs[\s\S]*Event Discovery[\s\S]*Integrations & API[\s\S]*Manage · Workspace[\s\S]*Data Model[\s\S]*Intelligence Operations[\s\S]*Workspace Settings[\s\S]*Manage · Access[\s\S]*Accounts[\s\S]*Workspaces/);
   await page.locator("[data-mobile-more-menu-button]").click();
   await page.goto(`${BASE_URL}#/budget-spend/intelligence?view=discovery`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-research-discovery-dashboard]');

@@ -12,12 +12,10 @@ export const PRODUCT_WORKSPACES = [
     { id: "actions", label: "Actions", tabId: "actions", href: ROUTES.actions },
     { id: "schedule", label: "Schedule", tabId: "schedule", href: ROUTES.schedule },
   ] },
-  { id: "opportunities", label: "Opportunities", href: `${ROUTES.spend}?spendView=table`, tabIds: ["spend"], views: [
+  { id: "opportunities", label: "Opportunities", href: ROUTES.timeline, tabIds: ["timeline", "spend"], views: [
+    { id: "timeline", label: "Timeline", tabId: "timeline", href: ROUTES.timeline },
     { id: "workbench", label: "Workbench", tabId: "spend", href: `${ROUTES.spend}?spendView=table`, spendViews: ["table", "record"] },
     { id: "analysis", label: "Analysis", tabId: "spend", href: `${ROUTES.spend}?spendView=analysis&analysisMode=portfolio`, spendViews: ["analysis", "radar", "visuals", "charts"] },
-  ] },
-  { id: "timeline", label: "Timeline", href: ROUTES.timeline, tabIds: ["timeline"], views: [
-    { id: "timeline", label: "Timeline", tabId: "timeline", href: ROUTES.timeline },
   ] },
   { id: "funding", label: "Funding", href: ROUTES.overview, tabIds: ["overview", "trends", "lifecycle", "awards"], views: [
     { id: "request", label: "Request", tabId: "overview", href: ROUTES.overview },
@@ -57,6 +55,8 @@ export function navigationContext(activeTab, routeHash = "") {
   if (!workspace) return { workspace: null, view: null };
   const view = activeTab === "entity-workspace"
     ? { id: "entity", label: "Entity workspace", tabId: activeTab, href: routeHash || ROUTES.workspace }
+    : activeTab === "spend" && spendView === "timeline"
+      ? workspace.views.find((entry) => entry.id === "timeline") || null
     : workspace.views.find((entry) => entry.tabId === activeTab && (!entry.spendViews || entry.spendViews.includes(spendView))) || null;
   return { workspace, view };
 }

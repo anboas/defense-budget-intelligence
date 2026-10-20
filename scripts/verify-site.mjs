@@ -188,8 +188,8 @@ async function assertNavigationContext(page, workspace, view) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-primary-workspace]").count(), 5, "Header should expose exactly five user-job workspaces");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-primary-workspace]").allTextContents(), ["Today", "Opportunities", "Timeline", "Funding", "Intelligence"], "Primary navigation should communicate the five stable product workspaces");
+  assert.equal(await page.locator(".ci-header-nav > a[data-primary-workspace]").count(), 4, "Header should expose four bounded user-job workspaces");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-primary-workspace]").allTextContents(), ["Today", "Opportunities", "Funding", "Intelligence"], "Primary navigation should keep Timeline inside Opportunities");
   assert.equal(await page.getByRole("button", { name: "Find intelligence" }).count(), 1, "The header should expose one global entity finder");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   await page.waitForSelector("[data-universal-find-dialog]");
@@ -210,7 +210,7 @@ async function assertFlowShell(page) {
     await page.locator("[data-manage-menu-button]").click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
-    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Timeline[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Manage · Operations[\s\S]*Manage · Workspace/, "Mobile navigation should retain the same workspace ownership and management boundary");
+    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Manage · Operations[\s\S]*Manage · Workspace/, "Mobile navigation should retain the same workspace ownership and management boundary");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
@@ -997,6 +997,8 @@ try {
   assert.equal(await page.locator("[data-opportunity-workbench-scope]").count(), 1, "Opportunity Workbench should expose one compact filter owner");
   assert.equal(await page.locator('[data-table-autocomplete="opportunity-workbench-v1"]').count(), 1, "Opportunity Workbench should use the shared exact-record autocomplete");
   assert.match(await page.locator('[data-spend-explorer="table"] .if-workbench-header h2').innerText(), /Opportunity Workbench/i, "The table route should present the opportunity operating queue as the primary product surface");
+  assert.deepEqual(await page.locator('[data-workspace-nav="opportunities"] [data-workspace-view]').allTextContents(), ["Timeline", "Workbench", "Analysis"], "Opportunities should own Timeline, Workbench, and Analysis in decision order");
+  assert.equal(await page.locator('[data-workspace-nav="opportunities"] [data-workspace-view="workbench"][aria-current="page"]').count(), 1, "Workbench deep links should retain their owned secondary state");
   const workbenchScope = page.locator("[data-opportunity-workbench-scope]");
   assert.equal(await workbenchScope.getByText("Filters", { exact: false }).count(), 1, "Opportunity Workbench should expose one filter trigger");
   await openOpportunityFilters(page);
@@ -1299,7 +1301,13 @@ try {
   assert.equal(await page.locator("[data-capture-timeline-row]").count(), 1, "Tracked-only scope should reduce the Gantt to the browser watchlist");
   assert.match(decodeURIComponent(new URL(page.url()).hash), /capTracked=tracked/, "Tracked-only scope should be shareable without exposing private notes");
   await openSurface(page, "#/budget-spend/timeline", "[data-capture-timeline]");
-  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Timeline", "Timeline should be a first-class primary route");
+  assert.equal(await page.locator("[data-active-page-title]").innerText(), "Timeline", "Timeline should retain its exact route title");
+  await assertNavigationContext(page, "opportunities", "Timeline");
+  assert.deepEqual(await page.locator('[data-workspace-nav="opportunities"] [data-workspace-view]').allTextContents(), ["Timeline", "Workbench", "Analysis"], "Timeline should be the first Opportunities secondary view");
+  assert.equal(await page.locator('[data-primary-workspace="opportunities"]').getAttribute("href"), "#/budget-spend/timeline", "The primary Opportunities action should default to Timeline");
+  assert.equal(await page.locator('[data-workspace-view="workbench"]').getAttribute("href"), "#/budget-spend/explorer?spendView=table", "Timeline query state must not leak into Workbench navigation");
+  assert.equal(await page.locator('[data-workspace-view="analysis"]').getAttribute("href"), "#/budget-spend/explorer?spendView=analysis&analysisMode=portfolio", "Timeline query state must not leak into Analysis navigation");
+  await page.screenshot({ path: `${OUT_DIR}/opportunities-timeline-default-desktop.png`, fullPage: true });
   assert.equal(await page.locator('[data-timeline-scope="tracked"]').count(), 1, "Primary Timeline should default to tracked work");
   assert.equal(await page.locator('[data-capture-filters] .capture-filters__heading [data-timeline-scope="tracked"]').count(), 1, "Timeline Scope should be owned by the Find Records toolbar instead of a standalone card");
   assert.equal(await page.locator('[data-capture-calendar-page] > [data-timeline-scope]').count(), 0, "Timeline should not stack a separate scope container above record controls");
@@ -3039,7 +3047,7 @@ try {
   assert.equal(await mobile.locator(".if-product-header__eyebrow").evaluate((node) => getComputedStyle(node).display), "none", "The condensed mobile masthead should suppress its secondary eyebrow");
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.ok(await mobile.locator("[data-mobile-more-menu] a[data-budget-nav]").count() >= 8, "Mobile navigation should expose workspaces, current owned views, and bounded management capabilities in one menu");
-  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Timeline[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Manage · Operations[\s\S]*Manage · Workspace/, "Mobile navigation should preserve the same workspace and management architecture");
+  assert.match(await mobile.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Opportunities views[\s\S]*Timeline[\s\S]*Workbench[\s\S]*Analysis[\s\S]*Manage · Operations[\s\S]*Manage · Workspace/, "Mobile navigation should keep Timeline, Workbench, and Analysis inside Opportunities");
   await mobile.screenshot({ path: `${OUT_DIR}/navigation-groups-mobile.png` });
   await mobile.locator("[data-mobile-more-menu-button]").click();
   assert.equal(await mobile.locator('.ci-header-nav > a[data-budget-nav]:visible').count(), 0, "Mobile should remove the redundant persistent navigation row");
