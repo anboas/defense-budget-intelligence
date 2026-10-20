@@ -1,1 +1,0 @@
-import{D as e,z as t}from"./react-D6aG-e6A.js";var n=t();function r({ariaLabel:t,...r}){return(0,n.jsx)(e,{label:t||`Select`,...r})}export{r as t};
