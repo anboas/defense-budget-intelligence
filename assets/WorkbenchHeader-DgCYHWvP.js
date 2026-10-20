@@ -1,1 +1,0 @@
-import{I as e,z as t}from"./react-BzVyTmKx.js";var n=t();function r(t){return(0,n.jsx)(e,{headingLevel:2,...t})}export{r as t};
