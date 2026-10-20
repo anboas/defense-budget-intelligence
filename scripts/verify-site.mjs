@@ -39,6 +39,7 @@ const opportunityWorkbenchDetailStyleBytes = styleAssets.find((asset) => /^Oppor
 const intelligenceGraphPageStyleBytes = styleAssets.find((asset) => /^IntelligenceGraphPage-.*\.css$/.test(asset.name))?.bytes || 0;
 const linkedIntelligenceGraphStyleBytes = styleAssets.find((asset) => /^LinkedIntelligenceGraph-.*\.css$/.test(asset.name))?.bytes || 0;
 const organizationStructureControlsStyleBytes = styleAssets.find((asset) => /^OrganizationStructureControls-.*\.css$/.test(asset.name))?.bytes || 0;
+const organizationWorkDistributionStyleBytes = styleAssets.find((asset) => /^OrganizationWorkDistribution-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
@@ -55,6 +56,7 @@ assert.ok(opportunityWorkbenchDetailStyleBytes > 0 && opportunityWorkbenchDetail
 assert.ok(intelligenceGraphPageStyleBytes > 0 && intelligenceGraphPageStyleBytes <= 1_200, `Lazy Intelligence Graph route CSS must stay within its 1.2 KB budget, got ${intelligenceGraphPageStyleBytes.toLocaleString()} bytes`);
 assert.ok(linkedIntelligenceGraphStyleBytes > 0 && linkedIntelligenceGraphStyleBytes <= 5_000, `Deferred linked graph CSS must stay within its 5 KB budget, got ${linkedIntelligenceGraphStyleBytes.toLocaleString()} bytes`);
 assert.ok(organizationStructureControlsStyleBytes > 0 && organizationStructureControlsStyleBytes <= 1_500, `Nested organization-structure controls CSS must stay within its 1.5 KB budget, got ${organizationStructureControlsStyleBytes.toLocaleString()} bytes`);
+assert.ok(organizationWorkDistributionStyleBytes > 0 && organizationWorkDistributionStyleBytes <= 5_500, `Nested organization-work distribution CSS must stay within its 5.5 KB budget, got ${organizationWorkDistributionStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
 assert.ok(compiledStyleBytes <= 471_200, `Total scoped CSS must stay below 471.2 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
@@ -2483,6 +2485,8 @@ try {
   const departmentStructureText = await page.locator("[data-linked-intelligence-graph]").innerText();
   assert.match(departmentStructureText, /Department of the Army[\s\S]*Department of the Navy[\s\S]*Department of the Air Force/i, "Department drill-down must expose all three military departments");
   assert.match(departmentStructureText, /United States Army[\s\S]*United States Navy[\s\S]*United States Marine Corps[\s\S]*United States Air Force[\s\S]*United States Space Force/i, "Department drill-down must expose all five military services");
+  assert.match(departmentStructureText, /8 of 8 matching descendants shown[\s\S]*Root included/i, "Structure coverage must not count the root against a descendant-only denominator");
+  assert.match(departmentStructureText, /Direct links 24[\s\S]*Direct work 0[\s\S]*Direct money 0/i, "Structure relationship lenses must distinguish direct links from descendant work rollups");
   assert.match(departmentStructureText, /424 linked Timeline records/i, "Department drill-down must disclose its complete retained Timeline scope");
   await page.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
@@ -2492,6 +2496,18 @@ try {
   });
   await chooseControlSelect(page, "Organization work overlay", "Awards");
   assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /awards/i, "Work overlays should annotate hierarchy nodes with retained award counts");
+  const workDistribution = page.locator('[data-organization-work-distribution]');
+  await workDistribution.waitFor();
+  assert.equal(await workDistribution.getAttribute("data-work-scope"), "subtree", "Organization work distribution should default to descendant-aware scope");
+  assert.match(await workDistribution.innerText(), /Work distribution[\s\S]*Includes reviewed descendants[\s\S]*Department of the Navy[\s\S]*Exact retained work[\s\S]*Opportunities[\s\S]*Awards[\s\S]*Accounts/i, "Organization work distribution should rank visible owners and expose exact retained evidence");
+  assert.ok(await workDistribution.locator('[data-organization-work-evidence] a').count() >= 4, "Organization work distribution should expose exact record and Timeline handoffs");
+  await workDistribution.getByRole("button", { name: /Department of the Navy/i }).click();
+  assert.match(await workDistribution.locator('[data-organization-work-evidence]').innerText(), /Department of the Navy[\s\S]*175 opportunities[\s\S]*165 awards[\s\S]*19 accounts/i, "Descendant-aware evidence should retain Department of the Navy work totals");
+  await chooseControlSelect(page, "Organization work scope", "Directly owned only");
+  assert.equal(await workDistribution.getAttribute("data-work-scope"), "direct", "Direct-work scope should update the distribution owner");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /orgWorkScope=direct/i, "Organization work scope should remain shareable in the route");
+  assert.doesNotMatch(await page.locator('[data-linked-graph-inspector]').innerText(), /175 opportunities[\s\S]*165 awards[\s\S]*19 accounts/i, "Direct-work scope must not leak descendant totals into the graph inspector");
+  await chooseControlSelect(page, "Organization work scope", "Organization + descendants");
   await chooseControlSelect(page, "Organization component filter", "Joint & combatant");
   assert.equal(await page.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "13", "Joint drill-down should show the department root, Joint Chiefs, and all eleven combatant commands");
   assert.match(await page.locator('[data-linked-graph-canvas]').innerText(), /United States Cyber Command[\s\S]*United States Indo-Pacific Command[\s\S]*United States Special Operations Command/i, "Joint drill-down must retain the reviewed combatant-command inventory");
@@ -2960,6 +2976,8 @@ try {
   await mobile.waitForSelector('[data-linked-intelligence-graph][data-lens="structure"]');
   assert.equal(await mobile.locator("[data-organization-structure-controls]").count(), 1, "Mobile organization drill-down should retain every structural filter");
   assert.equal(await mobile.locator('[data-linked-graph-canvas]').getAttribute("data-node-count"), "9", "Mobile organization drill-down should retain the default departments-and-services structure");
+  assert.equal(await mobile.locator('[data-organization-work-distribution][data-work-scope="subtree"]').count(), 1, "Mobile organization drill-down should retain descendant-aware work distribution");
+  assert.ok(await mobile.locator('[data-organization-work-evidence] section').count() === 3, "Mobile work distribution should retain opportunity, award, and account evidence lanes");
   await assertButtonIntegrity(mobile, "Mobile organization drill-down", "[data-intelligence-graph-page]");
   await assertNoPageOverflow(mobile, "Mobile organization drill-down");
   await mobile.goto(`${BASE_URL}#/budget-spend/explorer?spendView=today`, { waitUntil: "domcontentloaded" });

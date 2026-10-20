@@ -31,6 +31,7 @@ function routedEntity(routeHash) {
       status: params.get("orgStatus") || "current",
       workOnly: params.get("orgWorkOnly") === "1",
       workOverlay: params.get("orgOverlay") || "opportunities",
+      workScope: params.get("orgWorkScope") || "subtree",
     },
   };
 }
@@ -122,6 +123,7 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
     write("orgGroup", view.group, "services");
     write("orgStatus", view.status, "current");
     write("orgOverlay", view.workOverlay, "opportunities");
+    write("orgWorkScope", view.workScope, "subtree");
     if (view.workOnly) params.set("orgWorkOnly", "1"); else params.delete("orgWorkOnly");
     window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
   };
@@ -140,7 +142,7 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
           {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small className="if-text-xs">{timelineCount.toLocaleString()}</small></a> : null}
         </div>
       </section>
-      <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable linked intelligence graph"><Suspense fallback={<ControlAsyncState state="loading" title="Opening linked graph" message="Preparing the bounded relationship canvas." />}><LinkedIntelligenceGraph key={`${selected.id}:${target?.id || "neighborhood"}:${routed.view.depth}:${routed.view.group}:${routed.view.status}:${routed.view.workOnly}:${routed.view.workOverlay}`} index={state.index} rootId={selected.id} targetId={target?.id || ""} initialStructure={routed.view} onStructureChange={updateStructureView} onRootChange={updateRoot} /></Suspense></section>
+      <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable linked intelligence graph"><Suspense fallback={<ControlAsyncState state="loading" title="Opening linked graph" message="Preparing the bounded relationship canvas." />}><LinkedIntelligenceGraph key={`${selected.id}:${target?.id || "neighborhood"}:${routed.view.depth}:${routed.view.group}:${routed.view.status}:${routed.view.workOnly}:${routed.view.workOverlay}:${routed.view.workScope}`} index={state.index} rootId={selected.id} targetId={target?.id || ""} initialStructure={routed.view} onStructureChange={updateStructureView} onRootChange={updateRoot} /></Suspense></section>
     </> : <ControlAsyncState state="empty" title="No linked entity available" message="Return to Organizations or Opportunities and choose a retained entity." action={<a className="if-btn if-btn--secondary" href="#/budget-spend/library"><Network size={15} />Open organizations</a>} />}
   </div>;
 }
