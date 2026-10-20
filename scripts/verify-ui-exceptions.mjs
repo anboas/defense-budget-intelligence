@@ -14,7 +14,7 @@ async function readSources(directory = sourceRoot) {
   }
   return sources;
 }
-const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState, today, todayCss, wallboardCalendar] = await Promise.all([
+const [organizations, research, researchCss, evidence, evidenceCss, spend, analytics, domain, integrations, workspaces, surfaceState, today, todayCss, wallboardCalendar, navigation, operations, opportunityActions] = await Promise.all([
   read("IntelligenceProductsPage.jsx"),
   read("ResearchDiscoveryDashboard.jsx"),
   read("ResearchDiscoveryDashboard.css"),
@@ -29,6 +29,9 @@ const [organizations, research, researchCss, evidence, evidenceCss, spend, analy
   read("TodayWorkspace.jsx"),
   read("TodayWorkspace.css"),
   read("WallboardCalendar.jsx"),
+  read("navigation-architecture.js"),
+  read("OperationsHub.jsx"),
+  read("OpportunityCommandRail.jsx"),
 ]);
 
 for (const [label, source] of [
@@ -74,6 +77,14 @@ assert.match(today, /ControlCalendarGrid[\s\S]*layout="range"[\s\S]*rows=\{2\}/,
 assert.doesNotMatch(today, /today-calendar if-management-grid|today-forward__(?:header|modes|footer)/, "Today must not restore its local calendar shell, switcher, or footer");
 assert.doesNotMatch(todayCss, /today-forward__(?:header|modes|footer)/, "Today must not retain dead local calendar-shell CSS");
 assert.match(wallboardCalendar, /ControlCalendarDay/, "The operational month calendar must share the framework day-cell anatomy");
+
+assert.match(navigation, /label: "Focus"[\s\S]*label: "Actions"[\s\S]*label: "Schedule"/, "Today must expose Focus, Actions, and Schedule as its owned human-work views");
+assert.match(navigation, /label: "Automation Runs"[\s\S]*tabId: "tasks"/, "Technical API and AI history must live under the Automation Runs management owner");
+assert.doesNotMatch(today, /useNotifications|loadProcurementFeed|data-today-system-attention|Operating loop|My tracked work/, "Today Focus must not mix technical operations, decorative process chrome, or fake scope controls into human decision work");
+assert.match(operations, /data-actions-workspace[\s\S]*title="Actions"[\s\S]*Human-owned actions/, "The Today Actions view must own human pursuit work explicitly");
+assert.match(operations, /title="Automation Runs"[\s\S]*AI, provider, and authenticated API run history/, "Automation Runs must identify its technical diagnostic scope explicitly");
+assert.doesNotMatch(operations, /title="Task Center"|Open complete task history/, "The generic Task Center label must not return");
+assert.match(opportunityActions, /if-field__label">Action<[\s\S]*label="Action priority"[\s\S]*ariaLabel="Action owner"/, "Opportunity planning must use human-facing action language consistently");
 
 const sources = await readSources();
 const specializedDetails = new Map([

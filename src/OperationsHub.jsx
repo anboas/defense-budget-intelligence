@@ -25,7 +25,7 @@ import TeamAvatar from "./TeamAvatar.jsx";
 import EventPlacementSettings from "./EventPlacementSettings.jsx";
 import OperationalDataTable from "./OperationalDataTable.jsx";
 import { useAuth } from "./AuthContext.jsx";
-import { applyProcurementChanges, assembleProcurementRecords, WORK_CATEGORY_BY_ID } from "./procurement-taxonomy.js";
+import { applyProcurementChanges, assembleProcurementRecords } from "./procurement-taxonomy.js";
 import { useManagementState } from "./management-state.js";
 import SearchMultiSelect from "./SearchMultiSelect.jsx";
 import { ApiTaskActivity, EventTaskActivity } from "./TaskActivity.jsx";
@@ -38,6 +38,8 @@ import { SectionSubnavigation } from "./SectionedPageHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
 import { directorySelection, openWorkspaceProfile, workspaceTeamHref } from "./workspace-profile-routes.js";
 import { eventDateTimeInputValue } from "./event-date-input.js";
+import { normalizePursuit } from "./pursuit-metadata.js";
+import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import "./MyWork.css";
 import TodayWorkspace from "./TodayWorkspace.jsx";
 const AgentAccessPanel = lazy(() => import("./ProfilePage.jsx").then((module) => ({ default: module.AgentAccessPanel })));
@@ -50,7 +52,7 @@ const WorkspaceManagement = lazy(() => import("./WorkspaceManagement.jsx"));
 const WallboardCalendar = lazy(() => import("./WallboardCalendar.jsx"));
 const WorkspaceMemberProfile = lazy(() => import("./WorkspaceMemberProfile.jsx"));
 const WorkspaceTeamProfile = lazy(() => import("./WorkspaceTeamProfile.jsx"));
-const VIEWS = new Set(["watchlist", "schedule", "tasks", "connections", "users", "workspaces", "workspace-settings", "directory"]);
+const VIEWS = new Set(["watchlist", "actions", "schedule", "tasks", "connections", "users", "workspaces", "workspace-settings", "directory"]);
 const EVENT_MILESTONE_TYPES = [
   ["registration_deadline", "Registration closes"],
   ["refund_deadline", "Refund deadline"],
@@ -299,7 +301,7 @@ function EventAiLauncher({ event, onClose }) {
           <li className="if-stepper__step"><span className="if-stepper__item"><span className="if-stepper__dot">2</span><span className="if-stepper__label">Verify</span><span className="if-stepper__meta">Independent schema and evidence check</span></span></li>
           <li className="if-stepper__step"><span className="if-stepper__item"><span className="if-stepper__dot">3</span><span className="if-stepper__label">Apply or review</span><span className="if-stepper__meta">Workspace policy decides the safe outcome</span></span></li>
         </ol>
-        <p className="if-field__hint">{auth?.user?.activeWorkspace?.autoAcceptAiAugmentations ? "Verified, additive, conflict-free changes apply automatically. Anything uncertain remains pending for validation." : "Verified changes remain pending until an operator reviews and saves the draft."} Conflicts, rejected claims, sources, models, and the trace stay available in Task Center.</p>
+        <p className="if-field__hint">{auth?.user?.activeWorkspace?.autoAcceptAiAugmentations ? "Verified, additive, conflict-free changes apply automatically. Anything uncertain remains pending for validation." : "Verified changes remain pending until an operator reviews and saves the draft."} Conflicts, rejected claims, sources, models, and the trace stay available in Automation Runs.</p>
       </div>
       {inventory ? <p className="if-field__hint if-field--full">{inventory.capabilityNotice} {modelOptions.length} compatible text model{modelOptions.length === 1 ? "" : "s"} shown from this credential’s project.</p> : null}
       {error ? <p className="ops-alert if-field--full" role="alert">{error}</p> : null}
@@ -468,46 +470,68 @@ function EventEditor({ event, review = false, records, categories, teams, onSave
   </ControlDialog>;
 }
 
-function WatchlistView({ rows, watchlist, events, asOf, query, setQuery, toggleWatch, updateWatch, savePursuit }) {
-  const watchById = new Map(watchlist.map((entry) => [entry.recordId, entry]));
-  const recordById = new Map(rows.map((record) => [record.opportunityId, record]));
-  const [focus] = useState(() => { const saved = new URLSearchParams(window.location.hash.split("?")[1] || "").get("workFocus") || "all"; return ["overdue", "due"].includes(saved) ? "urgent" : ["urgent", "waiting", "no-action"].includes(saved) ? saved : "all"; });
-  const [showTracked, setShowTracked] = useState(false);
+function WatchlistView({ rows, watchlist, events, savePursuit }) {
   const [referenceTime] = useState(() => Date.now());
   const today = new Date(referenceTime).toISOString().slice(0, 10);
-  const soon = new Date(referenceTime + 7 * 86_400_000).toISOString().slice(0, 10);
-  const tasks = watchlist.flatMap((watch) => (watch.pursuit?.tasks || []).map((task) => ({ ...task, recordId: watch.recordId, record: recordById.get(watch.recordId), pursuit: watch.pursuit })));
-  const openTasks = tasks.filter((task) => task.status !== "done");
-  const overdueTasks = openTasks.filter((task) => task.dueAt && task.dueAt.slice(0, 10) < today);
-  const dueSoonTasks = openTasks.filter((task) => task.dueAt && task.dueAt.slice(0, 10) >= today && task.dueAt.slice(0, 10) <= soon);
-  const urgentTasks = [...overdueTasks, ...dueSoonTasks];
-  const waitingTasks = openTasks.filter((task) => task.status === "waiting");
-  const noActionRecords = rows.filter((record) => { const watch = watchById.get(record.opportunityId); return !watch?.pursuit?.nextAction && !(watch?.pursuit?.tasks || []).some((task) => task.status !== "done"); });
-  const focusRecords = new Set((focus === "urgent" ? urgentTasks.map((task) => task.recordId) : focus === "waiting" ? waitingTasks.map((task) => task.recordId) : focus === "no-action" ? noActionRecords.map((record) => record.opportunityId) : rows.map((record) => record.opportunityId)));
-  const filteredRows = rows.filter((record) => focusRecords.has(record.opportunityId));
+  return <section className="ops-panel my-work" data-ops-watchlist data-my-work>
+    {rows.length ? <TodayWorkspace rows={rows} watchlist={watchlist} events={events} today={today} savePursuit={savePursuit} /> : <ControlPageBody compact><ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Track an opportunity to build your decision workspace and 14-day forward view." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Find opportunities</a>} /></ControlPageBody>}
+  </section>;
+}
 
-  const focusLabel = { urgent: "act now", waiting: "waiting", "no-action": "needs a plan" };
+function ActionsView({ rows, watchlist, savePursuit }) {
+  const recordById = useMemo(() => new Map(rows.map((record) => [record.opportunityId, record])), [rows]);
+  const [referenceTime] = useState(() => Date.now());
+  const [pending, setPending] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const today = new Date(referenceTime).toISOString().slice(0, 10);
+  const soon = new Date(referenceTime + 7 * 86_400_000).toISOString().slice(0, 10);
+  const actions = useMemo(() => watchlist.flatMap((watch) => {
+    const pursuit = normalizePursuit(watch.pursuit);
+    const record = recordById.get(watch.recordId);
+    return pursuit.tasks.filter((task) => task.status !== "done").map((task) => ({ ...task, pursuit, record, recordId: watch.recordId }));
+  }).sort((left, right) => String(left.dueAt || "9999-12-31").localeCompare(String(right.dueAt || "9999-12-31"))), [recordById, watchlist]);
+  const needsPlan = useMemo(() => watchlist.filter((watch) => { const pursuit = normalizePursuit(watch.pursuit); return !pursuit.nextAction && !pursuit.tasks.some((task) => task.status !== "done"); }), [watchlist]);
+  const overdue = actions.filter((action) => action.dueAt && action.dueAt.slice(0, 10) < today).length;
+  const dueSoon = actions.filter((action) => action.dueAt && action.dueAt.slice(0, 10) >= today && action.dueAt.slice(0, 10) <= soon).length;
+  const waiting = actions.filter((action) => action.status === "waiting").length;
+  const urgency = (action) => action.dueAt && action.dueAt.slice(0, 10) < today ? "overdue" : action.dueAt && action.dueAt.slice(0, 10) <= soon ? "due-soon" : "monitor";
   const columns = [
-    { key: "record", label: "Tracked record", required: true, sticky: true, minWidth: 300, value: (record) => record.id, searchValue: (record) => [record.id, record.title, record.party, record.portfolio, record.reference], render: (record) => <a className="dbi-table-record-link" href={`#/budget-spend/timeline?capRecord=${encodeURIComponent(record.opportunityId)}`}><b>{record.id}</b><strong>{record.title}</strong><small>{record.party || record.portfolio} · {WORK_CATEGORY_BY_ID.get(record.workCategory)?.label || "Unclassified work"}</small></a> },
-    { key: "stage", label: "Pursuit", facet: true, minWidth: 140, value: (record) => watchById.get(record.opportunityId)?.pursuit?.stage || "monitor", render: (record) => <ControlStatusBadge status={watchById.get(record.opportunityId)?.pursuit?.stage || "monitor"} /> },
-    { key: "owner", label: "Owner", facet: true, minWidth: 150, value: (record) => watchById.get(record.opportunityId)?.pursuit?.owner || "Unassigned" },
-    { key: "next", label: "Next action", minWidth: 260, value: (record) => watchById.get(record.opportunityId)?.pursuit?.nextAction || "No next action", render: (record) => { const watch = watchById.get(record.opportunityId); const open = (watch?.pursuit?.tasks || []).filter((task) => task.status !== "done"); return <span className="my-work__next"><strong>{watch?.pursuit?.nextAction || "No next action"}</strong><small>{open.length ? `${open.length} open task${open.length === 1 ? "" : "s"}` : "No open tasks"}</small></span>; } },
-    { key: "date", label: "Next published date", minWidth: 130, value: (record) => nextPublishedDate(record, asOf) || "Not scheduled", render: (record) => compactDate(nextPublishedDate(record, asOf)) },
-    { key: "observed", label: "Observed", sortValue: recordAmount, exportValue: recordAmount, render: (record) => <strong>{money(recordAmount(record))}</strong> },
-    { key: "review", label: "Review", minWidth: 150, sortValue: (record) => watchById.get(record.opportunityId)?.reviewAt || "", render: (record) => { const watch = watchById.get(record.opportunityId); return <input className="if-input" aria-label={`Review date for ${record.title}`} type="date" value={String(watch?.reviewAt || "").slice(0, 10)} onChange={(event) => updateWatch(record.opportunityId, { reviewAt: event.target.value })} />; } },
-    { key: "wallboard", label: "Wallboard", facet: true, minWidth: 120, value: (record) => watchById.get(record.opportunityId)?.wallboard ? "Shown" : "Hidden", render: (record) => { const watch = watchById.get(record.opportunityId); return <label className="ops-switch"><input type="checkbox" checked={watch?.wallboard !== false} onChange={(event) => updateWatch(record.opportunityId, { wallboard: event.target.checked })} /><span>{watch?.wallboard !== false ? "Shown" : "Hidden"}</span></label>; } },
-    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (record) => <div className="dbi-table-actions"><button type="button" onClick={() => toggleWatch(record.opportunityId)} aria-label={`Stop tracking ${record.title}`}><Star size={16} fill="currentColor" />Untrack</button></div> },
+    { key: "action", label: "Action", required: true, sticky: true, minWidth: 300, value: (action) => action.title, searchValue: (action) => [action.title, action.record?.title, action.owner], render: (action) => <span className="my-work__next"><strong>{action.title}</strong><small>{action.record?.title || action.recordId}</small></span> },
+    { key: "urgency", label: "Urgency", facet: true, minWidth: 120, value: urgency, render: (action) => <SemanticStatusBadge category="urgency" value={urgency(action)} /> },
+    { key: "owner", label: "Owner", facet: true, minWidth: 145, value: (action) => action.owner || "Unassigned" },
+    { key: "due", label: "Due", minWidth: 125, value: (action) => action.dueAt || "Not scheduled", render: (action) => compactDate(action.dueAt) },
+    { key: "pursuit", label: "Pursuit", facet: true, minWidth: 130, value: (action) => action.pursuit.stage, render: (action) => <SemanticStatusBadge category="workflow" value={action.pursuit.stage} /> },
+    { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (action) => <div className="dbi-table-actions"><a href={opportunityRoute(action.recordId, { tab: "tasks", origin: "today" })}>Open plan</a><button type="button" onClick={() => setPending(action)}>Complete</button></div> },
   ];
-  return (
-    <section className="ops-panel my-work" data-ops-watchlist data-my-work>
-      {rows.length ? <TodayWorkspace rows={rows} watchlist={watchlist} events={events} today={today} savePursuit={savePursuit}>
-        <section className="my-work__tracked" data-my-work-tracked>
-          <header><div><small>Portfolio</small><h3>Tracked pursuits</h3><p>{focus === "all" ? `${rows.length} active pursuits` : `${filteredRows.length} match ${focusLabel[focus] || "this focus"}`}</p></div><button type="button" className="if-btn if-btn--secondary" aria-expanded={showTracked} onClick={() => setShowTracked((value) => !value)}>{showTracked ? "Hide portfolio" : "Review pursuits"}</button></header>
-          {showTracked ? <OperationalDataTable id="watchlist" label="Tracked pursuits" rows={filteredRows} columns={columns} rowKey={(record) => record.opportunityId} defaultSort={{ key: "review", direction: "asc" }} queryValue={query} onQueryChange={setQuery} searchPlaceholder="Search tracked pursuits…" exportFilename="my-work.csv" mobileColumns={["record", "stage", "next", "review", "actions"]} wrapperProps={{ "data-ops-watch-table": true, "data-work-focus": focus }} renderDetail={(record) => { const watch = watchById.get(record.opportunityId); return <div className="my-work__detail"><div className="my-work__detail-actions"><a className="if-btn if-btn--primary" href={opportunityRoute(record.opportunityId, { returnTo: typeof window === "undefined" ? "" : window.location.hash, origin: "today" })}>Open pursuit workspace</a></div><label className="if-field my-work__note"><span className="if-field__label">Private workspace note</span><textarea className="if-textarea" rows={3} key={watch?.updatedAt} defaultValue={watch?.note || ""} placeholder="Add a private note…" onBlur={(event) => { if (event.target.value !== (watch?.note || "")) updateWatch(record.opportunityId, { note: event.target.value }); }} /></label></div>; }} /> : <div className="my-work__tracked-summary"><strong>{rows.length} tracked</strong><span>{noActionRecords.length} need a plan</span><span>{waitingTasks.length} waiting</span></div>}
-        </section>
-      </TodayWorkspace> : <ControlPageBody compact><ControlAsyncState compact state="empty" icon={<Star size={22} />} title="No tracked records yet" message="Track an opportunity to build your decision workspace and 14-day forward view." action={<a className="if-btn if-btn--primary" href="#/budget-spend/explorer?spendView=table">Find opportunities</a>} /></ControlPageBody>}
-    </section>
-  );
+  async function complete() {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      const nextTasks = pending.pursuit.tasks.map((task) => task.id === pending.id ? { ...task, status: "done", completedAt: new Date().toISOString() } : task);
+      await savePursuit(pending.recordId, { ...pending.pursuit, tasks: nextTasks });
+      setFeedback({ tone: "success", message: `Completed: ${pending.title}` });
+      setPending(null);
+    } catch (error) {
+      setFeedback({ tone: "danger", message: error.message || "The action could not be completed." });
+    } finally { setBusy(false); }
+  }
+  return <section className="ops-panel my-work" data-actions-workspace>
+    <ControlPageHeader compact divided eyebrow="Today" title="Actions" summary="Named pursuit work with an owner, due date, and clear opportunity context." headingLevel={2} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/explorer?spendView=table">Review pursuits</a>} />
+    <ControlPageBody compact>
+      <ControlMetricStrip label="Action summary" compactMobile items={[
+        { id: "open", label: "Open", value: actions.length, meta: "Human-owned actions", tone: "info" },
+        { id: "overdue", label: "Overdue", value: overdue, meta: "Past due", tone: overdue ? "danger" : "neutral" },
+        { id: "soon", label: "Due soon", value: dueSoon, meta: "Next 7 days", tone: dueSoon ? "warning" : "neutral" },
+        { id: "waiting", label: "Waiting", value: waiting, meta: "Blocked externally", tone: "neutral" },
+        { id: "plan", label: "Needs plan", value: needsPlan.length, meta: "Tracked without action", tone: needsPlan.length ? "warning" : "neutral" },
+      ]} />
+      {feedback ? <p className={`if-alert if-alert--${feedback.tone}`} role={feedback.tone === "danger" ? "alert" : "status"}>{feedback.message}</p> : null}
+      {actions.length ? <OperationalDataTable id="actions" label="Pursuit actions" rows={actions} columns={columns} rowKey={(action) => `${action.recordId}:${action.id}`} defaultSort={{ key: "due", direction: "asc" }} searchPlaceholder="Search actions, opportunities, and owners…" exportFilename="pursuit-actions.csv" selectable={false} mobileColumns={["action", "urgency", "due", "actions"]} wrapperProps={{ "data-actions-table": true }} /> : <ControlAsyncState compact state="empty" icon={<CircleCheck size={22} />} title="No open actions" message="Add a named next action from an opportunity workspace." />}
+      {needsPlan.length ? <section className="if-panel actions-needs-plan" data-actions-needs-plan><header className="if-panel__header"><div><h3 className="if-panel__title">Needs a plan</h3><p className="if-panel__subtitle">Tracked pursuits without an open action.</p></div><span className="if-badge">{needsPlan.length}</span></header><div className="if-panel__body if-action-row-list">{needsPlan.map((watch) => { const record = recordById.get(watch.recordId); return <a className="if-action-row" href={opportunityRoute(watch.recordId, { tab: "tasks", origin: "today" })} key={watch.recordId}><span><strong>{record?.title || watch.recordId}</strong><small>Open the action plan and name the next step.</small></span></a>; })}</div></section> : null}
+    </ControlPageBody>
+    {pending ? <ControlDialog open onClose={() => { if (!busy) setPending(null); }} eyebrow="Pursuit action" title="Complete this action?" summary="The action will leave the active queue and remain in the opportunity history." footer={<><button type="button" className="if-btn" disabled={busy} onClick={() => setPending(null)}>Cancel</button><button type="button" className="if-btn if-btn--primary" disabled={busy} onClick={() => void complete()}><CircleCheck size={15} />{busy ? "Saving…" : "Complete action"}</button></>}><strong>{pending.title}</strong><p>{pending.record?.title || pending.recordId}</p></ControlDialog> : null}
+  </section>;
 }
 
 function EventCategoryCard({ category, onSave, onDelete }) {
@@ -627,13 +651,13 @@ function EventAiReview({ jobId, onOpenDraft, onApplyDraft, onFocusEvent, activit
     }
   }
   return <section className="if-operations-workspace" data-event-ai-review={job?.status || "loading"}>
-    <ControlWorkbenchHeader className="task-detail-header" eyebrow={statusLabel} title={job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"} summary={`Research: ${job?.producerModel || "Loading"} · Verification: ${job?.verifierModel || "Loading"}${job?.traceId ? ` · Trace ${job.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a>} tabs={job ? <ControlTabs className="task-review-tabs" ariaLabel="Task detail sections" activeId={panel} onSelect={setPanel} items={[{ id: "review", label: "Review" }, { id: "activity", label: "Activity", badge: activityEntries.length + 2 }]} /> : null} controls={<ControlProgressRail label="Event AI workflow status" items={[
+    <ControlWorkbenchHeader className="task-detail-header" eyebrow={statusLabel} title={job?.inputSnapshot?.title || job?.mergeResult?.mergedDraft?.title || "Event research review"} summary={`Research: ${job?.producerModel || "Loading"} · Verification: ${job?.verifierModel || "Loading"}${job?.traceId ? ` · Trace ${job.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Automation Runs</a>} tabs={job ? <ControlTabs className="task-review-tabs" ariaLabel="Run detail sections" activeId={panel} onSelect={setPanel} items={[{ id: "review", label: "Review" }, { id: "activity", label: "Activity", badge: activityEntries.length + 2 }]} /> : null} controls={<ControlProgressRail label="Event AI workflow status" items={[
         { id: "research", label: "Research", state: researchStepClass === "is-blocked" ? "blocked" : researchStepClass === "is-active" ? "active" : "complete", meta: failedStage === "research" ? "Stopped by evidence gate" : "Claim-level public evidence" },
         { id: "verification", label: "Verify", state: verificationStepClass === "is-blocked" ? "blocked" : verificationStepClass === "is-active" ? "active" : verificationStepClass === "is-complete" ? "complete" : "pending", meta: failedStage === "research" ? "Not started" : failedStage === "verification" ? "Stopped during verification" : "Independent evidence check" },
         { id: "review", label: autoApplied ? "Applied" : "Review", state: autoApplied ? "complete" : reviewStepClass === "is-active" ? "active" : "pending", meta: job?.status === "failed" ? "No draft produced" : autoApplied ? "Safe workspace policy" : "Human decision before save" },
       ]} />} />
     {error ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Review unavailable</strong><p>{error}</p></div></div> : null}
-    {active || !job ? <div className="if-alert if-alert--info" aria-busy="true" data-event-ai-review-progress>{workingSpinner("")}<div><strong>{statusLabel}</strong><p>Background work is running. You can leave this page and return from Notifications or Task Center.</p></div></div> : null}
+    {active || !job ? <div className="if-alert if-alert--info" aria-busy="true" data-event-ai-review-progress>{workingSpinner("")}<div><strong>{statusLabel}</strong><p>Background work is running. You can leave this page and return from Notifications or Automation Runs.</p></div></div> : null}
     {job && panel === "activity" ? <section className="if-analytics-panel if-analytics-panel--flat" data-task-activity><header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title">Activity chain</h3><p className="if-analytics-panel__summary">Select a stage to inspect its submitted query, normalized provider exchange, timing, IDs, and outcome. Prompts, credentials, headers, and raw provider bodies are excluded.</p></div></header><EventTaskActivity job={job} entries={activityEntries} /></section> : null}
     {panel === "review" && job?.status === "failed" ? <>
       <ControlMetricStrip label="Stopped AI workflow outcome" data-event-ai-stopped-outcome items={[
@@ -750,7 +774,7 @@ function apiTaskRecords(apiRequests, eventJobs) {
 function ApiTaskDetail({ task }) {
   const [panel, setPanel] = useState("summary");
   return <section className="if-operations-workspace" data-api-task-detail>
-    <ControlWorkbenchHeader className="task-detail-header" eyebrow={taskStatusLabel(task.status)} title={task.title} summary={`${task.type}${task.traceId ? ` · Trace ${task.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Task Center</a>} tabs={<ControlTabs className="task-review-tabs" ariaLabel="Task detail sections" activeId={panel} onSelect={setPanel} items={[{ id: "summary", label: "Summary" }, { id: "activity", label: "Activity", badge: task.entries.length }]} />} metrics={[
+    <ControlWorkbenchHeader className="task-detail-header" eyebrow={taskStatusLabel(task.status)} title={task.title} summary={`${task.type}${task.traceId ? ` · Trace ${task.traceId}` : ""}`} actions={<a className="if-btn if-btn--secondary" href="#/budget-spend/tasks">Back to Automation Runs</a>} tabs={<ControlTabs className="task-review-tabs" ariaLabel="Run detail sections" activeId={panel} onSelect={setPanel} items={[{ id: "summary", label: "Summary" }, { id: "activity", label: "Activity", badge: task.entries.length }]} />} metrics={[
       { id: "stage", label: "Stage", value: task.stage, meta: "Latest retained stage", tone: "info" },
       { id: "requests", label: "Requests", value: task.entries.length, meta: "Redacted ledger entries" },
       { id: "provider", label: "Provider", value: task.provider || "DBI", meta: task.model || "No model recorded" },
@@ -773,7 +797,7 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onApplyDraft, onF
   }, [apiRequests, notificationJobs]);
   const selected = tasks.find((task) => task.id === selectedTaskId);
   const columns = [
-    { key: "task", label: "Task", required: true, sticky: true, minWidth: 300, value: (task) => task.title, searchValue: (task) => [task.title, task.type, task.stage, task.detail, task.traceId], render: (task) => <><strong>{task.title}</strong><small>{task.detail}</small></> },
+    { key: "task", label: "Run", required: true, sticky: true, minWidth: 300, value: (task) => task.title, searchValue: (task) => [task.title, task.type, task.stage, task.detail, task.traceId], render: (task) => <><strong>{task.title}</strong><small>{task.detail}</small></> },
     { key: "type", label: "Type", facet: true, minWidth: 145, value: (task) => task.type },
     { key: "status", label: "Status", facet: true, minWidth: 120, value: (task) => taskStatusLabel(task.status), render: (task) => <span className="task-status-cell">{TASK_ACTIVE_STATUSES.has(task.status) ? workingSpinner("") : null}<ControlStatusBadge status={task.status} label={taskStatusLabel(task.status)} /></span> },
     { key: "stage", label: "Current stage", facet: true, minWidth: 160, value: (task) => task.stage },
@@ -786,16 +810,16 @@ function TasksView({ apiRequests, selectedTaskId, onOpenDraft, onApplyDraft, onF
   const completedCount = tasks.filter((task) => ["completed", "succeeded"].includes(task.status)).length;
   const failedCount = tasks.filter((task) => ["failed", "rejected", "rate_limited"].includes(task.status)).length;
   return <section className={`ops-panel${selectedTaskId ? " task-center--detail" : ""}`} data-task-center>
-    {!selectedTaskId ? <ControlPageHeader compact divided eyebrow="Workspace work" title="Task Center" summary="Augmentation, provider, and authenticated API tasks in one place." headingLevel={2} actions={<button type="button" className="if-btn if-btn--secondary" onClick={() => void Promise.all([notifications?.refresh?.(), onRefresh?.()])}>Refresh</button>} /> : null}
+    {!selectedTaskId ? <ControlPageHeader compact divided eyebrow="Operations" title="Automation Runs" summary="Technical AI, provider, and authenticated API run history for diagnostics and review." headingLevel={2} actions={<button type="button" className="if-btn if-btn--secondary" onClick={() => void Promise.all([notifications?.refresh?.(), onRefresh?.()])}>Refresh</button>} /> : null}
     <ControlPageBody compact>
-    {!selectedTaskId ? <ControlMetricStrip label="Task summary" compactMobile items={[
+    {!selectedTaskId ? <ControlMetricStrip label="Automation run summary" compactMobile items={[
       { id: "active", label: "In progress", value: activeCount, meta: "Background stages running", tone: "info" },
       { id: "attention", label: "Needs attention", value: attentionCount, meta: "Review or failure detail available", tone: "warning" },
-      { id: "completed", label: "Completed", value: completedCount, meta: "Finished retained tasks", tone: "success" },
+      { id: "completed", label: "Completed", value: completedCount, meta: "Finished retained runs", tone: "success" },
       { id: "stopped", label: "Stopped", value: failedCount, meta: "No silent writes or partial merges", tone: "danger" },
     ]} /> : null}
     {selected?.job ? <EventAiReview jobId={selected.sourceId} onOpenDraft={onOpenDraft} onApplyDraft={onApplyDraft} onFocusEvent={onFocusEvent} activityEntries={selected.entries} /> : selected?.entries ? <ApiTaskDetail task={selected} /> : selectedTaskId ? <div className="if-alert if-alert--danger" role="alert"><CircleAlert size={17} aria-hidden="true" /><div><strong>Task not found</strong><p>The task is outside the retained workspace window or is no longer available.</p></div></div> : null}
-    {!selectedTaskId && tasks.length ? <OperationalDataTable id="tasks" label="Workspace task progress" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search tasks, stages, outcomes, traces, and task types…" exportFilename="workspace-tasks.csv" selectable={false} mobileColumns={["task", "status", "updated", "actions"]} wrapperProps={{ "data-task-table": true }} /> : !selectedTaskId ? <ControlAsyncState compact state="empty" icon={<ListChecks size={22} />} title="No retained tasks" message="Augmentation and API work will appear here after it starts." /> : null}
+    {!selectedTaskId && tasks.length ? <OperationalDataTable id="tasks" label="Automation run history" rows={tasks} columns={columns} rowKey={(task) => task.id} defaultSort={{ key: "updated", direction: "desc" }} searchPlaceholder="Search runs, stages, outcomes, traces, and operation types…" exportFilename="automation-runs.csv" selectable={false} mobileColumns={["task", "status", "updated", "actions"]} wrapperProps={{ "data-task-table": true }} /> : !selectedTaskId ? <ControlAsyncState compact state="empty" icon={<ListChecks size={22} />} title="No retained automation runs" message="AI augmentation and API operations will appear here after they start." /> : null}
     </ControlPageBody>
   </section>;
 }
@@ -817,7 +841,7 @@ function EventsView({ events, records, categories, canManageCategories, canCurat
     { key: "records", label: "Linked records", minWidth: 180, value: (event) => event.recordIds.map((id) => byId.get(id)?.id).filter(Boolean).join(" · ") || "No linked records" },
     { key: "actions", label: "Actions", role: "actions", required: true, sortable: false, render: (event) => <div className="dbi-table-actions"><button type="button" className="if-btn--ai-icon" aria-label={`Research and augment ${event.title}`} title="Research and augment" onClick={() => setResearchEvent(event)}><Sparkles size={14} /></button><button type="button" aria-label={`Edit ${event.title}`} title="Edit event" onClick={() => onEdit(event)}><Pencil size={14} /></button><button type="button" className="is-danger" aria-label={`Delete ${event.title}`} title="Delete event" onClick={() => onDelete(event.id)}><Trash2 size={14} /></button></div> },
   ];
-  const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks" aria-label="Task Center" title="Task Center"><ListChecks size={15} aria-hidden="true" /><span>Task Center</span></a>{canCurateDiscovery ? <a className="if-btn if-btn--secondary" href="#/budget-spend/event-discovery" aria-label="Manage event discovery" title="Manage event discovery"><Bot size={15} aria-hidden="true" /><span>Discovery</span></a> : null}{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" aria-label="Manage categories" title="Manage categories" onClick={onManageCategories}><Tags size={15} aria-hidden="true" /><span>Manage categories</span></button> : null}<button type="button" className="if-btn if-btn--primary" aria-label="Add event" title="Add event" onClick={onAdd}><Plus size={15} aria-hidden="true" /><span>Add event</span></button></>;
+  const actions = <><a className="if-btn if-btn--secondary" href="#/budget-spend/tasks" aria-label="Automation Runs" title="Automation Runs"><ListChecks size={15} aria-hidden="true" /><span>Automation</span></a>{canCurateDiscovery ? <a className="if-btn if-btn--secondary" href="#/budget-spend/event-discovery" aria-label="Manage event discovery" title="Manage event discovery"><Bot size={15} aria-hidden="true" /><span>Discovery</span></a> : null}{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" aria-label="Manage categories" title="Manage categories" onClick={onManageCategories}><Tags size={15} aria-hidden="true" /><span>Manage categories</span></button> : null}<button type="button" className="if-btn if-btn--primary" aria-label="Add event" title="Add event" onClick={onAdd}><Plus size={15} aria-hidden="true" /><span>Add event</span></button></>;
   const content = events.length ? <OperationalDataTable id="events" label="Operator events" rows={events} columns={columns} rowKey={(event) => event.id} defaultSort={{ key: "starts", direction: "asc" }} searchPlaceholder="Search events, teams, locations, links, categories, attendees, milestones, and notes…" exportFilename="operator-events.csv" toolbarActions={actions} mobileColumns={["title", "teams", "augmentation", "actions"]} highlightedRowId={focusedEventId} initialExpandedId={focusedEventId || null} wrapperProps={{ "data-ops-event-table": true }} renderDetail={(event) => <div className="dbi-table-detail-grid"><article><span>Location</span><strong><EventLocationLink location={event.location} fallback="Location not set" /></strong></article><article><span>Visibility</span><strong>{event.teams?.map((team) => team.name).join(" · ") || "Workspace-wide"}</strong></article><article><span>Catalog</span><strong>{event.catalogEventId ? `${event.catalogSyncState || "current"} · revision ${event.catalogRevision || 1}` : "Manual event"}</strong></article><article><span>Categories</span><strong>{eventCategoryLabels(event, categories).join(" · ") || "Uncategorized"}</strong></article><article><span>AI augmentation</span><strong>{eventAugmentationValue(event)}{event.lastAugmentedAt ? ` · ${dateTime(event.lastAugmentedAt)}` : ""}</strong></article><article><span>Intelligence</span><strong>{[event.intelligence?.sponsor, event.intelligence?.branch, ...(event.intelligence?.topics || []).slice(0, 3)].filter(Boolean).join(" · ") || "No retained intelligence"}</strong></article><article><span>Links</span><strong>{event.links?.map((link) => link.label || link.url).join(" · ") || "None"}</strong></article><article><span>Attendees</span><strong>{event.attendees?.map((attendee) => attendee.displayName).join(" · ") || "None assigned"}</strong></article><article><span>Deadlines &amp; milestones</span><strong>{event.milestones?.map((milestone) => `${milestoneLabel(milestone)} · ${compactDate(milestone.occursAt)}`).join(" · ") || "None published"}</strong></article><article><span>Notes</span><strong>{event.notes || "No notes"}</strong></article><article><span>Linked record IDs</span><strong>{event.recordIds.join(" · ") || "None"}</strong></article></div>} /> : <ControlAsyncState compact state="empty" icon={<CalendarDays size={22} />} title="No operator events" message="Add meetings, checkpoints, or reviews and optionally publish them to the display calendar." action={<>{canManageCategories ? <button type="button" className="if-btn if-btn--secondary" onClick={onManageCategories}>Manage categories</button> : null}<button type="button" className="if-btn if-btn--primary" onClick={onAdd}><Plus size={15} />Add event</button></>} />;
   return <section className={`ops-panel${embedded ? " ops-panel--embedded" : ""}`} data-ops-events>{!embedded ? <ControlPageHeader compact divided eyebrow="Primary surface" title="Events" summary="Schedule, filter, edit, or launch augmentation from an event row." headingLevel={2} /> : null}{embedded ? content : <ControlPageBody compact>{content}</ControlPageBody>}{researchEvent ? <EventAiLauncher key={researchEvent.id} event={researchEvent} onClose={() => setResearchEvent(null)} /> : null}</section>;
 }
@@ -1073,7 +1097,6 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   const records = useMemo(() => applyProcurementChanges(assembleProcurementRecords(dataset.records || [], awards, dataset.metadata.asOf, samOpportunities.records || [], manualProcurement.records || [], subawardSnapshot), procurementDelta.records || []), [awards, dataset, manualProcurement.records, procurementDelta.records, samOpportunities.records, subawardSnapshot]);
   const state = useManagementState(records);
   const view = VIEWS.has(requestedView) ? requestedView : "watchlist";
-  const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
   const [augmentEvent, setAugmentEvent] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(() => {
@@ -1127,7 +1150,8 @@ export default function OperationsHub({ view: requestedView = "watchlist", datas
   };
   return <div className={`operations-hub operations-hub--${view}`} data-operations-hub data-operations-view={view}>
     {state.error ? <p className="ops-alert" role="alert">Workspace sync failed: {state.error}</p> : null}
-    {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} events={state.events} asOf={dataset.metadata.asOf} query={query} setQuery={setQuery} toggleWatch={state.toggleWatch} updateWatch={state.updateWatch} savePursuit={state.savePursuit} /> : null}
+    {view === "watchlist" ? <WatchlistView rows={watchedRecords} watchlist={state.watchlist} events={state.events} savePursuit={state.savePursuit} /> : null}
+    {view === "actions" ? <ActionsView rows={watchedRecords} watchlist={state.watchlist} savePursuit={state.savePursuit} /> : null}
     {view === "schedule" ? <ScheduleView state={state} records={records} watchedRecords={watchedRecords} categories={state.eventCategories} teams={calendarTeams} auth={auth} dataset={dataset} onAdd={() => setEditor({ mode: "add-launcher" })} onEdit={(event) => setEditor({ mode: "edit", event })} onDelete={state.deleteEvent} onManageCategories={() => setCategoryManagerOpen(true)} /> : null}
     {view === "directory" ? <DirectoryView auth={auth} state={state} records={records} teams={calendarTeams} /> : null}
     {view === "tasks" ? <TasksView apiRequests={state.apiRequests} selectedTaskId={selectedTaskId} onRefresh={state.refresh} onOpenDraft={(event) => setEditor({ mode: "review", event })} onApplyDraft={applyReviewedEvent} onFocusEvent={focusSavedEvent} /> : null}

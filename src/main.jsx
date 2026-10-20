@@ -103,7 +103,7 @@ let PROCUREMENT_DELTA = { metadata: { status: "baseline" }, summary: { added: 0,
 let USASPENDING_SUBAWARDS = { metadata: { status: "unavailable", reportedSubawardCount: 0 }, primes: [] };
 let captureCalendarReady = false;
 
-const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "tasks", "connections", "users", "workspaces", "workspace-settings"]);
+const ADMINISTRATION_TAB_IDS = new Set(["watchlist", "actions", "tasks", "connections", "users", "workspaces", "workspace-settings"]);
 const OPERATIONS_TAB_IDS = new Set(["schedule", "directory", ...ADMINISTRATION_TAB_IDS]);
 const PROFILE_TAB_IDS = new Set(["profile", "security", "personal-ai"]);
 const BUDGET_REQUEST_TAB_IDS = new Set(["overview", "trends", "lifecycle"]);

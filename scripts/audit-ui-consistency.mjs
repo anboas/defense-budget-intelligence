@@ -21,6 +21,7 @@ const ROUTES = [
   ["account-flow", "#/budget-spend/lifecycle", "[data-account-spine-page]"],
   ["awards", "#/budget-spend/awards", "[data-awards-page]"],
   ["my-work", "#/budget-spend/watchlist", "[data-my-work]"],
+  ["actions", "#/budget-spend/actions", "[data-actions-workspace]"],
   ["tasks", "#/budget-spend/tasks", "[data-ops-task-center]"],
   ["schedule", "#/budget-spend/schedule", "[data-schedule-surface]"],
   ["connections", "#/budget-spend/connections", "[data-connections-surface]"],

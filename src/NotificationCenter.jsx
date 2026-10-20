@@ -41,7 +41,7 @@ export default function NotificationCenter() {
     {open ? <section className="if-popover__panel if-notifications" id="global-notifications" role="dialog" aria-label="Notifications">
       <header className="if-notifications__header"><div><h2>Notifications</h2><p>{notifications.unreadCount ? `${notifications.unreadCount} item${notifications.unreadCount === 1 ? "" : "s"} need attention` : notifications.activeCount ? `${notifications.activeCount} background task${notifications.activeCount === 1 ? "" : "s"} running` : "You’re caught up"}</p></div>{notifications.unreadCount ? <button type="button" className="if-btn if-btn--sm" onClick={notifications.markAllRead}>Mark read</button> : null}</header>
       <div className="if-notifications__body">
-        {!groups.length ? <ControlAsyncState compact state="empty" icon={<CircleCheck size={22} />} title="You’re caught up" message="Only active work and items needing a decision appear here. Completed history stays in Task Center." /> : groups.map(([label, items]) => <div key={label}>
+        {!groups.length ? <ControlAsyncState compact state="empty" icon={<CircleCheck size={22} />} title="You’re caught up" message="Only active work and items needing a decision appear here. Completed technical history stays in Automation Runs." /> : groups.map(([label, items]) => <div key={label}>
           <div className="if-notifications__group-label">{label}</div>
           {items.map((item) => <a key={item.id} href={item.href} className={`if-notification-item${item.unread ? " if-notification-item--unread" : ""}${item.tone === "warning" ? " if-notification-item--warning" : item.tone === "danger" ? " if-notification-item--danger" : ""}`} onClick={() => { notifications.markRead(item.id, item.job.status); setOpen(false); }}>
             <span className="if-notification-item__icon">{item.active ? <span className="if-loading-dots if-loading-dots--orbit if-loading-dots--sm" aria-hidden="true"><span /><span /><span /></span> : item.tone === "danger" || item.tone === "warning" ? <CircleAlert size={15} aria-hidden="true" /> : <CircleCheck size={15} aria-hidden="true" />}</span>
@@ -50,7 +50,7 @@ export default function NotificationCenter() {
           </a>)}
         </div>)}
       </div>
-      <footer className="if-notifications__footer"><a className="if-text-xs" href="#/budget-spend/tasks" onClick={() => setOpen(false)}>Open complete task history</a></footer>
+      <footer className="if-notifications__footer"><a className="if-text-xs" href="#/budget-spend/tasks" onClick={() => setOpen(false)}>Open automation history</a></footer>
     </section> : null}
   </div>;
 }
